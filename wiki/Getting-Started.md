@@ -57,12 +57,12 @@ Run `make` from PowerShell or another native Windows shell. Output-bearing
 recipes run the checked PE32 Cupid tools directly. The Makefile still uses WSL
 for Toolchain contracts, the user ABI contract, and artifact-size policy. The
 native `bootstrap-windows` command pairs the PE execution seed with the
-verified Linux plan and builds through stage four without WSL. An uncapped
-stage-three to stage-four proof passes, but it began from uncommitted source.
-The clean native Windows proof is next, so the checked
-execution seed is not yet a promoted native fixed point. Run
-`make verify-windows-bootstrap-seed`, then `make bootstrap-windows-from-seed`; a
-successful proof publishes under `build/bootstrap/checked-windows-seed`.
+verified Linux plan and builds through stage four without WSL. The clean proof
+passed in 1,152.7 seconds, and the 1,130.9-second promoted-seed reproof matched
+all five initial PE32 images. Run `make verify-windows-bootstrap-seed`, then
+`make bootstrap-windows-from-seed`; a successful proof publishes under
+`build/bootstrap/checked-windows-seed`. Python still coordinates this path,
+and Linux-seed contract work on Windows still uses WSL.
 Install LLVM only for the explicit native
 Toolchain contracts and native Windows comparison targets:
 

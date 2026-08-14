@@ -8,9 +8,9 @@ is the implementation map.
 Two checked seed roles are now explicit. The static i386 Linux cohort remains
 the bootstrap seed because its manifest carries the complete build plan and
 fixed-point provenance. The native i386 Windows PE32 cohort is an execution
-seed derived from matching stage-three outputs. Windows selects it for
+seed promoted from matching stage-four outputs. Windows selects it for
 output-bearing production commands, so those CupidC, CupidASM, CupidDis,
-CupidLD, and CupidObj calls no longer cross WSL. Fixed-point reconstruction,
+CupidLD, and CupidObj calls no longer cross WSL. Linux fixed-point reconstruction,
 Toolchain contracts, the user syscall ABI contract, and artifact-size policy
 still select the Linux seed. ADR 0272 records the distinction.
 
@@ -42,7 +42,32 @@ seed passed with all five initial seed comparisons true. Both runs matched the
 the 5/18/16 behavior matrix. The 5,573-byte promoted manifest has SHA-256
 `f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f`.
 It binds generation four, the clean revision, the 50-input snapshot, and the
-stage-three producers. The clean native Windows proof is next.
+stage-three producers.
+
+Native Windows then passed its clean proof from revision
+`bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930` in 1,152.7 seconds. Stages three
+and four matched 20 C objects, two assembly objects, and five tools. Both
+stages passed the 5/5/5 behavior matrix. The previous seed matched stage two
+for CupidLD and CupidObj but not for CupidASM, CupidC, or CupidDis. After the
+stage-four promotion, a 1,130.9-second reproof matched all five initial seed
+images and repeated the complete artifact and behavior gates.
+
+The promoted Windows cohort is:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 437,760 | `8134a9400c4cae7e6c7e72989aa9b23bbdcb56ba4d52a9ebb15363128e4a1f18` |
+| CupidC | 2,595,840 | `706c427d8e89352623274ad8e3321680a89c58c08d1d90a279a8d5ad814668e0` |
+| CupidDis | 387,584 | `07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a` |
+| CupidLD | 296,448 | `9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02` |
+| CupidObj | 375,808 | `079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79` |
+
+Its 2,118-byte manifest has SHA-256
+`96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9`.
+It binds the clean revision, the shared 50-input snapshot, and the native
+stage-three producers. Its parent is Linux manifest
+`f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f`
+from source revision `5d690c7508cc031a0cb32b2963bf16300b32e267`.
 
 The preliminary Linux report also rebuilds the native Windows behavior cohort.
 Four of its five PE images matched the direct Windows proof. CupidDis had the same
@@ -63,7 +88,8 @@ Linux behavior reports inventory the stage-three and stage-four Windows
 replaces the corresponding input in the reconstructed behavior link.
 
 ADR 0278 records the two-manifest boundary, ADR 0279 records the additional
-generation, and ADR 0280 records the Linux promotion.
+generation, ADR 0280 records the Linux promotion, and ADR 0281 records the
+Windows promotion.
 
 The reproducible native operator path is:
 
@@ -75,8 +101,7 @@ make bootstrap-windows-from-seed
 The first target verifies the separate PE execution seed and Linux plan
 manifest. The second publishes a successful proof under
 `build/bootstrap/checked-windows-seed`. Its dry run and two Make contract tests
-pass. The preliminary uncapped Windows run covers the frozen source snapshot.
-This operator path still needs a clean native proof before promotion.
+pass. The clean proof and promoted-seed reproof use this operator path.
 
 Hosted CupidC probes each page of a fixed frame larger than 4 KiB. The emitter
 keeps its old one-step reservation for smaller frames, then uses page-sized
@@ -108,9 +133,9 @@ live-output drift checks for both callers. Parent-replacement tests exposed a
 POSIX candidate leak when private work lived below the output parent. Private
 roots now live directly below the stable repository root. Both caller modules
 pass all 10 tests on Windows and all 10 through WSL, including parent
-replacement with no leaked candidate. The normal boot rule keeps the current
-checked-seed command until the checked Windows execution seed carries both
-options. ADR 0277 records the schema and staged ownership move.
+replacement with no leaked candidate. The promoted Windows execution seed now
+carries both options. The normal boot rule still needs its guarded publisher
+cutover. ADR 0277 records the schema and staged ownership move.
 
 Hosted CupidC now exposes the existing Cupid language profile as `--cupid`.
 The option selects Cupid vocabulary in both preprocessing and parsing, while
@@ -671,9 +696,9 @@ contract rename, and ADR 0196 records the full contract transfer.
 
 Host Python still coordinates the fixed point. Native Windows reconstruction
 runs the checked PE32 cohort directly with the verified Linux plan. Windows
-still uses WSL for Linux fixed-point and Linux-contract work. The preliminary
-native proof passed from uncommitted source, and its clean proof is next. The
-Linux stage-four seed is promoted. Python-free coordination remains open. `make
+still uses WSL for Linux fixed-point and Linux-contract work. Both the Linux
+and Windows stage-four seeds have clean proof, promotion, and promoted-seed
+reproof evidence. Python-free coordination remains open. `make
 verify-artifact-sizes` receives
 `$(BOOTSTRAP_SEED_MANIFEST)`, derives the five seed paths and declared sizes
 from that selected manifest, and requires the policy to agree. It also checks
@@ -1057,17 +1082,19 @@ CupidLD, so those two images differ from the older bootstrap seed. The
 ADR 0268 records the shared runtime boundary, ADR 0269 records the native
 CupidLD publisher, and ADR 0274 records the stack policy.
 
-The matching PE generation now forms the checked Windows execution seed.
+The matching PE generation formed the preceding checked Windows execution seed.
 CupidC is 2,594,304 bytes with SHA-256
 `209b493c73ff2b30ef38f0161491dacd5564f995a019876d96e8bc805b5c83e9`.
 Each image reserves and commits a one MiB stack; the heap reserves one MiB and
 commits 4 KiB. The independent reader checks those fields as part of the
-fixed-layout PE contract. The execution manifest records paired-stage
-provenance and the parent Linux seed, but it does not claim a native build plan
-or fixed point. Output-bearing Windows recipes run the checked PE cohort
-directly. Fixed-point reconstruction and Linux-contract paths still run the
-static Linux tools through WSL, and Host Python still coordinates both paths.
-ADR 0272 records carriage and production selection.
+fixed-layout PE contract. At that checkpoint, the execution manifest recorded
+paired-stage provenance and the parent Linux seed but no native build plan.
+The current promoted stage-four cohort and its clean evidence appear above.
+Output-bearing Windows recipes run the checked PE cohort directly. Linux
+fixed-point and contract paths still run the static Linux tools through WSL,
+while native Windows reconstruction runs the PE cohort directly. Host Python
+still coordinates both paths. ADR 0272 records carriage and production
+selection, and ADR 0281 records the current promotion.
 
 The checked-seed CLI uses an adjacent-candidate publisher for both ELF and PE
 output. It creates the candidate with exclusive-create semantics, writes and
@@ -1746,9 +1773,9 @@ generations, and publishes 21 artifacts with a manifest. The audit also keeps
 context. No hosted translation unit is deferred. Checked execution-seed
 carriage and production selection are complete. The native Windows driver now
 derives its PE plan from the verified Linux manifest and builds through stage
-four. Linux stage-three to stage-four convergence and seed promotion are
-complete. The clean native Windows proof, WSL-free Linux-seed contracts, and a
-Python-free driver remain open.
+four. Linux and native Windows stage-three to stage-four convergence and seed
+promotion are complete. WSL-free Linux-seed contracts and a Python-free driver
+remain open.
 
 The hosted `ctool_c_layout_types` contract fixes scalar, pointer, array, enum, vector, function-marker, aligned-wrapper, qualified-wrapper, struct, union, class, bit-field, flexible-array, packed, and explicit-alignment representation to the Cupid i386 target. Enum size, alignment, and signedness copy a frontend-selected compatible integer type. The independent manual active-source layout fixtures select signed `int` and are `4/4`; the declaration frontend now selects compatible types from source, including unsigned `int` for both nonnegative enums in the FAT16 closure. Positive contracts include a direct atomic pointer at `4/4`, a synthetic signed-`long long`-compatible atomic enum at `8/8`, and an aligned incomplete array retained as `0/16` until a compatible declaration supplies its bound. `QUALIFIED` represents `const`/`volatile`/`restrict`/`_Atomic` use of an existing semantic type without cloning its representation or record slice; a pointer to qualified `T` remains distinct from a qualified pointer to `T`. Non-atomic qualification preserves layout. Aligned wrappers carry an exact effective typedef/type-attribute alignment that may lower or raise natural alignment; explicit record alignment only raises the computed record result. Atomic identity propagates through both wrappers, but alignment follows source order: introducing `_Atomic` applies the cached target minimum, a later exact alignment may lower it, and later non-atomic qualification preserves it. Atomic aggregates remain unsupported. Layout enforces a flexible array's final structure position, while the declaration frontend enforces named-member eligibility, including names promoted through anonymous records. The operation resolves immutable index graphs with an iterative strong-edge walk, caches `_Bool`, active-atomic, and atomic-minimum facts once per type, preserves presumed/physical semantic locations, reclaims traversal scratch, and returns stable job-owned layouts transactionally in `O(types + members)`. A 4,096-wrapper/4,096-bit-field regression closes the former repeated-unwrapping path. Manual typed graphs pin all 54 FAT16 member offsets plus active Doom, process, syscall-table, `e1000_rx_desc_t`, and per-CPU ABI shapes.
 
@@ -1773,7 +1800,7 @@ generated translation units.
 The active-source digest is
 `f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
 The 2,673,345-byte audit JSON has SHA-256
-`381d62062c677b05ffa7bd87d52a985f0837e7772194ef66ce2e7aa27ad0845f`,
+`d30b4b9f747a567f36f42e85ad621d8359f62d174f1fbdda403ee5bffacc5964`,
 and the 12,269-byte summary has SHA-256
 `1cb16ea4cbf4ec84d447bcb9e85b8ea2062078fec32a5e5254bfc700cc2d39ec`.
 

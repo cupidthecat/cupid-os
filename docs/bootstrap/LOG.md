@@ -25328,3 +25328,74 @@ The standalone artifact-size policy module passed all 12 tests in 2.130
 seconds. A production `make verify-artifact-sizes` attempt timed out after 604
 seconds during a seed-triggered kernel compile and was stopped cleanly. The
 production Make gate did not finish and is not recorded as a pass.
+
+## 2026-08-14: Promote the clean stage-four Windows seed
+
+Revision `bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930` supplied the named clean
+source boundary for the native Windows proof. The run passed in 1,152.7
+seconds. Stages three and four matched across 20 C objects, two assembly
+objects, and all five tools. Both stages passed the 5/5/5 behavior matrix. The
+report binds the same 50-input snapshot as the promoted Linux seed, SHA-256
+`d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
+
+The old execution seed recorded the expected transition into stage two.
+CupidASM, CupidC, and CupidDis did not match their stage-two images. CupidLD
+and CupidObj did. Stages three and four still matched completely, which is the
+convergence boundary defined by ADR 0279.
+
+The stage-four cohort became the checked i386 Windows execution seed:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 437,760 | `8134a9400c4cae7e6c7e72989aa9b23bbdcb56ba4d52a9ebb15363128e4a1f18` |
+| CupidC | 2,595,840 | `706c427d8e89352623274ad8e3321680a89c58c08d1d90a279a8d5ad814668e0` |
+| CupidDis | 387,584 | `07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a` |
+| CupidLD | 296,448 | `9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02` |
+| CupidObj | 375,808 | `079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79` |
+
+The 2,118-byte manifest has SHA-256
+`96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9`.
+It records generation `paired-stage-four-native-windows`, the clean source
+revision, the 50-input count and snapshot, and the native stage-three producer
+trio. Its parent is Linux manifest
+`f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f`
+from source revision `5d690c7508cc031a0cb32b2963bf16300b32e267`.
+
+A post-promotion proof started from the new PE32 cohort and passed in 1,130.9
+seconds. All five initial seed comparisons are true. Stages three and four
+again matched the 20/2/5 artifact set, and both stages passed 5/5/5 behavior.
+The preliminary uncommitted proof remains investigation history. ADR 0281
+records the clean promotion.
+
+The focused Windows seed and native-boundary suite passed 15 tests in 16.452
+seconds. The build-graph seed-role test passed separately. Final review added
+floating `50.0` source-count negatives for both manifest schemas. They failed
+before the verifier required an exact integer and pass with that check in
+place.
+
+`make test-user-native-windows-equivalence` did not complete. Two captured
+attempts timed out after 1,204.051 and 2,104.041 seconds without publishing
+`toolchain/build/cupidc-contracts`. The promoted Linux seed then compiled
+`toolchain/tests/cupidc_object_contract.cc` by itself in 826.192 seconds and
+produced a valid 2,497,288-byte i386 object. The builder runs two contracts at
+once and limits each compile to 900 seconds, leaving 73.808 seconds of
+idle-host headroom for this source. Parallel contention is therefore the
+current failure mode. The user-equivalence target is recorded as timed out,
+not passed. Per-plan timeout and heavyweight scheduling changes belong to the
+next implementation step.
+
+The regenerated active-source audit retains digest
+`f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
+Its 2,673,345-byte JSON report has SHA-256
+`d30b4b9f747a567f36f42e85ad621d8359f62d174f1fbdda403ee5bffacc5964`.
+The 12,269-byte Markdown summary has SHA-256
+`1cb16ea4cbf4ec84d447bcb9e85b8ea2062078fec32a5e5254bfc700cc2d39ec`.
+
+Python still coordinates the native bootstrap. Linux fixed-point and contract
+work on Windows still uses WSL. The promoted tools now carry CupidASM `--map`
+and CupidDis `--range-map`, so seed capability no longer blocks the guarded
+bootloader publisher. Its normal Make edge cutover remains open.
+
+No active source earned a `.c` to `.cc` rename. The supported fixed-point plan
+already uses `.cc`, and the remaining tracked `.c` files stay outside the
+Cupid-owned build roots.

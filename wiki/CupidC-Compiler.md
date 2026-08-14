@@ -816,8 +816,9 @@ SHA-256
 A 1,411.998-second reproof from the promoted manifest reproduced all five
 initial seed images, the artifact fixed point, and the 5/18/16 behavior matrix.
 An earlier clean 801.9-second proof remains the provenance record for the
-checked Windows execution seed. The clean native Windows convergence proof is
-next. ADR 0266 records the decoder index.
+preceding Windows execution seed. The clean native Windows proof later passed
+in 1,152.7 seconds, and the promoted-seed reproof passed in 1,130.9 seconds.
+ADR 0266 records the decoder index, and ADR 0281 records the Windows promotion.
 The normal kernel path runs strict checked-seed CupidDis and checked CupidObj
 flat extraction against one frozen cohort of all 429 audited root object
 outputs plus the pass-one and final kernel ELFs. Its 9,076-byte graph-ordered input manifest has SHA-256
@@ -919,10 +920,10 @@ and ran complete native images for all five hosted tools through the same PE
 path. Stages two and three produced matching images, and Windows ran help plus
 useful success and failure cases for every tool. CupidDis also checked exact
 raw-report parity. CupidLD checked exact linked output,
-candidate collision, failure diagnostics, and cleanup. Those images now form
-the checked Windows execution seed used by output-bearing production recipes.
-Source head pairs that execution seed with the verified Linux plan and builds
-native stages two through four. Stage three and stage four are the convergence
+candidate collision, failure diagnostics, and cleanup. Those images formed
+the preceding checked Windows execution seed used by output-bearing production
+recipes. The native driver pairs the execution seed with the verified Linux
+plan and builds native stages two through four. Stage three and stage four are the convergence
 pair. Under the old comparison, a source-stable Windows run stopped safely at
 `cupidobj_main` after 821.9 seconds, and Linux stopped at the same transition
 after 883.3 seconds. Neither run published. Later uncapped proofs passed the
@@ -932,13 +933,18 @@ same 50-input snapshot, SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
 Both runs began from uncommitted source and remain preliminary history. Linux
 later passed a clean proof in 1,383.775 seconds, promoted the stage-four seed,
-and passed a 1,411.998-second reproof from that seed. The clean native Windows
-proof is next.
+and passed a 1,411.998-second reproof from that seed. Native Windows then
+passed a clean 1,152.7-second proof and promoted the stage-four PE32 cohort.
+The current CupidC image is 2,595,840 bytes with SHA-256
+`706c427d8e89352623274ad8e3321680a89c58c08d1d90a279a8d5ad814668e0`.
+The 1,130.9-second reproof from that cohort matched all five initial seed
+images and repeated the 20/2/5 artifact and 5/5/5 behavior gates.
 ADRs 0247 and 0248 record the format and small loader boundaries, ADR 0258
 records seed carriage, ADR 0268 records the shared runtime, and ADR 0269
 records CupidLD publication. ADR 0272 records native carriage and production
 selection, ADR 0278 records native reconstruction, ADR 0279 records the
-convergence generation, and ADR 0280 records the clean Linux promotion.
+convergence generation, ADR 0280 records the clean Linux promotion, and ADR
+0281 records the clean Windows promotion.
 
 The preliminary Linux behavior reconstruction found one Windows-profile
 difference. Its 387,584-byte CupidDis image had SHA-256

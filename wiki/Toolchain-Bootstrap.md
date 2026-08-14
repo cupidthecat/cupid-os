@@ -8,9 +8,9 @@ Cupid OS also carries a checked native i386 Windows execution seed for those
 five tools. Windows selects the PE32 cohort for output-bearing production
 commands. The Linux cohort remains the bootstrap seed for fixed-point,
 Toolchain-contract, user-ABI, and artifact-size work because only its manifest
-carries the full build plan. The Windows manifest records paired-stage
-provenance instead of claiming a native fixed point. ADR 0272 records the two
-roles.
+carries the full build plan. The promoted Windows manifest records clean
+stage-four provenance and keeps the Linux plan as a separate verified parent.
+ADR 0272 records the two roles, and ADR 0281 records the promotion.
 
 Source head can reconstruct native Windows stages two through four without WSL.
 The reproducible operator entry points are:
@@ -48,9 +48,11 @@ cases. Both preliminary reports bind the same 50-input snapshot, SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
 They began from uncommitted source. Linux later passed a clean proof in
 1,383.775 seconds, promoted the stage-four seed, and passed a 1,411.998-second
-reproof with every initial seed comparison true. The clean native Windows
-proof is next. ADR 0278 records the driver, ADR 0279 records the added
-generation, and ADR 0280 records the Linux promotion.
+reproof with every initial seed comparison true. Native Windows then passed a
+clean 1,152.7-second proof, promoted its stage-four PE32 seed, and passed a
+1,130.9-second reproof with every initial seed comparison true. ADR 0278
+records the driver, ADR 0279 records the added generation, ADR 0280 records the
+Linux promotion, and ADR 0281 records the Windows promotion.
 
 A preliminary Linux behavior reconstruction matched four direct Windows tools
 and exposed a CupidDis-only profile difference. Both CupidDis images were
@@ -197,8 +199,7 @@ Host Python still coordinates each fixed point. Windows rebuilds native tools
 from the checked PE execution seed and the verified Linux plan seed without
 WSL. Linux contract programs on Windows still run the static i386 Linux tools
 through WSL, while output-bearing production calls use the checked PE32 cohort
-directly. Linux now uses its clean promoted stage-four seed. The preliminary
-native proof passed from uncommitted source, and its clean proof is next.
+directly. Linux and native Windows now use clean promoted stage-four seeds.
 Python-free coordination remains open.
 `make verify-artifact-sizes` receives
 `$(BOOTSTRAP_SEED_MANIFEST)`, derives the five seed paths and declared sizes
@@ -261,18 +262,41 @@ closure has SHA-256
 All five Linux and native Windows tools match from stage two to stage three.
 The 38,164-byte report has SHA-256
 `3c63664f08e7bcdc639a88ca6ada6cf5143100eac966d748660b65d537b01e10`.
-The checked Windows execution seed used by output-bearing production recipes
-is this matching PE generation. Its CupidC image is 2,594,304 bytes
+That matching PE generation formed the preceding checked Windows execution
+seed. Its CupidC image is 2,594,304 bytes
 with SHA-256
 `209b493c73ff2b30ef38f0161491dacd5564f995a019876d96e8bc805b5c83e9`.
 Every image reserves and commits a one MiB stack; its heap reserves one MiB and
 commits 4 KiB. Native reconstruction takes the Linux manifest as a separate
 verified plan input because the execution manifest deliberately carries no
 Windows build plan. Its first complete run rejected live source drift, so the
-checked Windows seed still records the earlier paired-stage proof. Source head
-builds stage four and compares the final pair. Preliminary uncapped Windows
+checked Windows seed still recorded the earlier paired-stage proof at that
+checkpoint. Source head builds stage four and compares the final pair. Preliminary uncapped Windows
 and Linux proofs pass. Linux later completed its clean proof, stage-four
-promotion, and promoted-seed reproof. The clean native Windows proof is next.
+promotion, and promoted-seed reproof. Native Windows later completed its clean
+proof, stage-four promotion, and promoted-seed reproof.
+
+The current Windows execution seed is:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 437,760 | `8134a9400c4cae7e6c7e72989aa9b23bbdcb56ba4d52a9ebb15363128e4a1f18` |
+| CupidC | 2,595,840 | `706c427d8e89352623274ad8e3321680a89c58c08d1d90a279a8d5ad814668e0` |
+| CupidDis | 387,584 | `07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a` |
+| CupidLD | 296,448 | `9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02` |
+| CupidObj | 375,808 | `079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79` |
+
+Its 2,118-byte manifest has SHA-256
+`96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9`.
+It binds clean revision `bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930`, the
+50-input snapshot
+`d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`,
+native stage-three producers, and Linux parent manifest
+`f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f`.
+The clean proof passed in 1,152.7 seconds. Its old match vector was false for
+CupidASM, CupidC, and CupidDis and true for CupidLD and CupidObj. The
+1,130.9-second reproof matched all five initial seed images and repeated the
+20/2/5 artifact and 5/5/5 behavior gates.
 [ADR
 0268](../docs/adr/0268-run-cupid-built-cupiddis-on-windows.md) records the
 shared runtime, and [ADR
@@ -306,9 +330,9 @@ The expanded eleven-test suite passed in 1.708 seconds, including direct
 mismatch and live-output drift checks for both callers. Parent-replacement
 tests exposed a POSIX candidate leak when private work lived below the output
 parent. Private roots now live directly below the stable repository root. Both
-caller modules pass all 10 tests on Windows and through WSL. The normal bootloader Make
-edge remains on direct checked CupidASM until a promoted seed carries `--map`
-and `--range-map`.
+caller modules pass all 10 tests on Windows and through WSL. The promoted
+Windows seed carries `--map` and `--range-map`. The normal bootloader Make edge
+remains on direct checked CupidASM until the guarded publisher cutover.
 
 Source-head CupidASM also accepts `align POWER_OF_TWO[, FILL_BYTE]`. Raw
 output aligns the absolute `ORG` address, ELF32 output carries the required

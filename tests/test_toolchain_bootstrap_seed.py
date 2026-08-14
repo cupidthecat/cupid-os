@@ -1606,6 +1606,20 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "Windows seed generation differs",
             ),
             (
+                "wrong fixed-point command",
+                lambda manifest: manifest["provenance"].update(
+                    {"fixed_point_command": "make bootstrap-from-seed"}
+                ),
+                "fixed-point command differs",
+            ),
+            (
+                "failed fixed-point result",
+                lambda manifest: manifest["provenance"].update(
+                    {"fixed_point_result": "failed"}
+                ),
+                "seed lacks passing fixed-point provenance",
+            ),
+            (
                 "wrong source snapshot",
                 lambda manifest: manifest["provenance"].update(
                     {"source_snapshot_sha256": "0" * 64}
@@ -1623,6 +1637,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "wrong source count",
                 lambda manifest: manifest["provenance"].update(
                     {"source_input_count": 49}
+                ),
+                "source input count differs",
+            ),
+            (
+                "floating source count",
+                lambda manifest: manifest["provenance"].update(
+                    {"source_input_count": 50.0}
                 ),
                 "source input count differs",
             ),
@@ -1681,6 +1702,61 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         BootstrapError, f"^{expected}$"
                     ):
                         verify_seed_inputs(manifest_path)
+
+    def test_stage_four_windows_seed_accepts_native_producer_provenance(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-windows-stage-four-"
+        ) as temporary:
+            copied_seed = Path(temporary) / "seed"
+            shutil.copytree(WINDOWS_SEED_MANIFEST.parent, copied_seed)
+            manifest_path = copied_seed / "manifest.json"
+            manifest = json.loads(
+                manifest_path.read_text(encoding="utf-8")
+            )
+            manifest["provenance"] = {
+                "artifact_generation": (
+                    "paired-stage-four-native-windows"
+                ),
+                "fixed_point_command": (
+                    "make bootstrap-windows-from-seed"
+                ),
+                "fixed_point_result": "pass",
+                "parent_seed_manifest_sha256": (
+                    "f8528f5fcb68473f5078427dfc1c7dd5"
+                    "fce78413a56b45c6aa831971d827ca4f"
+                ),
+                "parent_seed_source_revision": (
+                    "5d690c7508cc031a0cb32b2963bf16300b32e267"
+                ),
+                "producer_lineage": {
+                    "assembly": (
+                        "native stage-three CupidASM from the checked "
+                        "i386 Windows bootstrap"
+                    ),
+                    "c": (
+                        "native stage-three CupidC from the checked "
+                        "i386 Windows bootstrap"
+                    ),
+                    "link": (
+                        "native stage-three CupidLD from the checked "
+                        "i386 Windows bootstrap"
+                    ),
+                },
+                "source_input_count": 50,
+                "source_revision": (
+                    "bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930"
+                ),
+                "source_snapshot_sha256": SOURCE_HEAD_SNAPSHOT_SHA256,
+            }
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+
+            verified = verify_seed_inputs(manifest_path)
+
+            self.assertEqual(set(verified.tools), set(TOOL_NAMES))
 
     def test_checked_i386_windows_seed_snapshot_matches_its_named_commit(self):
         manifest = json.loads(
@@ -2102,6 +2178,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(report["platform"], "windows-native")
             self.assertEqual(
+                report["seed_manifest_sha256"],
+                hashlib.sha256(WINDOWS_SEED_MANIFEST.read_bytes()).hexdigest(),
+            )
+            self.assertEqual(
+                report["plan_manifest_sha256"],
+                hashlib.sha256(SEED_MANIFEST.read_bytes()).hexdigest(),
+            )
+            self.assertEqual(
                 report["comparisons"],
                 {
                     "all_equal": True,
@@ -2150,9 +2234,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
                 {
-                    "cupidasm": False,
-                    "cupidc": False,
-                    "cupiddis": False,
+                    "cupidasm": True,
+                    "cupidc": True,
+                    "cupiddis": True,
                     "cupidld": True,
                     "cupidobj": True,
                 },
@@ -5757,6 +5841,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "source input count",
                 "source_input_count",
                 49,
+                "source input count differs",
+            ),
+            (
+                "floating source input count",
+                "source_input_count",
+                50.0,
                 "source input count differs",
             ),
             (

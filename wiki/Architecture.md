@@ -168,8 +168,8 @@ supplied the entry and imported API bridges, while CupidLD authored each PE
 image and its IAT slots. CupidLD added four publication imports to the shared
 twelve. Windows ran help plus a useful success and failure path for each tool.
 CupidDis also checked quoted raw-input parity with the Linux tool. These five
-images form the checked Windows
-execution seed used by output-bearing production recipes. Toolchain contracts,
+images formed the preceding checked Windows execution seed used by
+output-bearing production recipes. Toolchain contracts,
 the user ABI contract, and artifact-size policy still run the Linux seed
 through WSL. Source head freezes the PE execution seed and the Linux plan
 manifest separately, then reconstructs native Windows stages two through four.
@@ -186,8 +186,12 @@ snapshot, SHA-256
 Those reports remain preliminary because they began from uncommitted source.
 Linux later passed a 1,383.775-second clean proof, promoted the stage-four
 seed, and passed a 1,411.998-second reproof with all five initial seed
-comparisons true. The clean native Windows proof is next. ADR 0280 records the
-Linux promotion.
+comparisons true. Native Windows then passed a 1,152.7-second clean proof,
+promoted its stage-four PE32 seed, and passed a 1,130.9-second reproof with all
+five initial seed comparisons true. Its 2,118-byte manifest has SHA-256
+`96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9`.
+ADR 0280 records the Linux promotion, and ADR 0281 records the Windows
+promotion.
 
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all
 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline JPEG decode,

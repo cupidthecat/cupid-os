@@ -87,11 +87,21 @@ SHA-256
 f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f.
 It binds the clean revision, generation four, the 50-input snapshot, and the
 stage-three producers. A 1,411.998-second reproof reproduced all five seed
-images and the same fixed point. The clean native Windows proof is next. ADR
-0268 records the shared runtime, ADR 0269
+images and the same fixed point. Native Windows then passed a clean proof from
+revision bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930 in 1,152.7 seconds. Stages
+three and four matched 20 C objects, two assembly objects, and five tools, and
+both passed 5/5/5 behavior. The old seed matched stage two for CupidLD and
+CupidObj but not for CupidASM, CupidC, or CupidDis. The 2,118-byte promoted
+manifest has SHA-256
+96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9.
+It keeps Linux manifest
+f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f
+as its verified parent. A 1,130.9-second reproof matched all five initial seed
+images and repeated the fixed point. ADR 0268 records the shared runtime, ADR 0269
 records CupidLD publication, ADR 0272 records Windows execution seed carriage
 and production selection, ADR 0278 records the native driver, and ADR 0279
-records the convergence rule. ADR 0280 records the clean Linux promotion.
+records the convergence rule. ADR 0280 records the clean Linux promotion, and
+ADR 0281 records the clean Windows promotion.
 
 A preliminary Linux behavior reconstruction matched four native tools but
 found that its 387,584-byte CupidDis differed from the direct Windows image. The reconstructed
@@ -102,7 +112,7 @@ The reproducible native operator runs make verify-windows-bootstrap-seed, then
 make bootstrap-windows-from-seed. The second target publishes only under
 build/bootstrap/checked-windows-seed after the complete gate passes. Its dry
 run and two Make contract tests pass. The clean native Windows proof and
-promotion are next.
+promotion are complete under ADR 0281.
 >endtree
 
 >h2 Entry Point

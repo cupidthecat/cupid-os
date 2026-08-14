@@ -338,9 +338,8 @@ reattach, ATA, AC'97 and PC speaker audio, EHCI storage across six lifetimes,
 a zero-padded RTC timestamp, and DHCP traffic. A separate runtime check must
 load the same external ELF program twice at 0x01C00000 and release its first
 arena lease before the second load. CupidC optimization, removal of Host
-Python and the WSL bridge used for Linux-seed contracts and bootstrap, a
-clean native Windows convergence proof and promotion, IWAD-backed
-gameplay, and a defined output-quality gate remain open.
+Python and the WSL bridge used for Linux-seed contracts and bootstrap,
+IWAD-backed gameplay, and a defined output-quality gate remain open.
 
 CupidC also represents operand-free GNU assembly inside functions. Basic
 statements and extended statements with an empty output list are implicitly
@@ -928,7 +927,7 @@ matching images. Windows ran help plus useful success and failure paths for all
 five tools. CupidDis checked quoted raw-input parity with the Linux tool.
 CupidLD checked
 exact output, candidate collision, failure diagnostics, and cleanup. Those
-images now form the checked Windows execution seed used by output-bearing
+images formed the preceding checked Windows execution seed used by output-bearing
 production recipes. The native bootstrap driver freezes that PE execution seed
 with a separate verified Linux plan. The seed builds stage two, stage two
 builds stage three, and stage three builds stage four. Stages two and three are
@@ -952,11 +951,21 @@ The 5,573-byte seed manifest has SHA-256
 f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f
 and binds generation four, the clean revision, the 50-input snapshot, and the
 stage-three producers. A 1,411.998-second reproof reproduced all five promoted
-seed images and the same fixed point. The clean native Windows proof is next.
-ADR 0268 records the shared runtime, ADR
+seed images and the same fixed point. Native Windows then passed a clean proof
+from revision bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930 in 1,152.7 seconds.
+Stages three and four matched 20 C objects, two assembly objects, and five
+tools, and both passed 5/5/5 behavior. The old match vector was false for
+CupidASM, CupidC, and CupidDis and true for CupidLD and CupidObj. The promoted
+CupidC image is 2,595,840 bytes with SHA-256
+706c427d8e89352623274ad8e3321680a89c58c08d1d90a279a8d5ad814668e0.
+The 2,118-byte Windows manifest has SHA-256
+96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9.
+A 1,130.9-second reproof matched all five initial seed images and repeated the
+same fixed point. ADR 0268 records the shared runtime, ADR
 0269 records CupidLD publication, ADR 0272 records checked carriage and
 production selection, ADR 0278 records the native driver, and ADR 0279 records
-the convergence rule. ADR 0280 records the clean Linux promotion.
+the convergence rule. ADR 0280 records the clean Linux promotion, and ADR 0281
+records the clean Windows promotion.
 
 A preliminary Linux behavior reconstruction matched four direct native tools
 but found a CupidDis profile difference. Its 387,584-byte image had SHA-256
@@ -1083,12 +1092,12 @@ stages. The frozen 50-input closure had SHA-256
 The 38,164-byte report had SHA-256
 3c63664f08e7bcdc639a88ca6ada6cf5143100eac966d748660b65d537b01e10.
 That proof passed in 801.9 seconds and remains historical provenance for the
-checked Windows execution seed. The checked 128
+preceding Windows execution seed. The checked 128
 KiB strict-decode case completed within its 30-second limit. The Windows
 runtime printed the exact success marker and returned 37. ADR 0266 records
 indexed decoding, and ADR 0265
 records that transition and promotion. ADR 0280 records the current Linux
-seed. The first
+seed, and ADR 0281 records the current Windows seed. The first
 separate gate covered 427 audited root objects and two kernel ELFs. Its
 9,028-byte, 429-path manifest had SHA-256
 48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e,
@@ -1159,7 +1168,7 @@ The native operator runs make verify-windows-bootstrap-seed, followed by make
 bootstrap-windows-from-seed. The targets keep the PE execution seed and Linux
 plan manifest separate. A successful proof publishes only under
 build/bootstrap/checked-windows-seed. The Make dry run and two Make contract
-tests pass. The clean native Windows proof and promotion are next.
+tests pass. The clean proof and promotion are complete under ADR 0281.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before

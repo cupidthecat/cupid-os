@@ -10,7 +10,7 @@ files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
 `f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
 The 2,673,345-byte audit JSON has SHA-256
-`381d62062c677b05ffa7bd87d52a985f0837e7772194ef66ce2e7aa27ad0845f`,
+`d30b4b9f747a567f36f42e85ad621d8359f62d174f1fbdda403ee5bffacc5964`,
 and the 12,269-byte summary has SHA-256
 `1cb16ea4cbf4ec84d447bcb9e85b8ea2062078fec32a5e5254bfc700cc2d39ec`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
@@ -57,10 +57,12 @@ remains a required host-control component. WSL remains required on Windows for
 Linux-contract paths, but not for output-bearing production tool calls. Source
 head can reconstruct native Windows stages two through four without WSL by
 freezing the PE execution seed and Linux plan seed. A complete stage-three to
-stage-four native convergence proof has passed on one frozen uncommitted
-snapshot; its clean proof is next. Linux passed its clean proof in 1,383.775
-seconds and promoted the stage-four seed. The promoted-seed reproof passed in
-1,411.998 seconds. Python-free coordination remains open.
+stage-four native convergence proof first passed on one frozen uncommitted
+snapshot. Native Windows later passed its clean proof in 1,152.7 seconds,
+promoted the stage-four seed, and passed a 1,130.9-second reproof from that
+seed. Linux passed its clean proof in 1,383.775 seconds and promoted its
+stage-four seed. Its promoted-seed reproof passed in 1,411.998 seconds.
+Python-free coordination remains open.
 
 The normal `all` target uses Host Python for one additional read-only check.
 `verify-artifact-sizes` is a direct prerequisite of `cupidos.img` and receives
@@ -80,7 +82,7 @@ the loader probe, and ADR 0258 records its seed carriage.
 
 The five proven native images now live in a strict checked execution seed.
 Its manifest binds the exact PE32 imports, artifacts, source snapshot, parent
-Linux seed, and paired-stage provenance. Windows selects that cohort for
+Linux seed, and clean stage-four provenance. Windows selects that cohort for
 output-bearing CupidC, CupidASM, CupidDis, CupidLD, and CupidObj calls. The
 runner executes private PE copies directly and rechecks the whole live cohort
 after each command. Linux keeps the static checked bootstrap seed. The native
@@ -89,11 +91,14 @@ manifest and preserves both trust roles. The first full run rejected source
 drift after stage two. A later source-stable run stopped safely at the old
 stage-two versus stage-three comparison. Preliminary uncapped Windows and
 Linux runs passed the stage-three to stage-four comparison and their complete
-behavior matrices on the same 50-input snapshot. Native Windows promotion now
-awaits a replay from a named clean commit. ADR 0268
+behavior matrices on the same 50-input snapshot. Native Windows now has a
+clean 1,152.7-second proof and a 1,130.9-second promoted-seed reproof. The
+2,118-byte execution manifest has SHA-256
+`96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9`.
+ADR 0268
 records the shared runtime, ADR 0269 records CupidLD's
 publication boundary, and ADR 0272 records checked carriage and production
-selection.
+selection. ADR 0281 records the stage-four promotion.
 
 The SMP trampoline now has two Cupid tool owners on one production transform.
 CupidASM assembles a private 4 KiB candidate. CupidDis validates its exact
@@ -107,8 +112,8 @@ capabilities. Hosted CupidC probes each page of a large fixed frame. Kernel AOT
 now gives a CupidASM relocatable object to in-kernel CupidLD. CupidASM can
 serialize its raw statement layout, and CupidDis can consume that file for
 strict inspection. Host Python coordinates the private bootloader candidate
-and publication checks, but the normal boot edge stays on the current checked
-assembler until the checked Windows execution seed carries both map options.
+and publication checks. The promoted Windows execution seed carries both map
+options, but the normal boot edge still needs its guarded publisher cutover.
 Parent-replacement tests exposed a POSIX
 candidate leak when private work lived below the output parent. Private
 raw-image roots now live directly below the stable repository root. The two
@@ -132,10 +137,14 @@ five tools in 24 minutes 22 seconds with 5/18/16 behavior cases. Both reports
 bind the same 50-input snapshot, SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
 Both preliminary proofs began from uncommitted source. Linux later passed its
-clean proof, promoted stage four, and passed a reproof from the new seed. The
-clean native Windows proof and promotion are next. ADR 0278
-records the native driver, ADR 0279 records the convergence rule, and ADR 0280
-records the Linux promotion.
+clean proof, promoted stage four, and passed a reproof from the new seed.
+Native Windows then passed its clean proof from revision
+`bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930` in 1,152.7 seconds. The previous
+seed comparison was false for CupidASM, CupidC, and CupidDis and true for
+CupidLD and CupidObj. Its 1,130.9-second promoted-seed reproof matched all five
+initial seed images. ADR 0278 records the native driver, ADR 0279 records the
+convergence rule, ADR 0280 records the Linux promotion, and ADR 0281 records
+the Windows promotion.
 
 The preliminary Linux behavior reconstruction found one cross-path
 difference. Its 387,584-byte Windows CupidDis had SHA-256
@@ -856,13 +865,13 @@ records the ownership transfer.
 | GCC with i386/multilib support | Builds optional native Toolchain contracts and commands on Linux | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native oracle and development targets | Retain only as an optional oracle or bootstrap escape hatch |
 | Clang with i386 target support | Builds optional native Toolchain contracts and commands on Windows, including the native CupidC and CupidLD user oracle | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native comparison and development targets | Retain only as an optional oracle or bootstrap escape hatch |
 | NASM | Optional comparison oracle for the four boot and kernel CupidASM parity tests and the shared ELF32 reader | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; `make nasm-assembly-oracle` uses it when installed. The ISO lane fixture is excluded because NASM freezes `$` across its `TIMES` statement | Retain only as an optional oracle/bootstrap escape hatch |
-| Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS, user, or normal Toolchain link recipe remains. CupidLD owns those outputs. Checked-seed CupidLD builds deterministic imports and links the small loader probe plus native images for all five hosted tools. Windows runs those images directly, including CupidLD's publication workload. A host compiler still invokes a native linker for optional oracle and development commands, while standalone ELF linkers remain comparison tools. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Not required by root `all`, `user:all`, `toolchain:all`, or the checked-seed Windows execution proofs; required only by optional native targets | Retain only as an optional oracle or escape hatch while a native Windows fixed-point rebuild remains open |
+| Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS, user, or normal Toolchain link recipe remains. CupidLD owns those outputs. Checked-seed CupidLD builds deterministic imports and links the small loader probe plus native images for all five hosted tools. Windows runs those images directly, including CupidLD's publication workload. A host compiler still invokes a native linker for optional oracle and development commands, while standalone ELF linkers remain comparison tools. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Not required by root `all`, `user:all`, `toolchain:all`, or the checked-seed Windows execution proofs; required only by optional native targets | Retain only as an optional oracle or escape hatch |
 | GNU `objcopy` / `llvm-objcopy` | No role in the normal build; tracked legacy/oracle helpers may still invoke it manually, and the checked `6731dd6` evidence fingerprints the then-installed oracle | Not required for root `all`, `user:all`, `toolchain:all`, or new `bootstrap-baseline` captures | Retain only as an optional comparison/maintenance utility; CupidObj owns the production transformations |
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
 | Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal five-tool build and sixteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime. All five native Windows tools use the repository runtime and twelve shared CupidASM API bridges; CupidLD adds four publication bridges | Not required by root `all`, `user:all`, `toolchain:all`, or the checked Windows commands; required only by native oracle and development targets | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |
 | GNU Make | Declares the root, user, and toolchain-contract build graphs and invokes tools | Required; the graph uses portable ordinary/stamp targets rather than GNU Make 4.3 grouped-target syntax | May remain as host orchestration; it must invoke Cupid code-producing tools on the normal path |
 | Python 3 | Launches the host-selected checked execution cohort for output-bearing work and the Linux bootstrap seed for fixed-point and contract work; runs the Python-only size verifier; compares the Cupid-built syscall ABI report with an independent oracle; coordinates kernel-symbol and trampoline validation; parity-checks accepted JPEG, ISO, and profile-manifest bytes; builds independent template oracles; preserves FAT contents and stages files; validates, locks, and atomically publishes outputs; builds fixtures; and drives QEMU tests | Required | May remain for tests and packaging, but removing it from the staged fixed point and checked-tool launch path is the open Python-free bootstrap gate |
-| WSL on Windows | Runs the checked static i386 Linux seed for fixed-point reconstruction, Toolchain contracts, the user syscall ABI contract, and artifact-size provenance checks | Required for those Linux-seed paths on Windows; output-bearing production tools run from the native checked PE32 execution seed | Remove it after native fixed-point and contract paths no longer depend on Linux executable semantics |
+| WSL on Windows | Runs the checked static i386 Linux seed for Linux fixed-point reconstruction, Toolchain contracts, the user syscall ABI contract, and artifact-size provenance checks | Required for those Linux-seed paths on Windows; native Windows fixed-point reconstruction and output-bearing production tools run the checked PE32 execution seed without WSL | Remove it after the Linux fixed-point and contract paths no longer depend on Linux executable semantics |
 | Git | Enumerates the tracked audit universe and creates detached baseline worktrees | Required for development/audit workflows, not image production | Retain as source-control orchestration, never as a code-producing dependency |
 | `link.ld` and its documented GNU-script subset | Defines kernel memory and section layout; CupidLD parses the exercised `ENTRY`, `SECTIONS`, location-counter, wildcard, alignment, symbol, `COMMON`, and `ASSERT` forms | Required input to both kernel link passes; host-linker interpretation is oracle-only | Keep the script as the source-owned layout contract and deepen CupidLD when the active script needs more semantics |
 | `jpegtran`, `djpeg`/`cjpeg`, or FFmpeg | No role in the normal root build. Checked CupidObj validates and wraps the repository's sequential SOF0 or SOF1 JPEG; Python checks accepted bytes independently | Not required by root `all`; progressive, unsupported, and malformed input fails instead of selecting a host converter | Retain only for optional asset maintenance outside the build graph |

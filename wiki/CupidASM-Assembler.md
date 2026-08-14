@@ -193,9 +193,9 @@ expanded eleven-test suite passed in 1.708 seconds, including direct mismatch
 and live-output drift checks for both callers. Parent-replacement tests exposed
 a POSIX candidate leak when private work lived below the output parent. Private
 roots now live directly below the stable repository root. Both caller modules
-pass all 10 tests on Windows and through WSL. The normal bootloader Make edge
-remains on direct checked CupidASM until the checked Windows execution seed
-carries `--map` and `--range-map`.
+pass all 10 tests on Windows and through WSL. The promoted Windows execution
+seed carries `--map` and `--range-map`. The normal bootloader Make edge remains
+on direct checked CupidASM until the guarded publisher cutover.
 
 The normal SMP trampoline recipe uses this map as a publication gate.
 Hostbuild freezes the selected seed and source, asks CupidASM for a private
@@ -339,17 +339,21 @@ CupidLD. Those startup objects match, and CupidLD links all five native tool
 closures. Windows runs help plus a useful success and failure path for each
 tool. CupidDis also checks quoted raw-input parity, while CupidLD checks exact
 output, candidate collision, failure diagnostics, and cleanup. Those PE images
-now form the checked Windows execution seed used by output-bearing production
-recipes. The Linux seed remains the build-plan root. Source head pairs both
+formed the preceding checked Windows execution seed used by output-bearing
+production recipes. The Linux seed remains the build-plan root. The native
+driver pairs both
 manifests and builds native stages two through four. It compares stages three
 and four. Preliminary Windows and Linux runs pass the complete final-pair
 artifact and behavior gates on one frozen uncommitted source snapshot. Linux
 later passed its clean proof, promoted stage four, and passed a reproof from
-the new seed. The clean native Windows proof is next.
+the new seed. Native Windows then passed its clean proof in 1,152.7 seconds,
+promoted the 437,760-byte CupidASM image with SHA-256
+`8134a9400c4cae7e6c7e72989aa9b23bbdcb56ba4d52a9ebb15363128e4a1f18`,
+and passed a 1,130.9-second reproof with every initial seed comparison true.
 ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
 0272 records checked carriage and production selection, and ADRs 0278 and 0279
 record native reconstruction and convergence. ADR 0280 records the Linux
-promotion.
+promotion, and ADR 0281 records the Windows promotion.
 
 ### Function Example
 

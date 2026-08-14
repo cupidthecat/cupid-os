@@ -59,21 +59,25 @@ EXPECTED_PRODUCER_LINEAGE = {
     "link": "stage-three CupidLD from the checked-seed bootstrap",
 }
 EXPECTED_WINDOWS_PRODUCER_LINEAGE = {
-    "assembly": "stage-three CupidASM from the checked i386 Linux bootstrap",
-    "c": "stage-three CupidC from the checked i386 Linux bootstrap",
-    "link": "stage-three CupidLD from the checked i386 Linux bootstrap",
+    "assembly": (
+        "native stage-three CupidASM from the checked i386 Windows bootstrap"
+    ),
+    "c": "native stage-three CupidC from the checked i386 Windows bootstrap",
+    "link": (
+        "native stage-three CupidLD from the checked i386 Windows bootstrap"
+    ),
 }
 WINDOWS_SEED_SOURCE_REVISION = (
-    "384c74d026b50e469f60dd7f6409f4b185df4ef7"
+    "bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930"
 )
 WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256 = (
-    "5bfbca2cbe30f2fa4b638cbf462b306cc05dc50a4604fd887f89426dbe091e63"
+    "d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da"
 )
 WINDOWS_SEED_PARENT_MANIFEST_SHA256 = (
-    "5b46684d9977287f69a94473acbbf7c5302213ef98f9748482cba768ffca0be8"
+    "f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f"
 )
 WINDOWS_SEED_PARENT_SOURCE_REVISION = (
-    "95f5bb6cfd0468bb8852c670ada849cb5bde79a7"
+    "5d690c7508cc031a0cb32b2963bf16300b32e267"
 )
 WINDOWS_TOOL_IMPORTS = (
     (
@@ -117,7 +121,8 @@ WINDOWS_LINKER_IMPORTS = (
         ),
     ),
 )
-EXPECTED_FIXED_POINT_COMMAND = "make bootstrap-from-seed"
+EXPECTED_LINUX_FIXED_POINT_COMMAND = "make bootstrap-from-seed"
+EXPECTED_WINDOWS_FIXED_POINT_COMMAND = "make bootstrap-windows-from-seed"
 EXPECTED_INCLUDE_ARGUMENTS = (
     "-I",
     "/toolchain",
@@ -1415,7 +1420,7 @@ def _verify_seed_manifest_data(
             "provenance",
         )
         if provenance.get("artifact_generation") != (
-            "paired-stage-three-native-windows"
+            "paired-stage-four-native-windows"
         ):
             raise BootstrapError("Windows seed generation differs")
         if provenance.get("source_revision") != (
@@ -1426,7 +1431,8 @@ def _verify_seed_manifest_data(
             WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256
         ):
             raise BootstrapError("source snapshot differs")
-        if provenance.get("source_input_count") != 50:
+        source_input_count = provenance.get("source_input_count")
+        if type(source_input_count) is not int or source_input_count != 50:
             raise BootstrapError("source input count differs")
         if provenance.get("parent_seed_source_revision") != (
             WINDOWS_SEED_PARENT_SOURCE_REVISION
@@ -1459,7 +1465,11 @@ def _verify_seed_manifest_data(
             raise BootstrapError("source revision differs")
         if provenance.get("seed_generation") != "stage-four":
             raise BootstrapError("seed generation differs")
-        if provenance.get("source_input_count") != SEED_SOURCE_INPUT_COUNT:
+        source_input_count = provenance.get("source_input_count")
+        if (
+            type(source_input_count) is not int
+            or source_input_count != SEED_SOURCE_INPUT_COUNT
+        ):
             raise BootstrapError("source input count differs")
         if provenance.get("source_snapshot_sha256") != (
             SEED_SOURCE_SNAPSHOT_SHA256
@@ -1470,7 +1480,12 @@ def _verify_seed_manifest_data(
 
     if provenance.get("fixed_point_result") != "pass":
         raise BootstrapError("seed lacks passing fixed-point provenance")
-    if provenance.get("fixed_point_command") != EXPECTED_FIXED_POINT_COMMAND:
+    expected_fixed_point_command = (
+        EXPECTED_WINDOWS_FIXED_POINT_COMMAND
+        if is_windows_seed
+        else EXPECTED_LINUX_FIXED_POINT_COMMAND
+    )
+    if provenance.get("fixed_point_command") != expected_fixed_point_command:
         raise BootstrapError("fixed-point command differs")
 
     if not is_windows_seed:

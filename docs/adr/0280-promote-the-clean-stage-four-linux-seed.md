@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted on 2026-08-13.
+Accepted on 2026-08-13. The dependent native Windows seed promotion is
+complete under ADR 0281.
 
 ## Context
 
@@ -79,8 +80,8 @@ a pass.
 
 The earlier uncapped Linux and Windows runs remain useful preliminary history
 in ADR 0279. They began from uncommitted source and are not substituted for the
-clean Linux proof above. A clean native Windows proof is the next promotion
-gate.
+clean Linux proof above. ADR 0281 records the later clean native Windows proof
+and promotion against this Linux plan.
 
 ## Rejected alternatives
 
@@ -103,7 +104,6 @@ The fixed-point plan remains 19 C sources, one startup object, and five tools,
 with the 5/18/16 behavior matrix.
 
 This promotion removes no host-control dependency. Python still coordinates
-the bootstrap, and Windows still uses its separate PE execution seed for
-output-bearing work. The clean native Windows proof and its promotion are
-next. No active source rename is due, and `TempleOS/` remains read-only
-reference material.
+the bootstrap, and Windows uses its separately promoted PE execution seed for
+output-bearing work. No active source rename is due, and `TempleOS/` remains
+read-only reference material.

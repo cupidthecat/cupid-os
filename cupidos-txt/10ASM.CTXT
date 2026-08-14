@@ -175,9 +175,9 @@ starts. Instructions use their active BITS mode. Data declarations, alignment,
 and reserved storage are data. CupidDis rejects stale sizes, missing or repeated
 fields, invalid kinds, and unordered starts before decoding.
 
-Source head carries the shared bootloader map transaction, but the direct
-checked-seed boot edge still awaits a Windows execution-seed promotion that
-carries CupidASM `--map` and CupidDis `--range-map`.
+Source head carries the shared bootloader map transaction. The promoted
+Windows execution seed carries CupidASM `--map` and CupidDis `--range-map`.
+The direct checked-seed boot edge still needs its normal Make graph cutover.
 
 Checked-seed CupidDis can validate one or more files without printing a
 listing:
@@ -321,7 +321,7 @@ tool closures with their matching runtime objects. Windows runs help plus
 useful success and failure paths for every tool and checks the direct runtime
 contract. CupidDis checks quoted raw-input parity with the Linux tool. CupidLD
 checks exact output, candidate collision, replacement failure, and cleanup.
-Those images now form the checked Windows execution seed for output-bearing
+Those images formed the preceding checked Windows execution seed for output-bearing
 production work. Source head freezes that seed and the verified Linux plan
 separately. The seed builds stage two, stage two builds stage three, and stage
 three builds stage four. Stages two and three are transition generations. The
@@ -341,8 +341,18 @@ The 5,573-byte seed manifest has SHA-256
 f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f
 and binds generation four, the clean revision, the 50-input snapshot, and the
 stage-three producers. A 1,411.998-second reproof reproduced all five promoted
-seed images and the same fixed point. The clean native Windows proof is next.
-ADR 0280 records the Linux promotion.
+seed images and the same fixed point. Native Windows then passed a clean proof
+from revision bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930 in 1,152.7 seconds.
+Stages three and four matched 20 C objects, two assembly objects, and five
+tools, and both passed 5/5/5 behavior. The old seed matched stage two for
+CupidLD and CupidObj but not for CupidASM, CupidC, or CupidDis. The promoted
+CupidASM image is 437,760 bytes with SHA-256
+8134a9400c4cae7e6c7e72989aa9b23bbdcb56ba4d52a9ebb15363128e4a1f18.
+The 2,118-byte Windows manifest has SHA-256
+96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9.
+A 1,130.9-second reproof matched all five initial seed images and repeated the
+same fixed point. ADR 0280 records the Linux promotion, and ADR 0281 records
+the Windows promotion.
 
 A preliminary Linux behavior reconstruction found that cupiddis_main.cc lacked
 _WIN32=1. Four native tools already matched. The corrected Windows profile,

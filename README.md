@@ -81,9 +81,9 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   Parent-replacement tests exposed a POSIX candidate leak, so private roots now
   sit under the stable repository root instead of the output parent. Both
   caller modules pass all 10 tests on Windows and through WSL.
-  The direct boot edge will enter the normal Make graph after the checked
-  Windows execution seed carries both options. ADR 0277 records the schema and
-  publication gate.
+  The promoted Windows execution seed carries both options. The direct boot
+  edge still needs its normal Make graph cutover. ADR 0277 records the schema
+  and publication gate.
 - The public bootstrap driver now has a native Windows path. It freezes the
   checked PE execution seed and the Linux plan seed, then builds through stage
   four. Stage two and stage three carry the transition from the older seed;
@@ -101,9 +101,11 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   These reports remain preliminary because they began from uncommitted source.
   Linux later passed its clean proof in 1,383.775 seconds, promoted the
   stage-four seed, and passed a 1,411.998-second reproof with all five initial
-  seed comparisons true. The clean native Windows proof is next. ADR 0278
-  records the two-manifest design, ADR 0279 records the added generation, and
-  ADR 0280 records the Linux promotion.
+  seed comparisons true. The clean native Windows proof then passed in 1,152.7
+  seconds, and its promoted-seed reproof passed in 1,130.9 seconds with all
+  five initial comparisons true. ADR 0278 records the two-manifest design, ADR
+  0279 records the added generation, ADR 0280 records the Linux promotion, and
+  ADR 0281 records the Windows promotion.
 - CupidC initializes x87 and SSE state, saves it with FXSAVE/FXRSTOR during context switches, sets MXCSR defaults, and dumps registers from the `#NM`, `#MF`, and `#XF` handlers. The language supports `float`, `double`, `float4`, and `double2`, along with SSE intrinsics, a 25-operation libm, and x87-backed integer/fractional splitting for `printf` formats `%f`, `%e`, `%g`, and `%.Nf`.
 - ISO9660 images mount read-only from any VFS file with `mount foo.iso /iso`. The implementation handles Rock Ridge long names, case-insensitive lookup, and up to four simultaneous mounts.
 - Opt-in swap uses four allocation classes (1K, 4K, 16K, and 64K), true LRU eviction, and 1,024 handles over a 16 MB FAT-backed file. Callers use `swap_alloc`, `pin`, and `unpin` explicitly rather than relying on virtual-memory page faults.
@@ -1054,22 +1056,36 @@ after a forced replacement failure. That proof passed in 801.9 seconds. Its
 All five Linux and native Windows tools match between stage two and stage
 three. The 38,164-byte report has SHA-256
 `3c63664f08e7bcdc639a88ca6ada6cf5143100eac966d748660b65d537b01e10`.
-These PEs now form a strict checked Windows execution seed. Its manifest binds
-the exact imports, hashes, sizes, source snapshot, parent Linux seed, and
-paired-stage provenance. Output-bearing Windows recipes run private copies of
-this cohort directly. Their PE headers reserve and commit a one MiB tool stack,
-which keeps large Cupid-generated frames inside committed memory. Source head
-also probes each page of a large fixed frame and can rebuild native Windows
-stages two through four from the PE execution seed plus the verified Linux plan
-seed. The old stage-two to stage-three comparison stopped at `cupidobj_main`;
-the current driver compares stages three and four. Uncapped Windows and Linux
-runs passed the complete final-pair comparisons and behavior matrices from one
-frozen uncommitted snapshot. Linux later passed its clean proof, promoted the
-stage-four seed, and passed a reproof from that seed. The clean native Windows
-proof is next. Linux contract work still runs
-through WSL. ADR 0268 records the shared runtime, ADR 0269 records CupidLD
-publication, ADR 0272 records checked carriage, ADR 0274 records the PE stack,
-ADR 0275 records compiler probes, and ADR 0278 records the native driver.
+Those PEs formed the preceding checked Windows execution seed. The current
+stage-four cohort is:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 437,760 | `8134a9400c4cae7e6c7e72989aa9b23bbdcb56ba4d52a9ebb15363128e4a1f18` |
+| CupidC | 2,595,840 | `706c427d8e89352623274ad8e3321680a89c58c08d1d90a279a8d5ad814668e0` |
+| CupidDis | 387,584 | `07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a` |
+| CupidLD | 296,448 | `9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02` |
+| CupidObj | 375,808 | `079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79` |
+
+Its 2,118-byte manifest has SHA-256
+`96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9`.
+It binds clean revision `bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930`, the
+50-input snapshot, native stage-three producers, and Linux parent manifest
+`f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f`.
+The clean proof passed in 1,152.7 seconds. Its old seed comparison was false
+for CupidASM, CupidC, and CupidDis and true for CupidLD and CupidObj. The
+1,130.9-second reproof from the promoted cohort matched all five initial seed
+images. Both runs matched 20 C objects, two assembly objects, and five tools
+between stages three and four and passed the 5/5/5 behavior matrix.
+
+Output-bearing Windows recipes run private copies of this cohort directly.
+Their PE headers reserve and commit a one MiB tool stack, which keeps large
+Cupid-generated frames inside committed memory. Linux contract work still runs
+through WSL, and Python still coordinates the native fixed point. ADR 0268
+records the shared runtime, ADR 0269 records CupidLD publication, ADR 0272
+records checked carriage, ADR 0274 records the PE stack, ADR 0275 records
+compiler probes, ADR 0278 records the native driver, and ADR 0281 records the
+promotion.
 
 The hosted CupidC driver also exposes the shared frontend's Cupid language
 profile through `--cupid`. The switch selects Cupid vocabulary for both the
@@ -1441,8 +1457,11 @@ SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
 After promotion, a 1,411.998-second reproof reproduced all five seed images and
 the complete artifact and behavior sets. The earlier 801.9-second stage-two to
-stage-three proof remains historical provenance for the checked Windows
-execution seed.
+stage-three proof remains historical provenance for the preceding Windows
+execution seed. The clean Windows proof later passed in 1,152.7 seconds from
+revision `bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930`, and its 1,130.9-second
+promoted-seed reproof reproduced all five PE32 images. ADR 0281 records that
+promotion.
 With every host code-generation variable pointed at an invalid command, normal
 `make -j2` passed in 1,057.969 seconds. That historical build ran the separate
 strict CupidDis gate before CupidObj flattened the kernel. It produced these
@@ -1557,16 +1576,15 @@ development targets.
 
 Host Python still coordinates the checked fixed point. Native Windows
 reconstruction runs the checked PE execution seed with the verified Linux plan,
-while Linux-contract work still uses WSL. The drivers now build through stage
-four and compare stage three with stage four. Preliminary Windows and Linux
-uncapped runs passed from one frozen uncommitted snapshot. Linux now has a
-clean proof, stage-four seed promotion, and promoted-seed reproof. The clean
-native Windows proof and Python-free coordination remain open.
+while Linux-contract work still uses WSL. The drivers build through stage four
+and compare stage three with stage four. Both platforms now have a clean proof,
+stage-four seed promotion, and promoted-seed reproof. Python-free coordination
+remains open.
 The native operator runs `make verify-windows-bootstrap-seed`, followed by
 `make bootstrap-windows-from-seed`. A successful proof publishes under
 `build/bootstrap/checked-windows-seed`. The Make dry run and two contract tests
-pass. These operator targets are the entry points for the next clean native
-Windows proof and promotion.
+pass. The promoted Windows seed carries the raw-map options needed by the
+guarded bootloader publisher; the normal Make edge still needs that cutover.
 `make verify-artifact-sizes` receives
 `$(BOOTSTRAP_SEED_MANIFEST)`, derives the five seed paths and declared sizes
 from that selected manifest, and requires the policy to agree. It also checks
@@ -1613,9 +1631,9 @@ Block-scope compound literals use the shared initializer walker and one persiste
 Runtime narrow string expressions now receive deterministic local `.rodata` symbols and `R_386_32` relocations, so pointer initialization, arguments, indexing, and returns use normal array decay. Block-static pointers may also use another block-static object's address in a constant initializer; the local ELF symbol and relocation remain intact. File-scope and other static-duration compound literals, variable-length literals, and the named-aggregate backward-jump alias case remain open under issue #25. Top-level union and Cupid class values, aggregate members selected from structure rvalues, explicit bit-field initializer leaves, volatile or atomic aggregate access, over-aligned structures, Boolean mutation, and broader floating computation or conversion remain open. Static string address arithmetic, integer-routed or otherwise unrepresented address casts, wide strings, literal pooling, atomic and aggregate variadic values, and production integration also remain open. A copied structure may contain union, wide, or floating members because this path moves its complete target representation. The private in-kernel CupidC compiler continues to handle embedded runtime JIT and AOT compilation. See [the bootstrap record](docs/bootstrap/README.md), [ADR 0049](docs/adr/0049-cupidc-structure-values-and-cdecl-abi.md), [ADR 0050](docs/adr/0050-cupidc-sixteen-byte-call-alignment.md), [ADR 0051](docs/adr/0051-cupidc-block-scope-static-object-emission.md), [ADR 0052](docs/adr/0052-cupidc-block-scope-compound-literals.md), [ADR 0053](docs/adr/0053-cupidc-runtime-narrow-strings.md), [ADR 0054](docs/adr/0054-cupidc-scalar-variadic-calls.md), [ADR 0055](docs/adr/0055-cupidc-scalar-variadic-callees.md), [ADR 0056](docs/adr/0056-cupidc-empty-identifier-list-functions.md), [ADR 0057](docs/adr/0057-cupidc-block-scope-record-tags.md), [ADR 0058](docs/adr/0058-cupidc-block-scope-extern-objects.md), [ADR 0059](docs/adr/0059-cupidc-block-scope-typedefs.md), [ADR 0060](docs/adr/0060-cupidc-block-scope-function-declarations.md), [ADR 0061](docs/adr/0061-cupidc-block-scope-enums.md), [ADR 0062](docs/adr/0062-cupidc-nested-block-enum-definitions.md), [ADR 0063](docs/adr/0063-cupidc-bit-field-assignments.md), [ADR 0064](docs/adr/0064-cupidc-bit-field-mutation.md), [ADR 0065](docs/adr/0065-cupidc-wide-integer-returns.md), [ADR 0066](docs/adr/0066-cupidc-wide-integer-object-values.md), [ADR 0067](docs/adr/0067-cupidc-wide-integer-parameters-and-arguments.md), [ADR 0068](docs/adr/0068-cupidc-wide-integer-shifts-and-conversions.md), [ADR 0069](docs/adr/0069-cupidc-wide-integer-comparisons-and-conditions.md), [ADR 0070](docs/adr/0070-cupidc-wide-integer-addition-subtraction-and-unary.md), [ADR 0071](docs/adr/0071-cupidc-wide-integer-switch-dispatch.md), [ADR 0072](docs/adr/0072-cupidc-wide-integer-multiplication.md), [ADR 0073](docs/adr/0073-cupidc-wide-integer-division-and-remainder.md), [ADR 0074](docs/adr/0074-cupidc-wide-integer-mutation.md), [ADR 0075](docs/adr/0075-cupidc-wide-integer-variadics.md), [ADR 0076](docs/adr/0076-cupidc-floating-scalar-transport.md), [ADR 0077](docs/adr/0077-cupidc-float-default-argument-promotion.md), [ADR 0078](docs/adr/0078-private-cupidc-tagged-control-frames.md), and [ADR 0196](docs/adr/0196-transfer-toolchain-contracts-to-cupidc.md).
 
 Here, remaining production integration means replacing Host Python and the WSL
-bridge still used by Linux-seed contracts, then proving the pending native
-Windows stage-three to stage-four fixed point. It does not mean recovering a
-host-C object graph.
+bridge still used by Linux-seed contracts, plus moving the guarded bootloader
+publisher onto its normal Make edge. It does not mean recovering a host-C
+object graph.
 The checked-seed path owns all 239 checked-in normal roots and the
 generated kernel symbol translation described above. No supported transform
 invokes a host C compiler.
@@ -1634,7 +1652,7 @@ invokes a host C compiler.
 
 [ADR 0264](docs/adr/0264-run-the-user-abi-check-with-cupidc.md) moves the ABI rules into a staged CupidC contract while retaining Python as an independent oracle. [ADR 0270](docs/adr/0270-expose-cupid-language-mode-in-the-hosted-driver.md) exposes Cupid mode through the hosted driver. [ADR 0271](docs/adr/0271-validate-the-smp-trampoline-with-cupiddis.md) makes strict mixed-mode inspection part of trampoline publication. [ADR 0272](docs/adr/0272-adopt-a-checked-native-windows-execution-seed.md) carries the native PE cohort and selects it for Windows production execution.
 
-[ADR 0275](docs/adr/0275-probe-large-hosted-cupidc-frames.md) records guarded-stack page probes. [ADR 0276](docs/adr/0276-link-kernel-cupidasm-aot-with-cupidld.md) gives in-kernel AOT placement to CupidLD. [ADR 0277](docs/adr/0277-publish-source-derived-raw-layout-maps.md) records source-derived raw maps and the pending boot edge. [ADR 0278](docs/adr/0278-add-a-native-windows-fixed-point-driver.md) records the two-manifest native driver. [ADR 0279](docs/adr/0279-prove-post-change-fixed-points-through-convergence.md) adds the convergence generation after the stack-probe transition. [ADR 0280](docs/adr/0280-promote-the-clean-stage-four-linux-seed.md) records the clean Linux proof and stage-four promotion.
+[ADR 0275](docs/adr/0275-probe-large-hosted-cupidc-frames.md) records guarded-stack page probes. [ADR 0276](docs/adr/0276-link-kernel-cupidasm-aot-with-cupidld.md) gives in-kernel AOT placement to CupidLD. [ADR 0277](docs/adr/0277-publish-source-derived-raw-layout-maps.md) records source-derived raw maps and the pending boot edge. [ADR 0278](docs/adr/0278-add-a-native-windows-fixed-point-driver.md) records the two-manifest native driver. [ADR 0279](docs/adr/0279-prove-post-change-fixed-points-through-convergence.md) adds the convergence generation after the stack-probe transition. [ADR 0280](docs/adr/0280-promote-the-clean-stage-four-linux-seed.md) records the clean Linux proof and stage-four promotion. [ADR 0281](docs/adr/0281-promote-the-clean-stage-four-windows-seed.md) records the clean Windows proof and PE32 promotion.
 
 [ADR 0125](docs/adr/0125-represent-decimal-floating-scalars.md) records decimal binary32 and binary64 constants, represented integer conversions, and mixed scalar arithmetic. [ADR 0126](docs/adr/0126-name-fixed-point-sources-consistently.md) records the complete 19-source fixed-point rename and old-seed proof. [ADR 0129](docs/adr/0129-refresh-seed-and-transfer-cupidc-lexer.md) records the promoted seed and the lexer handoff.
 

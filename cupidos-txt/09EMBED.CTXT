@@ -72,11 +72,14 @@ The Python oracle follows the same order. The command is self-hosted and
 present in the checked toolchain seed. The current image build runs checked
 CupidObj for all three tables. Its active inventories remain within the limit
 and keep the same bytes. The recipes depend on the complete checked-seed trust
-unit.
+unit. On Windows, the promoted stage-four execution seed supplies the
+375,808-byte CupidObj image with SHA-256
+079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79.
 The Python generator remains a byte-parity oracle but no longer owns these
 production sources. ADR 0204 records the transfer, and ADR 0206 records the
 first seed with the linked-symbol collision checks. ADR 0258 records the
-preceding checked seed. ADR 0280 records the current checked seed.
+preceding checked seed. ADR 0280 records the current Linux checked seed, and
+ADR 0281 records the current Windows execution seed.
 
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))

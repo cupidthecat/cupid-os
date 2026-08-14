@@ -3,8 +3,8 @@
 ## Status
 
 Accepted on 2026-08-13. The clean Linux convergence gate and seed promotion
-are complete under ADR 0280. The native Windows clean proof and promotion remain
-pending.
+are complete under ADR 0280. The clean native Windows proof and promotion are
+complete under ADR 0281.
 
 ## Context
 
@@ -83,8 +83,8 @@ Both reports bind the same 50-input source snapshot with SHA-256
 Both record `stage3=4`.
 Independent verification rehashed every reported inventory member and checked
 each recorded size and hash. These reports remain preliminary because they
-began from an uncommitted source tree. A later clean Linux proof satisfied that
-target's promotion gate. Native Windows still requires its clean proof.
+began from an uncommitted source tree. Later clean Linux and Windows proofs
+satisfied both promotion gates.
 
 The preliminary Linux report also reconstructs native Windows behavior. That
 cross-path check exposed a CupidDis-only mismatch: the reconstructed
@@ -109,8 +109,7 @@ inside a five-test focused command in 2.294 seconds. The audit requires five
 seed checks in each driver, including the prepublication check, and binds both
 reconstructed Windows `cupiddis_main` objects to their compile and replacement
 paths. Its complete mutation test passed in 119.241 seconds. These checks
-hardened the later clean Linux proof. Native Windows still needs the same proof
-from a named clean commit.
+hardened the later clean Linux and Windows proofs from named commits.
 
 The clean Linux proof from revision
 `5d690c7508cc031a0cb32b2963bf16300b32e267` passed in 1,383.775 seconds.
@@ -119,14 +118,23 @@ then passed the 5/18/16 behavior matrix. The promoted-seed reproof passed in
 1,411.998 seconds with all five initial seed comparisons true. ADR 0280 records
 the promoted stage-four identities and manifest provenance.
 
+The clean native Windows proof from revision
+`bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930` passed in 1,152.7 seconds.
+Stages three and four matched across 20 C objects, two assembly objects, and
+five tools, then passed the 5/5/5 behavior matrix. The old execution seed
+matched stage two for CupidLD and CupidObj but not for CupidASM, CupidC, or
+CupidDis. After promotion, a 1,130.9-second reproof matched all five initial
+seed images and repeated the full fixed point. ADR 0281 records the promoted
+PE32 identities and manifest provenance.
+
 ## Consequences
 
 A compiler change may alter stage two as the old seed crosses into the new
 code generator. Stage three must still reproduce the same objects and tools
 when stage three builds stage four. The uncapped runs demonstrate that
 convergence for one frozen, uncommitted source snapshot. Bootstrap work now
-takes one additional generation. The clean Linux proof and seed promotion are
-complete; native Windows is the next clean promotion gate. Any path that
+takes one additional generation. The clean Linux and native Windows proof and
+promotion gates are complete. Any path that
 reconstructs native Windows tools must also apply the complete Windows profile
 to each driver main, including CupidDis. Each driver must keep every live seed
 role equal to its frozen capture until the publication boundary.
