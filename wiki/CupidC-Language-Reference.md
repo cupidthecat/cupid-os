@@ -169,7 +169,10 @@ Modifiable direct vectors and fully indexed leaves also support prefix and
 postfix `++` and `--`. Global and block-static direct vectors receive the same
 zero initialization as other static objects, and persistent REPL vectors keep
 their stored state. Prefix returns the new vector. Postfix returns the exact
-old 128-bit payload. Each subscript is evaluated once.
+old 128-bit payload. Each subscript is evaluated once. Const qualification is
+retained through typedef aliases. A const direct vector or fixed-array leaf
+remains readable. Plain and arithmetic compound assignment, plus prefix and
+postfix `++` and `--`, are rejected before a store.
 Every direct operation keeps the written left value in the machine destination.
 MIN and MAX intrinsics keep the second input for NaN and equal signed-zero
 cases. A both-NaN ADD or MUL may carry either input payload, depending on the

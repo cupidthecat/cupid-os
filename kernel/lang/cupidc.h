@@ -238,6 +238,7 @@ typedef struct {
   int is_variadic;     /* fixed parameters may be followed by ellipsis */
   int is_defined;   /* has function body been emitted? */
   int is_array;     /* stack-allocated array? */
+  int is_const_qualified; /* object or fixed-array element is const */
   int struct_index; /* index into structs[] for struct types */
   int array_elem_size; /* element size for array subscript scaling */
   int array_object_size; /* complete fixed-array size before frame padding */
@@ -361,6 +362,7 @@ typedef struct {
   cc_type_t typedef_types[16];
   int typedef_struct_indices[16];
   int typedef_array_counts[16];
+  int typedef_is_const_qualified[16];
   int typedef_count;
 
   /* HolyC-style top-level / auto-main handling.

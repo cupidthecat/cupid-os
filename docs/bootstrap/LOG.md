@@ -27198,3 +27198,112 @@ format, build owner, or checked seed. No `.c` file gained new ownership, so no
 suffix rename is due. The remaining compiler, SIMD, native fixed-point, WSL,
 and Python coordination limits stay documented in the four implementation
 records. `TempleOS/` was not modified or counted.
+
+## 2026-08-15: enforce const on private SIMD lvalues
+
+The combined code review found one language hole in the private SIMD update
+work. CupidC parsed `const float4 value` but discarded the qualifier, so
+`++value` compiled and wrote the object. The first public recovery fixture
+exited with status 69 instead of reporting an error.
+
+Private symbols now retain the qualifier for automatic, global, block-static,
+and persistent REPL objects, as well as fixed-array elements. Typedef metadata
+retains the qualifier through alias chains and persistent REPL units. Subscript
+descent carries the qualifier to the final vector leaf without reevaluating an
+index. Direct and indexed plain assignment, arithmetic compound assignment,
+and prefix or postfix update reject a const vector before a store. Mutable
+vectors keep their existing behavior. The diagnostics distinguish assignment
+from increment or decrement. After a rejected mutation, the same compiler
+instance can compile a valid mutable operation.
+
+The review also corrected three documentation drifts. Windows executes the
+native PE user ABI contract without WSL. Exact decimal binary32 and binary64
+subnormal literals are supported. Hexadecimal floating literals, hexadecimal
+or subnormal long-double literals, and long-double decimal ratios beyond the
+bounded parser remain open. The ownership prose now separates 246
+ordinary C-output transforms from the composite native Windows ABI
+verification, for 247 CupidC participations in total.
+
+### Red-to-green and regression evidence
+
+The initial const-update recovery case failed as expected.
+Once direct symbols retained the qualifier, a const indexed postfix case
+showed that statement-specialized array updates needed the same check. Both
+paths then passed. A follow-up assignment case exposed the same missing rule
+for `destination = source` and indexed `+=`; the mutation guard now covers all
+represented SIMD assignment forms.
+
+A second review fixture used `typedef const float4 ConstVector`. Direct and
+indexed mutations still compiled because the typedef table stored the value
+type but not its qualifier. The table now retains the qualifier, alias lookup
+restores it through chains, and REPL rollback restores the prior typedef count
+without losing aliases committed earlier. Positive execution confirms that the
+value remains readable. A post-rollback unit declares and reads another value
+through the committed alias before mutable recovery. Six mutation forms fail
+with focused diagnostics before a mutable retry compiles in the same state.
+
+| Check | Result |
+| --- | --- |
+| Focused const, recovery, and emitter contracts | PASS: 7 tests in 7.119 seconds |
+| Private CupidC discovery | PASS: 172 tests in 24.861 seconds |
+| Hosted frontend | PASS: 97 tests in 12.735 seconds |
+| GUI terminal contracts | PASS: 125 tests in 0.617 seconds |
+| Artifact policy module | PASS: 12 tests in 1.593 seconds |
+| Ruff and whitespace checks | PASS |
+| Contract, production, and audit sweep | PASS: 204 tests in 766.982 seconds |
+| Normal OS build | PASS: `make -j4 all` in 634.5 seconds |
+| Private feature-14 boot | PASS in 63.2 seconds with the update marker and JIT completion |
+| Audit regeneration and checked comparison | PASS in 61.817 and 63.638 seconds |
+
+The parser changes moved the active inventory to 39,448 `if`, 4,997 `else`,
+4,388 `for`, and 24,021 `return` occurrences. The regenerated audit already
+had those values. All frontend tests passed after the three locks were updated.
+
+### Build measurements and runtime proof
+
+The first review build completed checked CupidC compilation, both CupidLD
+links, and strict CupidDis validation before the exact-size policy rejected
+all three changed kernel outputs. A direct `make verify-artifact-sizes` attempt
+then rebuilt stale prerequisites serially. The command timed out twice; the
+second run left Make and compiler child processes running. They were identified
+and stopped before a normal parallel build.
+
+Typedef coverage and the final embedded-manual review changed the active inputs
+again. A 641.1-second measurement build completed every production stage up to
+the policy gate and reported the final three sizes. The policy was refreshed to
+those exact values. The final parallel rebuild passed all nine checks and
+published the image in 634.5 seconds.
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `bootstrap/seeds/i386-linux/cupidasm.elf` | 458,256 | `1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e` |
+| `bootstrap/seeds/i386-linux/cupidc.elf` | 2,666,324 | `8b6b0f0508b1565d095297f3571ef9bb4d444d19be0700165706877b210b087c` |
+| `bootstrap/seeds/i386-linux/cupiddis.elf` | 413,204 | `ff2e345c1000c7e4843b91e5d17d9a171e76b0d6fbae2871ce879b338691555a` |
+| `bootstrap/seeds/i386-linux/cupidld.elf` | 312,792 | `a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295` |
+| `bootstrap/seeds/i386-linux/cupidobj.elf` | 392,688 | `99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a` |
+| `kernel/kernel.elf.pass1` | 9,236,336 | `3e94b6e39115c158f6de0374718fe4376fbf16afe2f93af2526d483c068cd2c6` |
+| `kernel/kernel.elf` | 9,359,216 | `fda5a13f3b7a05826803afb895707554bba662c3ef049aedf20f87dc7ee8fbee` |
+| `kernel/kernel.bin` | 9,139,028 | `aa75cf051eb11f484bc85fdd28160f5fee713e519e4a5acd9b40a01e3a77d41e` |
+| `cupidos.img` | 209,715,200 | `64b7d0296df700486a0438eda5ea2692836b43bda4acdceecdf6e8e225a5841d` |
+
+The private-copy QEMU run used CPU `max` and compiled
+`/bin/feature14_simd.cc` through in-OS CupidC. Serial lines 514 through 521
+contain the operator, array, matrix, update, minimum/maximum, NaN, guest-pass,
+and JIT-completion markers. The 27,346-byte log had SHA-256
+`1ad5007a1bfda3fbc6ef248d75068200b522000ecebf0832ef94cf567c894a52`.
+It contained no panic, corruption, exception, or triple-fault marker. The
+disposable log was removed after inspection.
+
+The final active-source digest is
+`84a98254b6958cbfb2d7fb366f021b7d0c4af52fc4c22699d03720f661c04111`.
+The 2,682,137-byte audit JSON has SHA-256
+`2869dadb23f273738b8d381a99f9ee12c549104c43a3fcfd09702836fa1ab33e`,
+and the 12,502-byte summary has SHA-256
+`b0859ac17fb6550fc692df7760f3ae2530a005d77621e7e67bdf1f37ffe229cd`.
+
+This review fix leaves production ownership, checked seeds, and host
+dependencies unchanged. Qualifier enforcement for SIMD lvalues outside the
+represented direct and fixed-array forms remains open.
+No suffix rename is due because active `.c` ownership is unchanged.
+The `TempleOS/` tree remains untouched reference material.

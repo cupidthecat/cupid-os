@@ -368,17 +368,20 @@ until the final 16-byte vector leaf, which uses unaligned-safe packed moves.
 Declared rank stays separate from byte stride, so a unit inner extent still
 needs its final subscript. Plain assignment and +=, -=, *=, and /= retain the
 vector type, evaluate every index once, and allow lane extraction. Row and
-vector sizeof keep their complete size without running an index. Every
-modifiable direct vector and fully indexed leaf supports prefix and postfix ++ and --.
-Direct automatic, global, block-static, and persistent REPL vectors reserve
+vector sizeof keep their complete size without running an index. Modifiable
+direct vectors and fully indexed leaves support prefix or postfix increment and
+decrement. Automatic, global, block-static, and persistent REPL vectors reserve
 the complete 16 bytes. Prefix returns the stored vector. Postfix returns the
 exact old 128-bit payload after the store. An indexed destination runs once.
+Const qualification is retained through typedef aliases. Const direct vectors
+and fixed-array leaves remain readable but plain and arithmetic compound
+assignment, plus prefix and postfix ++ and --, are rejected before a store.
 Lane updates, computed vectors, SIMD pointers, record fields, parameters,
-calls, and row values remain unsupported. Every direct
-operator keeps the written left value in the machine destination. MIN and MAX
-intrinsics keep the second input for NaN and equal signed-zero cases. A
-both-NaN ADD or MUL may carry either input payload, depending on the processor
-or emulator. Incomplete row assignments and row expressions are rejected.
+calls, and row values remain unsupported. Every direct operator keeps the
+written left value in the machine destination. MIN and MAX intrinsics keep the
+second input for NaN and equal signed-zero cases. For a both-NaN ADD or
+MUL, the processor or emulator may preserve either input payload. Incomplete
+row assignments and row expressions are rejected.
 
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE

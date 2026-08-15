@@ -1166,9 +1166,19 @@ static int cc_find_typedef_array_count(cc_state_t *cc, const char *name) {
   return 0;
 }
 
+static int cc_find_typedef_is_const_qualified(cc_state_t *cc,
+                                              const char *name) {
+  int i;
+  for (i = 0; i < cc->typedef_count; i++) {
+    if (strcmp(cc->typedef_names[i], name) == 0)
+      return cc->typedef_is_const_qualified[i];
+  }
+  return 0;
+}
+
 static void cc_add_typedef_alias(cc_state_t *cc, const char *name,
                                  cc_type_t type, int struct_index,
-                                 int array_count) {
+                                 int array_count, int is_const_qualified) {
   if (cc->typedef_count >= 16) {
     cc_error(cc, "too many typedef aliases");
     return;
@@ -1183,6 +1193,7 @@ static void cc_add_typedef_alias(cc_state_t *cc, const char *name,
   cc->typedef_types[cc->typedef_count] = type;
   cc->typedef_struct_indices[cc->typedef_count] = struct_index;
   cc->typedef_array_counts[cc->typedef_count] = array_count;
+  cc->typedef_is_const_qualified[cc->typedef_count] = is_const_qualified;
   cc->typedef_count++;
 }
 
@@ -1200,6 +1211,7 @@ static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
 static int cc_last_expr_indirect_lvalue;
 static cc_symbol_t *cc_last_expr_direct_lvalue_sym;
 static int cc_last_expr_simd_lane;
+static int cc_last_expr_const_lvalue;
 /* Inner-dimension stride for 3D-array expressions. When > 0, the
  * current expression still has another dimension to index into and
  * cc_last_expr_elem_size is the FIRST stride (rows); cc_last_expr_dim2
@@ -1215,6 +1227,7 @@ static int cc_last_type_struct_index; /* set by cc_parse_type */
 static cc_type_t cc_last_type_base;
 static int cc_last_type_pointer_depth;
 static int cc_last_type_array_count;
+static int cc_last_type_is_const_qualified;
 static int cc_last_expr_elem_size;    /* element size for array subscripts */
 /* Size of the array object produced by the most recent subscript. The next
  * subscript uses cc_last_expr_elem_size as its stride, while sizeof needs the
@@ -1891,6 +1904,7 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_last_type_base = TYPE_INT;
   cc_last_type_pointer_depth = 0;
   cc_last_type_array_count = 0;
+  cc_last_type_is_const_qualified = 0;
 
   /* Accept storage classes, qualifiers, and width modifiers around the base
    * type. Signed and unsigned integers keep distinct 32-bit semantics. Widths
@@ -1903,7 +1917,9 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
       tok = cc_next(cc);
       continue;
     }
-    if (tok.type == CC_TOK_SIGNED)
+    if (tok.type == CC_TOK_CONST)
+      cc_last_type_is_const_qualified = 1;
+    else if (tok.type == CC_TOK_SIGNED)
       saw_signed = 1;
     else if (tok.type == CC_TOK_UNSIGNED)
       saw_unsigned = 1;
@@ -1981,6 +1997,8 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
       cc_last_type_struct_index =
           cc_find_typedef_struct_index(cc, tok.text);
       cc_last_type_array_count = cc_find_typedef_array_count(cc, tok.text);
+      if (cc_find_typedef_is_const_qualified(cc, tok.text))
+        cc_last_type_is_const_qualified = 1;
       base = td;
       break;
     }
@@ -2054,7 +2072,9 @@ have_base:
   /* Allow trailing qualifiers after base type (e.g. char const *). */
   while (cc_is_type_prefix(cc_peek(cc).type)) {
     cc_token_type_t prefix = cc_peek(cc).type;
-    if (prefix == CC_TOK_SIGNED)
+    if (prefix == CC_TOK_CONST)
+      cc_last_type_is_const_qualified = 1;
+    else if (prefix == CC_TOK_SIGNED)
       saw_signed = 1;
     else if (prefix == CC_TOK_UNSIGNED)
       saw_unsigned = 1;
@@ -2392,7 +2412,22 @@ static int cc_is_direct_update_type(cc_type_t type) {
          cc_is_simd_value_type(type);
 }
 
+static void cc_error_simd_update_target(cc_state_t *cc) {
+  cc_error(cc,
+           "SIMD increment or decrement requires a modifiable "
+           "whole-vector lvalue");
+}
+
+static void cc_error_simd_assignment_target(cc_state_t *cc) {
+  cc_error(cc,
+           "SIMD assignment requires a modifiable whole-vector lvalue");
+}
+
 static int cc_validate_variable_update(cc_state_t *cc, cc_symbol_t *sym) {
+  if (sym && sym->is_const_qualified && cc_is_simd_value_type(sym->type)) {
+    cc_error_simd_update_target(cc);
+    return 0;
+  }
   if (!sym || sym->is_array ||
       (sym->kind != SYM_LOCAL && sym->kind != SYM_PARAM &&
        sym->kind != SYM_GLOBAL) ||
@@ -2564,6 +2599,10 @@ static int cc_emit_indirect_fp_update(cc_state_t *cc,
                                       cc_type_t object_type,
                                       int decrement,
                                       int preserve_old) {
+  if (cc_last_expr_const_lvalue && cc_is_simd_value_type(object_type)) {
+    cc_error_simd_update_target(cc);
+    return 0;
+  }
   if (object_type != TYPE_FLOAT && object_type != TYPE_DOUBLE &&
       !cc_is_simd_value_type(object_type)) {
     cc_error(cc, "indirect increment or decrement is not supported");
@@ -2590,6 +2629,7 @@ static int cc_emit_indirect_fp_update(cc_state_t *cc,
   cc_last_expr_indirect_lvalue = 0;
   cc_last_expr_direct_lvalue_sym = NULL;
   cc_last_expr_simd_lane = 0;
+  cc_last_expr_const_lvalue = 0;
   cc_last_xmm = 0;
   return 1;
 }
@@ -2598,9 +2638,7 @@ static void cc_error_update_target(cc_state_t *cc) {
   if (cc_last_expr_simd_lane) {
     cc_error(cc, "SIMD lane increment or decrement is not supported");
   } else if (cc_is_simd_value_type(cc_last_expr_type)) {
-    cc_error(cc,
-             "SIMD increment or decrement requires a modifiable "
-             "whole-vector lvalue");
+    cc_error_simd_update_target(cc);
   } else if (cc_last_expr_indirect_lvalue) {
     cc_error(cc, "indirect increment or decrement is not supported");
   } else {
@@ -3887,6 +3925,7 @@ static void cc_parse_primary(cc_state_t *cc) {
   cc_last_expr_indirect_lvalue = 0;
   cc_last_expr_direct_lvalue_sym = NULL;
   cc_last_expr_simd_lane = 0;
+  cc_last_expr_const_lvalue = 0;
   cc_token_t tok = cc_next(cc);
   int address_of_array_element = 0;
   int address_of_member = 0;
@@ -3945,6 +3984,8 @@ static void cc_parse_primary(cc_state_t *cc) {
            sym->kind == SYM_GLOBAL)) {
         cc_last_expr_direct_lvalue_sym = sym;
       }
+      if (sym)
+        cc_last_expr_const_lvalue = sym->is_const_qualified;
     }
     cc_parse_ident_expr(cc);
     break;
@@ -4705,9 +4746,11 @@ static void cc_parse_primary(cc_state_t *cc) {
       int base_dim2 = cc_last_expr_dim2;
       int base_array_rank = cc_last_expr_array_rank;
       int base_si = cc_last_expr_struct_index;
+      int base_is_const = cc_last_expr_const_lvalue;
       emit_push_eax(cc); /* push base address */
 
       cc_parse_expression(cc, 1);
+      cc_last_expr_const_lvalue = base_is_const;
 
       /* Scale index by element size */
       if (base_elem_size <= 1) {
@@ -5490,6 +5533,10 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
     cc_error(cc, "undefined variable in assignment");
     return;
   }
+  if (sym->is_const_qualified && cc_is_simd_value_type(sym->type)) {
+    cc_error_simd_assignment_target(cc);
+    return;
+  }
 
   cc_token_t op = cc_next(cc); /* consume =, +=, etc. */
 
@@ -6045,6 +6092,17 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     return;
   }
 
+  if (sym->is_const_qualified && is_simd) {
+    cc_token_type_t mutation = cc_peek(cc).type;
+    if (mutation == CC_TOK_PLUSPLUS || mutation == CC_TOK_MINUSMINUS)
+      cc_error_simd_update_target(cc);
+    else if (cc_is_assignment_op(mutation))
+      cc_error_simd_assignment_target(cc);
+    else
+      cc_error(cc, "expected assignment operator");
+    return;
+  }
+
   if (cc_peek(cc).type == CC_TOK_PLUSPLUS ||
       cc_peek(cc).type == CC_TOK_MINUSMINUS) {
     int decrement = cc_next(cc).type == CC_TOK_MINUSMINUS;
@@ -6060,6 +6118,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
       return;
     }
     cc_last_expr_indirect_lvalue = 1;
+    cc_last_expr_const_lvalue = sym->is_const_qualified;
     if (!cc_emit_indirect_fp_update(cc, elem_type, decrement, 0))
       return;
     return;
@@ -6647,6 +6706,7 @@ static int cc_skip_brace_initializer(cc_state_t *cc) {
 static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
   int type_struct_index = cc_last_type_struct_index;
   int type_array_count = cc_last_type_array_count;
+  int type_is_const = cc_last_type_is_const_qualified;
   cc_skip_attributes(cc);
   cc_token_t name_tok = cc_next(cc);
   if (name_tok.type != CC_TOK_IDENT) {
@@ -6765,6 +6825,7 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
         return;
       sym->address = cc->data_base + cc->data_pos;
       sym->is_array = 1;
+      sym->is_const_qualified = type_is_const;
       sym->struct_index = type_struct_index;
       sym->array_elem_size = aes;
       sym->array_object_size = array_object_size;
@@ -6798,6 +6859,7 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
       if (!cc_data_reserve(cc, (uint32_t)alloc_size))
         return;
       sym->address = cc->data_base + cc->data_pos;
+      sym->is_const_qualified = type_is_const;
       sym->struct_index = type_struct_index;
       memset(cc->data + cc->data_pos, 0, (size_t)alloc_size);
       cc->data_pos += (uint32_t)alloc_size;
@@ -6822,6 +6884,7 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
     if (!cc_data_reserve(cc, (uint32_t)scalar_size))
       return;
     sym->address = cc->data_base + cc->data_pos;
+    sym->is_const_qualified = type_is_const;
     sym->struct_index = type_struct_index;
     memset(cc->data + cc->data_pos, 0, (size_t)scalar_size);
     cc->data_pos += (uint32_t)scalar_size;
@@ -6858,6 +6921,7 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
 static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   int type_struct_index = cc_last_type_struct_index;
   int type_array_count = cc_last_type_array_count;
+  int type_is_const = cc_last_type_is_const_qualified;
   cc_skip_attributes(cc);
   cc_token_t name_tok = cc_next(cc);
   if (name_tok.type != CC_TOK_IDENT) {
@@ -6989,6 +7053,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
       if (sym) {
         sym->offset = local_slot;
         sym->is_array = 1;
+        sym->is_const_qualified = type_is_const;
         sym->struct_index = type_struct_index;
         sym->array_elem_size = aes;
         sym->array_object_size = array_object_size;
@@ -7039,6 +7104,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, TYPE_STRUCT);
     if (sym) {
       sym->offset = local_slot;
+      sym->is_const_qualified = type_is_const;
       sym->struct_index = type_struct_index;
     }
     /* Zero-initialize the struct */
@@ -7081,6 +7147,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, type);
     if (sym) {
       sym->offset = local_slot;
+      sym->is_const_qualified = type_is_const;
       sym->struct_index = -1;
     }
 
@@ -7155,6 +7222,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_LOCAL, type);
   if (sym) {
     sym->offset = local_slot;
+    sym->is_const_qualified = type_is_const;
     sym->struct_index = type_struct_index;
   }
 
@@ -7238,6 +7306,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     cc_symbol_t *sym2 = cc_sym_add(cc, next_name.text, SYM_LOCAL, type);
     if (sym2) {
       sym2->offset = next_local_slot;
+      sym2->is_const_qualified = type_is_const;
       sym2->struct_index = type_struct_index;
     }
     if (cc_peek(cc).type == CC_TOK_EQ) {
@@ -8652,6 +8721,7 @@ void cc_parse_program(cc_state_t *cc) {
       cc_type_t td_base_type = cc_last_type_base;
       int td_struct_index = cc_last_type_struct_index;
       int td_array_count = cc_last_type_array_count;
+      int td_is_const = cc_last_type_is_const_qualified;
       if (cc->error)
         break;
       int pointer_depth = cc_last_type_pointer_depth;
@@ -8679,7 +8749,8 @@ void cc_parse_program(cc_state_t *cc) {
                 &alias_array_count))
           break;
         cc_add_typedef_alias(cc, alias_tok.text, alias_type,
-                             td_struct_index, alias_array_count);
+                             td_struct_index, alias_array_count,
+                             td_is_const);
         if (cc->error)
           break;
         if (!cc_match(cc, CC_TOK_COMMA))
@@ -9088,6 +9159,7 @@ void cc_parse_program(cc_state_t *cc) {
         cc_type_t gtype = cc_parse_type(cc);
         int gtype_si = cc_last_type_struct_index;
         int gtype_array_count = cc_last_type_array_count;
+        int gtype_is_const = cc_last_type_is_const_qualified;
         cc_skip_attributes(cc);
         cc_token_t gname = cc_next(cc);
         if (gname.type != CC_TOK_IDENT) {
@@ -9221,6 +9293,7 @@ void cc_parse_program(cc_state_t *cc) {
               break;
             gsym->address = cc->data_base + cc->data_pos;
             gsym->is_array = 1;
+            gsym->is_const_qualified = gtype_is_const;
             gsym->struct_index = gtype_si;
             gsym->array_elem_size = aes;
             gsym->array_object_size = array_object_size;
@@ -9246,6 +9319,7 @@ void cc_parse_program(cc_state_t *cc) {
             if (!cc_data_reserve(cc, (uint32_t)alloc_size))
               break;
             gsym->address = cc->data_base + cc->data_pos;
+            gsym->is_const_qualified = gtype_is_const;
             gsym->struct_index = gtype_si;
             memset(cc->data + cc->data_pos, 0, (size_t)alloc_size);
             cc->data_pos += (uint32_t)alloc_size;
@@ -9270,6 +9344,7 @@ void cc_parse_program(cc_state_t *cc) {
             if (!cc_data_reserve(cc, (uint32_t)scalar_size))
               break;
             gsym->address = cc->data_base + cc->data_pos;
+            gsym->is_const_qualified = gtype_is_const;
             gsym->struct_index = gtype_si;
             memset(cc->data + cc->data_pos, 0, (size_t)scalar_size);
             cc->data_pos += (uint32_t)scalar_size;
@@ -9633,6 +9708,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     cc_type_t td_base_type = cc_last_type_base;
     int td_struct_index = cc_last_type_struct_index;
     int td_array_count = cc_last_type_array_count;
+    int td_is_const = cc_last_type_is_const_qualified;
     if (cc->error)
       return;
     int pointer_depth = cc_last_type_pointer_depth;
@@ -9658,7 +9734,8 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
               &alias_array_count))
         return;
       cc_add_typedef_alias(cc, alias_tok.text, alias_type,
-                           td_struct_index, alias_array_count);
+                           td_struct_index, alias_array_count,
+                           td_is_const);
       if (cc->error)
         return;
       if (!cc_match(cc, CC_TOK_COMMA))
@@ -9854,6 +9931,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     cc_type_t gtype = cc_parse_type(cc);
     int gtype_si = cc_last_type_struct_index;
     int gtype_array_count = cc_last_type_array_count;
+    int gtype_is_const = cc_last_type_is_const_qualified;
     cc_skip_attributes(cc);
     cc_token_t gname = cc_next(cc);
     if (gname.type != CC_TOK_IDENT) {
@@ -9962,6 +10040,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
           return;
         gsym->address = cc->data_base + cc->data_pos;
         gsym->is_array = 1;
+        gsym->is_const_qualified = gtype_is_const;
         gsym->struct_index = gtype_si;
         gsym->array_elem_size = elem_size;
         gsym->array_object_size = array_object_size;
@@ -9988,6 +10067,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         if (!cc_data_reserve(cc, (uint32_t)alloc_size))
           return;
         gsym->address = cc->data_base + cc->data_pos;
+        gsym->is_const_qualified = gtype_is_const;
         gsym->struct_index = gtype_si;
         memset(cc->data + cc->data_pos, 0, (size_t)alloc_size);
         cc->data_pos += (uint32_t)alloc_size;
@@ -10014,6 +10094,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         if (!cc_data_reserve(cc, (uint32_t)scalar_size))
           return;
         gsym->address = cc->data_base + cc->data_pos;
+        gsym->is_const_qualified = gtype_is_const;
         gsym->struct_index = gtype_si;
         memset(cc->data + cc->data_pos, 0, (size_t)scalar_size);
         cc->data_pos += (uint32_t)scalar_size;

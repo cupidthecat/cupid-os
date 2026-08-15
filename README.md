@@ -139,7 +139,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - Private CupidC accepts both anonymous and tagged structure typedefs. The typedef table keeps the record identity through alias chains and pointer aliases, so `.` and `->` retain the correct layout in file and persistent REPL source. Address expressions now select the field itself for both `&record.field` and `&pointer->field`; the pointer form loads the pointed-to record before adding the field offset. Fixed array products, cumulative record layout, final alignment, REPL data reservations, and cumulative local frames now fail before signed overflow. Constant integer expressions check signed arithmetic and retain `uint32_t` wrap when an operand is unsigned. A failed REPL line restores complete record definitions, including an older forward tag that the rejected line tried to fill. ADR 0219 records this boundary.
 - Private CupidC accepts comma-separated typedef declarators and keeps each value or pointer alias distinct. One-dimensional fixed-array aliases retain complete storage and `sizeof` through automatic, global, block-static, record, class, and persistent REPL declarations; function and method parameters use C array decay. Array members keep their complete object size and record-element identity through direct or pointer access, including indexed assignment inside an array of records. Unsupported compound array declarators fail explicitly instead of becoming scalar objects. ADR 0220 records this boundary.
 - Private CupidC preserves unsigned 32-bit runtime types through objects, pointers, calls, enums, unary operations, conditionals, comparisons, division, remainder, right shift, `sizeof`, and scalar returns. `/=`, `%=`, and `>>=` use the same signedness rules while evaluating each destination once. It converts the complete `uint32_t` range exactly to `double` and correctly rounded `float`, including ordinary and method returns. Values in C's defined interval convert from `float` or `double` to an unsigned word through casts, initialization, assignment, arguments, and returns. Forty kernel bindings with `uint32_t`, `size_t`, or `swap_handle_t` results publish that unsigned type. The Browser stores array length in the same lane, accepts canonical indices through 4,294,967,294, and treats 4,294,967,295 as an ordinary property. ADR 0221 records the original type boundary, and ADR 0249 records the two completed operations. The feature-13 guest checks four conversion boundaries, signed and high-bit unsigned `%=` results, and one evaluation of a side-effecting destination. Its required boot marker is `[feature13-unsigned] PASS conversions=4 remainders=2 once=1`.
-- Private `float4` and `double2` values support matching packed arithmetic and fixed arrays with one, two, or three dimensions in global, local, block-static, and persistent REPL storage. Array rank stays independent of byte stride, including when an inner extent is one. Access keeps checked row strides until the final 16-byte vector leaf, uses unaligned-safe moves, supports plain and arithmetic compound assignment, and preserves lane values. Prefix and postfix `++` and `--` work on modifiable direct vectors and fully indexed leaves. Each evaluated index runs once. Prefix returns the stored vector, while postfix returns the exact old 128-bit payload. Indexes inside row or vector `sizeof` do not run, and incomplete rows cannot escape as untyped pointers. SIMD pointers, fields, parameters, calls, lane updates, and computed vector updates remain explicit gaps. Direct arithmetic uses a stable machine operand order, and minimum and maximum intrinsics retain their defined NaN and signed-zero behavior. Feature 14 now requires operator, array, matrix, update, minimum/maximum, and NaN markers. ADR 0257 records multidimensional row descent, and ADR 0294 records whole-vector updates.
+- Private `float4` and `double2` values support matching packed arithmetic and fixed arrays with one, two, or three dimensions in global, local, block-static, and persistent REPL storage. Array rank stays independent of byte stride, including when an inner extent is one. Access keeps checked row strides until the final 16-byte vector leaf, uses unaligned-safe moves, supports plain and arithmetic compound assignment, and preserves lane values. Prefix and postfix `++` and `--` work on modifiable direct vectors and fully indexed leaves. Each evaluated index runs once. Const qualification is retained through typedef aliases. Const direct vectors and fixed-array leaves remain readable. Plain and arithmetic compound assignment, plus prefix and postfix `++` and `--`, are rejected before a store. Prefix returns the stored vector, while postfix returns the exact old 128-bit payload. Indexes inside row or vector `sizeof` do not run, and incomplete rows cannot escape as untyped pointers. SIMD pointers, fields, parameters, calls, lane updates, and computed vector updates remain explicit gaps. Direct arithmetic uses a stable machine operand order, and minimum and maximum intrinsics retain their defined NaN and signed-zero behavior. Feature 14 now requires operator, array, matrix, update, minimum/maximum, and NaN markers. ADR 0257 records multidimensional row descent, and ADR 0294 records whole-vector updates.
 - The TCP/IP stack supports RTL8139 and E1000 devices, ARP, IPv4, ICMP, UDP, a client and server subset of RFC 793 TCP, DHCP with static fallback, DNS with a 16-entry TTL cache, and a 32-slot BSD socket table shared by the shell and CupidC. TCP uses per-socket stop-and-wait retransmission with exponential backoff, advertises the actual receive-buffer space, and collects abandoned half-open connections. IPv4 fragments outgoing packets and keeps four reassembly slots for datagrams up to about 64 KB.
 - The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 parsing with hostname, time, and best-effort chain checks against an embedded Mozilla CA bundle. The chain checker is still lenient when it cannot find a root or implement a signature algorithm. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
 - `bin/curl.cc` and `bin/wget.cc` are CupidC clients built on the socket and TLS bindings. `curl` supports GET, POST, `-o`, `-i`, `-s`, `-X`, `-d`, and `-H`, with HTTP-to-HTTP redirects capped at five hops. `wget` supports `-O` and `-q`, derives its output filename, and reports the response status and saved byte count.
@@ -509,17 +509,19 @@ tables as `.cc` sources, and checked-seed CupidC compiles them. The separate
 `user/` build uses CupidC for `hello.cc`, `ls.cc`, and `cat.cc`, then CupidLD
 places each executable in the fixed external arena. Linux runs the checked i386
 Linux seed directly, while Windows runs the checked native PE32 execution seed.
-The user ABI contract still uses the Linux bootstrap seed through WSL because
-it consumes that seed's build-plan provenance. The normal user build
-does not prepare a native compiler or linker. An optional Windows frontier
-runs private snapshots of the native hosted drivers and requires all six
-outputs to match the checked seed. Before compiling, the user build checks
-the kernel and public syscall declarations as one i386 ABI. The checker
-captures all six declaration inputs and rechecks their exact bytes before
-success. The contract is version 5 with 103 fields in 412 bytes, a 136-byte
-directory entry, an 8-byte file status record, and 101 reviewed function
-providers. Both execution paths freeze their complete source and control
-inputs, validate the resulting ELF files, and publish only complete
+Windows builds and runs the user ABI contract as a private PE with checked
+CupidC, CupidASM, and CupidLD. Linux runs the static ABI contract with the
+checked bootstrap seed. The broader Linux fixed-point, Toolchain, and
+artifact-size paths still use that seed through WSL on Windows. The normal user
+build consumes the selected seed rather than preparing a compiler or linker.
+An optional Windows frontier runs private snapshots of the native hosted
+drivers and requires all six outputs to match the checked seed. The user build
+then checks the kernel and public syscall declarations as one i386 ABI before
+compiling. The checker captures all six declaration inputs and rechecks their
+exact bytes before success. Version 5 has a 412-byte table with 103 fields, a
+136-byte directory entry, and an 8-byte file status record. It tracks 101
+reviewed function providers. Both execution paths freeze their source and
+control inputs, validate the resulting ELF files, and publish only complete
 artifacts. The checked user CupidC and CupidLD paths pass their existing
 five-tool capture to one runner. It verifies the complete live cohort after
 the private command returns. Drift detected by that check prevents
@@ -2197,9 +2199,10 @@ and `ls.cc`. Its `cupid.h` header defines the syscall-table ABI. `make -C user`
 first compares that header with the kernel types, syscall table and
 initializer, VFS declarations, and socket constants. It then compiles the
 sources with CupidC and links them with CupidLD. Linux runs the checked
-bootstrap seed directly. Windows uses that Linux seed through WSL for the ABI
-contract, then runs native checked CupidC and CupidLD for the output-bearing
-compile and link.
+bootstrap seed directly. Windows builds and runs the ABI contract as a private
+PE with checked CupidC, CupidASM, and CupidLD, then uses native checked CupidC
+and CupidLD for the three output-bearing programs. The complete Toolchain
+contract, fixed-point, and artifact-size paths still use WSL on Windows.
 `make test-user-native-windows-equivalence` builds the optional native hosted
 drivers and checks every object and executable against the seed. The host
 compiler is needed only for that comparison and the hosted Toolchain. The

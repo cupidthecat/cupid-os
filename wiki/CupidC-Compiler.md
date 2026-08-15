@@ -302,15 +302,18 @@ as untyped pointers. Direct whole vectors and fully indexed leaves support
 prefix and postfix `++` and `--`. The update broadcasts an exact one to every
 lane, evaluates an indexed destination once, and writes through the retained
 address. Prefix returns the new vector. Postfix restores the exact old 128-bit
-payload after the store. Global, block-static, and persistent REPL direct
+payload after the store. Const qualification is retained through typedef
+aliases. Const direct vectors and fixed-array leaves remain readable. Plain
+and arithmetic compound assignment, plus prefix and postfix `++` and `--`, are
+rejected before a store. Global, block-static, and persistent REPL direct
 vectors use complete 16-byte storage. SIMD pointers, record fields, parameters,
 calls, row values, lane updates, and computed vector updates remain outside
-this boundary. Matching vectors also support
-direct `+`, `-`, `*`, and `/` expressions. Every direct operation keeps the
-written left value in the machine destination. MIN and MAX intrinsics keep the
-second operand for NaN and equal signed-zero inputs. A both-NaN ADD or MUL may
-carry either input payload, depending on the processor or emulator. ADR 0294
-records the whole-vector update path.
+this boundary. Matching vectors also support direct `+`, `-`, `*`, and `/`
+expressions. Every direct operation keeps the written left value in the
+machine destination. MIN and MAX intrinsics keep the second operand for NaN
+and equal signed-zero inputs. For a both-NaN ADD or MUL, the processor or
+emulator may preserve either input payload.
+ADR 0294 records this whole-vector update path.
 
 Array bounds at file scope and inside structs accept constant integer
 expressions, including enum values and simple arithmetic. That keeps

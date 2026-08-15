@@ -432,17 +432,19 @@ extraction. Row and vector `sizeof` keep their complete sizes without running
 an index. Modifiable direct vectors and fully indexed leaves support prefix
 and postfix `++` and `--`. Each update broadcasts a lane value of 1.0 across
 the packed vector. An indexed destination is evaluated once. Prefix returns
-the stored vector, and postfix returns the exact old 128-bit payload. Matching
-vectors support direct
-`+`, `-`, `*`, and `/`. Every direct operation keeps the written left value in
-the machine destination. MIN and MAX intrinsics keep the written second operand
-for NaN and equal signed-zero inputs. A both-NaN ADD or MUL may carry either
-input payload, depending on the processor or emulator. Incomplete row
-assignment is rejected. SIMD pointers, record fields, allocation with `new`,
-array parameters, row values, lane updates, computed vector updates, and call
-ABI transport remain unsupported. ADR 0216 records the first fixed-array
-boundary, ADR 0257 records multidimensional row descent, and ADR 0294 records
-whole-vector updates.
+the stored vector, and postfix returns the exact old 128-bit payload. Const
+qualification is retained through typedef aliases. A const direct vector or
+fixed-array leaf remains readable. Plain and arithmetic compound assignment,
+plus prefix and postfix `++` and `--`, are rejected before a store. Matching
+vectors support direct `+`, `-`, `*`, and `/`. Every direct operation keeps the
+written left value in the machine destination. MIN and MAX intrinsics keep the
+written second operand for NaN and equal signed-zero inputs. For a both-NaN ADD
+or MUL, the processor or emulator may preserve either input payload. Incomplete
+row assignment is rejected. SIMD pointers, record fields, and allocation with
+`new`, array parameters, row values, lane updates, computed vector updates, and
+call ABI transport remain unsupported. The fixed-array boundary is in ADR 0216.
+ADR 0257 records multidimensional row descent.
+ADR 0294 records whole-vector updates.
 
 ### Arithmetic
 

@@ -155,6 +155,7 @@ int main(void) {{
             for name in (
                 "cc_is_simd_value_type",
                 "cc_is_direct_update_type",
+                "cc_error_simd_update_target",
                 "cc_validate_variable_update",
             )
         )
@@ -193,6 +194,7 @@ typedef struct {{
   cc_symbol_kind_t kind;
   cc_type_t type;
   int is_array;
+  int is_const_qualified;
 }} cc_symbol_t;
 
 typedef struct {{
@@ -209,23 +211,30 @@ static void cc_error(cc_state_t *cc, const char *message) {{
 
 int main(void) {{
   cc_state_t vector_state = {{0}};
-  cc_symbol_t vector = {{SYM_LOCAL, TYPE_FLOAT4, 0}};
+  cc_symbol_t vector = {{SYM_LOCAL, TYPE_FLOAT4, 0, 0}};
   int vector_result =
       cc_validate_variable_update(&vector_state, &vector);
   printf("%d:%d\\n", vector_result, vector_state.error);
 
   cc_state_t aggregate_state = {{0}};
-  cc_symbol_t aggregate = {{SYM_LOCAL, TYPE_STRUCT, 0}};
+  cc_symbol_t aggregate = {{SYM_LOCAL, TYPE_STRUCT, 0, 0}};
   int aggregate_result =
       cc_validate_variable_update(&aggregate_state, &aggregate);
   printf("%d:%d:%s\\n", aggregate_result, aggregate_state.error,
          aggregate_state.message);
 
   cc_state_t scalar_state = {{0}};
-  cc_symbol_t scalar = {{SYM_GLOBAL, TYPE_DOUBLE, 0}};
+  cc_symbol_t scalar = {{SYM_GLOBAL, TYPE_DOUBLE, 0, 0}};
   int scalar_result =
       cc_validate_variable_update(&scalar_state, &scalar);
   printf("%d:%d\\n", scalar_result, scalar_state.error);
+
+  cc_state_t const_vector_state = {{0}};
+  cc_symbol_t const_vector = {{SYM_GLOBAL, TYPE_DOUBLE2, 0, 1}};
+  int const_vector_result =
+      cc_validate_variable_update(&const_vector_state, &const_vector);
+  printf("%d:%d:%s\\n", const_vector_result, const_vector_state.error,
+         const_vector_state.message);
   return 0;
 }}
 """
@@ -286,6 +295,8 @@ int main(void) {{
                 "1:0",
                 "0:1:increment or decrement requires a scalar variable",
                 "1:0",
+                "0:1:SIMD increment or decrement requires a modifiable "
+                "whole-vector lvalue",
             ),
         )
 

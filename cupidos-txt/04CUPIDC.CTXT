@@ -1647,7 +1647,10 @@ modifiable whole vector or fully indexed leaf also supports prefix and postfix
 ++ and --. Direct automatic, global, block-static, and persistent REPL vectors
 use complete 16-byte storage. Prefix returns the stored vector. Postfix returns
 the exact old 128-bit payload after writing the new value. Every update index
-runs once. Lane updates, computed vectors, SIMD pointers, record fields,
+runs once. Const qualification is retained through typedef aliases. Const
+direct vectors and fixed-array leaves remain readable. Plain and arithmetic
+compound assignment, plus prefix and postfix ++ and --, are rejected before a
+store. Lane updates, computed vectors, SIMD pointers, record fields,
 parameters, calls, and incomplete rows remain outside this update path. Every
 direct operator keeps the written left value in the machine destination. MIN
 and MAX intrinsics keep the second input for NaN and equal signed-zero cases. A

@@ -1224,16 +1224,19 @@ the machine destination. Whole-vector prefix and postfix `++` and `--` work on
 direct objects and fully indexed leaves. The indexed path retains its computed
 address, prefix returns the stored vector, and postfix returns the exact old
 128-bit payload. Automatic, global, block-static, and persistent REPL direct
-objects use complete 16-byte storage. Every update index runs once. The
-feature-14 guest reports these checks separately from its array and matrix
-markers. MIN and MAX intrinsics preserve their second-operand
-NaN and signed-zero behavior. A both-NaN ADD or MUL may carry either input
-payload, depending on the processor or emulator. Incomplete rows are rejected
-rather than treated as untyped pointers. SIMD pointers, record fields, `new`,
+objects use complete 16-byte storage. Const qualification is retained through
+typedef aliases. Const direct vectors and fixed-array leaves remain readable.
+Plain and arithmetic compound assignment, plus prefix and postfix `++` and
+`--`, are rejected before a store. Every update index runs once. The feature-14
+guest reports these checks separately from its array and matrix markers. MIN
+and MAX intrinsics preserve their second-operand NaN and signed-zero behavior.
+For a both-NaN ADD or MUL, the processor or emulator may preserve either input
+payload. Incomplete rows are rejected rather than treated as untyped pointers.
+SIMD pointers, record fields, `new`,
 array parameters, row values, lane updates, computed vector updates, and call
-ABI transport remain unsupported. ADR 0216 records the first fixed-array
-boundary, ADR 0257 records multidimensional row descent, and ADR 0294 records
-whole-vector updates.
+ABI transport remain unsupported. ADR 0216 records the fixed-array boundary.
+ADR 0257 records multidimensional row descent.
+ADR 0294 records whole-vector updates.
 
 Private decimal literals now use a fixed 1536-bit integer workspace. CupidC
 forms the exact decimal ratio and rounds once to the selected binary32 or

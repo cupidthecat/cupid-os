@@ -716,7 +716,10 @@ objects also work in automatic, global, block-static, and persistent REPL
 storage. Prefix returns the stored vector. Postfix returns the exact old
 128-bit payload. Declared rank is tracked separately from byte size, so unit
 inner extents keep their row identity. Every evaluated index runs once. An
-index inside unevaluated `sizeof` does not run.
+index inside unevaluated `sizeof` does not run. Const qualification is retained
+through typedef aliases. Const direct vectors and fixed-array leaves remain
+readable. Plain and arithmetic compound assignment, along with prefix and
+postfix `++` and `--`, are rejected before any store.
 Direct arithmetic keeps the written left value in the machine destination.
 The SSE minimum and maximum intrinsics retain the second-operand rules for NaN
 and signed zero. A both-NaN ADD or MUL result may carry either input payload,

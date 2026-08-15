@@ -374,11 +374,28 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       if (repl_rollback_mode && unit_index == 0) {
                         if (cc->error)
                           break;
+                        checkpoint.code_committed = cc->code_pos;
+                        checkpoint.data_committed = cc->data_pos;
+                        checkpoint.sym_committed = cc->sym_count;
                         cc_repl_checkpoint_structs(&checkpoint);
+                        checkpoint.typedef_committed = cc->typedef_count;
+                        checkpoint.patch_committed = cc->patch_count;
                       } else if (repl_rollback_mode && unit_index == 1) {
                         if (!cc->error)
                           return 73;
+                        cc->code_pos = checkpoint.code_committed;
+                        cc->data_pos = checkpoint.data_committed;
+                        cc->sym_count = checkpoint.sym_committed;
                         cc_repl_restore_structs(&checkpoint);
+                        cc->typedef_count = checkpoint.typedef_committed;
+                        cc->patch_count = checkpoint.patch_committed;
+                        cc->has_entry = 0;
+                        cc->entry_offset = 0;
+                        cc->local_offset = 0;
+                        cc->max_local_offset = 0;
+                        cc->param_count = 0;
+                        cc->control_depth = 0;
+                        cc->statement_depth = 0;
                         cc->error = 0;
                         cc->error_msg[0] = 0;
                       } else if (cc->error) {
@@ -3776,8 +3793,269 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_repl_const_simd_update_is_rejected_before_recovery(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-const-simd-update-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, _data_path = (
+                self._compile_repl_after_struct_failure(
+                    Path(temporary),
+                    (
+                        "typedef const float4 ReplConstVector; "
+                        "ReplConstVector repl_value;",
+                        "repl_value++;",
+                        "ReplConstVector preserved_value; preserved_value.x;",
+                        "float4 mutable_value; ++mutable_value;",
+                    ),
+                )
+            )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "SIMD increment or decrement requires a modifiable "
+            "whole-vector lvalue",
+            result.stderr,
+        )
+
+    def test_const_simd_assignments_recover_in_the_same_state(self):
+        cases = (
+            (
+                "direct assignment",
+                """
+                int main() {
+                  const float4 destination;
+                  float4 source;
+                  destination = source;
+                  return 0;
+                }
+                """,
+            ),
+            (
+                "indexed compound assignment",
+                """
+                int main() {
+                  const double2 destination[1][1];
+                  double2 source;
+                  destination[0][0] += source;
+                  return 0;
+                }
+                """,
+            ),
+        )
+        retry_source = "int main() { float4 value; value += value; return 0; }"
+        for label, failing_source in cases:
+            with self.subTest(form=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-const-simd-assignment-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile_after_failure(
+                    Path(temporary),
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+            self.assertEqual(
+                result.returncode,
+                0,
+                f"{label}: {result.stdout}{result.stderr}",
+            )
+            self.assertIn(
+                "SIMD assignment requires a modifiable whole-vector lvalue",
+                result.stderr,
+                label,
+            )
+
+    def test_typedef_const_simd_values_remain_readable(self):
+        result = self._compile_and_run(
+            """
+            typedef const float4 ConstVector;
+            typedef ConstVector ConstVectorAlias;
+
+            int main() {
+              ConstVectorAlias value = {1.0f, 2.0f, 3.0f, 4.0f};
+              ConstVectorAlias values[1];
+              float4 copy;
+              copy = value;
+              if (copy.x != 1.0f || copy.w != 4.0f) return 1;
+              copy = values[0];
+              if (copy.x != 0.0f || copy.w != 0.0f) return 2;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_typedef_const_simd_mutations_recover_in_the_same_state(self):
+        assignment_message = (
+            "SIMD assignment requires a modifiable whole-vector lvalue"
+        )
+        update_message = (
+            "SIMD increment or decrement requires a modifiable "
+            "whole-vector lvalue"
+        )
+        cases = (
+            (
+                "alias-chain direct assignment",
+                """
+                typedef const float4 ConstVector;
+                typedef ConstVector ConstVectorAlias;
+                int main() {
+                  ConstVectorAlias destination;
+                  float4 source;
+                  destination = source;
+                  return 0;
+                }
+                """,
+                assignment_message,
+            ),
+            (
+                "direct compound assignment",
+                """
+                typedef const double2 ConstVector;
+                int main() {
+                  ConstVector destination;
+                  double2 source;
+                  destination += source;
+                  return 0;
+                }
+                """,
+                assignment_message,
+            ),
+            (
+                "direct prefix update",
+                """
+                typedef const float4 ConstVector;
+                int main() {
+                  ConstVector value;
+                  ++value;
+                  return 0;
+                }
+                """,
+                update_message,
+            ),
+            (
+                "indexed assignment",
+                """
+                typedef const float4 ConstVector;
+                int main() {
+                  ConstVector values[1];
+                  float4 source;
+                  values[0] = source;
+                  return 0;
+                }
+                """,
+                assignment_message,
+            ),
+            (
+                "alias-chain indexed compound assignment",
+                """
+                typedef const double2 ConstVector;
+                typedef ConstVector ConstVectorAlias;
+                int main() {
+                  ConstVectorAlias values[1][1];
+                  double2 source;
+                  values[0][0] += source;
+                  return 0;
+                }
+                """,
+                assignment_message,
+            ),
+            (
+                "typedef-array indexed postfix update",
+                """
+                typedef const float4 ConstVector;
+                typedef ConstVector ConstVectorArray[1];
+                int main() {
+                  ConstVectorArray values;
+                  values[0]++;
+                  return 0;
+                }
+                """,
+                update_message,
+            ),
+        )
+        retry_source = "int main() { float4 value; value++; return 0; }"
+        for label, failing_source, message in cases:
+            with self.subTest(form=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-typedef-const-simd-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile_after_failure(
+                    Path(temporary),
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+            self.assertEqual(
+                result.returncode,
+                0,
+                f"{label}: {result.stdout}{result.stderr}",
+            )
+            self.assertIn(message, result.stderr, label)
+
     def test_simd_update_rejections_recover_in_the_same_state(self):
         cases = (
+            (
+                "const automatic vector",
+                """
+                int main() {
+                  const float4 value = {1, 2, 3, 4};
+                  ++value;
+                  return 0;
+                }
+                """,
+                "SIMD increment or decrement requires a modifiable "
+                "whole-vector lvalue",
+            ),
+            (
+                "trailing-const global vector",
+                """
+                double2 const value;
+                int main() {
+                  value--;
+                  return 0;
+                }
+                """,
+                "SIMD increment or decrement requires a modifiable "
+                "whole-vector lvalue",
+            ),
+            (
+                "const block-static vector",
+                """
+                int main() {
+                  static const double2 value;
+                  value++;
+                  return 0;
+                }
+                """,
+                "SIMD increment or decrement requires a modifiable "
+                "whole-vector lvalue",
+            ),
+            (
+                "const one-dimensional vector leaf",
+                """
+                int main() {
+                  const float4 values[1];
+                  values[0]--;
+                  return 0;
+                }
+                """,
+                "SIMD increment or decrement requires a modifiable "
+                "whole-vector lvalue",
+            ),
+            (
+                "const three-dimensional vector leaf",
+                """
+                int main() {
+                  const float4 values[1][1][1];
+                  --values[0][0][0];
+                  return 0;
+                }
+                """,
+                "SIMD increment or decrement requires a modifiable "
+                "whole-vector lvalue",
+            ),
             (
                 "computed vector",
                 """
@@ -3871,8 +4149,12 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     retry_source,
                     same_state=True,
                 )
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn(message, result.stderr)
+            self.assertEqual(
+                result.returncode,
+                0,
+                f"{label}: {result.stdout}{result.stderr}",
+            )
+            self.assertIn(message, result.stderr, label)
 
     def test_simd_add_and_multiply_keep_source_order_in_machine_code(self):
         with tempfile.TemporaryDirectory(
