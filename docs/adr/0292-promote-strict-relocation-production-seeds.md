@@ -134,3 +134,11 @@ This promotion changes no transform owner and adds no host dependency. Python
 still coordinates the fixed point and publication transactions. No active
 source needs a `.c` to `.cc` rename, and the `TempleOS/` reference tree remains
 unchanged and outside the progress counts.
+
+The combined branch later rebuilt the complete OS with the conventional host
+code-generation variables poisoned. The first run reached the exact-size gate
+in 624.6 seconds and found only a measured 680-byte increase in `kernel.bin`.
+After the policy change passed all twelve tests, a second full build passed in
+625.8 seconds. Private four-vCPU boots then ran `/bin/ls.cc` through CupidC and
+`as /demos/hello.asm` through CupidASM from the published image. Both reached
+JIT completion without an accepted panic or fault marker.

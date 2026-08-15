@@ -880,18 +880,25 @@ produced 33,452,396 frames at peak 25,600, and the PC speaker produced 76,614
 frames at peak 31,877. USB detach/replug and the post-replug survival window
 also passed. The private run left the source image unchanged.
 
-The current production checkpoint includes in-kernel CupidLD and the guarded
-normal boot edge. A poisoned-host normal build passed in 674.693 seconds
-after CupidDis accepted all 431 production inputs. The pass-one ELF is
-9,211,340 bytes with SHA-256
-`2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`.
-The final ELF is 9,334,220 bytes with SHA-256
-`bc855462c1f8f42e34d94a974443f7c6e565d60b1913e3b6f33b3e6e375f3ed6`,
-and the 9,114,084-byte raw kernel has SHA-256
-`8b5d73e74538ce11c1fb074f88b3852d690038aa5cb3a8de3ce222e9df88cade`.
-The 209,715,200-byte image has SHA-256
-`813c9b0c78f795c1ac9fcff59b9c4111a958a07eb1e3943dc7af60c536521110`.
-A private four-vCPU QEMU boot reached JIT completion in 49.257 seconds.
+The current production checkpoint also includes in-kernel CupidLD, the guarded
+normal boot edge, the promoted strict-relocation seeds, and independent source
+suffix provenance. Its first exact-tree poisoned-host build reached the size
+gate in 624.6 seconds and failed only because the flat kernel had grown by 680
+bytes. The revised policy passed all twelve tests. A complete rebuild then
+passed in 625.8 seconds and published these artifacts:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,219,620 | `6dd761fd4ec6cb9a17181b9f12bfea98a5426c7e7472611d5bad670a6af0f027` |
+| `kernel/kernel.elf` | 9,342,500 | `51864d8dbe358a7a6bf5fc3b50626f909645aaefc4d1342d812d77599336475d` |
+| `kernel/kernel.bin` | 9,125,104 | `336d8562888008ccb0760b5c813bde451ab9f3912255e88bf16c77dd811483a9` |
+| `cupidos.img` | 209,715,200 | `69ead54daa9f20eed8e5b4cb3aaac71947f64cce02f08dd8eceb1ab00dc18ddd` |
+
+Two private four-vCPU boots completed together in 60.5 seconds. One ran
+`/bin/ls.cc` through CupidC; the other ran `as /demos/hello.asm` through
+CupidASM. Both logs show all four CPUs online and the expected JIT completion,
+with no accepted panic or fault marker.
 
 The preceding dual-NIC checkpoint used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.

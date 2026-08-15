@@ -26677,3 +26677,63 @@ and records 18 successful fixed-point cases plus 17 useful failures.
 This correction changes no compiler or assembler behavior, seed image,
 production recipe, ABI, source owner, or host dependency. It keeps the exact
 source and behavior locks aligned with the already accepted implementation.
+
+## 2026-08-14: Validate the combined self-hosting checkpoint
+
+The final integration tree combines the new CupidC floating conversions,
+stricter raw CupidASM source controls, executable-relocation ownership in
+CupidDis, guarded assembler-object publication, the corrected raw `EQU` rule,
+the promoted Linux and Windows seeds, and independent `.cc` ownership
+provenance. The embedded manuals already describe those OS capabilities, so
+they were frozen before the artifact measurement.
+
+The first `make -j4 all` ran with `CC`, `CXX`, `LD`, `AS`, `NASM`, `NM`, and
+`OBJCOPY` set to invalid commands. It reached the artifact-size gate in 624.6
+seconds after compilation, assembly, both links, kernel flattening, and strict
+CupidDis inspection had passed. The gate rejected one stale policy value:
+`kernel.bin` was 9,125,104 bytes, 680 bytes larger than the preceding
+checkpoint. The two ELF sizes and the five-sector boot image were unchanged.
+The existing public image remained in place.
+
+Only the measured flat-kernel value changed in the policy. All twelve
+artifact-policy tests passed in 1.536 seconds. A second complete poisoned-host
+build passed in 625.8 seconds, accepted all nine exact artifacts, and published
+the image:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,219,620 | `6dd761fd4ec6cb9a17181b9f12bfea98a5426c7e7472611d5bad670a6af0f027` |
+| `kernel/kernel.elf` | 9,342,500 | `51864d8dbe358a7a6bf5fc3b50626f909645aaefc4d1342d812d77599336475d` |
+| `kernel/kernel.bin` | 9,125,104 | `336d8562888008ccb0760b5c813bde451ab9f3912255e88bf16c77dd811483a9` |
+| `cupidos.img` | 209,715,200 | `69ead54daa9f20eed8e5b4cb3aaac71947f64cce02f08dd8eceb1ab00dc18ddd` |
+
+The two production CupidASM objects retained their earlier identities. ISR is
+1,892 bytes with SHA-256
+`caa8e1974fbf06857263a743661aae3318abb0b4e10fa154e4ac4994f32464e6`.
+Context switch is 696 bytes with SHA-256
+`8b0fa9415a5f549f6516e3ae4e73d39676d56fb58bbba87d9479610dd95818ea`.
+Both were published through the guarded assembler and CupidDis transaction
+while the host tool variables were poisoned.
+
+Two private four-vCPU QEMU smokes ran in parallel and finished together in
+60.5 seconds. `/bin/ls.cc` compiled and completed through in-OS CupidC. Its
+32,467-byte log has SHA-256
+`a59d3542cd6f254822b1ba02ab087ef08b42e1562be0398f75d3ff34ffa8cd81`.
+`as /demos/hello.asm` assembled and completed through in-OS CupidASM. Its
+33,379-byte log has SHA-256
+`f64051cf034a3d1efa96fa8336c30485bb6b5be0b55bced5a7fd1c44737f2c0a`.
+Both logs report four CPUs online and the expected JIT completion. Neither
+harness accepted a panic or fault marker.
+
+The final audit remains at 736 active inputs, 452 transforms, 255 feature
+requirements, and 25 accounted unreachable files. Its 2,677,736-byte JSON has
+SHA-256
+`88f4f0f94f70c0378bac85fdad66a91183f37d3cdfd38a10f8d092fd096bd396`.
+The 12,502-byte summary has SHA-256
+`d572f7f81b3e9cf16f23b35c78e3ce81952540bf96a5d6c738c10189cadf7beb`.
+
+No active `.c` file has independent CupidC ownership evidence, so this
+checkpoint performs no suffix rename. Python still coordinates the build and
+fixed-point transactions. The `TempleOS/` reference tree was not changed or
+counted.

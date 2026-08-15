@@ -1593,25 +1593,27 @@ produced 33,452,396 frames at peak 25,600, and the PC speaker produced 76,614
 frames at peak 31,877. USB detach/replug and the post-replug survival window
 also passed. The private run left `cupidos.img` unchanged.
 
-The current production checkpoint includes the guarded normal boot edge and
-the promoted strict-relocation seeds. After the final review corrected stale
-embedded manual references, a poisoned-host build reached the size policy in
-637.6 seconds. Compilation, assembly, linking, and strict inspection passed;
-the gate rejected only a 16-byte increase in the flat kernel. The updated
-twelve-test policy suite passed in 1.564 seconds. A complete poisoned-host
-rebuild then passed in 631.8 seconds and accepted all nine artifacts:
+The current production checkpoint combines the guarded normal boot edge, the
+promoted strict-relocation seeds, and the independent source-suffix audit. The
+first exact-tree poisoned-host build reached the size policy in 624.6 seconds.
+Compilation, assembly, linking, and strict inspection passed; the gate rejected
+only a measured 680-byte increase in the flat kernel. All twelve artifact-policy
+tests passed in 1.536 seconds after that value was updated. A complete
+poisoned-host rebuild then passed in 625.8 seconds and accepted all nine
+artifacts:
 
 | Output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
-| `kernel/kernel.elf.pass1` | 9,219,620 | `b37a00de5ce275e5b4f335b2426c63c2655e7ba3536d329efe42057429f3694c` |
-| `kernel/kernel.elf` | 9,342,500 | `05aca75596a6870f4d96c6b340b61e35a3ef41112ef3e8c1c3733e0018bbb171` |
-| `kernel/kernel.bin` | 9,124,424 | `0d209219c433f020bc76b14a8d20af67f49c05cb9a068caffa6ac29409000a45` |
-| `cupidos.img` | 209,715,200 | `55beddde0ecf0bcff4e879d0f0c6fa8bb586199963e90a86c044d57c6a5ebbcd` |
+| `kernel/kernel.elf.pass1` | 9,219,620 | `6dd761fd4ec6cb9a17181b9f12bfea98a5426c7e7472611d5bad670a6af0f027` |
+| `kernel/kernel.elf` | 9,342,500 | `51864d8dbe358a7a6bf5fc3b50626f909645aaefc4d1342d812d77599336475d` |
+| `kernel/kernel.bin` | 9,125,104 | `336d8562888008ccb0760b5c813bde451ab9f3912255e88bf16c77dd811483a9` |
+| `cupidos.img` | 209,715,200 | `69ead54daa9f20eed8e5b4cb3aaac71947f64cce02f08dd8eceb1ab00dc18ddd` |
 
-Two private-image QEMU smokes ran in parallel from the new image. `/bin/ls.cc`
-reached CupidC JIT completion in 52.4 seconds. `as /demos/hello.asm` reached
-CupidASM JIT completion in 57.3 seconds. Neither run reported a panic.
+Two private four-vCPU QEMU smokes ran in parallel from the new image and
+finished together in 60.5 seconds. `/bin/ls.cc` reached CupidC JIT completion;
+`as /demos/hello.asm` reached CupidASM JIT completion. Both logs show all four
+CPUs online, and neither contains an accepted panic or fault marker.
 
 The preceding dual-NIC checkpoint used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
