@@ -3,6 +3,7 @@
 #include "cupidc_frontend.h"
 #include "cupidc_ir.h"
 #include "cupidc_pp.h"
+#include "cupidc_exact_decimal_literal_fixture.h"
 #include "cupidc_static_long_double_arithmetic_fixture.h"
 #include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
@@ -29312,6 +29313,73 @@ static int validate_floating_scalar_ir(
              : 0;
 }
 
+static int exact_decimal_literal_forest_matches(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 float_root =
+      find_object_initializer(unit, "exact_decimal_float");
+  ctool_u32 double_root =
+      find_object_initializer(unit, "exact_decimal_double");
+  ctool_u32 long_double_root =
+      find_object_initializer(unit, "exact_decimal_long_double");
+  ctool_u32 index;
+  if (unit == NULL || unit->object_definition_count != 3u ||
+      unit->function_definition_count != 0u ||
+      float_root >= unit->initializer_count ||
+      double_root >= unit->initializer_count ||
+      long_double_root >= unit->initializer_count ||
+      unit->initializers[float_root].kind !=
+          CTOOL_C_INITIALIZER_LIST ||
+      unit->initializers[double_root].kind !=
+          CTOOL_C_INITIALIZER_LIST ||
+      unit->initializers[float_root].element_count !=
+          (ctool_u32)(sizeof(cupidc_exact_decimal_float_bits) /
+                      sizeof(cupidc_exact_decimal_float_bits[0])) ||
+      unit->initializers[double_root].element_count !=
+          (ctool_u32)(sizeof(cupidc_exact_decimal_double_bits) /
+                      sizeof(cupidc_exact_decimal_double_bits[0])) ||
+      static_floating_initializer_matches(
+          unit, long_double_root, 0x8000000000000000ull,
+          0x3fffu) == 0) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cupidc_exact_decimal_float_bits) /
+                           sizeof(cupidc_exact_decimal_float_bits[0]));
+       index++) {
+    ctool_u32 leaf = find_initializer_child(unit, float_root, index);
+    if (leaf >= unit->initializer_count ||
+        static_floating_initializer_matches(
+            unit, leaf, cupidc_exact_decimal_float_bits[index], 0u) == 0) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cupidc_exact_decimal_double_bits) /
+                           sizeof(cupidc_exact_decimal_double_bits[0]));
+       index++) {
+    ctool_u32 leaf = find_initializer_child(unit, double_root, index);
+    if (leaf >= unit->initializer_count ||
+        static_floating_initializer_matches(
+            unit, leaf, cupidc_exact_decimal_double_bits[index], 0u) == 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int exact_decimal_literal_ir_matches(
+    const ctool_c_ir_unit_t *ir) {
+  return ir != NULL && ir->file_assembly_count == 0u &&
+                 ir->file_assemblies == NULL &&
+                 ir->function_count == 0u && ir->functions == NULL &&
+                 ir->instruction_count == 0u &&
+                 ir->instructions == NULL &&
+                 ir->argument_type_count == 0u &&
+                 ir->argument_types == NULL
+             ? 1
+             : 0;
+}
+
 static int run_floating_scalars(const char *host_root) {
   static const char source[] =
       "typedef long double unsupported_long_double;\n"
@@ -29433,12 +29501,16 @@ static int run_floating_scalars(const char *host_root) {
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t exact_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_c_block_binding_t *invalid_block_bindings = NULL;
   ctool_c_initializer_t *invalid_initializers = NULL;
+  ctool_c_initializer_t *invalid_exact_initializers = NULL;
   ctool_c_ir_unit_t ir;
   ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t exact_ir;
+  ctool_c_ir_unit_t repeat_exact_ir;
   ctool_u32 float_constant = CTOOL_C_AST_NONE;
   ctool_u32 integer_to_floating = CTOOL_C_AST_NONE;
   ctool_u32 floating_to_unsigned = CTOOL_C_AST_NONE;
@@ -29459,18 +29531,58 @@ static int run_floating_scalars(const char *host_root) {
   ctool_u32 static_floating;
   ctool_u32 nested_file_floating = CTOOL_C_AST_NONE;
   ctool_u32 nested_static_floating;
+  ctool_u32 exact_float_root;
+  ctool_u32 exact_float_leaf;
   ctool_u32 index;
   ctool_status_t status;
   uint64_t unit_hash;
+  uint64_t exact_unit_hash;
   uint64_t ir_hash;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&exact_unit, 0, sizeof(exact_unit));
   (void)memset(&ir, 0xa5, sizeof(ir));
   (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&exact_ir, 0xa5, sizeof(exact_ir));
+  (void)memset(&repeat_exact_ir, 0xa5, sizeof(repeat_exact_ir));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/floating-scalars.c", source,
-                         CTOOL_TRUE, &unit)) {
+                         CTOOL_TRUE, &unit) ||
+      !parse_source_mode(
+          job, "/exact-decimal-literals.c",
+          cupidc_exact_decimal_literal_source, CTOOL_TRUE,
+          &exact_unit)) {
+    goto cleanup;
+  }
+  exact_float_root =
+      find_object_initializer(&exact_unit, "exact_decimal_float");
+  exact_float_leaf =
+      find_initializer_child(&exact_unit, exact_float_root, 0u);
+  if (exact_decimal_literal_forest_matches(&exact_unit) == 0 ||
+      exact_float_leaf >= exact_unit.initializer_count ||
+      exact_unit.initializer_count == 0u ||
+      sizeof(*invalid_exact_initializers) >
+          SIZE_MAX / (size_t)exact_unit.initializer_count) {
+    goto cleanup;
+  }
+  exact_unit_hash = unit_fingerprint(&exact_unit);
+  status = ctool_c_lower_ir(job, &exact_unit, &exact_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "exact decimal literal lowering") ||
+      unit_fingerprint(&exact_unit) != exact_unit_hash ||
+      exact_decimal_literal_forest_matches(&exact_unit) == 0 ||
+      exact_decimal_literal_ir_matches(&exact_ir) == 0) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  status = ctool_c_lower_ir(job, &exact_unit, &repeat_exact_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat exact decimal literal lowering") ||
+      unit_fingerprint(&exact_unit) != exact_unit_hash ||
+      exact_decimal_literal_forest_matches(&exact_unit) == 0 ||
+      exact_decimal_literal_ir_matches(&repeat_exact_ir) == 0) {
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   unsigned_int =
@@ -29616,9 +29728,37 @@ static int run_floating_scalars(const char *host_root) {
   invalid_initializers = (ctool_c_initializer_t *)malloc(
       (size_t)unit.initializer_count *
           sizeof(*invalid_initializers));
+  invalid_exact_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)exact_unit.initializer_count *
+          sizeof(*invalid_exact_initializers));
   if (invalid_expressions == NULL ||
       invalid_block_bindings == NULL ||
-      invalid_initializers == NULL) {
+      invalid_initializers == NULL ||
+      invalid_exact_initializers == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_exact_initializers, exact_unit.initializers,
+      (size_t)exact_unit.initializer_count *
+          sizeof(*invalid_exact_initializers));
+  invalid_exact_initializers[exact_float_leaf].integer_bits |=
+      0x0000000100000000ull;
+  invalid_unit = exact_unit;
+  invalid_unit.initializers = invalid_exact_initializers;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "exact decimal float with out-of-width bits")) {
+    goto cleanup;
+  }
+  (void)memset(&repeat_exact_ir, 0xa5, sizeof(repeat_exact_ir));
+  status = ctool_c_lower_ir(job, &exact_unit, &repeat_exact_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "exact decimal literal recovery") ||
+      unit_fingerprint(&exact_unit) != exact_unit_hash ||
+      exact_decimal_literal_forest_matches(&exact_unit) == 0 ||
+      exact_decimal_literal_ir_matches(&repeat_exact_ir) == 0) {
     goto cleanup;
   }
   for (index = 0u; index < unit.expression_count; index++) {
@@ -29900,6 +30040,7 @@ static int run_floating_scalars(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(invalid_exact_initializers);
   free(invalid_initializers);
   free(invalid_block_bindings);
   free(invalid_expressions);

@@ -3286,6 +3286,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -6370,6 +6371,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -6692,6 +6694,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -7014,6 +7017,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -7336,6 +7340,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -7658,6 +7663,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -7980,6 +7986,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -8302,6 +8309,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -8624,6 +8632,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -8946,6 +8955,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -9268,6 +9278,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -9590,6 +9601,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -9912,6 +9924,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -10234,6 +10247,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -10556,6 +10570,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -10878,6 +10893,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -11200,6 +11216,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -11522,6 +11539,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -11844,6 +11862,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -12166,6 +12185,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -12488,6 +12508,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -12810,6 +12831,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -13132,6 +13154,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -13454,6 +13477,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -13776,6 +13800,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -14098,6 +14123,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -14420,6 +14446,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -14742,6 +14769,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -15064,6 +15092,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -15386,6 +15415,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -15708,6 +15738,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -16030,6 +16061,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -16352,6 +16384,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -16674,6 +16707,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -16996,6 +17030,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -17318,6 +17353,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -17640,6 +17676,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -17962,6 +17999,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -18284,6 +18322,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -18606,6 +18645,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -18928,6 +18968,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -19250,6 +19291,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -19572,6 +19614,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -19894,6 +19937,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -20216,6 +20260,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -20538,6 +20583,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -20860,6 +20906,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -21182,6 +21229,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -21504,6 +21552,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -21826,6 +21875,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -22148,6 +22198,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -22470,6 +22521,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -22792,6 +22844,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -23114,6 +23167,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -23436,6 +23490,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -23758,6 +23813,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -24080,6 +24136,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -24402,6 +24459,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -24724,6 +24782,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -25046,6 +25105,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -25368,6 +25428,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -25690,6 +25751,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -26012,6 +26074,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -26334,6 +26397,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -26656,6 +26720,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -26978,6 +27043,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -27300,6 +27366,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -27622,6 +27689,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -27944,6 +28012,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -28266,6 +28335,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -28588,6 +28658,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -28910,6 +28981,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -29232,6 +29304,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -29554,6 +29627,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -29876,6 +29950,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -30198,6 +30273,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -30520,6 +30596,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -30842,6 +30919,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -31164,6 +31242,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -31486,6 +31565,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -31808,6 +31888,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -32130,6 +32211,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -32452,6 +32534,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -32774,6 +32857,7 @@
           "toolchain/hosted/i386-linux/include/string.h",
           "toolchain/hosted/i386-linux/include/unistd.h",
           "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -39376,7 +39460,7 @@
             },
             {
               "directive": "if",
-              "line": 33238,
+              "line": 33364,
               "path": "toolchain/tests/cupidc_object_contract.cc",
               "text": "#if defined(_WIN32)"
             }
@@ -39544,12 +39628,12 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 253,
-      "direct_quoted_occurrences": 2199,
-      "include_occurrences": 2452,
+      "direct_quoted_occurrences": 2202,
+      "include_occurrences": 2455,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2452,
+      "ordinary_marker_occurrences": 2455,
       "pp_token_operand_occurrences": 0,
-      "source_files": 701,
+      "source_files": 702,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -39562,7 +39646,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 701,
+      "source_files": 702,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -44412,7 +44496,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2018
+      "occurrences": 2019
     },
     {
       "category": "control",
@@ -44677,7 +44761,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1236
+      "occurrences": 1237
     },
     {
       "category": "control",
@@ -45135,7 +45219,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4954
+      "occurrences": 4960
     },
     {
       "category": "control",
@@ -45409,7 +45493,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4370
+      "occurrences": 4382
     },
     {
       "category": "control",
@@ -45461,7 +45545,7 @@
         "toolchain/tests/elf32_contract.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 3086
+      "occurrences": 3095
     },
     {
       "category": "control",
@@ -45859,7 +45943,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 39272
+      "occurrences": 39358
     },
     {
       "category": "control",
@@ -46230,7 +46314,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 23911
+      "occurrences": 23977
     },
     {
       "category": "control",
@@ -46614,7 +46698,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2836
+      "occurrences": 2843
     },
     {
       "category": "declaration",
@@ -46868,6 +46952,7 @@
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
+        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -46888,7 +46973,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2808
+      "occurrences": 2811
     },
     {
       "category": "declarator",
@@ -46947,12 +47032,12 @@
           "text": "return pp_string_equal(value, (ctool_string_t){literal, size});"
         },
         {
-          "line": 3246,
+          "line": 3247,
           "path": "toolchain/tests/cupidc_frontend_contract.cc",
           "text": "(ctool_string_t){NULL, 1u}) == CTOOL_TRUE ||"
         },
         {
-          "line": 3253,
+          "line": 3254,
           "path": "toolchain/tests/cupidc_frontend_contract.cc",
           "text": "(ctool_string_t){"
         }
@@ -47161,7 +47246,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6094
+      "occurrences": 6115
     },
     {
       "category": "extension",
@@ -48183,6 +48268,7 @@
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
+        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -48200,7 +48286,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3103
+      "occurrences": 3106
     },
     {
       "category": "preprocessor",
@@ -48621,6 +48707,7 @@
         "toolchain/hosted/i386-linux/include/unistd.h",
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_object_contract.cc",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
@@ -48629,7 +48716,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 542
+      "occurrences": 543
     },
     {
       "category": "preprocessor",
@@ -49166,6 +49253,7 @@
         "toolchain/hosted/i386-linux/include/string.h",
         "toolchain/hosted/i386-linux/include/unistd.h",
         "toolchain/hosted/i386-linux/include/windows.h",
+        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
@@ -49173,7 +49261,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 306
+      "occurrences": 307
     },
     {
       "category": "preprocessor",
@@ -49708,7 +49796,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2452
+      "occurrences": 2455
     },
     {
       "category": "preprocessor",
@@ -50247,6 +50335,7 @@
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
+        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_kernel_simd_fixture.h",
@@ -50272,7 +50361,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 15952
+      "occurrences": 15983
     },
     {
       "category": "qualifier",
@@ -50788,6 +50877,7 @@
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
+        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -50810,7 +50900,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 9447
+      "occurrences": 9471
     },
     {
       "category": "type",
@@ -51227,6 +51317,7 @@
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
+        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -51250,7 +51341,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 9070
+      "occurrences": 9072
     },
     {
       "category": "type",
@@ -52010,7 +52101,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 22957
+      "occurrences": 22962
     },
     {
       "category": "type",
@@ -52462,7 +52553,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 931
+      "occurrences": 932
     },
     {
       "category": "type",
@@ -52737,7 +52828,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1009
+      "occurrences": 1010
     },
     {
       "category": "type",
@@ -53542,7 +53633,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 14860
+      "occurrences": 14878
     },
     {
       "category": "declaration",
@@ -54450,7 +54541,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "3a87fc1ff224179a8542b324e3613e248622f2112647724cb4573738b8d5f9b0",
+    "active_source_digest": "3169b345d19ea2dd8d621d840a35c6917e40c2b721cc2c9c8b1de5eca085778f",
     "control_files": [
       {
         "path": "Makefile",
@@ -54537,7 +54628,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 85,
+        "source_count": 86,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -54894,7 +54985,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 559,
+        "source_count": 560,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -54940,7 +55031,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 665,
+        "source_count": 666,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -55083,7 +55174,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 85
+        "source_count": 86
       },
       {
         "cohorts": [
@@ -79295,12 +79386,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "cupid_c",
-      "lines": 27074,
+      "lines": 27613,
       "origin": "tracked",
       "path": "toolchain/cupidc_frontend.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5f2e335c7e1f35ebedbdf88132241576842b97e52d044a82bf19639e9d7c1241"
+      "sha256": "2895ff1507163ac26afef702f155c976d0abb3551b7092a39214ab6ae99c5f69"
     },
     {
       "build_owners": [
@@ -80829,6 +80920,35 @@
     },
     {
       "build_owners": [
+        "cupid_c_compiler",
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_contract",
+      "features": [
+        "c.declarator.unsized_array",
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char"
+      ],
+      "includes": [],
+      "language": "c_header",
+      "lines": 40,
+      "origin": "tracked",
+      "path": "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "5c18bdde94c345b7438d8dba5aa405cc8592c6596c9716b5dad5d4e1e2c42019"
+    },
+    {
+      "build_owners": [
         "cupid_c_contract",
         "host_python"
       ],
@@ -80877,17 +80997,18 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
         "toolchain/cupidc_frontend.h",
+        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h"
       ],
       "language": "cupid_c",
-      "lines": 36019,
+      "lines": 36084,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_frontend_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "726a2bb40b62087627d0f2f2e8eb36fa09456c67b6b846354db9420e7065d94a"
+      "sha256": "73fb8d58d633193c311e501faa475bdf63e700375986f8d33e714f8ca0dc5a06"
     },
     {
       "build_owners": [
@@ -80937,17 +81058,18 @@
         "toolchain/cupidc_frontend.h",
         "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.h",
+        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h"
       ],
       "language": "cupid_c",
-      "lines": 43246,
+      "lines": 43387,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_ir_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f02f1f77c05e29b4e219552a985d8e5b9f5ddc2baeade02dd76d286a42b19e07"
+      "sha256": "eb2746f03c6e117bb4044acd245e9d103c6e2dc082b79ecf2ae06fccff405922"
     },
     {
       "build_owners": [
@@ -81038,18 +81160,19 @@
         "toolchain/cupidc_pp.h",
         "toolchain/cupidld.h",
         "toolchain/elf32.h",
+        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 52215,
+      "lines": 52341,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b0a0805fe386385489f32cbdbbd92dcb596f302ab96d0bd3d02eef2ff302faa9"
+      "sha256": "3bbd6959b8ecf30c7d3f0d7289145f651aabab161b485505dc72e2c39f68de50"
     },
     {
       "build_owners": [
@@ -81843,7 +81966,7 @@
     }
   ],
   "summary": {
-    "active_sources": 736,
+    "active_sources": 737,
     "features": 255,
     "transforms": 452,
     "unreachable_sources": 25
@@ -82218,6 +82341,7 @@
             "toolchain/tests/cupidc_pp_conditional_cases.inc",
             "toolchain/tests/x86_active_cases.inc",
             "toolchain/tests/x86_inline_cases.inc",
+            "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
             "toolchain/tests/cupidc_kernel_simd_fixture.h",
             "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
             "toolchain/tests/cupidc_static_long_double_control_fixture.h",

@@ -412,6 +412,9 @@ _Avoid_: host C runtime, general Windows SDK, small Windows marker probe
 
 **Hosted Toolchain contract cohort**:
 The fifteen `.cc` Toolchain contract programs and the separate hosted runtime contract built as static i386 Linux executables by stage-three and stage-four CupidC. The checked cohort snapshots its exact source and declaration membership, reproduces that inventory under a private root, compares seventeen objects and sixteen executables across the converged compiler pair, runs the stage-four runtime behavior probe, and publishes the stage-four executables with the five stage-four tools as 21 artifacts plus a manifest. Its frozen inventory contains 65 inputs, including the native Windows runtime, startup, publication bridges, direct runtime contract, hosted Windows declarations, six external-program ABI declarations, and independent Python oracle. Live inventory discovery catches additions, removals, and restored edits that changed a private copy. The output must be a dedicated `cupidc-contracts` directory inside the source tree; an existing destination must already verify, and arbitrary directories, source trees, files, or symbolic links remain untouched. A run derives the cohort from its requested executable and verifies the named artifact, all recorded hashes, and current inputs first. `toolchain:all` owns this path. Native GCC or Clang builds are optional oracles under `native-oracles`, not normal build inputs.
+Source head adds `cupidc_exact_decimal_literal_fixture.h` to that live
+contract closure, bringing it to 66 inputs. The last published 65-input gate
+remains historical until a later seed promotion.
 _Avoid_: checked seed, native contract suite, 19-source tool fixed point
 
 **CupidC compiler generation**:
@@ -669,6 +672,21 @@ record field remain outside this boundary. ADR 0210 records the first array
 slice; ADR 0215 records the broader lvalue model; ADR 0273 records derived
 floating updates.
 _Avoid_: complete multi-level floating pointer support
+
+**Hosted CupidC decimal literal**:
+A source-head decimal `float` or `double` token converted with a private
+1536-bit unsigned integer workspace. The hosted frontend forms the exact
+decimal ratio and rounds once to binary32 or binary64 with ties to even. An
+`f` or `F` suffix selects binary32 before rounding. Decimal subnormals, finite
+limits, overflow to infinity, underflow to zero, and unary-signed zero retain
+their exact target bits through the frontend initializer forest, Linear IR
+validation, and ELF32 constant data. Tokens may contain 95 characters,
+including a suffix; the next character produces a focused diagnostic and the
+same job recovers. The older bounded x87 decimal converter and the
+hexadecimal-floating rejection remain separate boundaries. ADR 0293 records
+the model.
+_Avoid_: host `strtod`, binary64-first conversion of an `f` literal, treating
+the x87 literal limit as a binary32 or binary64 limit
 
 **Private CupidC decimal literal**:
 A decimal `float` or `double` token converted with a 1536-bit integer

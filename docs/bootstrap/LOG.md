@@ -26746,3 +26746,85 @@ ADR now use the final values above. Repeated end-of-file summaries link back to
 one canonical checkpoint instead of copying its artifact table. These
 corrections change documentation only, so the measured artifacts and
 private-image smoke evidence remain applicable.
+
+## 2026-08-15: Round hosted decimal float and double literals exactly
+
+Source-head hosted CupidC now shares the private compiler's fixed-width
+decimal conversion model for `float` and `double`. A private 48-limb unsigned
+integer forms the exact decimal ratio, applies the binary32 or binary64 scale,
+and rounds once to nearest with ties to even. The 1536-bit workspace covers
+the accepted 95-character token boundary and the binary64 subnormal shift.
+
+The hosted frontend now publishes exact target bits for normal and subnormal
+values, both finite limits, overflow to infinity, underflow to zero, and
+unary-signed zero. Extreme exponents saturate at 10,000 for classification, so
+`1e9999` and `1e-9999` do not require oversized powers of ten. A zero
+significand is handled before that classification. The existing bounded
+decimal `long double` converter remains intact, as does the shared
+hexadecimal-floating rejection. ADR 0293 records the decision.
+
+### Red-to-green sequence
+
+The first public frontend run rejected
+`1.000000059604644775390625f` with
+`decimal floating constant exceeds the supported precision`. That failure
+proved the old 64-bit ratio boundary before implementation changed.
+
+A shared fixture now reaches three public seams. The frontend checks raw
+typed initializer bits. Linear IR validates the frozen data-only initializer
+forest and publishes no runtime work. The object contract reads the resulting
+ELF32 file and checks every little-endian binary32 and binary64 payload in
+`.rodata`, plus a twelve-byte `1.0L` control. Repeated object emission is byte
+identical.
+
+The positive cases cover both parity directions at halfway points, minimum
+subnormal and normal values, maximum finite values, infinity, positive and
+negative underflow zero, an extreme exponent on zero, and a token with exactly
+95 characters. A 96-character token reports
+`decimal floating constant exceeds 95 characters`. The same frontend job then
+revalidates both successful units. A malformed float payload at the Linear IR
+boundary fails transactionally, and the original exact unit lowers again.
+Existing hexadecimal, long-double precision, and long-double scale failures
+keep their earlier diagnostics.
+
+The first complete frontend sweep found only the expected active-source
+inventory change from the new converter helpers. The guard moved from 445 to
+461 function definitions, 17,247 to 17,603 statements, 113,728 to 115,620
+expressions, 2,565 to 2,623 block bindings, and 1,547 to 1,584 initializers.
+After that exact guard was refreshed, all 97 frontend tests passed in 12.956
+seconds. All 86 Linear IR tests passed in 13.195 seconds. The three focused
+frontend, IR, and object cases passed together in 45.070 seconds; the focused
+object case also passed alone in 22.086 seconds.
+
+The complete static fixed-point test passed in 857.279 seconds. Checked CupidC
+compiled the new converter through the later stages and reached byte-identical
+Toolchain output.
+
+The first build-graph check correctly reported that both generated audit files
+were stale after the shared fixture became an active header. Regeneration
+raised the graph from 736 to 737 active inputs and from 296 to 297 headers. The
+Toolchain contract cohort moved from 22 to 23 files, while the C-family scan
+moved from 701 to 702 files and from 2,452 to 2,455 include operands. The live
+contract closure therefore moved from 65 to 66 inputs.
+
+The Toolchain contract-plan suite exposed the matching frozen-count update:
+its first run failed because it found 66 inputs while the test still expected
+65. After the assertion and current documentation were corrected, all 44 tests
+passed in 6.310 seconds. Final audit regeneration passed in 73.7 seconds, and
+the fresh checked comparison passed in 72.7 seconds.
+
+No user question was needed. The source token limit, the existing target
+formats, and the proven private converter fixed the implementation choice.
+
+### Ownership and remaining limits
+
+This source-head capability moves no production transform. The checked Linux
+and Windows execution seeds predate the converter, so normal OS objects retain
+their current producer and identity until a later seed promotion. No host
+floating routine, math library, assembler, linker, object format, ABI rule, or
+source suffix changes here. `TempleOS/` remains untouched reference material.
+
+Hexadecimal floating constants, hexadecimal or subnormal `long double`
+literals, and long-double ratios beyond the bounded parser remain open. The
+95-character hosted decimal binary32 and binary64 token boundary is explicit
+and transactional.

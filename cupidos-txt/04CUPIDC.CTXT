@@ -250,9 +250,9 @@ Initial, private, and newly discovered contract inventories must match exactly,
 which catches additions, removals, and restored edits that changed a copied
 input. Every run derives the cohort from its requested executable, requires a
 named manifest artifact, and verifies the manifest, target, fixed-point
-record, filenames, sizes, artifact hashes, 65 contract input hashes, the
+record, filenames, sizes, artifact hashes, 66 contract input hashes, the
 checked seed manifest, and the 50-file fixed-point source inventory before
-execution. The contract inventory has 65 inputs, including the small Windows
+execution. The contract inventory has 66 inputs, including the small Windows
 probe, the native Windows tool runtime and startup, CupidLD publication runtime
 and bridge, direct contract, direct.h, windows.h, the user syscall ABI
 contract and its six declarations, the Toolchain Makefile, the publisher, and
@@ -684,10 +684,14 @@ boundaries, all four arithmetic operators, all six comparisons, and both
 conditional directions. The hosted and Cupid-built compilers emit matching
 objects for the same wide source forms.
 
-The public frontend publishes decimal float and double constants as exact IEEE
-binary32 or binary64 bits. It uses bounded integer arithmetic and rounds to
-nearest with ties to even, so the self-hosted compiler does not depend on a
-host floating library. Static-duration scalar and aggregate leaves use a
+The source-head public frontend publishes decimal float and double constants
+as exact IEEE binary32 or binary64 bits. A private 1536-bit integer workspace
+forms the decimal ratio and rounds it once, with ties going to even. The path
+covers subnormals, finite limits, infinity, signed underflow zero, extreme
+exponents, and complete tokens through 95 characters. Frontend, Linear IR, and
+ELF32 contracts pin the raw bits and deterministic object bytes. The checked
+seed predates this source-head capability, so production ownership does not
+move. Static-duration scalar and aggregate leaves use a
 second integer-only IEEE evaluator for unary signs, addition, subtraction,
 multiplication, division, comparisons, casts, scalar truth, short-circuit
 logic, and conditional selection. Represented file and block enumerators and
@@ -774,13 +778,14 @@ MOVZX instructions. In GUI mode, the shell keeps the listing in the terminal
 and mirrors it to serial after its ordinary sink and redirection checks.
 ADR 0259 records the shared parity predicates.
 
-Hexadecimal floating literals, binary32 and binary64 subnormal literals,
-hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, other floating-to-wide conversions, integer-lvalue compound
+Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
+long-double ratios beyond the bounded parser, other floating-to-wide
+conversions, integer-lvalue compound
 assignment with a floating right operand, atomic and long double updates, and
 general SIMD
 value semantics, and over-aligned object emission remain
 unfinished.
+ADR 0293 records exact source-head decimal float and double literals.
 The exact production SIMD
 assembly forms have their own checked path. Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments keep their

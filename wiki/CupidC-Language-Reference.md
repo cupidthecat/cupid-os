@@ -224,7 +224,11 @@ the stored result back to the left operand's type. The left designator is
 evaluated once. A source `float` passed through an ellipsis or a function type
 without a prototype is promoted to `double`.
 
-The hosted path accepts decimal floating constants. Every represented signed
+The hosted path accepts decimal floating constants. Source-head CupidC forms
+each `float` or `double` ratio in a private 1536-bit integer workspace, then
+rounds once at the requested IEEE width with ties going to even. The path
+covers subnormals, finite limits, infinity, signed underflow zero, and extreme
+exponents. A complete token may contain 95 characters. Every represented signed
 or unsigned integer through 64 bits converts to `float` or `double` through a
 cast, initialization, plain assignment, return, or fixed argument. Runtime
 `+`, `-`, `*`, `/`, and all six comparisons apply the same usual arithmetic
@@ -293,8 +297,8 @@ folded result stays in the initializer forest and emits no runtime instruction.
 
 Ordinary non-atomic `float` and `double` lvalues support prefix and postfix
 increment and decrement. Atomic floating updates, `long double` updates,
-hexadecimal floating constants, binary32 and binary64 subnormal constants,
-hexadecimal or subnormal long-double constants, long-double decimals beyond
+hexadecimal floating constants, hexadecimal or subnormal long-double
+constants, long-double decimals beyond
 the bounded ratio parser, and SIMD remain unsupported.
 [ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
 records the literal representation. ADR 0250 records runtime unsigned
@@ -305,7 +309,9 @@ ADR 0255 records static controls and finite width conversion, and ADR 0256
 records canonical x87 payloads and special-value conversion.
 ADR 0288 records runtime integer and long-double usual conversions. ADR 0289
 records wide integer conversion and usual arithmetic with `float` and
-`double`.
+`double`. [ADR 0293](../docs/adr/0293-round-hosted-decimal-literals-exactly.md)
+records exact source-head decimal `float` and `double` literals. The checked
+seed predates that source-head change.
 ADR 0258 records the preceding checked seed. ADR 0260 records static
 long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
 0265 records their checked-seed carriage, and ADR 0273 records private derived

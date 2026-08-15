@@ -57,6 +57,14 @@ four-byte result splits at 2^31 before signed truncation. A mixed floating
 comparison uses `double`; only `!=` is true for an unordered NaN input. ADR
 0250 records the unsigned-output rule.
 
+Source-head hosted CupidC converts decimal `float` and `double` tokens with a
+private 1536-bit integer workspace. It rounds the exact decimal ratio once at
+binary32 or binary64 width, with ties going to even. Public frontend, Linear
+IR, and ELF32 contracts cover both halfway parities, minimum subnormal and
+normal values, maximum finite values, infinity, signed underflow zero, and
+extreme exponents. A complete token may contain 95 characters. The checked
+seed predates this source-head capability.
+
 Non-atomic `long double` values now use twelve-byte target objects. Automatic
 values use frame snapshots. Static-duration scalars, fixed arrays, and
 complete records may contain long-double leaves. Implicit initialization
@@ -126,7 +134,8 @@ of the earlier static frontier, and ADR 0265 records carriage of the arithmetic
 path. ADR 0288 records the source-head integer and long-double usual
 conversions. ADR 0289 records the corresponding wide integer rule for `float`
 and `double`. The current checked seed carries both conversion extensions;
-ADR 0292 records their fixed-point promotion.
+ADR 0292 records their fixed-point promotion. ADR 0293 records exact
+source-head decimal `float` and `double` literals.
 
 The checked native Windows seed carried this path through an earlier
 2026-08-13 poisoned-host checkpoint. Its first invocation stopped at the
@@ -342,9 +351,8 @@ Checked-seed hosted CupidC accepts prefix and postfix increment and decrement
 on modifiable non-atomic `float` and `double` lvalues. It evaluates the lvalue
 once and stores the result of adding or subtracting exact-width `1.0`.
 Postfix returns the original raw payload, including signed zero and NaN bits.
-Atomic floating and `long double` updates,
-hexadecimal floating constants, binary32 and binary64 subnormal constants,
-hexadecimal or subnormal long-double literals, decimal ratios beyond the
+Atomic floating and `long double` updates, hexadecimal floating constants,
+hexadecimal or subnormal long-double literals, long-double ratios beyond the
 bounded parser, general SIMD value semantics, and atomic floating access
 remain unsupported. Static truth, comparison, arithmetic,
 short-circuit logic, conditional selection, and floating-width conversion fold

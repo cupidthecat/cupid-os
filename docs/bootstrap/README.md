@@ -14,6 +14,17 @@ CupidLD, and CupidObj calls no longer cross WSL. Linux fixed-point reconstructio
 Toolchain contracts, the user syscall ABI contract, and artifact-size policy
 still select the Linux seed. ADR 0272 records the distinction.
 
+Source-head hosted CupidC now converts decimal `float` and `double` tokens
+with the same fixed 1536-bit integer-ratio model as private CupidC. It rounds
+once at the written width, including ties to even, subnormals, finite limits,
+overflow to infinity, underflow, and signed zero. The 95-character accepted
+boundary and the next-character failure both recover in one frontend job.
+Shared frontend, Linear IR, and object fixtures pin the exact target bits and
+little-endian constant bytes. The bounded decimal `long double` path and the
+hexadecimal-floating rejection do not change. This adds no host floating
+dependency and moves no production owner because the checked seed predates the
+change. ADR 0293 records the decision.
+
 Source head now adds a native Windows fixed-point driver without changing
 those manifest roles. `bootstrap-windows` freezes the checked PE execution
 seed and the checked Linux plan seed, derives the native build, and builds
@@ -585,16 +596,20 @@ Runtime `+`, `-`, `*`, `/`, all six comparisons, and conditional selection
 apply the same integer-to-long-double conversion to every represented value
 integer and enum. Linear IR keeps the usual-arithmetic conversion on the
 integer value. Conditional lowering converts only the selected arm.
-Hexadecimal floating literals, binary32 and binary64 subnormal literals,
-hexadecimal or subnormal long-double literals, decimals beyond the bounded
-ratio parser, other floating-to-wide conversions, integer-lvalue compound
-assignment with a floating right operand, atomic and long-double updates,
-SIMD, and over-aligned
-floating objects remain open. ADR 0202 records the runtime truth boundary,
+Source-head decimal `float` and `double` tokens now use a 1536-bit integer
+workspace. CupidC forms their exact ratios and rounds once at binary32 or
+binary64 width. The path covers halfway values, subnormals, finite limits,
+overflow to infinity, underflow, signed zero, and tokens through 95
+characters. The public frontend, Linear IR, and object contracts inspect the
+same raw payloads. Hexadecimal floating literals, hexadecimal or subnormal
+long-double literals, long-double decimals beyond the bounded ratio parser,
+other floating-to-wide conversions, integer-lvalue compound assignment with
+a floating right operand, atomic and long-double updates, SIMD, and
+over-aligned floating objects remain open. ADR 0202 records the runtime truth boundary,
 ADR 0256 records canonical static x87 classes, and ADR 0260 records static x87
 arithmetic. ADR 0288 records the runtime integer and long-double usual
 conversions. ADR 0289 records wide integer conversion and usual arithmetic
-with `float` and `double`.
+with `float` and `double`. ADR 0293 records exact hosted decimal conversion.
 
 The static object proof covers exact `1.0L`, the next represented value above
 one, the largest accepted bounded literal, positive and negative zero, and
@@ -664,7 +679,8 @@ between `long double` and integers. ADR 0254 records static initializer
 conversion. ADR 0255 records static control expressions and finite
 floating-width conversion. ADR 0288 records runtime integer and long-double
 arithmetic, comparisons, and conditional selection. ADR 0289 records the
-matching wide integer boundary for `float` and `double`.
+matching wide integer boundary for `float` and `double`. ADR 0293 records
+exact hosted decimal binary32 and binary64 literals.
 
 The self-host source frontier first closed five requirements from unchanged Toolchain code. Supported structure snapshots retain nested union bytes, and a scalar member can be loaded from a returned structure snapshot. A direct four-byte literal zero can form a represented null function pointer. An object pointer can convert to a signed or unsigned eight-byte integer with a zero high word, and conversion back keeps the low word. Compatible static character and void pointers accept an ordinary string literal through parentheses and macro expansion. At that boundary, top-level union values, aggregate members from structure rvalues, nonzero function-pointer casts, function-pointer and wide-integer conversions, and arithmetic or explicit casts on static string addresses remained open. ADR 0081 records that earlier language boundary.
 
@@ -697,7 +713,7 @@ modification. The initial contract snapshot, private copy, and newly discovered
 live contract inventory must match in membership and hashes. This catches additions,
 removals, and a transient edit copied before its live source is restored.
 Every run derives the cohort from its requested executable, requires a named
-manifest artifact, and verifies all artifact hashes, the live 65-input
+manifest artifact, and verifies all artifact hashes, the live 66-input
 contract set, the checked seed manifest, and the 50-file fixed-point source
 inventory before execution. The contract set includes the user syscall ABI
 contract and its six declarations, both Windows runtime paths, the CupidLD
@@ -1857,7 +1873,7 @@ The preprocessing module owns translation-phase tokenization, ordered
 object, function, and variadic macros, C11 conditionals and predefined macros,
 `#line` locations, direct and macro-expanded includes, forced inputs,
 guarded traversal, canonical once identity, pack metadata, and typed Cupid
-`#exe` markers. Checked manifests classify all 2,452 include operands as
+`#exe` markers. Checked manifests classify all 2,455 include operands as
 2,199 direct quoted plus 253 direct angle forms with zero macro operands
 across 701 active C-family inputs. The generated manifest drives 395 tracked
 profile runs under twelve profiles plus four generated kernel roots. The
@@ -1895,11 +1911,11 @@ The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) passes 161 of
 29 declarations in `simd_intrin.h` under the Cupid profile. That mode now
 maps `U0`, the signed and unsigned sized integer spellings, `Bool`, `bool`,
 `float4`, and `double2` directly into the shared type graph. C11 continues to
-treat those spellings as ordinary identifiers. The graph contains 736 active
-language inputs: 31 assembly files, 296 headers, and 409 Cupid C files. No
+treat those spellings as ordinary identifiers. The graph contains 737 active
+language inputs: 31 assembly files, 297 headers, and 409 Cupid C files. No
 ordinary C translation unit remains in the supported roots. It records 255
 feature IDs, 452 transforms, and 25 accounted unreachable files. The preprocessor
-inventory covers 701 files and 2,452 include occurrences, split into 2,199
+inventory covers 702 files and 2,455 include occurrences, split into 2,202
 quoted and 253 angle forms. Its active roots contain 395 tracked and four
 generated translation units.
 
@@ -2034,8 +2050,8 @@ constants outside the block-static symbol path, integer-routed and other
 unrepresented address casts, automatic bases, runtime offsets and subscripts,
 block declaration attributes, nested function definitions, computed goto and
 GNU label addresses, broader GNU assembly forms, hexadecimal floating
-constants, binary32 and binary64 subnormal literals, hexadecimal or subnormal
-long-double literals, long-double decimal ratios beyond the bounded parser,
+constants, hexadecimal or subnormal long-double literals, long-double decimal
+ratios beyond the bounded parser,
 remaining floating-to-wide conversions, nonempty identifier-list
 definitions, non-scalar arguments without declared parameter
 types, aggregate variadic reads, block assertions, variable-length arrays and
@@ -2066,6 +2082,8 @@ comparisons, and conditional selection.
 ADR 0289 removes the remaining four-byte source-head limit on integer input to
 `float` and `double` casts, assignment conversion, arithmetic, comparisons,
 and conditional selection.
+ADR 0293 gives source-head decimal `float` and `double` literals one exact
+target-width converter through subnormal, underflow, and overflow results.
 
 The latest local normal build completed in 1,444.7 seconds. Its
 9,093,772-byte final ELF has SHA-256
@@ -2394,7 +2412,7 @@ ELF32 object with SHA-256
 `84daa51a65d6970ae7a7918b05fe64b7676c39d3309264375e349cf0ae20d428`.
 The checked seed carries this capability, and the normal panic recipe uses it.
 
-The body operator ladder uses checked value/operator vectors and an iterative precedence reducer. A recursive wrapper per precedence tier was rejected after the established 256-deep nested-call contract exhausted the default Windows host stack before reaching its transactional syntax-limit diagnostic. The iterative reducer keeps binary chains bounded by job storage while calls, parentheses, unary nesting, and assignment continue to consume the explicit 256-level budget. A 4,096-operator flat addition oracle publishes 8,193 left-associated postorder expressions and 8,192 child references; a 256-byte output ceiling on the same source proves one limit diagnostic, complete arena/scratch rollback, tape and prior-result preservation, and same-job recovery. High-bit ordinary character bytes sign-extend into signed target `int`; compatible enum/integer assignment retains an explicit destination conversion; and freeze requires every assignment's `computation_type` to equal its result type. Valid decimal normal `float` and `double` constants publish exact target bits. Bounded decimal normal `long double` constants publish their exact 64-bit explicit significand and biased x87 exponent. Hexadecimal and subnormal floating constants, plus decimal ratios beyond the bounded parser, retain focused unsupported diagnostics.
+The body operator ladder uses checked value/operator vectors and an iterative precedence reducer. A recursive wrapper per precedence tier was rejected after the established 256-deep nested-call contract exhausted the default Windows host stack before reaching its transactional syntax-limit diagnostic. The iterative reducer keeps binary chains bounded by job storage while calls, parentheses, unary nesting, and assignment continue to consume the explicit 256-level budget. A 4,096-operator flat addition oracle publishes 8,193 left-associated postorder expressions and 8,192 child references; a 256-byte output ceiling on the same source proves one limit diagnostic, complete arena/scratch rollback, tape and prior-result preservation, and same-job recovery. High-bit ordinary character bytes sign-extend into signed target `int`; compatible enum/integer assignment retains an explicit destination conversion; and freeze requires every assignment's `computation_type` to equal its result type. Source-head decimal `float` and `double` constants publish exact target bits across normal, subnormal, underflow, and overflow results. Bounded decimal normal `long double` constants publish their exact 64-bit explicit significand and biased x87 exponent. Hexadecimal floating constants, hexadecimal or subnormal long-double constants, and long-double decimal ratios beyond the bounded parser retain focused unsupported diagnostics.
 
 The call subset accepts fixed prototypes, direct or indirect variadic prototypes, and function types without prototypes. It applies the shared scalar or compatible aggregate assignment conversion to named parameters. Ellipsis arguments and every argument without a declared parameter type receive lvalue conversion, array and function decay, integer promotion, and `float` to `double` promotion as required before IR accepts four-byte integers and pointers, signed or unsigned eight-byte integers, `double`, or automatic `long double`. Aggregate transport at those call boundaries remains open. Lvalue conversion removes top-level `const`, `volatile`, and `_Atomic` from the result while retaining the qualified source child, and nested calls consume the shared 256-level syntax budget instead of recursing without a host-stack bound.
 
@@ -2528,7 +2546,7 @@ Progress means transferring ownership without reducing Cupid OS behavior:
 
 The [current production checkpoint](#current-production-checkpoint) is the
 canonical record of the final build, artifact identities, and private guest
-smokes. The final audit has 736 active language inputs, 452 reachable
+smokes. The final audit has 737 active language inputs, 452 reachable
 transforms, and 255 feature requirements. It records six production CupidDis
 participation points and no active CupidC-owned `.c` source.
 

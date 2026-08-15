@@ -971,7 +971,7 @@ private, and live contract inventories must match exactly, including
 membership and hashes, so additions, removals, and a transient edit copied
 before its live source is restored all fail. Normal build and test entry points derive
 the cohort from each requested executable, require a named manifest artifact,
-and verify the complete artifact inventory, the 65 contract inputs, the
+and verify the complete artifact inventory, the 66 contract inputs, the
 50-file fixed-point source inventory, and the checked seed manifest before
 execution. The contract inventory includes the Windows startup and runtime
 probe, the native Windows tool runtime and startup, CupidLD publication
@@ -1327,11 +1327,16 @@ the same conversion for every represented value integer and enum. The
 frontend records a usual-arithmetic conversion to `long double`; Linear IR
 keeps it on the selected value, and the emitter reuses its checked x87 path.
 Conditional evaluation remains lazy, so an unselected arm is not converted.
-Hexadecimal floating literals, binary32 and binary64 subnormal literals,
-hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, other floating-to-wide conversions, integer-lvalue compound
-assignment with a floating right operand, atomic and long-double updates, SIMD
-values, and over-aligned emission remain open.
+Source-head hosted CupidC now converts decimal `float` and `double` tokens
+with a fixed 1536-bit integer workspace. It rounds the exact ratio once at the
+written width, including nearest-even halfway cases, subnormals, finite limits,
+overflow to infinity, underflow, and signed zero. Tokens through 95 characters
+retain exact bits across the frontend, Linear IR, and ELF32 constant data.
+Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
+long-double decimal ratios beyond the bounded parser, other
+floating-to-wide conversions, integer-lvalue compound assignment with a
+floating right operand, atomic and long-double updates, SIMD values, and
+over-aligned emission remain open.
 ADR 0202 records the runtime truth
 boundary, and
 [ADR 0229](docs/adr/0229-emit-exact-decimal-long-double-literals.md) records
@@ -1354,6 +1359,8 @@ conditional selection.
 [ADR 0289](docs/adr/0289-convert-wide-integers-to-float-and-double.md) records
 runtime wide-integer conversion and usual arithmetic with `float` and
 `double`.
+[ADR 0293](docs/adr/0293-round-hosted-decimal-literals-exactly.md) records
+exact hosted decimal binary32 and binary64 conversion.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 

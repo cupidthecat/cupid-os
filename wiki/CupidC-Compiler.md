@@ -505,6 +505,12 @@ target paths. Unsigned four-byte input and output use exact splits across the
 sign boundary. The x87 transport model, SSE conversion
 oracle, and comparison execution oracle check rounding, operand order, signed
 zero, infinities, quiet and signaling NaNs, call alignment, and frame state.
+Source-head hosted CupidC forms each decimal `float` or `double` ratio in a
+private 1536-bit integer workspace and rounds once at the requested IEEE width.
+The public frontend, Linear IR, and ELF32 contracts cover both halfway
+parities, minimum subnormal and normal values, maximum finite values, infinity,
+signed underflow zero, extreme exponents, and the 95-character token boundary.
+The checked seed predates this source-head change.
 Non-atomic `long double` values now use twelve-byte target objects and x87
 80-bit memory loads and stores. Bounded finite normal decimal `L` tokens
 round an exact integer ratio to a 64-bit explicit significand with ties to
@@ -578,9 +584,9 @@ feature 13 for the broader comparison and truth behavior. In GUI mode, the
 shell writes the listing to the terminal and mirrors it to serial only after
 the usual sink and redirection checks. That gives the runtime gate production
 CupidDis evidence without duplicating ordinary text-mode output.
-Hexadecimal floating literals, binary32 and binary64 subnormal literals,
-hexadecimal or subnormal long-double literals, decimals beyond the bounded
-ratio parser, other floating-to-wide conversions, integer-lvalue compound
+Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
+long-double decimals beyond the bounded ratio parser, other floating-to-wide
+conversions, integer-lvalue compound
 assignment with a floating right operand, atomic and `long double` updates,
 SIMD values, and over-aligned object emission remain
 unfinished.
@@ -596,7 +602,8 @@ conversion between represented integers and `float` or `double`.
 ADR 0288 records runtime integer and long-double arithmetic, comparisons, and
 conditional selection.
 ADR 0289 removes the four-byte integer limit for ordinary `float` and `double`
-conversion and usual arithmetic.
+conversion and usual arithmetic. ADR 0293 records exact source-head decimal
+`float` and `double` literals.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -654,7 +661,7 @@ source trees, files, and symbolic links remain untouched. The initial,
 private, and newly discovered contract inventories must match exactly, which
 catches added or removed inputs and restored edits that changed a copied
 file. Every run derives its cohort from the requested executable, requires a
-named manifest artifact, and verifies the complete cohort, live 65-input
+named manifest artifact, and verifies the complete cohort, live 66-input
 contract set, checked seed manifest, and 50-file fixed-point source inventory
 before execution. The contract set includes the user syscall ABI contract and
 its six declarations, the Toolchain Makefile, the publisher, and the
@@ -1028,7 +1035,7 @@ ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records
 that handoff.
 
-The normal Toolchain build snapshots 65 contract inputs, including the small
+The normal Toolchain build snapshots 66 contract inputs, including the small
 Windows probe, the native Windows tool runtime and startup, CupidLD publication
 runtime and bridge, the direct contract, `direct.h`, `windows.h`, the user syscall
 ABI contract and its six declarations, the Toolchain Makefile, the publisher,
@@ -1170,9 +1177,9 @@ Static long-double truth, comparison, short-circuit logic, conditional
 selection, and conversion to or from binary32 and binary64 fold through the
 target representation and emit no runtime work. Canonical x87 infinity and
 NaN cross the same path, and the decoder accepts canonical subnormal payloads.
-Hexadecimal floating literals, binary32 and binary64 subnormal literals,
-hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, other floating-to-wide conversions, integer-lvalue compound
+Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
+long-double ratios beyond the bounded parser, other floating-to-wide
+conversions, integer-lvalue compound
 assignment with a floating right operand, and atomic or `long double` updates
 remain unsupported.
 Static `+`, `-`, `*`, and `/` fold with integer-only x87 target arithmetic and
@@ -2561,9 +2568,9 @@ conversion cover `float`, `double`, and automatic `long double`. Runtime
 arithmetic, comparisons, and conditional selection convert every represented
 value integer and enum to `long double`. Operations that mix an eight-byte
 integer with `float` or `double`, atomic and `long double` updates,
-hexadecimal floating literals, binary32 and binary64 subnormal literals,
-hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser and SIMD remain open in the hosted path. Static long-double
+hexadecimal floating literals, hexadecimal or subnormal long-double literals,
+long-double ratios beyond the bounded parser and SIMD remain open in the
+hosted path. Static long-double
 arithmetic folds with integer-only 128-bit intermediates.
 Static long-double
 truth, comparisons, short-circuit logic, conditional selection, and

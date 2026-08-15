@@ -3,6 +3,7 @@
 #define CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 #include "cupidc_frontend.h"
 #undef CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
+#include "cupidc_exact_decimal_literal_fixture.h"
 #include "cupidc_static_long_double_arithmetic_fixture.h"
 #include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
@@ -7766,8 +7767,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        70405u, 1002u, 367u, 0u, 0u},
       {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 368u, 9322u,
        77740u, 1131u, 754u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 445u,
-       17247u, 113728u, 2565u, 1547u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 461u,
+       17603u, 115620u, 2623u, 1584u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 84u, 3146u,
        20714u, 346u, 196u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -26707,6 +26708,62 @@ static char *build_static_floating_chain_source(ctool_u32 operation_count) {
   return source;
 }
 
+static int validate_exact_decimal_literals(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_object_definition_t *float_definition =
+      find_object_definition(unit, "exact_decimal_float");
+  const ctool_c_object_definition_t *double_definition =
+      find_object_definition(unit, "exact_decimal_double");
+  const ctool_c_object_definition_t *long_double_definition =
+      find_object_definition(unit, "exact_decimal_long_double");
+  const ctool_c_initializer_t *float_values =
+      float_definition != NULL
+          ? initializer_node(unit, float_definition->initializer)
+          : NULL;
+  const ctool_c_initializer_t *double_values =
+      double_definition != NULL
+          ? initializer_node(unit, double_definition->initializer)
+          : NULL;
+  const ctool_c_initializer_t *long_double_value =
+      long_double_definition != NULL
+          ? initializer_node(unit, long_double_definition->initializer)
+          : NULL;
+  ctool_u32 index;
+  if (float_values == NULL || double_values == NULL ||
+      long_double_value == NULL ||
+      float_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      double_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      float_values->element_count !=
+          ARRAY_COUNT(cupidc_exact_decimal_float_bits) ||
+      double_values->element_count !=
+          ARRAY_COUNT(cupidc_exact_decimal_double_bits) ||
+      !initializer_is_static_long_double(
+          unit, long_double_value, 0x8000000000000000ull, 0x3fffu)) {
+    return 1;
+  }
+  for (index = 0u;
+       index < ARRAY_COUNT(cupidc_exact_decimal_float_bits); index++) {
+    if (!initializer_is_static_floating(
+            unit,
+            initializer_list_child(unit, float_values, index, index),
+            CTOOL_C_TYPE_FLOAT,
+            cupidc_exact_decimal_float_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u;
+       index < ARRAY_COUNT(cupidc_exact_decimal_double_bits); index++) {
+    if (!initializer_is_static_floating(
+            unit,
+            initializer_list_child(unit, double_values, index, index),
+            CTOOL_C_TYPE_DOUBLE,
+            cupidc_exact_decimal_double_bits[index])) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 static int run_floating_scalars(const char *host_root) {
   static const char source[] =
       "static const float static_float_table[2][2] = "
@@ -26827,7 +26884,7 @@ static int run_floating_scalars(const char *host_root) {
        "double bad(void) { return 0x1.8p+1; }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       {"excess decimal precision",
-       "double bad(void) { return 1.23456789012345678901; }\n",
+       "long double bad(void) { return 1.23456789012345678901L; }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       {"atomic float to unsigned int cast",
        "unsigned int bad(_Atomic float value) { "
@@ -26878,22 +26935,19 @@ static int run_floating_scalars(const char *host_root) {
        "static floating-to-integer conversion exceeds its destination "
        "range"},
       {{"excess decimal scale",
-        "double bad(void) { return 1e4097; }\n",
+        "long double bad(void) { return 1e4097L; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 32u,
+       "decimal floating constant exceeds the supported scale"},
+      {{"decimal token beyond exact capacity",
+        "double bad(void) { return "
+        "1.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 27u,
-       "decimal floating constant exceeds the supported scale"},
-      {{"subnormal decimal result",
-        "float bad(void) { return 1e-45f; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 26u,
-       "decimal floating constant exceeds the supported normal range"},
-      {{"overflowing decimal result",
-        "float bad(void) { return 1e39f; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 26u,
-       "decimal floating constant exceeds the supported normal range"}};
+       "decimal floating constant exceeds 95 characters"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t exact_unit;
   frontend_failure_case_t depth_case;
   char *depth_source = NULL;
   ctool_u32 index;
@@ -26919,11 +26973,20 @@ static int run_floating_scalars(const char *host_root) {
     (void)fprintf(stderr, "floating-scalars: public graph differs\n");
     goto cleanup;
   }
+  if (parse_valid_fixture(
+          &fixture, "/exact-decimal-literals.c",
+          cupidc_exact_decimal_literal_source, &exact_unit) != 0 ||
+      validate_exact_decimal_literals(&exact_unit) != 0) {
+    (void)fprintf(
+        stderr, "floating-scalars: exact decimal literals differ\n");
+    goto cleanup;
+  }
   for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
     if (expect_frontend_failure(
             &fixture, &failure_cases[index],
             "/floating-scalars-failure.c") != 0 ||
-        validate_floating_scalars(&unit) != 0) {
+        validate_floating_scalars(&unit) != 0 ||
+        validate_exact_decimal_literals(&exact_unit) != 0) {
       goto cleanup;
     }
   }
@@ -26935,7 +26998,8 @@ static int run_floating_scalars(const char *host_root) {
             "/floating-scalars-range-failure.c",
             test_case->line, test_case->column,
             test_case->message) != 0 ||
-        validate_floating_scalars(&unit) != 0) {
+        validate_floating_scalars(&unit) != 0 ||
+        validate_exact_decimal_literals(&exact_unit) != 0) {
       goto cleanup;
     }
   }
@@ -26948,7 +27012,8 @@ static int run_floating_scalars(const char *host_root) {
           1u, 29u,
           "static scalar expression exceeds the public nesting limit") !=
           0 ||
-      validate_floating_scalars(&unit) != 0) {
+      validate_floating_scalars(&unit) != 0 ||
+      validate_exact_decimal_literals(&exact_unit) != 0) {
     goto cleanup;
   }
   failed = 0;

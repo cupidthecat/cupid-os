@@ -5,7 +5,7 @@ root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
 `audits/active-build.json` owns the current 736-input/452-transform graph. The
-language graph contains 31 assembly inputs, 296 headers, and 409 Cupid C
+language graph contains 31 assembly inputs, 297 headers, and 409 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
 `f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
@@ -412,7 +412,7 @@ existing destination must already verify as a complete cohort. Arbitrary
 directories, source trees, files, and symbolic links are rejected without
 modification. Exact initial, private, and newly discovered contract
 inventories catch added or removed inputs and restored edits that changed a
-copied file. The manifest binds a 65-input contract inventory, including the
+copied file. The manifest binds a 66-input contract inventory, including the
 Windows startup, runtime, publication bridge and runtime, direct runtime
 contract, `direct.h`, `windows.h`, the user syscall ABI contract and its six
 declarations, the Toolchain Makefile, the publisher, and the independent
@@ -697,11 +697,13 @@ runtime IR. Static `+`, `-`, `*`, and `/` use unsigned 128-bit target
 arithmetic with nearest-even rounding and gradual underflow. They also become
 final initializer records. This work introduces no host floating operation or
 math-library dependency.
-Hexadecimal floating literals, binary32 and binary64 subnormal literals,
-hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, other floating-to-wide conversions, integer-lvalue compound
-assignment with a floating right operand, and atomic or long-double updates
-remain open. Matching or
+Source-head decimal `float` and `double` literals now use a fixed 1536-bit
+integer workspace for exact target-width rounding. Subnormal, underflow, and
+overflow results therefore add no host conversion routine or math library.
+Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
+long-double ratios beyond the bounded parser, other floating-to-wide
+conversions, integer-lvalue compound assignment with a floating right operand,
+and atomic or long-double updates remain open. Matching or
 mixed-width floating
 conditional arms and the four arithmetic compound assignments retain their
 established x87 path. All six matching or mixed long-double comparisons use a
@@ -714,8 +716,8 @@ records static controls and finite width conversion, and ADR 0256 records
 canonical x87 classes and special-value conversion. ADR 0260 records static
 long-double arithmetic. ADR 0288 records the runtime long-double usual
 conversions, and ADR 0289 records wide integer conversion and usual arithmetic
-with `float` and `double`. The implementation uses no host floating operation,
-helper, or library.
+with `float` and `double`. ADR 0293 records the exact hosted decimal converter.
+The implementation uses no host floating operation, helper, or library.
 
 The checked seed and source head have 604 x86 forms, 249 canonical mnemonics,
 64 registers, and fingerprint `55A8970F`. The catalogue includes signed x87
@@ -1379,10 +1381,9 @@ x87 emitter and adds no host producer. ADR 0288 records the boundary.
 
 Other floating-to-wide conversions, integer-lvalue compound assignment with a
 floating right operand, atomic and long-double updates, hexadecimal floating
-literals, binary32 and binary64 subnormal literals, hexadecimal or subnormal
-long-double literals, decimal ratios beyond the bounded parser, aggregate
-floating values, atomic access, and other unrepresented forms remain
-outside the current ABI slice.
+literals, hexadecimal or subnormal long-double literals, long-double decimal
+ratios beyond the bounded parser, aggregate floating values, atomic access,
+and other unrepresented forms remain outside the current ABI slice.
 
 The wide-mutation proof expands shared semantics. Fifteen functions publish 225 exact IR instructions, and 17 emitted functions occupy 4,410 text bytes with fingerprint `4B337038`, 18 symbols including the null symbol, and no relocations. Decoder and execution checks cover all ten compound operators, signed and unsigned prefix or postfix update, postfix snapshot preservation, one-time indexed evaluation, volatile access, cdecl state, rollback, and deterministic recovery. Checked-seed CupidC uses this path for the `+=` and `&=` operations in X25519's `fe_carry`, and both checked stages build the focused contract. GCC or Clang provides only the optional native copy.
 
@@ -1407,6 +1408,16 @@ context-switch, or ISO fixture transactions. No new host dependency was added.
 Host Python still coordinates the transactions, and QEMU remains the runtime
 oracle. The checked Linux and Windows seeds enforce the current source-head
 relocation rule.
+
+## 2026-08-15 dependency check
+
+Source-head hosted CupidC now rounds decimal binary32 and binary64 literals
+with fixed-width integer arithmetic. The frontend, Linear IR, and object tests
+need no `strtod`, host floating operation, compiler builtin, or math library.
+The checked Linux and Windows seeds predate this change, so no production
+transform or normal OS artifact changes owner. Host C remains only in the
+existing optional native contract path, and Python still coordinates the
+bootstrap and audit transactions. ADR 0293 records this boundary.
 
 ## Removal gate
 

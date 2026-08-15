@@ -7765,6 +7765,518 @@ static ctool_bool cfront_body_floating_constant(ctool_string_t spelling) {
   return index == spelling.size ? CTOOL_TRUE : CTOOL_FALSE;
 }
 
+/* A 1536-bit workspace carries every 95-character hosted decimal token
+ * through binary64 subnormal rounding without host floating arithmetic. */
+#define CFRONT_DECIMAL_BIG_LIMBS 48u
+#define CFRONT_DECIMAL_TOKEN_LIMIT 95u
+
+typedef struct {
+  ctool_u32 limb[CFRONT_DECIMAL_BIG_LIMBS];
+  ctool_u32 used;
+} cfront_big_uint_t;
+
+static void cfront_big_zero(cfront_big_uint_t *value) {
+  ctool_u32 index;
+  value->used = 0u;
+  for (index = 0u; index < CFRONT_DECIMAL_BIG_LIMBS; index++) {
+    value->limb[index] = 0u;
+  }
+}
+
+static void cfront_big_set_u32(cfront_big_uint_t *value,
+                               ctool_u32 initial) {
+  cfront_big_zero(value);
+  if (initial != 0u) {
+    value->limb[0] = initial;
+    value->used = 1u;
+  }
+}
+
+static void cfront_big_normalize(cfront_big_uint_t *value) {
+  while (value->used != 0u &&
+         value->limb[value->used - 1u] == 0u) {
+    value->used--;
+  }
+}
+
+static ctool_bool cfront_big_is_zero(
+    const cfront_big_uint_t *value) {
+  return value->used == 0u ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static ctool_bool cfront_big_multiply_add(
+    cfront_big_uint_t *value, ctool_u32 multiplier,
+    ctool_u32 addend) {
+  ctool_u64 carry = (ctool_u64)addend;
+  ctool_u32 index;
+  for (index = 0u; index < value->used; index++) {
+    ctool_u64 product =
+        (ctool_u64)value->limb[index] * (ctool_u64)multiplier +
+        carry;
+    value->limb[index] = (ctool_u32)product;
+    carry = product >> 32u;
+  }
+  if (carry != 0ull) {
+    if (value->used == CFRONT_DECIMAL_BIG_LIMBS) {
+      return CTOOL_FALSE;
+    }
+    value->limb[value->used++] = (ctool_u32)carry;
+  } else if (value->used == 0u && addend != 0u) {
+    value->limb[0] = addend;
+    value->used = 1u;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cfront_big_multiply_power_ten(
+    cfront_big_uint_t *value, ctool_u32 power) {
+  while (power != 0u) {
+    if (cfront_big_multiply_add(value, 10u, 0u) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    power--;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_u32 cfront_u32_width(ctool_u32 value) {
+  ctool_u32 width = 0u;
+  while (value != 0u) {
+    value >>= 1u;
+    width++;
+  }
+  return width;
+}
+
+static ctool_u32 cfront_big_width(
+    const cfront_big_uint_t *value) {
+  if (value->used == 0u) {
+    return 0u;
+  }
+  return (value->used - 1u) * 32u +
+         cfront_u32_width(value->limb[value->used - 1u]);
+}
+
+static ctool_i32 cfront_big_compare(
+    const cfront_big_uint_t *left,
+    const cfront_big_uint_t *right) {
+  ctool_u32 index;
+  if (left->used != right->used) {
+    return left->used < right->used ? -1 : 1;
+  }
+  index = left->used;
+  while (index != 0u) {
+    index--;
+    if (left->limb[index] != right->limb[index]) {
+      return left->limb[index] < right->limb[index] ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
+static void cfront_big_subtract(cfront_big_uint_t *left,
+                                const cfront_big_uint_t *right) {
+  ctool_u64 borrow = 0ull;
+  ctool_u32 index;
+  for (index = 0u; index < left->used; index++) {
+    ctool_u64 minuend = (ctool_u64)left->limb[index];
+    ctool_u64 subtrahend =
+        (index < right->used ? (ctool_u64)right->limb[index] : 0ull) +
+        borrow;
+    if (minuend < subtrahend) {
+      left->limb[index] =
+          (ctool_u32)((1ull << 32u) + minuend - subtrahend);
+      borrow = 1ull;
+    } else {
+      left->limb[index] = (ctool_u32)(minuend - subtrahend);
+      borrow = 0ull;
+    }
+  }
+  cfront_big_normalize(left);
+}
+
+static ctool_bool cfront_big_shift_left_copy(
+    const cfront_big_uint_t *value, ctool_u32 shift,
+    cfront_big_uint_t *result) {
+  ctool_u32 word_shift = shift / 32u;
+  ctool_u32 bit_shift = shift % 32u;
+  ctool_u32 index;
+  cfront_big_zero(result);
+  if (value->used == 0u) {
+    return CTOOL_TRUE;
+  }
+  if (word_shift >= CFRONT_DECIMAL_BIG_LIMBS) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < value->used; index++) {
+    ctool_u32 destination = index + word_shift;
+    ctool_u64 part;
+    if (destination >= CFRONT_DECIMAL_BIG_LIMBS) {
+      return CTOOL_FALSE;
+    }
+    part = (ctool_u64)value->limb[index] << bit_shift;
+    result->limb[destination] |= (ctool_u32)part;
+    if ((part >> 32u) != 0ull) {
+      if (destination + 1u >= CFRONT_DECIMAL_BIG_LIMBS) {
+        return CTOOL_FALSE;
+      }
+      result->limb[destination + 1u] |=
+          (ctool_u32)(part >> 32u);
+    }
+  }
+  result->used =
+      value->used + word_shift + (bit_shift != 0u ? 1u : 0u);
+  if (result->used > CFRONT_DECIMAL_BIG_LIMBS) {
+    result->used = CFRONT_DECIMAL_BIG_LIMBS;
+  }
+  cfront_big_normalize(result);
+  return CTOOL_TRUE;
+}
+
+static void cfront_big_shift_right_one(cfront_big_uint_t *value) {
+  ctool_u32 carry = 0u;
+  ctool_u32 index = value->used;
+  while (index != 0u) {
+    ctool_u32 next_carry;
+    index--;
+    next_carry = value->limb[index] & 1u;
+    value->limb[index] =
+        (value->limb[index] >> 1u) | (carry << 31u);
+    carry = next_carry;
+  }
+  cfront_big_normalize(value);
+}
+
+static ctool_bool cfront_big_binary_exponent(
+    const cfront_big_uint_t *numerator,
+    const cfront_big_uint_t *denominator,
+    ctool_i32 *exponent_out) {
+  ctool_i32 exponent =
+      (ctool_i32)cfront_big_width(numerator) -
+      (ctool_i32)cfront_big_width(denominator);
+  cfront_big_uint_t scaled;
+  if (exponent >= 0) {
+    if (cfront_big_shift_left_copy(
+            denominator, (ctool_u32)exponent, &scaled) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    if (cfront_big_compare(numerator, &scaled) < 0) {
+      exponent--;
+    }
+  } else {
+    if (cfront_big_shift_left_copy(
+            numerator, (ctool_u32)(0 - exponent), &scaled) ==
+        CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    if (cfront_big_compare(&scaled, denominator) < 0) {
+      exponent--;
+    }
+  }
+  *exponent_out = exponent;
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cfront_big_round_ratio(
+    const cfront_big_uint_t *numerator_source,
+    const cfront_big_uint_t *denominator_source,
+    ctool_i32 binary_scale, ctool_u64 *rounded_out) {
+  cfront_big_uint_t numerator = *numerator_source;
+  cfront_big_uint_t denominator = *denominator_source;
+  cfront_big_uint_t shifted;
+  cfront_big_uint_t divisor;
+  cfront_big_uint_t remainder;
+  cfront_big_uint_t doubled;
+  ctool_u64 quotient = 0ull;
+  ctool_u32 quotient_shift;
+
+  if (binary_scale >= 0) {
+    if (cfront_big_shift_left_copy(
+            &numerator, (ctool_u32)binary_scale, &shifted) ==
+        CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    numerator = shifted;
+  } else {
+    if (cfront_big_shift_left_copy(
+            &denominator, (ctool_u32)(0 - binary_scale), &shifted) ==
+        CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    denominator = shifted;
+  }
+
+  remainder = numerator;
+  if (cfront_big_compare(&remainder, &denominator) >= 0) {
+    quotient_shift =
+        cfront_big_width(&remainder) - cfront_big_width(&denominator);
+    if (quotient_shift >= 64u ||
+        cfront_big_shift_left_copy(
+            &denominator, quotient_shift, &divisor) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    for (;;) {
+      if (cfront_big_compare(&remainder, &divisor) >= 0) {
+        cfront_big_subtract(&remainder, &divisor);
+        quotient |= 1ull << quotient_shift;
+      }
+      if (quotient_shift == 0u) {
+        break;
+      }
+      quotient_shift--;
+      cfront_big_shift_right_one(&divisor);
+    }
+  }
+
+  if (cfront_big_shift_left_copy(&remainder, 1u, &doubled) ==
+      CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  if (cfront_big_compare(&doubled, &denominator) > 0 ||
+      (cfront_big_compare(&doubled, &denominator) == 0 &&
+       (quotient & 1ull) != 0ull)) {
+    quotient++;
+  }
+  *rounded_out = quotient;
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cfront_decimal_ieee_bits(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_c_type_kind_t kind, ctool_u64 *bits_out) {
+  ctool_string_t spelling = token->spelling;
+  ctool_u32 end = spelling.size;
+  ctool_u32 index = 0u;
+  ctool_u32 digit_count = 0u;
+  ctool_u32 significant_digits = 0u;
+  ctool_u32 fractional_digits = 0u;
+  ctool_u32 exponent_magnitude = 0u;
+  ctool_bool after_point = CTOOL_FALSE;
+  ctool_bool exponent_negative = CTOOL_FALSE;
+  cfront_big_uint_t numerator;
+  cfront_big_uint_t denominator;
+  ctool_i32 decimal_exponent;
+  ctool_i32 adjusted_decimal_exponent;
+  ctool_i32 binary_exponent;
+  ctool_u32 precision = kind == CTOOL_C_TYPE_FLOAT ? 24u : 53u;
+  ctool_i32 minimum_normal_exponent =
+      kind == CTOOL_C_TYPE_FLOAT ? -126 : -1022;
+  ctool_i32 minimum_subnormal_exponent =
+      kind == CTOOL_C_TYPE_FLOAT ? -149 : -1074;
+  ctool_i32 maximum_binary_exponent =
+      kind == CTOOL_C_TYPE_FLOAT ? 127 : 1023;
+  ctool_i32 maximum_decimal_exponent =
+      kind == CTOOL_C_TYPE_FLOAT ? 38 : 308;
+  ctool_i32 minimum_decimal_exponent =
+      kind == CTOOL_C_TYPE_FLOAT ? -46 : -324;
+  ctool_u32 exponent_bias =
+      kind == CTOOL_C_TYPE_FLOAT ? 127u : 1023u;
+  ctool_u32 mantissa_width =
+      kind == CTOOL_C_TYPE_FLOAT ? 23u : 52u;
+  ctool_u64 rounded;
+  ctool_u64 normal_significand = 1ull << (precision - 1u);
+  ctool_u64 infinity_bits =
+      kind == CTOOL_C_TYPE_FLOAT ? 0x7f800000ull
+                                 : 0x7ff0000000000000ull;
+
+  if (bits_out == (ctool_u64 *)0 ||
+      (kind != CTOOL_C_TYPE_FLOAT &&
+       kind != CTOOL_C_TYPE_DOUBLE)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (spelling.size > CFRONT_DECIMAL_TOKEN_LIMIT) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token, "decimal floating constant exceeds 95 characters");
+  }
+  if (end != 0u &&
+      (spelling.data[end - 1u] == 'f' ||
+       spelling.data[end - 1u] == 'F')) {
+    end--;
+  }
+
+  cfront_big_zero(&numerator);
+  while (index < end && spelling.data[index] != 'e' &&
+         spelling.data[index] != 'E') {
+    char character = spelling.data[index++];
+    ctool_u32 digit;
+    if (character == '.') {
+      if (after_point == CTOOL_TRUE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT,
+            CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+            "decimal floating constant has more than one decimal point");
+      }
+      after_point = CTOOL_TRUE;
+      continue;
+    }
+    if (cfront_decimal_digit(character) == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          token, "decimal floating constant contains an invalid digit");
+    }
+    digit_count++;
+    digit = (ctool_u32)(character - '0');
+    if (significant_digits != 0u || digit != 0u) {
+      significant_digits++;
+    }
+    if (after_point == CTOOL_TRUE) {
+      fractional_digits++;
+    }
+    if (cfront_big_multiply_add(&numerator, 10u, digit) ==
+        CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "decimal floating constant exceeds the exact conversion capacity");
+    }
+  }
+  if (digit_count == 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token, "decimal floating constant requires a digit");
+  }
+
+  if (index < end) {
+    ctool_u32 exponent_digits = 0u;
+    index++;
+    if (index < end &&
+        (spelling.data[index] == '+' ||
+         spelling.data[index] == '-')) {
+      exponent_negative =
+          spelling.data[index] == '-' ? CTOOL_TRUE : CTOOL_FALSE;
+      index++;
+    }
+    while (index < end &&
+           cfront_decimal_digit(spelling.data[index]) == CTOOL_TRUE) {
+      ctool_u32 digit =
+          (ctool_u32)(spelling.data[index] - '0');
+      if (exponent_magnitude > 1000u ||
+          exponent_magnitude * 10u + digit > 10000u) {
+        exponent_magnitude = 10000u;
+      } else {
+        exponent_magnitude = exponent_magnitude * 10u + digit;
+      }
+      exponent_digits++;
+      index++;
+    }
+    if (exponent_digits == 0u) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          token,
+          "decimal floating constant exponent requires a digit");
+    }
+  }
+  if (index != end) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token, "decimal floating constant has an invalid suffix");
+  }
+
+  decimal_exponent =
+      (exponent_negative == CTOOL_TRUE
+           ? 0 - (ctool_i32)exponent_magnitude
+           : (ctool_i32)exponent_magnitude) -
+      (ctool_i32)fractional_digits;
+  if (cfront_big_is_zero(&numerator) == CTOOL_TRUE) {
+    *bits_out = 0ull;
+    return CTOOL_OK;
+  }
+
+  adjusted_decimal_exponent =
+      decimal_exponent + (ctool_i32)significant_digits - 1;
+  if (adjusted_decimal_exponent > maximum_decimal_exponent) {
+    *bits_out = infinity_bits;
+    return CTOOL_OK;
+  }
+  if (adjusted_decimal_exponent < minimum_decimal_exponent) {
+    *bits_out = 0ull;
+    return CTOOL_OK;
+  }
+
+  cfront_big_set_u32(&denominator, 1u);
+  if (decimal_exponent >= 0) {
+    if (cfront_big_multiply_power_ten(
+            &numerator, (ctool_u32)decimal_exponent) == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "decimal floating constant exceeds the exact conversion capacity");
+    }
+  } else if (cfront_big_multiply_power_ten(
+                 &denominator,
+                 (ctool_u32)(0 - decimal_exponent)) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token,
+        "decimal floating constant exceeds the exact conversion capacity");
+  }
+
+  if (cfront_big_binary_exponent(
+          &numerator, &denominator, &binary_exponent) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token,
+        "decimal floating constant exceeds the exact conversion capacity");
+  }
+  if (binary_exponent > maximum_binary_exponent) {
+    *bits_out = infinity_bits;
+    return CTOOL_OK;
+  }
+
+  if (binary_exponent >= minimum_normal_exponent) {
+    if (cfront_big_round_ratio(
+            &numerator, &denominator,
+            (ctool_i32)(precision - 1u) - binary_exponent,
+            &rounded) == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "decimal floating constant exceeds the exact conversion capacity");
+    }
+    if (rounded == (1ull << precision)) {
+      rounded >>= 1u;
+      binary_exponent++;
+    }
+    if (binary_exponent > maximum_binary_exponent) {
+      *bits_out = infinity_bits;
+      return CTOOL_OK;
+    }
+    if (rounded < normal_significand ||
+        rounded >= (1ull << precision)) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          token,
+          "decimal floating conversion produced an invalid encoding");
+    }
+    *bits_out =
+        ((ctool_u64)((ctool_u32)(binary_exponent +
+                                (ctool_i32)exponent_bias))
+         << mantissa_width) |
+        (rounded - normal_significand);
+    return CTOOL_OK;
+  }
+
+  if (cfront_big_round_ratio(
+          &numerator, &denominator,
+          0 - minimum_subnormal_exponent, &rounded) == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token,
+        "decimal floating constant exceeds the exact conversion capacity");
+  }
+  if (rounded > normal_significand) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        token,
+        "decimal floating conversion produced an invalid encoding");
+  }
+  *bits_out = rounded == normal_significand
+                  ? 1ull << mantissa_width
+                  : rounded;
+  return CTOOL_OK;
+}
+
 typedef struct {
   ctool_u64 high;
   ctool_u64 low;
@@ -7854,7 +8366,7 @@ static ctool_bool cfront_u128_divide_u64(cfront_u128_t numerator,
   return CTOOL_TRUE;
 }
 
-static ctool_status_t cfront_decimal_floating_bits(
+static ctool_status_t cfront_decimal_long_double_bits(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
     ctool_c_type_kind_t kind, ctool_u64 *bits_out,
     ctool_u32 *high_bits_out) {
@@ -7893,9 +8405,7 @@ static ctool_status_t cfront_decimal_floating_bits(
 
   if (bits_out == (ctool_u64 *)0 ||
       high_bits_out == (ctool_u32 *)0 ||
-      (kind != CTOOL_C_TYPE_FLOAT &&
-       kind != CTOOL_C_TYPE_DOUBLE &&
-       kind != CTOOL_C_TYPE_LONG_DOUBLE)) {
+      kind != CTOOL_C_TYPE_LONG_DOUBLE) {
     return CTOOL_ERR_INTERNAL;
   }
   *high_bits_out = 0u;
@@ -8093,6 +8603,35 @@ static ctool_status_t cfront_decimal_floating_bits(
         (quotient - (1ull << (precision - 1u)));
   }
   return CTOOL_OK;
+}
+
+static ctool_status_t cfront_decimal_floating_bits(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_c_type_kind_t kind, ctool_u64 *bits_out,
+    ctool_u32 *high_bits_out) {
+  ctool_string_t spelling;
+  if (token == (const ctool_c_pp_token_t *)0 ||
+      bits_out == (ctool_u64 *)0 ||
+      high_bits_out == (ctool_u32 *)0 ||
+      (kind != CTOOL_C_TYPE_FLOAT &&
+       kind != CTOOL_C_TYPE_DOUBLE &&
+       kind != CTOOL_C_TYPE_LONG_DOUBLE)) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  *high_bits_out = 0u;
+  spelling = token->spelling;
+  if (spelling.size >= 2u && spelling.data[0] == '0' &&
+      (spelling.data[1] == 'x' || spelling.data[1] == 'X')) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token,
+        "hexadecimal floating constants are outside this decimal slice");
+  }
+  if (kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+    return cfront_decimal_long_double_bits(
+        context, token, kind, bits_out, high_bits_out);
+  }
+  return cfront_decimal_ieee_bits(context, token, kind, bits_out);
 }
 
 static void cfront_static_address_clear(cfront_expression_value_t *value) {

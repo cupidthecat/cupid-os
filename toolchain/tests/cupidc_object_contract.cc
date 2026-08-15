@@ -5,6 +5,7 @@
 #include "cupidc_frontend.h"
 #include "cupidc_ir.h"
 #include "cupidc_pp.h"
+#include "cupidc_exact_decimal_literal_fixture.h"
 #include "cupidc_static_long_double_arithmetic_fixture.h"
 #include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
@@ -29494,6 +29495,75 @@ static int validate_floating_scalar_object(
              "production lexer scalar shape");
 }
 
+static int little_u64_payload_matches(
+    const ctool_elf32_section_t *section, ctool_u32 offset,
+    ctool_u64 expected) {
+  ctool_u32 index;
+  if (section == NULL || offset > section->contents.size ||
+      8u > section->contents.size - offset) {
+    return 0;
+  }
+  for (index = 0u; index < 8u; index++) {
+    if (section->contents.data[offset + index] !=
+        (ctool_u8)(expected >> (index * 8u))) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_exact_decimal_literal_object(
+    const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
+  const ctool_elf32_symbol_t *float_values =
+      find_symbol(object, "exact_decimal_float");
+  const ctool_elf32_symbol_t *double_values =
+      find_symbol(object, "exact_decimal_double");
+  const ctool_elf32_symbol_t *long_double_value =
+      find_symbol(object, "exact_decimal_long_double");
+  ctool_u32 index;
+  if (rodata == NULL || float_values == NULL ||
+      double_values == NULL || long_double_value == NULL ||
+      float_values->binding != CTOOL_ELF32_BIND_LOCAL ||
+      float_values->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      float_values->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      float_values->section_file_index != rodata->file_index ||
+      float_values->size != 36u ||
+      double_values->binding != CTOOL_ELF32_BIND_LOCAL ||
+      double_values->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      double_values->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      double_values->section_file_index != rodata->file_index ||
+      double_values->size != 80u ||
+      long_double_value->binding != CTOOL_ELF32_BIND_LOCAL ||
+      long_double_value->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      !long_double_symbol_payload_matches(
+          rodata, long_double_value, 0x8000000000000000ull,
+          0x3fffu)) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cupidc_exact_decimal_float_bits) /
+                           sizeof(cupidc_exact_decimal_float_bits[0]));
+       index++) {
+    if (!little_u32_payload_matches(
+            rodata, float_values->value + index * 4u,
+            (ctool_u32)cupidc_exact_decimal_float_bits[index])) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cupidc_exact_decimal_double_bits) /
+                           sizeof(cupidc_exact_decimal_double_bits[0]));
+       index++) {
+    if (!little_u64_payload_matches(
+            rodata, double_values->value + index * 8u,
+            cupidc_exact_decimal_double_bits[index])) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
 static int run_floating_scalar_object(const char *host_root) {
   static const char source_prefix[] =
       "typedef unsigned int u32;\n"
@@ -29630,19 +29700,26 @@ static int run_floating_scalar_object(const char *host_root) {
   ctool_buffer_t *failure = NULL;
   ctool_buffer_t *block_first = NULL;
   ctool_buffer_t *block_second = NULL;
+  ctool_buffer_t *exact_first = NULL;
+  ctool_buffer_t *exact_second = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t block_unit;
+  ctool_c_translation_unit_t exact_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_expression_t *invalid_expressions = NULL;
   ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_source_t object_source;
   ctool_source_t block_object_source;
+  ctool_source_t exact_object_source;
   ctool_elf32_object_t object;
   ctool_elf32_object_t block_object;
+  ctool_elf32_object_t exact_object;
   ctool_bytes_t first_bytes;
   ctool_bytes_t second_bytes;
   ctool_bytes_t block_first_bytes;
   ctool_bytes_t block_second_bytes;
+  ctool_bytes_t exact_first_bytes;
+  ctool_bytes_t exact_second_bytes;
   ctool_u32 unsigned_int = CTOOL_C_TYPE_NONE;
   ctool_u32 signed_int = CTOOL_C_TYPE_NONE;
   ctool_u32 signed_wide = CTOOL_C_TYPE_NONE;
@@ -29663,12 +29740,17 @@ static int run_floating_scalar_object(const char *host_root) {
                sizeof(source_suffix));
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&block_unit, 0, sizeof(block_unit));
+  (void)memset(&exact_unit, 0, sizeof(exact_unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/floating-scalars.c", source,
                          CTOOL_TRUE, &unit) ||
       !parse_source_mode(
           job, "/block-static-floating.c", block_static_source,
           CTOOL_TRUE, &block_unit) ||
+      !parse_source_mode(
+          job, "/exact-decimal-literals.c",
+          cupidc_exact_decimal_literal_source, CTOOL_TRUE,
+          &exact_unit) ||
       unit.expression_count == 0u ||
       sizeof(*invalid_expressions) >
           SIZE_MAX / (size_t)unit.expression_count ||
@@ -29780,6 +29862,14 @@ static int run_floating_scalar_object(const char *host_root) {
   if (status == CTOOL_OK) {
     status = ctool_job_open_buffer(
         job, 1024u, config.limits.output_bytes, &block_second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &exact_first);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &exact_second);
   }
   if (!check_status(status, CTOOL_OK,
                     "floating scalar buffers") ||
@@ -29958,6 +30048,36 @@ static int run_floating_scalar_object(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  if (!expect_object_success_preserves_unit(
+          job, &exact_unit, exact_first,
+          "exact decimal literal object") ||
+      !expect_object_success_preserves_unit(
+          job, &exact_unit, exact_second,
+          "repeat exact decimal literal object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  exact_first_bytes = ctool_buffer_view(exact_first);
+  exact_second_bytes = ctool_buffer_view(exact_second);
+  if (exact_first_bytes.size != exact_second_bytes.size ||
+      memcmp(exact_first_bytes.data, exact_second_bytes.data,
+             (size_t)exact_first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr,
+        "exact decimal literal objects are not deterministic\n");
+    goto cleanup;
+  }
+  exact_object_source.path.text =
+      ctool_string("/exact-decimal-literals.o");
+  exact_object_source.contents = exact_second_bytes;
+  (void)memset(&exact_object, 0xa5, sizeof(exact_object));
+  status = ctool_elf32_read(job, &exact_object_source, &exact_object);
+  if (!check_status(status, CTOOL_OK,
+                    "read exact decimal literal object") ||
+      !validate_exact_decimal_literal_object(&exact_object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   passed = 1;
 
 cleanup:
@@ -29965,6 +30085,12 @@ cleanup:
   free(invalid_expressions);
   if (failure != NULL) {
     ctool_buffer_close(failure);
+  }
+  if (exact_second != NULL) {
+    ctool_buffer_close(exact_second);
+  }
+  if (exact_first != NULL) {
+    ctool_buffer_close(exact_first);
   }
   if (block_second != NULL) {
     ctool_buffer_close(block_second);

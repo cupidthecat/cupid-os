@@ -8,7 +8,7 @@ The matrix uses these statuses:
 - **Required**: the checked active-source audit proves the capability is exercised, but the Cupid implementation does not yet satisfy it.
 
 The capability requirements below are backed by `ACTIVE-SOURCE-AUDIT.md` and
-`audits/active-build.json`: 736 active language inputs across root, user, and
+`audits/active-build.json`: 737 active language inputs across root, user, and
 hosted Toolchain build roots, 255 stable feature IDs, 452 output transforms,
 and an explicit i386 ILP32/cdecl/ELF32 contract. The language split is 31
 assembly files, 296 C headers, and 409 Cupid C files. No ordinary C
@@ -112,9 +112,9 @@ untouched. The initial snapshot, private source copy, and newly discovered
 live inventory must match exactly. This catches membership changes and a
 transient edit copied before the live file is restored. Each contract run
 derives the cohort from its requested executable, requires a named manifest
-artifact, and verifies every artifact hash, the current 65-input contract set,
+artifact, and verifies every artifact hash, the current 66-input contract set,
 the checked seed manifest, and the 50-file fixed-point source inventory. The
-65 inputs include the small Windows probe, the native Windows tool runtime,
+The 66 inputs include the small Windows probe, the native Windows tool runtime,
 startup, CupidLD publication runtime and bridge, direct runtime contract,
 `direct.h`, `windows.h`, the user ABI contract and its six
 declarations, the Toolchain
@@ -496,9 +496,10 @@ conditional selection convert every represented value integer or enum to
 `long double`, `float`, or `double` when that is the floating common type.
 Wide integer input to `float` or `double` uses x87 `FILD` and the unsigned 2^64
 correction before the value is stored at its C width. Hexadecimal floating
-literals, binary32 and binary64 subnormal literals, hexadecimal or subnormal
-long-double literals, decimal ratios beyond the bounded parser, atomic and
-long-double updates, SIMD, and over-aligned object emission remain open.
+literals, hexadecimal or subnormal long-double literals, long-double decimal
+ratios beyond the bounded parser, atomic and long-double updates, SIMD, and
+over-aligned object emission remain open. Source-head decimal binary32 and
+binary64 subnormal literals are covered by ADR 0293.
 
 Private typedef declarations accept several value or pointer aliases in one
 declaration and preserve pointer depth per declarator. One-dimensional
@@ -655,8 +656,14 @@ negative serial-event boundary. The source and evidence images retained
 SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
+The exact-decimal fixture raises the current audit to 737 active language
+inputs, including 297 headers, and raises the live Toolchain contract closure
+to 66 inputs. These source-head totals supersede the older broad rows below.
+The last supported published gate retains its historical 65-input evidence.
+
 | Capability | Status | Baseline evidence and gap |
 | --- | --- | --- |
+| Hosted exact decimal `float` and `double` literals | Observed/Partial | Source-head CupidC uses a private 48-limb, 1536-bit unsigned integer workspace to form each accepted decimal ratio and round it once at binary32 or binary64 width. Exact frontend, Linear IR, and ELF32 object contracts cover both halfway parities, minimum subnormal and normal values, maximum finite values, infinity, positive and negative underflow zero, extreme exponents, deterministic object bytes, malformed frozen data, and same-job recovery. A 95-character token passes, while the next character receives a focused diagnostic. The checked execution seeds predate this source-head change, so production ownership does not move. Hexadecimal floating literals, hexadecimal or subnormal long-double literals, and long-double ratios beyond the bounded parser remain open. This row supersedes the binary32 and binary64 literal limit in the older broad floating rows below. ADR 0293 records the boundary. |
 | Cupid-built external syscall ABI contract | Observed/Partial | Stage-three and stage-four CupidC compile `toolchain/tests/user_syscall_abi_contract.cc`, CupidLD links it with the hosted runtime, and the fixed-point publisher requires identical objects and executables before publishing stage four. The checked program snapshots and rereads the six kernel and public declarations, then verifies version 5, 103 fields, 412 table bytes, the public i386 scalar types and constants, both VFS record layouts, and all 101 providers. Its field and provider fingerprints match the independent Python oracle. The user build verifies or rebuilds the full 21-artifact cohort, runs the published contract, compares both reports, and rechecks publication inputs. Focused positive and mutation tests cover field, scalar, constant, layout, provider, reread, and selector failures. Host Python still launches the checked i386 program and owns path and publication safety; Windows still uses WSL. ADR 0264 records this ownership transfer. |
 | Normal CupidC kernel cohort | Observed/Partial | CupidC owns 240 normal transforms: 239 checked-in roots plus generated `kernel/cpu/ksyms_data.cc`. All 240 sources use `.cc`; the checked-in count includes 156 strict roots and the 83-root Doom cohort. The five Toolchain roots shared with the 19-source fixed point keep C semantics through explicit `-x c` in native recipes. Symbol generation runs private copies of the pass-one kernel and CupidDis, validates every output row and the i386 address range, rejects an empty text-symbol set or live drift, and publishes atomically. The compiler wrapper verifies the platform production seed, emits with fixed kernel or Doom profiles, validates i386 `ET_REL`, and replaces each object only after success. Its strict kernel profiles freeze reviewed per-source closures. Its Doom profiles freeze exact source membership and all visible headers and includes, then reject live drift in either set. A valid data-only object may omit `.text`. The production FPU policy uses Cupid's ELF reader and x86 decoder to require a CR4 write before floating work, followed by one `FNINIT` and one 32-bit memory `LDMXCSR`; it rejects helper calls and malformed ordering. Poisoned-host checks cover every recipe and include `AS`. The latest complete two-pass strict frontier predates the 156th source. Its 155 roots pass twice against a 445-file snapshot with SHA-256 `99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`; both object sets are byte-identical and total 3,749,796 bytes each. The current 156-source production build passes. A broader two-generation run timed out after 1,204 seconds and is not a complete frontier pass. The 83 Doom roots pass their checked-seed frontiers and normal production recipes. An earlier clean-image checkpoint was 209,715,200 bytes with SHA-256 `2d0363b58a8319cb858c14e040c53334702dd72dc9856849764e4e0192a3ae29`; its 8,482,788-byte kernel had SHA-256 `28e8630956a79803dd4ee29e67fdbc049fbb848b188daa16f1a0b328b9525ed4`, matched the bytes at LBA 5, and left 3,907 sectors before FAT16. That checkpoint remains historical. Strong four-vCPU runtime gates cover both NICs, all three FPU milestones, the promoted SMP paths, the 29-check libm guest probe, the TrueType glyph path, every pixel from a byte-fixed baseline JPEG, the relocated stack, the expanded boot reservation, and Doom's asset-free startup and recovery paths. Host Python orchestration, optimization, complete fixed-point convergence, and IWAD-backed Doom behavior stay open. ADRs 0124 and 0126 record the naming transfer, ADR 0184 records Doom, ADR 0272 records native Windows production selection, ADR 0276 adds CupidLD to the checked kernel cohort, and ADR 0279 records the convergence rule. |
 | C11 external inline definitions | Observed/Partial | CupidC finalizes compatible file-scope declaration sets after parsing the whole translation unit. A non-inline declaration paired with an inline definition, either order, and `extern inline` with effective external linkage provide an external definition. The canonical binding records that result while the definition keeps its exact spelling. Prior `static` linkage stays internal, and an external-linkage inline declaration without a definition fails at finalization. Pure external inline remains unsupported during lowering. Contracts cover the successful forms, reject the missing-definition constraint, malformed metadata, and conflicting or duplicate definitions, and prove same-job recovery. `kernel/audio/nuked_opl3.cc` compiles twice to the same validated 40,424-byte object, and CupidDis finds a defined global `OPL3_Generate4Ch` with only `memset` undefined. The checked seed carries the rule, and the closed production recipe, frontier, image, and runtime gates pass. ADR 0131 records the language boundary, ADR 0134 records the seed promotion, and ADR 0135 records the production transfer. |
@@ -809,11 +816,12 @@ usual arithmetic conversions between `long double` and every represented
 value integer or enum. Conditional lowering converts only the selected arm.
 ADR 0287 records the first `float` and `double` conditional boundary, ADR 0288
 records the integer and long-double boundary, and ADR 0289 removes the
-four-byte integer limit for `float` and `double`. Remaining gaps include
-hexadecimal floating literals, binary32 and binary64 subnormal literals,
-hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, other floating-to-wide conversions, integer-lvalue compound
-assignment with a floating right operand, and atomic and long-double updates.
+four-byte integer limit for `float` and `double`. ADR 0293 adds exact
+source-head decimal literals through subnormal, underflow, and overflow
+results. Remaining gaps include hexadecimal floating literals, hexadecimal or
+subnormal long-double literals, long-double ratios beyond the bounded parser,
+other floating-to-wide conversions, integer-lvalue compound assignment with a
+floating right operand, and atomic and long-double updates.
 JPEG and glyph
 rasterization exercise the represented production subset, while the checked
 seed also emits the unchanged Doom automap object.

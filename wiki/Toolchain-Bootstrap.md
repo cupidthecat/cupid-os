@@ -1001,6 +1001,14 @@ source-head CupidC and the checked Cupid-built driver emit byte-identical
 objects for the forms. ADR 0289 records the boundary, and ADR 0292 records its
 fixed-point promotion. No active source needs this expression shape, so no
 normal transform changes owner.
+Source-head hosted CupidC now forms decimal `float` and `double` tokens in a
+private 1536-bit integer workspace and rounds once at binary32 or binary64
+width, with ties going to even. Public frontend, Linear IR, and ELF32 contracts
+cover halfway parity, subnormal and normal boundaries, maximum finite values,
+infinity, signed underflow zero, extreme exponents, deterministic object bytes,
+and same-job recovery. A complete token may contain 95 characters. The checked
+execution seed predates the change, so this proof does not move production
+ownership. ADR 0293 records the boundary.
 Compiler head also converts static initializers between bounded finite `long
 double` and every
 represented value integer and an enum whose compatible integer type has the
@@ -1576,6 +1584,6 @@ ADR 0209 records the numerical correction.
 
 The [current production checkpoint](#current-production-checkpoint) is the
 canonical record of the final build, artifact identities, and private guest
-smokes. The current audit records 736 active language inputs, 452 transforms,
+smokes. The current audit records 737 active language inputs, 452 transforms,
 255 feature requirements, six CupidDis production checks, and no active
 CupidC-owned `.c` source.

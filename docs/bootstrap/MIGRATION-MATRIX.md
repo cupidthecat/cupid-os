@@ -454,6 +454,14 @@ AOT behavior without moving a build owner. ADR 0217 records the boundary.
 
 Hosted CupidC emits deterministic i386 ELF32 objects for all fifteen regular files in the CupidC, CupidASM, CupidDis, and user-ABI contract cohort, plus the separate hosted runtime probe. Those sources, the 19-source static Linux tool union, six strict Windows roots, the direct Windows runtime contract, and `kernel/lang/as_elf.cc` use 33 ordinary strict Linux roots, six strict Windows roots, one freestanding Windows root, a two-source strict kernel bridge, and three GNU runtime roots. The third GNU root selects the Windows side of the shared runtime. The retired 64-bit profiles have no active roots. The normal build compiles each regular Linux contract twice from the checked seed, compares all seventeen new objects, links all fifteen programs and the Linux runtime probe through CupidLD, and verifies all sixteen ELF32 executables. Publication accepts only a dedicated `cupidc-contracts` directory inside the source tree. The target is checked before work and again before promotion, and an existing destination must already verify as a complete cohort. Arbitrary directories, source trees, files, and symbolic links remain untouched. The initial, private, and newly discovered contract inventories must match exactly, which catches additions, removals, and restored edits that changed a copied input. Every run derives the cohort from its executable, requires a named manifest artifact, and verifies every artifact hash, the current 65-input contract set, the checked seed manifest, and the 50-file fixed-point source inventory before the behavior matrix starts. Those 65 inputs include the small Windows probe, the native Windows tool runtime and startup, CupidLD publication runtime and bridge, direct runtime contract, `direct.h`, `windows.h`, the user syscall ABI contract and its six declarations, the Toolchain Makefile, the publisher, and the independent Python ABI oracle. One captured seed-manifest byte sequence supplies its digest, decoded JSON, schema validation, and checked build plan. The same gate covers complete CupidLD and CupidObj command closures. Native GCC or Clang builds remain available only as explicit development oracles. This supersedes the older nine-file, eleven-file, fourteen-file, host-built, and 64-bit profile descriptions in the historical notes and long-form rows below.
 
+The new exact-decimal fixture raises the source-head contract closure from 65
+to 66 inputs. It also raises the deterministic audit to 737 active language
+inputs, including 297 headers. The C-family inventory now covers 702 files and
+2,455 include operands, including 2,202 quoted operands. Those source-head
+counts supersede the older
+65-input and 736-input totals in the broad rows below. The last supported
+published gate keeps its historical 65-input evidence until a later promotion.
+
 The contract publisher now carries compile budgets in its plans. Fourteen
 ordinary contracts compile in the worker pool with 900-second limits. That
 pool drains before `cupidc-object` compiles alone with a 1,800-second limit.
@@ -687,9 +695,14 @@ publish final initializer records and no runtime IR.
 Static long-double `+`, `-`, `*`, and `/` also fold through an unsigned
 128-bit target packer. It rounds once to the x87 explicit significand, handles
 gradual underflow and canonical special results, and leaves no runtime IR.
-Hexadecimal floating literals, binary32 and binary64 subnormal literals,
-hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, other floating-to-wide conversions, integer-lvalue compound
+Source-head decimal `float` and `double` tokens now use a 1536-bit integer
+workspace and round once to binary32 or binary64. The public frontend, Linear
+IR, and ELF32 contracts cover both halfway parities, minimum subnormal and
+normal values, maximum finite values, infinity, signed underflow zero, and
+extreme exponents. The accepted token boundary is 95 characters. Hexadecimal
+floating literals, hexadecimal or subnormal long-double literals, long-double
+ratios beyond the bounded parser, other floating-to-wide conversions,
+integer-lvalue compound
 assignment with a floating right operand, and atomic or long-double updates
 remain open. ADR 0250 records
 runtime unsigned
@@ -701,7 +714,9 @@ conversion. ADR 0256 records canonical x87 payloads and special-value
 conversion. ADR 0260 records static long-double arithmetic.
 ADR 0288 records runtime integer and long-double usual conversions. ADR 0289
 records wide integer conversion and usual arithmetic with `float` and
-`double`.
+`double`. ADR 0293 records exact source-head decimal `float` and `double`
+literals. The checked execution seed predates that source-head change, so it
+does not move production ownership.
 Matching or mixed-width floating conditional arms and
 the four arithmetic compound assignments retain their established x87 path.
 
@@ -949,6 +964,11 @@ providers before reproducing
 hello, ls, and cat from a 23-input closure with SHA-256
 `f63919f4b4307278c825ebedf99391e3ec110646042ee397dac3a7ba330435d3`.
 
+ADR 0293 supersedes the binary32 and binary64 subnormal-literal limit in the
+older broad frontend, Linear IR, and object rows below. Source head now rounds
+accepted decimal `float` and `double` tokens exactly through subnormal,
+underflow, and overflow results. The checked seed still predates that change.
+
 | Source or artifact cohort | Owner/path when recorded | Fixed-point owner/path | Status and next proof |
 | --- | --- | --- | --- |
 | `boot/boot.asm` | CupidASM flat binary | CupidASM plus CupidDis guarded flat binary | Production-owned: hosted CupidASM emits the exact 2,560 bytes, SHA-256 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`, byte-identical to the optional NASM oracle. It reads the kernel through LBA 20479 and installs the stack top at `0x01100000`. The normal Make rule calls the shared checked raw-image transaction with the production manifest and full seed closure. Hostbuild freezes the source and seed, assembles private image and map candidates, runs strict CupidDis, detects drift, and publishes atomically. A failure preserves the prior image and leaves no public map. ADR 0283 records the cutover. |
@@ -1118,8 +1138,9 @@ boundary, and width conversion uses deterministic infinity and quiet-NaN
 encodings. Static long-double `+`, `-`, `*`, and `/` use the same target-only
 model, with nearest-even rounding, gradual underflow, canonical special
 values, and no runtime IR.
-Hexadecimal floating literals, binary32 and binary64 subnormal literals,
-hexadecimal or subnormal long-double literals, decimal ratios beyond the
+Source-head decimal `float` and `double` tokens round through the exact
+1536-bit converter recorded by ADR 0293. Hexadecimal floating literals,
+hexadecimal or subnormal long-double literals, long-double ratios beyond the
 bounded parser, other floating-to-wide conversions, integer-lvalue compound
 assignment with a floating right operand, atomic and long-double updates,
 SIMD, over-aligned
@@ -1132,7 +1153,8 @@ payloads and special-value conversion. ADR 0260 records static long-double
 arithmetic. ADR 0287 records the first source-head integer and floating
 conditional boundary. ADR 0288 records runtime integer and long-double usual
 conversions. ADR 0289 removes the four-byte integer limit for `float` and
-`double` conversion and usual arithmetic.
+`double` conversion and usual arithmetic. The checked seed predates ADR 0293,
+so exact hosted decimal literals do not move production ownership yet.
 
 ADR 0263 adds hosted prefix and postfix update for modifiable non-atomic
 `float` and `double` lvalues. The shared frontend records the computation

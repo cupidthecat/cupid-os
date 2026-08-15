@@ -279,13 +279,20 @@ values, subnormals, infinities, and NaNs are true. Checked-seed hosted CupidC
 accepts prefix and postfix increment and decrement on modifiable non-atomic
 float and double lvalues. It evaluates the lvalue once, stores the result after
 adding or subtracting exact-width 1.0, and returns the original raw payload for
-a postfix form. Atomic floating and long double updates,
-hexadecimal floating constants, binary32 and binary64 subnormal constants,
-hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, general SIMD value semantics, and atomic floating access remain
+a postfix form. Source-head hosted CupidC forms each decimal float or double
+ratio in a private 1536-bit integer workspace, then rounds once at the selected
+IEEE width with ties going to even. Public frontend, Linear IR, and ELF32
+contracts cover both halfway parities, minimum subnormal and normal values,
+maximum finite values, infinity, signed underflow zero, extreme exponents, and
+the 95-character token boundary. The checked seed predates this source-head
+capability. Atomic floating and long double updates, hexadecimal floating
+constants, hexadecimal or subnormal long-double literals, long-double ratios
+beyond the bounded parser, general SIMD value semantics, and atomic floating
+access remain
 outside this shared path. Checked-seed static controls, arithmetic, and
 floating-width conversion fold through the target representation. ADR 0260
 records the static arithmetic model, and ADR 0265 records seed carriage.
+ADR 0293 records exact source-head decimal float and double literals.
 
 Private comparison and truth sequences use SETNP for an ordered guard and SETP
 for an unordered guard. Checked-seed CupidDis recognizes both byte
