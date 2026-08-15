@@ -37,13 +37,13 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 9135688,
+      "exact_bytes": 9138288,
       "path": "kernel/kernel.bin",
       "producer": "CupidObj",
       "reason": "CupidObj emits deterministic bytes, and the disk image copies this output verbatim."
     },
     {
-      "exact_bytes": 9354976,
+      "exact_bytes": 9359072,
       "path": "kernel/kernel.elf",
       "producer": "CupidLD",
       "reason": "The final CupidLD link is deterministic for a fixed source and object cohort."

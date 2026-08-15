@@ -27114,3 +27114,87 @@ The 2,682,137-byte JSON has SHA-256
 `56a77f37c55750be3f8e8f22086b705f3eb8999e66ceb34e0af61fad27d7dd08`.
 The 12,502-byte summary has SHA-256
 `6aa7981d9bdce952d51af62a12c95b3d38be7fab124f80bfbf6b79f43860fd49`.
+
+## 2026-08-15: verify the integrated bootstrap changes
+
+The exact decimal-literal, private SIMD update, native Windows ABI, and mixed
+floating compound-assignment changes were verified together before
+publication. This caught locks and output measurements that could not move on
+any isolated implementation branch.
+
+### Integration corrections
+
+The first combined frontend run passed every semantic case but failed two
+inventory methods. The integrated compiler sources contain 39,437 `if`, 4,993
+`else`, and 24,015 `return` occurrences. The audit already carried those
+values, so only the stale test expectations changed. Both focused methods then
+passed in 10.448 seconds, and the complete frontend module passed all 97 tests
+in 13.253 seconds.
+
+The first 204-test contract, production, and build-audit sweep passed 201
+tests. Its three failures still expected 701 C-family source files and 736
+active inputs. After those top-level locks moved, their later assertions
+exposed the rest of the same combined inventory: 2,455 include operands, 2,202
+direct quoted operands, 6,127 `sizeof` occurrences, and 86 Toolchain cohort
+sources. The two include and line-directive cases passed on their next run.
+The active-manifest drift case passed in 184.550 seconds after all of its
+measured fields matched the checked audit. The final three-module run passed
+all 204 tests in 833.796 seconds.
+
+The first integrated image build at revision `70a9130f` reached strict code
+validation and then stopped at the exact-size gate after 752.6 seconds. It
+measured a 9,138,200-byte `kernel.bin` and a 9,359,072-byte `kernel.elf`.
+Those values were not accepted as final because the later ownership-summary
+commit changed `04CUPIDC.CTXT`, which is part of the OS image.
+
+The exact final tree reached the gate after 650.260 seconds. Its ELF matched
+the reviewed value, while the embedded manual made `kernel.bin` 9,138,288
+bytes, 88 bytes beyond the tentative lock. Image publication did not run on
+either failure. The final policy records that measured value. A direct Make
+attempt with a 184-second command budget timed out while rebuilding checked
+prerequisites and produced no policy diagnostic. The uninterrupted
+`make -j4 all` rerun passed in 626.9 seconds, including checked CupidC
+compilation, both CupidLD links, strict CupidDis and CupidObj validation, all
+nine exact artifact checks, and image publication.
+
+### Final evidence
+
+| Check | Result |
+| --- | --- |
+| Hosted frontend | PASS: 97 tests in 13.253 seconds |
+| Hosted Linear IR | PASS: 86 tests in 13.306 seconds |
+| Hosted object and static fixed point | PASS: 115 tests in 1,162.659 seconds |
+| Toolchain contract plans | PASS: 52 tests in 6.184 seconds |
+| Contract, production, and build audit | PASS: 204 tests in 833.796 seconds |
+| Artifact policy module | PASS: 12 tests in 1.557 seconds |
+| Normal OS build | PASS: `make -j4 all` in 626.9 seconds |
+| Private feature-14 boot | PASS in 60.5 seconds with `[feature14-update] PASS direct=6 leaves=3 once=6 payload=8` and JIT completion |
+
+The final production artifacts are:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,232,096 | `6eec9b7d6b4f756cb74b44bcf2b79102599eee93dd0cf60c9cfb5d97f8604900` |
+| `kernel/kernel.elf` | 9,359,072 | `bf61cc32b1f8114a2a067de4ed2509b7685484d295aa23818b5a977059ef38f8` |
+| `kernel/kernel.bin` | 9,138,288 | `f804d82266e5d37977064864ae935d67990a016d22606c915c255b23b510805b` |
+| `cupidos.img` | 209,715,200 | `3798b6259c641e808146edf6542328fa37a854c7245bccaa68a74764cc2ab5c7` |
+
+The private-copy QEMU log was 27,346 bytes with SHA-256
+`837aeaadc915a733446457b584534312608c132935c5e76b709b216c97b507eb`.
+It recorded the feature-14 operator, array, matrix, update, minimum/maximum, and
+NaN markers at lines 514 through 519, followed by JIT completion at line 521.
+No panic or exception appeared. The disposable log was removed after its
+evidence was recorded.
+
+The combined graph remains at 737 active inputs, 452 transforms, 255 feature
+requirements, and 25 accounted unreachable files. It records 247 CupidC, six
+CupidASM, six CupidLD, 192 CupidObj, and six CupidDis participations. The 246
+ordinary C-output transforms remain distinct from the composite native Windows
+ABI verification transform.
+
+These integration corrections change no language rule, ABI rule, object
+format, build owner, or checked seed. No `.c` file gained new ownership, so no
+suffix rename is due. The remaining compiler, SIMD, native fixed-point, WSL,
+and Python coordination limits stay documented in the four implementation
+records. `TempleOS/` was not modified or counted.

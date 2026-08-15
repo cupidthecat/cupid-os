@@ -1865,7 +1865,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 701)
+            self.assertEqual(contract["source_files"], 702)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1886,7 +1886,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 701 source files; max conditional depth 0",
+                "0 numeric markers; 702 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -3599,9 +3599,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 701)
-            self.assertEqual(contract["include_occurrences"], 2452)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2199)
+            self.assertEqual(contract["source_files"], 702)
+            self.assertEqual(contract["include_occurrences"], 2455)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2202)
             self.assertEqual(contract["direct_angle_occurrences"], 253)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
@@ -7883,7 +7883,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 736,
+                    "active_sources": 737,
                     "features": 255,
                     "transforms": 452,
                     "unreachable_sources": 25,
@@ -7894,7 +7894,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6094, 172),
+                "c.expression.sizeof": (6127, 172),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -8409,7 +8409,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 85)
+            self.assertEqual(toolchain_cohort["source_count"], 86)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
