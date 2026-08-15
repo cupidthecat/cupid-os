@@ -7769,7 +7769,7 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 445u,
        17247u, 113728u, 2565u, 1547u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 84u, 3146u,
-       20707u, 346u, 196u, 0u, 0u},
+       20714u, 346u, 196u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1866u,

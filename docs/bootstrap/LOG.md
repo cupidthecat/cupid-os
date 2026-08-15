@@ -26650,3 +26650,30 @@ The final-source audit regeneration passed in 66.2 seconds, and its checked
 comparison passed in 65.9 seconds. The 2,676,423-byte JSON and 12,417-byte
 summary retained their previous hashes because the audit records the input
 inventory and capability model rather than embedded prose bytes.
+
+## 2026-08-14: Close combined seed integration locks
+
+Integrating the promoted seeds with the suffix-provenance work exposed two
+stale test locks. The frontend contract still expected 20,707 expressions in
+`toolchain/cupidasm.cc`; the accepted raw `EQU` correction produces 20,714.
+The first complete frontend run passed 96 of 97 tests and reported that exact
+difference. After the lock was refreshed, the focused case passed in 10.650
+seconds and all 97 frontend tests passed in 12.062 seconds.
+
+The first complete build-graph run passed 97 of 98 tests in 633.050 seconds.
+Its only failure expected the historical 5/18/16 Linux behavior matrix even
+though the generated fixed-point contract correctly reported 17 failure
+cases. The focused 5/18/17 check passed in 106.212 seconds after the assertion
+was corrected. The final complete graph run passed all 98 tests in 739.060
+seconds.
+
+The combined audit was regenerated in 65.1 seconds. Its 2,677,736-byte JSON
+has SHA-256
+`88f4f0f94f70c0378bac85fdad66a91183f37d3cdfd38a10f8d092fd096bd396`.
+The 12,502-byte summary has SHA-256
+`d572f7f81b3e9cf16f23b35c78e3ce81952540bf96a5d6c738c10189cadf7beb`
+and records 18 successful fixed-point cases plus 17 useful failures.
+
+This correction changes no compiler or assembler behavior, seed image,
+production recipe, ABI, source owner, or host dependency. It keeps the exact
+source and behavior locks aligned with the already accepted implementation.

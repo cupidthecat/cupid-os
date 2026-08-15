@@ -5437,7 +5437,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 5)
         self.assertEqual(contract["success_behavior_cases"], 18)
-        self.assertEqual(contract["failure_behavior_cases"], 16)
+        self.assertEqual(contract["failure_behavior_cases"], 17)
         self.assertEqual(contract["contract_manifest_inputs"], 65)
         self.assertEqual(
             contract["source_head_capabilities"],
