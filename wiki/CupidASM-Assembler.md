@@ -1425,5 +1425,6 @@ The 2026-08-14 integration guards both production ELF32 assembly objects with
 private validation and CupidDis inspection. Raw source now rejects duplicate
 origins and section switches with stable diagnostics, and every active demo
 assembles with implicit externs disabled. The normal image build passed in
-673.8 seconds. A private four-vCPU guest assembled and ran
-`/demos/hello.asm` through CupidASM in 59.8 seconds.
+625.8 seconds with the host code-generation commands poisoned. A private
+four-vCPU guest assembled and ran `/demos/hello.asm` through CupidASM as part
+of a 60.5-second parallel smoke pair.

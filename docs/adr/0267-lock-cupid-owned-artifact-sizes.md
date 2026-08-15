@@ -61,14 +61,14 @@ The live policy lists these production files:
 | Artifact | Producer | Exact bytes |
 | --- | --- | ---: |
 | `boot/boot.bin` | CupidASM | 2,560 |
-| `bootstrap/seeds/i386-linux/cupidasm.elf` | CupidASM | 454,160 |
-| `bootstrap/seeds/i386-linux/cupidc.elf` | CupidC | 2,670,420 |
-| `bootstrap/seeds/i386-linux/cupiddis.elf` | CupidDis | 409,020 |
+| `bootstrap/seeds/i386-linux/cupidasm.elf` | CupidASM | 458,256 |
+| `bootstrap/seeds/i386-linux/cupidc.elf` | CupidC | 2,666,324 |
+| `bootstrap/seeds/i386-linux/cupiddis.elf` | CupidDis | 413,204 |
 | `bootstrap/seeds/i386-linux/cupidld.elf` | CupidLD | 312,792 |
 | `bootstrap/seeds/i386-linux/cupidobj.elf` | CupidObj | 392,688 |
-| `kernel/kernel.bin` | CupidObj | 9,121,520 |
-| `kernel/kernel.elf` | CupidLD | 9,338,404 |
-| `kernel/kernel.elf.pass1` | CupidLD | 9,215,524 |
+| `kernel/kernel.bin` | CupidObj | 9,125,104 |
+| `kernel/kernel.elf` | CupidLD | 9,342,500 |
+| `kernel/kernel.elf.pass1` | CupidLD | 9,219,620 |
 
 These are the live policy values after the 2026-08-14 compiler, assembler,
 disassembler, ownership, and publication integration. The embedded manuals
@@ -76,10 +76,9 @@ and in-kernel tool sources account for the reviewed change.
 The hashes and sizes below belong to the dated adoption proof and are retained
 as historical evidence.
 
-A production `make verify-artifact-sizes` attempt after the promotion timed
-out after 604 seconds during a seed-triggered kernel compile and was stopped
-cleanly. That production Make gate did not finish and is not recorded as a
-pass.
+An earlier `make verify-artifact-sizes` attempt timed out after 604 seconds
+during a seed-triggered kernel compile and was stopped cleanly. That attempt is
+retained as a failed approach rather than counted as a pass.
 
 The frozen-document poisoned-host rebuild passed in 1,018.548 seconds. The
 2,560-byte boot image has SHA-256
@@ -104,6 +103,17 @@ AC97 frames at peak 25,600, and 76,784 PC speaker frames at peak 30,710.
 RTL8139 exited 0 in 725.406 seconds with 106,151 changed pixels, 29,601,879
 AC97 frames at peak 25,600, and 76,719 PC speaker frames at peak 31,501. Both
 used a 640 by 480 framebuffer, and the image hash remained unchanged.
+
+The current combined checkpoint first reached the size gate in 624.6 seconds.
+Every build and inspection step passed, and the gate rejected only a measured
+680-byte increase in `kernel.bin`. After the live policy adopted the value in
+the table above, all twelve policy tests passed in 1.536 seconds. A complete
+poisoned-host rebuild then passed in 625.8 seconds and published a
+209,715,200-byte image with SHA-256
+`69ead54daa9f20eed8e5b4cb3aaac71947f64cce02f08dd8eceb1ab00dc18ddd`.
+Two private four-vCPU boots ran `/bin/ls.cc` through CupidC and
+`as /demos/hello.asm` through CupidASM. Both reached JIT completion without an
+accepted panic or fault marker.
 
 The live verification returns success with empty standard error. Python bytecode
 compilation, Ruff, and the scoped diff check also pass.

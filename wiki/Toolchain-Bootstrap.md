@@ -880,6 +880,8 @@ produced 33,452,396 frames at peak 25,600, and the PC speaker produced 76,614
 frames at peak 31,877. USB detach/replug and the post-replug survival window
 also passed. The private run left the source image unchanged.
 
+## Current production checkpoint
+
 The current production checkpoint also includes in-kernel CupidLD, the guarded
 normal boot edge, the promoted strict-relocation seeds, and independent source
 suffix provenance. Its first exact-tree poisoned-host build reached the size
@@ -1572,12 +1574,8 @@ ADR 0209 records the numerical correction.
 
 ## 2026-08-14 integrated checkpoint
 
-The combined source head passes the normal checked build in 673.8 seconds.
-The reviewed raw kernel is 9,121,520 bytes, and the published 200 MiB image has
-SHA-256
-`304b3aae567c3ccf750b84ee3a118b88d3d023168e22b66b612519de053d3d1b`.
-A private four-vCPU guest compiled and ran `/bin/ls.cc` through CupidC in 55.7
-seconds. A second guest assembled and ran `/demos/hello.asm` through CupidASM
-in 59.8 seconds. The current audit records 736 active language inputs, 452
-transforms, 255 feature requirements, six CupidDis production checks, and no
-active CupidC-owned `.c` source.
+The [current production checkpoint](#current-production-checkpoint) is the
+canonical record of the final build, artifact identities, and private guest
+smokes. The current audit records 736 active language inputs, 452 transforms,
+255 feature requirements, six CupidDis production checks, and no active
+CupidC-owned `.c` source.

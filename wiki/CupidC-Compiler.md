@@ -2750,7 +2750,8 @@ This clears persistent REPL variables, functions, structs, typedefs, and `ans`.
 
 The 2026-08-14 integration keeps the full OS build green after adding integer
 and long-double usual conversions and wide integer conversion to `float` and
-`double`. The normal image build passed in 673.8 seconds. A private four-vCPU
-guest then compiled and ran `/bin/ls.cc` through the in-OS compiler in 55.7
-seconds. The current Linux and Windows seeds carry these conversions through
-the fixed point. ADR 0292 records that promotion.
+`double`. The poisoned-host image build passed in 625.8 seconds. A private
+four-vCPU guest then compiled and ran `/bin/ls.cc` through the in-OS compiler
+as part of a 60.5-second parallel smoke pair. The current Linux and Windows
+seeds carry these conversions through the fixed point. ADR 0292 records that
+promotion.

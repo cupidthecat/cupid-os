@@ -918,6 +918,8 @@ produced 33,452,396 frames at peak 25,600, and the PC speaker produced 76,614
 frames at peak 31,877. USB detach/replug and the post-replug survival window
 also passed. The private run left the source image unchanged.
 
+## Current production checkpoint
+
 The current production checkpoint combines the guarded normal boot edge, the
 promoted strict-relocation seeds, and the independent source-suffix audit. The
 first exact-tree poisoned-host build reached the size policy in 624.6 seconds.
@@ -2524,15 +2526,9 @@ Progress means transferring ownership without reducing Cupid OS behavior:
 
 ## Integrated source-head evidence
 
-The 2026-08-14 combined branch passes `make -j4 all` in 673.8 seconds. The
-reviewed policy now locks `kernel/kernel.elf.pass1` at 9,215,524 bytes,
-`kernel/kernel.elf` at 9,338,404 bytes, and `kernel/kernel.bin` at 9,121,520
-bytes. The published 209,715,200-byte image has SHA-256
-`304b3aae567c3ccf750b84ee3a118b88d3d023168e22b66b612519de053d3d1b`.
-
-One private four-vCPU boot compiled and ran `/bin/ls.cc` through CupidC in
-55.7 seconds. Another assembled and ran `/demos/hello.asm` through CupidASM in
-59.8 seconds. The final audit has 736 active language inputs, 452 reachable
+The [current production checkpoint](#current-production-checkpoint) is the
+canonical record of the final build, artifact identities, and private guest
+smokes. The final audit has 736 active language inputs, 452 reachable
 transforms, and 255 feature requirements. It records six production CupidDis
 participation points and no active CupidC-owned `.c` source.
 

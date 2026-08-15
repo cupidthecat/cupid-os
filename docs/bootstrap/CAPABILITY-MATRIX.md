@@ -1031,11 +1031,12 @@ completion in 49.257 seconds.
 
 The normal checked build passes with the combined compiler, assembler,
 disassembler, ownership, and publication changes. The final kernel artifacts
-are 9,215,524 bytes for pass one, 9,338,404 bytes for the final ELF, and
-9,121,520 bytes for the raw image. Private guests completed both the CupidC
-`/bin/ls.cc` path and the CupidASM `/demos/hello.asm` path. The checked Linux
-and Windows seeds now carry wide integer floating conversion, executable
-relocation ownership, and the corrected raw `EQU` behavior.
+are 9,219,620 bytes for pass one, 9,342,500 bytes for the final ELF, and
+9,125,104 bytes for the raw image. A poisoned-host build published them in
+625.8 seconds. Private guests completed both the CupidC `/bin/ls.cc` path and
+the CupidASM `/demos/hello.asm` path. The checked Linux and Windows seeds carry
+wide integer floating conversion, executable relocation ownership, and the
+corrected raw `EQU` behavior.
 
 ## Shared object, linker, and bootstrap capabilities
 

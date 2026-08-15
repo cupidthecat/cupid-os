@@ -1400,12 +1400,13 @@ frontier command sequence, and QEMU remains the runtime oracle.
 
 ## 2026-08-14 dependency check
 
-The combined normal build passed in 673.8 seconds, and private CupidC and
-CupidASM guest smokes passed afterward. Poisoned standalone host and Cupid tool
-overrides could not bypass the guarded ISR, context-switch, or ISO fixture
-transactions. No new host dependency was added. Host Python still coordinates
-the transactions, and QEMU remains the runtime oracle. The checked Linux and
-Windows seeds now enforce the newest source-head relocation rule.
+The combined poisoned-host normal build passed in 625.8 seconds, and private
+four-vCPU CupidC and CupidASM guest smokes passed afterward. Poisoned standalone
+host and Cupid tool overrides could not bypass the guarded ISR,
+context-switch, or ISO fixture transactions. No new host dependency was added.
+Host Python still coordinates the transactions, and QEMU remains the runtime
+oracle. The checked Linux and Windows seeds enforce the current source-head
+relocation rule.
 
 ## Removal gate
 

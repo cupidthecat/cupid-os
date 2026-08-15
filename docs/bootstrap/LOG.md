@@ -26737,3 +26737,12 @@ No active `.c` file has independent CupidC ownership evidence, so this
 checkpoint performs no suffix rename. Python still coordinates the build and
 fixed-point transactions. The `TempleOS/` reference tree was not changed or
 counted.
+
+A whole-branch review found that several later "current checkpoint" summaries
+still quoted the earlier pre-promotion image. ADR 0267 also labelled those
+older sizes as the live policy, and the root summary sent the seed promotion
+to ADR 0291 instead of ADR 0292. The live README, bootstrap records, wiki, and
+ADR now use the final values above. Repeated end-of-file summaries link back to
+one canonical checkpoint instead of copying its artifact table. These
+corrections change documentation only, so the measured artifacts and
+private-image smoke evidence remain applicable.
