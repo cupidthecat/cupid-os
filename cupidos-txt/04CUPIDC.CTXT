@@ -1629,12 +1629,16 @@ complete remaining row or middle slice, and the 16-byte vector leaf uses an
 unaligned-safe access. Indexed assignment and +=, -=, *=, and /= retain the
 vector type, evaluate every index once, and allow a following lane read. Row
 and vector sizeof keep their complete size without evaluating an index. Every
+modifiable whole vector or fully indexed leaf also supports prefix and postfix
+++ and --. Direct automatic, global, block-static, and persistent REPL vectors
+use complete 16-byte storage. Prefix returns the stored vector. Postfix returns
+the exact old 128-bit payload after writing the new value. Every update index
+runs once. Lane updates, computed vectors, SIMD pointers, record fields,
+parameters, calls, and incomplete rows remain outside this update path. Every
 direct operator keeps the written left value in the machine destination. MIN
 and MAX intrinsics keep the second input for NaN and equal signed-zero cases. A
 both-NaN ADD or MUL may carry either input payload, depending on the processor
 or emulator. Incomplete row assignments and row expressions are rejected.
-SIMD pointers, record fields, new, array parameters, row values, and call ABI
-transport remain unsupported.
 
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
@@ -1661,8 +1665,10 @@ indexed elements, direct and pointer members, and members of indexed records
 keep one evaluated address until the store finishes. A postfix expression
 returns the exact old floating payload, including negative-zero and NaN bits,
 after storing the new value. Standalone statements and for-loop increments use
-the same typed path. Aggregate values, incomplete array rows, function
-pointers, and SIMD vectors are not valid update targets.
+the same typed path. Modifiable whole float4 and double2 objects and fully
+indexed vector-array leaves use their packed update path. Aggregate values,
+incomplete array rows, function pointers, and other SIMD forms are not valid
+update targets.
 
 Runtime unary plus preserves char, int, float, and double operands. Runtime
 unary minus uses integer NEG for char and int, while float and double change

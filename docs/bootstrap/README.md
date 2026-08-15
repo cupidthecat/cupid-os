@@ -373,6 +373,14 @@ destination index once. A following lane access retains the vector type.
 Unevaluated `sizeof` reports the selected row or vector size without running
 its index. Bounds and allocation sizes are checked before storage is reserved.
 
+Prefix and postfix `++` and `--` now work on modifiable whole-vector objects
+and fully indexed leaves. Automatic, global, block-static, and persistent REPL
+direct objects use the same 16-byte storage path as vector leaves. An indexed
+update keeps its computed address until the store, so every subscript runs
+once. Prefix leaves the stored vector in XMM0. Postfix restores the untouched
+old 128-bit payload after writing the new vector. The exact-byte emitter
+contract covers packed float and double addition and subtraction by one.
+
 Packed arithmetic keeps the written left operand in the machine destination,
 including ADD and MUL. A byte contract fixes that instruction order. The
 minimum and maximum intrinsics keep x86's second-operand result for NaN and
@@ -382,8 +390,11 @@ those two known payloads and reports which one appeared. An incomplete matrix
 or cube destination is rejected instead of writing the first vector in its
 row. An incomplete row expression is also rejected rather than escaping as an
 untyped pointer. SIMD pointer forms, record fields, `new`, array parameters,
-row values, and call ABI transport remain unsupported. ADR 0216 records the
-first fixed-array boundary, and ADR 0257 records multidimensional row descent.
+row values, lane updates, computed vector updates, and call ABI transport
+remain unsupported. ADR 0216 records the first fixed-array boundary, ADR 0257
+records multidimensional row descent, and ADR 0294 records whole-vector
+updates. The active guest requires `[feature14-update] PASS direct=6 leaves=3
+once=6 payload=8` before the overall feature-14 result.
 
 Private decimal floating tokens now enter a fixed 1536-bit integer converter.
 It forms the exact decimal ratio and rounds once to binary32 or binary64 using

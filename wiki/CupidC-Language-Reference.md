@@ -165,13 +165,19 @@ inner extent still needs its final subscript. Indexed plain assignment and
 `+=`, `-=`, `*=`, and `/=` use unaligned-safe packed moves and preserve lane
 access. Row and vector `sizeof` keep their complete sizes without evaluating an
 index. Bounds and allocation sizes are checked before storage is reserved.
+Modifiable direct vectors and fully indexed leaves also support prefix and
+postfix `++` and `--`. Global and block-static direct vectors receive the same
+zero initialization as other static objects, and persistent REPL vectors keep
+their stored state. Prefix returns the new vector. Postfix returns the exact
+old 128-bit payload. Each subscript is evaluated once.
 Every direct operation keeps the written left value in the machine destination.
 MIN and MAX intrinsics keep the second input for NaN and equal signed-zero
 cases. A both-NaN ADD or MUL may carry either input payload, depending on the
 processor or emulator. Incomplete rows are rejected rather than treated as
 untyped pointers. SIMD pointers, record fields, `new`, array parameters, row
-values, and call ABI transport remain unsupported. ADR 0257 records this
-boundary.
+values, lane updates, computed vector updates, and call ABI transport remain
+unsupported. ADR 0257 records the multidimensional array boundary, and ADR
+0294 records whole-vector updates.
 
 Direct functions and methods with parsed fixed parameter types convert each
 represented integer, `char`, `float`, or `double` argument to its declared

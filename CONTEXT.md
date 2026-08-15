@@ -706,17 +706,21 @@ A `float4` or `double2` value carried through direct packed arithmetic or a
 fixed array with as many as three dimensions. Matching vectors support `+`,
 `-`, `*`, and `/`. Global, automatic, block-static, and persistent REPL arrays
 use 16-byte leaves, checked row strides, unaligned-safe loads and stores, plain
-assignment, the four arithmetic compound assignments, lane reads, and typed
-row or vector `sizeof`. Declared rank is tracked separately from byte size, so
-unit inner extents keep their row identity. Every index is evaluated once
-except inside unevaluated `sizeof`.
+assignment, the four arithmetic compound assignments, whole-vector prefix and
+postfix updates, lane reads, and typed row or vector `sizeof`. Direct vector
+objects also work in automatic, global, block-static, and persistent REPL
+storage. Prefix returns the stored vector. Postfix returns the exact old
+128-bit payload. Declared rank is tracked separately from byte size, so unit
+inner extents keep their row identity. Every evaluated index runs once. An
+index inside unevaluated `sizeof` does not run.
 Direct arithmetic keeps the written left value in the machine destination.
 The SSE minimum and maximum intrinsics retain the second-operand rules for NaN
 and signed zero. A both-NaN ADD or MUL result may carry either input payload,
 depending on the processor or emulator. SIMD pointers, record fields,
-allocation with `new`, array parameters, row values, and function-call ABI
-transport remain outside this boundary. ADR 0216 records the first fixed-array
-model; ADR 0257 records multidimensional row descent.
+allocation with `new`, array parameters, row values, lane updates, computed
+vector updates, and function-call ABI transport remain outside this boundary.
+ADR 0216 records the first fixed-array model, ADR 0257 records multidimensional
+row descent, and ADR 0294 records whole-vector updates.
 _Avoid_: untyped SIMD storage, escaped row pointers, reordered packed operands
 
 **Browser JavaScript number lane**:

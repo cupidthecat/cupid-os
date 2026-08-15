@@ -279,6 +279,23 @@ static void emit_movsd_xmm_disp32(cc_state_t *cc, int xmm, uint32_t addr) {
   emit32(cc, addr);
 }
 
+/* MOVUPS xmm, [disp32] and MOVUPS [disp32], xmm. Direct global, block-static,
+ * and persistent REPL vectors use unaligned moves just like automatic SIMD
+ * objects and indexed leaves. */
+static void emit_movups_xmm_disp32(cc_state_t *cc, int xmm, uint32_t addr) {
+  emit8(cc, 0x0F);
+  emit8(cc, 0x10);
+  emit8(cc, cc_xmm_modrm_disp32(xmm));
+  emit32(cc, addr);
+}
+
+static void emit_movups_disp32_xmm(cc_state_t *cc, int xmm, uint32_t addr) {
+  emit8(cc, 0x0F);
+  emit8(cc, 0x11);
+  emit8(cc, cc_xmm_modrm_disp32(xmm));
+  emit32(cc, addr);
+}
+
 /* MOVSS/MOVSD [disp32], xmm - store to an absolute data address. */
 static void emit_movss_disp32_xmm(cc_state_t *cc, int xmm, uint32_t addr) {
   emit8(cc, 0xF3);
@@ -1182,6 +1199,7 @@ static int cc_is_type_or_typedef(cc_state_t *cc, cc_token_t tok) {
 static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
 static int cc_last_expr_indirect_lvalue;
 static cc_symbol_t *cc_last_expr_direct_lvalue_sym;
+static int cc_last_expr_simd_lane;
 /* Inner-dimension stride for 3D-array expressions. When > 0, the
  * current expression still has another dimension to index into and
  * cc_last_expr_elem_size is the FIRST stride (rows); cc_last_expr_dim2
@@ -1318,6 +1336,7 @@ static void cc_reset_expr_subscript_metadata(void) {
   cc_last_expr_elem_size = 0;
   cc_last_expr_array_object_size = 0;
   cc_last_expr_array_elem_type = TYPE_INT;
+  cc_last_expr_simd_lane = 0;
 }
 
 /* A call or cast returns a scalar type rather than an array symbol, but a
@@ -2359,20 +2378,25 @@ static int cc_materialize_scalar_truth(cc_state_t *cc, cc_type_t type) {
   return 1;
 }
 
-static int cc_is_scalar_update_type(cc_type_t type) {
+static int cc_is_simd_value_type(cc_type_t type) {
+  return type == TYPE_FLOAT4 || type == TYPE_DOUBLE2;
+}
+
+static int cc_is_direct_update_type(cc_type_t type) {
   return type == TYPE_INT || type == TYPE_UINT || type == TYPE_CHAR ||
          type == TYPE_PTR || type == TYPE_INT_PTR ||
          type == TYPE_UINT_PTR ||
          type == TYPE_CHAR_PTR || type == TYPE_STRUCT_PTR ||
          type == TYPE_FLOAT_PTR || type == TYPE_DOUBLE_PTR ||
-         type == TYPE_FLOAT || type == TYPE_DOUBLE;
+         type == TYPE_FLOAT || type == TYPE_DOUBLE ||
+         cc_is_simd_value_type(type);
 }
 
 static int cc_validate_variable_update(cc_state_t *cc, cc_symbol_t *sym) {
   if (!sym || sym->is_array ||
       (sym->kind != SYM_LOCAL && sym->kind != SYM_PARAM &&
        sym->kind != SYM_GLOBAL) ||
-      !cc_is_scalar_update_type(sym->type)) {
+       !cc_is_direct_update_type(sym->type)) {
     cc_error(cc, "increment or decrement requires a scalar variable");
     return 0;
   }
@@ -2412,18 +2436,60 @@ static void emit_update_xmm0_scalar(cc_state_t *cc, int is_double,
   emit_sse_scalar_op(cc, is_double, decrement ? 0x5C : 0x58, 0, 1);
 }
 
+/* Add or subtract a packed 1.0 from every lane in XMM0. The conversion and
+ * shuffle avoid a data literal while producing the exact scalar one for both
+ * vector widths. */
+static void emit_update_xmm0_vector(cc_state_t *cc, cc_type_t vector_type,
+                                    int decrement) {
+  int is_double = vector_type == TYPE_DOUBLE2;
+
+  emit_mov_eax_imm(cc, 1);
+  if (is_double)
+    emit_cvtsi2sd(cc, 1);
+  else
+    emit_cvtsi2ss(cc, 1);
+  if (is_double)
+    emit8(cc, 0x66);
+  emit8(cc, 0x0F);
+  emit8(cc, 0xC6); /* shufps/shufpd xmm1, xmm1, 0 */
+  emit8(cc, 0xC9);
+  emit8(cc, 0x00);
+  if (is_double)
+    emit8(cc, 0x66);
+  emit8(cc, 0x0F);
+  emit8(cc, decrement ? 0x5C : 0x58); /* subps/subpd or addps/addpd */
+  emit8(cc, 0xC1);
+}
+
 static int cc_emit_indirect_scalar_store(cc_state_t *cc,
                                          cc_type_t object_type);
 
-/* Update a direct local, parameter, or global variable. A postfix floating
- * expression keeps its original payload in XMM2 while XMM0 is updated and
- * stored. The integer path uses the existing stack preservation. */
+/* Update a direct local, parameter, or global variable. A postfix floating or
+ * SIMD expression keeps its original payload in XMM2 while XMM0 is updated
+ * and stored. The integer path uses the existing stack preservation. */
 static int cc_emit_variable_update(cc_state_t *cc, cc_symbol_t *sym,
                                    int decrement, int preserve_old) {
   if (!cc_validate_variable_update(cc, sym))
     return 0;
 
-  if (sym->type == TYPE_FLOAT || sym->type == TYPE_DOUBLE) {
+  if (cc_is_simd_value_type(sym->type)) {
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM)
+      emit_movups_xmm_local(cc, 0, sym->offset);
+    else
+      emit_movups_xmm_disp32(cc, 0, sym->address);
+
+    if (preserve_old)
+      emit_movaps_xmm_xmm(cc, 2, 0);
+    emit_update_xmm0_vector(cc, sym->type, decrement);
+
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM)
+      emit_movups_local_xmm(cc, 0, sym->offset);
+    else
+      emit_movups_disp32_xmm(cc, 0, sym->address);
+    if (preserve_old)
+      emit_movaps_xmm_xmm(cc, 0, 2);
+    cc_last_xmm = 0;
+  } else if (sym->type == TYPE_FLOAT || sym->type == TYPE_DOUBLE) {
     int is_double = sym->type == TYPE_DOUBLE;
     if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
       if (is_double)
@@ -2491,27 +2557,31 @@ static int cc_emit_variable_update(cc_state_t *cc, cc_symbol_t *sym,
   return 1;
 }
 
-/* Update a floating object whose evaluated address remains in EAX and whose
- * current value is already in XMM0. The address is saved before the update
- * helper uses EAX for the exact integer one. */
-static int cc_emit_indirect_floating_update(cc_state_t *cc,
-                                            cc_type_t object_type,
-                                            int decrement,
-                                            int preserve_old) {
-  int is_double;
-
-  if (object_type != TYPE_FLOAT && object_type != TYPE_DOUBLE) {
+/* Update a floating or SIMD object whose evaluated address remains in EAX and
+ * whose current value is already in XMM0. The address is saved before the
+ * update helper uses EAX for the exact integer one. */
+static int cc_emit_indirect_fp_update(cc_state_t *cc,
+                                      cc_type_t object_type,
+                                      int decrement,
+                                      int preserve_old) {
+  if (object_type != TYPE_FLOAT && object_type != TYPE_DOUBLE &&
+      !cc_is_simd_value_type(object_type)) {
     cc_error(cc, "indirect increment or decrement is not supported");
     return 0;
   }
 
-  is_double = object_type == TYPE_DOUBLE;
   emit_push_eax(cc);
   if (preserve_old)
     emit_movaps_xmm_xmm(cc, 2, 0);
-  emit_update_xmm0_scalar(cc, is_double, decrement);
+  if (cc_is_simd_value_type(object_type)) {
+    emit_update_xmm0_vector(cc, object_type, decrement);
+  } else {
+    emit_update_xmm0_scalar(cc, object_type == TYPE_DOUBLE, decrement);
+  }
   emit_pop_eax(cc);
-  if (!cc_emit_indirect_scalar_store(cc, object_type))
+  if (cc_is_simd_value_type(object_type))
+    emit_movups_eax_xmm(cc, 0);
+  else if (!cc_emit_indirect_scalar_store(cc, object_type))
     return 0;
   if (preserve_old)
     emit_movaps_xmm_xmm(cc, 0, 2);
@@ -2519,8 +2589,23 @@ static int cc_emit_indirect_floating_update(cc_state_t *cc,
   cc_last_expr_type = object_type;
   cc_last_expr_indirect_lvalue = 0;
   cc_last_expr_direct_lvalue_sym = NULL;
+  cc_last_expr_simd_lane = 0;
   cc_last_xmm = 0;
   return 1;
+}
+
+static void cc_error_update_target(cc_state_t *cc) {
+  if (cc_last_expr_simd_lane) {
+    cc_error(cc, "SIMD lane increment or decrement is not supported");
+  } else if (cc_is_simd_value_type(cc_last_expr_type)) {
+    cc_error(cc,
+             "SIMD increment or decrement requires a modifiable "
+             "whole-vector lvalue");
+  } else if (cc_last_expr_indirect_lvalue) {
+    cc_error(cc, "indirect increment or decrement is not supported");
+  } else {
+    cc_error(cc, "increment or decrement requires a scalar variable");
+  }
 }
 
 /* Promote binary-op types per scalar hierarchy. Rules:
@@ -3473,6 +3558,7 @@ static int cc_extract_simd_lane(cc_state_t *cc, cc_type_t vector_type) {
   cc_last_expr_dim2 = 0;
   cc_last_expr_array_rank = 0;
   cc_last_expr_array_elem_type = TYPE_INT;
+  cc_last_expr_simd_lane = 1;
   cc_last_xmm = 0;
   return 1;
 }
@@ -3729,6 +3815,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     } else if (sym->type == TYPE_UINT_PTR) {
       cc_last_expr_elem_size = 4;
       cc_last_expr_array_elem_type = TYPE_UINT;
+    } else if (cc_is_simd_value_type(sym->type)) {
+      cc_last_expr_elem_size = 16;
     } else
       cc_last_expr_elem_size = 4;
   } else if (sym->kind == SYM_GLOBAL) {
@@ -3740,6 +3828,9 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       cc_last_xmm = 0;
     } else if (sym->type == TYPE_DOUBLE) {
       emit_movsd_xmm_disp32(cc, 0, sym->address);
+      cc_last_xmm = 0;
+    } else if (sym->type == TYPE_FLOAT4 || sym->type == TYPE_DOUBLE2) {
+      emit_movups_xmm_disp32(cc, 0, sym->address);
       cc_last_xmm = 0;
     } else {
       /* Scalar: load value from memory */
@@ -3770,6 +3861,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     } else if (sym->type == TYPE_UINT_PTR) {
       cc_last_expr_elem_size = 4;
       cc_last_expr_array_elem_type = TYPE_UINT;
+    } else if (cc_is_simd_value_type(sym->type)) {
+      cc_last_expr_elem_size = 16;
     } else
       cc_last_expr_elem_size = 4;
   } else if (sym->kind == SYM_FUNC) {
@@ -3793,6 +3886,7 @@ static void cc_parse_primary(cc_state_t *cc) {
   cc_reset_expr_subscript_metadata();
   cc_last_expr_indirect_lvalue = 0;
   cc_last_expr_direct_lvalue_sym = NULL;
+  cc_last_expr_simd_lane = 0;
   cc_token_t tok = cc_next(cc);
   int address_of_array_element = 0;
   int address_of_member = 0;
@@ -4127,6 +4221,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     cc_last_expr_struct_index = sym->struct_index;
     cc_last_expr_direct_lvalue_sym = NULL;
     cc_last_expr_indirect_lvalue = 0;
+    cc_last_expr_simd_lane = 0;
     cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
     cc_last_expr_array_rank = sym->is_array ? sym->array_rank : 0;
     cc_last_expr_array_elem_type =
@@ -4336,13 +4431,15 @@ static void cc_parse_primary(cc_state_t *cc) {
 
   case CC_TOK_PLUSPLUS: {
     /* Prefix update parses one complete primary designator. Direct variables
-     * use their symbol path. A derived floating lvalue keeps its address in
-     * EAX until the indirect update helper saves it. */
+     * use their symbol path. A derived floating or SIMD lvalue keeps its
+     * address in EAX until the indirect update helper saves it. */
     cc_parse_primary(cc);
     if (cc->error)
       return;
+    if (cc_reject_incomplete_simd_row(cc))
+      return;
     if (cc_last_expr_indirect_lvalue) {
-      if (!cc_emit_indirect_floating_update(
+      if (!cc_emit_indirect_fp_update(
               cc, cc_last_expr_type, 0, 0))
         return;
     } else if (cc_last_expr_direct_lvalue_sym) {
@@ -4351,7 +4448,7 @@ static void cc_parse_primary(cc_state_t *cc) {
         return;
       cc_last_expr_direct_lvalue_sym = NULL;
     } else {
-      cc_error(cc, "increment or decrement requires a scalar variable");
+      cc_error_update_target(cc);
       return;
     }
     break;
@@ -4361,8 +4458,10 @@ static void cc_parse_primary(cc_state_t *cc) {
     cc_parse_primary(cc);
     if (cc->error)
       return;
+    if (cc_reject_incomplete_simd_row(cc))
+      return;
     if (cc_last_expr_indirect_lvalue) {
-      if (!cc_emit_indirect_floating_update(
+      if (!cc_emit_indirect_fp_update(
               cc, cc_last_expr_type, 1, 0))
         return;
     } else if (cc_last_expr_direct_lvalue_sym) {
@@ -4371,7 +4470,7 @@ static void cc_parse_primary(cc_state_t *cc) {
         return;
       cc_last_expr_direct_lvalue_sym = NULL;
     } else {
-      cc_error(cc, "increment or decrement requires a scalar variable");
+      cc_error_update_target(cc);
       return;
     }
     break;
@@ -4579,6 +4678,13 @@ static void cc_parse_primary(cc_state_t *cc) {
         emit_deref_dword(cc);
         cc_last_expr_type = TYPE_STRUCT_PTR;
         cc_last_expr_struct_index = field->struct_index;
+      } else if (cc_is_simd_value_type(field->type)) {
+        cc_error(cc, after_field == CC_TOK_PLUSPLUS ||
+                             after_field == CC_TOK_MINUSMINUS
+                         ? "SIMD record-field increment or decrement is not "
+                           "supported"
+                         : "SIMD record-field values are not supported");
+        return;
       } else {
         if (!cc_emit_indirect_scalar_load(cc, field->type))
           return;
@@ -4694,6 +4800,7 @@ static void cc_parse_primary(cc_state_t *cc) {
           cc_last_xmm = 0;
           cc_last_expr_type = base_array_elem_type;
           cc_last_expr_elem_size = vector_size;
+          cc_last_expr_indirect_lvalue = 1;
           cc_last_expr_dim2 = 0;
           cc_last_expr_array_rank = 0;
           cc_last_expr_array_object_size = 0;
@@ -4754,16 +4861,15 @@ static void cc_parse_primary(cc_state_t *cc) {
       if (!cc_last_expr_direct_lvalue_sym &&
           cc_last_expr_indirect_lvalue &&
           (cc_last_expr_type == TYPE_FLOAT ||
-           cc_last_expr_type == TYPE_DOUBLE)) {
-        if (!cc_emit_indirect_floating_update(
+           cc_last_expr_type == TYPE_DOUBLE ||
+           cc_is_simd_value_type(cc_last_expr_type))) {
+        if (!cc_emit_indirect_fp_update(
                 cc, cc_last_expr_type, 0, 1))
           return;
         break;
       }
       if (!cc_last_expr_direct_lvalue_sym) {
-        cc_error(cc, cc_last_expr_indirect_lvalue
-                         ? "indirect increment or decrement is not supported"
-                         : "increment or decrement requires a scalar variable");
+        cc_error_update_target(cc);
         return;
       }
       if (!cc_emit_variable_update(
@@ -4781,16 +4887,15 @@ static void cc_parse_primary(cc_state_t *cc) {
       if (!cc_last_expr_direct_lvalue_sym &&
           cc_last_expr_indirect_lvalue &&
           (cc_last_expr_type == TYPE_FLOAT ||
-           cc_last_expr_type == TYPE_DOUBLE)) {
-        if (!cc_emit_indirect_floating_update(
+           cc_last_expr_type == TYPE_DOUBLE ||
+           cc_is_simd_value_type(cc_last_expr_type))) {
+        if (!cc_emit_indirect_fp_update(
                 cc, cc_last_expr_type, 1, 1))
           return;
         break;
       }
       if (!cc_last_expr_direct_lvalue_sym) {
-        cc_error(cc, cc_last_expr_indirect_lvalue
-                         ? "indirect increment or decrement is not supported"
-                         : "increment or decrement requires a scalar variable");
+        cc_error_update_target(cc);
         return;
       }
       if (!cc_emit_variable_update(
@@ -4851,6 +4956,7 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
 
     cc_last_expr_direct_lvalue_sym = NULL;
     cc_last_expr_indirect_lvalue = 0;
+    cc_last_expr_simd_lane = 0;
 
     /* A binary expression is a computed value, not the array object that a
      * subscript operand may have produced. */
@@ -5701,6 +5807,13 @@ static int cc_parse_member_lvalue_chain(cc_state_t *cc, int struct_index,
     break;
   }
 
+  if (cc_is_simd_value_type(current_type) &&
+      (cc_peek(cc).type == CC_TOK_PLUSPLUS ||
+       cc_peek(cc).type == CC_TOK_MINUSMINUS)) {
+    cc_error(cc, "SIMD record-field increment or decrement is not supported");
+    return 0;
+  }
+
   *leaf_type = current_type;
   return 1;
 }
@@ -5921,24 +6034,33 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   }
 
   if (array_rank_remaining > 0) {
-    cc_error(cc, is_simd
-                     ? "SIMD array assignment requires every subscript"
-                     : "array assignment requires every subscript");
+    if (is_simd && (cc_peek(cc).type == CC_TOK_PLUSPLUS ||
+                    cc_peek(cc).type == CC_TOK_MINUSMINUS)) {
+      cc_error(cc, "SIMD array row values are not supported");
+    } else {
+      cc_error(cc, is_simd
+                       ? "SIMD array assignment requires every subscript"
+                       : "array assignment requires every subscript");
+    }
     return;
   }
 
   if (cc_peek(cc).type == CC_TOK_PLUSPLUS ||
       cc_peek(cc).type == CC_TOK_MINUSMINUS) {
     int decrement = cc_next(cc).type == CC_TOK_MINUSMINUS;
-    if (!is_fp) {
+    if (!is_fp && !is_simd) {
       cc_error(cc, "indirect increment or decrement is not supported");
       return;
     }
-    if (!cc_emit_indirect_scalar_load(cc, elem_type))
+    if (is_simd) {
+      emit_movups_xmm_eax(cc, 0);
+      cc_last_expr_type = elem_type;
+      cc_last_xmm = 0;
+    } else if (!cc_emit_indirect_scalar_load(cc, elem_type)) {
       return;
+    }
     cc_last_expr_indirect_lvalue = 1;
-    if (!cc_emit_indirect_floating_update(
-            cc, elem_type, decrement, 0))
+    if (!cc_emit_indirect_fp_update(cc, elem_type, decrement, 0))
       return;
     return;
   }
@@ -6689,7 +6811,8 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
   }
 
   int32_t scalar_size = cc_type_size(cc, type, type_struct_index);
-  if (scalar_size <= 0 || scalar_size > 8) {
+  if (scalar_size <= 0 ||
+      (scalar_size > 8 && !cc_is_simd_value_type(type))) {
     cc_error(cc, "static scalar type is not supported");
     return;
   }
@@ -7734,6 +7857,20 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
         cc_error(cc, "undefined variable");
         break;
       }
+      if (cc_is_simd_value_type(sym->type)) {
+        cc_lexer_checkpoint_t checkpoint;
+        cc_checkpoint_lexer(cc, &checkpoint);
+        cc_next(cc); /* consume '.' */
+        cc_token_t lane = cc_next(cc);
+        cc_token_type_t lane_op = cc_peek(cc).type;
+        cc_restore_lexer(cc, &checkpoint);
+        if (lane.type == CC_TOK_IDENT &&
+            (lane_op == CC_TOK_PLUSPLUS ||
+             lane_op == CC_TOK_MINUSMINUS)) {
+          cc_error(cc, "SIMD lane increment or decrement is not supported");
+          break;
+        }
+      }
 
       /* Method-call statement sugar: obj.Method(args); / ptr->Method(args); */
       {
@@ -7913,7 +8050,7 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
         if (!cc_emit_indirect_scalar_load(cc, ftype))
           break;
         cc_last_expr_indirect_lvalue = 1;
-        if (!cc_emit_indirect_floating_update(
+        if (!cc_emit_indirect_fp_update(
                 cc, ftype, decrement, 0))
           break;
         cc_expect(cc, CC_TOK_SEMICOLON);
@@ -9119,10 +9256,11 @@ void cc_parse_program(cc_state_t *cc) {
           }
           cc_expect(cc, CC_TOK_SEMICOLON);
         }
-        /* Scalar global variable */
+        /* Global scalar or whole-vector variable */
         else {
           int32_t scalar_size = cc_type_size(cc, gtype, gtype_si);
-          if (scalar_size <= 0 || scalar_size > 8) {
+          if (scalar_size <= 0 ||
+              (scalar_size > 8 && !cc_is_simd_value_type(gtype))) {
             cc_error(cc, "global scalar type is not supported");
             break;
           }
@@ -9865,7 +10003,8 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
 
     {
       int32_t scalar_size = cc_type_size(cc, gtype, gtype_si);
-      if (scalar_size <= 0 || scalar_size > 8) {
+      if (scalar_size <= 0 ||
+          (scalar_size > 8 && !cc_is_simd_value_type(gtype))) {
         cc_error(cc, "global scalar type is not supported");
         return;
       }

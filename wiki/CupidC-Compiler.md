@@ -298,11 +298,19 @@ Plain assignment and `+=`, `-=`, `*=`, and `/=` retain the vector type,
 evaluate every index once, and allow `.x`, `.y`, `.z`, or `.w` lane access
 where the type permits it. Row and vector `sizeof` keep their complete sizes
 without evaluating an index. Incomplete rows are rejected instead of escaping
-as untyped pointers. Matching vectors also support
+as untyped pointers. Direct whole vectors and fully indexed leaves support
+prefix and postfix `++` and `--`. The update broadcasts an exact one to every
+lane, evaluates an indexed destination once, and writes through the retained
+address. Prefix returns the new vector. Postfix restores the exact old 128-bit
+payload after the store. Global, block-static, and persistent REPL direct
+vectors use complete 16-byte storage. SIMD pointers, record fields, parameters,
+calls, row values, lane updates, and computed vector updates remain outside
+this boundary. Matching vectors also support
 direct `+`, `-`, `*`, and `/` expressions. Every direct operation keeps the
 written left value in the machine destination. MIN and MAX intrinsics keep the
 second operand for NaN and equal signed-zero inputs. A both-NaN ADD or MUL may
-carry either input payload, depending on the processor or emulator.
+carry either input payload, depending on the processor or emulator. ADR 0294
+records the whole-vector update path.
 
 Array bounds at file scope and inside structs accept constant integer
 expressions, including enum values and simple arithmetic. That keeps

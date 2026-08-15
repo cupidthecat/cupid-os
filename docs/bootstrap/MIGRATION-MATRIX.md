@@ -431,15 +431,21 @@ stores handle that leaf. Plain assignment and `+=`, `-=`, `*=`, and `/=`
 preserve the vector type, evaluate every destination index once, and allow a
 following lane read. Row and vector `sizeof` retain their complete sizes
 without evaluating an index.
+Modifiable whole-vector objects and fully indexed leaves also support prefix
+and postfix `++` and `--`. Direct automatic, global, block-static, and
+persistent REPL vectors share one 16-byte path. Indexed updates retain the
+computed address, and postfix retains the exact old payload while storing the
+new vector. Prefix returns the stored value.
 Direct ADD and MUL retain the written machine operand order, pinned by an exact
 byte contract. The existing minimum and maximum intrinsics retain x86's
 second-operand NaN and signed-zero behavior. Runtime checks accept either input
 payload from a both-NaN ADD or MUL and reject any other result. Incomplete row
 assignment receives a focused error. SIMD pointers, record fields, allocation
-with `new`, array parameters, row values, and call ABI transport remain
-unsupported. This changes private JIT and AOT behavior without moving a build
-owner. ADR 0216 records the first fixed-array boundary, and ADR 0257 records
-multidimensional row descent.
+with `new`, array parameters, row values, lane updates, computed vector
+updates, and call ABI transport remain unsupported. This changes private JIT
+and AOT behavior without moving a build owner. ADR 0216 records the first
+fixed-array boundary, ADR 0257 records multidimensional row descent, and ADR
+0294 records whole-vector updates.
 
 Private CupidC now converts decimal `float` and `double` tokens with a fixed
 1536-bit integer workspace. It rounds the exact decimal ratio once to the

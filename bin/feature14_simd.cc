@@ -8,6 +8,8 @@ int feature14_global_sentinel;
 int feature14_matrix_leading_canary = 59;
 float4 feature14_global_matrix[2][2];
 double2 feature14_global_cube[2][2][2];
+float4 feature14_update_float;
+double2 feature14_update_double;
 int feature14_matrix_trailing_canary = 61;
 int feature14_matrix_outer_calls;
 int feature14_matrix_middle_calls;
@@ -32,6 +34,100 @@ int feature14_next_inner() {
 int feature14_sizeof_index() {
     feature14_matrix_sizeof_calls += 1;
     return 1;
+}
+
+int feature14_test_updates() {
+    static float4 saved_float;
+    static double2 saved_double;
+    int float_nan_bits = 0x7fc13579;
+    float float_nan = *(float *)&float_nan_bits;
+    float float_zero = 0.0f;
+    float float_negative_zero = -float_zero;
+    float4 float_seed = {
+        float_nan, float_negative_zero, 6.0f, -2.0f
+    };
+    double double_nan;
+    int *double_bits = (int *)&double_nan;
+    double_bits[0] = (int)0x89abcdef;
+    double_bits[1] = 0x7ff81234;
+    double2 double_seed = {double_nan, -0.0};
+    float4 local_float;
+    double2 local_double;
+    float4 old_float;
+    double2 old_double;
+
+    feature14_update_float = float_seed;
+    feature14_update_double = double_seed;
+    local_float = float_seed;
+    local_double = double_seed;
+    saved_float = float_seed;
+    saved_double = double_seed;
+
+    old_float = feature14_update_float++;
+    old_double = feature14_update_double--;
+    ++local_float;
+    local_double--;
+    ++saved_float;
+    saved_double--;
+
+    float old_float_lane = old_float.x;
+    if (*(int *)&old_float_lane != float_nan_bits) return 1;
+    old_float_lane = old_float.y;
+    if (*(int *)&old_float_lane != (int)0x80000000) return 2;
+    old_float_lane = old_float.z;
+    if (*(int *)&old_float_lane != 0x40c00000) return 3;
+    old_float_lane = old_float.w;
+    if (*(int *)&old_float_lane != (int)0xc0000000) return 4;
+
+    double old_double_lane = old_double.x;
+    double_bits = (int *)&old_double_lane;
+    if (double_bits[0] != (int)0x89abcdef ||
+        double_bits[1] != 0x7ff81234) return 5;
+    old_double_lane = old_double.y;
+    double_bits = (int *)&old_double_lane;
+    if (double_bits[0] != 0 ||
+        double_bits[1] != (int)0x80000000) return 6;
+
+    if (feature14_update_float.z != 7.0f ||
+        feature14_update_float.w != -1.0f ||
+        feature14_update_double.y != -1.0) return 7;
+    if (local_float.z != 7.0f || local_float.w != -1.0f ||
+        local_double.y != -1.0) return 8;
+    if (saved_float.z != 7.0f || saved_float.w != -1.0f ||
+        saved_double.y != -1.0) return 9;
+
+    float4 line_seed = {1.0f, 2.0f, 3.0f, 4.0f};
+    double2 cube_seed = {1.5, 2.5};
+    float4 old_line;
+    float4 new_matrix;
+    double2 old_cube;
+    int line_index = 1;
+    int matrix_outer = 1;
+    int matrix_inner = 0;
+    int cube_outer = 1;
+    int cube_middle = 0;
+    int cube_inner = 1;
+
+    feature14_global_floats[1] = line_seed;
+    feature14_global_matrix[1][0] = line_seed;
+    feature14_global_cube[1][0][1] = cube_seed;
+    old_line = feature14_global_floats[line_index++]++;
+    new_matrix = --feature14_global_matrix[matrix_outer++][matrix_inner++];
+    old_cube = feature14_global_cube[cube_outer++][cube_middle++]
+                                    [cube_inner++]--;
+
+    if (old_line.x != 1.0f || old_line.w != 4.0f ||
+        feature14_global_floats[1].x != 2.0f ||
+        feature14_global_floats[1].w != 5.0f) return 10;
+    if (new_matrix.x != 0.0f || new_matrix.w != 3.0f ||
+        feature14_global_matrix[1][0].x != 0.0f ||
+        feature14_global_matrix[1][0].w != 3.0f) return 11;
+    if (old_cube.x != 1.5 || old_cube.y != 2.5 ||
+        feature14_global_cube[1][0][1].x != 0.5 ||
+        feature14_global_cube[1][0][1].y != 1.5) return 12;
+    if (line_index != 2 || matrix_outer != 2 || matrix_inner != 1 ||
+        cube_outer != 2 || cube_middle != 1 || cube_inner != 2) return 13;
+    return 0;
 }
 
 int main() {
@@ -465,6 +561,14 @@ int main() {
         serial_printf("[feature14-matrix] PASS global=2 local=2 static=2 sizes=8 index=6 unevaluated=2 canary=4\n");
     } else {
         serial_printf("[feature14-matrix] FAIL\n");
+        ok = 0;
+    }
+
+    int update_result = feature14_test_updates();
+    if (update_result == 0) {
+        serial_printf("[feature14-update] PASS direct=6 leaves=3 once=6 payload=8\n");
+    } else {
+        serial_printf("[feature14-update] FAIL check=%d\n", update_result);
         ok = 0;
     }
 

@@ -1202,13 +1202,20 @@ The final 16-byte vector leaf uses unaligned-safe loads and stores. Indexed
 plain assignment and the four arithmetic compound assignments evaluate every
 destination index once and preserve lane reads. Row and vector `sizeof` do not
 evaluate their indexes. Every direct operator keeps the written left value in
-the machine destination. MIN and MAX intrinsics preserve their second-operand
+the machine destination. Whole-vector prefix and postfix `++` and `--` work on
+direct objects and fully indexed leaves. The indexed path retains its computed
+address, prefix returns the stored vector, and postfix returns the exact old
+128-bit payload. Automatic, global, block-static, and persistent REPL direct
+objects use complete 16-byte storage. Every update index runs once. The
+feature-14 guest reports these checks separately from its array and matrix
+markers. MIN and MAX intrinsics preserve their second-operand
 NaN and signed-zero behavior. A both-NaN ADD or MUL may carry either input
 payload, depending on the processor or emulator. Incomplete rows are rejected
 rather than treated as untyped pointers. SIMD pointers, record fields, `new`,
-array parameters, row values, and call ABI transport remain unsupported. ADR
-0216 records the first fixed-array boundary, and ADR 0257 records
-multidimensional row descent.
+array parameters, row values, lane updates, computed vector updates, and call
+ABI transport remain unsupported. ADR 0216 records the first fixed-array
+boundary, ADR 0257 records multidimensional row descent, and ADR 0294 records
+whole-vector updates.
 
 Private decimal literals now use a fixed 1536-bit integer workspace. CupidC
 forms the exact decimal ratio and rounds once to the selected binary32 or

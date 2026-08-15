@@ -165,6 +165,8 @@ def _frontier_command_outputs():
             "sizeof=16 index=1\n"
             "[feature14-matrix] PASS global=2 local=2 static=2 "
             "sizes=8 index=6 unevaluated=2 canary=4\n"
+            "[feature14-update] PASS direct=6 leaves=3 once=6 "
+            "payload=8\n"
             "[feature14-minmax] PASS nan=4 signed_zero=4\n"
             "[feature14-nan] PASS float_left=4 float_right=0 "
             "double_left=4 double_right=0\n"
@@ -2104,6 +2106,10 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "[feature14-matrix] PASS global=2 local=2 static=2 "
                 "sizes=8 index=6 unevaluated=2 canary=4\n"
             ),
+            (
+                "[feature14-update] PASS direct=6 leaves=3 once=6 "
+                "payload=8\n"
+            ),
             "[feature14-minmax] PASS nan=4 signed_zero=4\n",
             (
                 "[feature14-nan] PASS float_left=4 float_right=0 "
@@ -2124,6 +2130,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-operator] FAIL",
             "[feature14-array] FAIL",
             "[feature14-matrix] FAIL",
+            "[feature14-update] FAIL",
             "[feature14-minmax] FAIL",
             "[feature14-nan] FAIL",
             "FAIL feature14_simd",
@@ -2149,6 +2156,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "saved_cube[1][1][0] /= local_step",
             "feature14_global_cube[feature14_next_outer()]",
             "feature14_global_cube[feature14_next_outer()][feature14_next_middle()]",
+            "old_float = feature14_update_float++",
+            "new_matrix = --feature14_global_matrix[matrix_outer++]",
+            "old_cube = feature14_global_cube[cube_outer++][cube_middle++]",
             "sizeof(feature14_global_matrix[feature14_sizeof_index()])",
             "_mm_min_ps(edge_float_first, edge_float_second)",
             "_mm_max_pd(edge_double_first, edge_double_second)",
@@ -2160,6 +2170,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "double_left=%d double_right=%d",
             "[feature14-matrix] PASS global=2 local=2 static=2 "
             "sizes=8 index=6 unevaluated=2 canary=4",
+            "[feature14-update] PASS direct=6 leaves=3 once=6 payload=8",
         ):
             self.assertIn(spelling, source)
 

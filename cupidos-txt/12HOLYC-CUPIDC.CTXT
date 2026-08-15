@@ -334,11 +334,16 @@ packed moves. Declared rank remains independent of byte stride, so a unit inner
 extent still needs its final subscript. Indexed assignment and +=, -=, *=, and
 /= preserve lane access and evaluate every destination index once. Row and
 vector sizeof do not evaluate their indexes. Every direct operator keeps the
-written left value in the machine destination. MIN and MAX intrinsics keep the
+written left value in the machine destination. Prefix and postfix ++ and --
+work on modifiable direct vectors and fully indexed leaves. Direct automatic,
+global, block-static, and persistent REPL vectors use complete 16-byte storage.
+Each indexed destination is evaluated once. Prefix returns the stored vector,
+and postfix returns the exact old payload. Lane updates, computed vector
+updates, SIMD pointers, record fields, new, array parameters, calls, and row
+values remain unsupported. MIN and MAX intrinsics keep the
 second input for NaN and equal signed-zero cases. A both-NaN ADD or MUL may
 carry either input payload, depending on the processor or emulator. Incomplete
-rows cannot escape as untyped pointers. SIMD pointers, record fields, new,
-array parameters, row values, and call ABI transport remain unsupported.
+rows cannot escape as untyped pointers.
 
 Private CupidC uses one scalar cdecl layout for direct calls, stored
 function-pointer calls, and methods. Integers, pointers, function pointers,

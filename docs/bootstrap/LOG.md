@@ -26828,3 +26828,102 @@ Hexadecimal floating constants, hexadecimal or subnormal `long double`
 literals, and long-double ratios beyond the bounded parser remain open. The
 95-character hosted decimal binary32 and binary64 token boundary is explicit
 and transactional.
+
+## 2026-08-15: Update private whole SIMD lvalues
+
+Private CupidC now accepts prefix and postfix `++` and `--` on modifiable whole
+`float4` and `double2` objects. Automatic, global, block-static, and persistent
+REPL direct vectors use complete 16-byte storage. A fully indexed one-, two-,
+or three-dimensional vector-array leaf uses the same update helper. The final
+leaf retains its computed EAX address until the store, so each subscript runs
+once.
+
+The emitter converts integer one to the vector's lane width, broadcasts it,
+and emits packed addition or subtraction. Prefix returns the stored vector.
+Postfix snapshots all 128 old bits in XMM2, writes the new vector, and then
+restores the snapshot as the expression result. Host execution checks known
+NaN and negative-zero payloads rather than reconstructing the old value with
+inverse arithmetic.
+
+The first public contract stopped at `global scalar type is not supported`.
+The three direct static allocation paths still capped every non-array object at
+eight bytes. They now admit only represented 16-byte `float4` and `double2`
+objects beyond that cap. An early REPL fixture compiled several units but ran
+only its final entry, so a standalone call in an earlier unit never initialized
+the objects. The corrected fixture calls the earlier update function from the
+final verifier. The first incomplete-row statement also reported the generic
+assignment error. Pending row updates now receive the row-value diagnostic for
+both prefix and postfix forms.
+
+Positive contracts cover direct automatic, global, block-static, and
+persistent REPL objects; global and block-static arrays; fully indexed one-,
+two-, and three-dimensional leaves; prefix and postfix results; JIT; AOT; and
+REPL persistence. Recovery contracts cover computed vectors, lanes, rows,
+record fields, parameters, SIMD pointers, and call results. The exact emitter
+oracle fixes packed update bytes for both vector widths and directions.
+
+The focused public JIT, AOT, REPL, and recovery set passes five tests. All 23
+private compiler tests selected by `simd` pass in 20.461 seconds, and all 15
+selected by `update` pass in 2.828 seconds. The three-test exact emitter oracle
+passes in 0.584 seconds. The active feature-14 source executes through the
+private compiler and reports:
+
+```text
+[feature14-update] PASS direct=6 leaves=3 once=6 payload=8
+```
+
+The terminal frontier contract requires that marker in order and rejects its
+failure form. ADR 0294 records the lvalue and result rules.
+
+SIMD pointers, record fields, parameters, calls, row values, lane updates, and
+computed vector updates remain open. This work changes private JIT, AOT, and
+REPL behavior without moving a production build owner or adding a host
+dependency. No active `.c` source gained independent CupidC ownership evidence,
+so no suffix rename is due. `TempleOS/` was not changed or counted.
+
+The complete private compiler module passes all 146 tests in 21.633 seconds.
+Private CupidC discovery passes all 168 tests in 25.723 seconds, and the GUI
+terminal contract passes all 125 tests in 2.378 seconds. Ruff accepts the four
+changed Python files, and the private-slice diff check reports no whitespace
+error.
+
+The first complete `make -j4 all` compiled the production cohort, completed both
+CupidLD links, and passed strict CupidDis inspection. The exact-size gate then
+rejected the three expected kernel outputs after 713.8 seconds. The reviewed
+measurements replaced the stale values. The direct nine-artifact verifier
+passes, and all 12 artifact-policy tests pass in 1.806 seconds. A complete
+rerun passed in 724.4 seconds and published this image:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,232,096 | `bd24ab795c7d717fded715e6bdd3004f8081de1ca7738c1acb904deae1e80dc7` |
+| `kernel/kernel.elf` | 9,354,976 | `7a87d067891830740431161b9de4441bd24fbfe8a9f937e9b2872ed615ec3d75` |
+| `kernel/kernel.bin` | 9,135,688 | `fb516386afbd9ae422c72832489a9cf7ac0f048751d51e80e8abbe6b9ccc737f` |
+| `cupidos.img` | 209,715,200 | `fc9b8d385e4ee8c32479073de0be60723a1609d85ce88fbc1ed916330dd90d3a` |
+
+A focused private-image QEMU run compiled and executed
+`/bin/feature14_simd.cc` through in-OS CupidC in 67.2 seconds. Serial lines 516,
+517, and 521 contain the matrix marker, the new whole-vector update marker,
+and JIT completion. The 27,346-byte disposable log has SHA-256
+`be402a7c95fc2c89d138a32c5197a44082a1f14b3302f7c417e889b8d3934042`.
+The harness found no panic or exception.
+
+The first checked audit correctly reported that the implementation had changed
+its generated records. Regeneration and an independent comparison then passed.
+After the exact-size policy review, the final regeneration passed in 75.1
+seconds and the checked comparison passed in 77.0 seconds. The audit still
+records 736 active inputs, 452 transforms, 255 feature requirements, and 25
+accounted unreachable files. Its 2,677,731-byte JSON has SHA-256
+`331d32faa599b420ab0dbe35535942c8d67f6d0b628f93f65bd32cc9878c744c`.
+The 12,502-byte summary has SHA-256
+`01cec44cca80f35a7ba19d816547f9f18e878ec587c8206bf2b5d6a51e3eb7af`.
+
+Integration followed with the exact decimal-literal change already present.
+Regenerating the combined tree passed in 78.3 seconds, and a fresh check
+passed in 75.6 seconds. That tree has 737 active inputs, 452 transforms, 255
+feature requirements, and 25 accounted unreachable files. Its 2,684,965-byte
+JSON has SHA-256
+`72714dd97872ebc5fba1ea0ec440777e037f31fd901670625378006fb9ee2c30`.
+The 12,502-byte summary has SHA-256
+`cf792a20b6f823ab1b5c28053622a8e481db7ac17e58fe6d98066b8ea9fe2f89`.

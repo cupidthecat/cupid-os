@@ -85,6 +85,7 @@ class PrivateCupidCFloatUpdateEmitterTests(unittest.TestCase):
                 "emit_cvtsi2sd",
                 "emit_sse_scalar_op",
                 "emit_update_xmm0_scalar",
+                "emit_update_xmm0_vector",
             )
         )
         harness = f"""
@@ -99,6 +100,11 @@ typedef struct {{
   int error;
 }} cc_state_t;
 
+typedef enum {{
+  TYPE_FLOAT4,
+  TYPE_DOUBLE2
+}} cc_type_t;
+
 {functions}
 
 static void print_case(int is_double, int decrement) {{
@@ -110,11 +116,24 @@ static void print_case(int is_double, int decrement) {{
   putchar('\\n');
 }}
 
+static void print_vector_case(cc_type_t type, int decrement) {{
+  cc_state_t cc = {{0}};
+  emit_update_xmm0_vector(&cc, type, decrement);
+  printf("%u:", cc.code_pos);
+  for (uint32_t i = 0; i < cc.code_pos; i++)
+    printf("%02x", cc.code[i]);
+  putchar('\\n');
+}}
+
 int main(void) {{
   print_case(0, 0);
   print_case(0, 1);
   print_case(1, 0);
   print_case(1, 1);
+  print_vector_case(TYPE_FLOAT4, 0);
+  print_vector_case(TYPE_FLOAT4, 1);
+  print_vector_case(TYPE_DOUBLE2, 0);
+  print_vector_case(TYPE_DOUBLE2, 1);
   return 0;
 }}
 """
@@ -134,7 +153,8 @@ int main(void) {{
         functions = "\n\n".join(
             _extract_function(parser_source, name)
             for name in (
-                "cc_is_scalar_update_type",
+                "cc_is_simd_value_type",
+                "cc_is_direct_update_type",
                 "cc_validate_variable_update",
             )
         )
@@ -192,8 +212,14 @@ int main(void) {{
   cc_symbol_t vector = {{SYM_LOCAL, TYPE_FLOAT4, 0}};
   int vector_result =
       cc_validate_variable_update(&vector_state, &vector);
-  printf("%d:%d:%s\\n", vector_result, vector_state.error,
-         vector_state.message);
+  printf("%d:%d\\n", vector_result, vector_state.error);
+
+  cc_state_t aggregate_state = {{0}};
+  cc_symbol_t aggregate = {{SYM_LOCAL, TYPE_STRUCT, 0}};
+  int aggregate_result =
+      cc_validate_variable_update(&aggregate_state, &aggregate);
+  printf("%d:%d:%s\\n", aggregate_result, aggregate_state.error,
+         aggregate_state.message);
 
   cc_state_t scalar_state = {{0}};
   cc_symbol_t scalar = {{SYM_GLOBAL, TYPE_DOUBLE, 0}};
@@ -210,9 +236,16 @@ int main(void) {{
         )
 
     def test_emits_exact_float_and_double_update_sequences(self):
-        float_increment, float_decrement, double_increment, double_decrement = (
-            self._compile_active_update_emitter()
-        )
+        (
+            float_increment,
+            float_decrement,
+            double_increment,
+            double_decrement,
+            float4_increment,
+            float4_decrement,
+            double2_increment,
+            double2_decrement,
+        ) = self._compile_active_update_emitter()
         self.assertEqual(
             float_increment,
             bytes.fromhex("b801000000f30f2ac8f30f58c1"),
@@ -229,11 +262,28 @@ int main(void) {{
             double_decrement,
             bytes.fromhex("b801000000f20f2ac8f20f5cc1"),
         )
+        self.assertEqual(
+            float4_increment,
+            bytes.fromhex("b801000000f30f2ac80fc6c9000f58c1"),
+        )
+        self.assertEqual(
+            float4_decrement,
+            bytes.fromhex("b801000000f30f2ac80fc6c9000f5cc1"),
+        )
+        self.assertEqual(
+            double2_increment,
+            bytes.fromhex("b801000000f20f2ac8660fc6c900660f58c1"),
+        )
+        self.assertEqual(
+            double2_decrement,
+            bytes.fromhex("b801000000f20f2ac8660fc6c900660f5cc1"),
+        )
 
-    def test_rejects_vector_updates_with_a_useful_diagnostic(self):
+    def test_accepts_whole_vectors_and_still_rejects_aggregates(self):
         self.assertEqual(
             self._compile_update_validation_contract(),
             (
+                "1:0",
                 "0:1:increment or decrement requires a scalar variable",
                 "1:0",
             ),

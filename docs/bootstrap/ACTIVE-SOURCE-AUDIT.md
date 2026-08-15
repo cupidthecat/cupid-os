@@ -31,10 +31,10 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1470 |
 | `cupid_c_browser_fragment` | 22 | 15958 |
-| `cupid_c_program` | 108 | 19968 |
+| `cupid_c_program` | 108 | 20072 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 7141 |
-| `cupidc` | 8 | 16492 |
+| `cupidc` | 8 | 16631 |
 | `cupiddis` | 5 | 3785 |
 | `doom_port` | 7 | 3986 |
 | `driver` | 22 | 3861 |
@@ -99,7 +99,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 926 |
 | `asm.relocation` | 1 | 34 |
-| `c.control` | 12 | 84104 |
+| `c.control` | 12 | 84178 |
 | `c.declaration` | 1 | 28 |
 | `c.declarator` | 4 | 3881 |
 | `c.expression` | 2 | 6157 |
@@ -107,8 +107,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.initializer` | 1 | 687 |
 | `c.preprocessor` | 18 | 7095 |
 | `c.qualifier` | 2 | 16242 |
-| `c.storage` | 4 | 10317 |
-| `c.type` | 15 | 53041 |
+| `c.storage` | 4 | 10325 |
+| `c.type` | 15 | 53079 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -116,7 +116,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c.extension` | 1 | 9 |
 | `cupid_c.output` | 1 | 246 |
 | `cupid_c.storage` | 2 | 485 |
-| `cupid_c.type` | 12 | 187 |
+| `cupid_c.type` | 12 | 202 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
 

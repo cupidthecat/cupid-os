@@ -2907,6 +2907,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "sizeof=16 index=1",
             "[feature14-matrix] PASS global=2 local=2 static=2 "
             "sizes=8 index=6 unevaluated=2 canary=4",
+            "[feature14-update] PASS direct=6 leaves=3 once=6 payload=8",
             "[feature14-minmax] PASS nan=4 signed_zero=4",
             "[feature14-nan] PASS float_left=",
             "PASS feature14_simd",
@@ -3562,6 +3563,316 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             """
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_whole_simd_updates_cover_direct_storage_and_postfix_payloads(self):
+        result = self._compile_and_run(
+            """
+            float4 global_float;
+            double2 global_double;
+
+            int update_static_vectors() {
+              static float4 saved_float;
+              static double2 saved_double;
+              static float4 saved_float_array[1];
+              static double2 saved_double_matrix[1][1];
+              float4 float_seed = {3.0f, 4.0f, 5.0f, 6.0f};
+              double2 double_seed = {7.0, 8.0};
+              saved_float = float_seed;
+              saved_double = double_seed;
+              saved_float_array[0] = float_seed;
+              saved_double_matrix[0][0] = double_seed;
+              ++saved_float;
+              saved_double--;
+              saved_float_array[0]--;
+              ++saved_double_matrix[0][0];
+              if (saved_float.x != 4.0f || saved_float.w != 7.0f)
+                return 1;
+              if (saved_double.x != 6.0 || saved_double.y != 7.0)
+                return 2;
+              if (saved_float_array[0].x != 2.0f ||
+                  saved_float_array[0].w != 5.0f)
+                return 3;
+              if (saved_double_matrix[0][0].x != 8.0 ||
+                  saved_double_matrix[0][0].y != 9.0)
+                return 4;
+              return 0;
+            }
+
+            int main() {
+              int nan_bits = 0x7fc12345;
+              float nan_value = *(float *)&nan_bits;
+              float zero = 0.0f;
+              float negative_zero = -zero;
+              float4 float_seed = {
+                nan_value, negative_zero, 10.0f, -4.0f
+              };
+              double double_nan;
+              int *double_nan_bits = (int *)&double_nan;
+              double_nan_bits[0] = 0x89abcdef;
+              double_nan_bits[1] = 0x7ff81234;
+              double2 double_seed = {double_nan, -0.0};
+              float4 old_float;
+              double2 old_double;
+              float old_float_nan;
+              float old_float_zero;
+              double old_double_nan;
+              double old_double_zero;
+              int *old_double_bits;
+              float4 local_float;
+              double2 local_double;
+
+              local_float = float_seed;
+              local_double = double_seed;
+              ++local_float;
+              local_double--;
+              if (local_float.z != 11.0f || local_float.w != -3.0f)
+                return 1;
+              if (local_double.y != -1.0) return 2;
+
+              global_float = float_seed;
+              global_double = double_seed;
+              old_float = global_float++;
+              old_double = global_double--;
+
+              old_float_nan = old_float.x;
+              old_float_zero = old_float.y;
+              if (*(int *)&old_float_nan != nan_bits) return 3;
+              if (*(int *)&old_float_zero != (int)0x80000000) return 4;
+              if (global_float.z != 11.0f || global_float.w != -3.0f)
+                return 5;
+
+              old_double_nan = old_double.x;
+              old_double_zero = old_double.y;
+              old_double_bits = (int *)&old_double_nan;
+              if (old_double_bits[0] != 0x89abcdef ||
+                  old_double_bits[1] != 0x7ff81234)
+                return 6;
+              old_double_bits = (int *)&old_double_zero;
+              if (old_double_bits[0] != 0 ||
+                  old_double_bits[1] != (int)0x80000000)
+                return 7;
+              if (global_double.y != -1.0) return 8;
+              if (update_static_vectors() != 0) return 9;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_whole_simd_updates_cover_indexed_array_leaves_once(self):
+        result = self._compile_and_run(
+            """
+            float4 global_line[2];
+            float4 global_payload[1];
+            double2 global_matrix[2][2];
+            float4 global_cube[2][2][2];
+            int outer_calls;
+            int middle_calls;
+            int inner_calls;
+
+            int next_outer() { outer_calls += 1; return 1; }
+            int next_middle() { middle_calls += 1; return 0; }
+            int next_inner() { inner_calls += 1; return 1; }
+
+            int main() {
+              float4 float_seed = {2.0f, 4.0f, 6.0f, 8.0f};
+              double2 double_seed = {10.0, 20.0};
+              float4 old_float;
+              float4 old_payload;
+              double2 old_double;
+              int nan_bits = 0x7fc54321;
+              float nan_value = *(float *)&nan_bits;
+              float zero = 0.0f;
+              float negative_zero = -zero;
+              float4 payload_seed = {
+                nan_value, negative_zero, 12.0f, -8.0f
+              };
+              float old_payload_nan;
+              float old_payload_zero;
+
+              global_line[1] = float_seed;
+              global_payload[0] = payload_seed;
+              global_matrix[1][0] = double_seed;
+              global_cube[1][0][1] = float_seed;
+
+              old_float = global_line[next_outer()]++;
+              old_payload = global_payload[0]++;
+              old_double = --global_matrix[next_outer()][next_middle()];
+              ++global_cube[next_outer()][next_middle()][next_inner()];
+
+              if (old_float.x != 2.0f || old_float.w != 8.0f) return 1;
+              old_payload_nan = old_payload.x;
+              old_payload_zero = old_payload.y;
+              if (*(int *)&old_payload_nan != nan_bits) return 2;
+              if (*(int *)&old_payload_zero != (int)0x80000000) return 3;
+              if (global_line[1].x != 3.0f ||
+                  global_line[1].w != 9.0f)
+                return 4;
+              if (old_double.x != 9.0 || old_double.y != 19.0) return 5;
+              if (global_matrix[1][0].x != 9.0 ||
+                  global_matrix[1][0].y != 19.0)
+                return 6;
+              if (global_cube[1][0][1].x != 3.0f ||
+                  global_cube[1][0][1].w != 9.0f)
+                return 7;
+              if (outer_calls != 3 || middle_calls != 2 || inner_calls != 1)
+                return 8;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_whole_simd_updates_execute_through_private_aot(self):
+        result = self._compile_and_run(
+            """
+            float4 values[1];
+            int main() {
+              float4 seed = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 old;
+              values[0] = seed;
+              old = values[0]++;
+              if (old.x != 1.0f || old.w != 4.0f) return 1;
+              if (values[0].x != 2.0f || values[0].w != 5.0f) return 2;
+              return 0;
+            }
+            """,
+            aot=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_repl_whole_simd_updates_keep_persistent_state(self):
+        result = self._compile_repl_and_run(
+            (
+                "float4 repl_float;",
+                "double2 repl_double[1];",
+                """
+                int update_repl_vectors() {
+                  float4 float_seed = {4.0f, 5.0f, 6.0f, 7.0f};
+                  double2 double_seed = {8.0, 9.0};
+                  float4 old_float;
+                  repl_float = float_seed;
+                  repl_double[0] = double_seed;
+                  old_float = repl_float++;
+                  --repl_double[0];
+                  if (old_float.x != 4.0f || old_float.w != 7.0f)
+                    return 1;
+                  return 0;
+                }
+                """,
+                """
+                int verify_repl_vectors() {
+                  if (update_repl_vectors() != 0) return 1;
+                  if (repl_float.x != 5.0f || repl_float.w != 8.0f)
+                    return 2;
+                  if (repl_double[0].x != 7.0 ||
+                      repl_double[0].y != 8.0)
+                    return 3;
+                  return 0;
+                }
+                verify_repl_vectors;
+                """,
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_simd_update_rejections_recover_in_the_same_state(self):
+        cases = (
+            (
+                "computed vector",
+                """
+                int main() {
+                  float4 left = {1, 2, 3, 4};
+                  float4 right = {5, 6, 7, 8};
+                  (left + right)++;
+                  return 0;
+                }
+                """,
+                "SIMD increment or decrement requires a modifiable "
+                "whole-vector lvalue",
+            ),
+            (
+                "vector lane",
+                """
+                int main() {
+                  float4 value = {1, 2, 3, 4};
+                  value.x++;
+                  return 0;
+                }
+                """,
+                "SIMD lane increment or decrement is not supported",
+            ),
+            (
+                "incomplete row",
+                """
+                int main() {
+                  double2 values[2][2];
+                  values[0]++;
+                  return 0;
+                }
+                """,
+                "SIMD array row values are not supported",
+            ),
+            (
+                "prefix incomplete row",
+                """
+                int main() {
+                  float4 values[2][2];
+                  ++values[0];
+                  return 0;
+                }
+                """,
+                "SIMD array row values are not supported",
+            ),
+            (
+                "record field",
+                """
+                struct Sample { float4 value; };
+                int main() {
+                  struct Sample sample;
+                  sample.value++;
+                  return 0;
+                }
+                """,
+                "SIMD record-field increment or decrement is not supported",
+            ),
+            (
+                "parameter",
+                "int update(float4 value) { value++; return 0; }",
+                "cdecl parameter type is not supported",
+            ),
+            (
+                "SIMD pointer",
+                "float4 *values;",
+                "SIMD pointer types are not supported",
+            ),
+            (
+                "call result",
+                """
+                float4 make_value() {
+                  float4 value = {1, 2, 3, 4};
+                  return value;
+                }
+                int main() { return make_value()++; }
+                """,
+                "SIMD increment or decrement requires a modifiable "
+                "whole-vector lvalue",
+            ),
+        )
+        retry_source = "int main() { float4 value = {1, 2, 3, 4}; ++value; return value.x != 2.0f; }"
+        for label, failing_source, message in cases:
+            with self.subTest(form=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-simd-update-recovery-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile_after_failure(
+                    Path(temporary),
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(message, result.stderr)
 
     def test_simd_add_and_multiply_keep_source_order_in_machine_code(self):
         with tempfile.TemporaryDirectory(
