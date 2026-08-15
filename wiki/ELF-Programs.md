@@ -83,9 +83,10 @@ collision, replacement failure, and candidate cleanup.
 
 The matching PE32 images form the checked Windows execution seed used by the
 normal user build and other output-bearing recipes. The Linux seed still runs
-through WSL for the complete Toolchain contract cohort and artifact-size
-policy. The user ABI gate builds and runs one temporary PE from the Windows
-seed. The native fixed-point command freezes the PE execution seed and a
+through WSL for the complete Toolchain contract cohort. Artifact-size policy
+keeps the Linux manifest as provenance, but its checker runs as a temporary PE
+from the Windows seed. The user ABI gate builds and runs another temporary PE.
+The native fixed-point command freezes the PE execution seed and a
 separate verified Linux plan manifest. The seed builds stage two, stage two
 builds stage three, and stage three builds stage four. Stages two and three are
 transition generations. The convergence check compares stages three and four.

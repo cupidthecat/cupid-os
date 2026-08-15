@@ -27307,3 +27307,135 @@ dependencies unchanged. Qualifier enforcement for SIMD lvalues outside the
 represented direct and fixed-array forms remains open.
 No suffix rename is due because active `.c` ownership is unchanged.
 The `TempleOS/` tree remains untouched reference material.
+
+## 2026-08-15: give every root transform a Cupid participant
+
+`verify-artifact-sizes` was the only root `all` transform whose policy decision
+still belonged entirely to Host Python. It now builds and runs a private strict
+C11 contract with checked CupidC, CupidASM, and CupidLD. Python keeps the native
+filesystem boundary, launches the checked tools, and computes an independent
+report from the same pinned request.
+
+The request begins with `CUPSIZE1` and carries the raw policy, the logical Linux
+bootstrap manifest path, the raw manifest, and nine typed file observations.
+The contract parses both JSON documents, checks the exact policy keys and the
+required seed-manifest fields, requires safe sorted unique paths and the
+reviewed owners, binds the five seed sizes to the selected manifest, checks all
+nine regular files, rereads its request, and emits canonical JSON. Additional
+bootstrap provenance in the seed manifest remains valid. Python accepts the
+gate only when its own decoder reaches the same report and every pinned live
+input is unchanged.
+
+Linux links a static i386 ELF contract. Windows uses the checked native PE32
+execution seed and runs the contract directly. The Linux manifest remains the
+source of policy provenance; it is not an execution requirement. The old docs
+grouped this gate with paths that run the Linux seed through WSL, but the
+earlier Python verifier never launched a seed tool. WSL is still required on
+Windows for Linux fixed-point reconstruction and the complete Linux Toolchain
+contract cohort.
+
+### Red-to-green implementation record
+
+The first 16 public contract tests failed because
+`artifact_size_policy_contract.cc` did not exist. The four runner tests then
+failed because `artifact_size_contract.py` did not exist. The implementation
+made the request grammar, strict JSON and cohort checks, canonical report,
+pinned runner, checked build, native PE path, and oracle comparison pass in
+small steps.
+
+The first build-audit run rejected the new edge as an unclassified Cupid
+delivery transform. The audit now requires the exact
+`verify_artifact_size_policy` operation, its five participants, and its full
+35-input closure. That closure includes all 18 build inputs, startup assembly,
+hosted headers, Python support, policy data, artifacts, and both checked seeds.
+Root `all` therefore fails closed if the recipe, tools, or any input drifts.
+
+The first two-axis review found four gaps. The audit covered only C inputs. The
+pinned reader checked the original descriptor but did not reopen a replaced
+logical leaf on POSIX. JSON numeric equality allowed integral floats to compare
+equal to integers, and multiline failures gained one extra space. Red tests now
+cover removal and addition in the full closure, leaf replacement, strict report
+field types, and the established diagnostic format.
+
+The confirmation pass found one deeper path race. Reopening through a cached
+descendant directory could miss replacement of the whole parent. A second red
+POSIX case renames `boot/`, creates a new directory, and replaces `boot.bin`.
+The final reader now walks each path again from the pinned repository root.
+Both replacement cases pass on Linux; Windows denies those renames while its
+handles are open.
+
+The first complete 98-test audit run found five stale inventory locks. Moving
+those exposed the downstream values in the same tests. The final checked
+inventory has one more hosted Linux translation unit, four more angle includes,
+ten more `sizeof` uses, and the contract's measured assembly-token evidence.
+The final full module passed all 98 tests in 783.721 seconds.
+
+### Build and runtime evidence
+
+The first poisoned-host `make -j4 all` reached the new gate in 695.8 seconds.
+Every compile, assembly, link, and strict CupidDis check passed. The embedded
+manual made `kernel.bin` 9,139,464 bytes, 436 bytes beyond the previous policy,
+so the gate stopped before image publication. The pass-one and final ELF sizes
+still matched their reviewed rows.
+
+After the single `kernel.bin` row moved, a complete poisoned-host rebuild
+passed in 693.5 seconds. `CC`, `CXX`, `CPP`, `HOSTCC`, `HOSTCXX`, `ASM`, `AS`,
+`LD`, `AR`, `NM`, `OBJCOPY`, and `NASM` all named invalid commands. The checked
+contract and Python oracle agreed on nine artifacts totaling 31,980,840 bytes,
+and hostbuild published the 200 MiB FAT16 image.
+
+Final wording edits inside the embedded manual changed the current hashes
+without changing any reviewed size. A direct replay of the checked contract
+and Python oracle passed in 12.237 seconds with every host-tool environment
+variable still poisoned.
+
+A private copy of the source-current image booted with four virtual CPUs, CPU
+`max`, and e1000. `/bin/ls.cc` compiled through in-OS CupidC, the SMP runtime
+contract passed, and the run finished in 49.970 seconds. The 29,937-byte log
+has SHA-256
+`93a6d4730ff90b27fa18273d54b3e227441850bae3031933e15cb3470d4fabf2`.
+The source image remained unchanged.
+
+| Check | Result |
+| --- | --- |
+| Policy, contract, and runner suites | PASS: 38 tests in 3.417 seconds; the nine Linux runner tests passed in 0.023 seconds |
+| Python lint and syntax checks | PASS |
+| Full build-graph audit module | PASS: 99 tests in 833.511 seconds |
+| Audit regeneration | PASS in 68.8 seconds |
+| Deterministic audit replay | PASS in 70.752 seconds |
+| Poisoned-host normal build | PASS in 693.5 seconds after the recorded exact-size rejection |
+| Source-current direct policy replay | PASS in 12.237 seconds |
+| Private four-vCPU CupidC boot | PASS in 49.970 seconds |
+
+The final production artifacts are:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,236,336 | `cbc7c08f97ef53173ee2965d69c8287213a6f1693f1d14cfad65180a6ee01125` |
+| `kernel/kernel.elf` | 9,359,216 | `de872928b63fc8fa1c43b3e0bda2f3a1c712f4f0cd1eec024c2048d33a0cea38` |
+| `kernel/kernel.bin` | 9,139,464 | `9ca566c724e2636928ea5f53864fd5fe38174f1e88ce3fb42108c14a4964261b` |
+| `cupidos.img` | 209,715,200 | `ccb7774b812dcb0a2614a76b41efe509c89f5bb97e2c68ec2e20c01ca15a1984` |
+
+### Ownership and remaining limits
+
+The audit now records 738 active language inputs, 452 transforms, and 255
+feature requirements. The language split is 31 assembly files, 297 headers,
+and 410 Cupid C files. Root `all` has 443 transforms, and every one has a Cupid
+participant. Across all supported roots, CupidC participates in 248 transforms,
+CupidASM in seven, CupidLD in seven, CupidObj in 192, and CupidDis in six. Host
+Python still participates in all 452 transforms.
+
+The active-source digest is
+`a14c47880851338259a6ac882906d5ce9e408c404b80f94dbdb8ae4e48a4c421`.
+The 2,686,396-byte audit JSON has SHA-256
+`ceb2aaca6059757bbf1e249cebe033e9be533c07ae820ead308df30faf546a4e`,
+and the 12,502-byte summary has SHA-256
+`b1cf7e0a64aa921b5f8777cc03663f0d35049078fe19a14bb60ef9faa7dce27d`.
+
+Python-free coordination remains open. Python still owns pinned path capture,
+private staging, process launch, its independent policy oracle, and final drift
+checks. No checked seed changed, so no fixed-point promotion was needed. The
+seventeen residual `.c` files remain classified as historical, dormant, host
+fixture, or oracle inputs; the safe rename set is still empty. `TempleOS/`
+was not modified, built, or counted.

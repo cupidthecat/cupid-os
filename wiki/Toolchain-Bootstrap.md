@@ -7,13 +7,14 @@ toolchain rebuild without GCC, Clang, NASM, a host linker, `nm`, or `objcopy`.
 Cupid OS also carries a checked native i386 Windows execution seed for those
 five tools. Windows selects the PE32 cohort for output-bearing production
 commands. The Linux cohort remains the bootstrap seed for fixed-point,
-the complete Toolchain contract cohort, and artifact-size work because only
-its manifest carries the full build plan. The Windows user ABI gate uses the
-PE cohort to build and run one temporary contract, without treating that
-manifest as a bootstrap plan. The promoted Windows manifest records clean
+and the complete Toolchain contract cohort because only its manifest carries
+the full build plan. Artifact-size policy still reads that Linux manifest as
+provenance, but its Windows gate builds and runs a temporary PE contract from
+the native execution seed. The Windows user ABI gate uses the same temporary
+contract pattern. Neither gate treats the PE manifest as a bootstrap plan. The promoted Windows manifest records clean
 stage-four provenance and keeps the Linux plan as a separate verified parent.
 ADR 0272 records the two roles, ADR 0292 records the current promotion, and
-ADR 0295 records the native Windows ABI contract.
+ADRs 0295 and 0297 record the native Windows contracts.
 
 Source head can reconstruct native Windows stages two through four without WSL.
 The reproducible operator entry points are:
@@ -227,14 +228,18 @@ Windows. Output-bearing production calls and the user ABI contract use the
 checked PE32 cohort directly. Linux and native Windows now use clean promoted
 stage-four seeds.
 Python-free coordination remains open.
-`make verify-artifact-sizes` receives
-`$(BOOTSTRAP_SEED_MANIFEST)`, derives the five seed paths and declared sizes
-from that selected manifest, and requires the policy to agree. It also checks
-the five-sector boot image, both kernel ELFs, and the raw kernel. The verifier
-is a direct prerequisite of `cupidos.img`. A failure prevents image publication
-and preserves the existing image. An intended change updates
+`make verify-artifact-sizes` pins the raw policy, the Linux bootstrap manifest,
+and all nine file observations. Checked CupidC compiles a strict C11 policy
+contract, CupidASM supplies startup, and CupidLD links a static ELF on Linux or
+a native PE on Windows. The contract validates both JSON documents and every
+observation, rereads its request, and emits canonical JSON. Python must produce
+the same report independently. Its final check walks each logical path again
+from the pinned repository root and compares identity. Leaf and parent
+replacement both fail. The audit binds the full 35-input transform closure.
+The verifier is a direct prerequisite of `cupidos.img`. A
+failure prevents image publication and preserves the existing image. An intended change updates
 `bootstrap/artifact-size-policy.json` in the same review. ADR 0267 records the
-policy.
+policy, and ADR 0297 records the contract transfer.
 
 This exact Cupid-output check does not replace the proposed 20 percent
 Cupid-to-oracle quality comparison. Older Windows and Linux host `.text`
@@ -891,25 +896,30 @@ also passed. The private run left the source image unchanged.
 
 ## Current production checkpoint
 
-The current production checkpoint also includes in-kernel CupidLD, the guarded
-normal boot edge, the promoted strict-relocation seeds, and independent source
-suffix provenance. Its first exact-tree poisoned-host build reached the size
-gate in 624.6 seconds and failed only because the flat kernel had grown by 680
-bytes. The revised policy passed all twelve tests. A complete rebuild then
-passed in 625.8 seconds and published these artifacts:
+The current production checkpoint adds a CupidC-built artifact-size contract
+to the guarded normal boot edge. All 443 root transforms now have a Cupid
+participant. The first poisoned-host build reached the new gate in 695.8
+seconds and rejected the embedded-manual change that made `kernel.bin` 436
+bytes larger. After that one policy row moved, a complete poisoned-host rebuild
+passed in 693.5 seconds. The contract report matched the independent Python
+oracle, and all nine exact artifacts passed:
+
+Final wording edits inside the embedded manual changed the current hashes
+without changing any reviewed size. A direct replay of the checked contract
+passed in 12.237 seconds.
 
 | Output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
-| `kernel/kernel.elf.pass1` | 9,219,620 | `6dd761fd4ec6cb9a17181b9f12bfea98a5426c7e7472611d5bad670a6af0f027` |
-| `kernel/kernel.elf` | 9,342,500 | `51864d8dbe358a7a6bf5fc3b50626f909645aaefc4d1342d812d77599336475d` |
-| `kernel/kernel.bin` | 9,125,104 | `336d8562888008ccb0760b5c813bde451ab9f3912255e88bf16c77dd811483a9` |
-| `cupidos.img` | 209,715,200 | `69ead54daa9f20eed8e5b4cb3aaac71947f64cce02f08dd8eceb1ab00dc18ddd` |
+| `kernel/kernel.elf.pass1` | 9,236,336 | `cbc7c08f97ef53173ee2965d69c8287213a6f1693f1d14cfad65180a6ee01125` |
+| `kernel/kernel.elf` | 9,359,216 | `de872928b63fc8fa1c43b3e0bda2f3a1c712f4f0cd1eec024c2048d33a0cea38` |
+| `kernel/kernel.bin` | 9,139,464 | `9ca566c724e2636928ea5f53864fd5fe38174f1e88ce3fb42108c14a4964261b` |
+| `cupidos.img` | 209,715,200 | `ccb7774b812dcb0a2614a76b41efe509c89f5bb97e2c68ec2e20c01ca15a1984` |
 
-Two private four-vCPU boots completed together in 60.5 seconds. One ran
-`/bin/ls.cc` through CupidC; the other ran `as /demos/hello.asm` through
-CupidASM. Both logs show all four CPUs online and the expected JIT completion,
-with no accepted panic or fault marker.
+A private four-vCPU e1000 boot ran `/bin/ls.cc` through in-OS CupidC and passed
+the SMP runtime contract in 49.970 seconds. Its 29,937-byte log has SHA-256
+`93a6d4730ff90b27fa18273d54b3e227441850bae3031933e15cb3470d4fabf2`.
+The private run left the source image unchanged.
 
 The preceding dual-NIC checkpoint used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
@@ -1087,18 +1097,20 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-Across the root and supplemental builds, the current audit assigns 247
+Across the root and supplemental builds, the current audit assigns 248
 participations to CupidC and none to a host C compiler. Of those, 246 are
-ordinary C-output transforms and one is the checked native Windows user ABI
-verification. Python participates in all 452 transforms. The ordinary CupidC
+ordinary C-output transforms; the checked native Windows user ABI and
+artifact-size verifications supply the other two. Python participates in all
+452 transforms. The ordinary CupidC
 total is 240 normal transforms plus three generated installation tables and
 the `hello.cc`, `ls.cc`, and `cat.cc` programs. Root `all` has 443 transforms:
-442 artifact transforms with a Cupid owner plus the Python-only size verifier,
-which emits no OS artifact. The root
-artifact graph has five CupidASM, 192 CupidObj, two CupidLD, and six CupidDis
-participations from the manifest-checked five-tool seed. Across all three
-roots, CupidASM and CupidLD each participate in six transforms because the
-native Windows user ABI gate assembles and links its checked PE directly.
+all 443 have a Cupid participant. The size verifier emits no OS artifact; it
+builds and runs a private CupidC contract with CupidASM and CupidLD. The 442
+artifact transforms retain five CupidASM, 192 CupidObj, two CupidLD, and six
+CupidDis participations from the manifest-checked five-tool seed. Across all
+three roots, CupidASM and CupidLD each participate in seven transforms because
+the native Windows user ABI and artifact-size gates assemble and link their
+checked PE contracts directly.
 Other native hosted commands remain explicit oracle targets. The same runner
 handles root commands.
 Checked production CupidC and checked user CupidLD pass it their caller-owned
@@ -1612,6 +1624,6 @@ ADR 0209 records the numerical correction.
 
 The [current production checkpoint](#current-production-checkpoint) is the
 canonical record of the final build, artifact identities, and private guest
-smokes. The current audit records 737 active language inputs, 452 transforms,
+smokes. The current audit records 738 active language inputs, 452 transforms,
 255 feature requirements, six CupidDis production checks, and no active
 CupidC-owned `.c` source.

@@ -106,8 +106,9 @@ gate must test the checked Cupid producers that own the Windows build.
 
 The normal Windows user ABI gate no longer requires WSL or a current Linux
 contract publication. WSL remains necessary on Windows for Linux fixed-point,
-the full Toolchain contract cohort, and artifact-size paths that execute the
-Linux seed.
+and the full Toolchain contract cohort. The artifact-size path did not execute
+the Linux seed; ADR 0297 corrects that earlier grouping and records its native
+CupidC contract.
 
 Host Python still freezes inputs, launches checked tools, validates artifacts,
 compares the oracle, and enforces drift checks. The PE execution seed keeps

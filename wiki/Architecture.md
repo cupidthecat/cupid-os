@@ -188,9 +188,9 @@ image and its IAT slots. CupidLD added four publication imports to the shared
 twelve. Windows ran help plus a useful success and failure path for each tool.
 CupidDis also checked quoted raw-input parity with the Linux tool. These five
 images formed the preceding checked Windows execution seed used by
-output-bearing production recipes. The complete Toolchain contract cohort and
-artifact-size policy still run the Linux seed through WSL. The user ABI gate
-builds and runs a temporary PE from the Windows seed. Source head freezes the
+output-bearing production recipes. The complete Toolchain contract cohort
+still runs the Linux seed through WSL. The user ABI and artifact-size gates
+build and run temporary PEs from the Windows seed without WSL. Source head freezes the
 PE execution seed and the Linux plan
 manifest separately, then reconstructs native Windows stages two through four.
 Stages two and three are transition generations; stages three and four are the

@@ -66,8 +66,10 @@ failure leaves no candidate.
 
 Those five PE32 images form the checked Windows execution seed used by
 output-bearing production recipes. Fixed-point reconstruction, Toolchain
-contracts, and artifact-size policy still run the Linux seed through WSL. The
-user ABI gate builds and runs one temporary PE from the Windows seed. The
+contracts still run the Linux seed through WSL. Artifact-size policy reads the
+Linux manifest as provenance, while its checked contract runs as a temporary
+PE on Windows. The user ABI gate also builds and runs a temporary PE from the
+Windows seed. The
 native driver freezes the PE32 execution seed with a
 separate verified Linux plan. The seed builds stage two, stage two builds stage
 three, and stage three builds stage four. Stages two and three are transition

@@ -204,6 +204,29 @@ ARTIFACT_SIZE_OUTPUTS = $(BOOTLOADER) \
 	$(BOOTSTRAP_SEED_DIRECTORY)cupidld.elf \
 	$(BOOTSTRAP_SEED_DIRECTORY)cupidobj.elf \
 	$(KERNEL) kernel/kernel.elf kernel/kernel.elf.pass1
+ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS := \
+	Makefile \
+	toolchain/hosted/i386-linux/include/cupid_host_abi.h \
+	toolchain/hosted/i386-linux/include/direct.h \
+	toolchain/hosted/i386-linux/include/errno.h \
+	toolchain/hosted/i386-linux/include/stdint.h \
+	toolchain/hosted/i386-linux/include/stdio.h \
+	toolchain/hosted/i386-linux/include/stdlib.h \
+	toolchain/hosted/i386-linux/include/string.h \
+	toolchain/hosted/i386-linux/include/unistd.h \
+	toolchain/hosted/i386-linux/include/windows.h \
+	toolchain/hosted/i386-linux/runtime.cc \
+	toolchain/hosted/i386-linux/start.asm \
+	toolchain/hosted/i386-windows/runtime.cc \
+	toolchain/hosted/i386-windows/tool_start.asm \
+	toolchain/tests/artifact_size_policy_contract.cc \
+	tools/artifact_size_contract.py \
+	tools/artifact_size_policy.py \
+	tools/bootstrap_toolchain.py
+ARTIFACT_SIZE_CONTRACT := $(PYTHON) tools/artifact_size_contract.py verify --root . \
+	--policy $(ARTIFACT_SIZE_POLICY) \
+	--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	--execution-manifest $(PRODUCTION_SEED_MANIFEST)
 HDD_MB ?= 200
 FAT_START_LBA ?= 20480
 FAT_OFFSET_BYTES := $(shell $(PYTHON) -c "print($(FAT_START_LBA) * 512)")
@@ -1227,11 +1250,9 @@ verify-windows-bootstrap-seed:
 	  --manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)
 
 verify-artifact-sizes: $(ARTIFACT_SIZE_OUTPUTS) \
-	tools/artifact_size_policy.py $(ARTIFACT_SIZE_POLICY) \
-	$(BOOTSTRAP_SEED_MANIFEST)
-	$(PYTHON) tools/artifact_size_policy.py verify --root . \
-	  --policy $(ARTIFACT_SIZE_POLICY) \
-	  --seed-manifest $(BOOTSTRAP_SEED_MANIFEST)
+	$(ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS) $(ARTIFACT_SIZE_POLICY) \
+	$(BOOTSTRAP_SEED_MANIFEST) $(CHECKED_SEED_INPUTS)
+	$(ARTIFACT_SIZE_CONTRACT)
 
 bootstrap-from-seed: verify-bootstrap-seed
 	$(PYTHON) tools/bootstrap_toolchain.py bootstrap \

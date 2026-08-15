@@ -1865,7 +1865,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 702)
+            self.assertEqual(contract["source_files"], 703)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1886,7 +1886,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 702 source files; max conditional depth 0",
+                "0 numeric markers; 703 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2348,8 +2348,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             audit = json.loads(output.read_text(encoding="utf-8"))
             features = {entry["id"]: entry for entry in audit["features"]}
-            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 101)
-            self.assertEqual(features["asm.directive.bits"]["occurrences"], 8)
+            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 156)
+            self.assertEqual(features["asm.directive.bits"]["occurrences"], 10)
             self.assertEqual(features["asm.directive.org"]["occurrences"], 3)
             transforms = {
                 entry["output"]: entry for entry in audit["build"]["transforms"]
@@ -3599,10 +3599,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 702)
-            self.assertEqual(contract["include_occurrences"], 2455)
+            self.assertEqual(contract["source_files"], 703)
+            self.assertEqual(contract["include_occurrences"], 2459)
             self.assertEqual(contract["direct_quoted_occurrences"], 2202)
-            self.assertEqual(contract["direct_angle_occurrences"], 253)
+            self.assertEqual(contract["direct_angle_occurrences"], 257)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -4221,13 +4221,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CUPID_RUNTIME": 108,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
-                "HOSTED_I386_LINUX": 33,
+                "HOSTED_I386_LINUX": 34,
                 "HOSTED_I386_WINDOWS": 6,
                 "HOSTED_I386_KERNEL_BRIDGE": 2,
                 "HOSTED_I386_LINUX_GNU": 3,
             },
         )
-        self.assertEqual(len(active), 395)
+        self.assertEqual(len(active), 396)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -4264,6 +4264,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             (
                 "HOSTED_I386_LINUX",
                 "/toolchain/tests/user_syscall_abi_contract.cc",
+            ),
+            (
+                "HOSTED_I386_LINUX",
+                "/toolchain/tests/artifact_size_policy_contract.cc",
             ),
             (
                 "HOSTED_I386_LINUX_GNU",
@@ -7804,9 +7808,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 395,
+                    "tracked_translation_units": 396,
                     "generated_translation_units": 4,
-                    "total_translation_units": 399,
+                    "total_translation_units": 400,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -7832,7 +7836,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("CUPID_RUNTIME", 108, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
-                    ("HOSTED_I386_LINUX", 33, 0),
+                    ("HOSTED_I386_LINUX", 34, 0),
                     ("HOSTED_I386_WINDOWS", 6, 0),
                     ("HOSTED_I386_KERNEL_BRIDGE", 2, 0),
                     ("HOSTED_I386_LINUX_GNU", 3, 0),
@@ -7883,7 +7887,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 737,
+                    "active_sources": 738,
                     "features": 255,
                     "transforms": 452,
                     "unreachable_sources": 25,
@@ -7894,7 +7898,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6127, 172),
+                "c.expression.sizeof": (6137, 173),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -8398,7 +8402,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 247,
+                    "cupid_c_compiler": 248,
                     "host_c_compiler": 0,
                     "host_python": 452,
                 },
@@ -8409,7 +8413,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 86)
+            self.assertEqual(toolchain_cohort["source_count"], 87)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -8467,7 +8471,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/hosted/i386-linux/runtime.cc":
                     ("toolchain_core", "CupidC"),
                 "toolchain/hosted/i386-linux/start.asm":
-                    ("toolchain_core", None),
+                    ("toolchain_core", "CupidASM"),
                 "toolchain/hosted/i386-windows/runtime.cc":
                     ("toolchain_core", "CupidC"),
                 "toolchain/hosted/i386-windows/start.asm":
@@ -8507,6 +8511,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/tests/hosted_i386_windows_contract.cc":
                     ("toolchain_contract", "CupidC"),
                 "toolchain/tests/hosted_i386_windows_runtime_contract.cc":
+                    ("toolchain_contract", "CupidC"),
+                "toolchain/tests/artifact_size_policy_contract.cc":
                     ("toolchain_contract", "CupidC"),
             }
             for path, (cohort, runtime_owner) in frontend_sources.items():
@@ -8594,7 +8600,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "395 tracked + 4 generated",
+                "396 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(
@@ -9149,9 +9155,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ["cupid_object", "host_python"],
         )
         expected_counts = {
-            "cupid_assembler": 5,
+            "cupid_assembler": 6,
             "cupid_object": 192,
-            "cupid_linker": 2,
+            "cupid_linker": 3,
             "cupid_disassembler": 6,
         }
         for tool, expected_count in expected_counts.items():
@@ -9194,43 +9200,80 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(
             [transform["output"] for transform in python_only],
-            ["verify-artifact-sizes"],
+            [],
+        )
+        size_contract = next(
+            transform
+            for transform in audit["build"]["transforms"]
+            if transform["output"] == "verify-artifact-sizes"
         )
         self.assertEqual(
-            python_only[0],
-            {
-                "inputs": [
-                    "boot/boot.bin",
-                    "bootstrap/seeds/i386-linux/cupidasm.elf",
-                    "bootstrap/seeds/i386-linux/cupidc.elf",
-                    "bootstrap/seeds/i386-linux/cupiddis.elf",
-                    "bootstrap/seeds/i386-linux/cupidld.elf",
-                    "bootstrap/seeds/i386-linux/cupidobj.elf",
-                    "kernel/kernel.bin",
-                    "kernel/kernel.elf",
-                    "kernel/kernel.elf.pass1",
-                    "tools/artifact_size_policy.py",
-                    "bootstrap/artifact-size-policy.json",
-                    "bootstrap/seeds/i386-linux/manifest.json",
-                ],
-                "operation": "host_orchestration",
-                "output": "verify-artifact-sizes",
-                "recipe": [
-                    "$(PYTHON) tools/artifact_size_policy.py verify "
-                    "--root . \\",
-                    "--policy $(ARTIFACT_SIZE_POLICY) \\",
-                    "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)",
-                ],
-                "tools": ["host_python"],
-            },
+            size_contract["operation"],
+            "verify_artifact_size_policy",
         )
-        self.assertEqual(len(cupid_owned), 442)
+        self.assertEqual(
+            size_contract["tools"],
+            [
+                "cupid_assembler",
+                "cupid_c_compiler",
+                "cupid_c_contract",
+                "cupid_linker",
+                "host_python",
+            ],
+        )
+        self.assertTrue(seed_inputs.issubset(size_contract["inputs"]))
+        self.assertTrue(
+            {
+                *LINUX_BOOTSTRAP_SEED_INPUTS,
+                "bootstrap/artifact-size-policy.json",
+                "kernel/kernel.bin",
+                "kernel/kernel.elf",
+                "kernel/kernel.elf.pass1",
+                "toolchain/tests/artifact_size_policy_contract.cc",
+                "tools/artifact_size_contract.py",
+                "tools/artifact_size_policy.py",
+            }.issubset(size_contract["inputs"])
+        )
+        self.assertEqual(len(cupid_owned), 443)
         self.assertFalse(
             any(
                 transform["operation"] == "recursive_make"
                 for transform in audit["build"]["transforms"]
             )
         )
+
+    def test_artifact_size_contract_input_closure_fails_closed(self):
+        module = _load_audit_module()
+        audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
+        cases = (
+            (
+                "startup assembly removed",
+                "toolchain/hosted/i386-linux/start.asm",
+                None,
+            ),
+            (
+                "hosted header added",
+                None,
+                "toolchain/hosted/i386-linux/include/extra.h",
+            ),
+        )
+        for name, removed, added in cases:
+            with self.subTest(name=name):
+                changed = json.loads(json.dumps(audit))
+                transform = next(
+                    item
+                    for item in changed["build"]["transforms"]
+                    if item["output"] == "verify-artifact-sizes"
+                )
+                if removed is not None:
+                    transform["inputs"].remove(removed)
+                if added is not None:
+                    transform["inputs"].append(added)
+                with self.assertRaisesRegex(
+                    module.AuditError,
+                    r"artifact-size contract transform differs",
+                ):
+                    module._c_preprocessor_active_cases_manifest(changed)
 
     def test_output_source_discovery_has_locale_neutral_order(self):
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
@@ -9429,8 +9472,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "--plan-manifest $(BOOTSTRAP_SEED_MANIFEST)",
             ),
             "verify-artifact-sizes": (
-                "tools/artifact_size_policy.py verify --root .",
-                "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)",
+                "$(ARTIFACT_SIZE_CONTRACT)",
             ),
         }
         for target, fragments in expected_fragments.items():
@@ -9438,7 +9480,25 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 recipe = "\n".join(rules[target].recipe)
                 for fragment in fragments:
                     self.assertIn(fragment, recipe)
-                self.assertNotIn("PRODUCTION_SEED_MANIFEST", recipe)
+                if target != "verify-artifact-sizes":
+                    self.assertNotIn("PRODUCTION_SEED_MANIFEST", recipe)
+        contract_command = module._read_evaluated_make_variables(
+            REPO_ROOT,
+            make,
+            ("ARTIFACT_SIZE_CONTRACT",),
+        )["ARTIFACT_SIZE_CONTRACT"]
+        self.assertIn(
+            "tools/artifact_size_contract.py verify --root .",
+            contract_command,
+        )
+        self.assertIn(
+            "--seed-manifest bootstrap/seeds/i386-linux/manifest.json",
+            contract_command,
+        )
+        self.assertIn(
+            "--execution-manifest bootstrap/seeds/i386-windows/manifest.json",
+            contract_command,
+        )
 
     def test_root_production_seed_override_moves_the_trust_unit(self):
         make = shutil.which("make")

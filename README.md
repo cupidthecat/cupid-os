@@ -512,8 +512,10 @@ Linux seed directly, while Windows runs the checked native PE32 execution seed.
 Windows builds and runs the user ABI contract as a private PE with checked
 CupidC, CupidASM, and CupidLD. Linux runs the static ABI contract with the
 checked bootstrap seed. The broader Linux fixed-point, Toolchain, and
-artifact-size paths still use that seed through WSL on Windows. The normal user
-build consumes the selected seed rather than preparing a compiler or linker.
+contract paths still use that seed through WSL on Windows. Artifact-size
+verification builds and runs a checked PE contract directly on Windows. The
+normal user build consumes the selected seed rather than preparing a compiler
+or linker.
 An optional Windows frontier runs private snapshots of the native hosted
 drivers and requires all six outputs to match the checked seed. The user build
 then checks the kernel and public syscall declarations as one i386 ABI before
@@ -622,8 +624,10 @@ boot reserve, kernel lane, FAT16 boot sector, two empty FATs, and root
 directory used for a new Cupid disk. The output stops before cluster 2. This
 keeps the active result at 10,697,216 bytes and leaves persistent filesystem
 updates to the image publisher. The `cupidos.img` publisher starts only after
-`verify-artifact-sizes` accepts its nine-file contract. The normal image recipe
-then runs the checked command first on frozen inputs and requires byte parity
+`verify-artifact-sizes` accepts its nine-file contract. Checked CupidC,
+CupidASM, and CupidLD build a private policy executable, and its canonical
+report must match an independent Python oracle over the same pinned request.
+The normal image recipe then runs the checked command first on frozen inputs and requires byte parity
 with a private Python oracle. A fresh image consumes the full template. A reused image takes
 only the bytes before the FAT partition, so its files survive. Python stages
 frozen payloads, checks input and output drift, and replaces the image only
@@ -935,13 +939,14 @@ header closure.
 Poisoned-host checks cover all 239 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
-roots, the audit records 452 transforms. CupidC participates in 247, CupidObj
-in 192, CupidASM in six, CupidLD in six, and CupidDis in six. The extra
-CupidC, CupidASM, and CupidLD participation is the checked native Windows user
-ABI verification transform. Python
+roots, the audit records 452 transforms. CupidC participates in 248, CupidObj
+in 192, CupidASM in seven, CupidLD in seven, and CupidDis in six. The two
+Cupid-built semantic contracts cover the user ABI and artifact-size policy.
+Python
 participates in all 452, and no normal transform invokes a host C compiler.
-Root `all` has 443 transforms: 442 artifact transforms with at least one Cupid
-tool owner plus the Python-only size verifier, which emits no OS artifact. The
+Root `all` has 443 transforms, and every one has at least one Cupid
+participant. The size verifier emits no OS artifact; it runs a private
+CupidC-built contract while Python owns capture, launch, and oracle checks. The
 checked user compiler and Toolchain contract
 publisher create their own output directories. The compiler walks POSIX paths
 through no-follow directory descriptors and Windows paths through
@@ -1015,9 +1020,11 @@ The shared runtime formats signed and unsigned `long long` values, padded
 64-bit hexadecimal values, and precision-bounded strings. Those forms come
 from the unchanged contract diagnostics and are covered by the executable
 runtime probe.
-The final audit records 443 root transforms. Its 442 artifact transforms have
-no host C or recursive Make transform. Their CupidASM, CupidObj,
-CupidLD, and CupidDis commands run from the checked seed. The external-program
+The final audit records 443 root transforms, all with a Cupid participant. Its
+442 artifact transforms have no host C or recursive Make transform. Their
+CupidASM, CupidObj, CupidLD, and CupidDis commands run from the checked seed.
+The artifact-size transform builds a private CupidC contract with CupidASM and
+CupidLD, then compares its report with an independent Python oracle. The external-program
 syscall ABI gate freezes a verified Cupid-built contract and one six-file
 snapshot, then compares its report with an independent Python oracle over the
 same bytes. It produces no OS code. Checked CupidASM now
@@ -1617,27 +1624,31 @@ also passed. The private run left `cupidos.img` unchanged.
 
 ### Current production checkpoint
 
-The current production checkpoint combines the guarded normal boot edge, the
-promoted strict-relocation seeds, and the independent source-suffix audit. The
-first exact-tree poisoned-host build reached the size policy in 624.6 seconds.
-Compilation, assembly, linking, and strict inspection passed; the gate rejected
-only a measured 680-byte increase in the flat kernel. All twelve artifact-policy
-tests passed in 1.536 seconds after that value was updated. A complete
-poisoned-host rebuild then passed in 625.8 seconds and accepted all nine
-artifacts:
+The current checkpoint adds a CupidC-built artifact-size contract to the
+guarded normal boot edge. All 443 root transforms now have a Cupid
+participant. The first poisoned-host build reached the new gate in 695.8
+seconds and rejected the embedded-manual change that made `kernel.bin` 436
+bytes larger. After that one policy row moved, a complete poisoned-host rebuild
+passed in 693.5 seconds. Checked CupidC, CupidASM, and CupidLD built the private
+contract, its report matched the independent Python oracle, and all nine exact
+artifacts passed:
+
+Final wording edits inside the embedded manual changed the current hashes
+without changing any reviewed size. A direct replay of the checked contract
+passed in 12.237 seconds.
 
 | Output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
-| `kernel/kernel.elf.pass1` | 9,219,620 | `6dd761fd4ec6cb9a17181b9f12bfea98a5426c7e7472611d5bad670a6af0f027` |
-| `kernel/kernel.elf` | 9,342,500 | `51864d8dbe358a7a6bf5fc3b50626f909645aaefc4d1342d812d77599336475d` |
-| `kernel/kernel.bin` | 9,125,104 | `336d8562888008ccb0760b5c813bde451ab9f3912255e88bf16c77dd811483a9` |
-| `cupidos.img` | 209,715,200 | `69ead54daa9f20eed8e5b4cb3aaac71947f64cce02f08dd8eceb1ab00dc18ddd` |
+| `kernel/kernel.elf.pass1` | 9,236,336 | `cbc7c08f97ef53173ee2965d69c8287213a6f1693f1d14cfad65180a6ee01125` |
+| `kernel/kernel.elf` | 9,359,216 | `de872928b63fc8fa1c43b3e0bda2f3a1c712f4f0cd1eec024c2048d33a0cea38` |
+| `kernel/kernel.bin` | 9,139,464 | `9ca566c724e2636928ea5f53864fd5fe38174f1e88ce3fb42108c14a4964261b` |
+| `cupidos.img` | 209,715,200 | `ccb7774b812dcb0a2614a76b41efe509c89f5bb97e2c68ec2e20c01ca15a1984` |
 
-Two private four-vCPU QEMU smokes ran in parallel from the new image and
-finished together in 60.5 seconds. `/bin/ls.cc` reached CupidC JIT completion;
-`as /demos/hello.asm` reached CupidASM JIT completion. Both logs show all four
-CPUs online, and neither contains an accepted panic or fault marker.
+A private four-vCPU e1000 boot ran `/bin/ls.cc` through in-OS CupidC and passed
+the SMP runtime contract in 49.970 seconds. Its 29,937-byte log has SHA-256
+`93a6d4730ff90b27fa18273d54b3e227441850bae3031933e15cb3470d4fabf2`.
+The private run left the source image unchanged.
 
 The preceding dual-NIC checkpoint used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
@@ -1688,14 +1699,19 @@ The native operator runs `make verify-windows-bootstrap-seed`, followed by
 `build/bootstrap/checked-windows-seed`. The Make dry run and two contract tests
 pass. The promoted Windows seed carries the raw-map options used by the
 guarded normal bootloader publisher.
-`make verify-artifact-sizes` receives
-`$(BOOTSTRAP_SEED_MANIFEST)`, derives the five seed paths and declared sizes
-from that selected manifest, and requires the policy to agree. It also checks
-the five-sector boot image, both kernel ELFs, and the raw kernel. The verifier
-is a direct prerequisite of `cupidos.img`; a failure prevents the image recipe
-from publishing and preserves any existing image. An intentional byte-count change updates
-`bootstrap/artifact-size-policy.json` in the same review, while unexplained
-growth or shrinkage stops the build. ADR 0267 records the policy.
+`make verify-artifact-sizes` pins the raw policy, the Linux bootstrap manifest,
+and all nine file observations. Checked CupidC compiles the policy contract,
+CupidASM supplies startup, and CupidLD links a static ELF on Linux or a native
+PE on Windows. Its canonical report must match an independent Python oracle.
+Before success, Python walks each logical path again from the pinned repository
+root and compares its identity with the captured file. This catches both leaf
+and parent replacement. The build audit binds all 35 transform inputs,
+including the 18 files used to build the private contract.
+The verifier is a direct prerequisite of `cupidos.img`; a failure prevents the
+image recipe from publishing and preserves any existing image. An intentional
+byte-count change updates `bootstrap/artifact-size-policy.json` in the same
+review, while unexplained growth or shrinkage stops the build. ADR 0267 records
+the policy, and ADR 0297 records the CupidC contract transfer.
 
 The proposed 20 percent Cupid-to-oracle quality comparison remains open
 because no approved same-revision oracle exists. Older Windows and Linux host
@@ -2202,7 +2218,8 @@ sources with CupidC and links them with CupidLD. Linux runs the checked
 bootstrap seed directly. Windows builds and runs the ABI contract as a private
 PE with checked CupidC, CupidASM, and CupidLD, then uses native checked CupidC
 and CupidLD for the three output-bearing programs. The complete Toolchain
-contract, fixed-point, and artifact-size paths still use WSL on Windows.
+contract and Linux fixed-point paths still use WSL on Windows. Artifact-size
+verification uses a checked native PE contract.
 `make test-user-native-windows-equivalence` builds the optional native hosted
 drivers and checks every object and executable against the seed. The host
 compiler is needed only for that comparison and the hosted Toolchain. The

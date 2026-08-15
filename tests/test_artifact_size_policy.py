@@ -396,6 +396,27 @@ class ArtifactSizePolicyTests(unittest.TestCase):
             ):
                 artifact_size_policy.verify(root, policy, manifest)
 
+    def test_final_check_rewalks_each_leaf_from_the_pinned_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifact = root / "artifact.bin"
+            artifact.write_bytes(b"stable")
+            with artifact_size_policy._PinnedRepository(root) as reader:
+                capture, issue = reader.capture(
+                    "artifact.bin",
+                    read_payload=False,
+                )
+                self.assertIsNotNone(capture)
+                self.assertIsNone(issue)
+                original = reader._reopen_file_descriptor
+                with mock.patch.object(
+                    reader,
+                    "_reopen_file_descriptor",
+                    wraps=original,
+                ) as reopen:
+                    reader.require_unchanged()
+                reopen.assert_called_once_with(("artifact.bin",))
+
     def test_windows_walk_opens_every_descendant_from_its_parent_handle(self):
         source = POLICY_TOOL.read_text(encoding="utf-8")
         module = ast.parse(source)
@@ -435,9 +456,10 @@ class ArtifactSizePolicyTests(unittest.TestCase):
             ast.unparse(object_attributes.args[3]),
         )
 
-        for method_name, directory in (
-            ("_pin_directory", True),
-            ("_open_file_descriptor", False),
+        for method_name, child_name, directory in (
+            ("_pin_directory", "parts[-1]", True),
+            ("_open_file_from_parent", "name", False),
+            ("_reopen_file_descriptor", "part", True),
         ):
             calls = [
                 call
@@ -448,7 +470,7 @@ class ArtifactSizePolicyTests(unittest.TestCase):
             ]
             self.assertEqual(len(calls), 1)
             self.assertEqual(ast.unparse(calls[0].args[0]), "parent")
-            self.assertEqual(ast.unparse(calls[0].args[1]), "parts[-1]")
+            self.assertEqual(ast.unparse(calls[0].args[1]), child_name)
             keyword = next(
                 item for item in calls[0].keywords if item.arg == "directory"
             )
@@ -503,7 +525,7 @@ class ArtifactSizePolicyTests(unittest.TestCase):
             makefile,
         )
         self.assertIn(
-            "tools/artifact_size_policy.py verify --root . \\",
+            "tools/artifact_size_contract.py verify --root . \\",
             makefile,
         )
         self.assertIn(
@@ -512,6 +534,10 @@ class ArtifactSizePolicyTests(unittest.TestCase):
         )
         self.assertIn(
             "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)",
+            makefile,
+        )
+        self.assertIn(
+            "--execution-manifest $(PRODUCTION_SEED_MANIFEST)",
             makefile,
         )
 

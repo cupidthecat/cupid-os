@@ -38352,18 +38352,43 @@
           "kernel/kernel.bin",
           "kernel/kernel.elf",
           "kernel/kernel.elf.pass1",
+          "Makefile",
+          "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
+          "toolchain/hosted/i386-linux/include/errno.h",
+          "toolchain/hosted/i386-linux/include/stdint.h",
+          "toolchain/hosted/i386-linux/include/stdio.h",
+          "toolchain/hosted/i386-linux/include/stdlib.h",
+          "toolchain/hosted/i386-linux/include/string.h",
+          "toolchain/hosted/i386-linux/include/unistd.h",
+          "toolchain/hosted/i386-linux/include/windows.h",
+          "toolchain/hosted/i386-linux/runtime.cc",
+          "toolchain/hosted/i386-linux/start.asm",
+          "toolchain/hosted/i386-windows/runtime.cc",
+          "toolchain/hosted/i386-windows/tool_start.asm",
+          "toolchain/tests/artifact_size_policy_contract.cc",
+          "tools/artifact_size_contract.py",
           "tools/artifact_size_policy.py",
+          "tools/bootstrap_toolchain.py",
           "bootstrap/artifact-size-policy.json",
-          "bootstrap/seeds/i386-linux/manifest.json"
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-windows/manifest.json",
+          "bootstrap/seeds/i386-windows/cupidasm.exe",
+          "bootstrap/seeds/i386-windows/cupidc.exe",
+          "bootstrap/seeds/i386-windows/cupiddis.exe",
+          "bootstrap/seeds/i386-windows/cupidld.exe",
+          "bootstrap/seeds/i386-windows/cupidobj.exe"
         ],
-        "operation": "host_orchestration",
+        "operation": "verify_artifact_size_policy",
         "output": "verify-artifact-sizes",
         "recipe": [
-          "$(PYTHON) tools/artifact_size_policy.py verify --root . \\",
-          "--policy $(ARTIFACT_SIZE_POLICY) \\",
-          "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)"
+          "$(ARTIFACT_SIZE_CONTRACT)"
         ],
         "tools": [
+          "cupid_assembler",
+          "cupid_c_compiler",
+          "cupid_c_contract",
+          "cupid_linker",
           "host_python"
         ]
       }
@@ -39627,13 +39652,13 @@
     },
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
-      "direct_angle_occurrences": 253,
+      "direct_angle_occurrences": 257,
       "direct_quoted_occurrences": 2202,
-      "include_occurrences": 2455,
+      "include_occurrences": 2459,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2455,
+      "ordinary_marker_occurrences": 2459,
       "pp_token_operand_occurrences": 0,
-      "source_files": 702,
+      "source_files": 703,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -39646,7 +39671,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 702,
+      "source_files": 703,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -40255,7 +40280,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "HOSTED_I386_LINUX",
-          "tracked_translation_units": 33
+          "tracked_translation_units": 34
         },
         {
           "compatibility_pointer_conversions": false,
@@ -40348,15 +40373,15 @@
         }
       ],
       "status": "pass",
-      "total_translation_units": 399,
-      "tracked_translation_units": 395
+      "total_translation_units": 400,
+      "tracked_translation_units": 396
     },
     "c_source_ownership": {
       "active": [],
       "active_tracked_c_sources": 0,
-      "active_tracked_cupid_c_sources": 405,
+      "active_tracked_cupid_c_sources": 406,
       "cupid_c_ownership_evidence": {
-        "checked_cupidc_compile": 246,
+        "checked_cupidc_compile": 247,
         "checked_cupidc_contract": 29,
         "explicit_runtime_delivery_policy": 130
       },
@@ -40368,10 +40393,10 @@
         "sha256": "139876a26fef87b4e769dd397642817a89f6565564e402c46572950645fa7e82",
         "unreachable_cupid_c_sources": 3
       },
-      "proven_cupidc_owned_tracked_cupid_c_sources": 405,
+      "proven_cupidc_owned_tracked_cupid_c_sources": 406,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 408,
+      "tracked_cupid_c_sources": 409,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -44487,6 +44512,7 @@
         "toolchain/cupidld_main.cc",
         "toolchain/cupidobj.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -44496,7 +44522,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2020
+      "occurrences": 2030
     },
     {
       "category": "control",
@@ -44752,6 +44778,7 @@
         "toolchain/cupidobj_main.cc",
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -44761,7 +44788,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1238
+      "occurrences": 1241
     },
     {
       "category": "control",
@@ -45201,6 +45228,7 @@
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -45219,7 +45247,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4997
+      "occurrences": 5026
     },
     {
       "category": "control",
@@ -45473,6 +45501,7 @@
         "toolchain/cupidobj_main.cc",
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -45493,7 +45522,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4388
+      "occurrences": 4411
     },
     {
       "category": "control",
@@ -45921,6 +45950,7 @@
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -45943,7 +45973,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 39448
+      "occurrences": 39655
     },
     {
       "category": "control",
@@ -46292,6 +46322,7 @@
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -46314,7 +46345,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 24021
+      "occurrences": 24210
     },
     {
       "category": "control",
@@ -46684,6 +46715,7 @@
         "toolchain/cupidobj_main.cc",
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
@@ -46698,7 +46730,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2845
+      "occurrences": 2853
     },
     {
       "category": "declaration",
@@ -46948,6 +46980,7 @@
         "toolchain/cupidobj.cc",
         "toolchain/cupidobj_main.cc",
         "toolchain/elf32.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -46973,7 +47006,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2813
+      "occurrences": 2816
     },
     {
       "category": "declarator",
@@ -47224,6 +47257,7 @@
         "toolchain/cupidobj_main.cc",
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -47246,7 +47280,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6127
+      "occurrences": 6137
     },
     {
       "category": "extension",
@@ -48267,6 +48301,7 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
@@ -48286,7 +48321,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3106
+      "occurrences": 3110
     },
     {
       "category": "preprocessor",
@@ -49769,6 +49804,7 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -49796,7 +49832,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2455
+      "occurrences": 2459
     },
     {
       "category": "preprocessor",
@@ -50331,6 +50367,7 @@
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -50361,7 +50398,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 15991
+      "occurrences": 16038
     },
     {
       "category": "qualifier",
@@ -50873,6 +50910,7 @@
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -50900,7 +50938,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 9487
+      "occurrences": 9541
     },
     {
       "category": "type",
@@ -51313,6 +51351,7 @@
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -51341,7 +51380,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 9076
+      "occurrences": 9273
     },
     {
       "category": "type",
@@ -52076,6 +52115,7 @@
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -52101,7 +52141,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 23027
+      "occurrences": 23097
     },
     {
       "category": "type",
@@ -52148,6 +52188,7 @@
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -52157,7 +52198,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.long",
-      "occurrences": 372
+      "occurrences": 375
     },
     {
       "category": "type",
@@ -52188,13 +52229,14 @@
         "toolchain/cupiddis_main.cc",
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
         "toolchain/tests/cupiddis_contract.cc"
       ],
       "id": "c.type.long_long",
-      "occurrences": 80
+      "occurrences": 81
     },
     {
       "category": "type",
@@ -52533,6 +52575,7 @@
         "toolchain/elf32.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -52553,7 +52596,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 932
+      "occurrences": 941
     },
     {
       "category": "type",
@@ -52807,6 +52850,7 @@
         "toolchain/hosted/i386-linux/include/stdio.h",
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -52828,7 +52872,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1010
+      "occurrences": 1019
     },
     {
       "category": "type",
@@ -53011,6 +53055,7 @@
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
@@ -53028,7 +53073,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 2279
+      "occurrences": 2466
     },
     {
       "category": "type",
@@ -53606,6 +53651,7 @@
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -53633,7 +53679,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 14897
+      "occurrences": 14917
     },
     {
       "category": "declaration",
@@ -54541,11 +54587,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "84a98254b6958cbfb2d7fb366f021b7d0c4af52fc4c22699d03720f661c04111",
+    "active_source_digest": "a14c47880851338259a6ac882906d5ce9e408c404b80f94dbdb8ae4e48a4c421",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "1b56fa1656d79fa5b68fc4a5eb376d181e374322b5bf87507667585a99f5a7ad"
+        "sha256": "b440e6e18567fc12d07e5932329b79d52227a82f7645f0523312b641ba7c163b"
       },
       {
         "path": "user/Makefile",
@@ -54594,7 +54640,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "191616e69e03561bb52d050b71f553073ea95268d9598d3ec72bb60cbe435f00"
+      "sha256": "4150304f4d46639634807f6a4a259f767d7cf4f3dd1fc3e898c562dbeaddc928"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -54628,7 +54674,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 86,
+        "source_count": 87,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -54985,7 +55031,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 560,
+        "source_count": 561,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -55031,7 +55077,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 666,
+        "source_count": 667,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -55174,7 +55220,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 86
+        "source_count": 87
       },
       {
         "cohorts": [
@@ -80489,6 +80535,7 @@
         "host_python"
       ],
       "builds": [
+        ".",
         "toolchain",
         "user"
       ],
@@ -80525,7 +80572,13 @@
         "c.type.unsigned",
         "c.type.void"
       ],
-      "includes": [],
+      "includes": [
+        "kernel/core/string.h",
+        "kernel/doom/src/include_stubs/errno.h",
+        "kernel/doom/src/include_stubs/stdio.h",
+        "kernel/doom/src/include_stubs/stdlib.h",
+        "kernel/doom/src/include_stubs/unistd.h"
+      ],
       "language": "cupid_c",
       "lines": 1461,
       "origin": "tracked",
@@ -80536,9 +80589,14 @@
     },
     {
       "build_owners": [
+        "cupid_assembler",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
         "host_python"
       ],
       "builds": [
+        ".",
         "toolchain"
       ],
       "cohort": "toolchain_core",
@@ -80572,7 +80630,7 @@
       "origin": "tracked",
       "path": "toolchain/hosted/i386-linux/start.asm",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidASM",
       "sha256": "a9bd408bb5b0e35a374821d7940a12a5deff172922181ab13c2e1272a537d1af"
     },
     {
@@ -80649,6 +80707,7 @@
         "host_python"
       ],
       "builds": [
+        ".",
         "toolchain",
         "user"
       ],
@@ -80721,6 +80780,7 @@
         "host_python"
       ],
       "builds": [
+        ".",
         "toolchain",
         "user"
       ],
@@ -80756,6 +80816,55 @@
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
       "sha256": "37a9bd7bdcb6dbdeb032fd5c487ea8b50cc6b4a012596f5961a472144c63aeb0"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
+        "host_python"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "toolchain_contract",
+      "features": [
+        "c.control.break",
+        "c.control.continue",
+        "c.control.else",
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.declarator.unsized_array",
+        "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.long",
+        "c.type.long_long",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "kernel/core/string.h",
+        "kernel/doom/src/include_stubs/stdint.h",
+        "kernel/doom/src/include_stubs/stdio.h",
+        "kernel/doom/src/include_stubs/stdlib.h"
+      ],
+      "language": "cupid_c",
+      "lines": 1350,
+      "origin": "tracked",
+      "path": "toolchain/tests/artifact_size_policy_contract.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "ea4613617f3ced7b931a33fa5c07b663968099ec72daf6f795452fcf7b1d7f5d"
     },
     {
       "build_owners": [
@@ -81944,7 +82053,7 @@
     }
   ],
   "summary": {
-    "active_sources": 737,
+    "active_sources": 738,
     "features": 255,
     "transforms": 452,
     "unreachable_sources": 25

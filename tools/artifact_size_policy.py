@@ -429,14 +429,13 @@ class _PinnedRepository:
         self._directories[parts] = opened
         return opened
 
-    def _open_file_descriptor(self, parts: tuple[str, ...]) -> int:
-        parent = self._pin_directory(parts[:-1])
+    def _open_file_from_parent(self, parent, name: str) -> int:
         if os.name == "nt":
             import msvcrt
 
             kernel32, handle = _windows_open_relative_handle(
                 parent,
-                parts[-1],
+                name,
                 directory=False,
             )
             try:
@@ -449,7 +448,36 @@ class _PinnedRepository:
                 raise
             return descriptor
         flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-        return os.open(parts[-1], flags, dir_fd=parent)
+        return os.open(name, flags, dir_fd=parent)
+
+    def _open_file_descriptor(self, parts: tuple[str, ...]) -> int:
+        parent = self._pin_directory(parts[:-1])
+        return self._open_file_from_parent(parent, parts[-1])
+
+    def _reopen_file_descriptor(self, parts: tuple[str, ...]) -> int:
+        parent = self._directories[()]
+        with ExitStack() as directories:
+            for part in parts[:-1]:
+                if os.name == "nt":
+                    kernel32, opened = _windows_open_relative_handle(
+                        parent,
+                        part,
+                        directory=True,
+                    )
+                    directories.callback(kernel32.CloseHandle, opened)
+                else:
+                    flags = (
+                        os.O_RDONLY
+                        | getattr(os, "O_DIRECTORY", 0)
+                        | getattr(os, "O_NOFOLLOW", 0)
+                    )
+                    opened = os.open(part, flags, dir_fd=parent)
+                    if not stat.S_ISDIR(os.fstat(opened).st_mode):
+                        os.close(opened)
+                        raise OSError("path component is not a directory")
+                    directories.callback(os.close, opened)
+                parent = opened
+            return self._open_file_from_parent(parent, parts[-1])
 
     def capture(
         self,
@@ -487,13 +515,26 @@ class _PinnedRepository:
 
     def require_unchanged(self) -> None:
         for capture in self._captures:
+            reopened = None
             try:
                 current = os.fstat(capture.descriptor)
+                reopened = self._reopen_file_descriptor(
+                    PurePosixPath(capture.logical).parts
+                )
+                live = os.fstat(reopened)
             except OSError as error:
                 raise SizePolicyError(
                     f"{capture.logical} changed while artifacts were inspected"
                 ) from error
-            if _stable_file_fields(current) != _stable_file_fields(capture.status):
+            finally:
+                if reopened is not None:
+                    os.close(reopened)
+            expected = _stable_file_fields(capture.status)
+            if (
+                _stable_file_fields(current) != expected
+                or not stat.S_ISREG(live.st_mode)
+                or _stable_file_fields(live) != expected
+            ):
                 raise SizePolicyError(
                     f"{capture.logical} changed while artifacts were inspected"
                 )
@@ -528,6 +569,13 @@ def _read_seed_manifest(
     logical_manifest: str,
 ) -> tuple[dict[str, str], dict[str, int]]:
     data = _required_capture(reader, logical_manifest, "seed manifest")
+    return _decode_seed_manifest(data, logical_manifest)
+
+
+def _decode_seed_manifest(
+    data: bytes,
+    logical_manifest: str,
+) -> tuple[dict[str, str], dict[str, int]]:
     decoded = _load_json_object(data, "seed manifest")
     if not isinstance(decoded, dict):
         raise SizePolicyError("seed manifest is not an object")
@@ -586,6 +634,14 @@ def _read_policy(
     seed_sizes: dict[str, int],
 ) -> list[dict[str, object]]:
     data = _required_capture(reader, logical_policy, "policy file")
+    return _decode_policy(data, expected_owners, seed_sizes)
+
+
+def _decode_policy(
+    data: bytes,
+    expected_owners: dict[str, str],
+    seed_sizes: dict[str, int],
+) -> list[dict[str, object]]:
     decoded = _load_json_object(data)
     if not isinstance(decoded, dict):
         raise SizePolicyError("policy is not an object")

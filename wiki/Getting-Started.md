@@ -12,7 +12,7 @@ This guide covers building Cupid OS from source and running it in QEMU.
 | **Python 3** | Portable host-side image and code-generation helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
-| **WSL** (Windows only) | Runs the checked Linux seed for Linux fixed-point work, the complete Toolchain contract cohort, and artifact-size policy; native Windows reconstruction and the user ABI gate do not use WSL |
+| **WSL** (Windows only) | Runs the checked Linux seed for Linux fixed-point work and the complete Toolchain contract cohort; native Windows reconstruction, the user ABI gate, and artifact-size verification do not use WSL |
 | **mtools** (optional) | Manual FAT16 inspection/copying from Linux hosts |
 | **GCC, Clang, and binutils** (optional) | Native development builds and comparison oracles; they do not produce normal OS artifacts |
 | **NASM** (optional) | Comparison oracle used by `make nasm-assembly-oracle` when installed |
@@ -55,8 +55,9 @@ wsl --install
 
 Run `make` from PowerShell or another native Windows shell. Output-bearing
 recipes run the checked PE32 Cupid tools directly. The Makefile still uses WSL
-for the complete Toolchain contract cohort and artifact-size policy. The user
-ABI gate builds and runs a checked PE directly. The
+for the complete Toolchain contract cohort. Artifact-size policy keeps the
+Linux manifest as provenance, but its checker builds and runs as a native PE.
+The user ABI gate also builds and runs a checked PE directly. The
 native `bootstrap-windows` command pairs the PE execution seed with the
 verified Linux plan and builds through stage four without WSL. The clean proof
 passed in 1,152.7 seconds, and the 1,130.9-second promoted-seed reproof matched

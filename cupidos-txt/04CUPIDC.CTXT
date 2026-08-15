@@ -238,9 +238,10 @@ source and its two-header closure before object validation and publication.
 The pass-one and final kernels project the same text symbols at the same
 addresses.
 
-Across root and supplemental builds, the ownership audit reports 247 CupidC
+Across root and supplemental builds, the ownership audit reports 248 CupidC
 participations and no host C transform. Of those, 246 produce ordinary C
-outputs and one verifies the native Windows user ABI. Host Python participates
+outputs. The native Windows user ABI and artifact-size policy supply the other
+two CupidC contract checks. Host Python participates
 in all 452 transforms. The normal Toolchain build uses checked static i386
 tools for its contract cohort; native contract binaries are optional oracles.
 The publisher accepts only a dedicated cupidc-contracts directory inside the
@@ -259,10 +260,11 @@ and bridge, direct contract, direct.h, windows.h, the user syscall ABI
 contract and its six declarations, the Toolchain Makefile, the publisher, and
 the independent Python ABI oracle. The
 manifest digest, decoded data, schema checks, and build plan
-come from one captured byte sequence. The 442 audited root artifacts have
-Cupid owners and no host C or recursive Make transform. The Python-only size
-verifier emits no OS artifact. Five CupidASM, 192 CupidObj, two
-CupidLD, and six CupidDis participations run from the checked seed. The user
+come from one captured byte sequence. All 443 audited root transforms have a
+Cupid participant and no host C or recursive Make transform. The size verifier
+emits no OS artifact. It builds a private CupidC policy contract with CupidASM
+startup and a CupidLD link. The 442 artifact transforms retain five CupidASM,
+192 CupidObj, two CupidLD, and six CupidDis participations. The user
 compiler and Toolchain contract publisher create their own output directories,
 so empty-directory setup is not a separate transform. The compiler pins every
 POSIX or Windows directory component during preparation and rejects links,
@@ -340,13 +342,16 @@ temporary PE from a separately frozen source and execution-seed closure, runs
 it directly, and rechecks both live closures. The complete Linux publication
 contains sixteen contract executables and five tools, for 21 artifacts.
 
-`verify-artifact-sizes` is a direct prerequisite of cupidos.img. It receives
-the selected BOOTSTRAP_SEED_MANIFEST, derives the five seed paths and declared
-sizes from that manifest, and requires the policy to agree. It also checks the
-five-sector boot image, the pass-one and final kernel ELFs, and the raw kernel.
-Missing, duplicate, unknown, linked, nonregular, or incorrectly sized files
-stop the image publisher and preserve an existing image. An intended output
-change moves its reviewed policy row with the producing code. This regression lock is separate from the open 20
+`verify-artifact-sizes` is a direct prerequisite of cupidos.img. Python pins
+the raw policy, the Linux bootstrap manifest, and all nine file observations.
+Checked CupidC compiles a strict C11 policy contract, CupidASM supplies startup,
+and CupidLD links a static ELF on Linux or a native PE on Windows. The contract
+validates both JSON documents and every observation, rereads its request, and
+emits canonical JSON. Python checks the same request independently and rewalks
+every live path before success. Missing, duplicate, unknown, linked, nonregular,
+or incorrectly sized files stop the image publisher and preserve an existing
+image. An intended output change moves its reviewed policy row with the
+producing code. This regression lock is separate from the open 20
 percent Cupid-to-oracle size or runtime quality comparison, which still needs
 an approved same-revision oracle.
 
