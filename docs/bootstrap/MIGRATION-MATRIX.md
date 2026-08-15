@@ -15,7 +15,7 @@ publication. Make passes every wildcard-discovered output source through
 root order regardless of host locale.
 Native hosted commands remain explicit oracle targets, but none is reachable
 from a supported root. The three-root audit has 452 transforms, no recursive
-Make transform, 452 Python participants, 246 CupidC participants, one
+Make transform, 452 Python participants, 247 CupidC participants, one
 Cupid-built ABI-contract participant, and no host C transform. `toolchain:all`
 uses the checked seed and both rebuilt compiler stages to compile and link
 all fifteen `.cc` Toolchain contracts.
@@ -630,10 +630,10 @@ that lists all atomic access as open or leaves the header gate at 150/154.
 ADRs 0107 and 0108 record fetch-or and its seed transition. ADR 0110 records
 the 40-source boundary, ADR 0111 records the 116-source expansion, and ADR
 0115 records the first 20-source transfer. Across the root and supplemental
-graphs, CupidC owns 247 transforms, no supported transform invokes a host C
-compiler, and Python participates in 452. The external-program syscall ABI
-output has CupidC, CupidASM, CupidLD, the Cupid-built contract, and Python
-participants. The root size verifier is Python-only and emits no OS artifact.
+graphs, CupidC participates in 247 transforms, no supported transform invokes
+a host C compiler, and Python participates in 452. The external-program
+syscall ABI output has CupidC, CupidASM, CupidLD, the Cupid-built contract, and
+Python participants. The root size verifier is Python-only and emits no OS artifact.
 The two Python-only supplemental
 outputs aggregate the Toolchain cohort and record its manifest. No recursive Make
 transform remains. The root
@@ -1094,7 +1094,9 @@ contract. ADR 0265 records seed carriage and production adoption.
 
 The final audit records 452 transforms across the three supported roots and
 443 under root `all`. Its tool participation totals are Python 452, CupidC
-246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis six. It retains
+247, CupidObj 192, CupidASM six, CupidLD six, and CupidDis six. The composite
+native Windows user ABI verification accounts for the added CupidC, CupidASM,
+and CupidLD participation. It retains
   the 5/18/17 fixed-point matrix. `make bootstrap-audit` passed in 69.0
 seconds.
 

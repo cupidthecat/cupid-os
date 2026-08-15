@@ -1087,16 +1087,20 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-Across the root and supplemental builds, the current audit assigns 246
-transforms to CupidC and none to a host C compiler. Python participates in
-all 452 transforms. CupidC's total is 240 normal transforms plus three
-generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
-programs. Root `all` has 443 transforms: 442 artifact transforms with a Cupid
-owner plus the Python-only size verifier, which emits no OS artifact. The root
+Across the root and supplemental builds, the current audit assigns 247
+participations to CupidC and none to a host C compiler. Of those, 246 are
+ordinary C-output transforms and one is the checked native Windows user ABI
+verification. Python participates in all 452 transforms. The ordinary CupidC
+total is 240 normal transforms plus three generated installation tables and
+the `hello.cc`, `ls.cc`, and `cat.cc` programs. Root `all` has 443 transforms:
+442 artifact transforms with a Cupid owner plus the Python-only size verifier,
+which emits no OS artifact. The root
 artifact graph has five CupidASM, 192 CupidObj, two CupidLD, and six CupidDis
 participations from the manifest-checked five-tool seed. Across all three
-roots, CupidLD participates in five transforms. Native hosted commands remain
-explicit oracle targets. The same runner handles root commands.
+roots, CupidASM and CupidLD each participate in six transforms because the
+native Windows user ABI gate assembles and links its checked PE directly.
+Other native hosted commands remain explicit oracle targets. The same runner
+handles root commands.
 Checked production CupidC and checked user CupidLD pass it their caller-owned
 frozen captures. It rechecks the complete live seed cohort after each command.
 Make passes wildcard-discovered output sources through `$(sort ...)`

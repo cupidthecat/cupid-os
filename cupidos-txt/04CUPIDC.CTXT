@@ -238,11 +238,12 @@ source and its two-header closure before object validation and publication.
 The pass-one and final kernels project the same text symbols at the same
 addresses.
 
-Across root and supplemental builds, the ownership audit reports 246 CupidC
-transforms and no host C transform. Host Python participates in all 452
-transforms. The normal Toolchain build uses checked static i386 tools for its
-contract cohort; native contract binaries are optional oracles. The
-publisher accepts only a dedicated cupidc-contracts directory inside the
+Across root and supplemental builds, the ownership audit reports 247 CupidC
+participations and no host C transform. Of those, 246 produce ordinary C
+outputs and one verifies the native Windows user ABI. Host Python participates
+in all 452 transforms. The normal Toolchain build uses checked static i386
+tools for its contract cohort; native contract binaries are optional oracles.
+The publisher accepts only a dedicated cupidc-contracts directory inside the
 source tree. It validates the target before work and again before promotion.
 An existing destination must already verify as a complete cohort. Arbitrary
 directories, source trees, files, and symbolic links remain untouched.

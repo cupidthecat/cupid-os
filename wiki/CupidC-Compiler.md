@@ -1350,8 +1350,10 @@ The existing `__FILE__` diagnostic accounts for the new hash.
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, and literal pooling remain unfinished in the shared path. A block-static initializer may now take the address of another block-static object. Static initializers can also reuse a direct integer initializer from an earlier non-atomic `const` integer. This narrow Cupid C extension preserves the unchanged Toolchain object contract's address tables; it is not an ISO C integer constant expression. Mutable, automatic, atomic, indirect, and non-integer cases remain rejected.
 
-Across the root and supplemental builds, CupidC owns 247 C transforms. Its
-normal cohort has 240 transforms: 239 checked-in sources plus the generated
+Across the root and supplemental builds, CupidC participates in 247
+transforms. Of those, 246 are ordinary C-output transforms and one is the
+checked native Windows user ABI verification. Its normal cohort has 240
+transforms: 239 checked-in sources plus the generated
 `kernel/cpu/ksyms_data.cc` source. All 240 sources use `.cc`.
 The five shared Toolchain roots also belong to the 19-source i386 Linux
 fixed-point plan, and native GCC or Clang rules select C with `-x c`. ADRs

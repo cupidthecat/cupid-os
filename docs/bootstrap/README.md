@@ -883,7 +883,9 @@ object outputs plus the pass-one and final kernel ELFs. A
 That separate command passed in 185.526 seconds with exit 0 and empty output.
 The final audit records 452 transforms across the three supported roots and
 443 under root `all`. Its tool participation totals are Python 452, CupidC
-246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis six. It retains
+247, CupidObj 192, CupidASM six, CupidLD six, and CupidDis six. The composite
+native Windows user ABI verification accounts for the added CupidC, CupidASM,
+and CupidLD participation. It retains
 the 5/18/17 fixed-point matrix and assigns strict validation plus flat
 extraction to `kernel.bin`, with all 431 code inputs represented. `make
 bootstrap-audit` passed in 69.0 seconds.
