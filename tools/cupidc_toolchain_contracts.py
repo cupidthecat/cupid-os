@@ -20,22 +20,34 @@ try:
     from tools.bootstrap_toolchain import (
         BootstrapError,
         EXPECTED_SOURCES,
+        EXPECTED_WINDOWS_TARGET,
+        WINDOWS_TOOL_IMPORTS,
+        WINDOWS_SEED_SCHEMA,
         ToolRunner,
         _validate_i386_relocatable,
         _validate_static_i386_elf,
+        _validate_static_i386_pe32,
         bootstrap_from_seed,
         capture_source_snapshot,
+        freeze_seed_inputs,
+        require_live_seed_inputs,
         verify_seed_inputs,
     )
 except ModuleNotFoundError:
     from bootstrap_toolchain import (
         BootstrapError,
         EXPECTED_SOURCES,
+        EXPECTED_WINDOWS_TARGET,
+        WINDOWS_TOOL_IMPORTS,
+        WINDOWS_SEED_SCHEMA,
         ToolRunner,
         _validate_i386_relocatable,
         _validate_static_i386_elf,
+        _validate_static_i386_pe32,
         bootstrap_from_seed,
         capture_source_snapshot,
+        freeze_seed_inputs,
+        require_live_seed_inputs,
         verify_seed_inputs,
     )
 
@@ -88,6 +100,61 @@ USER_SYSCALL_ABI_INPUTS = (
     "kernel/fs/vfs.h",
     "kernel/network/socket.h",
     "user/cupid.h",
+)
+NATIVE_WINDOWS_USER_ABI_BUILD_INPUTS = tuple(
+    sorted(
+        {
+            *USER_SYSCALL_ABI_INPUTS,
+            "toolchain/ctool.cc",
+            "toolchain/ctool.h",
+            "toolchain/ctool_host.cc",
+            "toolchain/ctool_host.h",
+            "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+            "toolchain/hosted/i386-linux/include/direct.h",
+            "toolchain/hosted/i386-linux/include/errno.h",
+            "toolchain/hosted/i386-linux/include/stdint.h",
+            "toolchain/hosted/i386-linux/include/stdio.h",
+            "toolchain/hosted/i386-linux/include/stdlib.h",
+            "toolchain/hosted/i386-linux/include/string.h",
+            "toolchain/hosted/i386-linux/include/unistd.h",
+            "toolchain/hosted/i386-linux/include/windows.h",
+            "toolchain/hosted/i386-linux/runtime.cc",
+            "toolchain/hosted/i386-windows/runtime.cc",
+            "toolchain/hosted/i386-windows/tool_start.asm",
+            "toolchain/tests/user_syscall_abi_contract.cc",
+            "tools/bootstrap_toolchain.py",
+            "tools/cupidc_toolchain_contracts.py",
+            "tools/user_syscall_abi.py",
+        }
+    )
+)
+NATIVE_WINDOWS_USER_ABI_COMPILE_PLAN = (
+    (
+        "contract",
+        "/toolchain/tests/user_syscall_abi_contract.cc",
+        (),
+        False,
+    ),
+    (
+        "ctool_host",
+        "/toolchain/ctool_host.cc",
+        ("_WIN32=1",),
+        False,
+    ),
+    ("ctool", "/toolchain/ctool.cc", (), False),
+    (
+        "runtime",
+        "/toolchain/hosted/i386-windows/runtime.cc",
+        ("_WIN32=1",),
+        True,
+    ),
+)
+NATIVE_WINDOWS_USER_ABI_LINK_ORDER = (
+    "start",
+    "contract",
+    "ctool_host",
+    "ctool",
+    "runtime",
 )
 CONTRACT_LINK_OBJECT_KEYS = frozenset(
     {
@@ -397,6 +464,74 @@ def _snapshot_inputs(root: Path, paths: Sequence[Path]) -> dict[str, str]:
         path.relative_to(root).as_posix(): _sha256(path)
         for path in paths
     }
+
+
+def _native_windows_user_abi_input_paths(root: Path) -> tuple[Path, ...]:
+    root = root.resolve()
+    paths: list[Path] = []
+    for logical_path in NATIVE_WINDOWS_USER_ABI_BUILD_INPUTS:
+        path = root.joinpath(*PurePosixPath(logical_path).parts)
+        try:
+            resolved = path.resolve(strict=True)
+            resolved.relative_to(root)
+        except (OSError, ValueError) as error:
+            raise ContractError(
+                "native Windows user ABI input is unavailable: "
+                f"{logical_path}"
+            ) from error
+        if path.is_symlink() or not resolved.is_file():
+            raise ContractError(
+                "native Windows user ABI input is not a regular file: "
+                f"{logical_path}"
+            )
+        paths.append(path)
+    return tuple(paths)
+
+
+def _require_native_windows_user_abi_inputs_unchanged(
+    root: Path, expected: dict[str, str]
+) -> None:
+    actual = _snapshot_inputs(
+        root.resolve(), _native_windows_user_abi_input_paths(root)
+    )
+    if actual != expected:
+        raise ContractError(
+            "native Windows user ABI inputs changed while the check ran"
+        )
+
+
+def _freeze_native_windows_user_abi_inputs(
+    root: Path, destination: Path
+) -> dict[str, str]:
+    root = root.resolve()
+    paths = _native_windows_user_abi_input_paths(root)
+    expected = _snapshot_inputs(root, paths)
+    if destination.is_symlink():
+        raise ContractError(
+            "native Windows user ABI snapshot may not be a symlink"
+        )
+    if destination.exists():
+        if not destination.is_dir() or any(destination.iterdir()):
+            raise ContractError(
+                "native Windows user ABI snapshot is not empty"
+            )
+    else:
+        destination.mkdir(mode=0o700)
+    for source in paths:
+        relative = source.relative_to(root)
+        target = destination / relative
+        target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+    frozen = _snapshot_inputs(
+        destination.resolve(),
+        _native_windows_user_abi_input_paths(destination),
+    )
+    if frozen != expected:
+        raise ContractError(
+            "native Windows user ABI snapshot differs from its source"
+        )
+    _require_native_windows_user_abi_inputs_unchanged(root, expected)
+    return expected
 
 
 def _require_inputs_unchanged(
@@ -1414,34 +1549,14 @@ def _freeze_user_syscall_abi_inputs(
             )
 
 
-def run_user_syscall_abi(
-    root: Path,
-    manifest: Path,
-    output: Path,
-    workers: int = 2,
-    timeout: int = 60,
+def _is_windows_host() -> bool:
+    return os.name == "nt"
+
+
+def _checked_user_syscall_abi_report(
+    result: subprocess.CompletedProcess[str],
+    oracle_report: dict[str, object],
 ) -> dict[str, object]:
-    root = root.resolve()
-    report = ensure_contracts(root, manifest, output, workers)
-    executable = output / "user-syscall-abi-contract.elf"
-    with tempfile.TemporaryDirectory(
-        prefix="cupid-user-syscall-abi-snapshot-"
-    ) as temporary:
-        snapshot = Path(temporary) / "source"
-        _freeze_user_syscall_abi_inputs(root, snapshot, report)
-        result = run_published_contract(
-            root,
-            executable,
-            ("check-snapshot", snapshot, root),
-            timeout,
-            report,
-        )
-        try:
-            oracle_report = check_syscall_abi(snapshot)
-        except UserSyscallAbiError as error:
-            raise ContractError(
-                f"independent user syscall ABI oracle failed: {error}"
-            ) from error
     if result.returncode != 0 or result.stderr:
         detail = (result.stderr or result.stdout).strip()
         suffix = f": {detail}" if detail else ""
@@ -1464,6 +1579,263 @@ def run_user_syscall_abi(
             "Cupid-built user syscall ABI report differs from the "
             "independent oracle"
         )
+    return contract_report
+
+
+def _native_windows_user_abi_output_path(
+    source_root: Path, output: Path
+) -> str:
+    try:
+        relative = output.resolve().relative_to(source_root.resolve())
+    except ValueError as error:
+        raise ContractError(
+            "native Windows user ABI output leaves its private source root"
+        ) from error
+    return "/" + relative.as_posix()
+
+
+def _run_native_windows_seed_tool(
+    seed: object,
+    runner: ToolRunner,
+    tool_name: str,
+    arguments: Sequence[str | Path],
+    label: str,
+    timeout: int,
+) -> None:
+    try:
+        tools = getattr(seed, "tools")
+        executable = tools[tool_name]
+        result = runner.run(executable, arguments, timeout)
+        require_live_seed_inputs(seed)
+    except (KeyError, TypeError, AttributeError) as error:
+        raise ContractError(
+            f"native Windows user ABI seed omits {tool_name}"
+        ) from error
+    except (BootstrapError, OSError, subprocess.TimeoutExpired) as error:
+        raise ContractError(f"{label} could not run: {error}") from error
+    if result.returncode != 0 or result.stdout or result.stderr:
+        detail = result.stderr.strip() or result.stdout.strip()
+        suffix = f": {detail}" if detail else ""
+        raise ContractError(
+            f"{label} failed with status {result.returncode}{suffix}"
+        )
+
+
+def _build_native_windows_user_abi_contract(
+    source_root: Path,
+    build_root: Path,
+    seed: object,
+    runner: ToolRunner,
+    timeout: int,
+) -> Path:
+    if timeout <= 0:
+        raise ContractError(
+            "native Windows user ABI timeout must be positive"
+        )
+    source_root = source_root.resolve()
+    build_root.mkdir(mode=0o700, parents=True)
+    objects: dict[str, Path] = {}
+    for name, logical_source, definitions, gnu_extensions in (
+        NATIVE_WINDOWS_USER_ABI_COMPILE_PLAN
+    ):
+        output = build_root / f"{name}.o"
+        arguments: list[str | Path] = ["--root", source_root]
+        for definition in definitions:
+            arguments.extend(("-D", definition))
+        arguments.extend(
+            (
+                "-c",
+                logical_source,
+                "-I",
+                "/toolchain",
+                "--include-angle",
+                "/toolchain/hosted/i386-linux/include",
+            )
+        )
+        if gnu_extensions:
+            arguments.append("--gnu")
+        arguments.extend(
+            (
+                "-o",
+                _native_windows_user_abi_output_path(
+                    source_root, output
+                ),
+            )
+        )
+        _run_native_windows_seed_tool(
+            seed,
+            runner,
+            "cupidc",
+            arguments,
+            f"native Windows CupidC for {logical_source}",
+            timeout,
+        )
+        try:
+            _validate_i386_relocatable(output)
+        except (BootstrapError, OSError) as error:
+            raise ContractError(
+                f"native Windows CupidC produced an invalid object: {name}"
+            ) from error
+        objects[name] = output
+
+    start = build_root / "start.o"
+    _run_native_windows_seed_tool(
+        seed,
+        runner,
+        "cupidasm",
+        (
+            "-f",
+            "elf32",
+            source_root / "toolchain/hosted/i386-windows/tool_start.asm",
+            "-o",
+            start,
+        ),
+        "native Windows CupidASM for the ABI contract startup",
+        timeout,
+    )
+    try:
+        _validate_i386_relocatable(start)
+    except (BootstrapError, OSError) as error:
+        raise ContractError(
+            "native Windows CupidASM produced an invalid startup object"
+        ) from error
+    objects["start"] = start
+
+    executable = build_root / "user-syscall-abi-contract.exe"
+    link_arguments: list[str | Path] = [
+        "-m",
+        "i386pe",
+        "--text-address",
+        "0x00401000",
+        "--entry",
+        "_start",
+    ]
+    for library, procedures in WINDOWS_TOOL_IMPORTS:
+        for procedure in procedures:
+            link_arguments.extend(
+                (
+                    "--import",
+                    f"__imp_{procedure}={library}:{procedure}",
+                )
+            )
+    link_arguments.extend(("-o", executable))
+    link_arguments.extend(
+        objects[name] for name in NATIVE_WINDOWS_USER_ABI_LINK_ORDER
+    )
+    _run_native_windows_seed_tool(
+        seed,
+        runner,
+        "cupidld",
+        link_arguments,
+        "native Windows CupidLD for the ABI contract",
+        timeout,
+    )
+    try:
+        _validate_static_i386_pe32(
+            executable,
+            int(EXPECTED_WINDOWS_TARGET["entry"]),
+            WINDOWS_TOOL_IMPORTS,
+        )
+    except (BootstrapError, OSError) as error:
+        raise ContractError(
+            "native Windows CupidLD produced an invalid PE contract"
+        ) from error
+    return executable
+
+
+def _run_native_windows_user_syscall_abi(
+    root: Path, manifest: Path, timeout: int
+) -> dict[str, object]:
+    if not _is_windows_host():
+        raise ContractError(
+            "the native Windows user syscall ABI check requires Windows"
+        )
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-native-windows-user-abi-"
+        ) as temporary:
+            private = Path(temporary)
+            source_root = private / "source"
+            source_snapshot = _freeze_native_windows_user_abi_inputs(
+                root, source_root
+            )
+            seed = freeze_seed_inputs(manifest, private / "seed")
+            if seed.manifest.get("schema") != WINDOWS_SEED_SCHEMA:
+                raise ContractError(
+                    "native Windows user ABI requires the checked Windows "
+                    "execution seed"
+                )
+            runner = ToolRunner(source_root)
+            executable = _build_native_windows_user_abi_contract(
+                source_root,
+                source_root / "build/user-syscall-abi",
+                seed,
+                runner,
+                timeout,
+            )
+            result = runner.run(
+                executable,
+                ("check-snapshot", source_root, root),
+                timeout,
+            )
+            try:
+                oracle_report = check_syscall_abi(source_root)
+            except UserSyscallAbiError as error:
+                raise ContractError(
+                    "independent user syscall ABI oracle failed: "
+                    f"{error}"
+                ) from error
+            require_live_seed_inputs(seed)
+            _require_native_windows_user_abi_inputs_unchanged(
+                root, source_snapshot
+            )
+            return _checked_user_syscall_abi_report(
+                result, oracle_report
+            )
+    except ContractError:
+        raise
+    except (BootstrapError, OSError, subprocess.TimeoutExpired) as error:
+        raise ContractError(
+            f"native Windows user syscall ABI check failed: {error}"
+        ) from error
+
+
+def run_user_syscall_abi(
+    root: Path,
+    manifest: Path,
+    output: Path,
+    workers: int = 2,
+    timeout: int = 60,
+    windows_manifest: Path | None = None,
+) -> dict[str, object]:
+    root = root.resolve()
+    if windows_manifest is not None:
+        return _run_native_windows_user_syscall_abi(
+            root, windows_manifest, timeout
+        )
+    report = ensure_contracts(root, manifest, output, workers)
+    executable = output / "user-syscall-abi-contract.elf"
+    with tempfile.TemporaryDirectory(
+        prefix="cupid-user-syscall-abi-snapshot-"
+    ) as temporary:
+        snapshot = Path(temporary) / "source"
+        _freeze_user_syscall_abi_inputs(root, snapshot, report)
+        result = run_published_contract(
+            root,
+            executable,
+            ("check-snapshot", snapshot, root),
+            timeout,
+            report,
+        )
+        try:
+            oracle_report = check_syscall_abi(snapshot)
+        except UserSyscallAbiError as error:
+            raise ContractError(
+                f"independent user syscall ABI oracle failed: {error}"
+            ) from error
+    contract_report = _checked_user_syscall_abi_report(
+        result, oracle_report
+    )
     try:
         if verify_publication(output) != report:
             raise ContractError("published contract cohort changed")
@@ -1499,6 +1871,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     user_abi.add_argument("--root", required=True, type=Path)
     user_abi.add_argument("--manifest", required=True, type=Path)
+    user_abi.add_argument("--windows-manifest", type=Path)
     user_abi.add_argument("--output", required=True, type=Path)
     user_abi.add_argument("--workers", type=int, default=2)
     user_abi.add_argument("--timeout", type=int, default=60)
@@ -1557,6 +1930,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.output,
                 arguments.workers,
                 arguments.timeout,
+                arguments.windows_manifest,
             )
             print(json.dumps(report, sort_keys=True))
             return 0

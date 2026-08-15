@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-13
+Verified against source on: 2026-08-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -268,8 +268,12 @@ POSIX or Windows directory component during preparation and rejects links,
 junctions, and a changed resolved path before releasing those pins. Two
 supplemental verification or orchestration outputs remain Python-only. The
 user ABI output instead runs a Cupid-built contract and an independent Python
-oracle. ADR 0245 records the directory boundary, and ADR 0264 records the ABI
-transfer. Checked production kernel, generated-install, and
+oracle. Linux uses the published ELF cohort. Windows freezes a separate
+26-file closure and uses checked CupidC, CupidASM, and CupidLD to build and run
+a private PE. The PE and Python oracle read one frozen six-file ABI snapshot,
+and the Windows path never changes the Linux publication. ADR 0245 records the
+directory boundary, ADR 0264 records the ABI transfer, and ADR 0295 records
+native Windows execution. Checked production kernel, generated-install, and
 user CupidC calls plus checked user CupidLD links pass their frozen five-tool
 capture to the same checked runner. It rechecks the live manifest and every
 seed image after the private command returns. ADR 0246 records this invocation
@@ -329,10 +333,11 @@ matching objects and executables. It snapshots and rereads six declarations,
 then checks version 5, 103 fields, 412 table bytes, the public scalar types and
 constants, both VFS record layouts, and all 101 providers. Its fingerprints
 must match the independent Python oracle over the same private six-file
-snapshot. The executable runs from a private copy of the verified publication,
-and the coordinator rechecks the live cohort and source inputs afterward. The
-complete publication contains sixteen contract executables and five tools, for
-21 artifacts.
+snapshot. Linux runs the executable from a private copy of the verified
+publication, then rechecks the live cohort and source inputs. Windows builds a
+temporary PE from a separately frozen source and execution-seed closure, runs
+it directly, and rechecks both live closures. The complete Linux publication
+contains sixteen contract executables and five tools, for 21 artifacts.
 
 `verify-artifact-sizes` is a direct prerequisite of cupidos.img. It receives
 the selected BOOTSTRAP_SEED_MANIFEST, derives the five seed paths and declared

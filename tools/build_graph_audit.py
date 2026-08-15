@@ -88,7 +88,10 @@ TOOL_MARKERS = (
     ("$(LD)", "host_linker"),
     ("$(OBJCOPY)", "host_object_copy"),
     ("$(NM)", "host_symbol_reader"),
+    ("$(USER_SYSCALL_ABI)", "cupid_assembler"),
+    ("$(USER_SYSCALL_ABI)", "cupid_c_compiler"),
     ("$(USER_SYSCALL_ABI)", "cupid_c_contract"),
+    ("$(USER_SYSCALL_ABI)", "cupid_linker"),
     ("$(USER_SYSCALL_ABI)", "host_python"),
     ("$(PYTHON)", "host_python"),
     ("$(MAKE)", "make"),
@@ -99,6 +102,34 @@ USER_SYSCALL_ABI_SOURCE_INPUTS = (
     "kernel/core/syscall.cc",
     "kernel/fs/vfs.h",
     "kernel/network/socket.h",
+    "user/cupid.h",
+)
+USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS = (
+    "kernel/core/syscall.cc",
+    "kernel/core/syscall.h",
+    "kernel/core/types.h",
+    "kernel/fs/vfs.h",
+    "kernel/network/socket.h",
+    "toolchain/ctool.cc",
+    "toolchain/ctool.h",
+    "toolchain/ctool_host.cc",
+    "toolchain/ctool_host.h",
+    "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+    "toolchain/hosted/i386-linux/include/direct.h",
+    "toolchain/hosted/i386-linux/include/errno.h",
+    "toolchain/hosted/i386-linux/include/stdint.h",
+    "toolchain/hosted/i386-linux/include/stdio.h",
+    "toolchain/hosted/i386-linux/include/stdlib.h",
+    "toolchain/hosted/i386-linux/include/string.h",
+    "toolchain/hosted/i386-linux/include/unistd.h",
+    "toolchain/hosted/i386-linux/include/windows.h",
+    "toolchain/hosted/i386-linux/runtime.cc",
+    "toolchain/hosted/i386-windows/runtime.cc",
+    "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/tests/user_syscall_abi_contract.cc",
+    "tools/bootstrap_toolchain.py",
+    "tools/cupidc_toolchain_contracts.py",
+    "tools/user_syscall_abi.py",
     "user/cupid.h",
 )
 USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
@@ -220,11 +251,17 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/x86.cc",
     "toolchain/x86.h",
 )
-USER_SYSCALL_ABI_CHECKED_SEED_INPUTS = LINUX_BOOTSTRAP_SEED_INPUTS
-USER_SYSCALL_ABI_AUDIT_INPUTS = tuple(
+TOOLCHAIN_CONTRACT_LINUX_INPUTS = tuple(
     sorted(
         set(USER_SYSCALL_ABI_PUBLICATION_INPUTS)
         | set(USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS)
+        | set(LINUX_BOOTSTRAP_SEED_INPUTS)
+    )
+)
+USER_SYSCALL_ABI_CHECKED_SEED_INPUTS = WINDOWS_PRODUCTION_SEED_INPUTS
+USER_SYSCALL_ABI_AUDIT_INPUTS = tuple(
+    sorted(
+        set(USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS)
         | set(USER_SYSCALL_ABI_CHECKED_SEED_INPUTS)
     )
 )
@@ -5115,6 +5152,9 @@ def build_audit(
         for source in transform["inputs"]:
             if source in all_sources:
                 source_build_owners[source].update(transform["tools"])
+    for source in _toolchain_contract_cupidc_ownership_inputs(models):
+        if source in all_sources:
+            source_build_owners[source].add("cupid_c_contract")
 
     feature_collector = FeatureCollector()
     for relative in sorted(all_sources):
@@ -11080,7 +11120,14 @@ def _validate_user_syscall_abi_transform(
         directory != "user"
         or transform.get("output") != "user/test-syscall-abi"
         or transform.get("operation") != "verify_user_syscall_abi"
-        or transform.get("tools") != ["cupid_c_contract", "host_python"]
+        or transform.get("tools")
+        != [
+            "cupid_assembler",
+            "cupid_c_compiler",
+            "cupid_c_contract",
+            "cupid_linker",
+            "host_python",
+        ]
     ):
         raise AuditError(
             "user syscall ABI verifier differs from its checked "
@@ -11116,6 +11163,35 @@ def _validate_user_syscall_abi_transform(
             "user syscall ABI verifier recipe marker changed; "
             f"actual={dict(markers)!r}"
         )
+
+
+def _toolchain_contract_cupidc_ownership_inputs(
+    models: list[BuildModel],
+) -> set[str]:
+    evidence: set[str] = set()
+    allowed = set(TOOLCHAIN_CONTRACT_LINUX_INPUTS)
+    for model in models:
+        if model.directory != "toolchain":
+            continue
+        for transform in model.transforms:
+            if (
+                transform.get("output")
+                != "toolchain/build/cupidc-contracts/manifest.json"
+                or transform.get("operation") != "host_orchestration"
+                or transform.get("tools") != ["host_python"]
+            ):
+                continue
+            inputs = transform.get("inputs")
+            if not isinstance(inputs, list):
+                continue
+            evidence.update(
+                path
+                for path in inputs
+                if isinstance(path, str)
+                and path in allowed
+                and _language(path) == "cupid_c"
+            )
+    return evidence
 
 
 def _validate_native_user_tools_transform(
@@ -12134,13 +12210,7 @@ def _c_preprocessor_active_cases_manifest(
                     closure_roots,
                     expected_closure,
                 )
-                required_inputs = set(USER_SYSCALL_ABI_AUDIT_INPUTS) | {
-                    "bootstrap/seeds/i386-linux/manifest.json",
-                    "bootstrap/seeds/i386-linux/cupidasm.elf",
-                    "bootstrap/seeds/i386-linux/cupidc.elf",
-                    "bootstrap/seeds/i386-linux/cupiddis.elf",
-                    "bootstrap/seeds/i386-linux/cupidld.elf",
-                    "bootstrap/seeds/i386-linux/cupidobj.elf",
+                required_inputs = set(TOOLCHAIN_CONTRACT_LINUX_INPUTS) | {
                     "link.ld",
                     "toolchain/hosted/i386-linux/start.asm",
                     "toolchain/hosted/i386-windows/start.asm",

@@ -24,7 +24,7 @@ the corrected setjmp, longjmp, quit, and error paths in Cupid OS. ADR 0213
 records the seed promotion, and ADR 0214 records active adoption.
 
 The normal root build sends no C object through GCC or Clang. Checked-seed
-CupidC owns 246 transforms across the three roots. The normal cohort contains
+CupidC owns 247 transforms across the three roots. The normal cohort contains
 239 checked-in sources and the generated kernel symbol table; all 240 use
 `.cc`. Three generated installation tables and three example programs account
 for the other six CupidC transforms. The host C compiler owns no transform in
@@ -46,15 +46,19 @@ requires `dir_fd`, `O_DIRECTORY`, and `O_NOFOLLOW` support. On Windows, it uses
 parent-relative directory handles and rejects reparse points. The pins remain
 open through the final resolved-output check. Two Python-only verification or
 orchestration transforms remain outside the normal root. The external-program
-ABI gate runs a Cupid-built contract and a separate Python oracle. Root `all` runs
-CupidASM, CupidObj, CupidLD, and CupidDis from the checked five-tool seed.
+ABI gate runs a Cupid-built contract and a separate Python oracle. On Windows,
+CupidC, CupidASM, and CupidLD build that contract as a private PE and run it
+directly. Root `all` runs CupidASM, CupidObj, CupidLD, and CupidDis from the
+checked five-tool seed.
 Make passes discovered output paths through `$(sort ...)` before generation
 and link, so the Windows and Linux branches consume one canonical source
 order. ADR 0238
 records the disk-image transfer, and ADR 0245 records the publisher-owned
 directory boundary. ADR 0246 records the shared invocation boundary. Python
 remains a required host-control component. WSL remains required on Windows for
-Linux-contract paths, but not for output-bearing production tool calls. Source
+the Linux fixed point, complete Toolchain contract cohort, and artifact-size
+paths. It is not required for output-bearing production calls or the user ABI
+gate. Source
 head can reconstruct native Windows stages two through four without WSL by
 freezing the PE execution seed and Linux plan seed. A complete stage-three to
 stage-four native convergence proof first passed on one frozen uncommitted
@@ -469,9 +473,12 @@ unchanged at SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
 Linux runs the checked i386 bootstrap seed for all six user artifacts. Windows
-uses that Linux seed through WSL for the ABI contract, then runs checked native
-CupidC and CupidLD for the six output-bearing operations. A separate frontier uses private snapshots of the two
-native hosted drivers and compares all six outputs with the seed. Clang and
+uses the checked PE seed to build and run a temporary ABI contract with CupidC,
+CupidASM, and CupidLD. The PE and Python oracle read one frozen six-file ABI
+snapshot, and the operation leaves the Linux contract publication untouched.
+Checked native CupidC and CupidLD then perform the six output-bearing
+operations. A separate frontier uses private snapshots of the two native
+hosted drivers and compares all six outputs with the seed. Clang and
 its native linker build those optional drivers, so the comparison path does
 not establish a Windows fixed point.
 
@@ -935,8 +942,8 @@ records the ownership transfer.
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
 | Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal five-tool build and sixteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime. All five native Windows tools use the repository runtime and twelve shared CupidASM API bridges; CupidLD adds four publication bridges | Not required by root `all`, `user:all`, `toolchain:all`, or the checked Windows commands; required only by native oracle and development targets | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |
 | GNU Make | Declares the root, user, and toolchain-contract build graphs and invokes tools | Required; the graph uses portable ordinary/stamp targets rather than GNU Make 4.3 grouped-target syntax | May remain as host orchestration; it must invoke Cupid code-producing tools on the normal path |
-| Python 3 | Launches the host-selected checked execution cohort for output-bearing work and the Linux bootstrap seed for fixed-point and contract work; runs the Python-only size verifier; compares the Cupid-built syscall ABI report with an independent oracle; coordinates kernel-symbol and trampoline validation; parity-checks accepted JPEG, ISO, and profile-manifest bytes; builds independent template oracles; preserves FAT contents and stages files; validates, locks, and atomically publishes outputs; builds fixtures; and drives QEMU tests | Required | May remain for tests and packaging, but removing it from the staged fixed point and checked-tool launch path is the open Python-free bootstrap gate |
-| WSL on Windows | Runs the checked static i386 Linux seed for Linux fixed-point reconstruction, Toolchain contracts, the user syscall ABI contract, and artifact-size provenance checks | Required for those Linux-seed paths on Windows; native Windows fixed-point reconstruction and output-bearing production tools run the checked PE32 execution seed without WSL | Remove it after the Linux fixed-point and contract paths no longer depend on Linux executable semantics |
+| Python 3 | Launches the host-selected checked execution cohort for output-bearing work and the Windows user ABI contract, and launches the Linux bootstrap seed for fixed-point and full Toolchain contract work; runs the Python-only size verifier; compares the Cupid-built syscall ABI report with an independent oracle; coordinates kernel-symbol and trampoline validation; parity-checks accepted JPEG, ISO, and profile-manifest bytes; builds independent template oracles; preserves FAT contents and stages files; validates, locks, and atomically publishes outputs; builds fixtures; and drives QEMU tests | Required | May remain for tests and packaging, but removing it from the staged fixed point and checked-tool launch path is the open Python-free bootstrap gate |
+| WSL on Windows | Runs the checked static i386 Linux seed for Linux fixed-point reconstruction, the complete Toolchain contract cohort, and artifact-size provenance checks | Required for those Linux-seed paths on Windows; native Windows fixed-point reconstruction, output-bearing production tools, and the user ABI gate run the checked PE32 execution seed without WSL | Remove it after the remaining Linux fixed-point and contract paths no longer depend on Linux executable semantics |
 | Git | Enumerates the tracked audit universe and creates detached baseline worktrees | Required for development/audit workflows, not image production | Retain as source-control orchestration, never as a code-producing dependency |
 | `link.ld` and its documented GNU-script subset | Defines kernel memory and section layout; CupidLD parses the exercised `ENTRY`, `SECTIONS`, location-counter, wildcard, alignment, symbol, `COMMON`, and `ASSERT` forms | Required input to both kernel link passes; host-linker interpretation is oracle-only | Keep the script as the source-owned layout contract and deepen CupidLD when the active script needs more semantics |
 | `jpegtran`, `djpeg`/`cjpeg`, or FFmpeg | No role in the normal root build. Checked CupidObj validates and wraps the repository's sequential SOF0 or SOF1 JPEG; Python checks accepted bytes independently | Not required by root `all`; progressive, unsupported, and malformed input fails instead of selecting a host converter | Retain only for optional asset maintenance outside the build graph |

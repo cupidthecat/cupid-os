@@ -220,25 +220,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             for item in transforms
             if item["output"] == "user/test-syscall-abi"
         )
-        toolchain_rules = module._parse_make_rules(
-            module._run_make_database(
-                REPO_ROOT / "toolchain",
-                make,
-                "build/cupidc-contracts/manifest.json",
-            )
-        )
-        publication_transform = module._build_transforms(
-            "toolchain",
-            {"build/cupidc-contracts/manifest.json"},
-            toolchain_rules,
-        )[0]
         input_variables = module._read_evaluated_make_variables(
             REPO_ROOT / "user",
             make,
             (
-                "USER_SYSCALL_ABI_PUBLICATION_INPUTS",
-                "USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS",
-                "BOOTSTRAP_SEED_INPUTS",
+                "NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS",
+                "CHECKED_SEED_INPUTS",
+                "USER_SYSCALL_ABI_PLATFORM_ARGUMENTS",
             ),
         )
 
@@ -252,39 +240,42 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
         self.assertEqual(transform["output"], "user/test-syscall-abi")
         self.assertEqual(
-            transform["tools"], ["cupid_c_contract", "host_python"]
+            transform["tools"],
+            [
+                "cupid_assembler",
+                "cupid_c_compiler",
+                "cupid_c_contract",
+                "cupid_linker",
+                "host_python",
+            ],
         )
         self.assertEqual(
             transform["operation"], "verify_user_syscall_abi"
         )
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 65
-        )
-        self.assertEqual(
-            len(module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS), 50
+            len(module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS), 26
         )
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 6
         )
         self.assertEqual(
-            repo_inputs("USER_SYSCALL_ABI_PUBLICATION_INPUTS"),
-            module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
+            repo_inputs("NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS"),
+            module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS,
         )
         self.assertEqual(
-            repo_inputs("USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS"),
-            module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS,
-        )
-        self.assertEqual(
-            repo_inputs("BOOTSTRAP_SEED_INPUTS"),
+            repo_inputs("CHECKED_SEED_INPUTS"),
             tuple(sorted(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS)),
         )
-        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 92)
+        self.assertEqual(
+            input_variables["USER_SYSCALL_ABI_PLATFORM_ARGUMENTS"],
+            "--windows-manifest ../bootstrap/seeds/i386-windows/manifest.json",
+        )
+        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 32)
         self.assertEqual(
             module.USER_SYSCALL_ABI_AUDIT_INPUTS,
             tuple(
                 sorted(
-                    set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS)
-                    | set(module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS)
+                    set(module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS)
                     | set(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS)
                 )
             ),
@@ -292,11 +283,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(
             transform["inputs"],
             [*module.USER_SYSCALL_ABI_AUDIT_INPUTS, "user/Makefile"],
-        )
-        self.assertEqual(len(publication_transform["inputs"]), 92)
-        self.assertEqual(
-            set(transform["inputs"][:-1]),
-            set(publication_transform["inputs"]),
         )
         module._validate_user_syscall_abi_transform("user", transform)
 
@@ -323,6 +309,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
         self.assertEqual(transform["tools"], ["host_python"])
         self.assertEqual(transform["operation"], "host_orchestration")
+        model = mock.Mock(directory="toolchain", transforms=[transform])
+        self.assertEqual(
+            module._toolchain_contract_cupidc_ownership_inputs([model]),
+            {"toolchain/tests/user_syscall_abi_contract.cc"},
+        )
 
     def test_user_syscall_abi_verifier_rejects_missing_live_input(self):
         module = _load_audit_module()
@@ -332,11 +323,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 *module.USER_SYSCALL_ABI_AUDIT_INPUTS,
                 "user/Makefile",
             ],
-            "tools": ["cupid_c_contract", "host_python"],
+            "tools": [
+                "cupid_assembler",
+                "cupid_c_compiler",
+                "cupid_c_contract",
+                "cupid_linker",
+                "host_python",
+            ],
             "operation": "verify_user_syscall_abi",
             "recipe": ["$(USER_SYSCALL_ABI)"],
         }
-        missing_path = "toolchain/cupidc_emit.cc"
+        missing_path = "toolchain/ctool.cc"
         changed = {
             **transform,
             "inputs": [
@@ -346,7 +343,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         with self.assertRaisesRegex(
             module.AuditError,
             r"user syscall ABI verifier inputs changed; "
-            r"missing=\['toolchain/cupidc_emit\.cc'\], unexpected=\[\]",
+            r"missing=\['toolchain/ctool\.cc'\], unexpected=\[\]",
         ):
             module._validate_user_syscall_abi_transform("user", changed)
 
@@ -358,7 +355,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 *module.USER_SYSCALL_ABI_AUDIT_INPUTS,
                 "user/Makefile",
             ],
-            "tools": ["cupid_c_contract", "host_python"],
+            "tools": [
+                "cupid_assembler",
+                "cupid_c_compiler",
+                "cupid_c_contract",
+                "cupid_linker",
+                "host_python",
+            ],
             "operation": "verify_user_syscall_abi",
             "recipe": ["$(USER_SYSCALL_ABI)"],
         }
@@ -386,7 +389,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 *module.USER_SYSCALL_ABI_AUDIT_INPUTS,
                 "user/Makefile",
             ],
-            "tools": ["cupid_c_contract", "host_python"],
+            "tools": [
+                "cupid_assembler",
+                "cupid_c_compiler",
+                "cupid_c_contract",
+                "cupid_linker",
+                "host_python",
+            ],
             "operation": "verify_user_syscall_abi",
             "recipe": ["$(USER_SYSCALL_ABI)"],
         }
@@ -7197,7 +7206,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             inputs.extend(
                 path
-                for path in module.USER_SYSCALL_ABI_AUDIT_INPUTS
+                for path in module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
                 if path not in inputs
                 and (
                     include_seed
@@ -8389,7 +8398,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 246,
+                    "cupid_c_compiler": 247,
                     "host_c_compiler": 0,
                     "host_python": 452,
                 },
@@ -8464,7 +8473,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/hosted/i386-windows/start.asm":
                     ("toolchain_core", None),
                 "toolchain/hosted/i386-windows/tool_start.asm":
-                    ("toolchain_core", None),
+                    ("toolchain_core", "CupidASM"),
                 "toolchain/tests/core_contract.cc":
                     ("toolchain_contract", "CupidC"),
                 "toolchain/tests/cupidasm_contract.cc":

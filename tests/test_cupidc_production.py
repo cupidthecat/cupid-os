@@ -1739,6 +1739,12 @@ class ProductionBuildContractTests(unittest.TestCase):
         self.assertIn(
             "all: test-syscall-abi $(BOOTSTRAP_ARTIFACTS)", logical
         )
+        self.assertIn(
+            "--windows-manifest $(PRODUCTION_SEED_MANIFEST)", logical
+        )
+        self.assertIn(
+            "NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS", makefile
+        )
         self.assertNotRegex(makefile, r"(?m)^\$\(BUILD\):$")
         self.assertNotIn("| $(BUILD) test-syscall-abi", logical)
         self.assertNotIn("NATIVE_USER_TOOL_GATE", makefile)

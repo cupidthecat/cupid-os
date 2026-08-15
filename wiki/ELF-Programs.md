@@ -2,9 +2,10 @@
 
 Cupid OS loads and runs static **ELF32 i386** executables. CupidC compiles the
 three repository examples, and CupidLD links them. Linux runs the checked i386
-Linux seed directly. On Windows, the user ABI contract runs that seed through
-WSL, then checked native CupidC and CupidLD perform the output-bearing compile
-and link. An optional native Windows comparison requires host-built CupidC and
+Linux seed directly. On Windows, checked native CupidC, CupidASM, and CupidLD
+build and run the user ABI contract as a private PE. Checked native CupidC and
+CupidLD then perform the output-bearing compile and link. An optional native
+Windows comparison requires host-built CupidC and
 CupidLD output to match the checked seed. Programs run as ring-0 kernel threads
 and receive a **syscall table**, a struct of function pointers passed to
 `_start()`.
@@ -47,8 +48,8 @@ make test-user-native-windows-equivalence
 ```
 
 The normal Windows build runs checked native CupidC and CupidLD directly and
-does not prepare host-built native drivers. Its user ABI contract still runs
-the Linux seed through WSL. The separate comparison command builds private
+does not prepare host-built native drivers. Its user ABI contract also runs
+directly as a checked PE. The separate comparison command builds private
 drivers with Clang and its native linker. Checked-seed CupidLD accepts
 `-m i386pe` for ordered static i386 ELF32 objects. It serializes one deterministic,
 fixed-layout PE32 console image at image base `0x00400000`, with `.text` at RVA
@@ -82,8 +83,9 @@ collision, replacement failure, and candidate cleanup.
 
 The matching PE32 images form the checked Windows execution seed used by the
 normal user build and other output-bearing recipes. The Linux seed still runs
-through WSL for Toolchain contracts, the user ABI contract, and artifact-size
-policy. The native fixed-point command freezes the PE execution seed and a
+through WSL for the complete Toolchain contract cohort and artifact-size
+policy. The user ABI gate builds and runs one temporary PE from the Windows
+seed. The native fixed-point command freezes the PE execution seed and a
 separate verified Linux plan manifest. The seed builds stage two, stage two
 builds stage three, and stage three builds stage four. Stages two and three are
 transition generations. The convergence check compares stages three and four.
@@ -239,13 +241,16 @@ The current table ABI is version 5. It has 103 four-byte fields and occupies
 412 bytes on i386. The first two fields carry the version and table size; the
 remaining 101 fields are kernel function pointers.
 
-Before compiling a tracked example, the build verifies or rebuilds the
-published static i386 contract. Its stage-two and stage-three CupidC objects
-and CupidLD-linked executables have already matched. The build then runs the
-published contract, which captures and rereads the six kernel and public
+Before compiling a tracked example, the build runs the Cupid-built ABI
+contract. Linux verifies or rebuilds the published static i386 cohort and runs
+its ELF contract. Windows freezes a separate 26-file closure, builds a private
+PE with checked CupidC, CupidASM, and CupidLD, validates it, and runs it
+directly. Either contract captures and rereads the same six kernel and public
 declarations and checks the reviewed table, scalar, constant, record, and
-provider rules. Python compares that report with an independent oracle and
-rechecks the fixed-point publication inputs. ADR 0264 records the transfer.
+provider rules. Python compares that report with an independent oracle.
+The Windows path rechecks source and seed drift and leaves the Linux publication
+untouched. ADR 0264 records the semantic transfer, and ADR 0295 records the
+native Windows path.
 
 The public scalar types follow the i386 data model: `uint8_t` is one byte,
 `uint16_t` is two bytes, and `uint32_t`, `int32_t`, and `size_t` are four
@@ -290,8 +295,9 @@ make -C user clean    # Clean build artifacts
 ```
 
 The first command runs the checked Linux seed directly on Linux. On Windows,
-the ABI contract runs that seed through WSL, then checked native CupidC and
-CupidLD build the six program artifacts directly. It does not build the
+checked native CupidC, CupidASM, and CupidLD build and run the ABI contract,
+then checked native CupidC and CupidLD build the six program artifacts. The
+command does not build the
 optional host-built native drivers.
 
 To add a new program:

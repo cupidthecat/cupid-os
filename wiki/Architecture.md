@@ -159,8 +159,11 @@ captured seed-manifest byte sequence supplies the digest, decoded data, schema
 checks, and build plan. Seventeen objects and sixteen executables must match
 across stages before the 21-artifact cohort can be published. Contract runs
 use a private copy of the verified cohort. The user ABI check also gives the
-Cupid contract and Python oracle one shared six-file snapshot, then rechecks
-the live publication and sources before success.
+Cupid contract and Python oracle one shared six-file snapshot. Linux runs the
+published ELF contract. Windows freezes a separate 26-file closure, builds a
+private PE with checked CupidC, CupidASM, and CupidLD, and runs it directly.
+The Windows path rechecks its source and seed closures and never touches the
+Linux publication.
 Fourteen ordinary contract compiles use the worker pool and 900-second
 budgets. The pool drains before `cupidc-object` receives an exclusive
 1,800-second compile. Runtime compilation and parallel contract linking keep
@@ -185,9 +188,10 @@ image and its IAT slots. CupidLD added four publication imports to the shared
 twelve. Windows ran help plus a useful success and failure path for each tool.
 CupidDis also checked quoted raw-input parity with the Linux tool. These five
 images formed the preceding checked Windows execution seed used by
-output-bearing production recipes. Toolchain contracts,
-the user ABI contract, and artifact-size policy still run the Linux seed
-through WSL. Source head freezes the PE execution seed and the Linux plan
+output-bearing production recipes. The complete Toolchain contract cohort and
+artifact-size policy still run the Linux seed through WSL. The user ABI gate
+builds and runs a temporary PE from the Windows seed. Source head freezes the
+PE execution seed and the Linux plan
 manifest separately, then reconstructs native Windows stages two through four.
 Stages two and three are transition generations; stages three and four are the
 convergence pair. The former stage-two to stage-three comparison stopped safely

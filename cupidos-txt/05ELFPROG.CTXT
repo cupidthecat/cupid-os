@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-08-13
+Verified against source on: 2026-08-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -16,9 +16,10 @@ Verified against source on: 2026-08-13
 >h2 Overview
 >tree open Overview
 The CupidC and CupidLD ELF path is separate from the CupidC source JIT.
-Linux runs the checked i386 Linux seed directly. On Windows, the user ABI
-contract runs that seed through WSL, then checked native CupidC and CupidLD
-perform the output-bearing compile and link. An optional native Windows check
+Linux runs the checked i386 Linux seed directly. On Windows, checked native
+CupidC, CupidASM, and CupidLD build and run the user ABI contract as a private
+PE. Checked native CupidC and CupidLD perform the output-bearing compile and
+link. An optional native Windows check
 requires host-built CupidC and CupidLD output to match the checked seed.
 
 kernel/lang/exec.cc currently supports:
@@ -65,8 +66,9 @@ failure leaves no candidate.
 
 Those five PE32 images form the checked Windows execution seed used by
 output-bearing production recipes. Fixed-point reconstruction, Toolchain
-contracts, the user ABI contract, and artifact-size policy still run the Linux
-seed through WSL. The native driver freezes the PE32 execution seed with a
+contracts, and artifact-size policy still run the Linux seed through WSL. The
+user ABI gate builds and runs one temporary PE from the Windows seed. The
+native driver freezes the PE32 execution seed with a
 separate verified Linux plan. The seed builds stage two, stage two builds stage
 three, and stage three builds stage four. Stages two and three are transition
 generations; the convergence check compares stages three and four. The former
@@ -164,8 +166,9 @@ The current user/Makefile writes outputs to:
 
 The build freezes its CupidC and CupidLD tool images, validates each object
 and executable, and publishes only complete files. Linux runs the checked seed
-directly. On Windows, the ABI contract runs the Linux seed through WSL, then
-checked native CupidC and CupidLD build all six program artifacts directly.
+directly. On Windows, checked native CupidC, CupidASM, and CupidLD build and
+run the ABI contract. Checked native CupidC and CupidLD then build all six
+program artifacts directly.
 Use `make test-user-cupidc-frontier` to repeat the deterministic build check.
 On Windows, `make test-user-native-windows-equivalence` builds private
 host-built driver snapshots and compares all six files with checked-seed
@@ -220,13 +223,15 @@ VFS names may use 128 bytes and paths may use 512 bytes. cupid_dirent_t is
 136 bytes, with name at byte 0, size at byte 128, and type at byte 132.
 cupid_stat_t is 8 bytes, with size at byte 0 and type at byte 4.
 
-Before compiling a tracked example, the build verifies or rebuilds the
-published static i386 contract. Its stage-two and stage-three CupidC objects
-and CupidLD-linked executables have already matched. The build runs the
-published contract, which captures and rereads the six kernel and public
+Before compiling a tracked example, the build runs the Cupid-built ABI
+contract. Linux verifies or rebuilds the published static cohort and runs its
+ELF contract. Windows freezes a 26-file closure, builds a private PE with
+checked CupidC, CupidASM, and CupidLD, validates it, and runs it directly.
+Either contract captures and rereads the same six kernel and public
 declarations and checks the reviewed table, scalar, constant, record, and
-provider rules. Python compares that report with an independent oracle and
-rechecks the publication inputs.
+provider rules. Python compares the report with an independent oracle. The
+Windows path rechecks source and seed drift and leaves the Linux publication
+untouched.
 >endtree
 
 >h2 Process Model

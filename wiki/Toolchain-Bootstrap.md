@@ -7,10 +7,13 @@ toolchain rebuild without GCC, Clang, NASM, a host linker, `nm`, or `objcopy`.
 Cupid OS also carries a checked native i386 Windows execution seed for those
 five tools. Windows selects the PE32 cohort for output-bearing production
 commands. The Linux cohort remains the bootstrap seed for fixed-point,
-Toolchain-contract, user-ABI, and artifact-size work because only its manifest
-carries the full build plan. The promoted Windows manifest records clean
+the complete Toolchain contract cohort, and artifact-size work because only
+its manifest carries the full build plan. The Windows user ABI gate uses the
+PE cohort to build and run one temporary contract, without treating that
+manifest as a bootstrap plan. The promoted Windows manifest records clean
 stage-four provenance and keeps the Linux plan as a separate verified parent.
-ADR 0272 records the two roles, and ADR 0292 records the current promotion.
+ADR 0272 records the two roles, ADR 0292 records the current promotion, and
+ADR 0295 records the native Windows ABI contract.
 
 Source head can reconstruct native Windows stages two through four without WSL.
 The reproducible operator entry points are:
@@ -219,9 +222,10 @@ images remained unchanged at SHA-256
 
 Host Python still coordinates each fixed point. Windows rebuilds native tools
 from the checked PE execution seed and the verified Linux plan seed without
-WSL. Linux contract programs on Windows still run the static i386 Linux tools
-through WSL, while output-bearing production calls use the checked PE32 cohort
-directly. Linux and native Windows now use clean promoted stage-four seeds.
+WSL. The complete Linux Toolchain contract cohort still runs through WSL on
+Windows. Output-bearing production calls and the user ABI contract use the
+checked PE32 cohort directly. Linux and native Windows now use clean promoted
+stage-four seeds.
 Python-free coordination remains open.
 `make verify-artifact-sizes` receives
 `$(BOOTSTRAP_SEED_MANIFEST)`, derives the five seed paths and declared sizes
@@ -710,8 +714,12 @@ CupidC compiles them. CupidC also compiles the three example external ELF
 programs. All six source files use `.cc` names. The generated tables keep the
 kernel profile. `hello.cc`, `ls.cc`, and `cat.cc` use the closed user profile
 and CupidLD link. Linux runs the checked bootstrap seed directly. Windows
-uses that Linux seed through WSL for the ABI contract, then runs checked
-native CupidC and CupidLD for output compilation and linking. The compiler and linker
+freezes a 26-file source and control closure and the six-file PE seed
+separately. Checked CupidC, CupidASM, and CupidLD build a private ABI contract,
+validate it, and run it directly against the same six-file snapshot as the
+Python oracle. The operation leaves the Linux contract publication untouched.
+Checked native CupidC and CupidLD then perform output compilation and linking.
+The compiler and linker
 freeze their complete input and control sets and pass the same frozen
 five-tool capture to the shared runner. It verifies the complete live cohort
 after CupidC or CupidLD returns. Both wrappers validate every ELF result and

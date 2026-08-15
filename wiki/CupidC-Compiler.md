@@ -1341,7 +1341,7 @@ The existing `__FILE__` diagnostic accounts for the new hash.
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, and literal pooling remain unfinished in the shared path. A block-static initializer may now take the address of another block-static object. Static initializers can also reuse a direct integer initializer from an earlier non-atomic `const` integer. This narrow Cupid C extension preserves the unchanged Toolchain object contract's address tables; it is not an ISO C integer constant expression. Mutable, automatic, atomic, indirect, and non-integer cases remain rejected.
 
-Across the root and supplemental builds, CupidC owns 246 C transforms. Its
+Across the root and supplemental builds, CupidC owns 247 C transforms. Its
 normal cohort has 240 transforms: 239 checked-in sources plus the generated
 `kernel/cpu/ksyms_data.cc` source. All 240 sources use `.cc`.
 The five shared Toolchain roots also belong to the 19-source i386 Linux
@@ -1353,7 +1353,11 @@ and glyph-raster transfer, ADR 0167 records the FPU and SMP transfer, and ADR
 transfer, ADR 0181 records the string transfer, and ADR 0184 records the Doom
 transfer. No checked-in normal root remains host-owned.
 Three generated installation tables and the `hello.cc`, `ls.cc`, and
-`cat.cc` programs account for the other six CupidC transforms.
+`cat.cc` programs account for six more CupidC transforms. The final transform
+builds the Windows user syscall ABI contract as a private PE before those
+programs compile. That gate freezes its source and PE seed separately, runs
+without WSL, and leaves the Linux Toolchain contract publication untouched.
+ADR 0295 records the boundary.
 
 The Nuked OPL3 recipe compiles from a private snapshot of its source and
 three-header closure. The wrapper compares every live input before replacing
@@ -1387,8 +1391,8 @@ execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. Python
 participates in all 452 transforms across the three audited roots, and CupidC
-participates in 246. CupidObj participates in 192, CupidASM in five, CupidLD in
-five, and CupidDis in six. Root `all` has 443 transforms, including 442
+participates in 247. CupidObj participates in 192, CupidASM in six, CupidLD in
+six, and CupidDis in six. Root `all` has 443 transforms, including 442
 Cupid-owned artifact transforms and the Python-only size verifier. It runs
 CupidC, CupidASM, CupidObj, CupidLD, and CupidDis from the manifest-checked
 seed; `toolchain:all` uses the rebuilt static tools for its contract cohort.

@@ -21,10 +21,13 @@ ifeq ($(OS),Windows_NT)
 PYTHON ?= python
 PRODUCTION_SEED_MANIFEST ?= ../bootstrap/seeds/i386-windows/manifest.json
 PRODUCTION_SEED_SUFFIX := exe
+USER_SYSCALL_ABI_PLATFORM_ARGUMENTS := \
+	--windows-manifest $(PRODUCTION_SEED_MANIFEST)
 else
 PYTHON ?= python3
 PRODUCTION_SEED_MANIFEST ?= ../bootstrap/seeds/i386-linux/manifest.json
 PRODUCTION_SEED_SUFFIX := elf
+USER_SYSCALL_ABI_PLATFORM_ARGUMENTS :=
 endif
 
 PRODUCTION_SEED_DIRECTORY := $(dir $(PRODUCTION_SEED_MANIFEST))
@@ -48,7 +51,35 @@ CUPIDLD_USER_LINK := $(PYTHON) ../tools/cupidld_user_link.py --root .. \
 USER_SYSCALL_ABI := $(PYTHON) ../tools/cupidc_toolchain_contracts.py \
 	user-abi --root .. \
 	--manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	$(USER_SYSCALL_ABI_PLATFORM_ARGUMENTS) \
 	--output ../toolchain/build/cupidc-contracts
+NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS := \
+	../kernel/core/syscall.cc \
+	../kernel/core/syscall.h \
+	../kernel/core/types.h \
+	../kernel/fs/vfs.h \
+	../kernel/network/socket.h \
+	../toolchain/ctool.cc \
+	../toolchain/ctool.h \
+	../toolchain/ctool_host.cc \
+	../toolchain/ctool_host.h \
+	../toolchain/hosted/i386-linux/include/cupid_host_abi.h \
+	../toolchain/hosted/i386-linux/include/direct.h \
+	../toolchain/hosted/i386-linux/include/errno.h \
+	../toolchain/hosted/i386-linux/include/stdint.h \
+	../toolchain/hosted/i386-linux/include/stdio.h \
+	../toolchain/hosted/i386-linux/include/stdlib.h \
+	../toolchain/hosted/i386-linux/include/string.h \
+	../toolchain/hosted/i386-linux/include/unistd.h \
+	../toolchain/hosted/i386-linux/include/windows.h \
+	../toolchain/hosted/i386-linux/runtime.cc \
+	../toolchain/hosted/i386-windows/runtime.cc \
+	../toolchain/hosted/i386-windows/tool_start.asm \
+	../toolchain/tests/user_syscall_abi_contract.cc \
+	../tools/bootstrap_toolchain.py \
+	../tools/cupidc_toolchain_contracts.py \
+	../tools/user_syscall_abi.py \
+	cupid.h
 USER_SYSCALL_ABI_PUBLICATION_INPUTS := \
 	../kernel/core/syscall.cc \
 	../kernel/core/syscall.h \
@@ -177,10 +208,16 @@ CUPIDLD_USER_LINK_INPUTS := ../tools/cupidld_user_link.py \
 	../tools/native_user_toolchain.py \
 	../tools/bootstrap_toolchain.py \
 	$(CHECKED_SEED_INPUTS)
+ifeq ($(OS),Windows_NT)
+USER_SYSCALL_ABI_INPUTS := $(sort \
+	$(NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS) \
+	$(CHECKED_SEED_INPUTS))
+else
 USER_SYSCALL_ABI_INPUTS := $(sort \
 	$(USER_SYSCALL_ABI_PUBLICATION_INPUTS) \
 	$(USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS) \
 	$(BOOTSTRAP_SEED_INPUTS))
+endif
 USER_FRONTIER_INPUTS := ../tools/cupidc_production_frontier.py \
 	$(CUPIDC_PRODUCTION_COMPILE_INPUTS) $(CUPIDLD_USER_LINK_INPUTS) \
 	$(USER_SYSCALL_ABI_INPUTS)

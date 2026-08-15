@@ -1697,6 +1697,393 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         oracle.assert_called_once_with(snapshot)
         verify_inputs.assert_called_once_with(root, publication_report)
 
+    def test_windows_user_abi_uses_the_native_seed_without_a_publication(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-native-windows-user-abi-selection-"
+        ) as temporary:
+            root = Path(temporary).resolve()
+            output = root / "toolchain/build/cupidc-contracts"
+            output.mkdir(parents=True)
+            sentinel = output / "occupied-publication.txt"
+            sentinel.write_bytes(b"leave this publication alone")
+            linux_manifest = (
+                root / "bootstrap/seeds/i386-linux/manifest.json"
+            )
+            windows_manifest = (
+                root / "bootstrap/seeds/i386-windows/manifest.json"
+            )
+            expected = {
+                "schema": "cupid.user-syscall-abi.v1",
+                "field_count": 103,
+            }
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts,
+                "_run_native_windows_user_syscall_abi",
+                return_value=expected,
+            ) as native, mock.patch.object(
+                cupidc_toolchain_contracts,
+                "ensure_contracts",
+            ) as ensure:
+                actual = cupidc_toolchain_contracts.run_user_syscall_abi(
+                    root,
+                    linux_manifest,
+                    output,
+                    workers=3,
+                    timeout=45,
+                    windows_manifest=windows_manifest,
+                )
+
+            self.assertEqual(actual, expected)
+            self.assertEqual(
+                sentinel.read_bytes(), b"leave this publication alone"
+            )
+            native.assert_called_once_with(root, windows_manifest, 45)
+            ensure.assert_not_called()
+
+    def test_native_windows_user_abi_source_snapshot_rejects_live_drift(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-native-windows-user-abi-inputs-"
+        ) as temporary:
+            workspace = Path(temporary)
+            root = workspace / "source"
+            for logical_path in (
+                cupidc_toolchain_contracts.NATIVE_WINDOWS_USER_ABI_BUILD_INPUTS
+            ):
+                path = root / logical_path
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(
+                    f"checked input: {logical_path}\n", encoding="ascii"
+                )
+            snapshot = workspace / "snapshot"
+            expected = (
+                cupidc_toolchain_contracts._freeze_native_windows_user_abi_inputs(
+                    root, snapshot
+                )
+            )
+
+            changed = root / "toolchain/ctool.cc"
+            changed.write_text("changed during the build\n", encoding="ascii")
+
+            with self.assertRaisesRegex(
+                cupidc_toolchain_contracts.ContractError,
+                "native Windows user ABI inputs changed",
+            ):
+                cupidc_toolchain_contracts._require_native_windows_user_abi_inputs_unchanged(
+                    root, expected
+                )
+
+    def test_native_windows_user_abi_runs_one_pe_against_the_shared_snapshot(self):
+        root = Path("contract-root").resolve()
+        manifest = root / "bootstrap/seeds/i386-windows/manifest.json"
+        expected = {
+            "schema": "cupid.user-syscall-abi.v1",
+            "field_count": 103,
+        }
+        completed = subprocess.CompletedProcess(
+            ["user-syscall-abi-contract.exe"],
+            0,
+            json.dumps(expected) + "\n",
+            "",
+        )
+        seed = SimpleNamespace(
+            manifest={"schema": "cupid.execution-seed.v1"},
+            tools={},
+        )
+
+        with mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_is_windows_host",
+            return_value=True,
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "freeze_seed_inputs",
+            return_value=seed,
+        ) as freeze_seed, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_freeze_native_windows_user_abi_inputs",
+            return_value={"toolchain/ctool.cc": "a" * 64},
+        ) as freeze_source, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_build_native_windows_user_abi_contract",
+        ) as build, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "ToolRunner",
+        ) as runner_type, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "check_syscall_abi",
+            return_value=expected,
+        ) as oracle, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "require_live_seed_inputs",
+        ) as require_seed, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_require_native_windows_user_abi_inputs_unchanged",
+        ) as require_source:
+            runner_type.return_value.run.return_value = completed
+
+            def publish_executable(
+                source_root, build_root, frozen_seed, runner, timeout
+            ):
+                executable = build_root / "user-syscall-abi-contract.exe"
+                executable.parent.mkdir(parents=True, exist_ok=True)
+                executable.write_bytes(b"MZ")
+                return executable
+
+            build.side_effect = publish_executable
+            actual = (
+                cupidc_toolchain_contracts._run_native_windows_user_syscall_abi(
+                    root, manifest, 45
+                )
+            )
+
+        self.assertEqual(actual, expected)
+        frozen_source = freeze_source.call_args.args[1]
+        frozen_seed = freeze_seed.call_args.args[1]
+        self.assertNotEqual(frozen_source, root)
+        self.assertNotEqual(frozen_seed, manifest.parent)
+        executable = build.call_args.args[1] / "user-syscall-abi-contract.exe"
+        runner_type.return_value.run.assert_called_once_with(
+            executable,
+            ("check-snapshot", frozen_source, root),
+            45,
+        )
+        oracle.assert_called_once_with(frozen_source)
+        require_seed.assert_called_once_with(seed)
+        require_source.assert_called_once_with(
+            root, {"toolchain/ctool.cc": "a" * 64}
+        )
+
+    def test_native_windows_user_abi_build_uses_checked_pe_producers(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-native-windows-user-abi-build-"
+        ) as temporary:
+            source_root = Path(temporary)
+            build_root = source_root / "build/user-syscall-abi"
+            tools = {
+                "cupidc": source_root / "seed/cupidc.exe",
+                "cupidasm": source_root / "seed/cupidasm.exe",
+                "cupidld": source_root / "seed/cupidld.exe",
+            }
+            seed = SimpleNamespace(tools=tools)
+            calls = []
+
+            class RecordingRunner:
+                def run(self, executable, arguments, timeout):
+                    arguments = tuple(arguments)
+                    calls.append((executable, arguments, timeout))
+                    output = arguments[arguments.index("-o") + 1]
+                    output_path = (
+                        source_root / str(output).lstrip("/")
+                        if str(output).startswith("/")
+                        else Path(output)
+                    )
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    if executable == tools["cupidld"]:
+                        output_path.write_bytes(b"MZchecked")
+                    else:
+                        output_path.write_bytes(_test_relocatable_elf32())
+                    return subprocess.CompletedProcess(
+                        [str(executable)], 0, "", ""
+                    )
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts,
+                "_validate_static_i386_pe32",
+            ) as validate_pe, mock.patch.object(
+                cupidc_toolchain_contracts,
+                "require_live_seed_inputs",
+            ) as require_seed:
+                executable = (
+                    cupidc_toolchain_contracts._build_native_windows_user_abi_contract(
+                        source_root,
+                        build_root,
+                        seed,
+                        RecordingRunner(),
+                        45,
+                    )
+                )
+
+            self.assertEqual(
+                executable,
+                build_root / "user-syscall-abi-contract.exe",
+            )
+            self.assertEqual(
+                [call[0] for call in calls],
+                [
+                    tools["cupidc"],
+                    tools["cupidc"],
+                    tools["cupidc"],
+                    tools["cupidc"],
+                    tools["cupidasm"],
+                    tools["cupidld"],
+                ],
+            )
+            compile_sources = [
+                call[1][call[1].index("-c") + 1] for call in calls[:4]
+            ]
+            self.assertEqual(
+                compile_sources,
+                [
+                    "/toolchain/tests/user_syscall_abi_contract.cc",
+                    "/toolchain/ctool_host.cc",
+                    "/toolchain/ctool.cc",
+                    "/toolchain/hosted/i386-windows/runtime.cc",
+                ],
+            )
+            link_arguments = calls[-1][1]
+            self.assertEqual(link_arguments[:6], (
+                "-m",
+                "i386pe",
+                "--text-address",
+                "0x00401000",
+                "--entry",
+                "_start",
+            ))
+            self.assertIn(
+                "__imp_VirtualAlloc=KERNEL32.dll:VirtualAlloc",
+                link_arguments,
+            )
+            self.assertEqual(require_seed.call_count, len(calls))
+            validate_pe.assert_called_once()
+
+    def test_native_windows_user_abi_rejects_a_malformed_pe(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-native-windows-user-abi-malformed-pe-"
+        ) as temporary:
+            source_root = Path(temporary)
+            tools = {
+                "cupidc": source_root / "seed/cupidc.exe",
+                "cupidasm": source_root / "seed/cupidasm.exe",
+                "cupidld": source_root / "seed/cupidld.exe",
+            }
+            seed = SimpleNamespace(tools=tools)
+
+            class MalformedPeRunner:
+                def run(self, executable, arguments, timeout):
+                    arguments = tuple(arguments)
+                    output = arguments[arguments.index("-o") + 1]
+                    output_path = (
+                        source_root / str(output).lstrip("/")
+                        if str(output).startswith("/")
+                        else Path(output)
+                    )
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    output_path.write_bytes(
+                        b"MZbroken"
+                        if executable == tools["cupidld"]
+                        else _test_relocatable_elf32()
+                    )
+                    return subprocess.CompletedProcess(
+                        [str(executable)], 0, "", ""
+                    )
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts,
+                "require_live_seed_inputs",
+            ), self.assertRaisesRegex(
+                cupidc_toolchain_contracts.ContractError,
+                "invalid PE contract",
+            ):
+                cupidc_toolchain_contracts._build_native_windows_user_abi_contract(
+                    source_root,
+                    source_root / "build/user-syscall-abi",
+                    seed,
+                    MalformedPeRunner(),
+                    45,
+                )
+
+    def test_native_windows_user_abi_rejects_seed_drift_during_compile(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-native-windows-user-abi-seed-drift-"
+        ) as temporary:
+            source_root = Path(temporary)
+            tools = {
+                "cupidc": source_root / "seed/cupidc.exe",
+                "cupidasm": source_root / "seed/cupidasm.exe",
+                "cupidld": source_root / "seed/cupidld.exe",
+            }
+            seed = SimpleNamespace(tools=tools)
+
+            class OneObjectRunner:
+                def run(self, executable, arguments, timeout):
+                    arguments = tuple(arguments)
+                    output = arguments[arguments.index("-o") + 1]
+                    output_path = source_root / str(output).lstrip("/")
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    output_path.write_bytes(_test_relocatable_elf32())
+                    return subprocess.CompletedProcess(
+                        [str(executable)], 0, "", ""
+                    )
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts,
+                "require_live_seed_inputs",
+                side_effect=cupidc_toolchain_contracts.BootstrapError(
+                    "checked seed artifact changed"
+                ),
+            ), self.assertRaisesRegex(
+                cupidc_toolchain_contracts.ContractError,
+                "native Windows CupidC.*could not run",
+            ):
+                cupidc_toolchain_contracts._build_native_windows_user_abi_contract(
+                    source_root,
+                    source_root / "build/user-syscall-abi",
+                    seed,
+                    OneObjectRunner(),
+                    45,
+                )
+
+    def test_native_windows_user_abi_rejects_a_linux_seed_before_building(self):
+        root = Path("contract-root").resolve()
+        manifest = root / "bootstrap/seeds/i386-linux/manifest.json"
+        seed = SimpleNamespace(
+            manifest={"schema": "cupid.bootstrap-seed.v1"},
+            tools={},
+        )
+        with mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_is_windows_host",
+            return_value=True,
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_freeze_native_windows_user_abi_inputs",
+            return_value={},
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "freeze_seed_inputs",
+            return_value=seed,
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_build_native_windows_user_abi_contract",
+        ) as build, self.assertRaisesRegex(
+            cupidc_toolchain_contracts.ContractError,
+            "requires the checked Windows execution seed",
+        ):
+            cupidc_toolchain_contracts._run_native_windows_user_syscall_abi(
+                root, manifest, 45
+            )
+        build.assert_not_called()
+
+    def test_user_abi_cli_accepts_a_separate_windows_execution_manifest(self):
+        arguments = cupidc_toolchain_contracts._build_parser().parse_args(
+            [
+                "user-abi",
+                "--root",
+                "source",
+                "--manifest",
+                "bootstrap/seeds/i386-linux/manifest.json",
+                "--windows-manifest",
+                "bootstrap/seeds/i386-windows/manifest.json",
+                "--output",
+                "toolchain/build/cupidc-contracts",
+            ]
+        )
+        self.assertEqual(
+            arguments.windows_manifest,
+            Path("bootstrap/seeds/i386-windows/manifest.json"),
+        )
+
     def test_ensure_reuses_a_current_contract_cohort(self):
         root = Path("contract-root").resolve()
         manifest = root / "bootstrap/seeds/i386-linux/manifest.json"

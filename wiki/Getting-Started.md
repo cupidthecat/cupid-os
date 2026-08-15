@@ -12,7 +12,7 @@ This guide covers building Cupid OS from source and running it in QEMU.
 | **Python 3** | Portable host-side image and code-generation helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
-| **WSL** (Windows only) | Runs the checked Linux seed for Linux fixed-point work, Toolchain contracts, the user ABI contract, and artifact-size policy; native Windows reconstruction does not use WSL |
+| **WSL** (Windows only) | Runs the checked Linux seed for Linux fixed-point work, the complete Toolchain contract cohort, and artifact-size policy; native Windows reconstruction and the user ABI gate do not use WSL |
 | **mtools** (optional) | Manual FAT16 inspection/copying from Linux hosts |
 | **GCC, Clang, and binutils** (optional) | Native development builds and comparison oracles; they do not produce normal OS artifacts |
 | **NASM** (optional) | Comparison oracle used by `make nasm-assembly-oracle` when installed |
@@ -55,14 +55,15 @@ wsl --install
 
 Run `make` from PowerShell or another native Windows shell. Output-bearing
 recipes run the checked PE32 Cupid tools directly. The Makefile still uses WSL
-for Toolchain contracts, the user ABI contract, and artifact-size policy. The
+for the complete Toolchain contract cohort and artifact-size policy. The user
+ABI gate builds and runs a checked PE directly. The
 native `bootstrap-windows` command pairs the PE execution seed with the
 verified Linux plan and builds through stage four without WSL. The clean proof
 passed in 1,152.7 seconds, and the 1,130.9-second promoted-seed reproof matched
 all five initial PE32 images. Run `make verify-windows-bootstrap-seed`, then
 `make bootstrap-windows-from-seed`; a successful proof publishes under
 `build/bootstrap/checked-windows-seed`. Python still coordinates this path,
-and Linux-seed contract work on Windows still uses WSL.
+and full Linux-seed contract work on Windows still uses WSL.
 Install LLVM only for the explicit native
 Toolchain contracts and native Windows comparison targets:
 

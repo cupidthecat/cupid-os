@@ -26927,3 +26927,90 @@ JSON has SHA-256
 `72714dd97872ebc5fba1ea0ec440777e037f31fd901670625378006fb9ee2c30`.
 The 12,502-byte summary has SHA-256
 `cf792a20b6f823ab1b5c28053622a8e481db7ac17e58fe6d98066b8ea9fe2f89`.
+
+## 2026-08-15: run the Windows user ABI contract as a checked PE
+
+### Scope and decisions
+
+The Windows user build no longer stages the Linux ABI contract through WSL.
+`user/Makefile` passes the checked Windows execution manifest as a separate
+argument while retaining the Linux manifest for the unchanged Linux path.
+
+The Windows operation freezes a 26-file native build and control closure and
+the six-file PE execution seed into separate private directories. Checked
+CupidC compiles the ABI contract, `ctool_host.cc`, `ctool.cc`, and the Windows
+runtime. Checked CupidASM assembles `tool_start.asm`, and checked CupidLD links
+the reviewed PE import table. Every object must be an i386 relocatable, and the
+final image must pass the existing PE entry, section, import, and stack checks.
+
+The PE contract and the independent Python oracle read one frozen six-file ABI
+snapshot. Success requires identical JSON, an unchanged live source closure,
+and an unchanged live seed. The Windows path does not call the Linux Toolchain
+contract publisher. An occupied publication therefore remains unchanged. A
+Linux execution manifest is rejected before any producer starts.
+
+This narrow build recipe does not turn the Windows execution seed into a
+bootstrap plan. Native fixed-point reconstruction still pairs that seed with
+the separately verified Linux plan under ADR 0278. Linux keeps its published
+ELF contract and full fixed-point provenance.
+
+### Test and audit evidence
+
+The work started at public seams. The first selector test failed because the
+user ABI operation had no Windows manifest parameter. Snapshot, build-plan,
+native execution, and CLI tests then failed at their missing interfaces. Each
+seam passed before work moved to the next one.
+
+| Check | Result |
+| --- | --- |
+| Focused native and shared user ABI tests | PASS: ten cases cover direct PE selection, occupied publication preservation, one shared snapshot, producer order, malformed PE rejection, source drift, seed drift, Linux seed rejection, CLI selection, and oracle disagreement |
+| Direct checked-seed PE invocation | PASS in 26.5 seconds: version 5, 103 fields, 412 table bytes, and 101 providers matched the Python oracle |
+| `make -C user test-syscall-abi` on native Windows | PASS in 27.4 seconds with the same report and no WSL execution |
+| `make -C user all` on native Windows | PASS in 31.3 seconds: the native ABI gate and checked `hello`, `ls`, and `cat` builds completed |
+| Focused build graph and Make tests | PASS: the canonical Windows edge names the 26 native inputs, six PE seed inputs, checked producer set, and separate platform argument; missing, extra, and changed contracts fail |
+| `make bootstrap-audit` and `make check-bootstrap-audit` | PASS: the final checked replay took 66.7 seconds; 452 transforms include CupidC on 247, CupidASM on six, CupidLD on six, CupidObj on 192, and CupidDis on six |
+| Combined contract, production, and audit suite | PASS: all 204 tests in 855.203 seconds |
+| Python bytecode compilation | PASS for both changed tools and all three changed test modules |
+
+The first combined 204-test contract, production, and build-audit run failed
+eight tests and one fixture after 455.483 seconds. The old broad Windows user
+prerequisite edge had also supplied CupidC source ownership evidence for the
+larger Linux contract closure. Shrinking the edge exposed that hidden audit
+coupling. The audit now records fixed-point contract source ownership from the
+validated Toolchain publication while leaving that publication classified as
+Host Python orchestration. Focused ownership and manifest tests pass, and the
+regenerated audit check is current.
+
+A second combined run passed 203 of 204 tests in 819.365 seconds. Its only
+failure was a stale exact count of 246 CupidC participations. Correcting that
+lock exposed one stale `None` owner for the newly active `tool_start.asm` in
+the same long fixture. With both locks aligned to the generated graph, that
+fixture passed in 209.726 seconds. The final combined run passed all 204 tests
+in 855.203 seconds. Ruff was not installed in the workspace, so no Ruff result
+is recorded.
+
+### Migration and remaining dependencies
+
+The normal Windows user ABI gate has one additional CupidC, CupidASM, and
+CupidLD participation. It no longer depends on WSL or the state of the Linux
+contract publication. Host Python still owns source and seed snapshots,
+checked-tool launch, artifact validation, oracle comparison, and drift checks.
+
+WSL remains required on Windows for the Linux fixed point, the complete
+Toolchain contract cohort, and artifact-size paths that execute the Linux
+seed. Python-free coordination remains open. There were no user questions or
+unresolved design choices in this step.
+
+No active C or assembly source changed. The safe `.c` to `.cc` rename set is
+still empty. The `TempleOS/` reference tree was not modified or counted.
+
+Integration followed after the exact decimal-literal and private SIMD update
+changes. Regenerating that combined tree passed in 65.8 seconds, and a fresh
+check passed in 67.3 seconds. The inventory has 737 active inputs, 452
+transforms, 255 feature requirements, and 25 accounted unreachable files.
+Its active-source digest is
+`cb21994023b76b27dea58e720dc0f00b18d099df4513593ba24b4c66f8c67f9a`.
+The 2,682,137-byte JSON has SHA-256
+`13e79aa2d9f7cab0513a4df915c7f9b6355f93a0d6d33a5eb3d8b0930ce35009`.
+The 12,502-byte summary has SHA-256
+`99287244534d3b1bbd2fefe2bb304bd442c182038fa5e7027f587869dac96eaa`.

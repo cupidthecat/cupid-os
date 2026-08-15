@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-08-13
+Verified against source on: 2026-08-15
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -391,9 +391,9 @@ bootstrap-windows command performs the native PE build from the Windows
 execution seed and Linux plan seed. Operators run make
 verify-windows-bootstrap-seed, then make bootstrap-windows-from-seed. The
 second target publishes only under build/bootstrap/checked-windows-seed. Its
-dry run and two Make contract tests pass. Windows still runs Linux contract programs
-through WSL. Output-bearing production recipes run the checked native PE32
-execution seed directly.
+dry run and two Make contract tests pass. Windows still runs the complete
+Linux Toolchain contract cohort through WSL. Output-bearing production recipes
+and the user ABI contract run the checked native PE32 execution seed directly.
 Normal Cupid OS C roots and Toolchain contracts use checked CupidC. A host
 compiler remains only for explicit native oracles and hosted development
 commands.

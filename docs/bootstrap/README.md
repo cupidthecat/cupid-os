@@ -11,8 +11,10 @@ fixed-point provenance. The native i386 Windows PE32 cohort is an execution
 seed promoted from matching stage-four outputs. Windows selects it for
 output-bearing production commands, so those CupidC, CupidASM, CupidDis,
 CupidLD, and CupidObj calls no longer cross WSL. Linux fixed-point reconstruction,
-Toolchain contracts, the user syscall ABI contract, and artifact-size policy
-still select the Linux seed. ADR 0272 records the distinction.
+the complete Toolchain contract cohort, and artifact-size policy still select
+the Linux seed. The Windows user syscall ABI gate builds a temporary PE with
+the execution seed and runs it directly. ADR 0272 records the seed roles, and
+ADR 0295 records the native ABI gate.
 
 Source-head hosted CupidC now converts decimal `float` and `double` tokens
 with the same fixed 1536-bit integer-ratio model as private CupidC. It rounds
@@ -1374,26 +1376,32 @@ table, and CupidASM demo table as `.cc` sources. Checked CupidC compiles them.
 A separate closed wrapper compiles `hello.cc`, `ls.cc`, and `cat.cc` under the
 fixed user profile, and a CupidLD wrapper links them into the two-MiB external
 arena.
-Linux runs the checked bootstrap seed directly. Windows uses that Linux seed
-through WSL for the ABI contract, then runs checked native CupidC and CupidLD
-for the six output-bearing operations. The normal user build does not prepare
-host-built native drivers. Before compilation,
-a separate verifier compares the public header with the kernel types, syscall
-table and initializer, VFS declarations, and socket constants. It captures the
-exact bytes of those six declarations and rechecks them before success. It
-pins version 5, all 103 table fields and 101 function providers, the 412-byte
-table, and the shared i386 record layouts. Both wrappers freeze their source
-and control inputs and pass their existing five-tool capture to the same
-checked runner used by root commands. The runner rechecks the complete live
-cohort after CupidC or CupidLD returns. Each wrapper validates its ELF output
-and replaces an artifact only after the full operation succeeds. The 23-input
-default frontier repeats all six builds from the seed. An explicit 46-input
-Windows frontier also runs private native CupidC and CupidLD snapshots and
-requires every output to match. A
+Linux runs the checked bootstrap seed directly. Windows builds its ABI
+contract as a temporary PE with checked native CupidC, CupidASM, and CupidLD,
+then runs that image without WSL. The PE and the independent Python oracle
+consume one frozen snapshot of the public header, kernel types, syscall table
+and initializer, VFS declarations, and socket constants. The check pins
+version 5, all 103 table fields and 101 function providers, the 412-byte table,
+and the shared i386 record layouts. It freezes a 26-file native build closure
+and the six-file Windows execution seed separately, validates every object and
+the final PE, and rechecks both live closures. It never reads or changes the
+Linux Toolchain contract publication. Linux keeps the existing published ELF
+contract path.
+
+Checked native CupidC and CupidLD perform the six output-bearing Windows user
+operations. The normal user build does not prepare host-built native drivers.
+Both wrappers freeze their source and control inputs and pass their existing
+five-tool capture to the same checked runner used by root commands. The runner
+rechecks the complete live cohort after CupidC or CupidLD returns. Each wrapper
+validates its ELF output and replaces an artifact only after the full operation
+succeeds. The 23-input default frontier repeats all six builds from the seed.
+An explicit 46-input Windows frontier also runs private native CupidC and
+CupidLD snapshots and requires every output to match. A
 poisoned-path test rules out GCC, Clang, `ld`, and `cc` on the normal path.
 The local `user/build/` directory is generated and ignored by Git. ADR 0127
 records the ABI correction and gate. ADR 0130 records the optional native
-Windows path. ADR 0188 records the checked-seed default.
+Windows path. ADR 0188 records the checked-seed default, and ADR 0295 records
+the native Windows ABI contract.
 
 CupidObj generates those three installation-table sources through one typed
 public operation and the `install-source` CLI. The bin, docs, and demos modes
@@ -1479,10 +1487,10 @@ first lease before reuse.
 
 Python still launches the compiler and guards publication. Windows runs root,
 generated-table, and external-program output-bearing commands from the checked
-native execution seed. Fixed-point, Toolchain contract, user ABI, and
-artifact-size paths retain the Linux bootstrap seed and WSL. A native Windows
-fixed point remains open, while the optional native user drivers remain
-host-built.
+native execution seed. Its user ABI gate now builds and runs a private PE from
+that seed. Linux fixed-point, the complete Toolchain contract cohort, and
+artifact-size paths retain the Linux bootstrap seed and WSL. The optional
+native user drivers remain host-built comparison tools.
 ADR 0110 records the earlier 40-source handoff. ADR 0111 records
 the 116-source expansion, data-only object rule, and memory map.
 ADR 0112 records the generated-table and external-program handoff. ADR 0113
@@ -1494,7 +1502,8 @@ ADR 0126 records the complete fixed-point rename, ADR 0130 records the
 optional native Windows user path, and ADR 0188 records the checked-seed
 default. ADR 0133 records the live ABI input check and private guest images.
 ADR 0264 moves the semantic ABI check into a staged CupidC contract while
-keeping the Python implementation as an independent oracle.
+keeping the Python implementation as an independent oracle. ADR 0295 moves
+the Windows contract execution to the checked PE cohort.
 
 The checked seed accepts GNU `used` and `__used__` on file-scope objects and
 functions. Compatible redeclarations merge the flag into the canonical
@@ -1908,7 +1917,8 @@ carriage and production selection are complete. The native Windows driver now
 derives its PE plan from the verified Linux manifest and builds through stage
 four. Linux and native Windows stage-three to stage-four convergence and seed
 promotion are complete. WSL-free Linux-seed contracts and a Python-free driver
-remain open.
+remain open. The narrower Windows user syscall ABI contract already runs as a
+native PE and does not use the Linux contract publication.
 
 The hosted `ctool_c_layout_types` contract fixes scalar, pointer, array, enum, vector, function-marker, aligned-wrapper, qualified-wrapper, struct, union, class, bit-field, flexible-array, packed, and explicit-alignment representation to the Cupid i386 target. Enum size, alignment, and signedness copy a frontend-selected compatible integer type. The independent manual active-source layout fixtures select signed `int` and are `4/4`; the declaration frontend now selects compatible types from source, including unsigned `int` for both nonnegative enums in the FAT16 closure. Positive contracts include a direct atomic pointer at `4/4`, a synthetic signed-`long long`-compatible atomic enum at `8/8`, and an aligned incomplete array retained as `0/16` until a compatible declaration supplies its bound. `QUALIFIED` represents `const`/`volatile`/`restrict`/`_Atomic` use of an existing semantic type without cloning its representation or record slice; a pointer to qualified `T` remains distinct from a qualified pointer to `T`. Non-atomic qualification preserves layout. Aligned wrappers carry an exact effective typedef/type-attribute alignment that may lower or raise natural alignment; explicit record alignment only raises the computed record result. Atomic identity propagates through both wrappers, but alignment follows source order: introducing `_Atomic` applies the cached target minimum, a later exact alignment may lower it, and later non-atomic qualification preserves it. Atomic aggregates remain unsupported. Layout enforces a flexible array's final structure position, while the declaration frontend enforces named-member eligibility, including names promoted through anonymous records. The operation resolves immutable index graphs with an iterative strong-edge walk, caches `_Bool`, active-atomic, and atomic-minimum facts once per type, preserves presumed/physical semantic locations, reclaims traversal scratch, and returns stable job-owned layouts transactionally in `O(types + members)`. A 4,096-wrapper/4,096-bit-field regression closes the former repeated-unwrapping path. Manual typed graphs pin all 54 FAT16 member offsets plus active Doom, process, syscall-table, `e1000_rx_desc_t`, and per-CPU ABI shapes.
 
@@ -1931,24 +1941,25 @@ quoted and 253 angle forms. Its active roots contain 395 tracked and four
 generated translation units.
 
 The active-source digest is
-`f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
-The 2,673,547-byte audit JSON has SHA-256
-`a433c3c202f9ccba82fe587b4d5a48b0ec10a0d4440f44cc7b730002473b2604`,
-and the 12,269-byte summary has SHA-256
-`c8afb2c59a3e13c098178b01168ae65fa10293e67b1c7cef57ef596eac72148c`.
+`cb21994023b76b27dea58e720dc0f00b18d099df4513593ba24b4c66f8c67f9a`.
+The 2,682,137-byte audit JSON has SHA-256
+`13e79aa2d9f7cab0513a4df915c7f9b6355f93a0d6d33a5eb3d8b0930ce35009`,
+and the 12,502-byte summary has SHA-256
+`99287244534d3b1bbd2fefe2bb304bd442c182038fa5e7027f587869dac96eaa`.
 
-Across the three supported roots, CupidC participates in 246 transforms and
-CupidObj participates in 192 transforms. Python participates in all 452 as
-the checked-tool launcher and host-side safety, parity, and publication layer.
+Across the three supported roots, CupidC participates in 247 transforms,
+CupidASM in six, CupidLD in six, and CupidObj in 192. Python participates in
+all 452 as the checked-tool launcher and host-side safety, parity, and
+publication layer.
 No transform invokes a host C compiler, and no recursive Make transform
 remains. The user and Toolchain artifact publishers create their required
 output directories. The user compiler uses POSIX `dir_fd` operations or
 parent-relative Windows handles and rejects links, junctions, and a changed
 resolved path before releasing the directory pins. Two Python-only
 verification or orchestration transforms remain in the supplemental roots.
-The user syscall ABI gate is classified separately with Cupid-built contract
-and host-Python participants. Its checked executable owns the ABI rules;
-Python remains the independent oracle and publication coordinator.
+The user syscall ABI gate is classified separately with CupidC, CupidASM,
+CupidLD, the Cupid-built contract, and Host Python. Its checked executable owns
+the ABI rules. Python remains the independent oracle and snapshot coordinator.
 The kernel-symbol source is classified
 as `generate_ksyms_source` with CupidDis, CupidObj, and Python participants.
 The Doom profile delivery is
