@@ -27014,3 +27014,103 @@ The 2,682,137-byte JSON has SHA-256
 `13e79aa2d9f7cab0513a4df915c7f9b6355f93a0d6d33a5eb3d8b0930ce35009`.
 The 12,502-byte summary has SHA-256
 `99287244534d3b1bbd2fefe2bb304bd442c182038fa5e7027f587869dac96eaa`.
+
+## 2026-08-15: Support mixed floating compound assignments
+
+Source-head hosted CupidC now accepts `+=`, `-=`, `*=`, and `/=` when a
+non-atomic lvalue and its right operand mix represented integer and floating
+types. Either side may supply the floating operand. The common computation
+type follows the usual arithmetic conversions, the result converts back to
+the declared lvalue type, the store happens once, and the expression produces
+the stored value. ADR 0296 records the contract.
+
+The lowering duplicates the destination address before the load. This keeps
+indexed and dereferenced lvalues to one evaluation while allowing the loaded
+integer value to enter an SSE or x87 computation. Signed and unsigned integer
+bit fields use the same computation order before their existing width-aware
+store. `long double` keeps its twelve-byte snapshot and 80-bit x87 path.
+
+The frontend still rejects atomic floating lvalues and atomic mixed operands
+with focused diagnostics. Plain hosted floating-to-wide assignment, general
+floating-to-wide casts, and long-double increment and decrement remain outside
+this change. Each rejected unit leaves its job usable for a later valid unit.
+
+### Red-to-green sequence
+
+The first frontend case, `float += int`, failed with the old unsupported
+compound-assignment diagnostic. After the frontend published the floating
+computation type, the first integer-lvalue case reached the corresponding old
+Linear IR boundary. Those failures located the two production seams without
+changing the source program.
+
+The public object case then reached production x87 instructions that its
+test-only executor did not yet model: finite 80-bit loads and stores, plus a
+64-bit truncate-mode `FISTP`. Adding those executor operations made the
+runtime contract able to observe the existing emitted path. Production
+emission did not need a host floating helper or a new instruction form.
+
+The frontend fixture now has 67 functions. It covers every operator in both
+lvalue directions, `float`, `double`, and `long double`, narrow and wide
+signed and unsigned integers, two side-effecting indexed destinations, a
+signed bit field, atomic diagnostics, and same-job recovery. The Linear IR
+case checks address duplication, load, conversions, arithmetic, assignment,
+and store in order, along with malformed metadata and transactional recovery.
+
+The object fixture now has 74 functions, 13,549 text bytes, fingerprint
+`4FC4077B`, 75 symbols, and 135 relocations. Thirty-three runtime cases cover
+all mixed compound operators in both directions, all three floating formats,
+integer width boundaries, exact raw floating results, assignment results,
+bit-field preservation, and one-time lvalue evaluation. Every tested
+floating-to-integer result stays inside C's defined conversion range.
+
+The three focused public-seam cases passed in 42.624 seconds. All 97 frontend
+tests passed in 12.732 seconds, and all 86 Linear IR tests passed in 12.810
+seconds.
+
+The first complete object run passed every new case and advanced through the
+static fixed-point stage. Its two failures were older deterministic inventory
+tuples for source-head compiler objects and `cupiddis_main.cc`. The emitted
+objects were stable across repeated runs, so only the reported measurements
+were refreshed. The two focused locks then passed in 26.004 seconds. The
+hosted adapter now records 162 PC-relative and 81 absolute relocations.
+
+The final complete object module passed all 115 tests in 1025.868 seconds. It
+includes runtime object execution, deterministic repetition, active-source
+object checks, malformed-input recovery, and the full static fixed-point
+comparison.
+
+The new relocation mismatch message adds one `if` and one `return` to the
+active C-family inventory. A combined final regression pass found those two
+older occurrence locks after the audit had already measured the source. Only
+the reported counts changed. All 183 frontend and Linear IR tests then passed
+in 25.741 seconds. The 44-test toolchain contract-plan suite passed in 6.054
+seconds, including cohort publication and cleanup-failure recovery.
+
+Final audit regeneration passed in 69.4 seconds, and the checked comparison
+passed in 67.4 seconds. The audit remains at 737 active inputs, 452 transforms,
+255 feature requirements, 297 headers, 409 Cupid C files, and 31 assembly
+files. Its 2,684,970-byte JSON has SHA-256
+`49765e5f8aa718edd10e006d0b9f273323a4e696672080bde64ba8eedb94f1ce`.
+The 12,502-byte summary has SHA-256
+`f43e2968a000f7f73aab1415f81380289d09c2cbc2f49eca6670afc54c378792`.
+
+### Ownership and remaining limits
+
+This source-head feature moves no production transform. The checked Linux and
+Windows seeds predate it, so normal OS objects keep their current producer and
+identity until a later seed promotion. No runtime library, object format,
+linker rule, ABI rule, build dependency, or source suffix changes here.
+
+Atomic mixed compound assignment and atomic floating access remain open.
+Plain hosted floating-to-wide assignment and cast support also remain open,
+as does long-double increment and decrement. `TempleOS/` remains untouched
+reference material.
+
+Integration followed with the private SIMD update and native Windows ABI
+gate already present. Regenerating the combined tree passed in 65.1 seconds,
+and a fresh check passed in 65.2 seconds. Its active-source digest is
+`e6c69a2bf9a6b9053fc167f2e8c0fed2cc0d822c73cc384c923bab01305d0e6c`.
+The 2,682,137-byte JSON has SHA-256
+`56a77f37c55750be3f8e8f22086b705f3eb8999e66ceb34e0af61fad27d7dd08`.
+The 12,502-byte summary has SHA-256
+`6aa7981d9bdce952d51af62a12c95b3d38be7fab124f80bfbf6b79f43860fd49`.

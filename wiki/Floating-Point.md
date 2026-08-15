@@ -41,8 +41,11 @@ unsigned integer through 64 bits, or with a compatible enum. The selected
 integer arm converts to the floating result type. The condition may be a
 represented integer or pointer.
 
-`+=`, `-=`, `*=`, and `/=` compute at the common width and convert the stored
-result back to the left type. The compiler evaluates the left designator once.
+`+=`, `-=`, `*=`, and `/=` accept an integer and a floating operand in either
+lvalue direction. They compute at the usual floating common type: `float`,
+`double`, or `long double`. The stored result converts back to the left type. The
+compiler evaluates the left designator once. Represented integer bit fields
+follow the same rule. Atomic mixed compound assignment remains unsupported.
 Each changed x87 result is stored at its C width before the next Linear IR
 instruction.
 
@@ -136,6 +139,7 @@ conversions. ADR 0289 records the corresponding wide integer rule for `float`
 and `double`. The current checked seed carries both conversion extensions;
 ADR 0292 records their fixed-point promotion. ADR 0293 records exact
 source-head decimal `float` and `double` literals.
+ADR 0296 records mixed arithmetic compound assignment.
 
 The checked native Windows seed carried this path through an earlier
 2026-08-13 poisoned-host checkpoint. Its first invocation stopped at the
@@ -346,12 +350,14 @@ Runtime `float`, `double`, and automatic `long double` values work with unary
 `while`, `do`, and `for`, and conversion to `_Bool`. Both signed zeros are
 false; finite nonzero values, subnormals, infinities, and NaNs are true.
 Source-head CupidC also mixes every represented value integer or enum with
-`long double` in runtime arithmetic, comparisons, and conditional selection.
+`long double` in runtime arithmetic, comparisons, conditional selection, and
+the four arithmetic compound operators.
 Checked-seed hosted CupidC accepts prefix and postfix increment and decrement
 on modifiable non-atomic `float` and `double` lvalues. It evaluates the lvalue
 once and stores the result of adding or subtracting exact-width `1.0`.
 Postfix returns the original raw payload, including signed zero and NaN bits.
-Atomic floating and `long double` updates, hexadecimal floating constants,
+Atomic floating compound assignment, atomic floating updates, `long double`
+increment and decrement, hexadecimal floating constants,
 hexadecimal or subnormal long-double literals, long-double ratios beyond the
 bounded parser, general SIMD value semantics, and atomic floating access
 remain unsupported. Static truth, comparison, arithmetic,

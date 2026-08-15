@@ -4,15 +4,15 @@ The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
-`audits/active-build.json` owns the current 736-input/452-transform graph. The
+`audits/active-build.json` owns the current 737-input/452-transform graph. The
 language graph contains 31 assembly inputs, 297 headers, and 409 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
-The 2,673,547-byte audit JSON has SHA-256
-`a433c3c202f9ccba82fe587b4d5a48b0ec10a0d4440f44cc7b730002473b2604`,
-and the 12,269-byte summary has SHA-256
-`c8afb2c59a3e13c098178b01168ae65fa10293e67b1c7cef57ef596eac72148c`.
+`e6c69a2bf9a6b9053fc167f2e8c0fed2cc0d822c73cc384c923bab01305d0e6c`.
+The 2,682,137-byte audit JSON has SHA-256
+`56a77f37c55750be3f8e8f22086b705f3eb8999e66ceb34e0af61fad27d7dd08`,
+and the 12,502-byte summary has SHA-256
+`6aa7981d9bdce952d51af62a12c95b3d38be7fab124f80bfbf6b79f43860fd49`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -708,14 +708,15 @@ Source-head decimal `float` and `double` literals now use a fixed 1536-bit
 integer workspace for exact target-width rounding. Subnormal, underflow, and
 overflow results therefore add no host conversion routine or math library.
 Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
-long-double ratios beyond the bounded parser, other floating-to-wide
-conversions, integer-lvalue compound assignment with a floating right operand,
-and atomic or long-double updates remain open. Matching or
-mixed-width floating
-conditional arms and the four arithmetic compound assignments retain their
-established x87 path. All six matching or mixed long-double comparisons use a
-balanced `FUCOMIP` sequence. ADRs 0196, 0199, 0202, and 0229 record the current
-long-double, comparison, truth, and literal boundaries. ADR 0250 records
+long-double ratios beyond the bounded parser, plain hosted floating-to-wide
+assignment, general floating-to-wide casts, atomic floating access and
+compound assignment, and long-double increment or decrement remain open.
+Non-atomic mixed integer and floating arithmetic compound assignments now use
+the established SSE and x87 paths. Matching or mixed-width floating
+conditional arms do the same. All six matching or mixed long-double
+comparisons use a balanced `FUCOMIP` sequence. ADRs 0196, 0199, 0202, and 0229
+record the current long-double, comparison, truth, and literal boundaries. ADR
+0250 records
 runtime conversion to unsigned four-byte targets, ADR 0251 records static
 long-double data, ADR 0253 records runtime conversions between `long double`
 and integers, ADR 0254 records static initializer conversion, ADR 0255
@@ -724,6 +725,7 @@ canonical x87 classes and special-value conversion. ADR 0260 records static
 long-double arithmetic. ADR 0288 records the runtime long-double usual
 conversions, and ADR 0289 records wide integer conversion and usual arithmetic
 with `float` and `double`. ADR 0293 records the exact hosted decimal converter.
+ADR 0296 records mixed floating compound assignment.
 The implementation uses no host floating operation, helper, or library.
 
 The checked seed and source head have 604 x86 forms, 249 canonical mnemonics,
@@ -1156,8 +1158,9 @@ File definitions and block-static bindings now share one object encoder. It plac
 
 The unchanged FAT16 and active-header contracts still pin layout,
 redeclaration, attributes, assertions, and lexical ownership. The checked-seed
-C11 standalone sweep passes 161 of 163 active non-Doom headers;
-`scheduler.h` and `simd_intrin.h` retain exact C11-profile failures. The
+C11 standalone sweep passes 161 of 164 active non-Doom headers. `scheduler.h`,
+`simd_intrin.h`, and the exact-decimal contract fixture retain their exact
+C11-profile failures. The
 checked seed maps Cupid's sized scalar, Boolean, and vector spellings into the
 shared type graph and parses all 29 declarations in unchanged
 `simd_intrin.h` under the Cupid profile. `cpu.h` passes through the represented
@@ -1166,9 +1169,9 @@ integer atomics, and `ports.h` parses through all eight width-aware helpers.
 All nineteen Toolchain source gates parse completely. Each five-number tuple
 reports definitions, statements, expressions, block bindings, and
 initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286;
-`cupidc_ir.cc` publishes 269/7,496/69,333/989/362;
-`cupidc_emit.cc` publishes 366/9,234/77,133/1,122/748; and
-`cupidc_frontend.cc` publishes 445/17,242/113,778/2,565/1,547. The generated
+`cupidc_ir.cc` publishes 270/7,624/70,606/1,004/369;
+`cupidc_emit.cc` publishes 368/9,323/77,764/1,132/755; and
+`cupidc_frontend.cc` publishes 461/17,619/115,690/2,629/1,584. The generated
 audit records the current active-source totals and source graph.
 
 Checked stage-three and stage-four CupidC build the shared frontend, emitter,
@@ -1421,10 +1424,13 @@ relocation rule.
 Source-head hosted CupidC now rounds decimal binary32 and binary64 literals
 with fixed-width integer arithmetic. The frontend, Linear IR, and object tests
 need no `strtod`, host floating operation, compiler builtin, or math library.
+Source-head mixed integer and floating arithmetic compound assignments reuse
+the same target SSE and x87 paths, including `long double` and integer bit
+fields. They add no runtime helper or host floating work.
 The checked Linux and Windows seeds predate this change, so no production
 transform or normal OS artifact changes owner. Host C remains only in the
 existing optional native contract path, and Python still coordinates the
-bootstrap and audit transactions. ADR 0293 records this boundary.
+bootstrap and audit transactions. ADRs 0293 and 0296 record these boundaries.
 
 ## Removal gate
 

@@ -918,8 +918,9 @@ contention. Runtime order arguments, pointer and eight-byte atomics, and HLE
 flags remain open. The checked seed carries all five operations and compiles
 the active EHCI fetch-or path.
 
-The checked-seed C11 standalone-header sweep passes 161 of 163 active non-Doom
-inputs. `scheduler.h` and `simd_intrin.h` remain explicit C11-profile failures.
+The checked-seed C11 standalone-header sweep passes 161 of 164 active non-Doom
+inputs. `scheduler.h`, `simd_intrin.h`, and the macro-driven exact-decimal test
+fixture remain explicit C11-profile failures.
 The checked seed parses all 29 declarations in `simd_intrin.h` under its proper
 Cupid profile, while `scheduler.h` still has an undefined historical array
 bound. Under the full kernel profile, unchanged `kernel/smp/acpi.cc` and
@@ -1328,6 +1329,13 @@ the same conversion for every represented value integer and enum. The
 frontend records a usual-arithmetic conversion to `long double`; Linear IR
 keeps it on the selected value, and the emitter reuses its checked x87 path.
 Conditional evaluation remains lazy, so an unselected arm is not converted.
+The four arithmetic compound operators now accept mixed integer and floating
+operands in either lvalue direction. Usual arithmetic conversion selects
+`float`, `double`, or `long double` for the computation. Assignment conversion
+then restores the declared left type, including signed and unsigned integer
+widths through 64 bits and represented integer bit fields. The destination is
+evaluated once, and the expression returns the stored value. Atomic mixed
+compound assignment remains unsupported.
 Source-head hosted CupidC now converts decimal `float` and `double` tokens
 with a fixed 1536-bit integer workspace. It rounds the exact ratio once at the
 written width, including nearest-even halfway cases, subnormals, finite limits,
@@ -1335,9 +1343,9 @@ overflow to infinity, underflow, and signed zero. Tokens through 95 characters
 retain exact bits across the frontend, Linear IR, and ELF32 constant data.
 Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
 long-double decimal ratios beyond the bounded parser, other
-floating-to-wide conversions, integer-lvalue compound assignment with a
-floating right operand, atomic and long-double updates, SIMD values, and
-over-aligned emission remain open.
+floating-to-wide conversions, atomic floating compound assignment, atomic and
+long-double increment or decrement, SIMD values, and over-aligned emission
+remain open.
 ADR 0202 records the runtime truth
 boundary, and
 [ADR 0229](docs/adr/0229-emit-exact-decimal-long-double-literals.md) records
@@ -1362,6 +1370,8 @@ runtime wide-integer conversion and usual arithmetic with `float` and
 `double`.
 [ADR 0293](docs/adr/0293-round-hosted-decimal-literals-exactly.md) records
 exact hosted decimal binary32 and binary64 conversion.
+[ADR 0296](docs/adr/0296-support-mixed-floating-compound-assignments.md)
+records mixed arithmetic compound assignment.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 

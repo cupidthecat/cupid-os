@@ -496,6 +496,13 @@ return, or fixed argument. Runtime `+`, `-`, `*`, `/`, all six comparisons,
 and conditional selection apply the same usual arithmetic conversions. A
 conditional converts only its selected integer arm and keeps the floating
 type.
+The four arithmetic compound operators accept a floating lvalue with an
+integer right operand and an integer lvalue with a floating right operand.
+The usual arithmetic conversions select `float`, `double`, or `long double`;
+assignment conversion restores the declared left type. The compiler evaluates
+the destination once and returns the stored value. Represented integer bit
+fields follow the same rule. Atomic mixed compound assignment remains
+unsupported.
 `UCOMISS` and `UCOMISD` produce a normalized signed `int` and handle unordered
 operands so only `!=` is true for NaN. Decimal constants are published as
 exact IEEE bits. Static-duration scalar and aggregate leaves use integer-only
@@ -594,9 +601,8 @@ the usual sink and redirection checks. That gives the runtime gate production
 CupidDis evidence without duplicating ordinary text-mode output.
 Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
 long-double decimals beyond the bounded ratio parser, other floating-to-wide
-conversions, integer-lvalue compound
-assignment with a floating right operand, atomic and `long double` updates,
-SIMD values, and over-aligned object emission remain
+conversions, atomic floating compound assignment, atomic and `long double`
+increment or decrement, SIMD values, and over-aligned object emission remain
 unfinished.
 ADR 0229 records the exact decimal representation and automatic object proof.
 ADR 0250 records runtime conversion to unsigned four-byte targets. ADR 0251
@@ -612,6 +618,7 @@ conditional selection.
 ADR 0289 removes the four-byte integer limit for ordinary `float` and `double`
 conversion and usual arithmetic. ADR 0293 records exact source-head decimal
 `float` and `double` literals.
+ADR 0296 records mixed arithmetic compound assignment.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -1180,20 +1187,22 @@ bounded decimal `L` literal with parentheses and unary signs. Runtime truth
 and conversion to `_Bool` cover all three represented floating widths.
 Runtime arithmetic, all six comparisons, and conditional selection convert
 every represented value integer and enum to `long double` through the usual
-arithmetic rules. A conditional converts only its selected arm.
+arithmetic rules. A conditional converts only its selected arm. The four
+arithmetic compound operators accept mixed integer and floating operands in
+either lvalue direction, convert the result back to the left type, and
+evaluate the destination once.
 Static long-double truth, comparison, short-circuit logic, conditional
 selection, and conversion to or from binary32 and binary64 fold through the
 target representation and emit no runtime work. Canonical x87 infinity and
 NaN cross the same path, and the decoder accepts canonical subnormal payloads.
 Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
 long-double ratios beyond the bounded parser, other floating-to-wide
-conversions, integer-lvalue compound
-assignment with a floating right operand, and atomic or `long double` updates
-remain unsupported.
+conversions, atomic floating compound assignment, and atomic or `long double`
+increment and decrement remain unsupported.
 Static `+`, `-`, `*`, and `/` fold with integer-only x87 target arithmetic and
 produce final initializer data.
-Matching or mixed-width floating conditional arms and the four arithmetic
-compound assignments keep their established x87 path.
+Matching or mixed-width floating conditional arms keep their established x87
+path. ADR 0296 records mixed arithmetic compound assignment.
 
 The static object contract pins exact payloads for `1.0L`, the next
 represented value above one, the largest bounded literal, signed zero, and
@@ -1562,9 +1571,10 @@ preserving ESI or EDI across the cdecl call.
 
 The i386 path emits `EC`, `EE`, `66 ED`, `66 EF`, `ED`, and `EF` for scalar
 port I/O. The string forms emit `FC F3 66 6D` and `FC F3 66 6F` through the
-shared x86 model. The checked-seed C11 standalone sweep passes 161 of 163
-active non-Doom headers; `scheduler.h` and `simd_intrin.h` remain exact
-C11-profile failures. The checked seed parses all 29 declarations in
+shared x86 model. The checked-seed C11 standalone sweep passes 161 of 164
+active non-Doom headers. `scheduler.h`, `simd_intrin.h`, and the macro-driven
+exact-decimal test fixture remain exact C11-profile failures. The checked seed
+parses all 29 declarations in
 `simd_intrin.h` under the Cupid profile through the native type spellings
 described above.
 

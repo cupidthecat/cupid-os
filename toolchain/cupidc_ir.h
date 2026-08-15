@@ -321,10 +321,12 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * 32-bit computation and converted back before an exact-width store.
  * Eight-byte mutation uses a private snapshot and keeps one semantic load and
  * store. Compound assignments retain integer-promotion, usual arithmetic, and
- * assignment conversions. Floating compound assignments use the common
- * `float` or `double` computation type and convert the stored result back to
- * the left type. Pointer compound assignments and updates use POINTER_BINARY
- * with a complete-object stride.
+ * assignment conversions. A non-atomic compound assignment with a floating
+ * operand uses its usual `float`, `double`, or `long double` computation type,
+ * including when the other operand is an integer. The result is converted
+ * back to the left type before a scalar or integer bit-field store. Pointer
+ * compound assignments and updates use POINTER_BINARY with a complete-object
+ * stride.
  * Prefix updates produce the stored value. Postfix updates produce the value
  * from before the store.
  * MEMBER_ADDRESS consumes a record address and pushes the selected complete,

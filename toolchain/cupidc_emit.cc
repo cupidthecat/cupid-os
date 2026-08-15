@@ -6458,9 +6458,16 @@ static ctool_bool cemit_ir_floating_conversion_is_valid(
                 conversion == CTOOL_C_CONVERSION_NONE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool assignment_conversion =
+        cemit_ir_type_is_value_integer(
+            context, target_type) == CTOOL_TRUE &&
+                conversion == CTOOL_C_CONVERSION_ASSIGNMENT
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     return long_double_conversion == CTOOL_TRUE ||
                    represented_conversion == CTOOL_TRUE ||
-                   unsigned_wide_conversion == CTOOL_TRUE
+                   unsigned_wide_conversion == CTOOL_TRUE ||
+                   assignment_conversion == CTOOL_TRUE
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }

@@ -507,7 +507,7 @@ Hosted CupidC now carries signed and unsigned eight-byte integer values through 
 
 Wide values support addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, shifts, AND, OR, XOR, comparisons, logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, and conversion to or from represented integer widths. Switch lowering evaluates the condition once and duplicates its snapshot handle before each full-width case comparison. Mutation evaluates its destination once and keeps one semantic load and store. Multiplication combines one full low-word product with both cross-word products. Division and remainder run a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, remainder, or wide variadic-read result receives a fresh snapshot. The unchanged `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, `cfront_constant_apply_binary`, and X25519 `fe_carry` bodies guard the broader operation set. CupidASM's unchanged number parser and unary expression branch guard the arithmetic, while X25519's unchanged `fe_mul_u32` helper guards wide-by-narrow multiplication. ADRs 0065 through 0075 record these boundaries. Runtime cases that C leaves undefined promise neither a trap nor a result.
 
-Hosted CupidC carries `float` and `double` values through object access, automatic initialization, plain assignment, discard, fixed direct or indirect calls, parameters, call results, and returns. Explicit casts and assignment conversion work in both directions between the two widths. Every represented signed or unsigned integer through 64 bits may also convert to either floating width through a cast, initialization, plain assignment, return, or fixed argument. Unary plus and minus and binary addition, subtraction, multiplication, and division accept matching or mixed floating operands. Runtime `+`, `-`, `*`, `/`, all six comparisons, and conditional selection apply the usual arithmetic conversions when the other operand or arm is any represented value integer or compatible enum. The floating operand chooses the result width, and a conditional converts only its selected arm. Inputs through four bytes use the existing SSE conversion. An eight-byte input uses x87 `FILD`, including the unsigned 2^64 correction, before storing at binary32 or binary64 width. Atomic mixed operands remain unsupported. The four arithmetic compound assignments compute at the common width, convert back to the left width, and evaluate their lvalue once. Integer-lvalue compound assignment with a floating right operand remains a separate boundary. Every changed x87 result is immediately stored at its C width. A `float` rounds into a fresh four-byte semantic slot, while a `double` receives a fresh private eight-byte snapshot. The unchanged `libm_tanh_impl` body pins nested arithmetic with call-produced `double` values, and the complete following `float` helper slice pins the width conversions. The path also promotes `float` to `double` at ellipsis and unprototyped call positions. Calls use four-byte or eight-byte cdecl slots, floating returns use x87 `ST0`, and `va_arg(double)` advances by eight bytes.
+Hosted CupidC carries `float` and `double` values through object access, automatic initialization, plain assignment, discard, fixed direct or indirect calls, parameters, call results, and returns. Explicit casts and assignment conversion work in both directions between the two widths. Every represented signed or unsigned integer through 64 bits may also convert to either floating width through a cast, initialization, plain assignment, return, or fixed argument. Unary plus and minus and binary addition, subtraction, multiplication, and division accept matching or mixed floating operands. Runtime `+`, `-`, `*`, `/`, all six comparisons, and conditional selection apply the usual arithmetic conversions when the other operand or arm is any represented value integer or compatible enum. The floating operand chooses the result width, and a conditional converts only its selected arm. Inputs through four bytes use the existing SSE conversion. An eight-byte input uses x87 `FILD`, including the unsigned 2^64 correction, before storing at binary32 or binary64 width. The four arithmetic compound operators accept a floating lvalue with an integer right operand and an integer lvalue with a floating right operand. Their usual arithmetic conversion selects `float`, `double`, or `long double`; assignment conversion restores the declared left type. The same sequence covers represented integer bit fields, evaluates the destination once, and returns the stored value. Atomic mixed compound assignment remains unsupported. Every changed x87 result is immediately stored at its C width. A `float` rounds into a fresh four-byte semantic slot, while a `double` receives a fresh private eight-byte snapshot. The unchanged `libm_tanh_impl` body pins nested arithmetic with call-produced `double` values, and the complete following `float` helper slice pins the width conversions. The path also promotes `float` to `double` at ellipsis and unprototyped call positions. Calls use four-byte or eight-byte cdecl slots, floating returns use x87 `ST0`, and `va_arg(double)` advances by eight bytes.
 
 Checked-seed hosted CupidC also accepts prefix and postfix increment and
 decrement on modifiable non-atomic `float` and `double` lvalues. Linear IR
@@ -616,13 +616,14 @@ overflow to infinity, underflow, signed zero, and tokens through 95
 characters. The public frontend, Linear IR, and object contracts inspect the
 same raw payloads. Hexadecimal floating literals, hexadecimal or subnormal
 long-double literals, long-double decimals beyond the bounded ratio parser,
-other floating-to-wide conversions, integer-lvalue compound assignment with
-a floating right operand, atomic and long-double updates, SIMD, and
-over-aligned floating objects remain open. ADR 0202 records the runtime truth boundary,
+other floating-to-wide conversions, atomic floating compound assignment,
+atomic and long-double increment or decrement, SIMD, and over-aligned floating
+objects remain open. ADR 0202 records the runtime truth boundary,
 ADR 0256 records canonical static x87 classes, and ADR 0260 records static x87
 arithmetic. ADR 0288 records the runtime integer and long-double usual
 conversions. ADR 0289 records wide integer conversion and usual arithmetic
 with `float` and `double`. ADR 0293 records exact hosted decimal conversion.
+ADR 0296 records mixed arithmetic compound assignment.
 
 The static object proof covers exact `1.0L`, the next represented value above
 one, the largest accepted bounded literal, positive and negative zero, and
@@ -840,7 +841,7 @@ bytes and advances the cursor to the next four-byte slot.
 
 The verified hosted suites cover the complete frontend, Linear IR, and object surfaces, with each final count recorded in the chronological log. Focused contracts cover direct and indirect variadic and unprototyped calls, checked-seed `returns_twice` call preservation, wide and floating values, all six floating comparisons, one-active-member union initializers, canonical function code generation attributes, Doom compatibility conversions, operand-bearing and operand-free assembly, empty memory barriers, pointer output, port I/O, privileged registers, FXSAVE, LDMXCSR, MOVSS, x87 sine memory, descriptor-table and segment transitions, call-next, GNU `Nd`, machine-state memory, the self-host source frontier, deterministic output, malformed metadata, constrained storage, and same-job recovery. Decoder and execution oracles check call alignment, x87 and cdecl stack balance, word order, arithmetic, width conversion, comparisons, structure snapshots, pointer bits, register preservation, cursor movement, preserved arguments, and restored frame state. The adapter gate fixes each function count, text size, object size, and text fingerprint. The tool link gate emits every closure object twice, repeats five command links and the runtime-contract link, and checks rollback and recovery. Public execution covers compilation, assembly, disassembly, linking, object wrapping, include resolution, mixed raw decode modes, missing files, runtime success paths, and useful failures.
 
-The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text bytes, 6,944 object bytes, fingerprint `28739C3F`, 25 symbols, and 38 relocations; `cupidasm_main.cc` at 13 functions, 9,455 text bytes, 12,384 object bytes, fingerprint `561BBC22`, 56 symbols, and 88 relocations; and `cupiddis_main.cc` at 13 functions, 13,816 text bytes, 17,420 object bytes, fingerprint `E33C130C`, 67 symbols, and 106 relocations. Their exact undefined import counts are 10, 31, and 31. Every relocation targets `.text` and has the checked `R_386_PC32/-4` or `R_386_32/0` shape. An independent `gcc -m32 -nostdinc` syntax pass accepts all three unchanged sources against the declarations.
+The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text bytes, 6,944 object bytes, fingerprint `28739C3F`, 25 symbols, and 38 relocations; `cupidasm_main.cc` at 15 functions, 11,170 text bytes, 14,568 object bytes, fingerprint `067EF556`, 64 symbols, and 104 relocations; and `cupiddis_main.cc` at 23 functions, 29,466 text bytes, 37,380 object bytes, fingerprint `39EC6F50`, 125 symbols, and 243 relocations. Their exact undefined import counts are 10, 31, and 39. Every relocation targets `.text` and has the checked `R_386_PC32/-4` or `R_386_32/0` shape. An independent `gcc -m32 -nostdinc` syntax pass accepts all three unchanged sources against the declarations.
 
 The `ctool_host.cc` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
@@ -1645,8 +1646,9 @@ runtime gates both pass UHCI input
 reattachment and six EHCI storage lifetimes. ADR 0109 records these lifetime
 and ownership rules.
 
-The checked-seed C11 standalone-header sweep passes 161 of 163 non-Doom
-inputs. `scheduler.h` and `simd_intrin.h` remain exact C11-profile failures.
+The checked-seed C11 standalone-header sweep passes 161 of 164 non-Doom
+inputs. `scheduler.h`, `simd_intrin.h`, and the macro-driven exact-decimal test
+fixture remain exact C11-profile failures.
 The checked seed parses all 29 declarations in `simd_intrin.h` under the Cupid
 profile. Checked-seed CupidC still owns unchanged `kernel/smp/acpi.cc` and
 `kernel/smp/mp_tables.cc` in the normal build. A four-vCPU QEMU run discovers
@@ -1863,13 +1865,13 @@ The block-static object proof emits eleven exact local symbols, from `.LBS0.hex`
 All twelve shared hosted Toolchain implementation files parse completely.
 Each tuple reports definitions, statements, expressions, block bindings, and
 initializers: `ctool.cc` 65/1,012/5,981/133/33; `cupidasm.cc`
-82/3,054/20,124/338/190; `cupidc_emit.cc` 366/9,234/77,133/1,122/748;
-`cupidc_frontend.cc` 445/17,242/113,778/2,565/1,547; `cupidc_ir.cc`
-269/7,496/69,333/989/362; `cupidc_pp.cc` 143/3,932/25,287/479/286;
+84/3,146/20,714/346/196; `cupidc_emit.cc` 368/9,323/77,764/1,132/755;
+`cupidc_frontend.cc` 461/17,619/115,690/2,629/1,584; `cupidc_ir.cc`
+270/7,624/70,606/1,004/369; `cupidc_pp.cc` 143/3,932/25,287/479/286;
 `cupidc_type.cc` 31/737/5,487/85/43; `cupiddis.cc`
-71/1,594/10,331/162/124; `cupidld.cc` 82/2,875/18,200/369/337;
+77/1,742/11,267/181/137; `cupidld.cc` 82/2,875/18,200/369/337;
 `cupidobj.cc` 140/3,451/23,768/532/452; `elf32.cc`
-37/1,219/9,457/143/70; and `x86.cc` 60/1,766/11,903/180/17,052. The
+37/1,219/9,457/143/70; and `x86.cc` 65/1,866/12,549/200/17,124. The
 generated audit records the current lexical totals and source graph. These
 files belong to the i386 Linux profile and feed both the five-tool fixed point
 and the Cupid-built contract cohort.
@@ -1894,8 +1896,8 @@ object, function, and variadic macros, C11 conditionals and predefined macros,
 `#line` locations, direct and macro-expanded includes, forced inputs,
 guarded traversal, canonical once identity, pack metadata, and typed Cupid
 `#exe` markers. Checked manifests classify all 2,455 include operands as
-2,199 direct quoted plus 253 direct angle forms with zero macro operands
-across 701 active C-family inputs. The generated manifest drives 395 tracked
+2,202 direct quoted plus 253 direct angle forms with zero macro operands
+across 702 active C-family inputs. The generated manifest drives 395 tracked
 profile runs under twelve profiles plus four generated kernel roots. The
 profile counts are 156 kernel, three Doom compatibility, 80 Doom tree, three
 user, 108 Cupid programs, 33 strict hosted i386 Linux, four strict hosted i386
@@ -1927,8 +1929,9 @@ The hosted `ctool_c_parse` operation consumes the ADR 0012 tape directly and pub
 The unchanged `/kernel/fs/fat16.h` closure still reproduces every FAT layout oracle. Exact additional contracts parse unchanged `kernel.h`, `irq.h`, `cupidscript.h`, and `shell.h` and merge representative duplicate prototypes and typedefs once at the first declaration. GNU `packed`, `aligned`, and `noreturn` lists retain their semantic destinations, and compatibility keeps stronger alignment and `noreturn`. File- and record-scope `_Static_assert` use target integer evaluation, including conditional selection and fault suppression in unevaluated arms. Active-source fragments prove all 26 tracked assertions across `memory.h`, `percpu.h`, `exec.cc`, `process.cc`, and `syscall.cc`.
 
 The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) passes 161 of
-163 general non-Doom headers in the C11 profile; `scheduler.h` and
-`simd_intrin.h` retain exact expected failures there. The checked seed parses all
+164 general non-Doom headers in the C11 profile. `scheduler.h`,
+`simd_intrin.h`, and the exact-decimal contract fixture retain exact expected
+failures there. The checked seed parses all
 29 declarations in `simd_intrin.h` under the Cupid profile. That mode now
 maps `U0`, the signed and unsigned sized integer spellings, `Bool`, `bool`,
 `float4`, and `double2` directly into the shared type graph. C11 continues to
@@ -1941,11 +1944,11 @@ quoted and 253 angle forms. Its active roots contain 395 tracked and four
 generated translation units.
 
 The active-source digest is
-`cb21994023b76b27dea58e720dc0f00b18d099df4513593ba24b4c66f8c67f9a`.
+`e6c69a2bf9a6b9053fc167f2e8c0fed2cc0d822c73cc384c923bab01305d0e6c`.
 The 2,682,137-byte audit JSON has SHA-256
-`13e79aa2d9f7cab0513a4df915c7f9b6355f93a0d6d33a5eb3d8b0930ce35009`,
+`56a77f37c55750be3f8e8f22086b705f3eb8999e66ceb34e0af61fad27d7dd08`,
 and the 12,502-byte summary has SHA-256
-`99287244534d3b1bbd2fefe2bb304bd442c182038fa5e7027f587869dac96eaa`.
+`6aa7981d9bdce952d51af62a12c95b3d38be7fab124f80bfbf6b79f43860fd49`.
 
 Across the three supported roots, CupidC participates in 247 transforms,
 CupidASM in six, CupidLD in six, and CupidObj in 192. Python participates in

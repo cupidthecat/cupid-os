@@ -570,8 +570,9 @@ across the cdecl call.
 
 The scalar forms emit EC, EE, 66 ED, 66 EF, ED, and EF. INSW and OUTSW emit
 FC F3 66 6D and FC F3 66 6F through the shared x86 model. The checked-seed C11
-standalone sweep passes 161 of 163 active non-Doom headers. scheduler.h and
-simd_intrin.h remain exact C11-profile failures. The checked seed parses all 29
+standalone sweep passes 161 of 164 active non-Doom headers. scheduler.h,
+simd_intrin.h, and the macro-driven exact-decimal test fixture remain exact
+C11-profile failures. The checked seed parses all 29
 simd_intrin.h declarations under the Cupid profile through the shared native
 type graph.
 
@@ -654,8 +655,11 @@ usual arithmetic conversions. Only the selected integer arm of a conditional
 converts. Inputs through four bytes use SSE. An eight-byte input uses x87 FILD,
 applies the unsigned 2^64 correction when needed, and stores at the requested
 floating width. The four arithmetic
-compound assignments compute at the common width, convert back to the left
-width, and evaluate their lvalue once.
+compound operators accept an integer and a floating operand in either lvalue
+direction. They compute at the usual float, double, or long double type,
+convert back to the declared left type, and evaluate the destination once.
+Represented integer bit fields use the same conversion order. Atomic mixed
+compound assignment remains unsupported.
 
 Prefix and postfix increment and decrement work on modifiable non-atomic float
 and double lvalues. The shared path evaluates the lvalue once and adds or
@@ -682,12 +686,13 @@ alignment, and frame state. The comparison execution proof includes signed
 zero, infinities, quiet NaN, and signaling NaN. The arithmetic model does not
 execute native x87 code.
 
-The wide conversion proof contains 63 functions in 10,513 text bytes, with
-fingerprint 01725E63, 64 symbols, and 123 relocations. Twenty-two execution
+The conversion proof contains 74 functions in 13,549 text bytes, with
+fingerprint 4FC4077B, 75 symbols, and 135 relocations. Thirty-three execution
 cases cover signed and unsigned endpoints, binary32 and binary64 precision
-boundaries, all four arithmetic operators, all six comparisons, and both
-conditional directions. The hosted and Cupid-built compilers emit matching
-objects for the same wide source forms.
+boundaries, all four arithmetic operators, all six comparisons, both
+conditional directions, mixed compound assignment results, and one-time
+destination evaluation. The hosted and Cupid-built compilers emit matching
+objects for the earlier wide source forms.
 
 The source-head public frontend publishes decimal float and double constants
 as exact IEEE binary32 or binary64 bits. A private 1536-bit integer workspace
@@ -741,6 +746,9 @@ Runtime +, -, *, /, all six comparisons, and conditional selection apply the
 same conversion to every represented value integer and enum. Linear IR keeps
 the usual-arithmetic conversion to long double. Only the selected conditional
 arm is evaluated and converted.
+The four arithmetic compound operators use the same conversion when one
+operand is long double and the other is an integer. The result converts back
+to the declared left type before one store.
 Static initializer conversion covers _Bool, plain char, every signed or
 unsigned i386 integer width, and an enum whose compatible integer type has the
 represented target layout. For a nonzero magnitude M with bit width w, the
@@ -785,16 +793,15 @@ ADR 0259 records the shared parity predicates.
 
 Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
 long-double ratios beyond the bounded parser, other floating-to-wide
-conversions, integer-lvalue compound
-assignment with a floating right operand, atomic and long double updates, and
-general SIMD
-value semantics, and over-aligned object emission remain
+conversions, atomic floating compound assignment, atomic and long double
+increment or decrement, general SIMD value semantics, and over-aligned object
+emission remain
 unfinished.
 ADR 0293 records exact source-head decimal float and double literals.
+ADR 0296 records mixed arithmetic compound assignment.
 The exact production SIMD
 assembly forms have their own checked path. Matching or mixed-width floating
-conditional arms and the four arithmetic compound assignments keep their
-established x87 path.
+conditional arms keep their established x87 path.
 
 The static scalar and aggregate proofs cover both scopes, mutable and const
 objects, signed zero, the largest accepted bounded literal, exact sections,
@@ -1395,7 +1402,8 @@ may contain a nested union. Top-level union and class values remain
 unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
 case, explicit bit-field initializer leaves, Boolean mutation, direct floating
-truth, unsupported conversion widths, atomic floating and long double updates, atomic
+truth, unsupported conversion widths, atomic floating compound assignment,
+atomic floating updates, long double increment and decrement, atomic
 variadic access, aggregate arguments without declared parameter types,
 aggregate variadic reads, wide strings, and literal pooling remain unfinished
 in the shared path. A block-static initializer may now take the address of

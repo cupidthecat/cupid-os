@@ -245,6 +245,13 @@ across C's defined range. Conversion from any represented floating width to
 `_Bool` follows C scalar truth rules. Only `!=` is true when either operand of
 a floating comparison is NaN.
 
+The four arithmetic compound operators accept mixed integer and floating
+operands in either lvalue direction. The operation uses the usual `float`,
+`double`, or `long double` common type, then converts the result back to the
+declared left type. The destination is evaluated once, and the expression has
+the stored left type and value. Represented integer bit fields follow the same
+conversion order. Atomic mixed compound assignment remains unsupported.
+
 Non-atomic `long double` values use twelve-byte objects with x87 80-bit memory
 transport. Bounded finite normal decimal `L` tokens round an exact ratio to a
 64-bit explicit significand with ties to even. The emitter writes that
@@ -302,7 +309,8 @@ Overflow and invalid operations use the canonical special payloads. The
 folded result stays in the initializer forest and emits no runtime instruction.
 
 Ordinary non-atomic `float` and `double` lvalues support prefix and postfix
-increment and decrement. Atomic floating updates, `long double` updates,
+increment and decrement. Atomic floating compound assignment, atomic floating
+updates, `long double` increment and decrement,
 hexadecimal floating constants, hexadecimal or subnormal long-double
 constants, long-double decimals beyond
 the bounded ratio parser, and SIMD remain unsupported.
@@ -318,6 +326,9 @@ records wide integer conversion and usual arithmetic with `float` and
 `double`. [ADR 0293](../docs/adr/0293-round-hosted-decimal-literals-exactly.md)
 records exact source-head decimal `float` and `double` literals. The checked
 seed predates that source-head change.
+[ADR 0296](../docs/adr/0296-support-mixed-floating-compound-assignments.md)
+records mixed arithmetic compound assignment. The checked seed also predates
+that source-head change.
 ADR 0258 records the preceding checked seed. ADR 0260 records static
 long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
 0265 records their checked-seed carriage, and ADR 0273 records private derived

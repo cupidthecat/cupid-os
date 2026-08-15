@@ -474,8 +474,9 @@ The checked seed parses all eight helpers in unchanged
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. The checked-seed C11 standalone sweep
-passes 161 of 163 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
-remain exact C11-profile failures. The checked seed parses all 29 declarations in
+passes 161 of 164 active non-Doom headers. `scheduler.h`, `simd_intrin.h`, and
+the macro-driven exact-decimal test fixture remain exact C11-profile failures.
+The checked seed parses all 29 declarations in
 unchanged `simd_intrin.h` under the Cupid profile. Its shared frontend now
 recognizes Cupid's sized scalar, Boolean, and vector type spellings directly.
 
@@ -1001,13 +1002,18 @@ Compiler head and checked-seed CupidC also convert signed and unsigned integers 
 `float` or `double` through casts, assignment conversion, runtime arithmetic,
 all six comparisons, and conditional selection. Inputs through four bytes use
 SSE. A wide input uses x87 `FILD`, applies the unsigned 2^64 correction when
-needed, and stores at the requested floating width. The 63-function object
-proof contains 10,513 text bytes with fingerprint `01725E63`, 64 symbols, and
-123 relocations. Twenty-two wide execution cases cover endpoints, precision
-boundaries, operators, predicates, and both conditional directions. Hosted
+needed, and stores at the requested floating width. The four arithmetic
+compound operators accept mixed integer and floating operands in either
+lvalue direction, convert the result back to the declared left type, and
+evaluate the destination once. The 74-function object proof contains 13,549
+text bytes with fingerprint `4FC4077B`, 75 symbols, and 135 relocations.
+Thirty-three execution cases cover endpoints, precision boundaries,
+operators, predicates, both conditional directions, mixed compound assignment
+results, and one-time destination evaluation. Hosted
 source-head CupidC and the checked Cupid-built driver emit byte-identical
-objects for the forms. ADR 0289 records the boundary, and ADR 0292 records its
-fixed-point promotion. No active source needs this expression shape, so no
+objects for the earlier forms. ADR 0289 records the wide input boundary, ADR
+0292 records its fixed-point promotion, and ADR 0296 records source-head mixed
+compound assignment. No active source needs the new expression shape, so no
 normal transform changes owner.
 Source-head hosted CupidC now forms decimal `float` and `double` tokens in a
 private 1536-bit integer workspace and rounds once at binary32 or binary64

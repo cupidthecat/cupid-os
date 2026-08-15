@@ -3962,9 +3962,15 @@ static ctool_bool cir_floating_conversion_is_valid(
                 conversion == CTOOL_C_CONVERSION_NONE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
+    ctool_bool assignment_conversion =
+        cir_type_is_value_integer(context, target_type) == CTOOL_TRUE &&
+                conversion == CTOOL_C_CONVERSION_ASSIGNMENT
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     return long_double_conversion == CTOOL_TRUE ||
                    represented_conversion == CTOOL_TRUE ||
-                   unsigned_wide_conversion == CTOOL_TRUE
+                   unsigned_wide_conversion == CTOOL_TRUE ||
+                   assignment_conversion == CTOOL_TRUE
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
@@ -6116,6 +6122,9 @@ static ctool_status_t cir_lower_bit_field_mutation(
   ctool_u32 promoted_type;
   ctool_bool update =
       right_child == CTOOL_C_AST_NONE ? CTOOL_TRUE : CTOOL_FALSE;
+  ctool_bool floating_computation =
+      cir_type_is_floating_value(
+          context, expression->computation_type);
   ctool_bool shift = operation == CTOOL_C_EXPRESSION_OPERATOR_SHIFT_LEFT ||
                              operation ==
                                  CTOOL_C_EXPRESSION_OPERATOR_SHIFT_RIGHT
@@ -6140,11 +6149,21 @@ static ctool_status_t cir_lower_bit_field_mutation(
                                     expression->type) == CTOOL_FALSE) {
     return cir_invalid_unit(context, &expression->location);
   }
-  status = cir_require_integer_mutation_computation(
-      context, expression->type, expression->computation_type,
-      &expression->location);
-  if (status != CTOOL_OK) {
-    return status;
+  if (floating_computation == CTOOL_TRUE) {
+    if (update == CTOOL_TRUE || shift == CTOOL_TRUE ||
+        (operation != CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+         operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
+         operation != CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY &&
+         operation != CTOOL_C_EXPRESSION_OPERATOR_DIVIDE)) {
+      return cir_invalid_unit(context, &expression->location);
+    }
+  } else {
+    status = cir_require_integer_mutation_computation(
+        context, expression->type, expression->computation_type,
+        &expression->location);
+    if (status != CTOOL_OK) {
+      return status;
+    }
   }
   if (cir_represented_bit_field_promotion_type(
           context, expression->type, info.member->bit_width,
@@ -6199,8 +6218,14 @@ static ctool_status_t cir_lower_bit_field_mutation(
         member_expression->reference, &expression->location,
         &expression->physical_location);
   }
-  if (status == CTOOL_OK) {
+  if (status == CTOOL_OK && floating_computation == CTOOL_FALSE) {
     status = cir_convert_top_integer(
+        context, promoted_type, expression->computation_type,
+        CTOOL_C_CONVERSION_USUAL_ARITHMETIC, &expression->location,
+        &expression->physical_location);
+  }
+  if (status == CTOOL_OK && floating_computation == CTOOL_TRUE) {
+    status = cir_convert_top_floating(
         context, promoted_type, expression->computation_type,
         CTOOL_C_CONVERSION_USUAL_ARITHMETIC, &expression->location,
         &expression->physical_location);
@@ -6255,8 +6280,14 @@ static ctool_status_t cir_lower_bit_field_mutation(
     status = cir_push(context, CIR_STACK_VALUE,
                       expression->computation_type);
   }
-  if (status == CTOOL_OK) {
+  if (status == CTOOL_OK && floating_computation == CTOOL_FALSE) {
     status = cir_convert_top_integer(
+        context, expression->computation_type, expression->type,
+        CTOOL_C_CONVERSION_ASSIGNMENT, &expression->location,
+        &expression->physical_location);
+  }
+  if (status == CTOOL_OK && floating_computation == CTOOL_TRUE) {
+    status = cir_convert_top_floating(
         context, expression->computation_type, expression->type,
         CTOOL_C_CONVERSION_ASSIGNMENT, &expression->location,
         &expression->physical_location);
@@ -6403,7 +6434,7 @@ static ctool_status_t cir_lower_pointer_compound_assignment(
   return cir_push(context, CIR_STACK_VALUE, expression->type);
 }
 
-static ctool_status_t cir_lower_floating_compound_assignment(
+static ctool_status_t cir_lower_floating_computation_compound_assignment(
     cir_context_t *context, const ctool_c_expression_t *expression,
     const ctool_c_expression_t *left_expression, ctool_u32 left_child,
     ctool_u32 right_child, ctool_u32 depth,
@@ -6417,11 +6448,14 @@ static ctool_status_t cir_lower_floating_compound_assignment(
        operation != CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
        operation != CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY &&
        operation != CTOOL_C_EXPRESSION_OPERATOR_DIVIDE) ||
-      cir_type_is_floating_value(context, expression->type) == CTOOL_FALSE ||
       cir_type_is_floating_value(
           context, expression->computation_type) == CTOOL_FALSE ||
-      cir_type_is_floating_value(context, left_expression->type) ==
-          CTOOL_FALSE ||
+      (cir_type_is_floating_value(context, expression->type) == CTOOL_FALSE &&
+       cir_type_is_value_integer(context, expression->type) == CTOOL_FALSE) ||
+      (cir_type_is_floating_value(context, left_expression->type) ==
+           CTOOL_FALSE &&
+       cir_type_is_value_integer(context, left_expression->type) ==
+           CTOOL_FALSE) ||
       cir_type_has_atomic_qualification(
           context, left_expression->type) == CTOOL_TRUE ||
       cir_scalar_value_types_match(
@@ -6587,9 +6621,9 @@ static ctool_status_t cir_lower_compound_assignment(
         context, expression, left_expression, left_child, right_child, depth,
         operation);
   }
-  if (cir_type_is_floating_value(context, left_expression->type) ==
+  if (cir_type_is_floating_value(context, expression->computation_type) ==
       CTOOL_TRUE) {
-    return cir_lower_floating_compound_assignment(
+    return cir_lower_floating_computation_compound_assignment(
         context, expression, left_expression, left_child, right_child,
         depth, operation);
   }

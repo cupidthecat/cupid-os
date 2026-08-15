@@ -13336,7 +13336,7 @@ static ctool_status_t cfront_validate_assignment_target(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         operator_token,
         form == CFRONT_ASSIGNMENT_COMPOUND
-            ? "floating compound assignment is outside this body slice"
+            ? "atomic floating compound assignments are not supported"
             : "floating assignment conversions are outside this body slice");
   }
   if ((node.kind == CTOOL_C_TYPE_FLOAT ||
@@ -13550,12 +13550,6 @@ static ctool_status_t cfront_prepare_compound_assignment(
             operator_token,
             "compound assignment requires arithmetic operands");
       }
-      if (right_is_integer == CTOOL_TRUE) {
-        return cfront_emit_failure(
-            context, CTOOL_ERR_UNSUPPORTED,
-            CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
-            "floating compound assignment is outside this body slice");
-      }
       status = cfront_underlying_type(
           context, right_original_type, &right_original_base,
           &right_original_qualifiers, &right_original_node);
@@ -13570,24 +13564,23 @@ static ctool_status_t cfront_prepare_compound_assignment(
       if (status != CTOOL_OK) {
         return cfront_storage_failure(context, status);
       }
-      if (left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
-          right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
-          (left_node.kind != CTOOL_C_TYPE_FLOAT &&
-           left_node.kind != CTOOL_C_TYPE_DOUBLE) ||
-          (right_node.kind != CTOOL_C_TYPE_FLOAT &&
-           right_node.kind != CTOOL_C_TYPE_DOUBLE) ||
-          ((left_qualifiers | left_node.qualifiers |
+      if (((left_qualifiers | left_node.qualifiers |
             right_original_qualifiers | right_original_node.qualifiers) &
            CTOOL_C_QUAL_ATOMIC) != 0u) {
         return cfront_emit_failure(
             context, CTOOL_ERR_UNSUPPORTED,
             CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
-            "floating compound assignment is outside this body slice");
+            "atomic mixed floating compound assignments are not supported");
       }
       status = cfront_scalar_type(
           context,
-          left_node.kind == CTOOL_C_TYPE_DOUBLE ||
-                  right_node.kind == CTOOL_C_TYPE_DOUBLE
+          left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
+                  (right_is_floating == CTOOL_TRUE &&
+                   right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE)
+              ? CTOOL_C_TYPE_LONG_DOUBLE
+          : left_node.kind == CTOOL_C_TYPE_DOUBLE ||
+                  (right_is_floating == CTOOL_TRUE &&
+                   right_node.kind == CTOOL_C_TYPE_DOUBLE)
               ? CTOOL_C_TYPE_DOUBLE
               : CTOOL_C_TYPE_FLOAT,
           operator_token, computation_type_out);
@@ -13655,16 +13648,44 @@ static ctool_status_t cfront_prepare_compound_assignment(
     if (right_node.kind == CTOOL_C_TYPE_FLOAT ||
         right_node.kind == CTOOL_C_TYPE_DOUBLE ||
         right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      ctool_c_type_node_t left_original_node;
+      ctool_c_type_node_t right_original_node;
+      ctool_u32 left_original_base;
+      ctool_u32 left_original_qualifiers;
+      ctool_u32 right_original_base;
+      ctool_u32 right_original_qualifiers;
       if (cfront_compound_allows_floating(operation) == CTOOL_FALSE) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
             operator_token,
             "compound assignment operator requires integer operands");
       }
-      return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-          operator_token,
-          "floating compound assignment is outside this body slice");
+      status = cfront_underlying_type(
+          context, left->type, &left_original_base,
+          &left_original_qualifiers, &left_original_node);
+      if (status == CTOOL_OK) {
+        status = cfront_underlying_type(
+            context, right_original_type, &right_original_base,
+            &right_original_qualifiers, &right_original_node);
+      }
+      (void)left_original_base;
+      (void)right_original_base;
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (((left_original_qualifiers | left_original_node.qualifiers |
+            right_original_qualifiers | right_original_node.qualifiers) &
+           CTOOL_C_QUAL_ATOMIC) != 0u) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
+            "atomic mixed floating compound assignments are not supported");
+      }
+      status = cfront_scalar_type(
+          context, right_node.kind, operator_token,
+          computation_type_out);
+      return status == CTOOL_OK ? CTOOL_OK
+                                : cfront_storage_failure(context, status);
     }
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,

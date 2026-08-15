@@ -285,14 +285,19 @@ IEEE width with ties going to even. Public frontend, Linear IR, and ELF32
 contracts cover both halfway parities, minimum subnormal and normal values,
 maximum finite values, infinity, signed underflow zero, extreme exponents, and
 the 95-character token boundary. The checked seed predates this source-head
-capability. Atomic floating and long double updates, hexadecimal floating
-constants, hexadecimal or subnormal long-double literals, long-double ratios
-beyond the bounded parser, general SIMD value semantics, and atomic floating
-access remain
+capability. The four arithmetic compound operators also accept an integer and
+a floating operand in either lvalue direction. They use the usual float,
+double, or long double computation type, convert back to the declared left
+type, and evaluate the destination once. Atomic floating compound assignment,
+atomic floating updates, long double increment and decrement, hexadecimal
+floating constants, hexadecimal or subnormal long-double literals,
+long-double ratios beyond the bounded parser, general SIMD value semantics,
+and atomic floating access remain
 outside this shared path. Checked-seed static controls, arithmetic, and
 floating-width conversion fold through the target representation. ADR 0260
 records the static arithmetic model, and ADR 0265 records seed carriage.
 ADR 0293 records exact source-head decimal float and double literals.
+ADR 0296 records mixed arithmetic compound assignment.
 
 Private comparison and truth sequences use SETNP for an ordered guard and SETP
 for an unordered guard. Checked-seed CupidDis recognizes both byte
