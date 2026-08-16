@@ -904,23 +904,27 @@ bytes larger. After that one policy row moved, a complete poisoned-host rebuild
 passed in 693.5 seconds. The contract report matched the independent Python
 oracle, and all nine exact artifacts passed:
 
-The shared-x86 catalogue proof then added one embedded manual update. The
-first source-current build reached the exact-size gate in 699.8 seconds and
-measured `kernel.bin` at 9,140,004 bytes, 540 bytes above the prior row. After
-that row was updated, the same poisoned-host build passed all nine checks in
-718.1 seconds and published the image below.
+The fixed SIMD call boundary then changed the private compiler, feature-14
+guest, and embedded manuals. Its first poisoned-host build reached the
+exact-size gate in 659.6 seconds and measured both ELFs 8,228 bytes larger and
+`kernel.bin` 8,252 bytes larger. A 600-second replay allowance expired during
+strict inspection and is not counted as a result. The direct contract passed
+in 12.4 seconds, and an uninterrupted poisoned-host build passed in 668.5
+seconds and published the image below.
 
 | Output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
-| `kernel/kernel.elf.pass1` | 9,236,336 | `5e7936d12aec53625b0f066362268e9686adce365d9a8f9beed9c5104f1d9321` |
-| `kernel/kernel.elf` | 9,359,216 | `3372d1756c6dd27a7880a5b8a0a804a02cb82560e0ed8ff8a14e494f7eff3128` |
-| `kernel/kernel.bin` | 9,140,004 | `2d0ab2646a3d3445ec833550aea0cdd016bbf3036c26bdb7b3dfa237ee538c71` |
-| `cupidos.img` | 209,715,200 | `6c33e4a6a12a14b71243ca0ead6e5cb1120e7950c6102918daf3f49a6bc786d1` |
+| `kernel/kernel.elf.pass1` | 9,244,564 | `8aedcd004a22ed58d0aaca2552db1342adda911732c43d3414a97481951297ed` |
+| `kernel/kernel.elf` | 9,367,444 | `fb2449be0e094751b245657fe7f5e2bff850ac4e1e07639c47cde11b562a84f2` |
+| `kernel/kernel.bin` | 9,148,256 | `104a4e6ede53d7afe24df05c5774753550af14180e6a2b4e26a01fee5f37e275` |
+| `cupidos.img` | 209,715,200 | `deb59e1957f6f58f7e40cefa4c5febefed18ebdb4ee9c5a24e9a716b80554ed8` |
 
-A private four-vCPU e1000 boot ran `/bin/ls.cc` through in-OS CupidC and passed
-the SMP runtime contract in about 55 seconds. Its 31,203-byte log has SHA-256
-`dca7a5e59ce98cc278a04030073b5c42a42edacaca0f60dd865506ccc6315684`.
+A private four-vCPU e1000 boot compiled `/bin/feature14_simd.cc` through in-OS
+CupidC and passed the SMP runtime contract in 63.1 seconds. The guest printed
+`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`, overall PASS, and
+clean JIT completion. Its 33,293-byte log has SHA-256
+`91ff376016bb3444c88e8689c69a8d2bec47bc2abb39093c593c2039878ccc2c`.
 The private run left the source image unchanged.
 
 The preceding dual-NIC checkpoint used image SHA-256
@@ -1255,11 +1259,22 @@ guest reports these checks separately from its array and matrix markers. MIN
 and MAX intrinsics preserve their second-operand NaN and signed-zero behavior.
 For a both-NaN ADD or MUL, the processor or emulator may preserve either input
 payload. Incomplete rows are rejected rather than treated as untyped pointers.
-SIMD pointers, record fields, `new`,
-array parameters, row values, lane updates, computed vector updates, and call
-ABI transport remain unsupported. ADR 0216 records the fixed-array boundary.
-ADR 0257 records multidimensional row descent.
-ADR 0294 records whole-vector updates.
+SIMD pointers, record fields, `new`, array parameters, row values, lane updates,
+and computed vector updates remain unsupported.
+
+Fixed-prototype direct functions and methods pass `float4` and `double2` by
+value in 16-byte cdecl stack slots and return matching vectors through XMM0.
+The slots are packed at four-byte granularity and use `MOVUPS`; this private
+boundary does not claim 16-byte call-site alignment. Left-to-right argument
+evaluation, all four raw vector words, exact caller cleanup, pass-by-value
+mutation, const parameters, prototypes, methods, and nested returns have JIT
+and AOT execution coverage. SIMD values in a variadic tail, unprototyped SIMD
+calls, and calls through signature-erased function pointers remain rejected.
+The feature-14 guest publishes
+`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`.
+ADR 0216 records the fixed-array boundary. ADR 0257 records multidimensional
+row descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD
+calls.
 
 Private decimal literals now use a fixed 1536-bit integer workspace. CupidC
 forms the exact decimal ratio and rounds once to the selected binary32 or

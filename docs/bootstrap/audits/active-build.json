@@ -44702,7 +44702,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.case",
-      "occurrences": 1757
+      "occurrences": 1759
     },
     {
       "category": "control",
@@ -45332,7 +45332,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5026
+      "occurrences": 5028
     },
     {
       "category": "control",
@@ -46058,7 +46058,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 39662
+      "occurrences": 39673
     },
     {
       "category": "control",
@@ -46430,7 +46430,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 24229
+      "occurrences": 24244
     },
     {
       "category": "control",
@@ -47581,12 +47581,12 @@
           "text": "register int __attribute__((unused)) maybe_reg;"
         },
         {
-          "line": 509,
+          "line": 520,
           "path": "kernel/lang/cupidc_parse.cc",
           "text": "__attribute__((unused))"
         },
         {
-          "line": 1397,
+          "line": 1408,
           "path": "kernel/lang/cupidc_parse.cc",
           "text": "__attribute__((unused))"
         }
@@ -50778,7 +50778,7 @@
           "text": "static int c;"
         },
         {
-          "line": 40,
+          "line": 42,
           "path": "bin/feature14_simd.cc",
           "text": "static float4 saved_float;"
         }
@@ -51024,7 +51024,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 9548
+      "occurrences": 9549
     },
     {
       "category": "type",
@@ -52227,7 +52227,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 23104
+      "occurrences": 23115
     },
     {
       "category": "type",
@@ -53765,7 +53765,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 14919
+      "occurrences": 14920
     },
     {
       "category": "declaration",
@@ -54407,7 +54407,7 @@
         "toolchain/tests/cupidc_frontend_contract.cc"
       ],
       "id": "cupid_c.type.double2",
-      "occurrences": 40
+      "occurrences": 51
     },
     {
       "category": "type",
@@ -54435,7 +54435,7 @@
         "toolchain/tests/cupidc_frontend_contract.cc"
       ],
       "id": "cupid_c.type.float4",
-      "occurrences": 45
+      "occurrences": 56
     },
     {
       "category": "type",
@@ -54673,7 +54673,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "e8614eb437d64615a1013e662b4e7e27e572111cac166ac03809fbad9a1a5951",
+    "active_source_digest": "85ef0fd0a036c42e176266c029e6f359da4d3f950c5014fb8df2b626e21311ae",
     "control_files": [
       {
         "path": "Makefile",
@@ -57023,12 +57023,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 730,
+      "lines": 789,
       "origin": "tracked",
       "path": "bin/feature14_simd.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "6884675382fad7810a390587451d8d219a4fc7c952d31adcd2cd5a21c4a361be"
+      "sha256": "e87f7b25a42feafbd7a289c288921d096415d31510e992341fd2740cbdfc306c"
     },
     {
       "build_owners": [
@@ -75330,12 +75330,12 @@
         "kernel/lang/dis.h"
       ],
       "language": "c_header",
-      "lines": 491,
+      "lines": 492,
       "origin": "tracked",
       "path": "kernel/lang/cupidc.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "cc8b6f19b2444d056d8b620d33b93110a5965161dc8a48217709063971bede18"
+      "sha256": "36490e13cbc56bd782b2e3236fa19204561f16b3a0208c46070f3c669891f383"
     },
     {
       "build_owners": [
@@ -75468,12 +75468,12 @@
         "kernel/lang/cupidc.h"
       ],
       "language": "cupid_c",
-      "lines": 10230,
+      "lines": 10285,
       "origin": "tracked",
       "path": "kernel/lang/cupidc_parse.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d04cc6c0acc3da0be39747518d4ff6683e97ebb008009ed030529673b8d6ce57"
+      "sha256": "4436dae1fd4f08769bdada99f922c4d3a488b8b002d6e3570e1fd47737355c33"
     },
     {
       "build_owners": [

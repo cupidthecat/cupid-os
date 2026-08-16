@@ -15,6 +15,8 @@ int feature14_matrix_outer_calls;
 int feature14_matrix_middle_calls;
 int feature14_matrix_inner_calls;
 int feature14_matrix_sizeof_calls;
+int feature14_float_call_count;
+int feature14_double_call_count;
 
 int feature14_next_outer() {
     feature14_matrix_outer_calls += 1;
@@ -127,6 +129,55 @@ int feature14_test_updates() {
         feature14_global_cube[1][0][1].y != 1.5) return 12;
     if (line_index != 2 || matrix_outer != 2 || matrix_inner != 1 ||
         cube_outer != 2 || cube_middle != 1 || cube_inner != 2) return 13;
+    return 0;
+}
+
+float4 feature14_merge_float4(float4 left, int marker, float4 right) {
+    feature14_float_call_count += 1;
+    if (marker != 7 && marker != 11) return left;
+    return left + right;
+}
+
+float4 feature14_nested_float4(float4 first, float4 second, float4 third) {
+    feature14_float_call_count += 1;
+    return feature14_merge_float4(
+        feature14_merge_float4(first, 7, second), 11, third);
+}
+
+double2 feature14_merge_double2(double2 left, int marker, double2 right) {
+    feature14_double_call_count += 1;
+    if (marker != 13 && marker != 17) return left;
+    return left + right;
+}
+
+double2 feature14_nested_double2(double2 first, double2 second,
+                                 double2 third) {
+    feature14_double_call_count += 1;
+    return feature14_merge_double2(
+        feature14_merge_double2(first, 13, second), 17, third);
+}
+
+int feature14_test_calls() {
+    float4 first = {1.0f, 2.0f, 3.0f, 4.0f};
+    float4 second = {5.0f, 6.0f, 7.0f, 8.0f};
+    float4 third = {9.0f, 10.0f, 11.0f, 12.0f};
+    double2 wide_first = {1.5, 2.5};
+    double2 wide_second = {3.0, 4.0};
+    double2 wide_third = {5.5, 6.5};
+    float4 floats;
+    double2 doubles;
+
+    feature14_float_call_count = 0;
+    feature14_double_call_count = 0;
+    floats = feature14_nested_float4(first, second, third);
+    doubles = feature14_nested_double2(
+        wide_first, wide_second, wide_third);
+
+    if (feature14_float_call_count != 3 ||
+        feature14_double_call_count != 3) return 1;
+    if (floats.x != 15.0f || floats.y != 18.0f ||
+        floats.z != 21.0f || floats.w != 24.0f) return 2;
+    if (doubles.x != 10.0 || doubles.y != 13.0) return 3;
     return 0;
 }
 
@@ -569,6 +620,14 @@ int main() {
         serial_printf("[feature14-update] PASS direct=6 leaves=3 once=6 payload=8\n");
     } else {
         serial_printf("[feature14-update] FAIL check=%d\n", update_result);
+        ok = 0;
+    }
+
+    int call_result = feature14_test_calls();
+    if (call_result == 0) {
+        serial_printf("[feature14-call] PASS float4=4 double2=2 nested=2 calls=6\n");
+    } else {
+        serial_printf("[feature14-call] FAIL check=%d\n", call_result);
         ok = 0;
     }
 

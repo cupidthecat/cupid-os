@@ -19,8 +19,8 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 - Hardware FPU (x87) and SSE/SSE2 with eager FXSAVE context switch
 - CupidC float/double scalars, typed pointers and multidimensional arrays,
   floating record fields, exact unary signs, comparisons, control-flow truth,
-  scalar and whole-vector prefix/postfix updates, mixed-width scalar cdecl
-  calls, and float4/double2 SIMD arithmetic, multidimensional fixed arrays,
+  scalar and whole-vector prefix/postfix updates, mixed-width scalar and fixed
+  SIMD cdecl calls, float4/double2 arithmetic, multidimensional fixed arrays,
   and SSE intrinsics
 - libm: 25 operations (sqrt, sin, cos, tan, atan, atan2, exp, exp2, log, log2, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter, fabs, floor, ceil, round, trunc, fmod + f-variants)
 - printf %f, %e, %g, %.Nf with x87-backed int/fractional split
@@ -139,7 +139,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - Private CupidC accepts both anonymous and tagged structure typedefs. The typedef table keeps the record identity through alias chains and pointer aliases, so `.` and `->` retain the correct layout in file and persistent REPL source. Address expressions now select the field itself for both `&record.field` and `&pointer->field`; the pointer form loads the pointed-to record before adding the field offset. Fixed array products, cumulative record layout, final alignment, REPL data reservations, and cumulative local frames now fail before signed overflow. Constant integer expressions check signed arithmetic and retain `uint32_t` wrap when an operand is unsigned. A failed REPL line restores complete record definitions, including an older forward tag that the rejected line tried to fill. ADR 0219 records this boundary.
 - Private CupidC accepts comma-separated typedef declarators and keeps each value or pointer alias distinct. One-dimensional fixed-array aliases retain complete storage and `sizeof` through automatic, global, block-static, record, class, and persistent REPL declarations; function and method parameters use C array decay. Array members keep their complete object size and record-element identity through direct or pointer access, including indexed assignment inside an array of records. Unsupported compound array declarators fail explicitly instead of becoming scalar objects. ADR 0220 records this boundary.
 - Private CupidC preserves unsigned 32-bit runtime types through objects, pointers, calls, enums, unary operations, conditionals, comparisons, division, remainder, right shift, `sizeof`, and scalar returns. `/=`, `%=`, and `>>=` use the same signedness rules while evaluating each destination once. It converts the complete `uint32_t` range exactly to `double` and correctly rounded `float`, including ordinary and method returns. Values in C's defined interval convert from `float` or `double` to an unsigned word through casts, initialization, assignment, arguments, and returns. Forty kernel bindings with `uint32_t`, `size_t`, or `swap_handle_t` results publish that unsigned type. The Browser stores array length in the same lane, accepts canonical indices through 4,294,967,294, and treats 4,294,967,295 as an ordinary property. ADR 0221 records the original type boundary, and ADR 0249 records the two completed operations. The feature-13 guest checks four conversion boundaries, signed and high-bit unsigned `%=` results, and one evaluation of a side-effecting destination. Its required boot marker is `[feature13-unsigned] PASS conversions=4 remainders=2 once=1`.
-- Private `float4` and `double2` values support matching packed arithmetic and fixed arrays with one, two, or three dimensions in global, local, block-static, and persistent REPL storage. Array rank stays independent of byte stride, including when an inner extent is one. Access keeps checked row strides until the final 16-byte vector leaf, uses unaligned-safe moves, supports plain and arithmetic compound assignment, and preserves lane values. Prefix and postfix `++` and `--` work on modifiable direct vectors and fully indexed leaves. Each evaluated index runs once. Const qualification is retained through typedef aliases. Const direct vectors and fixed-array leaves remain readable. Plain and arithmetic compound assignment, plus prefix and postfix `++` and `--`, are rejected before a store. Prefix returns the stored vector, while postfix returns the exact old 128-bit payload. Indexes inside row or vector `sizeof` do not run, and incomplete rows cannot escape as untyped pointers. SIMD pointers, fields, parameters, calls, lane updates, and computed vector updates remain explicit gaps. Direct arithmetic uses a stable machine operand order, and minimum and maximum intrinsics retain their defined NaN and signed-zero behavior. Feature 14 now requires operator, array, matrix, update, minimum/maximum, and NaN markers. ADR 0257 records multidimensional row descent, and ADR 0294 records whole-vector updates.
+- Private `float4` and `double2` values support matching packed arithmetic and fixed arrays with one, two, or three dimensions in global, local, block-static, and persistent REPL storage. Array rank stays independent of byte stride, including when an inner extent is one. Access keeps checked row strides until the final 16-byte vector leaf, uses unaligned-safe moves, supports plain and arithmetic compound assignment, and preserves lane values. Prefix and postfix `++` and `--` work on modifiable direct vectors and fully indexed leaves. Each evaluated index runs once. Const qualification is retained through typedef aliases. Const direct vectors and fixed-array leaves remain readable. Plain and arithmetic compound assignment, plus prefix and postfix `++` and `--`, are rejected before a store. Prefix returns the stored vector, while postfix returns the exact old 128-bit payload. Indexes inside row or vector `sizeof` do not run, and incomplete rows cannot escape as untyped pointers. Fixed-prototype direct functions and methods pass either vector by value in complete 16-byte cdecl slots and return it in XMM0. Those slots are packed at four-byte granularity and use `MOVUPS`; the private boundary does not promise 16-byte call-site alignment. SIMD variadic tails, unprototyped calls, and calls through signature-erased function pointers remain rejected. SIMD pointers, fields, lane updates, and computed vector updates remain explicit gaps. Direct arithmetic uses a stable machine operand order, and minimum and maximum intrinsics retain their defined NaN and signed-zero behavior. Feature 14 now also requires `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`. ADR 0257 records multidimensional row descent, ADR 0294 records whole-vector updates, and ADR 0299 records fixed SIMD calls.
 - The TCP/IP stack supports RTL8139 and E1000 devices, ARP, IPv4, ICMP, UDP, a client and server subset of RFC 793 TCP, DHCP with static fallback, DNS with a 16-entry TTL cache, and a 32-slot BSD socket table shared by the shell and CupidC. TCP uses per-socket stop-and-wait retransmission with exponential backoff, advertises the actual receive-buffer space, and collects abandoned half-open connections. IPv4 fragments outgoing packets and keeps four reassembly slots for datagrams up to about 64 KB.
 - The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 parsing with hostname, time, and best-effort chain checks against an embedded Mozilla CA bundle. The chain checker is still lenient when it cannot find a root or implement a signature algorithm. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
 - `bin/curl.cc` and `bin/wget.cc` are CupidC clients built on the socket and TLS bindings. `curl` supports GET, POST, `-o`, `-i`, `-s`, `-X`, `-d`, and `-H`, with HTTP-to-HTTP redirects capped at five hops. `wget` supports `-O` and `-q`, derives its output filename, and reports the response status and saved byte count.
@@ -1633,23 +1633,27 @@ passed in 693.5 seconds. Checked CupidC, CupidASM, and CupidLD built the private
 contract, its report matched the independent Python oracle, and all nine exact
 artifacts passed:
 
-The shared-x86 catalogue proof then added one embedded manual update. The
-first source-current build reached the exact-size gate in 699.8 seconds and
-measured `kernel.bin` at 9,140,004 bytes, 540 bytes above the prior row. After
-that row was updated, the same poisoned-host build passed all nine checks in
-718.1 seconds and published the image below.
+The fixed SIMD call boundary then changed the private compiler, feature-14
+guest, and embedded manuals. Its first poisoned-host build reached the
+exact-size gate in 659.6 seconds and measured both ELFs 8,228 bytes larger and
+`kernel.bin` 8,252 bytes larger. A 600-second replay allowance expired during
+strict inspection and is not counted as a result. The direct contract passed
+in 12.4 seconds, and an uninterrupted poisoned-host build passed in 668.5
+seconds and published the image below.
 
 | Output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
-| `kernel/kernel.elf.pass1` | 9,236,336 | `5e7936d12aec53625b0f066362268e9686adce365d9a8f9beed9c5104f1d9321` |
-| `kernel/kernel.elf` | 9,359,216 | `3372d1756c6dd27a7880a5b8a0a804a02cb82560e0ed8ff8a14e494f7eff3128` |
-| `kernel/kernel.bin` | 9,140,004 | `2d0ab2646a3d3445ec833550aea0cdd016bbf3036c26bdb7b3dfa237ee538c71` |
-| `cupidos.img` | 209,715,200 | `6c33e4a6a12a14b71243ca0ead6e5cb1120e7950c6102918daf3f49a6bc786d1` |
+| `kernel/kernel.elf.pass1` | 9,244,564 | `8aedcd004a22ed58d0aaca2552db1342adda911732c43d3414a97481951297ed` |
+| `kernel/kernel.elf` | 9,367,444 | `fb2449be0e094751b245657fe7f5e2bff850ac4e1e07639c47cde11b562a84f2` |
+| `kernel/kernel.bin` | 9,148,256 | `104a4e6ede53d7afe24df05c5774753550af14180e6a2b4e26a01fee5f37e275` |
+| `cupidos.img` | 209,715,200 | `deb59e1957f6f58f7e40cefa4c5febefed18ebdb4ee9c5a24e9a716b80554ed8` |
 
-A private four-vCPU e1000 boot ran `/bin/ls.cc` through in-OS CupidC and passed
-the SMP runtime contract in about 55 seconds. Its 31,203-byte log has SHA-256
-`dca7a5e59ce98cc278a04030073b5c42a42edacaca0f60dd865506ccc6315684`.
+A private four-vCPU e1000 boot compiled `/bin/feature14_simd.cc` through in-OS
+CupidC and passed the SMP runtime contract in 63.1 seconds. The guest printed
+`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`, overall PASS, and
+clean JIT completion. Its 33,293-byte log has SHA-256
+`91ff376016bb3444c88e8689c69a8d2bec47bc2abb39093c593c2039878ccc2c`.
 The private run left the source image unchanged.
 
 The preceding dual-NIC checkpoint used image SHA-256

@@ -295,7 +295,7 @@ Compiler/language test programs currently embedded in /bin:
 - feature12_float          (P1 FPU/SSE)
 - feature13_double         (decimal payloads, floating lvalues, calls, and libm)
 - feature13_derived_aot    (ccc + exec proof for derived floating updates)
-- feature14_simd           (SIMD operators, arrays, and intrinsics)
+- feature14_simd           (SIMD operators, arrays, calls, and intrinsics)
 - feature15_libm           (P1 FPU/SSE)
 - feature16_asm_fpu        (P1 FPU/SSE)
 - feature17_iso            (P2 ISO9660)

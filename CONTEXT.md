@@ -725,10 +725,21 @@ The SSE minimum and maximum intrinsics retain the second-operand rules for NaN
 and signed zero. A both-NaN ADD or MUL result may carry either input payload,
 depending on the processor or emulator. SIMD pointers, record fields,
 allocation with `new`, array parameters, row values, lane updates, computed
-vector updates, and function-call ABI transport remain outside this boundary.
+vector updates remain outside this boundary. A fixed-prototype direct function
+or method may pass `float4` and `double2` by value in complete 16-byte cdecl
+slots and return either type in XMM0. Slots are packed at four-byte granularity,
+so parameter loads and stores use `MOVUPS` and do not promise 16-byte call-site
+alignment. Arguments still evaluate from left to right, parameters receive
+independent copies, and the caller reclaims every 4-, 8-, or 16-byte slot.
+Fixed SIMD parameters may precede a scalar variadic tail. SIMD values in the
+tail, unprototyped SIMD calls, and SIMD calls through signature-erased function
+pointers receive focused diagnostics. Named SIMD intrinsics keep their existing
+inline lowering rather than crossing this ABI.
 ADR 0216 records the first fixed-array model, ADR 0257 records multidimensional
-row descent, and ADR 0294 records whole-vector updates.
-_Avoid_: untyped SIMD storage, escaped row pointers, reordered packed operands
+row descent, ADR 0294 records whole-vector updates, and ADR 0299 records the
+fixed SIMD call boundary.
+_Avoid_: untyped SIMD storage, escaped row pointers, reordered packed operands,
+an implied 16-byte private call-site alignment
 
 **Browser JavaScript number lane**:
 The numeric path shared by the Browser's JavaScript lexer, AST, and

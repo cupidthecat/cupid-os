@@ -239,6 +239,7 @@ typedef struct {
   int is_defined;   /* has function body been emitted? */
   int is_array;     /* stack-allocated array? */
   int is_const_qualified; /* object or fixed-array element is const */
+  cc_type_t function_pointer_return_type; /* retained for unsupported SIMD calls */
   int struct_index; /* index into structs[] for struct types */
   int array_elem_size; /* element size for array subscript scaling */
   int array_object_size; /* complete fixed-array size before frame padding */
@@ -328,7 +329,7 @@ typedef struct {
   int max_local_offset; /* deepest stack offset seen (most negative) */
   int scope_start;      /* symbol index at function start */
   int param_count;      /* params in current function */
-  cc_type_t current_return_type; /* scalar result expected by return */
+  cc_type_t current_return_type; /* value type expected by return */
 
   /* Forward reference patches */
   cc_patch_t patches[CC_MAX_PATCHES];

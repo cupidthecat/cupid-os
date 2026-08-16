@@ -1656,7 +1656,7 @@ runs once. Const qualification is retained through typedef aliases. Const
 direct vectors and fixed-array leaves remain readable. Plain and arithmetic
 compound assignment, plus prefix and postfix ++ and --, are rejected before a
 store. Lane updates, computed vectors, SIMD pointers, record fields,
-parameters, calls, and incomplete rows remain outside this update path. Every
+array parameters, and incomplete rows remain outside this update path. Every
 direct operator keeps the written left value in the machine destination. MIN
 and MAX intrinsics keep the second input for NaN and equal signed-zero cases. A
 both-NaN ADD or MUL may carry either input payload, depending on the processor
@@ -1664,12 +1664,20 @@ or emulator. Incomplete row assignments and row expressions are rejected.
 
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
-slot type. Represented pointer categories and integer null forms can fill a
-pointer slot. A represented object pointer can fill a fixed int or unsigned
-int slot as one unchanged i386 word. Narrow and floating destinations remain
-rejected. A parsed variadic tail widens float to double and promotes char
-to int. Function-pointer calls, kernel bindings, and calls without fixed
-parameter metadata keep their source-width slots. Character operands undergo
+slot type. A fixed float4 or double2 parameter uses one complete 16-byte stack
+slot and returns through XMM0. Vector slots are packed at four-byte granularity
+and use MOVUPS, so the private call boundary does not promise 16-byte call-site
+alignment. Arguments run from left to right. The callee receives an independent
+copy, and the caller reclaims every four-, eight-, or sixteen-byte slot.
+
+Represented pointer categories and integer null forms can fill a pointer slot.
+A represented object pointer can fill a fixed int or unsigned int slot as one
+unchanged i386 word. Narrow and floating destinations remain rejected. A
+parsed variadic tail widens float to double and promotes char to int. Its fixed
+prefix may contain vectors, but a SIMD tail value is rejected. Unprototyped
+SIMD calls and signature-erased function-pointer SIMD calls also fail with a
+focused diagnostic. Scalar function-pointer calls, kernel bindings, and calls
+without fixed parameter metadata keep their source-width slots. Character operands undergo
 integer promotion and use the scalar integer conversion path when mixed with
 floating values or explicitly cast. Fresh subscript metadata prevents a
 pointer result from inheriting an earlier array stride.
@@ -1749,7 +1757,8 @@ feature13_derived_aot is compiled with ccc and run with exec. It checks pointer,
 index, and indexed-record updates, including the stored result and one
 evaluation of each designator, before the loaded process exits.
 feature14_simd checks packed operators, one-dimensional arrays, matrices,
-cubes, NaN handling, and SSE intrinsics. The
+cubes, NaN handling, fixed float4 and double2 calls, and SSE intrinsics. Its
+call marker covers six nested pass-by-value calls and XMM0 returns. The
 Browser's binary64 token and AST tables use the fixed double-array path.
 See also: 14FPU-SSE.CTXT for full FPU/SSE reference.
 [Open FPU/SSE guide](open:14FPU-SSE.CTXT)

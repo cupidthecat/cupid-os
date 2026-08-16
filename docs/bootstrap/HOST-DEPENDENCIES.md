@@ -1444,6 +1444,14 @@ production owner or checked seed. A normal build with every host code-generation
 variable poisoned passed the exact artifact policy, and the resulting image
 passed a private four-vCPU CupidC boot. ADR 0298 records the boundary.
 
+Private CupidC now passes fixed-prototype `float4` and `double2` values through
+complete 16-byte cdecl slots and returns them in XMM0. The implementation uses
+only existing in-kernel code generation and adds no runtime library or host
+tool. A checked seed can compile the updated compiler source, so this
+compiler-head capability does not require a seed promotion. Host Python still
+coordinates the normal build and runtime gates. ADR 0299 records the ABI and
+its remaining metadata-free call limits.
+
 ## Removal gate
 
 A code-producing host dependency leaves the normal build only after the Cupid replacement has positive and negative tests, matches required object/ABI/layout behavior, builds its assigned active-source cohort, and passes the relevant OS boot or runtime smoke. The legacy host path remains available as an oracle until fixed-point bootstrap and behavior gates are reliable.

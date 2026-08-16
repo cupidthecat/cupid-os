@@ -226,18 +226,27 @@ loaded PID exits.
 
 ### Mixed-width function calls
 
-Private CupidC uses one scalar cdecl layout for direct calls, stored
-function-pointer calls, and both method-call forms. Integers, pointers,
-function pointers, `float`, and the implicit method `self` value occupy four
-bytes. A `double` occupies eight bytes with its low word at the lower stack
-address.
+Private CupidC uses one cdecl layout for direct calls and both method-call
+forms. Integers, pointers, function pointers, `float`, and the implicit method
+`self` value occupy four bytes. A `double` occupies eight bytes with its low
+word at the lower stack address. A fixed `float4` or `double2` parameter
+occupies one inline 16-byte slot in low-address word order.
 
 Arguments are still evaluated from left to right. The compiler then arranges
 their complete words at increasing addresses in source order. Callees use the
 same widths when they assign parameter offsets, and callers reclaim the whole
-outgoing area. SIMD and aggregate parameters still need a separate private
-ABI. `feature13_double.cc` exercises the represented path through ten calls
-to one `double, double, double, int` helper.
+outgoing area. Vector parameters are loaded with `MOVUPS`, so mixed slots may
+be packed at four-byte granularity. This private ABI does not promise 16-byte
+call-site alignment. Matching vectors return through XMM0. A parameter is an
+independent 16-byte copy, and a const parameter cannot be modified.
+
+A fixed SIMD prefix may precede scalar variadic values. SIMD values in the
+variadic tail and unprototyped SIMD calls are rejected because no fixed type is
+available. Stored function pointers still erase their parameter and result
+signatures, so SIMD arguments and returns through them fail explicitly. Scalar
+function-pointer calls keep their existing source-width behavior. Named SIMD
+intrinsics continue to lower inline. `feature13_double.cc` retains its ten
+mixed-scalar calls, while `feature14_simd.cc` checks six nested vector calls.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations
@@ -306,14 +315,16 @@ payload after the store. Const qualification is retained through typedef
 aliases. Const direct vectors and fixed-array leaves remain readable. Plain
 and arithmetic compound assignment, plus prefix and postfix `++` and `--`, are
 rejected before a store. Global, block-static, and persistent REPL direct
-vectors use complete 16-byte storage. SIMD pointers, record fields, parameters,
-calls, row values, lane updates, and computed vector updates remain outside
-this boundary. Matching vectors also support direct `+`, `-`, `*`, and `/`
+vectors use complete 16-byte storage. SIMD pointers, record fields, row values,
+lane updates, and computed vector updates remain outside this boundary.
+Fixed-prototype direct functions and methods use the cdecl vector boundary
+described above. Matching vectors also support direct `+`, `-`, `*`, and `/`
 expressions. Every direct operation keeps the written left value in the
 machine destination. MIN and MAX intrinsics keep the second operand for NaN
 and equal signed-zero inputs. For a both-NaN ADD or MUL, the processor or
 emulator may preserve either input payload.
-ADR 0294 records this whole-vector update path.
+ADR 0294 records this whole-vector update path, and ADR 0299 records fixed SIMD
+calls.
 
 Array bounds at file scope and inside structs accept constant integer
 expressions, including enum values and simple arithmetic. That keeps
@@ -2500,6 +2511,10 @@ operand order, and the remaining private compiler boundary.
 records two-dimensional and three-dimensional SIMD storage, checked row
 descent, unevaluated row sizes, and complete-subscript assignment.
 
+[ADR 0299](../docs/adr/0299-pass-private-simd-values-through-cdecl.md) records
+the fixed-prototype 16-byte stack slots, XMM0 returns, and the unsupported
+metadata-free call boundaries.
+
 [ADR 0217](../docs/adr/0217-round-private-decimal-literals-exactly.md) records
 the integer decimal converter, target-width rounding, token boundary, and
 diagnostic recovery.
@@ -2564,8 +2579,9 @@ When the parser encounters a call to an undefined function, it emits a placehold
   unsupported. Indirect integer `++` and `--` also remain outside the private
   compiler boundary.
 - SIMD pointers, SIMD record fields, allocation with `new`, SIMD array
-  parameters, row values, and SIMD values crossing the private call ABI remain
-  unsupported.
+  parameters, and row values remain unsupported. SIMD values cross only fixed
+  direct function or method boundaries; variadic tails, unprototyped calls,
+  and signature-erased function pointers remain rejected.
 
 The private compiler implements a broader runtime floating and SIMD language.
 The hosted self-hosting path converts between `float` and `double`, evaluates

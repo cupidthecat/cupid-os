@@ -450,10 +450,15 @@ second-operand NaN and signed-zero behavior. Runtime checks accept either input
 payload from a both-NaN ADD or MUL and reject any other result. Incomplete row
 assignment receives a focused error. SIMD pointers, record fields, allocation
 with `new`, array parameters, row values, lane updates, computed vector
-updates, and call ABI transport remain unsupported. This changes private JIT
-and AOT behavior without moving a build owner. ADR 0216 records the first
-fixed-array boundary, ADR 0257 records multidimensional row descent, and ADR
-0294 records whole-vector updates.
+updates remain unsupported. Fixed-prototype direct functions and methods pass
+either vector by value in complete 16-byte cdecl slots and return it in XMM0.
+The slots are packed at four-byte granularity, use `MOVUPS`, retain left-to-right
+evaluation, and contribute their full width to caller cleanup. SIMD values in
+a variadic tail, unprototyped SIMD calls, and calls through signature-erased
+function pointers remain rejected. This changes private JIT and AOT behavior
+without moving a build owner. ADR 0216 records the first fixed-array boundary,
+ADR 0257 records multidimensional row descent, ADR 0294 records whole-vector
+updates, and ADR 0299 records fixed SIMD calls.
 
 Private CupidC now converts decimal `float` and `double` tokens with a fixed
 1536-bit integer workspace. It rounds the exact decimal ratio once to the

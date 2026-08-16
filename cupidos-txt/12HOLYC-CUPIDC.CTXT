@@ -342,20 +342,24 @@ and postfix returns the exact old payload. Const qualification is retained
 through typedef aliases. Const direct vectors and fixed-array leaves remain
 readable. Plain and arithmetic compound assignment, plus prefix and postfix ++
 and --, are rejected before a store. Lane updates, computed vector updates,
-SIMD pointers, record fields, new, array parameters, calls, and row values
-remain unsupported. MIN and MAX intrinsics keep the second input for NaN and
+SIMD pointers, record fields, new, array parameters, and row values remain
+unsupported. MIN and MAX intrinsics keep the second input for NaN and
 equal signed-zero cases. For a both-NaN ADD or MUL, the processor or emulator
 may preserve either input payload. Vector expressions reject incomplete rows
 instead of letting them escape as untyped pointers.
 
-Private CupidC uses one scalar cdecl layout for direct calls, stored
-function-pointer calls, and methods. Integers, pointers, function pointers,
-float, and the implicit method self value occupy four bytes. Double occupies
-eight bytes with its low word at the lower address. Arguments are evaluated
-from left to right, then arranged at increasing addresses in source order.
-Callees use the same widths for parameter offsets, and callers reclaim the
-complete outgoing area. Feature 13 requires ten calls through one mixed-width
-tolerance helper.
+Private CupidC uses one cdecl layout for direct functions and methods.
+Integers, pointers, function pointers, float, and the implicit method self
+value occupy four bytes. Double occupies eight bytes with its low word at the
+lower address. A fixed float4 or double2 parameter occupies 16 bytes and
+returns through XMM0. Arguments are evaluated from left to right, then arranged
+at increasing addresses in source order. Callees use MOVUPS for vector slots,
+and callers reclaim the complete outgoing area. Slots are packed at four-byte
+granularity; the private boundary does not promise 16-byte call-site alignment.
+A fixed SIMD prefix may precede scalar variadic values. SIMD variadic tails,
+unprototyped SIMD calls, and signature-erased function-pointer SIMD calls are
+rejected. Feature 13 retains ten calls through one mixed-width tolerance
+helper. Feature 14 adds six nested pass-by-value vector calls.
 
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl

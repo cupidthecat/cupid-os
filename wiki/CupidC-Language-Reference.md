@@ -178,19 +178,27 @@ MIN and MAX intrinsics keep the second input for NaN and equal signed-zero
 cases. A both-NaN ADD or MUL may carry either input payload, depending on the
 processor or emulator. Incomplete rows are rejected rather than treated as
 untyped pointers. SIMD pointers, record fields, `new`, array parameters, row
-values, lane updates, computed vector updates, and call ABI transport remain
-unsupported. ADR 0257 records the multidimensional array boundary, and ADR
-0294 records whole-vector updates.
+values, lane updates, and computed vector updates remain unsupported. ADR 0257
+records the multidimensional array boundary, ADR 0294 records whole-vector
+updates, and ADR 0299 records fixed SIMD calls.
 
 Direct functions and methods with parsed fixed parameter types convert each
 represented integer, `char`, `float`, or `double` argument to its declared
-cdecl slot type. Represented pointer categories and integer null forms can fill
-a pointer slot. A represented object pointer can fill a fixed `int` or
+cdecl slot type. A fixed `float4` or `double2` parameter takes one complete
+16-byte stack slot, is passed by value, and returns through XMM0. Vector slots
+are packed at four-byte granularity and use unaligned-safe moves, so this ABI
+does not promise 16-byte call-site alignment. Arguments evaluate from left to
+right, and callers reclaim the exact outgoing width.
+
+Represented pointer categories and integer null forms can fill a pointer slot.
+A represented object pointer can fill a fixed `int` or
 `unsigned int` slot as one unchanged i386 word. Narrow and floating
 destinations remain rejected, and the existing represented pointer-category
 rule is unchanged. A parsed variadic tail widens `float` to `double` and promotes
-`char` to `int`. Function-pointer calls, kernel bindings, and calls without
-fixed parameter metadata retain their source-width slots. Character operands
+`char` to `int`. Its fixed prefix may contain vectors, but a SIMD tail value is
+rejected. Unprototyped and signature-erased function-pointer SIMD calls also
+fail explicitly. Scalar function-pointer calls, kernel bindings, and calls
+without fixed parameter metadata retain their source-width slots. Character operands
 undergo integer promotion in integer arithmetic and use the integer conversion
 path for floating arithmetic and explicit casts.
 Pointer-producing expressions reset subscript metadata before publishing a

@@ -27556,3 +27556,111 @@ No production transform changes owner, and no checked seed needs promotion.
 NASM and LLVM remain optional oracles and are not used by the every-form proof.
 The active sources in this slice are already named `.cc`; no rename is due.
 `TempleOS/` was not modified, built, or counted.
+
+## 2026-08-15: pass private SIMD values through fixed cdecl calls
+
+### Scope and ABI decision
+
+Private CupidC now accepts `float4` and `double2` as fixed parameters and
+results in ordinary direct functions and methods. Each vector occupies one
+inline 16-byte cdecl stack slot. Arguments still evaluate from left to right;
+the existing word permutation now carries four words per parameter without
+colliding with an adjacent scalar or vector. Callees use the same width for
+parameter offsets, and callers reclaim the exact 4-, 8-, and 16-byte outgoing
+area.
+
+Vector slots are packed at four-byte granularity. A method's four-byte `self`
+slot or any scalar may precede them, so loads and stores use `MOVUPS`. This
+private ABI does not claim the separate 16-byte call-site alignment documented
+for the hosted boundary. A vector parameter is a complete copy, and const
+qualification now reaches the parameter symbol. Matching vector results use
+XMM0. Bare vector returns and `float4`/`double2` return mismatches fail before
+an epilogue can publish stale bits.
+
+A fixed SIMD prefix may precede scalar variadic arguments. SIMD values in a
+variadic tail and unprototyped SIMD calls remain rejected because they have no
+fixed slot type. Function-pointer signatures are still erased, so SIMD
+arguments and results through them also receive focused diagnostics. Named
+SIMD intrinsics retain their existing inline lowering.
+
+### Red-to-green and review record
+
+Five focused tests first failed on the old SIMD parameter and call rejection.
+The first green implementation covered direct and nested parameters, XMM0
+returns, mixed cleanup, fixed mismatch recovery, and variadic rejection.
+Review then found the four-word identity collision risk, a stale parameter
+negative, order-insensitive data, missing pass-by-value proof, erased
+function-pointer results, the statement-method path, const parameter
+qualification, and bare vector returns. Focused red cases were added for each
+boundary before the implementation was completed.
+
+The final cases use an order-sensitive 4/8/16-byte call with side-effecting
+vector producers, mutate both vector types in the callee while preserving the
+caller objects, call through prototypes before definitions, execute a void
+method statement, carry a fixed SIMD variadic prefix, and run the same source
+through private AOT. Every new diagnostic is followed by a valid compile in
+the same compiler state. `feature14_simd.cc` adds six nested calls and the
+marker `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`.
+
+| Check | Result |
+| --- | --- |
+| Private CupidC call-ABI module | PASS: all 168 tests in 24.403 seconds |
+| GUI and frontier runtime contracts | PASS: all 125 tests in 0.736 seconds |
+| Private JIT and AOT SIMD call cases | PASS in the call-ABI module |
+| Audit regeneration and replay | PASS in 64.5 and 64.2 seconds |
+| Complete build-graph audit | PASS: all 100 tests in 750.500 seconds |
+| Direct artifact contract and oracle | PASS in 12.4 seconds |
+| Poisoned-host normal build | PASS in 668.5 seconds after the measured policy rejection |
+| Private four-vCPU feature-14 boot | PASS in 63.1 seconds |
+
+The final audit still records 738 active inputs, 452 transforms, 255 feature
+requirements, and 25 classified unreachable files. Its active-source digest
+is `85ef0fd0a036c42e176266c029e6f359da4d3f950c5014fb8df2b626e21311ae`.
+The 2,691,298-byte JSON has SHA-256
+`18ca91d3528349401b1896a5dafbb059027e6b4e16f90dac23693f624511091a`,
+and the 12,502-byte Markdown summary has SHA-256
+`6527bec3d8a2fdddb602fb484cea0baf43a7a08d7e89f8860be4c9f2c0a54707`.
+
+The first poisoned-host build completed every code-producing and inspection
+stage in 659.6 seconds. The exact-size gate then reported both kernel ELFs
+8,228 bytes above their prior rows and `kernel.bin` 8,252 bytes above its row.
+No image was published. Only those three measured rows changed.
+
+A replay with a 600-second harness expired while strict CupidDis validation
+was still running. The child process continued after the harness returned,
+finished the new kernel files, and exited before image publication. That run is
+not counted as a build result. The direct CupidC-built artifact contract and
+independent Python oracle then accepted all nine exact files in 12.4 seconds.
+An uninterrupted `make -j4 all` with the same poisoned host variables passed
+in 668.5 seconds, preserved the FAT data, staged `/hello.iso`, and published:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,244,564 | `8aedcd004a22ed58d0aaca2552db1342adda911732c43d3414a97481951297ed` |
+| `kernel/kernel.elf` | 9,367,444 | `fb2449be0e094751b245657fe7f5e2bff850ac4e1e07639c47cde11b562a84f2` |
+| `kernel/kernel.bin` | 9,148,256 | `104a4e6ede53d7afe24df05c5774753550af14180e6a2b4e26a01fee5f37e275` |
+| `cupidos.img` | 209,715,200 | `deb59e1957f6f58f7e40cefa4c5febefed18ebdb4ee9c5a24e9a716b80554ed8` |
+
+The checked seed compiled `kernel/lang/cupidc_parse.cc` into a 406,044-byte
+object with SHA-256
+`b85ef4e9f855f7532843b095b1b8a903ad7044c5eb4d245ec9467b3f04218216`.
+It compiled `bin/feature14_simd.cc` into a 28,276-byte object with SHA-256
+`24cc0188c648e4e5ba0f3d0f31197be9bf13b485bf4e727a0264783041663cf2`.
+
+A private copy of the final image booted with four virtual CPUs, CPU `max`,
+and e1000. All four CPUs came online, DHCP supplied `10.0.2.15`, and in-OS
+CupidC compiled `/bin/feature14_simd.cc`. The guest printed every feature-14
+marker, including `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`,
+then overall PASS and clean JIT completion. The 63.1-second run produced a
+33,293-byte serial log with SHA-256
+`91ff376016bb3444c88e8689c69a8d2bec47bc2abb39093c593c2039878ccc2c`.
+The private run left the source image unchanged.
+
+This compiler-head change moves no build owner and adds no host dependency.
+No checked seed is promoted in this slice. SIMD pointers, record fields,
+allocation with `new`, array parameters, row values, lane updates, computed
+vectors, signature-bearing function pointers, and an aligned private call
+boundary remain open. ADR 0299 records the decision. The active sources already
+use `.cc`; no suffix rename is due. `TempleOS/` remains untouched reference
+material.

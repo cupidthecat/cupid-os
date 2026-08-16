@@ -475,6 +475,17 @@ static void emit_push_xmm_double(cc_state_t *cc, int xmm) {
   emit8(cc, 0x24);
 }
 
+/* Place one complete packed value in an unaligned-safe cdecl stack slot. */
+static void emit_push_xmm_vector(cc_state_t *cc, int xmm) {
+  emit8(cc, 0x83); /* sub esp, 16 */
+  emit8(cc, 0xEC);
+  emit8(cc, 0x10);
+  emit8(cc, 0x0F); /* movups [esp], xmm */
+  emit8(cc, 0x11);
+  emit8(cc, (uint8_t)(0x04 | ((xmm & 7) << 3)));
+  emit8(cc, 0x24);
+}
+
 /* MOVAPS xmm_dst, xmm_src: 0F 28 /r (mod=11).  Used to move an
  * FP return value into XMM0 before emitting the epilogue.*/
 static void emit_movaps_xmm_xmm(cc_state_t *cc, int dst, int src) {
@@ -901,12 +912,12 @@ static int cc_coerce_unsigned_assignment(cc_state_t *cc,
 
 /* Arguments are evaluated and pushed from left to right. This leaves their
  * cdecl blocks in reverse order at ESP. Reorder the complete stack words in
- * place while retaining the low-to-high word order inside each double. */
+ * place while retaining the low-to-high word order inside each value. */
 static int cc_emit_cdecl_argument_layout(cc_state_t *cc,
                                          const int *argument_sizes,
                                          int argument_count) {
-  int current_words[CC_MAX_PARAMS * 2];
-  int target_words[CC_MAX_PARAMS * 2];
+  int current_words[CC_MAX_PARAMS * 4];
+  int target_words[CC_MAX_PARAMS * 4];
   int word_count = 0;
   int argument;
   int destination;
@@ -919,12 +930,12 @@ static int cc_emit_cdecl_argument_layout(cc_state_t *cc,
   for (argument = 0; argument < argument_count; argument++) {
     int size = argument_sizes[argument];
     int word;
-    if (size != 4 && size != 8) {
-      cc_error(cc, "cdecl argument must occupy four or eight bytes");
+    if (size != 4 && size != 8 && size != 16) {
+      cc_error(cc, "cdecl argument must occupy four, eight, or sixteen bytes");
       return 0;
     }
     for (word = 0; word < size / 4; word++) {
-      target_words[word_count++] = argument * 2 + word;
+      target_words[word_count++] = argument * 4 + word;
     }
   }
 
@@ -932,7 +943,7 @@ static int cc_emit_cdecl_argument_layout(cc_state_t *cc,
   for (argument = argument_count - 1; argument >= 0; argument--) {
     int word;
     for (word = 0; word < argument_sizes[argument] / 4; word++) {
-      current_words[destination++] = argument * 2 + word;
+      current_words[destination++] = argument * 4 + word;
     }
   }
 
@@ -2214,9 +2225,8 @@ static int cc_reserve_local_frame(cc_state_t *cc, int32_t bytes,
   return 1;
 }
 
-/* Private CupidC passes scalar and pointer values in cdecl stack slots.
- * SIMD vectors and aggregate values need a separate ABI before they can
- * cross a function boundary. */
+/* Private CupidC passes ordinary values in complete cdecl stack slots.
+ * Aggregates still need a separate ABI before they can cross a boundary. */
 static int32_t cc_cdecl_slot_size(cc_type_t type) {
   switch (type) {
   case TYPE_INT:
@@ -2234,6 +2244,9 @@ static int32_t cc_cdecl_slot_size(cc_type_t type) {
     return 4;
   case TYPE_DOUBLE:
     return 8;
+  case TYPE_FLOAT4:
+  case TYPE_DOUBLE2:
+    return 16;
   default:
     return 0;
   }
@@ -2256,6 +2269,8 @@ static int cc_emit_cdecl_argument_push(cc_state_t *cc, cc_type_t type,
     emit_push_xmm_float(cc, 0);
   } else if (type == TYPE_DOUBLE) {
     emit_push_xmm_double(cc, 0);
+  } else if (type == TYPE_FLOAT4 || type == TYPE_DOUBLE2) {
+    emit_push_xmm_vector(cc, 0);
   } else {
     emit_push_eax(cc);
   }
@@ -2329,8 +2344,10 @@ static int cc_emit_call_argument_push(cc_state_t *cc,
                                       int argument_index,
                                       int *slot_size) {
   cc_type_t slot_type = cc_last_expr_type;
-  if (callee && callee->kind == SYM_FUNC && callee->has_param_types &&
-      argument_index < callee->param_count) {
+  int has_fixed_parameter =
+      callee && callee->kind == SYM_FUNC && callee->has_param_types &&
+      argument_index < callee->param_count;
+  if (has_fixed_parameter) {
     slot_type = (cc_type_t)callee->param_types[argument_index];
     if (!cc_coerce_cdecl_argument(cc, slot_type))
       return 0;
@@ -2348,11 +2365,17 @@ static int cc_emit_call_argument_push(cc_state_t *cc,
       cc_last_expr_type = TYPE_INT;
     }
   }
+  if ((slot_type == TYPE_FLOAT4 || slot_type == TYPE_DOUBLE2) &&
+      !has_fixed_parameter) {
+    cc_error(cc, "SIMD call arguments require a fixed parameter type");
+    return 0;
+  }
   return cc_emit_cdecl_argument_push(cc, slot_type, slot_size);
 }
 
 static int cc_bind_cdecl_parameter(cc_state_t *cc, const char *name,
                                    cc_type_t type, int struct_index,
+                                   int is_const_qualified,
                                    int32_t offset) {
   int slot_size = cc_cdecl_slot_size(type);
   cc_symbol_t *symbol;
@@ -2366,6 +2389,7 @@ static int cc_bind_cdecl_parameter(cc_state_t *cc, const char *name,
   if (!symbol)
     return 0;
   symbol->offset = offset;
+  symbol->is_const_qualified = is_const_qualified;
   symbol->struct_index = struct_index;
   return slot_size;
 }
@@ -3625,9 +3649,16 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       cc_last_expr_indirect_lvalue = 0;
       return;
     }
-    cc_next(cc); /* consume '(' */
-
     cc_symbol_t *call_sym = cc_sym_find(cc, name);
+    if (call_sym &&
+        (call_sym->kind == SYM_LOCAL || call_sym->kind == SYM_PARAM ||
+         call_sym->kind == SYM_GLOBAL) &&
+        call_sym->type == TYPE_FUNC_PTR &&
+        cc_is_simd_value_type(call_sym->function_pointer_return_type)) {
+      cc_error(cc, "SIMD function-pointer returns are not supported");
+      return;
+    }
+    cc_next(cc); /* consume '(' */
 
     /* Evaluate arguments in source order and retain their stack widths. */
     int argc = 0;
@@ -3763,8 +3794,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       }
     }
 
-    /* Clean up arguments.  Use total_arg_bytes instead of
-     * argc*4 so that doubles (8 bytes) are correctly cleaned up.*/
+    /* Clean up the complete outgoing area. Four, eight, and sixteen-byte
+     * slots all contribute their actual width to total_arg_bytes. */
     if (total_arg_bytes > 0) {
       emit_add_esp(cc, (int32_t)total_arg_bytes);
     }
@@ -3772,10 +3803,11 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     if (strcmp(name, "print") == 0 || strcmp(name, "println") == 0) {
       cc_last_expr_type = TYPE_VOID;
     } else {
-      /* If callee returns float/double, result lives in XMM0;
-       * otherwise it's in EAX.*/
+      /* Floating and packed results live in XMM0. Other ordinary results
+       * use EAX. */
       cc_last_expr_type = call_ret_type;
-      if (call_ret_type == TYPE_FLOAT || call_ret_type == TYPE_DOUBLE) {
+      if (call_ret_type == TYPE_FLOAT || call_ret_type == TYPE_DOUBLE ||
+          call_ret_type == TYPE_FLOAT4 || call_ret_type == TYPE_DOUBLE2) {
         cc_last_xmm = 0;
       }
     }
@@ -4654,7 +4686,7 @@ static void cc_parse_primary(cc_state_t *cc) {
           emit_add_esp(cc, (int32_t)total_arg_bytes);
         }
 
-        /* Propagate FP return type so callers can spill via XMM0. */
+        /* Propagate floating and packed return types through XMM0. */
         {
           cc_symbol_t *msym2 = cc_sym_find(cc, method_sym_name);
           cc_type_t mret = TYPE_INT;
@@ -4664,7 +4696,8 @@ static void cc_parse_primary(cc_state_t *cc) {
             mret_si = msym2->struct_index;
           }
           cc_last_expr_type = mret;
-          if (mret == TYPE_FLOAT || mret == TYPE_DOUBLE) {
+          if (mret == TYPE_FLOAT || mret == TYPE_DOUBLE ||
+              mret == TYPE_FLOAT4 || mret == TYPE_DOUBLE2) {
             cc_last_xmm = 0;
           }
           cc_seed_pointer_subscript_metadata(cc, mret, mret_si);
@@ -7529,17 +7562,31 @@ static void cc_parse_for(cc_state_t *cc) {
 }
 
 static void cc_parse_return(cc_state_t *cc) {
+  if (cc_peek(cc).type == CC_TOK_SEMICOLON &&
+      cc_is_simd_value_type(cc->current_return_type)) {
+    cc_error(cc, "SIMD return requires a matching float4 or double2 value");
+    return;
+  }
   if (cc_peek(cc).type != CC_TOK_SEMICOLON) {
     cc_parse_expression(cc, 1);
+    if ((cc->current_return_type == TYPE_FLOAT4 ||
+         cc->current_return_type == TYPE_DOUBLE2 ||
+         cc_last_expr_type == TYPE_FLOAT4 ||
+         cc_last_expr_type == TYPE_DOUBLE2) &&
+        cc_last_expr_type != cc->current_return_type) {
+      cc_error(cc,
+               "SIMD return requires a matching float4 or double2 value");
+      return;
+    }
     if (cc_cdecl_slot_size(cc->current_return_type) > 0 &&
         !cc_coerce_cdecl_argument(cc, cc->current_return_type))
       return;
-    /* Float/double return values live in XMM0.  Expression codegen
-     * places FP results in XMM0 (cc_last_xmm=0), but if a future
-     * pass routes them to a different XMM reg we MOVAPS the value
-     * into XMM0 before the epilogue.*/
+    /* Floating and packed return values live in XMM0. If a later pass routes
+     * one through another XMM register, restore the ABI register here. */
     if ((cc_last_expr_type == TYPE_FLOAT ||
-         cc_last_expr_type == TYPE_DOUBLE) &&
+         cc_last_expr_type == TYPE_DOUBLE ||
+         cc_last_expr_type == TYPE_FLOAT4 ||
+         cc_last_expr_type == TYPE_DOUBLE2) &&
         cc_last_xmm != 0) {
       emit_movaps_xmm_xmm(cc, 0, cc_last_xmm);
       cc_last_xmm = 0;
@@ -7754,8 +7801,12 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
           return;
         cc_symbol_t *sym =
             cc_sym_add(cc, fname_tok.text, SYM_LOCAL, TYPE_FUNC_PTR);
-        if (sym)
+        if (sym) {
           sym->offset = local_slot;
+          /* Function-pointer signatures are otherwise erased. Keep the
+           * declared result only so unsupported SIMD returns fail clearly. */
+          sym->function_pointer_return_type = type;
+        }
         /* Check for initializer */
         if (cc_peek(cc).type == CC_TOK_EQ) {
           cc_next(cc);
@@ -8253,6 +8304,7 @@ static void cc_parse_function(cc_state_t *cc) {
       cc_type_t ptype = cc_parse_type(cc);
       int psi = cc_last_type_struct_index;
       int ptype_array_count = cc_last_type_array_count;
+      int ptype_is_const = cc_last_type_is_const_qualified;
 
       /* Special-case: foo(void) */
       if (!(ptype == TYPE_VOID && cc_peek(cc).type == CC_TOK_RPAREN)) {
@@ -8276,7 +8328,7 @@ static void cc_parse_function(cc_state_t *cc) {
           func_sym->param_types[cc->param_count] = (uint8_t)ptype;
         {
           int slot_size = cc_bind_cdecl_parameter(
-              cc, pname.text, ptype, psi, param_offset);
+              cc, pname.text, ptype, psi, ptype_is_const, param_offset);
           if (slot_size == 0)
             return;
           param_offset += slot_size;
@@ -8294,6 +8346,7 @@ static void cc_parse_function(cc_state_t *cc) {
         ptype = cc_parse_type(cc);
         psi = cc_last_type_struct_index;
         ptype_array_count = cc_last_type_array_count;
+        ptype_is_const = cc_last_type_is_const_qualified;
         cc_token_t pname = cc_next(cc);
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
@@ -8311,7 +8364,7 @@ static void cc_parse_function(cc_state_t *cc) {
           func_sym->param_types[cc->param_count] = (uint8_t)ptype;
         {
           int slot_size = cc_bind_cdecl_parameter(
-              cc, pname.text, ptype, psi, param_offset);
+              cc, pname.text, ptype, psi, ptype_is_const, param_offset);
           if (slot_size == 0)
             return;
           param_offset += slot_size;
@@ -8435,8 +8488,8 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
   {
     if (func_sym)
       func_sym->param_types[0] = (uint8_t)TYPE_STRUCT_PTR;
-    if (cc_bind_cdecl_parameter(cc, "self", TYPE_STRUCT_PTR, class_index, 8) ==
-        0)
+    if (cc_bind_cdecl_parameter(cc, "self", TYPE_STRUCT_PTR, class_index, 0,
+                                8) == 0)
       return;
     cc->param_count = 1;
   }
@@ -8452,6 +8505,7 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
       cc_type_t ptype = cc_parse_type(cc);
       int psi = cc_last_type_struct_index;
       int ptype_array_count = cc_last_type_array_count;
+      int ptype_is_const = cc_last_type_is_const_qualified;
 
       if (!(ptype == TYPE_VOID && cc_peek(cc).type == CC_TOK_RPAREN)) {
         cc_token_t pname = cc_next(cc);
@@ -8471,7 +8525,7 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
           func_sym->param_types[cc->param_count] = (uint8_t)ptype;
         {
           int slot_size = cc_bind_cdecl_parameter(
-              cc, pname.text, ptype, psi, param_offset);
+              cc, pname.text, ptype, psi, ptype_is_const, param_offset);
           if (slot_size == 0)
             return;
           param_offset += slot_size;
@@ -8489,6 +8543,7 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
         ptype = cc_parse_type(cc);
         psi = cc_last_type_struct_index;
         ptype_array_count = cc_last_type_array_count;
+        ptype_is_const = cc_last_type_is_const_qualified;
         cc_token_t pname = cc_next(cc);
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
@@ -8506,7 +8561,7 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
           func_sym->param_types[cc->param_count] = (uint8_t)ptype;
         {
           int slot_size = cc_bind_cdecl_parameter(
-              cc, pname.text, ptype, psi, param_offset);
+              cc, pname.text, ptype, psi, ptype_is_const, param_offset);
           if (slot_size == 0)
             return;
           param_offset += slot_size;

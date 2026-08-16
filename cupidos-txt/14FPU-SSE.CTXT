@@ -376,12 +376,22 @@ exact old 128-bit payload after the store. An indexed destination runs once.
 Const qualification is retained through typedef aliases. Const direct vectors
 and fixed-array leaves remain readable but plain and arithmetic compound
 assignment, plus prefix and postfix ++ and --, are rejected before a store.
-Lane updates, computed vectors, SIMD pointers, record fields, parameters,
-calls, and row values remain unsupported. Every direct operator keeps the
+Lane updates, computed vectors, SIMD pointers, record fields, array parameters,
+and row values remain unsupported. Every direct operator keeps the
 written left value in the machine destination. MIN and MAX intrinsics keep the
 second input for NaN and equal signed-zero cases. For a both-NaN ADD or
 MUL, the processor or emulator may preserve either input payload. Incomplete
 row assignments and row expressions are rejected.
+
+Fixed-prototype direct functions and methods pass float4 and double2 by value.
+Each vector uses one complete 16-byte cdecl stack slot and returns in XMM0.
+Slots are packed at four-byte granularity, so MOVUPS handles a vector after a
+four- or eight-byte value. The private ABI makes no 16-byte call-site alignment
+promise. Arguments still run from left to right, and the caller reclaims the
+full outgoing area. A const vector parameter is readable but not modifiable.
+A fixed SIMD prefix may precede scalar variadic values. SIMD variadic tails,
+unprototyped SIMD calls, and signature-erased function-pointer calls are
+rejected. Named SIMD intrinsics keep their inline lowering.
 
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE
@@ -443,7 +453,7 @@ Test programs:
   `bin/feature13_derived_aot.cc`
                               external AOT proof for derived floating updates.
   `bin/feature14_simd.cc`     packed operators, arrays, matrices, cubes, NaNs,
-                              and intrinsics.
+                              fixed vector calls, and intrinsics.
   `bin/feature15_libm.cc`     29 fixed checks, including seven x87 range paths.
   `bin/feature16_asm_fpu.cc`  CupidC inline asm using SSE + x87.
   `bin/fp_drill.cc`           manual #XF provocation (panics kernel).

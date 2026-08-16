@@ -441,10 +441,14 @@ written left value in the machine destination. MIN and MAX intrinsics keep the
 written second operand for NaN and equal signed-zero inputs. For a both-NaN ADD
 or MUL, the processor or emulator may preserve either input payload. Incomplete
 row assignment is rejected. SIMD pointers, record fields, and allocation with
-`new`, array parameters, row values, lane updates, computed vector updates, and
-call ABI transport remain unsupported. The fixed-array boundary is in ADR 0216.
-ADR 0257 records multidimensional row descent.
-ADR 0294 records whole-vector updates.
+`new`, array parameters, row values, lane updates, and computed vector updates
+remain unsupported. Fixed-prototype direct functions and methods pass either
+vector by value in one 16-byte cdecl slot and return it through XMM0. The slot
+uses `MOVUPS` and may begin at a four-byte boundary. SIMD variadic tails,
+unprototyped calls, and signature-erased function-pointer calls are rejected.
+The fixed-array boundary is in ADR 0216. ADR 0257 records multidimensional row
+descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD
+calls.
 
 ### Arithmetic
 

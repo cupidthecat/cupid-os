@@ -742,6 +742,462 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 34, result.stdout + result.stderr)
 
+    def test_simd_parameters_and_returns_survive_nested_calls(self):
+        result = self._compile_and_run(
+            """
+            int float_marker;
+            int double_marker;
+
+            float4 merge_float4(float4 left, int marker, float4 right) {
+              float_marker = marker;
+              return left + right;
+            }
+
+            float4 merge_float4_three(float4 first, float4 second,
+                                      float4 third) {
+              return merge_float4(
+                  merge_float4(first, 7, second), 11, third);
+            }
+
+            double2 merge_double2(double2 left, int marker, double2 right) {
+              double_marker = marker;
+              return left + right;
+            }
+
+            int main() {
+              float4 first = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 second = {5.0f, 6.0f, 7.0f, 8.0f};
+              float4 third = {9.0f, 10.0f, 11.0f, 12.0f};
+              double2 wide_first = {1.5, 2.5};
+              double2 wide_second = {3.0, 4.0};
+              float4 floats;
+              double2 doubles;
+
+              floats = merge_float4_three(first, second, third);
+              doubles = merge_double2(wide_first, 13, wide_second);
+
+              if (float_marker != 11 || double_marker != 13) return 1;
+              if (floats.x != 15.0f || floats.y != 18.0f) return 2;
+              if (floats.z != 21.0f || floats.w != 24.0f) return 3;
+              if (doubles.x != 4.5 || doubles.y != 6.5) return 4;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_mixed_scalar_and_simd_call_keeps_order_and_raw_words(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-mixed-simd-call-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, code_path, _data = self._compile(
+                root,
+                """
+                int sequence;
+                int order_error;
+
+                void advance(int expected) {
+                  if (sequence != expected) order_error = 1;
+                  sequence += 1;
+                }
+
+                float4 next_float4_first() {
+                  float4 value = {1.0f, -2.0f, 3.0f, -4.0f};
+                  advance(0);
+                  return value;
+                }
+
+                double next_double() {
+                  advance(1);
+                  return 1.5;
+                }
+
+                double2 next_double2() {
+                  double2 value = {3.25, -6.5};
+                  advance(2);
+                  return value;
+                }
+
+                int next_int() {
+                  advance(3);
+                  return 0x13579bdf;
+                }
+
+                float4 next_float4_last() {
+                  float4 value = {9.0f, 10.0f, 11.0f, 12.0f};
+                  advance(4);
+                  return value;
+                }
+
+                int inspect(float4 first, double scalar, double2 packed,
+                            int word, float4 last) {
+                  float lane = first.x;
+                  if (*(int *)&lane != 0x3f800000) return 1;
+                  lane = first.y;
+                  if (*(int *)&lane != (int)0xc0000000) return 2;
+                  lane = first.z;
+                  if (*(int *)&lane != 0x40400000) return 3;
+                  lane = first.w;
+                  if (*(int *)&lane != (int)0xc0800000) return 4;
+
+                  int *bits = (int *)&scalar;
+                  if (bits[0] != 0 || bits[1] != 0x3ff80000) return 5;
+                  double wide_lane = packed.x;
+                  bits = (int *)&wide_lane;
+                  if (bits[0] != 0 || bits[1] != 0x400a0000) return 6;
+                  wide_lane = packed.y;
+                  bits = (int *)&wide_lane;
+                  if (bits[0] != 0 ||
+                      bits[1] != (int)0xc01a0000) return 7;
+                  if (word != 0x13579bdf) return 8;
+
+                  lane = last.x;
+                  if (*(int *)&lane != 0x41100000) return 9;
+                  lane = last.w;
+                  if (*(int *)&lane != 0x41400000) return 10;
+                  if (sequence != 5 || order_error != 0) return 11;
+                  return 0;
+                }
+
+                int main() {
+                  sequence = 0;
+                  order_error = 0;
+                  return inspect(
+                      next_float4_first(), next_double(), next_double2(),
+                      next_int(), next_float4_last());
+                }
+                """,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            entry_offset = int(result.stdout.strip())
+            main_code = code_path.read_bytes()[entry_offset:]
+            self.assertIn(
+                b"\xe8",
+                main_code,
+                "expected a direct mixed-width call",
+            )
+            cleanup_sites = [
+                offset
+                for offset in range(len(main_code) - 7)
+                if main_code[offset] == 0xE8
+                and main_code[offset + 5 : offset + 8] == b"\x83\xc4\x3c"
+            ]
+            self.assertEqual(
+                len(cleanup_sites),
+                1,
+                "expected the mixed call to release 60 argument bytes",
+            )
+            runtime = self._run_i386(root, entry_offset)
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_simd_calls_clean_the_complete_outgoing_area(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-simd-call-cleanup-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, code_path, _data = self._compile(
+                Path(temporary),
+                """
+                float4 merge_float4(float4 left, int marker, float4 right) {
+                  if (marker == 0) return left;
+                  return left + right;
+                }
+
+                double2 merge_double2(double2 left, int marker,
+                                      double2 right) {
+                  if (marker == 0) return left;
+                  return left + right;
+                }
+
+                int main() {
+                  float4 left = {1.0f, 2.0f, 3.0f, 4.0f};
+                  float4 right = {5.0f, 6.0f, 7.0f, 8.0f};
+                  double2 wide_left = {1.0, 2.0};
+                  double2 wide_right = {3.0, 4.0};
+                  float4 floats;
+                  double2 doubles;
+                  floats = merge_float4(left, 7, right);
+                  doubles = merge_double2(wide_left, 9, wide_right);
+                  return (int)floats.x + (int)doubles.x;
+                }
+                """,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            entry_offset = int(result.stdout.strip())
+            code = code_path.read_bytes()
+            main_code = code[entry_offset:]
+
+        self.assertIn(
+            b"\x0f\x10\x85\x08\x00\x00\x00",
+            code,
+            "expected the first vector at EBP + 8",
+        )
+        self.assertIn(
+            b"\x8b\x85\x18\x00\x00\x00",
+            code,
+            "expected the scalar marker after the first vector",
+        )
+        self.assertIn(
+            b"\x0f\x10\x85\x1c\x00\x00\x00",
+            code,
+            "expected the second vector after the scalar marker",
+        )
+
+        cleanup_sites = [
+            offset
+            for offset in range(len(main_code) - 7)
+            if main_code[offset] == 0xE8
+            and main_code[offset + 5 : offset + 8] == b"\x83\xc4\x24"
+        ]
+        self.assertEqual(
+            len(cleanup_sites),
+            2,
+            "expected both vector calls to release 36 argument bytes",
+        )
+
+    def test_active_simd_header_declarations_accept_vector_parameters(self):
+        header = (REPO_ROOT / "kernel" / "cpu" / "simd_intrin.h").read_text(
+            encoding="utf-8"
+        )
+        declarations = "\n".join(
+            line for line in header.splitlines() if not line.startswith("#")
+        )
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-simd-header-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary), declarations + "\nint main() { return 0; }\n"
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_simd_methods_keep_self_before_complete_vector_slots(self):
+        result = self._compile_and_run(
+            """
+            int seen_direct;
+            int seen_pointer;
+
+            class Mixer {
+              float4 Blend(float4 left, int marker, float4 right) {
+                seen_direct = marker;
+                return left + right;
+              }
+
+              double2 BlendWide(double2 left, int marker, double2 right) {
+                seen_pointer = marker;
+                return left + right;
+              }
+            };
+
+            int main() {
+              Mixer mixer;
+              Mixer *pointer = &mixer;
+              float4 float_left = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 float_right = {5.0f, 6.0f, 7.0f, 8.0f};
+              double2 double_left = {1.5, 2.5};
+              double2 double_right = {3.0, 4.0};
+              float4 floats;
+              double2 doubles;
+
+              floats = mixer.Blend(float_left, 17, float_right);
+              doubles = pointer->BlendWide(
+                  double_left, 19, double_right);
+
+              if (seen_direct != 17 || seen_pointer != 19) return 1;
+              if (floats.x != 6.0f || floats.w != 12.0f) return 2;
+              if (doubles.x != 4.5 || doubles.y != 6.5) return 3;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_void_simd_method_statements_use_the_shared_layout(self):
+        result = self._compile_and_run(
+            """
+            int observations;
+
+            class Observer {
+              void Record(float4 floats, int marker, double2 doubles) {
+                if (floats.x == 1.0f && floats.w == 4.0f &&
+                    doubles.x == 5.0 && doubles.y == 7.0) {
+                  observations += marker;
+                }
+              }
+            };
+
+            int main() {
+              Observer observer;
+              Observer *pointer = &observer;
+              float4 floats = {1.0f, 2.0f, 3.0f, 4.0f};
+              double2 doubles = {5.0, 7.0};
+              observer.Record(floats, 11, doubles);
+              pointer->Record(floats, 13, doubles);
+              return observations == 24 ? 0 : 1;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_simd_prototypes_preserve_results_before_definitions(self):
+        result = self._compile_and_run(
+            """
+            float4 add_float4(float4 left, float4 right);
+            double2 add_double2(double2 left, double2 right);
+
+            int main() {
+              float4 float_left = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 float_right = {5.0f, 6.0f, 7.0f, 8.0f};
+              double2 double_left = {1.5, 2.5};
+              double2 double_right = {3.0, 4.0};
+              float4 floats;
+              double2 doubles;
+              floats = add_float4(float_left, float_right);
+              doubles = add_double2(double_left, double_right);
+              if (floats.x != 6.0f || floats.w != 12.0f) return 1;
+              if (doubles.x != 4.5 || doubles.y != 6.5) return 2;
+              return 0;
+            }
+
+            float4 add_float4(float4 left, float4 right) {
+              return left + right;
+            }
+
+            double2 add_double2(double2 left, double2 right) {
+              return left + right;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_simd_parameter_updates_change_only_the_callee_copy(self):
+        result = self._compile_and_run(
+            """
+            float4 increment_copy(float4 value) {
+              value++;
+              return value;
+            }
+
+            double2 decrement_copy(double2 value) {
+              --value;
+              return value;
+            }
+
+            int main() {
+              float4 original = {1.0f, 2.0f, 3.0f, 4.0f};
+              double2 wide_original = {5.0, 7.0};
+              float4 changed;
+              double2 wide_changed;
+              changed = increment_copy(original);
+              wide_changed = decrement_copy(wide_original);
+              if (original.x != 1.0f || original.w != 4.0f) return 1;
+              if (wide_original.x != 5.0 || wide_original.y != 7.0) return 2;
+              if (changed.x != 2.0f || changed.w != 5.0f) return 3;
+              if (wide_changed.x != 4.0 || wide_changed.y != 6.0) return 4;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_const_simd_parameters_reject_mutation_before_recovery(self):
+        cases = (
+            (
+                "float4 assignment",
+                """
+                int invalid(const float4 value, float4 other) {
+                  value = other;
+                  return 0;
+                }
+                """,
+                "SIMD assignment requires a modifiable whole-vector lvalue",
+            ),
+            (
+                "double2 update",
+                """
+                int invalid(const double2 value) {
+                  value++;
+                  return 0;
+                }
+                """,
+                "SIMD increment or decrement requires a modifiable "
+                "whole-vector lvalue",
+            ),
+        )
+        retry_source = """
+            float4 identity(float4 value) {
+              return value;
+            }
+
+            int main() {
+              float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 result;
+              result = identity(value);
+              return result.y == 2.0f ? 0 : 1;
+            }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(form=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-const-simd-parameter-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode,
+                    0,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode,
+                    0,
+                    runtime.stdout + runtime.stderr,
+                )
+
+    def test_simd_calls_execute_through_private_aot(self):
+        result = self._compile_and_run(
+            """
+            float4 add_float4(float4 left, int marker, float4 right) {
+              if (marker != 7) return left;
+              return left + right;
+            }
+
+            double2 add_double2(double2 left, int marker, double2 right) {
+              if (marker != 9) return left;
+              return left + right;
+            }
+
+            int main() {
+              float4 float_left = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 float_right = {5.0f, 6.0f, 7.0f, 8.0f};
+              double2 double_left = {1.5, 2.5};
+              double2 double_right = {3.0, 4.0};
+              float4 floats;
+              double2 doubles;
+              floats = add_float4(float_left, 7, float_right);
+              doubles = add_double2(double_left, 9, double_right);
+              if (floats.z != 10.0f || floats.w != 12.0f) return 1;
+              if (doubles.x != 4.5 || doubles.y != 6.5) return 2;
+              return 0;
+            }
+            """,
+            aot=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_double_then_integer_arguments_use_cdecl_source_order(self):
         result = self._compile_and_run(
             """
@@ -2925,6 +3381,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "[feature14-matrix] PASS global=2 local=2 static=2 "
             "sizes=8 index=6 unevaluated=2 canary=4",
             "[feature14-update] PASS direct=6 leaves=3 once=6 payload=8",
+            "[feature14-call] PASS float4=4 double2=2 nested=2 calls=6",
             "[feature14-minmax] PASS nan=4 signed_zero=4",
             "[feature14-nan] PASS float_left=",
             "PASS feature14_simd",
@@ -4113,11 +4570,6 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 }
                 """,
                 "SIMD record-field increment or decrement is not supported",
-            ),
-            (
-                "parameter",
-                "int update(float4 value) { value++; return 0; }",
-                "cdecl parameter type is not supported",
             ),
             (
                 "SIMD pointer",
@@ -5694,15 +6146,320 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "cdecl call argument type is not supported", result.stderr
         )
 
-    def test_unsupported_parameter_has_a_useful_diagnostic(self):
+    def test_simd_argument_mismatch_reports_the_fixed_type(self):
         with tempfile.TemporaryDirectory(
-            prefix="private-cupidc-parameter-diagnostic-",
+            prefix="private-cupidc-simd-argument-mismatch-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                void consume(float4 value) {
+                }
+
+                int invalid_call() {
+                  double2 value = {1.0, 2.0};
+                  consume(value);
+                  return 0;
+                }
+                """,
+                """
+                float4 identity(float4 value) {
+                  return value;
+                }
+
+                int main() {
+                  float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
+                  float4 result;
+                  result = identity(value);
+                  return result.w == 4.0f ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "cdecl argument type does not match fixed parameter",
+                result.stderr,
+            )
+            entry_offset = int(result.stdout.strip())
+            runtime = self._run_i386(Path(temporary), entry_offset)
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_variadic_simd_rejection_recovers_in_the_same_state(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-simd-variadic-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                void consume(float4 fixed, ...);
+                float4 fixed_value;
+                float4 invalid_value;
+                consume(fixed_value, invalid_value);
+                """,
+                """
+                float4 identity(float4 value) {
+                  return value;
+                }
+
+                int main() {
+                  float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
+                  float4 result;
+                  result = identity(value);
+                  return result.z == 3.0f ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "SIMD call arguments require a fixed parameter type",
+                result.stderr,
+            )
+            entry_offset = int(result.stdout.strip())
+            runtime = self._run_i386(root, entry_offset)
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_variadic_call_accepts_fixed_simd_and_scalar_tail_values(self):
+        result = self._compile_and_run(
+            """
+            int inspect(float4 narrow, double2 wide, int marker, ...) {
+              if (narrow.x != 1.0f || narrow.w != 4.0f) return 1;
+              if (wide.x != 5.0 || wide.y != 7.0) return 2;
+              return marker == 9 ? 0 : 3;
+            }
+
+            int main() {
+              float4 narrow = {1.0f, 2.0f, 3.0f, 4.0f};
+              double2 wide = {5.0, 7.0};
+              return inspect(narrow, wide, 9, 11, 2.5f);
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unprototyped_simd_rejection_recovers_in_the_same_state(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-simd-unprototyped-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                void consume();
+                double2 invalid_value;
+                consume(invalid_value);
+                """,
+                """
+                double2 identity(double2 value) {
+                  return value;
+                }
+
+                int main() {
+                  double2 value = {3.0, 5.0};
+                  double2 result;
+                  result = identity(value);
+                  return result.y == 5.0 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "SIMD call arguments require a fixed parameter type",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_function_pointer_simd_argument_is_rejected_without_metadata(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-simd-function-pointer-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                void consume(float4 value) {
+                }
+
+                int invalid_call() {
+                  float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
+                  void (*callback)(float4 value) = consume;
+                  callback(value);
+                  return 0;
+                }
+                """,
+                """
+                float4 identity(float4 value) {
+                  return value;
+                }
+
+                int main() {
+                  float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
+                  float4 result;
+                  result = identity(value);
+                  return result.w == 4.0f ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "SIMD call arguments require a fixed parameter type",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_function_pointer_simd_result_is_rejected_without_metadata(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-simd-function-pointer-result-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                float4 make_value() {
+                  float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
+                  return value;
+                }
+
+                int invalid_call() {
+                  float4 (*callback)() = make_value;
+                  float4 result;
+                  result = callback();
+                  return result.x == 1.0f ? 0 : 1;
+                }
+                """,
+                """
+                double2 identity(double2 value) {
+                  return value;
+                }
+
+                int main() {
+                  double2 value = {3.0, 5.0};
+                  double2 result;
+                  result = identity(value);
+                  return result.y == 5.0 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "SIMD function-pointer returns are not supported",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_bare_simd_return_recovers_with_a_focused_diagnostic(self):
+        cases = (
+            ("float4", "float4"),
+            ("double2", "double2"),
+        )
+        retry_source = """
+            float4 identity(float4 value) {
+              return value;
+            }
+
+            int main() {
+              float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 result;
+              result = identity(value);
+              return result.z == 3.0f ? 0 : 1;
+            }
+        """
+        for label, return_type in cases:
+            with self.subTest(return_type=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-bare-simd-return-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    f"""
+                    {return_type} invalid_return() {{
+                      return;
+                    }}
+                    """,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode,
+                    0,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(
+                    "SIMD return requires a matching float4 or double2 value",
+                    result.stderr,
+                )
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode,
+                    0,
+                    runtime.stdout + runtime.stderr,
+                )
+
+    def test_mismatched_simd_return_recovers_with_a_focused_diagnostic(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-simd-return-mismatch-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                float4 invalid_return() {
+                  double2 value = {1.0, 2.0};
+                  return value;
+                }
+                """,
+                """
+                double2 identity(double2 value) {
+                  return value;
+                }
+
+                int main() {
+                  double2 value = {3.0, 5.0};
+                  double2 result;
+                  result = identity(value);
+                  return result.y == 5.0 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "SIMD return requires a matching float4 or double2 value",
+                result.stderr,
+            )
+            entry_offset = int(result.stdout.strip())
+            runtime = self._run_i386(root, entry_offset)
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_aggregate_parameter_keeps_a_useful_diagnostic(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-aggregate-parameter-",
             ignore_cleanup_errors=True,
         ) as temporary:
             result, _code, _data = self._compile(
                 Path(temporary),
                 """
-                void consume(float4 value) {
+                struct Pair {
+                  int first;
+                  int second;
+                };
+
+                void consume(struct Pair value) {
                 }
                 """,
             )
