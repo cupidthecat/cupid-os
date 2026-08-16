@@ -27621,6 +27621,11 @@ The 2,691,298-byte JSON has SHA-256
 and the 12,502-byte Markdown summary has SHA-256
 `6527bec3d8a2fdddb602fb484cea0baf43a7a08d7e89f8860be4c9f2c0a54707`.
 
+A cross-document check after publication found that the current summaries in
+`HOST-DEPENDENCIES.md` and the bootstrap README still named the preceding
+audit identities. Both now use the values above. The older chronological log
+entry keeps its original checkpoint values.
+
 The first poisoned-host build completed every code-producing and inspection
 stage in 659.6 seconds. The exact-size gate then reported both kernel ELFs
 8,228 bytes above their prior rows and `kernel.bin` 8,252 bytes above its row.

@@ -1989,11 +1989,11 @@ quoted and 257 angle forms. Its active roots contain 396 tracked and four
 generated translation units.
 
 The active-source digest is
-`a14c47880851338259a6ac882906d5ce9e408c404b80f94dbdb8ae4e48a4c421`.
-The 2,686,396-byte audit JSON has SHA-256
-`ceb2aaca6059757bbf1e249cebe033e9be533c07ae820ead308df30faf546a4e`,
+`85ef0fd0a036c42e176266c029e6f359da4d3f950c5014fb8df2b626e21311ae`.
+The 2,691,298-byte audit JSON has SHA-256
+`18ca91d3528349401b1896a5dafbb059027e6b4e16f90dac23693f624511091a`,
 and the 12,502-byte summary has SHA-256
-`b1cf7e0a64aa921b5f8777cc03663f0d35049078fe19a14bb60ef9faa7dce27d`.
+`6527bec3d8a2fdddb602fb484cea0baf43a7a08d7e89f8860be4c9f2c0a54707`.
 
 Across the three supported roots, CupidC participates in 248 transforms,
 CupidASM in seven, CupidLD in seven, and CupidObj in 192. Python participates in
