@@ -36,6 +36,13 @@ output directories, ADR 0246 records the shared invocation boundary, and ADR
 0264 records the syscall ABI contract transfer. ADR 0297 records the
 artifact-size contract transfer.
 
+Source-head CupidDis now has a raw-only local control-flow policy. It validates
+constant relative targets against source-derived code and data ranges and
+known instruction starts. The bootloader contributes nine targets and the SMP
+trampoline contributes four. The policy excludes far, indirect, and ELF
+targets, and the production ownership rows stay unchanged until both checked
+seeds carry the option. ADR 0300 records this staged migration boundary.
+
 The hosted CupidC driver now exposes the shared frontend's Cupid profile as
 `--cupid`. Both preprocessing and parsing receive the same language mode.
 `--gnu` remains independent, Doom compatibility remains separate, and C11 is

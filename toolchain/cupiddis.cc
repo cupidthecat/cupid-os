@@ -215,6 +215,196 @@ static const char *dis_raw_map_message(dis_raw_map_issue_t issue) {
   }
 }
 
+static ctool_i32 dis_signed_bits(ctool_u32 value) {
+  if (value <= 0x7fffffffu) {
+    return (ctool_i32)value;
+  }
+  if (value == 0x80000000u) {
+    return (-2147483647 - 1);
+  }
+  return -(ctool_i32)((~value) + 1u);
+}
+
+static ctool_u32 dis_relative_target(
+    ctool_u32 logical_address, const ctool_x86_decoded_t *decoded,
+    const ctool_x86_operand_t *operand) {
+  ctool_u32 target = logical_address + (ctool_u32)decoded->encoding.size +
+                     (ctool_u32)dis_signed_bits(operand->as.value.bits);
+  if (decoded->instruction.operand_bits == 16u) {
+    target &= 0xffffu;
+  }
+  return target;
+}
+
+static void dis_instruction_start_set(ctool_u8 *starts, ctool_u32 offset) {
+  starts[offset / 8u] |= (ctool_u8)(1u << (offset % 8u));
+}
+
+static ctool_bool dis_instruction_start_get(const ctool_u8 *starts,
+                                             ctool_u32 offset) {
+  return (starts[offset / 8u] & (ctool_u8)(1u << (offset % 8u))) != 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_dis_raw_range_kind_t
+dis_raw_kind_at_offset(const ctool_dis_report_t *report, ctool_u32 offset) {
+  ctool_u32 first;
+  ctool_u32 last;
+  if (report->mode != CTOOL_DIS_RAW_RANGE_MAP) {
+    return report->mode == CTOOL_X86_MODE_16
+               ? CTOOL_DIS_RAW_RANGE_CODE16
+               : CTOOL_DIS_RAW_RANGE_CODE32;
+  }
+  first = 0u;
+  last = report->raw_range_count;
+  while (first < last) {
+    ctool_u32 middle = first + (last - first) / 2u;
+    if (report->raw_ranges[middle].offset <= offset) {
+      first = middle + 1u;
+    } else {
+      last = middle;
+    }
+  }
+  if (first != 0u) {
+    return report->raw_ranges[first - 1u].kind;
+  }
+  return CTOOL_DIS_RAW_RANGE_DATA;
+}
+
+static ctool_status_t dis_scan_local_target_region(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_dis_report_t *report, ctool_u32 first, ctool_u32 last,
+    ctool_x86_mode_t mode, ctool_u8 *instruction_starts,
+    ctool_bool mark_starts) {
+  ctool_bytes_t bytes;
+  ctool_u32 offset = 0u;
+  if (first == last) {
+    return CTOOL_OK;
+  }
+  bytes = ctool_bytes(report->source->contents.data + first, last - first);
+  while (offset < bytes.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_status_t status =
+        decoder == (const ctool_x86_decoder_t *)0
+            ? ctool_x86_decode(job, mode, bytes, offset, &decoded)
+            : ctool_x86_decode_indexed(job, decoder, mode, bytes, offset,
+                                       &decoded);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (decoded.kind == CTOOL_X86_DECODE_KNOWN) {
+      ctool_u32 source_offset = first + offset;
+      if (mark_starts == CTOOL_TRUE) {
+        dis_instruction_start_set(instruction_starts, source_offset);
+      } else {
+        ctool_u32 operand_index;
+        for (operand_index = 0u;
+             operand_index < (ctool_u32)decoded.instruction.operand_count;
+             operand_index++) {
+          const ctool_x86_operand_t *operand =
+              &decoded.instruction.operands[operand_index];
+          ctool_u32 target;
+          ctool_u32 target_offset;
+          ctool_dis_raw_range_kind_t target_kind;
+          ctool_x86_mode_t target_mode;
+          if (operand->kind != CTOOL_X86_OPERAND_RELATIVE ||
+              operand->as.value.kind != CTOOL_X86_VALUE_CONSTANT) {
+            continue;
+          }
+          report->decode_summary.direct_relative_target_count++;
+          target = dis_relative_target(report->base_address + source_offset,
+                                       &decoded, operand);
+          if (decoded.instruction.operand_bits == 16u) {
+            target_offset =
+                (target - (report->base_address & 0xffffu)) & 0xffffu;
+            if (target_offset >= report->source->contents.size) {
+              report->decode_summary.direct_relative_outside_image_count++;
+              continue;
+            }
+          } else {
+            if (target < report->base_address ||
+                target - report->base_address >=
+                    report->source->contents.size) {
+              report->decode_summary.direct_relative_outside_image_count++;
+              continue;
+            }
+            target_offset = target - report->base_address;
+          }
+          target_kind = dis_raw_kind_at_offset(report, target_offset);
+          if (target_kind == CTOOL_DIS_RAW_RANGE_DATA) {
+            report->decode_summary.direct_relative_data_count++;
+            continue;
+          }
+          target_mode = dis_raw_range_mode(target_kind);
+          if (target_mode != mode) {
+            report->decode_summary.direct_relative_wrong_mode_count++;
+            continue;
+          }
+          if (dis_instruction_start_get(instruction_starts, target_offset) ==
+              CTOOL_FALSE) {
+            report->decode_summary.direct_relative_mid_instruction_count++;
+          }
+        }
+      }
+    } else if (decoded.kind == CTOOL_X86_DECODE_TRUNCATED) {
+      decoded.consumed = decoded.encoding.size;
+    }
+    if (decoded.consumed == 0u || decoded.consumed > bytes.size - offset) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    offset += (ctool_u32)decoded.consumed;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t dis_prepare_raw_local_target_summary(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_dis_report_t *report) {
+  ctool_arena_t *arena = ctool_job_arena(job);
+  ctool_arena_mark_t mark = ctool_arena_mark(arena);
+  ctool_u8 *instruction_starts = (ctool_u8 *)0;
+  ctool_u32 bitset_size = report->source->contents.size / 8u;
+  ctool_u32 pass;
+  ctool_u32 index;
+  ctool_status_t status = CTOOL_OK;
+  ctool_status_t rewind_status;
+  if (report->source->contents.size % 8u != 0u) {
+    bitset_size++;
+  }
+  if (bitset_size != 0u) {
+    status = ctool_arena_alloc_zero(arena, bitset_size,
+                                    (ctool_u32)sizeof(ctool_u8),
+                                    (ctool_u32)sizeof(ctool_u8),
+                                    (void **)&instruction_starts);
+  }
+  for (pass = 0u; status == CTOOL_OK && pass < 2u; pass++) {
+    if (report->mode != CTOOL_DIS_RAW_RANGE_MAP) {
+      status = dis_scan_local_target_region(
+          job, decoder, report, 0u, report->source->contents.size,
+          report->mode, instruction_starts,
+          pass == 0u ? CTOOL_TRUE : CTOOL_FALSE);
+      continue;
+    }
+    for (index = 0u;
+         status == CTOOL_OK && index < report->raw_range_count; index++) {
+      ctool_u32 first = report->raw_ranges[index].offset;
+      ctool_u32 last = index + 1u < report->raw_range_count
+                           ? report->raw_ranges[index + 1u].offset
+                           : report->source->contents.size;
+      if (report->raw_ranges[index].kind == CTOOL_DIS_RAW_RANGE_DATA) {
+        continue;
+      }
+      status = dis_scan_local_target_region(
+          job, decoder, report, first, last,
+          dis_raw_range_mode(report->raw_ranges[index].kind),
+          instruction_starts, pass == 0u ? CTOOL_TRUE : CTOOL_FALSE);
+    }
+  }
+  rewind_status = ctool_arena_rewind(arena, mark);
+  return status == CTOOL_OK ? rewind_status : status;
+}
+
 static ctool_status_t
 dis_summarize_region(ctool_job_t *job, const ctool_x86_decoder_t *decoder,
                      ctool_bytes_t bytes,
@@ -410,8 +600,12 @@ static ctool_status_t dis_inspect(
       (request->views & ~CTOOL_DIS_VIEW_ALL) != 0u) {
     return dis_bad_request(job, source, "CupidDis view selection is invalid");
   }
+  if ((request->policies & ~CTOOL_DIS_POLICY_ALL) != 0u) {
+    return dis_bad_request(job, source, "CupidDis policy selection is invalid");
+  }
   if (request->input == CTOOL_DIS_INPUT_RAW) {
     dis_raw_map_issue_t map_issue = DIS_RAW_MAP_VALID;
+    ctool_bool has_code16 = CTOOL_FALSE;
     if (request->views != CTOOL_DIS_VIEW_DISASSEMBLY) {
       return dis_bad_request(job, source,
                              "raw input only supports disassembly");
@@ -430,6 +624,22 @@ static ctool_status_t dis_inspect(
                    (const ctool_dis_raw_range_t *)0 ||
                request->raw_range_count != 0u) {
       return dis_bad_request(job, source, "raw ranges require mapped mode");
+    }
+    if (request->raw_mode == CTOOL_X86_MODE_16) {
+      has_code16 = CTOOL_TRUE;
+    } else if (request->raw_mode == CTOOL_DIS_RAW_RANGE_MAP) {
+      for (index = 0u; index < request->raw_range_count; index++) {
+        if (request->raw_ranges[index].kind ==
+            CTOOL_DIS_RAW_RANGE_CODE16) {
+          has_code16 = CTOOL_TRUE;
+        }
+      }
+    }
+    if ((request->policies & CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u &&
+        has_code16 == CTOOL_TRUE && source->contents.size > 65536u) {
+      return dis_bad_request(
+          job, source,
+          "local target checks require code16 raw input at most 65536 bytes");
     }
     if (request->label_count != 0u &&
         request->labels == (const ctool_dis_label_t *)0) {
@@ -452,6 +662,7 @@ static ctool_status_t dis_inspect(
     report_out->source = source;
     report_out->input = request->input;
     report_out->views = request->views;
+    report_out->policies = request->policies;
     report_out->mode = request->raw_mode;
     report_out->base_address = request->raw_base_address;
     if (request->raw_mode == CTOOL_DIS_RAW_RANGE_MAP) {
@@ -466,6 +677,12 @@ static ctool_status_t dis_inspect(
     if (status == CTOOL_OK) {
       status = dis_prepare_decode_summary(job, decoder, report_out);
     }
+    if (status == CTOOL_OK &&
+        (report_out->policies &
+         CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u) {
+      status =
+          dis_prepare_raw_local_target_summary(job, decoder, report_out);
+    }
     if (status != CTOOL_OK) {
       (void)ctool_arena_rewind(arena, mark);
       dis_zero_report(report_out);
@@ -474,6 +691,10 @@ static ctool_status_t dis_inspect(
   }
   if (request->input != CTOOL_DIS_INPUT_ELF32) {
     return dis_bad_request(job, source, "CupidDis input kind is invalid");
+  }
+  if (request->policies != 0u) {
+    return dis_bad_request(job, source,
+                           "CupidDis policies only apply to raw input");
   }
   if (request->label_count != 0u ||
       request->labels != (const ctool_dis_label_t *)0) {
@@ -535,6 +756,7 @@ static ctool_status_t dis_inspect(
   report_out->source = source;
   report_out->input = request->input;
   report_out->views = request->views;
+  report_out->policies = request->policies;
   report_out->mode = CTOOL_X86_MODE_32;
   status = dis_prepare_report_orders(job, report_out);
   if (status == CTOOL_OK) {
@@ -1133,16 +1355,6 @@ static ctool_status_t dis_render_relocations(const ctool_dis_report_t *report,
   return status;
 }
 
-static ctool_i32 dis_signed_bits(ctool_u32 value) {
-  if (value <= 0x7fffffffu) {
-    return (ctool_i32)value;
-  }
-  if (value == 0x80000000u) {
-    return (-2147483647 - 1);
-  }
-  return -(ctool_i32)((~value) + 1u);
-}
-
 static ctool_status_t dis_render_register(ctool_text_sink_t output,
                                           ctool_x86_reg_t reg_value) {
   ctool_string_t name = ctool_x86_register_name(reg_value);
@@ -1276,7 +1488,7 @@ static const ctool_elf32_relocation_t *dis_operand_relocation(
 
 static ctool_status_t dis_render_operand(
     ctool_text_sink_t output, const ctool_x86_operand_t *operand,
-    ctool_u32 logical_address, ctool_u32 instruction_size,
+    ctool_u32 logical_address,
     const ctool_dis_report_t *report, const ctool_elf32_object_t *object,
     ctool_u32 section_file_index, ctool_u32 instruction_offset,
     const ctool_x86_decoded_t *decoded, ctool_u32 operand_index) {
@@ -1305,13 +1517,8 @@ static ctool_status_t dis_render_operand(
       return dis_literal(output, "<reference>");
     }
     {
-      ctool_u32 target =
-          logical_address + instruction_size +
-          (ctool_u32)dis_signed_bits(operand->as.value.bits);
-      if (decoded->instruction.operand_bits == 16u) {
-        target &= 0xffffu;
-      }
-      return dis_hex_u32(output, target);
+      return dis_hex_u32(
+          output, dis_relative_target(logical_address, decoded, operand));
     }
   case CTOOL_X86_OPERAND_MEMORY:
     return dis_render_memory(output, operand, object, relocation);
@@ -1408,7 +1615,7 @@ static ctool_status_t dis_render_instruction(
       if (status == CTOOL_OK) {
         status = dis_render_operand(
             output, &decoded->instruction.operands[index], logical_address,
-            (ctool_u32)decoded->encoding.size, report, object,
+            report, object,
             section_file_index, instruction_offset, decoded, index);
       }
     }
@@ -2175,7 +2382,8 @@ static ctool_bool dis_report_shape_valid(const ctool_dis_report_t *report) {
        report->source->contents.size != 0u) ||
       (report->source->path.text.data == (const char *)0 &&
        report->source->path.text.size != 0u) ||
-      report->views == 0u || (report->views & ~CTOOL_DIS_VIEW_ALL) != 0u) {
+      report->views == 0u || (report->views & ~CTOOL_DIS_VIEW_ALL) != 0u ||
+      (report->policies & ~CTOOL_DIS_POLICY_ALL) != 0u) {
     return CTOOL_FALSE;
   }
   if (report->input == CTOOL_DIS_INPUT_RAW) {
@@ -2198,6 +2406,18 @@ static ctool_bool dis_report_shape_valid(const ctool_dis_report_t *report) {
                report->raw_range_count != 0u) {
       return CTOOL_FALSE;
     }
+    if ((report->policies & CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u &&
+        report->source->contents.size > 65536u) {
+      if (report->mode == CTOOL_X86_MODE_16) {
+        return CTOOL_FALSE;
+      }
+      for (index = 0u; index < report->raw_range_count; index++) {
+        if (report->raw_ranges[index].kind ==
+            CTOOL_DIS_RAW_RANGE_CODE16) {
+          return CTOOL_FALSE;
+        }
+      }
+    }
     for (index = 0u; index < report->label_count; index++) {
       if (report->labels[index].name.data == (const char *)0 &&
           report->labels[index].name.size != 0u) {
@@ -2217,6 +2437,7 @@ static ctool_bool dis_report_shape_valid(const ctool_dis_report_t *report) {
     return CTOOL_TRUE;
   }
   if (report->input != CTOOL_DIS_INPUT_ELF32 ||
+      report->policies != 0u ||
       report->mode != CTOOL_X86_MODE_32 ||
       (report->elf32.file_type != CTOOL_ELF32_ET_REL &&
        report->elf32.file_type != CTOOL_ELF32_ET_EXEC) ||

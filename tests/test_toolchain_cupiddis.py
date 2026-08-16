@@ -235,6 +235,38 @@ class CupidDisContractTests(unittest.TestCase):
             Path(cls._fixture_directory.name) / "truncated-code.bin"
         )
         cls.truncated_code_path.write_bytes(bytes.fromhex("90 0f"))
+        cls.valid_target_path = (
+            Path(cls._fixture_directory.name) / "valid-target.bin"
+        )
+        cls.valid_target_path.write_bytes(bytes.fromhex("eb 01 90 c3"))
+        cls.middle_target_path = (
+            Path(cls._fixture_directory.name) / "middle-target.bin"
+        )
+        cls.middle_target_path.write_bytes(
+            bytes.fromhex("eb 01 b8 00 00 00 00 c3")
+        )
+        cls.outside_target_path = (
+            Path(cls._fixture_directory.name) / "outside-target.bin"
+        )
+        cls.outside_target_path.write_bytes(bytes.fromhex("eb 7f"))
+        cls.data_target_path = (
+            Path(cls._fixture_directory.name) / "data-target.bin"
+        )
+        cls.data_target_path.write_bytes(bytes.fromhex("eb 00 90 c3"))
+        cls.wrong_mode_target_path = (
+            Path(cls._fixture_directory.name) / "wrong-mode-target.bin"
+        )
+        cls.wrong_mode_target_path.write_bytes(bytes.fromhex("eb 00 c3"))
+        cls.cross_data_target_path = (
+            Path(cls._fixture_directory.name) / "cross-data-target.bin"
+        )
+        cls.cross_data_target_path.write_bytes(
+            bytes.fromhex("eb 02 11 22 c3")
+        )
+        cls.wrapped_target_path = (
+            Path(cls._fixture_directory.name) / "wrapped-target.bin"
+        )
+        cls.wrapped_target_path.write_bytes(bytes.fromhex("eb 00 c3"))
         cls.exec_path = Path(cls._fixture_directory.name) / "program.elf"
         executable = bytearray(90)
         executable[:7] = b"\x7fELF\x01\x01\x01"
@@ -266,6 +298,9 @@ class CupidDisContractTests(unittest.TestCase):
 
     def test_prepared_decoder_is_reused_across_indexed_inspections(self):
         self.run_contract("indexed")
+
+    def test_typed_local_relative_target_policy(self):
+        self.run_contract("targets")
 
     def test_relocatable_object_report_and_relocation_overlay(self):
         self.run_contract("object")
@@ -476,6 +511,124 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertIn(
             "ctool_dis_inspect_indexed(job, decoder,", helper
         )
+
+    def test_cli_requires_local_relative_targets_on_raw_images(self):
+        def run(path, *options):
+            return subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--require-known",
+                    "--require-local-targets",
+                    "--raw",
+                    *options,
+                    str(path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+        valid = run(self.valid_target_path, "--mode=32", "--base=0")
+        self.assertEqual(valid.returncode, 0, valid.stderr)
+        self.assertEqual(valid.stdout, "")
+        self.assertEqual(valid.stderr, "")
+
+        legacy = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--raw",
+                "--mode=32",
+                "--base=0",
+                str(self.middle_target_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(legacy.returncode, 0, legacy.stderr)
+
+        failures = (
+            (
+                self.middle_target_path,
+                ("--mode=32", "--base=0"),
+                "0 outside image, 0 in data, 0 wrong mode, "
+                "1 mid-instruction",
+            ),
+            (
+                self.outside_target_path,
+                ("--mode=32", "--base=0"),
+                "1 outside image, 0 in data, 0 wrong mode, "
+                "0 mid-instruction",
+            ),
+            (
+                self.data_target_path,
+                ("--mode=32", "--range-at=2:data", "--base=0"),
+                "0 outside image, 1 in data, 0 wrong mode, "
+                "0 mid-instruction",
+            ),
+            (
+                self.wrong_mode_target_path,
+                ("--mode=32", "--range-at=2:16", "--base=0"),
+                "0 outside image, 0 in data, 1 wrong mode, "
+                "0 mid-instruction",
+            ),
+        )
+        for path, options, reason in failures:
+            with self.subTest(path=path.name):
+                result = run(path, *options)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(
+                    f"{path}: local target check failed: "
+                    "1 of 1 direct relative targets invalid",
+                    result.stderr,
+                )
+                self.assertIn(reason, result.stderr)
+
+        cross_data = run(
+            self.cross_data_target_path,
+            "--mode=32",
+            "--range-at=2:data",
+            "--range-at=4:32",
+            "--base=0",
+        )
+        self.assertEqual(cross_data.returncode, 0, cross_data.stderr)
+
+        wrapped = run(
+            self.wrapped_target_path, "--mode=16", "--base=0xfffe"
+        )
+        self.assertEqual(wrapped.returncode, 0, wrapped.stderr)
+
+        missing_known = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-local-targets",
+                "--raw",
+                "--mode=32",
+                "--base=0",
+                str(self.valid_target_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(missing_known.returncode, 2)
+        self.assertIn("usage: cupiddis", missing_known.stderr)
+
+        elf_policy = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--require-local-targets",
+                str(self.exec_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(elf_policy.returncode, 2)
+        self.assertIn("usage: cupiddis", elf_policy.stderr)
 
     def test_cli_explicit_view_and_nm_modes_are_deterministic(self):
         sections = subprocess.run(

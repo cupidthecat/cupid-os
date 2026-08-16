@@ -154,6 +154,18 @@ carries both options. The normal boot rule calls
 the checked closure. ADR 0277 records the schema, and ADR 0283 records the
 production cutover.
 
+Source-head CupidDis can also require every constant relative call or jump in
+a raw image to land on an instruction start in same-mode code. The explicit
+`--require-local-targets` option is valid only beside `--require-known --raw`.
+It reports outside-image, data, wrong-mode, and mid-instruction targets while
+leaving far pointers, indirect transfers, and ELF input for later rules. The
+active-source contracts freeze nine checked bootloader targets and four SMP
+trampoline targets. They also corrupt one displacement in each image and
+require the exact failure total. The production calls still use the promoted
+seed's earlier arguments; Linux and Windows promotion and reproof must happen
+before adoption. [ADR 0300](../adr/0300-validate-local-relative-targets-in-raw-images.md)
+records the source boundary.
+
 Source-head and checked-seed raw CupidASM have one origin and one section identity. An `equ`
 preamble defines an absolute symbol without claiming implicit `.text`. The
 first section-bound statement or explicit section directive claims the source

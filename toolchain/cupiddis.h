@@ -21,6 +21,13 @@ typedef enum {
 #define CTOOL_DIS_VIEW_DISASSEMBLY 0x00000010u
 #define CTOOL_DIS_VIEW_ALL 0x0000001fu
 
+/* Raw callers can ask CupidDis to classify every constant relative target.
+ * Inspection still succeeds for a structurally valid request.  A caller that
+ * enforces this policy must reject a report when any invalid-target counter
+ * below is nonzero. */
+#define CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS 0x00000001u
+#define CTOOL_DIS_POLICY_ALL CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS
+
 typedef enum {
   CTOOL_DIS_TEXT_CUPID = 0,
   CTOOL_DIS_TEXT_NM
@@ -54,7 +61,9 @@ typedef struct {
  * declared raw DATA ranges and non-executable ELF regions are not decoded or
  * counted.  Relocation counts cover relocations whose targets are executable
  * ET_REL sections.  An unmatched relocation does not name a compatible
- * four-byte field in a decoded instruction. */
+ * four-byte field in a decoded instruction.  Direct-relative target counts
+ * are populated only when the matching raw-input policy is selected.  Far
+ * pointers and register or memory targets are outside that policy. */
 typedef struct {
   ctool_u64 known_count;
   ctool_u64 unknown_count;
@@ -62,11 +71,17 @@ typedef struct {
   ctool_u64 truncated_count;
   ctool_u64 executable_relocation_count;
   ctool_u64 unmatched_executable_relocation_count;
+  ctool_u64 direct_relative_target_count;
+  ctool_u64 direct_relative_outside_image_count;
+  ctool_u64 direct_relative_data_count;
+  ctool_u64 direct_relative_wrong_mode_count;
+  ctool_u64 direct_relative_mid_instruction_count;
 } ctool_dis_decode_summary_t;
 
 typedef struct {
   ctool_dis_input_t input;
   ctool_u32 views;
+  ctool_u32 policies;
   ctool_x86_mode_t raw_mode;
   ctool_u32 raw_base_address;
   const ctool_dis_raw_range_t *raw_ranges;
@@ -79,6 +94,7 @@ typedef struct {
   const ctool_source_t *source;
   ctool_dis_input_t input;
   ctool_u32 views;
+  ctool_u32 policies;
   ctool_x86_mode_t mode;
   ctool_u32 base_address;
   const ctool_dis_raw_range_t *raw_ranges;

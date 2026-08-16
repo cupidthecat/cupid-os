@@ -2706,6 +2706,23 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ],
         )
 
+        local_target = stage_pair("local_target_result")
+        self.assertIn(
+            "local_target_arguments", ast.unparse(local_target)
+        )
+        self.assertIn("'--require-local-targets'", ast.unparse(behavior))
+        self.assertIn("stage_two_binary", ast.unparse(local_target.args[4]))
+        self.assertIn("stage_three_binary", ast.unparse(local_target.args[5]))
+
+        invalid_target = stage_pair("invalid_target_result")
+        self.assertEqual(len(invalid_target.args), 5)
+        self.assertIn(
+            "local_target_arguments", ast.unparse(invalid_target.args[4])
+        )
+        self.assertIn(
+            "invalid_target_binary", ast.unparse(invalid_target.args[4])
+        )
+
         statuses = {}
         for node in ast.walk(behavior):
             if (
@@ -2721,6 +2738,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 )
         self.assertEqual(statuses["strict_disassembly_result"], [0])
         self.assertEqual(statuses["strict_failure_result"], [1])
+        self.assertEqual(statuses["local_target_result"], [0])
+        self.assertEqual(statuses["invalid_target_result"], [1])
 
         expected_fixture = ast.dump(
             ast.parse("bytes([0x0F])", mode="eval").body,
@@ -2759,11 +2778,17 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(
             ast.literal_eval(returns[0].value),
             {
-                "failure_cases": 17,
+                "failure_cases": 18,
                 "help_cases": 5,
-                "success_cases": 18,
+                "success_cases": 19,
             },
         )
+
+        self.assertIn(
+            "1 of 1 direct relative targets invalid",
+            messages,
+        )
+        self.assertIn("1 outside image", messages)
 
     def test_fixed_point_matrix_checks_executable_relocation_ownership(self):
         tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
@@ -6099,9 +6124,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 17,
+                    "failure_cases": 18,
                     "help_cases": 5,
-                    "success_cases": 18,
+                    "success_cases": 19,
                 },
             )
             self.assertEqual(
@@ -6138,6 +6163,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "windows_cupiddis": (
                         {
                             "help_return_code": 0,
+                            "invalid_target_return_code": 1,
+                            "local_target_return_code": 0,
                             "missing_return_code": 1,
                             "raw_return_code": 0,
                             "raw_stdout_sha256": (

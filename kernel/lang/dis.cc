@@ -142,6 +142,7 @@ void dis_disassemble(const uint8_t *buffer, uint32_t size,
         source.contents = ctool_bytes(buffer, size);
         request.input = CTOOL_DIS_INPUT_RAW;
         request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+        request.policies = 0u;
         request.raw_mode = CTOOL_X86_MODE_32;
         request.raw_base_address = base_address;
         request.raw_ranges = (const ctool_dis_raw_range_t *)0;
@@ -196,6 +197,7 @@ int dis_elf(const char *path, dis_output_fn output) {
     if (status == CTOOL_OK) {
         request.input = CTOOL_DIS_INPUT_ELF32;
         request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+        request.policies = 0u;
         request.raw_mode = CTOOL_X86_MODE_32;
         request.raw_base_address = 0u;
         request.raw_ranges = (const ctool_dis_raw_range_t *)0;

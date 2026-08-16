@@ -958,6 +958,19 @@ data ranges as `db` rows without entering the x86 decoder. The assembler, not
 a byte heuristic, places source-derived transitions at statement boundaries.
 _Avoid_: raw mode map, automatic code or mode detection, one kind per retained instruction
 
+**Local relative target check**:
+The source-head CupidDis policy that checks constant relative calls and jumps
+in a raw image against its instruction starts and range map. A target must
+stay inside the image and land at an instruction boundary in code with the
+same mode. The report separates outside-image, data, wrong-mode, and
+mid-instruction failures. Far pointers, indirect transfers, and ELF inputs are
+outside this first boundary. The typed inspector records the counts; its
+caller decides whether nonzero failures reject an artifact. The CLI exposes
+that decision as `--require-local-targets` beside `--require-known --raw`.
+Source head covers nine bootloader targets and four SMP-trampoline targets,
+but production waits for checked-seed promotion. ADR 0300 records the rule.
+_Avoid_: source-label proof, automatic code discovery, checked-seed adoption
+
 **Relocatable entry symbol**:
 The caller-priority code label selected by CupidASM for an ELF32 relocatable
 object. The assembler publishes its spelling and promotes only that label to a

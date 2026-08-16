@@ -16,6 +16,7 @@ typedef struct {
   ctool_bool have_base;
   ctool_bool have_views;
   ctool_bool require_known;
+  ctool_bool require_local_targets;
   ctool_x86_mode_t mode;
   ctool_u32 base_address;
   ctool_u32 views;
@@ -44,9 +45,11 @@ static void cupiddis_usage(FILE *stream) {
       "[--mode-at OFFSET:16|32]... --base ADDRESS FILE\n"
       "       cupiddis --raw --range-map MAP FILE\n"
       "       cupiddis --require-known --raw --mode 16|32 "
+      "[--require-local-targets] "
       "[--range-at OFFSET:16|32|data]... "
       "[--mode-at OFFSET:16|32]... --base ADDRESS FILE [FILE...]\n"
       "       cupiddis --require-known --raw --range-map MAP "
+      "[--require-local-targets] "
       "FILE [FILE...]\n");
 }
 
@@ -540,6 +543,10 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
       cli->require_known = CTOOL_TRUE;
       continue;
     }
+    if (strcmp(argument, "--require-local-targets") == 0) {
+      cli->require_local_targets = CTOOL_TRUE;
+      continue;
+    }
     if (strcmp(argument, "--headers") == 0) {
       cli->views |= CTOOL_DIS_VIEW_HEADER;
       cli->have_views = CTOOL_TRUE;
@@ -631,6 +638,10 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
   }
   if (cli->input_count == 0u ||
       (cli->require_known == CTOOL_FALSE && cli->input_count != 1u)) {
+    return 0;
+  }
+  if (cli->require_local_targets == CTOOL_TRUE &&
+      (cli->require_known == CTOOL_FALSE || cli->raw == CTOOL_FALSE)) {
     return 0;
   }
   if (cli->raw == CTOOL_TRUE) {
@@ -764,6 +775,10 @@ static void cupiddis_make_request(const cupiddis_cli_t *cli,
   request->input = cli->raw == CTOOL_TRUE ? CTOOL_DIS_INPUT_RAW
                                           : CTOOL_DIS_INPUT_ELF32;
   request->views = cli->views;
+  request->policies =
+      cli->require_local_targets == CTOOL_TRUE
+          ? CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS
+          : 0u;
   request->raw_mode = cli->mapped_ranges == CTOOL_FALSE
                           ? cli->mode
                           : CTOOL_DIS_RAW_RANGE_MAP;
@@ -853,6 +868,7 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
     }
     goto done;
   }
+  failed = 0;
   if (report.decode_summary.unknown_count != 0u ||
       report.decode_summary.invalid_count != 0u ||
       report.decode_summary.truncated_count != 0u ||
@@ -881,9 +897,33 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
           (unsigned long long)
               report.decode_summary.executable_relocation_count);
     }
-    goto done;
+    failed = 1;
   }
-  failed = 0;
+  if (cli->require_local_targets == CTOOL_TRUE) {
+    ctool_u64 invalid_targets =
+        report.decode_summary.direct_relative_outside_image_count +
+        report.decode_summary.direct_relative_data_count +
+        report.decode_summary.direct_relative_wrong_mode_count +
+        report.decode_summary.direct_relative_mid_instruction_count;
+    if (invalid_targets != 0u) {
+      (void)fprintf(
+          stderr,
+          "cupiddis: %s: local target check failed: %llu of %llu direct "
+          "relative targets invalid (%llu outside image, %llu in data, "
+          "%llu wrong mode, %llu mid-instruction)\n",
+          input, (unsigned long long)invalid_targets,
+          (unsigned long long)
+              report.decode_summary.direct_relative_target_count,
+          (unsigned long long)
+              report.decode_summary.direct_relative_outside_image_count,
+          (unsigned long long)report.decode_summary.direct_relative_data_count,
+          (unsigned long long)
+              report.decode_summary.direct_relative_wrong_mode_count,
+          (unsigned long long)
+              report.decode_summary.direct_relative_mid_instruction_count);
+      failed = 1;
+    }
+  }
 
 done:
   if (job != (ctool_job_t *)0) {

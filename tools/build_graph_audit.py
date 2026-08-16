@@ -8210,9 +8210,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 17,
+        "failure_cases": 18,
         "help_cases": 5,
-        "success_cases": 18,
+        "success_cases": 19,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -8950,7 +8950,7 @@ def _cupid_toolchain_fixed_point_contract(
     ]
     expected_native_windows_block_fingerprints = (
         "086d3cc5fd6ea99b8aad00ad20792d4cc6fa3ed30df1d9949b443d0a5e3c9c26",
-        "feaffeda8a40869ffb00caf122719410e317f6e3e1b7ccd682a70b0f5dca825c",
+        "e99702dccec790d0028f4b82eb69065930b102ef6863c8252e1646f8f2b91b01",
         "5cdaf953ccf38b4a6c16e47dbe9da1af531f6ae1d487c4f4ae59353e7209fb3a",
     )
     native_windows_control_flow_matches = (
@@ -9007,6 +9007,22 @@ def _cupid_toolchain_fixed_point_contract(
             "native_disassembly.returncode != 0",
             "native_disassembly.stdout != reference_disassembly.stdout",
             "native_disassembly.stderr",
+            "reference_valid_target.returncode != 0",
+            "reference_valid_target.stdout",
+            "reference_valid_target.stderr",
+            "native_valid_target.returncode != 0",
+            "native_valid_target.stdout",
+            "native_valid_target.stderr",
+            "reference_invalid_target.returncode != 1",
+            "reference_invalid_target.stdout",
+            "'1 of 1 direct relative targets invalid' not in "
+            "reference_invalid_target.stderr",
+            "'1 outside image' not in reference_invalid_target.stderr",
+            "native_invalid_target.returncode != 1",
+            "native_invalid_target.stdout",
+            "'1 of 1 direct relative targets invalid' not in "
+            "native_invalid_target.stderr",
+            "'1 outside image' not in native_invalid_target.stderr",
             "native_missing.returncode != 1",
             "native_missing.stdout",
             "'cannot load' not in native_missing.stderr",
@@ -10085,7 +10101,7 @@ def _cupid_toolchain_fixed_point_contract(
         '("__imp_GetStdHandle", "KERNEL32.dll", "GetStdHandle")': 2,
         '("__imp_WriteFile", "KERNEL32.dll", "WriteFile")': 2,
         'f"{slot}={library}:{procedure}"': 2,
-        "capture_output=True": 12,
+        "capture_output=True": 14,
         '"artifacts": _artifact_inventory(': 3,
         '"library": library': 3,
         '"procedure": procedure': 3,

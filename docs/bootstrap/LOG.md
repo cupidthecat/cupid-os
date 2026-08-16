@@ -27694,3 +27694,57 @@ This correction changes no build owner, artifact, or checked seed. The last
 published 65-input cohort remains valid historical evidence until a later seed
 promotion carries the 67-file source-head closure. `TempleOS/` was not touched
 or counted.
+
+## 2026-08-15: validate local relative targets in raw images
+
+Source-head CupidDis now checks constant relative calls and jumps when the
+caller selects `--require-local-targets` with `--require-known --raw`. A first
+decode pass marks instruction starts in a compact scratch bitset. A second
+pass resolves each direct relative operand and classifies a bad destination as
+outside the image, in data, in code with the wrong mode, or in the middle of
+an instruction. Range classification uses binary search over the validated
+map. A jump may cross data when it lands on a same-mode instruction start.
+
+The 16-bit path maps wrapped logical addresses back through the raw image
+origin. It rejects code16 input larger than 65,536 bytes because that mapping
+would be ambiguous. Far pointers, indirect transfers, and ELF input are not
+part of this rule. The typed API returns its counts without treating a bad
+target as an inspection error; a policy owner must reject any nonzero failure
+count. The CLI does that work and prints all reasons.
+
+Focused contracts cover CALL, short and near JMP, short and near Jcc, all four
+failure classes, a cross-data jump, 16-bit wraparound, an empty image,
+oversized code16 input, invalid option combinations, allocation failure,
+report rollback, and same-job recovery. The active bootloader and trampoline
+tests deliberately change one displacement and require failure totals of one
+out of nine and one out of four. Their accepted bytes remain unchanged at
+SHA-256 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`
+and `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+
+Review caught three proof weaknesses before completion. The first range
+lookup was linear for every target, so it became a binary search. Active
+acceptance alone could not prove that any target was counted, so corrupted
+images now freeze both totals. Replacing the native Windows rendering case
+with a strict check would have lost text-output coverage, and exact failure
+text would have differed across Windows and WSL path spellings. The final
+matrix keeps rendering separate and compares invariant failure counts and
+reasons. Its source has 5 help, 19 success, and 18 failure cases. The promoted
+seed still carries the older 5/18/17 matrix.
+
+The complete CupidDis module passes 25 tests with one platform skip in 4.540
+seconds. The two active-source checks pass in 2.845 seconds. The full
+fail-closed fixed-point audit mutation matrix passes in 116.545 seconds after
+its subprocess-count guard moved from 12 to 14. The checked Linux CupidC seed
+compiled the final implementation, driver, and contract to 108,024, 38,940,
+and 127,500-byte objects with SHA-256 values
+`ca41af4dba884ad9abdcabcfed00f4ac6d59c91dcf80a3bf162be5ac2b8238dd`,
+`92a799d930e0138660a53fb463ea055053ef30cbb3ecd77bfa5a9d982bf77e4a`,
+and `8d5b187527037fa4add2e5172f554db75243ad26102eac680f785f812ab9dff4`.
+
+This is a source capability, not a production cutover. Hostbuild keeps the
+existing bootloader and trampoline arguments until both checked seeds are
+rebuilt, promoted, and reproved. A wrong displacement that reaches another
+valid same-mode instruction start remains outside this structural proof;
+source-label identity needs richer assembler metadata. No owner, dependency,
+artifact, or source suffix changes in this step. ADR 0300 records the
+decision, and `TempleOS/` remains untouched reference material.

@@ -289,16 +289,68 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
             root = Path(directory)
             for fixture in RAW_FIXTURES:
                 with self.subTest(source=fixture["source"].relative_to(REPO_ROOT)):
+                    cupid_path = root / f"{fixture['name']}.cupid.bin"
                     cupid = self._assemble(
                         (str(self.cli_path),),
                         fixture["source"],
-                        root / f"{fixture['name']}.cupid.bin",
+                        cupid_path,
                         "bin",
                     )
                     self.assertEqual(len(cupid), fixture["size"])
                     self.assertEqual(
                         hashlib.sha256(cupid).hexdigest(), fixture["sha256"]
                     )
+                    if fixture["name"] == "smp-trampoline":
+                        checked = subprocess.run(
+                            [
+                                str(self.dis_path),
+                                "--require-known",
+                                "--require-local-targets",
+                                "--raw",
+                                "--mode=16",
+                                "--range-at=0x1f:data",
+                                "--range-at=0x210:32",
+                                "--range-at=0x254:data",
+                                "--base=0x8000",
+                                str(cupid_path),
+                            ],
+                            cwd=REPO_ROOT,
+                            text=True,
+                            capture_output=True,
+                        )
+                        self.assertEqual(checked.returncode, 0, checked.stderr)
+                        self.assertEqual(checked.stdout, "")
+                        self.assertEqual(checked.stderr, "")
+
+                        bad_target = bytearray(cupid)
+                        self.assertEqual(bad_target[0x230], 0x09)
+                        bad_target[0x230] = 0x08
+                        bad_path = root / "smp-trampoline.bad-target.bin"
+                        bad_path.write_bytes(bad_target)
+                        rejected = subprocess.run(
+                            [
+                                str(self.dis_path),
+                                "--require-known",
+                                "--require-local-targets",
+                                "--raw",
+                                "--mode=16",
+                                "--range-at=0x1f:data",
+                                "--range-at=0x210:32",
+                                "--range-at=0x254:data",
+                                "--base=0x8000",
+                                str(bad_path),
+                            ],
+                            cwd=REPO_ROOT,
+                            text=True,
+                            capture_output=True,
+                        )
+                        self.assertEqual(rejected.returncode, 1)
+                        self.assertEqual(rejected.stdout, "")
+                        self.assertIn(
+                            "1 of 4 direct relative targets invalid",
+                            rejected.stderr,
+                        )
+                        self.assertIn("1 mid-instruction", rejected.stderr)
                     if (
                         self.nasm_command is not None
                         and fixture.get("nasm_oracle", True)
@@ -349,6 +401,7 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                 [
                     str(self.dis_path),
                     "--require-known",
+                    "--require-local-targets",
                     "--raw",
                     "--range-map",
                     str(range_map),
@@ -361,6 +414,32 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
             self.assertEqual(checked.returncode, 0, checked.stderr)
             self.assertEqual(checked.stdout, "")
             self.assertEqual(checked.stderr, "")
+
+            bad_target = bytearray(image.read_bytes())
+            self.assertEqual(bad_target[0x1B], 0x15)
+            bad_target[0x1B] = 0x14
+            bad_image = root / "boot.bad-target.bin"
+            bad_image.write_bytes(bad_target)
+            rejected = subprocess.run(
+                [
+                    str(self.dis_path),
+                    "--require-known",
+                    "--require-local-targets",
+                    "--raw",
+                    "--range-map",
+                    str(range_map),
+                    str(bad_image),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "1 of 9 direct relative targets invalid", rejected.stderr
+            )
+            self.assertIn("1 in data", rejected.stderr)
 
     def test_active_elf32_sources_match_oracle_semantics(self):
         with tempfile.TemporaryDirectory(prefix="cupidasm-active-elf-") as directory:

@@ -1047,6 +1047,16 @@ change adds no transform or host dependency. Both production transactions now
 enforce the rule. ADR 0290 records the source boundary, and ADR 0292 records
 its fixed-point promotion.
 
+The source-head local-target policy also changes no dependency or owner count.
+CupidDis can check constant relative calls and jumps in raw input with
+`--require-local-targets` beside `--require-known`. It uses the caller's code
+and data map, accepts only instruction starts in same-mode code, and reports
+four failure classes. The checked source proof covers nine bootloader targets
+and four SMP-trampoline targets. The promoted Linux and Windows executables do
+not carry this policy yet, so the two production transactions retain their
+existing strict-decode arguments. A fixed-point promotion and reproof must
+precede cutover. ADR 0300 records the source boundary.
+
 The final audit records 452 transforms across the three supported roots and
 443 under root `all`. Its tool participation totals are Python 452, CupidC
 248, CupidObj 192, CupidASM seven, CupidLD seven, and CupidDis six. The

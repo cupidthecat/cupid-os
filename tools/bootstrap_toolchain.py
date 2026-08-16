@@ -2925,7 +2925,9 @@ def _run_behavior_checks(
         "BITS 16\n"
         "ORG 0x7c00\n"
         "start:\n"
+        "    jmp finished\n"
         "    mov ax, 0x1234\n"
+        "finished:\n"
         "    ret\n",
         encoding="utf-8",
         newline="\n",
@@ -2942,7 +2944,7 @@ def _run_behavior_checks(
     if (
         assembly_result.stdout
         or assembly_result.stderr
-        or stage_two_binary.read_bytes() != b"\xb8\x34\x12\xc3"
+        or stage_two_binary.read_bytes() != b"\xeb\x03\xb8\x34\x12\xc3"
         or stage_three_binary.read_bytes() != stage_two_binary.read_bytes()
     ):
         raise BootstrapError("CupidASM raw output differs")
@@ -2975,6 +2977,45 @@ def _run_behavior_checks(
         or disassembly_result.stderr
     ):
         raise BootstrapError("CupidDis raw report differs")
+
+    local_target_arguments: list[str | Path] = [
+        "--require-known",
+        "--require-local-targets",
+        "--raw",
+        "--mode",
+        "16",
+        "--base",
+        "0x7c00",
+    ]
+    local_target_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        [*local_target_arguments, stage_two_binary],
+        [*local_target_arguments, stage_three_binary],
+    )
+    _expect_status(local_target_result, 0, "CupidDis local target inspection")
+    if local_target_result.stdout or local_target_result.stderr:
+        raise BootstrapError("CupidDis local target success output differs")
+
+    invalid_target_binary = behavior_root / "invalid-target.bin"
+    invalid_target_binary.write_bytes(b"\xeb\x7f")
+    invalid_target_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        [*local_target_arguments, invalid_target_binary],
+    )
+    _expect_status(invalid_target_result, 1, "CupidDis invalid local target")
+    if (
+        invalid_target_result.stdout
+        or "1 of 1 direct relative targets invalid"
+        not in invalid_target_result.stderr
+        or "1 outside image" not in invalid_target_result.stderr
+    ):
+        raise BootstrapError("CupidDis local target failure output differs")
 
     jpeg_payload = (
         b"\xff\xd8"
@@ -4674,6 +4715,56 @@ def _run_behavior_checks(
                 text=True,
                 timeout=20,
             )
+            valid_target_input = behavior_root / "valid target.bin"
+            valid_target_input.write_bytes(bytes([0xEB, 0x00, 0xC3]))
+            valid_target_arguments: list[str | Path] = [
+                "--require-known",
+                "--require-local-targets",
+                "--raw",
+                "--mode",
+                "32",
+                "--base",
+                "0",
+                valid_target_input,
+            ]
+            reference_valid_target = runner.run(
+                stage_two.tools["cupiddis"], valid_target_arguments, 60
+            )
+            native_valid_target = subprocess.run(
+                [
+                    str(stage_two_windows_cupiddis),
+                    *[str(argument) for argument in valid_target_arguments],
+                ],
+                cwd=behavior_root,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            invalid_target_input = behavior_root / "invalid target.bin"
+            invalid_target_input.write_bytes(bytes([0xEB, 0x7F]))
+            invalid_target_arguments: list[str | Path] = [
+                "--require-known",
+                "--require-local-targets",
+                "--raw",
+                "--mode",
+                "32",
+                "--base",
+                "0",
+                invalid_target_input,
+            ]
+            reference_invalid_target = runner.run(
+                stage_two.tools["cupiddis"], invalid_target_arguments, 60
+            )
+            native_invalid_target = subprocess.run(
+                [
+                    str(stage_two_windows_cupiddis),
+                    *[str(argument) for argument in invalid_target_arguments],
+                ],
+                cwd=behavior_root,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
             missing_windows_input = behavior_root / "missing quoted input.bin"
             native_missing = subprocess.run(
                 [
@@ -4703,6 +4794,22 @@ def _run_behavior_checks(
             or native_disassembly.returncode != 0
             or native_disassembly.stdout != reference_disassembly.stdout
             or native_disassembly.stderr
+            or reference_valid_target.returncode != 0
+            or reference_valid_target.stdout
+            or reference_valid_target.stderr
+            or native_valid_target.returncode != 0
+            or native_valid_target.stdout
+            or native_valid_target.stderr
+            or reference_invalid_target.returncode != 1
+            or reference_invalid_target.stdout
+            or "1 of 1 direct relative targets invalid"
+            not in reference_invalid_target.stderr
+            or "1 outside image" not in reference_invalid_target.stderr
+            or native_invalid_target.returncode != 1
+            or native_invalid_target.stdout
+            or "1 of 1 direct relative targets invalid"
+            not in native_invalid_target.stderr
+            or "1 outside image" not in native_invalid_target.stderr
             or native_missing.returncode != 1
             or native_missing.stdout
             or "cannot load" not in native_missing.stderr
@@ -4711,6 +4818,8 @@ def _run_behavior_checks(
             raise BootstrapError("Cupid-built Windows CupidDis behavior differs")
         windows_cupiddis_loader = {
             "help_return_code": native_help.returncode,
+            "invalid_target_return_code": native_invalid_target.returncode,
+            "local_target_return_code": native_valid_target.returncode,
             "missing_return_code": native_missing.returncode,
             "raw_return_code": native_disassembly.returncode,
             "raw_stdout_sha256": hashlib.sha256(
@@ -5409,9 +5518,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 17,
+        "failure_cases": 18,
         "help_cases": 5,
-        "success_cases": 18,
+        "success_cases": 19,
     }
 
 

@@ -208,6 +208,18 @@ checked 128 KiB throughput contract passes within 30 seconds. ADR 0262 records
 the command, ADR 0266 records indexed decoding, and ADR 0265 records
 checked-seed carriage and production adoption.
 
+Source-head CupidDis adds a raw-only local target policy:
+  cupiddis --require-known --require-local-targets --raw \
+      --range-map boot.map boot.bin
+
+Each constant relative call or jump must stay in the image and land at an
+instruction start in code with the same mode. Failures are counted as outside
+the image, in data, in the wrong code mode, or in the middle of an instruction.
+The bootloader supplies nine direct targets and the SMP trampoline supplies
+four. Far pointers, indirect transfers, and ELF inputs do not enter this first
+check. Production keeps the current checked-seed command until the Linux and
+Windows seeds are promoted with the new policy. ADR 0300 records the rule.
+
 Source-head and checked-seed CupidDis also check relocations that target executable sections
 in ELF32 relocatable objects. R_386_PC32 must begin at a decoded four-byte
 relative field. R_386_32 must begin at a decoded four-byte non-relative field.

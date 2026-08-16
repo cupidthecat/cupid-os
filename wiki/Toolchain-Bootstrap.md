@@ -855,6 +855,16 @@ in data sections do not enter this check. The checked Linux and Windows seeds
 carry the rule, so normal object publication enforces it on both supported
 hosts. ADR 0290 records the boundary, and ADR 0292 records the promotion.
 
+Source-head CupidDis adds an explicit raw control-flow check without changing
+the promoted seed. `--require-local-targets` works with
+`--require-known --raw` and verifies constant relative calls and jumps against
+the image's instruction starts and typed ranges. It separates targets outside
+the image, in data, in another code mode, and in the middle of an instruction.
+The bootloader contributes nine checked targets and the SMP trampoline four.
+Far and indirect transfers and ELF input stay outside this first rule. The
+production transactions keep the earlier checked-seed command until a Linux
+and Windows promotion carries the option. ADR 0300 records the boundary.
+
 The poisoned-host normal `make -j2` then passed in 1,057.969 seconds. All
 eleven host code-generation variables named invalid commands, and that
 historical build ran the separate strict gate before CupidObj flattened the

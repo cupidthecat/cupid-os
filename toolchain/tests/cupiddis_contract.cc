@@ -268,7 +268,17 @@ static int summaries_equal(const ctool_dis_decode_summary_t *left,
                  left->executable_relocation_count ==
                      right->executable_relocation_count &&
                  left->unmatched_executable_relocation_count ==
-                     right->unmatched_executable_relocation_count
+                     right->unmatched_executable_relocation_count &&
+                 left->direct_relative_target_count ==
+                     right->direct_relative_target_count &&
+                 left->direct_relative_outside_image_count ==
+                     right->direct_relative_outside_image_count &&
+                 left->direct_relative_data_count ==
+                     right->direct_relative_data_count &&
+                 left->direct_relative_wrong_mode_count ==
+                     right->direct_relative_wrong_mode_count &&
+                 left->direct_relative_mid_instruction_count ==
+                     right->direct_relative_mid_instruction_count
              ? 1
              : 0;
 }
@@ -361,6 +371,276 @@ static int run_indexed(void) {
   ctool_job_close(caller_job);
   ctool_job_close(owner_job);
   (void)puts("indexed: ok");
+  return 0;
+}
+
+static int target_summary_matches(
+    const ctool_dis_decode_summary_t *summary, ctool_u64 total,
+    ctool_u64 outside_image, ctool_u64 data, ctool_u64 wrong_mode,
+    ctool_u64 mid_instruction, const char *operation) {
+  if (summary->direct_relative_target_count != total ||
+      summary->direct_relative_outside_image_count != outside_image ||
+      summary->direct_relative_data_count != data ||
+      summary->direct_relative_wrong_mode_count != wrong_mode ||
+      summary->direct_relative_mid_instruction_count != mid_instruction) {
+    (void)fprintf(stderr,
+                  "%s: target summary differs: %llu/%llu/%llu/%llu/%llu\n",
+                  operation,
+                  (unsigned long long)summary->direct_relative_target_count,
+                  (unsigned long long)
+                      summary->direct_relative_outside_image_count,
+                  (unsigned long long)summary->direct_relative_data_count,
+                  (unsigned long long)summary->direct_relative_wrong_mode_count,
+                  (unsigned long long)
+                      summary->direct_relative_mid_instruction_count);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_targets(void) {
+  static const ctool_u8 valid32[] = {0xebu, 0x01u, 0x90u, 0xc3u};
+  static const ctool_u8 middle32[] = {
+      0xebu, 0x01u, 0xb8u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc3u};
+  static const ctool_u8 outside32[] = {0xebu, 0x7fu};
+  static const ctool_u8 mapped[] = {0xebu, 0x00u, 0x90u, 0xc3u};
+  static const ctool_u8 cross_data[] = {
+      0xebu, 0x02u, 0x11u, 0x22u, 0xc3u};
+  static const ctool_u8 wrap16[] = {0xebu, 0x00u, 0xc3u};
+  static const ctool_u8 direct_far_indirect[] = {
+      0xebu, 0xfeu,
+      0xeau, 0x00u, 0x00u, 0x00u, 0x00u, 0x08u, 0x00u,
+      0xffu, 0xd0u};
+  static const ctool_u8 direct_families[] = {
+      0xebu, 0x00u,
+      0xe9u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xe8u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x74u, 0x00u,
+      0x0fu, 0x85u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xc3u};
+  static ctool_u8 oversized_code16[65537];
+  static const ctool_dis_raw_range_t data_ranges[] = {
+      {0u, CTOOL_DIS_RAW_RANGE_CODE32},
+      {2u, CTOOL_DIS_RAW_RANGE_DATA}};
+  static const ctool_dis_raw_range_t wrong_mode_ranges[] = {
+      {0u, CTOOL_DIS_RAW_RANGE_CODE32},
+      {2u, CTOOL_DIS_RAW_RANGE_CODE16}};
+  static const ctool_dis_raw_range_t cross_data_ranges[] = {
+      {0u, CTOOL_DIS_RAW_RANGE_CODE32},
+      {2u, CTOOL_DIS_RAW_RANGE_DATA},
+      {4u, CTOOL_DIS_RAW_RANGE_CODE32}};
+  static const struct {
+    const char *path;
+    const ctool_u8 *bytes;
+    ctool_u32 size;
+    ctool_x86_mode_t mode;
+    ctool_u32 base;
+    const ctool_dis_raw_range_t *ranges;
+    ctool_u32 range_count;
+    ctool_u64 target_count;
+    ctool_u64 outside_image;
+    ctool_u64 data;
+    ctool_u64 wrong_mode;
+    ctool_u64 mid_instruction;
+  } cases[] = {
+      {"/valid32.bin", valid32, (ctool_u32)sizeof(valid32),
+       CTOOL_X86_MODE_32, 0u, (const ctool_dis_raw_range_t *)0, 0u,
+       1u, 0u, 0u, 0u, 0u},
+      {"/middle32.bin", middle32, (ctool_u32)sizeof(middle32),
+       CTOOL_X86_MODE_32, 0u, (const ctool_dis_raw_range_t *)0, 0u,
+       1u, 0u, 0u, 0u, 1u},
+      {"/outside32.bin", outside32, (ctool_u32)sizeof(outside32),
+       CTOOL_X86_MODE_32, 0u, (const ctool_dis_raw_range_t *)0, 0u,
+       1u, 1u, 0u, 0u, 0u},
+      {"/data32.bin", mapped, (ctool_u32)sizeof(mapped),
+       CTOOL_DIS_RAW_RANGE_MAP, 0u, data_ranges, 2u,
+       1u, 0u, 1u, 0u, 0u},
+      {"/wrong-mode.bin", mapped, (ctool_u32)sizeof(mapped),
+       CTOOL_DIS_RAW_RANGE_MAP, 0u, wrong_mode_ranges, 2u,
+       1u, 0u, 0u, 1u, 0u},
+      {"/cross-data.bin", cross_data, (ctool_u32)sizeof(cross_data),
+       CTOOL_DIS_RAW_RANGE_MAP, 0u, cross_data_ranges, 3u,
+       1u, 0u, 0u, 0u, 0u},
+      {"/wrap16.bin", wrap16, (ctool_u32)sizeof(wrap16),
+       CTOOL_X86_MODE_16, 0xfffeu, (const ctool_dis_raw_range_t *)0, 0u,
+       1u, 0u, 0u, 0u, 0u},
+      {"/direct-far-indirect.bin", direct_far_indirect,
+       (ctool_u32)sizeof(direct_far_indirect), CTOOL_X86_MODE_32, 0u,
+       (const ctool_dis_raw_range_t *)0, 0u,
+       1u, 0u, 0u, 0u, 0u},
+      {"/direct-families.bin", direct_families,
+       (ctool_u32)sizeof(direct_families), CTOOL_X86_MODE_32, 0u,
+       (const ctool_dis_raw_range_t *)0, 0u,
+       5u, 0u, 0u, 0u, 0u}};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job;
+  ctool_u32 index;
+  if (!open_job(&adapter, &job)) {
+    return 1;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cases) / sizeof(cases[0])); index++) {
+    ctool_source_t source;
+    ctool_dis_request_t request = raw_request(cases[index].mode,
+                                               cases[index].base);
+    ctool_dis_report_t report;
+    ctool_status_t status;
+    source.path.text = ctool_string(cases[index].path);
+    source.contents = ctool_bytes(cases[index].bytes, cases[index].size);
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    request.raw_ranges = cases[index].ranges;
+    request.raw_range_count = cases[index].range_count;
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK, cases[index].path) ||
+        !target_summary_matches(
+            &report.decode_summary, cases[index].target_count,
+            cases[index].outside_image,
+            cases[index].data, cases[index].wrong_mode,
+            cases[index].mid_instruction, cases[index].path)) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  {
+    ctool_source_t source;
+    ctool_dis_request_t request = raw_request(CTOOL_X86_MODE_32, 0u);
+    ctool_dis_report_t report;
+    ctool_status_t status;
+    source.path.text = ctool_string("/invalid-policy.bin");
+    source.contents = ctool_bytes(valid32, (ctool_u32)sizeof(valid32));
+    request.policies = 0x80000000u;
+    (void)memset(&report, 0xa5, sizeof(report));
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "unknown local target policy") ||
+        !is_zeroed(&report, sizeof(report)) ||
+        ctool_job_diagnostic_count(job) != 1u ||
+        !check_diagnostic(job, 0u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                          "CupidDis policy selection is invalid",
+                          "unknown policy diagnostic")) {
+      ctool_job_close(job);
+      return 1;
+    }
+
+    request.input = CTOOL_DIS_INPUT_ELF32;
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    (void)memset(&report, 0xa5, sizeof(report));
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "ELF local target policy") ||
+        !is_zeroed(&report, sizeof(report)) ||
+        ctool_job_diagnostic_count(job) != 2u ||
+        !check_diagnostic(job, 1u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                          "CupidDis policies only apply to raw input",
+                          "ELF policy diagnostic")) {
+      ctool_job_close(job);
+      return 1;
+    }
+
+    source.path.text = ctool_string("/empty-policy.bin");
+    source.contents = ctool_bytes((const void *)0, 0u);
+    request = raw_request(CTOOL_X86_MODE_32, 0u);
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK, "empty local target policy") ||
+        report.decode_summary.direct_relative_target_count != 0u ||
+        report.decode_summary.known_count != 0u) {
+      ctool_job_close(job);
+      return 1;
+    }
+
+    source.path.text = ctool_string("/oversized-code16.bin");
+    source.contents =
+        ctool_bytes(oversized_code16, (ctool_u32)sizeof(oversized_code16));
+    request = raw_request(CTOOL_X86_MODE_16, 0u);
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    (void)memset(&report, 0xa5, sizeof(report));
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "oversized code16 local targets") ||
+        !is_zeroed(&report, sizeof(report)) ||
+        ctool_job_diagnostic_count(job) != 3u ||
+        !check_diagnostic(
+            job, 2u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+            "local target checks require code16 raw input at most 65536 bytes",
+            "oversized code16 policy diagnostic")) {
+      ctool_job_close(job);
+      return 1;
+    }
+
+    source.path.text = ctool_string("/policy-recovery.bin");
+    source.contents = ctool_bytes(valid32, (ctool_u32)sizeof(valid32));
+    request = raw_request(CTOOL_X86_MODE_32, 0u);
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK, "local target policy recovery") ||
+        report.policies != CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS ||
+        !target_summary_matches(&report.decode_summary, 1u, 0u, 0u, 0u,
+                                0u, "local target policy recovery")) {
+      ctool_job_close(job);
+      return 1;
+    }
+    {
+      ctool_dis_report_t invalid_report = report;
+      capture_t capture;
+      invalid_report.policies = 0x80000000u;
+      (void)memset(&capture, 0, sizeof(capture));
+      status = ctool_dis_render(job, &invalid_report, CTOOL_DIS_TEXT_CUPID,
+                                capture_sink(&capture));
+      if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                        "forged local target policy report") ||
+          capture.size != 0u || ctool_job_diagnostic_count(job) != 3u) {
+        ctool_job_close(job);
+        return 1;
+      }
+    }
+  }
+  ctool_job_close(job);
+  {
+    static ctool_u8 allocation_fixture[1024];
+    ctool_host_adapter_t limited_adapter;
+    ctool_job_config_t config;
+    ctool_limits_t limits = ctool_default_limits();
+    ctool_source_t source;
+    ctool_dis_request_t request = raw_request(CTOOL_X86_MODE_32, 0u);
+    ctool_dis_report_t report;
+    ctool_status_t status =
+        ctool_host_adapter_init(&limited_adapter, ".");
+    job = (ctool_job_t *)0;
+    limits.arena_block_bytes = 64u;
+    limits.arena_bytes = 64u;
+    config = ctool_host_job_config(&limited_adapter, limits);
+    if (status == CTOOL_OK) {
+      status = ctool_job_open(&config, &job);
+    }
+    if (!check_status(status, CTOOL_OK, "limited local target job")) {
+      return 1;
+    }
+    source.path.text = ctool_string("/local-target-limit.bin");
+    source.contents = ctool_bytes(allocation_fixture,
+                                  (ctool_u32)sizeof(allocation_fixture));
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    (void)memset(&report, 0xa5, sizeof(report));
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_ERR_LIMIT,
+                      "local target instruction map limit") ||
+        !is_zeroed(&report, sizeof(report)) ||
+        ctool_job_diagnostic_count(job) != 0u) {
+      ctool_job_close(job);
+      return 1;
+    }
+    request.policies = 0u;
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK,
+                      "local target allocation recovery") ||
+        report.decode_summary.known_count != 512u ||
+        report.decode_summary.direct_relative_target_count != 0u) {
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_job_close(job);
+  }
+  (void)puts("targets: ok");
   return 0;
 }
 
@@ -1892,6 +2172,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "indexed") == 0) {
     return run_indexed();
+  }
+  if (strcmp(argv[1], "targets") == 0) {
+    return run_targets();
   }
   if (strcmp(argv[1], "object") == 0) {
     return run_object();
