@@ -115,9 +115,9 @@ untouched. The initial snapshot, private source copy, and newly discovered
 live inventory must match exactly. This catches membership changes and a
 transient edit copied before the live file is restored. Each contract run
 derives the cohort from its requested executable, requires a named manifest
-artifact, and verifies every artifact hash, the current 66-input contract set,
+artifact, and verifies every artifact hash, the current 67-input contract set,
 the checked seed manifest, and the 50-file fixed-point source inventory. The
-The 66 inputs include the small Windows probe, the native Windows tool runtime,
+The 67 inputs include the small Windows probe, the native Windows tool runtime,
 startup, CupidLD publication runtime and bridge, direct runtime contract,
 `direct.h`, `windows.h`, the user ABI contract and its six
 declarations, the Toolchain
@@ -664,9 +664,10 @@ negative serial-event boundary. The source and evidence images retained
 SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
-The exact-decimal fixture raised that checkpoint's audit to 737 active language
-inputs, including 297 headers, and raises the live Toolchain contract closure
-to 66 inputs. These source-head totals supersede the older broad rows below.
+The exact-decimal fixture and fingerprint-bound x86 catalogue corpus raised
+the source-head audit to 738 active language inputs, including 297 headers,
+and raised the live Toolchain contract closure to 67 inputs. These source-head
+totals supersede the older broad rows below.
 The last supported published gate retains its historical 65-input evidence.
 
 | Capability | Status | Baseline evidence and gap |

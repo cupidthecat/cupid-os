@@ -690,7 +690,7 @@ source trees, files, and symbolic links remain untouched. The initial,
 private, and newly discovered contract inventories must match exactly, which
 catches added or removed inputs and restored edits that changed a copied
 file. Every run derives its cohort from the requested executable, requires a
-named manifest artifact, and verifies the complete cohort, live 66-input
+named manifest artifact, and verifies the complete cohort, live 67-input
 contract set, checked seed manifest, and 50-file fixed-point source inventory
 before execution. The contract set includes the user syscall ABI contract and
 its six declarations, the Toolchain Makefile, the publisher, and the

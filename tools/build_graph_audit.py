@@ -208,6 +208,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
     "toolchain/tests/cupidasm_kernel_elf_contract.cc",
+    "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
     "toolchain/tests/cupidc_frontend_contract.cc",
     "toolchain/tests/cupidc_ir_contract.cc",
     "toolchain/tests/cupidc_kernel_simd_fixture.h",
@@ -10750,6 +10751,12 @@ def _cupid_toolchain_fixed_point_contract(
         "toolchain/hosted/i386-linux/include/windows.h",
         *required_windows_source_inputs,
     )
+    required_contract_control_inputs = (
+        "toolchain/Makefile",
+        "tools/bootstrap_toolchain.py",
+        "tools/cupidc_toolchain_contracts.py",
+        "tools/user_syscall_abi.py",
+    )
     required_user_abi_inputs = (
         "kernel/core/types.h",
         "kernel/core/syscall.h",
@@ -10762,9 +10769,23 @@ def _cupid_toolchain_fixed_point_contract(
         source_input_strings.count(path) == 1
         for path in required_windows_source_inputs
     )
+    publisher_control_values: list[object] = []
     publisher_windows_values: list[object] = []
     publisher_user_abi_values: list[object] = []
+    publisher_plan_source_values: list[tuple[str, ...] | None] = []
     for statement in contract_publisher_tree.body:
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == "CONTRACT_CONTROL_INPUTS"
+        ):
+            try:
+                publisher_control_values.append(
+                    ast.literal_eval(statement.value)
+                )
+            except (TypeError, ValueError):
+                publisher_control_values.append(None)
         if (
             isinstance(statement, ast.Assign)
             and len(statement.targets) == 1
@@ -10772,7 +10793,9 @@ def _cupid_toolchain_fixed_point_contract(
             and statement.targets[0].id == "WINDOWS_RUNTIME_INPUTS"
         ):
             try:
-                publisher_windows_values.append(ast.literal_eval(statement.value))
+                publisher_windows_values.append(
+                    ast.literal_eval(statement.value)
+                )
             except (TypeError, ValueError):
                 publisher_windows_values.append(None)
         if (
@@ -10787,59 +10810,130 @@ def _cupid_toolchain_fixed_point_contract(
                 )
             except (TypeError, ValueError):
                 publisher_user_abi_values.append(None)
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == "CONTRACT_PLANS"
+        ):
+            plan_sources: list[str] = []
+            if isinstance(statement.value, ast.Tuple):
+                for plan in statement.value.elts:
+                    if (
+                        not isinstance(plan, ast.Call)
+                        or not isinstance(plan.func, ast.Name)
+                        or plan.func.id != "ContractPlan"
+                        or len(plan.args) < 2
+                        or not isinstance(plan.args[1], ast.Constant)
+                        or not isinstance(plan.args[1].value, str)
+                    ):
+                        plan_sources = []
+                        break
+                    plan_sources.append(plan.args[1].value)
+            publisher_plan_source_values.append(
+                tuple(plan_sources) if plan_sources else None
+            )
     publisher_input_functions = [
         statement
         for statement in contract_publisher_tree.body
         if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
         and statement.name == "_contract_input_paths"
     ]
-    expected_publisher_call = ast.dump(
-        ast.parse(
-            "paths.update(root / path for path in WINDOWS_RUNTIME_INPUTS)",
-            mode="exec",
-        ).body[0],
-        include_attributes=False,
-    )
-    expected_user_abi_call = ast.dump(
-        ast.parse(
-            "paths.update(root / path for path in USER_SYSCALL_ABI_INPUTS)",
-            mode="exec",
-        ).body[0],
-        include_attributes=False,
-    )
-    publisher_windows_calls = (
+    expected_publication_path_source = """
+paths = {root / plan.source for plan in CONTRACT_PLANS}
+paths.update(root / path for path in CONTRACT_CONTROL_INPUTS)
+paths.update(root / path for path in WINDOWS_RUNTIME_INPUTS)
+paths.update(root / path for path in USER_SYSCALL_ABI_INPUTS)
+paths.add(root / "toolchain/tests/hosted_i386_runtime_contract.cc")
+paths.add(root / "kernel/lang/as_elf.cc")
+paths.add(root / "kernel/lang/as_elf.h")
+paths.update((root / "toolchain").glob("*.h"))
+paths.update((root / "toolchain/tests").glob("*.inc"))
+paths.update((root / "toolchain/tests").glob("*.h"))
+paths.update((root / "toolchain/hosted/i386-linux/include").glob("*.h"))
+missing = sorted(
+    path.relative_to(root).as_posix()
+    for path in paths
+    if not path.is_file() or path.is_symlink()
+)
+return tuple(
+    sorted(paths, key=lambda path: path.relative_to(root).as_posix())
+)
+"""
+    expected_publication_path_statements = [
+        ast.dump(statement, include_attributes=False)
+        for statement in ast.parse(expected_publication_path_source).body
+    ]
+
+    def statement_references_paths(statement: ast.stmt) -> bool:
+        return any(
+            isinstance(node, ast.Name) and node.id == "paths"
+            for node in ast.walk(statement)
+        )
+
+    publisher_path_statements = (
         [
-            node
-            for node in ast.walk(publisher_input_functions[0])
-            if isinstance(node, ast.Expr)
-            and ast.dump(node, include_attributes=False)
-            == expected_publisher_call
+            ast.dump(statement, include_attributes=False)
+            for statement in publisher_input_functions[0].body
+            if statement_references_paths(statement)
         ]
         if len(publisher_input_functions) == 1
         else []
     )
-    publisher_user_abi_calls = (
-        [
-            node
-            for node in ast.walk(publisher_input_functions[0])
-            if isinstance(node, ast.Expr)
-            and ast.dump(node, include_attributes=False)
-            == expected_user_abi_call
-        ]
-        if len(publisher_input_functions) == 1
-        else []
+    publisher_plan_sources = (
+        publisher_plan_source_values[0]
+        if len(publisher_plan_source_values) == 1
+        else None
     )
     if (
         missing_bootstrap_fragments
         or not windows_source_inputs_are_exact
+        or publisher_control_values != [required_contract_control_inputs]
         or publisher_windows_values != [required_windows_publisher_inputs]
         or publisher_user_abi_values != [required_user_abi_inputs]
-        or len(publisher_windows_calls) != 1
-        or len(publisher_user_abi_calls) != 1
+        or publisher_plan_sources is None
     ):
         raise AuditError(
             "Cupid Toolchain fixed-point source freeze differs: "
             f"{missing_bootstrap_fragments!r}"
+        )
+    if publisher_path_statements != expected_publication_path_statements:
+        raise AuditError(
+            "Cupid Toolchain fixed-point publication input closure differs"
+        )
+
+    publication_paths = {
+        root / path
+        for path in (
+            *publisher_plan_sources,
+            *required_contract_control_inputs,
+            *required_windows_publisher_inputs,
+            *required_user_abi_inputs,
+            "toolchain/tests/hosted_i386_runtime_contract.cc",
+            "kernel/lang/as_elf.cc",
+            "kernel/lang/as_elf.h",
+        )
+    }
+    publication_paths.update((root / "toolchain").glob("*.h"))
+    publication_paths.update((root / "toolchain/tests").glob("*.inc"))
+    publication_paths.update((root / "toolchain/tests").glob("*.h"))
+    publication_paths.update(
+        (root / "toolchain/hosted/i386-linux/include").glob("*.h")
+    )
+    invalid_publication_paths = sorted(
+        path.relative_to(root).as_posix()
+        for path in publication_paths
+        if not path.is_file() or path.is_symlink()
+    )
+    publication_inputs = tuple(
+        sorted(path.relative_to(root).as_posix() for path in publication_paths)
+    )
+    if (
+        invalid_publication_paths
+        or publication_inputs != USER_SYSCALL_ABI_PUBLICATION_INPUTS
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point publication input closure differs"
         )
 
     return {
@@ -10882,7 +10976,7 @@ def _cupid_toolchain_fixed_point_contract(
         "help_cases": len(expected_toolchain_links),
         "success_behavior_cases": 18,
         "failure_behavior_cases": 17,
-        "contract_manifest_inputs": 65,
+        "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupidld.pe32_fixed_image",
             "cupidld.pe32_imports",

@@ -417,7 +417,7 @@ existing destination must already verify as a complete cohort. Arbitrary
 directories, source trees, files, and symbolic links are rejected without
 modification. Exact initial, private, and newly discovered contract
 inventories catch added or removed inputs and restored edits that changed a
-copied file. The manifest binds a 66-input contract inventory, including the
+copied file. The manifest binds a 67-input contract inventory, including the
 Windows startup, runtime, publication bridge and runtime, direct runtime
 contract, `direct.h`, `windows.h`, the user syscall ABI contract and its six
 declarations, the Toolchain Makefile, the publisher, and the independent

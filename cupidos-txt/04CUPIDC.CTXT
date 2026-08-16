@@ -252,9 +252,9 @@ Initial, private, and newly discovered contract inventories must match exactly,
 which catches additions, removals, and restored edits that changed a copied
 input. Every run derives the cohort from its requested executable, requires a
 named manifest artifact, and verifies the manifest, target, fixed-point
-record, filenames, sizes, artifact hashes, 66 contract input hashes, the
+record, filenames, sizes, artifact hashes, 67 contract input hashes, the
 checked seed manifest, and the 50-file fixed-point source inventory before
-execution. The contract inventory has 66 inputs, including the small Windows
+execution. The contract inventory has 67 inputs, including the small Windows
 probe, the native Windows tool runtime and startup, CupidLD publication runtime
 and bridge, direct contract, direct.h, windows.h, the user syscall ABI
 contract and its six declarations, the Toolchain Makefile, the publisher, and

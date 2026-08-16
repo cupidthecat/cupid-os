@@ -416,9 +416,11 @@ _Avoid_: host C runtime, general Windows SDK, small Windows marker probe
 
 **Hosted Toolchain contract cohort**:
 The fifteen `.cc` Toolchain contract programs and the separate hosted runtime contract built as static i386 Linux executables by stage-three and stage-four CupidC. The checked cohort snapshots its exact source and declaration membership, reproduces that inventory under a private root, compares seventeen objects and sixteen executables across the converged compiler pair, runs the stage-four runtime behavior probe, and publishes the stage-four executables with the five stage-four tools as 21 artifacts plus a manifest. Its frozen inventory contains 65 inputs, including the native Windows runtime, startup, publication bridges, direct runtime contract, hosted Windows declarations, six external-program ABI declarations, and independent Python oracle. Live inventory discovery catches additions, removals, and restored edits that changed a private copy. The output must be a dedicated `cupidc-contracts` directory inside the source tree; an existing destination must already verify, and arbitrary directories, source trees, files, or symbolic links remain untouched. A run derives the cohort from its requested executable and verifies the named artifact, all recorded hashes, and current inputs first. `toolchain:all` owns this path. Native GCC or Clang builds are optional oracles under `native-oracles`, not normal build inputs.
-Source head adds `cupidc_exact_decimal_literal_fixture.h` to that live
-contract closure, bringing it to 66 inputs. The last published 65-input gate
-remains historical until a later seed promotion.
+Source head adds the exact-decimal fixture and the fingerprint-bound x86
+catalogue corpus to that live contract closure, bringing it to 67 inputs. The
+audit reconstructs the publisher's membership and keeps it distinct from the
+94 Make prerequisites. The last published 65-input gate remains historical
+until a later seed promotion.
 _Avoid_: checked seed, native contract suite, 19-source tool fixed point
 
 **CupidC compiler generation**:

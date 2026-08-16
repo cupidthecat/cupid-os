@@ -5497,7 +5497,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["help_cases"], 5)
         self.assertEqual(contract["success_behavior_cases"], 18)
         self.assertEqual(contract["failure_behavior_cases"], 17)
-        self.assertEqual(contract["contract_manifest_inputs"], 65)
+        self.assertEqual(contract["contract_manifest_inputs"], 67)
+        self.assertEqual(
+            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 67
+        )
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 94)
+        self.assertTrue(
+            set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
+                module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
+            )
+        )
+        self.assertNotEqual(
+            contract["contract_manifest_inputs"],
+            len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS),
+        )
         self.assertEqual(
             contract["source_head_capabilities"],
             [
@@ -6005,6 +6018,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '    "user/cupid.h",\n',
                 '    "user/cupid-x.h",\n',
                 r"fixed-point source freeze differs",
+            ),
+            "Make prerequisite enters the publication inventory": (
+                "contract_publisher",
+                '    paths.add(root / "kernel/lang/as_elf.h")\n',
+                '    paths.add(root / "kernel/lang/as_elf.h")\n'
+                '    paths.add(root / "link.ld")\n',
+                r"fixed-point publication input closure differs",
             ),
             "PE32 Windows assembly stops comparing stages": (
                 "bootstrap",

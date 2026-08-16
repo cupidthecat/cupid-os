@@ -27669,3 +27669,28 @@ vectors, signature-bearing function pointers, and an aligned private call
 boundary remain open. ADR 0299 records the decision. The active sources already
 use `.cc`; no suffix rename is due. `TempleOS/` remains untouched reference
 material.
+
+## 2026-08-15: derive the Toolchain publication inventory
+
+The build audit no longer reports the historical 65-file Toolchain contract
+inventory as a current constant. It now reconstructs the publisher's live
+membership from the contract plans, fixed control inputs, Windows and user ABI
+inputs, and the same header and contract-support globs used by publication.
+The result is 67 files. It includes the exact-decimal fixture and the
+fingerprint-bound x86 catalogue corpus added after the last seed promotion.
+
+The audit checks the publisher's membership-building statements, rejects a
+missing or symbolic-link input, and requires the reconstructed set to match the
+canonical inventory exactly. It also keeps this 67-file publication boundary
+separate from the Make target's 94 direct prerequisites. A mutation that adds
+the Make-only `link.ld` input to publication now fails closed.
+
+The focused test first failed with the stale 65-file value. The completed
+mutation matrix passed in 114.108 seconds, and two related audit checks passed
+in 0.558 seconds. Both edited Python files also passed AST parsing. Black and
+Ruff were unavailable in that test environment.
+
+This correction changes no build owner, artifact, or checked seed. The last
+published 65-input cohort remains valid historical evidence until a later seed
+promotion carries the 67-file source-head closure. `TempleOS/` was not touched
+or counted.
