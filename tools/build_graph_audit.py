@@ -228,6 +228,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "toolchain/tests/user_syscall_abi_contract.cc",
     "toolchain/tests/x86_active_cases.inc",
+    "toolchain/tests/x86_catalogue_contract.inc",
     "toolchain/tests/x86_contract.cc",
     "toolchain/tests/x86_inline_cases.inc",
     "toolchain/x86.h",

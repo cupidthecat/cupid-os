@@ -545,6 +545,84 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertIn("00007C00", decoded.stdout)
         self.assertIn("mov ax, 0x1234", decoded.stdout)
 
+    def test_cupidasm_source_selectors_round_trip_through_cupiddis(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "shared-x86-selectors.asm"
+            image = root / "shared-x86-selectors.bin"
+            source.write_text(
+                "BITS 32\n"
+                "    shrd eax, edi, cl\n"
+                "    nop word [eax]\n"
+                "    setc dl\n"
+                "    iretd\n"
+                "    pushad\n"
+                "    popad\n"
+                "    pushfd\n"
+                "    popfd\n",
+                encoding="utf-8",
+            )
+            assembled = subprocess.run(
+                [
+                    str(self.asm_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(image),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            self.assertEqual(
+                image.read_bytes(),
+                bytes.fromhex(
+                    "0f ad f8 66 0f 1f 00 0f 92 c2 cf 60 61 9c 9d"
+                ),
+            )
+
+            command = [
+                str(self.cli_path),
+                "--raw",
+                "--mode=32",
+                "--base=0x2000",
+                str(image),
+            ]
+            decoded = subprocess.run(
+                command, cwd=REPO_ROOT, text=True, capture_output=True
+            )
+            repeated = subprocess.run(
+                command, cwd=REPO_ROOT, text=True, capture_output=True
+            )
+            checked = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--require-known",
+                    "--raw",
+                    "--mode=32",
+                    "--base=0x2000",
+                    str(image),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(decoded.returncode, 0, decoded.stderr)
+            self.assertEqual(repeated.returncode, 0, repeated.stderr)
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+            self.assertEqual(decoded.stdout, repeated.stdout)
+            self.assertEqual(checked.stdout, "")
+            self.assertIn("shrd eax, edi, cl", decoded.stdout)
+            self.assertIn("nop word [eax]", decoded.stdout)
+            self.assertIn("setb dl", decoded.stdout)
+            self.assertIn("iret", decoded.stdout)
+            self.assertIn("pusha", decoded.stdout)
+            self.assertIn("popa", decoded.stdout)
+            self.assertIn("pushf", decoded.stdout)
+            self.assertIn("popf", decoded.stdout)
+
     def test_cli_decodes_active_ctool_double_precision_right_shifts(self):
         decoded = subprocess.run(
             [

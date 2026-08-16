@@ -939,7 +939,7 @@ records the ownership transfer.
 | --- | --- | --- | --- |
 | GCC with i386/multilib support | Builds optional native Toolchain contracts and commands on Linux | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native oracle and development targets | Retain only as an optional oracle or bootstrap escape hatch |
 | Clang with i386 target support | Builds optional native Toolchain contracts and commands on Windows, including the native CupidC and CupidLD user oracle | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native comparison and development targets | Retain only as an optional oracle or bootstrap escape hatch |
-| NASM | Optional comparison oracle for the four boot and kernel CupidASM parity tests and the shared ELF32 reader | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; `make nasm-assembly-oracle` uses it when installed. The ISO lane fixture is excluded because NASM freezes `$` across its `TIMES` statement | Retain only as an optional oracle/bootstrap escape hatch |
+| NASM | Optional comparison oracle for the four boot and kernel CupidASM parity tests and the shared ELF32 reader | Not required by root `all`, `user:all`, `toolchain:all`, baseline preflight, or the fingerprint-bound every-form x86 proof; `make nasm-assembly-oracle` uses it when installed. The ISO lane fixture is excluded because NASM freezes `$` across its `TIMES` statement | Retain only as an optional oracle/bootstrap escape hatch |
 | Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS, user, or normal Toolchain link recipe remains. CupidLD owns those outputs. Checked-seed CupidLD builds deterministic imports and links the small loader probe plus native images for all five hosted tools. Windows runs those images directly, including CupidLD's publication workload. A host compiler still invokes a native linker for optional oracle and development commands, while standalone ELF linkers remain comparison tools. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Not required by root `all`, `user:all`, `toolchain:all`, or the checked-seed Windows execution proofs; required only by optional native targets | Retain only as an optional oracle or escape hatch |
 | GNU `objcopy` / `llvm-objcopy` | No role in the normal build; tracked legacy/oracle helpers may still invoke it manually, and the checked `6731dd6` evidence fingerprints the then-installed oracle | Not required for root `all`, `user:all`, `toolchain:all`, or new `bootstrap-baseline` captures | Retain only as an optional comparison/maintenance utility; CupidObj owns the production transformations |
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
@@ -1434,6 +1434,15 @@ The checked Linux and Windows seeds predate this change, so no production
 transform or normal OS artifact changes owner. Host C remains only in the
 existing optional native contract path, and Python still coordinates the
 bootstrap and audit transactions. ADRs 0293 and 0296 record these boundaries.
+
+The shared x86 contract now reaches every one of the 604 catalogue rows in
+each legal mode. Its 1,202 encodable witnesses use the real Cupid encoder and
+both real Cupid decoders, and its alias, invalid-row, illegal-mode, prefix, and
+flag checks are bound to fingerprint `55A8970F` and digest `8C570035`. The
+required proof uses no NASM, LLVM, or host-generated corpus. It changes no
+production owner or checked seed. A normal build with every host code-generation
+variable poisoned passed the exact artifact policy, and the resulting image
+passed a private four-vCPU CupidC boot. ADR 0298 records the boundary.
 
 ## Removal gate
 

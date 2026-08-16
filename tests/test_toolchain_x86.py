@@ -71,6 +71,9 @@ class ToolchainX86ContractTests(unittest.TestCase):
             "fingerprint=55A8970F\n",
         )
 
+    def test_every_catalogue_form_has_a_fingerprint_bound_witness(self):
+        self.run_contract("catalogue")
+
     def test_prepared_decoder_is_equivalent_reusable_and_transactional(self):
         self.run_contract("decoder-index")
 

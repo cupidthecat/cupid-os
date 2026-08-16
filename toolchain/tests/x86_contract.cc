@@ -156,6 +156,115 @@ static int decoded_is_zero(const ctool_x86_decoded_t *decoded) {
   return 1;
 }
 
+static int decoded_register_equal(const ctool_x86_reg_t *left,
+                                  const ctool_x86_reg_t *right) {
+  return left->class_id == right->class_id && left->index == right->index;
+}
+
+static int decoded_value_equal(const ctool_x86_value_t *left,
+                               const ctool_x86_value_t *right) {
+  return left->kind == right->kind && left->bits == right->bits &&
+         left->addend == right->addend &&
+         left->reference == right->reference;
+}
+
+static int decoded_operand_equal(const ctool_x86_operand_t *left,
+                                 const ctool_x86_operand_t *right) {
+  if (left->kind != right->kind || left->width_bits != right->width_bits ||
+      left->encoding_bits != right->encoding_bits) {
+    return 0;
+  }
+  switch (left->kind) {
+    case CTOOL_X86_OPERAND_NONE:
+      return 1;
+    case CTOOL_X86_OPERAND_REGISTER:
+      return decoded_register_equal(&left->as.reg, &right->as.reg);
+    case CTOOL_X86_OPERAND_IMMEDIATE:
+    case CTOOL_X86_OPERAND_RELATIVE:
+      return decoded_value_equal(&left->as.value, &right->as.value);
+    case CTOOL_X86_OPERAND_MEMORY:
+      return left->as.memory.address_bits ==
+                 right->as.memory.address_bits &&
+             decoded_register_equal(&left->as.memory.segment,
+                                    &right->as.memory.segment) &&
+             decoded_register_equal(&left->as.memory.base,
+                                    &right->as.memory.base) &&
+             decoded_register_equal(&left->as.memory.index,
+                                    &right->as.memory.index) &&
+             left->as.memory.scale == right->as.memory.scale &&
+             decoded_value_equal(&left->as.memory.displacement,
+                                 &right->as.memory.displacement) &&
+             left->as.memory.displacement_bits ==
+                 right->as.memory.displacement_bits;
+    case CTOOL_X86_OPERAND_FAR_POINTER:
+      return decoded_value_equal(&left->as.far_pointer.offset,
+                                 &right->as.far_pointer.offset) &&
+             decoded_value_equal(&left->as.far_pointer.segment,
+                                 &right->as.far_pointer.segment);
+  }
+  return 0;
+}
+
+static int decoded_instruction_equal(
+    const ctool_x86_instruction_t *left,
+    const ctool_x86_instruction_t *right) {
+  ctool_u32 operand;
+  if (left->mnemonic != right->mnemonic ||
+      left->operand_bits != right->operand_bits ||
+      left->address_bits != right->address_bits ||
+      left->prefixes != right->prefixes ||
+      left->operand_count != right->operand_count ||
+      left->operand_count > CTOOL_X86_MAX_OPERANDS) {
+    return 0;
+  }
+  for (operand = 0u; operand < (ctool_u32)left->operand_count; operand++) {
+    if (!decoded_operand_equal(&left->operands[operand],
+                               &right->operands[operand])) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int decoded_field_equal(const ctool_x86_field_t *left,
+                               const ctool_x86_field_t *right) {
+  return left->kind == right->kind &&
+         left->relocation == right->relocation &&
+         left->operand_index == right->operand_index &&
+         left->byte_offset == right->byte_offset &&
+         left->byte_width == right->byte_width &&
+         left->pc_bias == right->pc_bias &&
+         left->reference == right->reference &&
+         left->encoded_addend == right->encoded_addend;
+}
+
+static int decoded_encoding_equal(const ctool_x86_encoding_t *left,
+                                  const ctool_x86_encoding_t *right) {
+  ctool_u32 field;
+  if (left->size != right->size || left->form != right->form ||
+      left->field_count != right->field_count ||
+      left->size > CTOOL_X86_MAX_INSTRUCTION_BYTES ||
+      left->field_count > CTOOL_X86_MAX_FIELDS ||
+      memcmp(left->bytes, right->bytes, left->size) != 0) {
+    return 0;
+  }
+  for (field = 0u; field < (ctool_u32)left->field_count; field++) {
+    if (!decoded_field_equal(&left->fields[field],
+                             &right->fields[field])) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int decoded_equal(const ctool_x86_decoded_t *left,
+                         const ctool_x86_decoded_t *right) {
+  return left->kind == right->kind && left->consumed == right->consumed &&
+         decoded_instruction_equal(&left->instruction,
+                                   &right->instruction) &&
+         decoded_encoding_equal(&left->encoding, &right->encoding);
+}
+
 static ctool_status_t exhaustive_decode(
     ctool_job_t *job, ctool_x86_mode_t mode, ctool_bytes_t bytes,
     ctool_u32 address, ctool_x86_decoded_t *decoded_out) {
@@ -198,7 +307,7 @@ static ctool_status_t decode_with_index_equivalence(
                                                : &indexed);
   if (exhaustive_status != indexed_status ||
       (decoded_out != (ctool_x86_decoded_t *)0 &&
-       memcmp(&exhaustive, &indexed, sizeof(exhaustive)) != 0)) {
+       !decoded_equal(&exhaustive, &indexed))) {
     (void)fprintf(
         stderr,
         "prepared x86 decoder diverged from exhaustive decode\n");
@@ -225,12 +334,14 @@ static int compare_prepared_decode(
   ctool_status_t indexed_status =
       ctool_x86_decode_indexed(job, decoder, mode, bytes, address, &indexed);
   if (exhaustive_status != indexed_status ||
-      memcmp(&exhaustive, &indexed, sizeof(exhaustive)) != 0) {
+      !decoded_equal(&exhaustive, &indexed)) {
     (void)fprintf(stderr, "%s: prepared decode mismatch\n", operation);
     return 0;
   }
   return 1;
 }
+
+#include "x86_catalogue_contract.inc"
 
 static int run_decoder_index(void) {
   ctool_host_adapter_t owner_adapter;
@@ -252,6 +363,30 @@ static int run_decoder_index(void) {
   ctool_u32 index;
   static const ctool_x86_mode_t modes[] = {
       CTOOL_X86_MODE_16, CTOOL_X86_MODE_32};
+
+  {
+    ctool_x86_decoded_t zero_padding;
+    ctool_x86_decoded_t other_padding;
+    (void)memset(&zero_padding, 0, sizeof(zero_padding));
+    (void)memset(&other_padding, 0xa5, sizeof(other_padding));
+    other_padding.kind = CTOOL_X86_DECODE_KNOWN;
+    other_padding.instruction.mnemonic = CTOOL_X86_MN_INVALID;
+    other_padding.instruction.operand_bits = 0u;
+    other_padding.instruction.address_bits = 0u;
+    other_padding.instruction.prefixes = 0u;
+    other_padding.instruction.operand_count = 0u;
+    other_padding.encoding.size = 0u;
+    other_padding.encoding.form = CTOOL_X86_FORM_AUTO;
+    other_padding.encoding.field_count = 0u;
+    other_padding.consumed = 0u;
+    if (!check_true(
+            memcmp(&zero_padding, &other_padding,
+                   sizeof(zero_padding)) != 0 &&
+                decoded_equal(&zero_padding, &other_padding),
+            "decoder equivalence ignores inactive storage and padding")) {
+      return 1;
+    }
+  }
 
   status = ctool_x86_decoder_prepare((ctool_job_t *)0, &decoder);
   if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
@@ -4260,7 +4395,7 @@ static int run_errors(void) {
 int main(int argc, char **argv) {
   if (argc != 2) {
     (void)fprintf(stderr,
-                  "usage: x86-contract inventory|model|decoder-index|integer|conditional-moves|parity-setcc|immediate-imul|double-shift|padding-nops|clang-padding-nops|addressing|relocations|system-simd|active-surface|errors\n");
+                  "usage: x86-contract inventory|model|catalogue|decoder-index|integer|conditional-moves|parity-setcc|immediate-imul|double-shift|padding-nops|clang-padding-nops|addressing|relocations|system-simd|active-surface|errors\n");
     return 2;
   }
   if (strcmp(argv[1], "model") == 0) {
@@ -4268,6 +4403,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "inventory") == 0) {
     return run_inventory();
+  }
+  if (strcmp(argv[1], "catalogue") == 0) {
+    return run_catalogue();
   }
   if (strcmp(argv[1], "decoder-index") == 0) {
     return run_decoder_index();

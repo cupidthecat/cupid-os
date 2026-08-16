@@ -456,7 +456,16 @@ CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
 The checked seed and source head have 604 x86 rows, 249 canonical mnemonics,
-64 register names, and fingerprint 55A8970F. The catalogue includes signed x87
+64 register names, and fingerprint 55A8970F. Every encodable row has one
+deterministic witness in each legal mode. The 1,202 witnesses pass the real
+encoder, both real decoders, and exact-form replay. The contract also checks
+all aliases, invalid rows, illegal modes, row flags, and 2,641 proper byte
+prefixes under digest 8C570035. A source-level selector test assembles through
+CupidASM and requires CupidDis to recognize the exact bytes and render stable
+canonical aliases. This is exhaustive by form and legal mode; focused
+contracts cover additional operand and value combinations.
+
+The catalogue includes signed x87
 FILD and FISTP memory operands at 16, 32, and 64 bits and canonical SETP and
 SETNP byte predicates in 16-bit and 32-bit modes. FILD and FISTP register, byte-memory,
 and 80-bit memory forms are rejected without output. The seed's four SHRD rows cover 16-bit and 32-bit register

@@ -2329,6 +2329,52 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertIsNotNone(rule)
         self.assertIn("tests/cupidc_pp_conditional_cases.inc", rule.group(1))
 
+    def test_x86_catalogue_fixture_is_in_each_contract_source_closure(self):
+        makefile = TOOLCHAIN_MAKEFILE.read_text(encoding="utf-8")
+        support = re.search(
+            r"X86_CONTRACT_SUPPORT :=(.*?)(?:\n[^ \t]|\Z)",
+            makefile,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(support)
+        self.assertIn(
+            "tests/x86_catalogue_contract.inc", support.group(1)
+        )
+
+        object_rule = re.search(
+            r"\$\(BUILD_DIR\)/x86_contract\.o:(.*?)\n\t",
+            makefile,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(object_rule)
+        self.assertIn("$(X86_CONTRACT_SUPPORT)", object_rule.group(1))
+
+        test_rule = re.search(
+            r"^test:(.*?)\n\t", makefile, flags=re.DOTALL | re.MULTILINE
+        )
+        self.assertIsNotNone(test_rule)
+        self.assertIn("$(X86_CONTRACT_SUPPORT)", test_rule.group(1))
+        contract = (
+            REPO_ROOT / "toolchain" / "tests" / "x86_contract.cc"
+        ).read_text(encoding="utf-8")
+        usage = re.search(r'"usage: x86-contract ([^"]+)\\n"', contract)
+        self.assertIsNotNone(usage)
+        public_selectors = set(usage.group(1).split("|"))
+        required_selectors = set(
+            re.findall(
+                r"^\t\$\(X86_CONTRACT\) ([a-z0-9-]+)$",
+                makefile,
+                flags=re.MULTILINE,
+            )
+        )
+        self.assertEqual(required_selectors, public_selectors)
+
+        module = _load_audit_module()
+        self.assertIn(
+            "toolchain/tests/x86_catalogue_contract.inc",
+            module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
+        )
+
     def test_active_assembly_controls_are_not_memory_operands(self):
         with tempfile.TemporaryDirectory() as td:
             output = Path(td) / "audit.json"
@@ -3600,8 +3646,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 703)
-            self.assertEqual(contract["include_occurrences"], 2459)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2202)
+            self.assertEqual(contract["include_occurrences"], 2460)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2203)
             self.assertEqual(contract["direct_angle_occurrences"], 257)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
@@ -7898,7 +7944,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6137, 173),
+                "c.expression.sizeof": (6138, 173),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

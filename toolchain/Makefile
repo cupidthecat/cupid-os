@@ -93,6 +93,8 @@ NATIVE_CUPIDOBJ_CONTRACT := $(BUILD_DIR)/cupidobj-contract$(EXE)
 NATIVE_CUPIDLD_CONTRACT := $(BUILD_DIR)/cupidld-contract$(EXE)
 CUPIDC := $(BUILD_DIR)/cupidc$(EXE)
 CUPIDC_PP_ACTIVE_CASES := tests/cupidc_pp_active_cases.inc
+X86_CONTRACT_SUPPORT := tests/x86_active_cases.inc \
+	tests/x86_catalogue_contract.inc tests/x86_inline_cases.inc
 CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.cc \
                               ../kernel/util/bin_programs_gen.cc \
                               ../kernel/util/demos_programs_gen.cc \
@@ -384,7 +386,8 @@ $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.cc \
 $(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.cc elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/x86_contract.o: tests/x86_contract.cc tests/x86_active_cases.inc tests/x86_inline_cases.inc x86.h ctool.h ctool_host.h | $(BUILD_DIR)
+$(BUILD_DIR)/x86_contract.o: tests/x86_contract.cc \
+    $(X86_CONTRACT_SUPPORT) x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupiddis_contract.o: tests/cupiddis_contract.cc cupiddis.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
@@ -476,7 +479,7 @@ $(CUPIDLD): $(CUPIDLD_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDLD_OBJECTS) -o $@
 
 test: $(CONTRACT_MANIFEST) \
-      tests/x86_active_cases.inc tests/x86_inline_cases.inc \
+      $(X86_CONTRACT_SUPPORT) \
       $(CUPIDC_PP_ACTIVE_CASES) $(CUPIDC_HOSTED_I386_RUNTIME)
 	$(PYTHON) ../tools/cupidc_toolchain_contracts.py verify \
 		--root .. --output $(CONTRACT_DIR)
@@ -730,10 +733,13 @@ test: $(CONTRACT_MANIFEST) \
 	$(ELF32_CONTRACT) reader-malformed
 	$(X86_CONTRACT) inventory
 	$(X86_CONTRACT) model
+	$(X86_CONTRACT) catalogue
+	$(X86_CONTRACT) decoder-index
 	$(X86_CONTRACT) integer
 	$(X86_CONTRACT) conditional-moves
 	$(X86_CONTRACT) parity-setcc
 	$(X86_CONTRACT) immediate-imul
+	$(X86_CONTRACT) double-shift
 	$(X86_CONTRACT) padding-nops
 	$(X86_CONTRACT) clang-padding-nops
 	$(X86_CONTRACT) addressing

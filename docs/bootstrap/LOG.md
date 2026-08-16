@@ -27439,3 +27439,120 @@ checks. No checked seed changed, so no fixed-point promotion was needed. The
 seventeen residual `.c` files remain classified as historical, dormant, host
 fixture, or oracle inputs; the safe rename set is still empty. `TempleOS/`
 was not modified, built, or counted.
+
+## 2026-08-15: exhaustive shared x86 catalogue proof
+
+### Scope and decisions
+
+The shared x86 catalogue still contains 604 forms, 249 canonical mnemonics,
+64 register names, and fingerprint `55A8970F`. This change adds a test-only
+view of the private row metadata. It does not publish catalogue order as a
+production API and does not change an instruction row.
+
+The contract constructs one deterministic witness for every encodable form in
+every legal mode. The separately linked production encoder must honor the
+requested form. Both production decoder paths must agree on the complete
+decoded record, and the selected decoded form must re-encode to the same bytes.
+All proper byte prefixes also pass both decoders. Four prefixes are valid
+shorter instructions and must make progress; the other prefixes must retain
+their bytes as truncated input.
+
+The locked totals are 1,202 encodable legal-mode cases, 12 decode aliases,
+four invalid rows, two illegal-mode rejections, and 2,641 proper prefixes.
+Every declared row flag appears in the proof. The complete witness stream has
+digest `8C570035`. The proof is exhaustive by form and legal mode, not by every
+possible operand, prefix, address, or immediate value.
+
+A second path starts with CupidASM source. It assembles SHRD, a mode-sized
+memory NOP, a condition alias, IRET, and push/pop aliases into the exact bytes
+`0F AD F8 66 0F 1F 00 0F 92 C2 CF 60 61 9C 9D`. CupidDis accepts those bytes
+under `--require-known`, renders canonical names, and produces the same text on
+a repeat run.
+
+### Red-to-green implementation record
+
+The first public test failed because `x86-contract catalogue` was not a known
+selector. The implementation then included a renamed copy of `x86.cc` inside
+the test contract so it could inspect private metadata. Encoding and decoding
+calls were kept on the separately linked production implementation. This
+avoids a public form-table API and a generated corpus that could become stale.
+
+The initial checked-seed compile reached publication after 94.5 seconds but
+failed because its output directory did not exist. No parse or code-generation
+diagnostic appeared. A retry to an existing directory passed in 96.3 seconds
+and produced a 433,512-byte ELF32 object with SHA-256
+`96a3a1f2685100de7e8718795e7088d9f12a39f5a8e016aebbb34968cdf9f05e`.
+
+Review found that the new included fixture was absent from the Make dependency
+closure. `X86_CONTRACT_SUPPORT` now names all three included corpora, and the
+build audit locks the new path as a contract publication input. A dry run then
+showed that the normal Toolchain recipe built the contract without running its
+new selector. An exact selector-set test failed with `decoder-index` and
+`double-shift` missing as well. The recipe now runs every public x86 selector.
+
+The first checked Cupid-built execution reported a mismatch at form 156 in
+16-bit mode even though both decoders selected the same two-byte form. A
+first-byte diagnostic found the only difference at offset 29, inactive padding
+after a register index. The earlier oracle compared whole structure bytes, so
+it treated compiler-specific padding as decoder output. The final oracle walks
+every active instruction, operand, value, memory, encoding, and relocation
+field. A dedicated case keeps equal active fields over different background
+bytes. The checked `catalogue`, `decoder-index`, and `double-shift` selectors
+then passed from one Cupid-built executable.
+
+### Test evidence
+
+| Check | Result |
+| --- | --- |
+| Shared x86 suite | PASS: 16 tests |
+| CupidASM suite | PASS: 16 tests |
+| CupidDis suite | PASS: 22 tests; one platform skip |
+| Native CupidASM-to-CupidDis selector path | PASS |
+| Build-graph dependency and frozen-input checks | PASS |
+| Checked CupidC/CupidASM/CupidLD contract build | PASS: 439,768-byte object and 580,632-byte executable |
+| Checked static i386 selectors | PASS: `catalogue`, `decoder-index`, and `double-shift` |
+| Complete build-graph audit | PASS: all 100 tests in 795.604 seconds |
+| Audit regeneration and replay | PASS in 65.9 and 67.7 seconds |
+| Poisoned-host normal build | PASS in 718.1 seconds after the recorded exact-size rejection |
+| Private four-vCPU CupidC boot | PASS in about 55 seconds |
+
+The complete audit now records 738 active inputs, 452 transforms, and 255
+feature requirements. Its 2,691,298-byte JSON report has SHA-256
+`3c1ce5276ee573c4873635ce62c5984f3adec92d72a90912b17a5bcffba36e25`.
+The 12,502-byte Markdown summary has SHA-256
+`fd555ad841082fe50ed4913af246b0baa60bb55b21980cf0d842ff67149aebe0`.
+
+The first poisoned-host normal build completed every compile, assembly, link,
+and strict CupidDis check in 699.8 seconds. The exact-size gate then measured
+`kernel.bin` at 9,140,004 bytes, 540 bytes above the prior policy, and stopped
+before image publication. A retry with a 600-second command timeout ended while
+the build was still making progress and is not counted as a result. After the
+single policy row was updated, the resumed poisoned-host build passed all nine
+artifact checks in 718.1 seconds and published the image.
+
+A later standalone `make verify-artifact-sizes` request found a stale kernel
+prerequisite and entered a real rebuild instead of a quick policy replay. Its
+183.5-second harness expired while `devfs.o` was compiling. Make reported no
+compiler or policy diagnostic, no child process remained, and the five public
+artifacts retained the hashes below. This timeout is not counted as a replay
+result.
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,236,336 | `5e7936d12aec53625b0f066362268e9686adce365d9a8f9beed9c5104f1d9321` |
+| `kernel/kernel.elf` | 9,359,216 | `3372d1756c6dd27a7880a5b8a0a804a02cb82560e0ed8ff8a14e494f7eff3128` |
+| `kernel/kernel.bin` | 9,140,004 | `2d0ab2646a3d3445ec833550aea0cdd016bbf3036c26bdb7b3dfa237ee538c71` |
+| `cupidos.img` | 209,715,200 | `6c33e4a6a12a14b71243ca0ead6e5cb1120e7950c6102918daf3f49a6bc786d1` |
+
+A private copy of that image booted with four virtual CPUs, CPU `max`, and
+e1000. All four CPUs came online, DHCP supplied `10.0.2.15`, and in-OS CupidC
+compiled and completed `/bin/ls.cc`. The strong SMP runtime contract passed in
+about 55 seconds. Its 31,203-byte serial log has SHA-256
+`dca7a5e59ce98cc278a04030073b5c42a42edacaca0f60dd865506ccc6315684`.
+The run left the source image unchanged.
+
+No production transform changes owner, and no checked seed needs promotion.
+NASM and LLVM remain optional oracles and are not used by the every-form proof.
+The active sources in this slice are already named `.cc`; no rename is due.
+`TempleOS/` was not modified, built, or counted.

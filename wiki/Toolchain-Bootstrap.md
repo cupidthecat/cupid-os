@@ -904,21 +904,23 @@ bytes larger. After that one policy row moved, a complete poisoned-host rebuild
 passed in 693.5 seconds. The contract report matched the independent Python
 oracle, and all nine exact artifacts passed:
 
-Final wording edits inside the embedded manual changed the current hashes
-without changing any reviewed size. A direct replay of the checked contract
-passed in 12.237 seconds.
+The shared-x86 catalogue proof then added one embedded manual update. The
+first source-current build reached the exact-size gate in 699.8 seconds and
+measured `kernel.bin` at 9,140,004 bytes, 540 bytes above the prior row. After
+that row was updated, the same poisoned-host build passed all nine checks in
+718.1 seconds and published the image below.
 
 | Output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
-| `kernel/kernel.elf.pass1` | 9,236,336 | `cbc7c08f97ef53173ee2965d69c8287213a6f1693f1d14cfad65180a6ee01125` |
-| `kernel/kernel.elf` | 9,359,216 | `de872928b63fc8fa1c43b3e0bda2f3a1c712f4f0cd1eec024c2048d33a0cea38` |
-| `kernel/kernel.bin` | 9,139,464 | `9ca566c724e2636928ea5f53864fd5fe38174f1e88ce3fb42108c14a4964261b` |
-| `cupidos.img` | 209,715,200 | `ccb7774b812dcb0a2614a76b41efe509c89f5bb97e2c68ec2e20c01ca15a1984` |
+| `kernel/kernel.elf.pass1` | 9,236,336 | `5e7936d12aec53625b0f066362268e9686adce365d9a8f9beed9c5104f1d9321` |
+| `kernel/kernel.elf` | 9,359,216 | `3372d1756c6dd27a7880a5b8a0a804a02cb82560e0ed8ff8a14e494f7eff3128` |
+| `kernel/kernel.bin` | 9,140,004 | `2d0ab2646a3d3445ec833550aea0cdd016bbf3036c26bdb7b3dfa237ee538c71` |
+| `cupidos.img` | 209,715,200 | `6c33e4a6a12a14b71243ca0ead6e5cb1120e7950c6102918daf3f49a6bc786d1` |
 
 A private four-vCPU e1000 boot ran `/bin/ls.cc` through in-OS CupidC and passed
-the SMP runtime contract in 49.970 seconds. Its 29,937-byte log has SHA-256
-`93a6d4730ff90b27fa18273d54b3e227441850bae3031933e15cb3470d4fabf2`.
+the SMP runtime contract in about 55 seconds. Its 31,203-byte log has SHA-256
+`dca7a5e59ce98cc278a04030073b5c42a42edacaca0f60dd865506ccc6315684`.
 The private run left the source image unchanged.
 
 The preceding dual-NIC checkpoint used image SHA-256
@@ -969,7 +971,15 @@ drivers, Toolchain, and user build. Every object decoded, and none produced a
 true `db 0x` fallback row. The active SIMD object already uses the shared
 model for its packed SSE2 instructions, so the investigation added no
 speculative opcode. The checked seed and source head have 604 catalogue rows,
-249 canonical mnemonics, and fingerprint `55A8970F`. The catalogue includes
+249 canonical mnemonics, and fingerprint `55A8970F`. One deterministic
+witness now reaches every encodable row in every legal mode. The 1,202
+witnesses pass the real encoder, both real decoders, and exact-form replay.
+The same proof checks all aliases, invalid rows, illegal modes, declared row
+flags, and 2,641 proper byte prefixes under digest `8C570035`. A source-level
+selector test runs representative CupidASM output through strict CupidDis
+inspection and checks stable canonical aliases. The proof is exhaustive by
+form and legal mode; active-source and focused contracts retain broader
+operand and value coverage. The catalogue includes
 signed x87 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits and
 canonical `SETP` and `SETNP` byte predicates. They keep private CupidC's
 floating comparison and truth sequences aligned under CupidDis. The guest
@@ -978,8 +988,9 @@ runs the full feature-13 behavior. GUI-mode listings stay visible in the
 terminal and are mirrored to serial after the ordinary sink and redirection
 checks, so the runtime proof reads production CupidDis output rather than a
 separate oracle.
-ADR 0258 records the preceding seed, ADR 0259 records the parity rows, and ADR
-0265 records their checked-seed carriage.
+ADR 0258 records the preceding seed, ADR 0259 records the parity rows, ADR
+0265 records their checked-seed carriage, and ADR 0298 records the every-form
+proof.
 The four SHRD
 forms cover 16-bit and 32-bit SHRD with register or memory destinations and
 either an immediate byte or fixed CL count. Active checked-CupidC objects now
