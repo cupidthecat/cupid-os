@@ -939,11 +939,11 @@ header closure.
 Poisoned-host checks cover all 239 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
-roots, the audit records 452 transforms. CupidC participates in 248, CupidObj
-in 192, CupidASM in seven, CupidLD in seven, and CupidDis in six. The two
-Cupid-built semantic contracts cover the user ABI and artifact-size policy.
-Python
-participates in all 452, and no normal transform invokes a host C compiler.
+roots, the audit records 452 transforms. CupidC participates in 249, CupidObj
+in 192, CupidASM in eight, CupidLD in eight, and CupidDis in six. The three
+Cupid-built semantic contracts cover the user ABI, artifact-size policy, and
+Toolchain publication manifest. Python participates in all 452, and no normal
+transform invokes a host C compiler.
 Root `all` has 443 transforms, and every one has at least one Cupid
 participant. The size verifier emits no OS artifact; it runs a private
 CupidC-built contract while Python owns capture, launch, and oracle checks. The
@@ -951,9 +951,9 @@ checked user compiler and Toolchain contract
 publisher create their own output directories. The compiler walks POSIX paths
 through no-follow directory descriptors and Windows paths through
 parent-relative directory handles, then checks the resolved output while the
-parents remain pinned. Two Python-only verification or orchestration
-transforms remain across the supplemental roots. ADR 0245 records that
-publisher-owned directory boundary.
+parents remain pinned. One Python-only publication transform remains across
+the supplemental roots. ADR 0245 records the publisher-owned directory
+boundary, and ADR 0302 records the manifest checker.
 
 The seventeen tracked `.c` files outside `TempleOS/` are intentionally outside
 the supported graph. Eleven are legacy, superseded, or dormant sources, and six
@@ -970,7 +970,8 @@ requires an unreferenced `.cc` to have policy, a recorded source relation, or
 an explicit Make exclusion. The complete production graph requires exact
 policy coverage; a partial production view defers that census. The safe rename
 set is currently empty.
-The final `make bootstrap-audit` passed in 68.8 seconds.
+The final `make bootstrap-audit` passed in 63.0 seconds, and deterministic
+check mode passed in 62.6 seconds.
 The Toolchain root builds its fifteen `.cc` contracts twice with stage-three
 and stage-four CupidC, compares seventeen objects and sixteen static i386
 executables, and publishes the stage-four 21-artifact cohort together. The publisher accepts only
@@ -982,7 +983,7 @@ private, and live contract inventories must match exactly, including
 membership and hashes, so additions, removals, and a transient edit copied
 before its live source is restored all fail. Normal build and test entry points derive
 the cohort from each requested executable, require a named manifest artifact,
-and verify the complete artifact inventory, the 67 contract inputs, the
+and verify the complete artifact inventory, the 68 contract inputs, the
 50-file fixed-point source inventory, and the checked seed manifest before
 execution. The contract inventory includes the Windows startup and runtime
 probe, the native Windows tool runtime and startup, CupidLD publication
@@ -1683,7 +1684,7 @@ validation or `make bootstrap-from-seed` for the complete rebuild. The normal
 Toolchain build then uses those two compiler stages for fifteen contract
 programs and the runtime probe. It compares all seventeen new objects and
 sixteen linked executables. Its private contract tree must reproduce the
-initial 65-file inventory exactly, including the native Windows tool runtime,
+current 68-file inventory exactly, including the native Windows tool runtime,
 startup, publication bridges, direct runtime contract, and hosted Windows declarations, the user ABI contract and its six declarations, the Toolchain
 Makefile, the publisher, and the independent Python oracle. Each live check discovers the set again before
 comparing hashes. The public manifest also records the checked build plan,
@@ -2326,7 +2327,7 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 
 The [current production checkpoint](#current-production-checkpoint) is the
 canonical record of the final build, artifact identities, and private guest
-smokes. The active audit contains 736 language inputs, 452 transforms, and 255
+smokes. The active audit contains 739 language inputs, 452 transforms, and 255
 feature requirements.
 The checked Linux and Windows seeds now carry the newest source-head compiler,
 the strict executable-relocation rule, and the corrected raw `EQU` handling.

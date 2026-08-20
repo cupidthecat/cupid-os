@@ -4,15 +4,15 @@ The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
-`audits/active-build.json` owns the current 738-input/452-transform graph. The
-language graph contains 31 assembly inputs, 297 headers, and 410 Cupid C
+`audits/active-build.json` owns the current 739-input/452-transform graph. The
+language graph contains 31 assembly inputs, 297 headers, and 411 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`f314cb75f8c8ad4ae29ea95926bfb073f1ed1533ab07b94d29751b473f70aa92`.
-The 2,691,506-byte audit JSON has SHA-256
-`1d4df91f4c6598c77f6c897d62c765e79e8e45ea59055061d7a9c420d3dc20c6`,
+`20eb8f85d95d7a6acb071a81e1884dd0fb8a45dd52157763324f147c54ad6f52`.
+The 2,700,777-byte audit JSON has SHA-256
+`924000ec9449d4874142c4240094aa4865c015f9af9dfc3f23c0b4b2677e0ae4`,
 and the 12,502-byte summary has SHA-256
-`5c9fbf214d5419a497041a27128a2569fe4f22dde8e24dfa15f4f5d650980bcf`.
+`56a05868915f15f3db58cd1d5d0a26cc60ebee1b3d625d1356e0dd0aa8059a41`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -24,8 +24,9 @@ the corrected setjmp, longjmp, quit, and error paths in Cupid OS. ADR 0213
 records the seed promotion, and ADR 0214 records active adoption.
 
 The normal root build sends no C object through GCC or Clang. The audit records
-248 CupidC participations across the supported roots: 246 ordinary C-output
-transforms plus the native Windows ABI and artifact-size verifications. The normal cohort
+249 CupidC participations across the supported roots: 246 ordinary C-output
+transforms plus the native Windows ABI, artifact-size, and Toolchain manifest
+verifications. The normal cohort
 contains 239 checked-in sources and the generated kernel symbol table; all 240
 use `.cc`. Three generated installation tables and three example programs
 account for six more ordinary transforms. The host C compiler owns no
@@ -45,8 +46,8 @@ The checked user compiler and Toolchain contract publisher create their own
 output directories. On POSIX, the compiler requires `dir_fd`, `O_DIRECTORY`,
 and `O_NOFOLLOW` support. On Windows, it uses parent-relative directory handles
 and rejects reparse points. The pins remain open through the final
-resolved-output check. Two Python-only verification or
-orchestration transforms remain outside the normal root. The external-program
+resolved-output check. One Python-only publication transform remains outside
+the normal root. The external-program
 ABI gate runs a Cupid-built contract and a separate Python oracle. On Windows,
 CupidC, CupidASM, and CupidLD build that contract as a private PE and run it
 directly. Root `all` runs CupidASM, CupidObj, CupidLD, and CupidDis from the
@@ -57,7 +58,8 @@ and ADR 0245 records the publisher-owned directory boundary. ADR 0246 records
 the shared invocation boundary. Python remains a required host-control
 component. WSL remains required on Windows for the Linux fixed point, complete
 Toolchain contract cohort. It is not required for output-bearing production
-calls, the user ABI gate, or artifact-size verification. Source head can
+calls, the user ABI gate, artifact-size verification, or Toolchain manifest
+verification. Source head can
 reconstruct native Windows stages two through four without WSL by freezing the
 PE execution seed and Linux plan seed. One complete stage-three-to-stage-four
 native convergence proof first passed on a frozen uncommitted snapshot. Native
@@ -80,6 +82,16 @@ publication and preserves the existing image. The transform publishes no OS
 artifact. Python retains path safety, process launch, its separate policy
 decoder, and final drift checks. ADR 0267 records the policy, and ADR 0297
 records the contract transfer.
+
+The Toolchain `all` target uses the same checked-contract split for its
+published manifest. Python captures 21 artifacts, 68 publication inputs, 50
+bootstrap sources, and the static Linux publication seed into one `CUPMAN2`
+request. Checked CupidC decides the schema and inventory rules, while Python
+checks an independent oracle and the live no-follow boundary before and after
+execution. Windows builds a native PE with the checked Windows seed; Linux
+builds a static ELF. This adds one CupidC, CupidASM, and CupidLD participation
+without promoting a seed. The separate manifest producer remains Python-only.
+ADR 0302 records the ownership line.
 
 The first checked PE boundary built one deterministic imported i386 command
 without a host compiler, assembler, linker, import library, or C runtime.
@@ -421,7 +433,8 @@ identity through direct and pointer member access. One shared lvalue walk
 handles indexed record members whether the outer record is a named object or
 an array element. These parser changes add no host build step.
 
-The i386 runtime contract and all fifteen Toolchain contracts use `.cc`.
+The i386 runtime contract, all fifteen published Toolchain contracts, and the
+separate Toolchain manifest verifier use `.cc`.
 The checked seed produces the four bootstrap generations. Stage-three and
 stage-four tools compile the full contract set, and CupidLD links the matching static i386
 executables. The seventeen newly compiled objects and sixteen executables must
@@ -432,7 +445,7 @@ existing destination must already verify as a complete cohort. Arbitrary
 directories, source trees, files, and symbolic links are rejected without
 modification. Exact initial, private, and newly discovered contract
 inventories catch added or removed inputs and restored edits that changed a
-copied file. The manifest binds a 67-input contract inventory, including the
+copied file. The manifest binds a 68-input contract inventory, including the
 Windows startup, runtime, publication bridge and runtime, direct runtime
 contract, `direct.h`, `windows.h`, the user syscall ABI contract and its six
 declarations, the Toolchain Makefile, the publisher, and the independent
@@ -961,8 +974,8 @@ records the ownership transfer.
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
 | Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal five-tool build and sixteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime. All five native Windows tools use the repository runtime and twelve shared CupidASM API bridges; CupidLD adds four publication bridges | Not required by root `all`, `user:all`, `toolchain:all`, or the checked Windows commands; required only by native oracle and development targets | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |
 | GNU Make | Declares the root, user, and toolchain-contract build graphs and invokes tools | Required; the graph uses portable ordinary/stamp targets rather than GNU Make 4.3 grouped-target syntax | May remain as host orchestration; it must invoke Cupid code-producing tools on the normal path |
-| Python 3 | Launches the host-selected checked execution cohort for output-bearing work, the Windows user ABI contract, and the artifact-size contract, and launches the Linux bootstrap seed for fixed-point and full Toolchain contract work; pins the size-policy request and compares the CupidC report with an independent oracle; compares the Cupid-built syscall ABI report with an independent oracle; coordinates kernel-symbol and trampoline validation; parity-checks accepted JPEG, ISO, and profile-manifest bytes; builds independent template oracles; preserves FAT contents and stages files; validates, locks, and atomically publishes outputs; builds fixtures; and drives QEMU tests | Required | May remain for tests and packaging, but removing it from the staged fixed point and checked-tool launch path is the open Python-free bootstrap gate |
-| WSL on Windows | Runs the checked static i386 Linux seed for Linux fixed-point reconstruction and the complete Toolchain contract cohort | Required for those Linux executable paths on Windows; native Windows fixed-point reconstruction, output-bearing production tools, the user ABI gate, and artifact-size verification run the checked PE32 execution seed without WSL | Remove it after the remaining Linux fixed-point and contract paths no longer depend on Linux executable semantics |
+| Python 3 | Launches the host-selected checked execution cohort for output-bearing work, the Windows user ABI contract, the artifact-size contract, and the Toolchain manifest verifier, and launches the Linux bootstrap seed for fixed-point and full published Toolchain contract work; pins the size-policy and manifest requests and compares both CupidC reports with independent oracles; compares the Cupid-built syscall ABI report with an independent oracle; coordinates kernel-symbol and trampoline validation; parity-checks accepted JPEG, ISO, and profile-manifest bytes; builds independent template oracles; preserves FAT contents and stages files; validates, locks, and atomically publishes outputs; builds fixtures; and drives QEMU tests | Required | May remain for tests and packaging, but removing it from the staged fixed point and checked-tool launch path is the open Python-free bootstrap gate |
+| WSL on Windows | Runs the checked static i386 Linux seed for Linux fixed-point reconstruction and the complete published Toolchain contract cohort | Required for those Linux executable paths on Windows; native Windows fixed-point reconstruction, output-bearing production tools, the user ABI gate, artifact-size verification, and Toolchain manifest verification run the checked PE32 execution seed without WSL | Remove it after the remaining Linux fixed-point and contract paths no longer depend on Linux executable semantics |
 | Git | Enumerates the tracked audit universe and creates detached baseline worktrees | Required for development/audit workflows, not image production | Retain as source-control orchestration, never as a code-producing dependency |
 | `link.ld` and its documented GNU-script subset | Defines kernel memory and section layout; CupidLD parses the exercised `ENTRY`, `SECTIONS`, location-counter, wildcard, alignment, symbol, `COMMON`, and `ASSERT` forms | Required input to both kernel link passes; host-linker interpretation is oracle-only | Keep the script as the source-owned layout contract and deepen CupidLD when the active script needs more semantics |
 | `jpegtran`, `djpeg`/`cjpeg`, or FFmpeg | No role in the normal root build. Checked CupidObj validates and wraps the repository's sequential SOF0 or SOF1 JPEG; Python checks accepted bytes independently | Not required by root `all`; progressive, unsupported, and malformed input fails instead of selecting a host converter | Retain only for optional asset maintenance outside the build graph |
@@ -1004,17 +1017,17 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | Tool hand-off | Reachable outputs | Required external behavior |
 | --- | ---: | --- |
 | Host C compiler | 0 | Native hosted tools and contracts are explicit optional oracles outside every supported root |
-| CupidC | 248 participations | The 246 ordinary C-output transforms plus the native Windows ABI and artifact-size verifications; this includes the 239-source checked-in normal cohort, generated kernel symbols, three generated installation tables, three example external programs, and the checked Toolchain contract cohort. Every published object is validated. |
-| Cupid-built semantic contracts | 2 participating transforms | The syscall checker owns the reviewed table, scalar, constant, record-layout, provider, snapshot, and reread rules. The artifact-size checker owns the policy, manifest, owner, cohort, and exact-size rules. Python checks both reports independently and controls publication. |
-| CupidASM | 7 owned or participating transforms | Three production flat binaries, two production ELF32 `ET_REL` objects, and startup for the user ABI and artifact-size contracts. The two boot and kernel flat outputs are byte-identical to the optional NASM oracle; the checked ISO lane is the documented NASM `TIMES` exception. The objects match the oracle's code, symbol, alignment, and relocation semantics. Both production object publishers validate and inspect private candidates before atomic replacement. |
+| CupidC | 249 participations | The 246 ordinary C-output transforms plus the native Windows ABI, artifact-size, and Toolchain manifest verifications; this includes the 239-source checked-in normal cohort, generated kernel symbols, three generated installation tables, three example external programs, and the checked Toolchain contract cohort. Every published object is validated. |
+| Cupid-built semantic contracts | 3 participating transforms | The syscall checker owns the reviewed ABI rules. The artifact-size checker owns the policy and exact-size rules. The Toolchain manifest checker owns the 21/68/50 publication inventory and Linux seed binding. Python checks each report independently and controls the filesystem boundary. |
+| CupidASM | 8 owned or participating transforms | Three production flat binaries, two production ELF32 `ET_REL` objects, and startup for the user ABI, artifact-size, and Toolchain manifest contracts. The two boot and kernel flat outputs are byte-identical to the optional NASM oracle; the checked ISO lane is the documented NASM `TIMES` exception. The objects match the oracle's code, symbol, alignment, and relocation semantics. Both production object publishers validate and inspect private candidates before atomic replacement. |
 | NASM | 0 production transforms | Optional active-source and ELF32 interoperability oracle only |
-| CupidLD | 7 owned or participating transforms | Two script-driven kernel links, three fixed-address user executables, the native Windows user ABI PE, and the host-selected artifact-size contract; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 and PE serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
+| CupidLD | 8 owned or participating transforms | Two script-driven kernel links, three fixed-address user executables, the native Windows user ABI PE, and the host-selected artifact-size and Toolchain manifest contracts; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 and PE serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
 | CupidObj | 192 participating transforms | 175 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one checked `wrap-jpeg` transform with Python parity and publication checks, final initialized ELF-to-raw conversion, three installation-source generators, one kernel-symbol source generator, one production disk-image template, one production ISO fixture, and one guarded Doom profile manifest. |
 | Checked-seed CupidObj disk path | Included in the 192 CupidObj transforms | `disk-template` authors the MBR, boot reserve, kernel lane, FAT16 metadata, pristine FATs, and empty root directory before Python performs mutable image work. |
 | Checked-seed CupidObj ISO path | Included in the 192 CupidObj transforms | `iso-fixture` authors the complete deterministic ECMA-119 and Rock Ridge image before Python compares an independent render and publishes under a per-output lock. |
 | Checked-seed CupidObj profile path | Included in the 192 CupidObj transforms | `profile-manifest` authors the canonical Doom profile JSON from a frozen `CUPROF1` snapshot before Python checks an independent oracle and publishes under an adjacent no-follow lock. |
 | CupidDis | 6 participating transforms | Supplies 4,718 deterministic text-symbol rows for the 114,851-byte panic-backtrace blob, validates the complete 431-input code cohort in the transactional `kernel.bin` transform, checks the bootloader and SMP trampoline maps, and covers every executable byte in the private ISR and context-switch objects before publication. The checked Linux and Windows seeds also validate executable relocation ownership for both guarded assembly objects. The host oracle remains optional. |
-| Python | 452 transforms | Launches checked Cupid tools and retains host discovery, safety, parity, drift detection, locking, publication, and mutable image work. Every root transform has a Cupid participant. Two supplemental verification or orchestration outputs remain Python-only. The user ABI and artifact-size gates combine Cupid-built contracts with independent Python oracles. The disk image, ISO image, and Doom profile manifest are composite transforms because checked CupidObj authors their deterministic bytes first. |
+| Python | 452 transforms | Launches checked Cupid tools and retains host discovery, safety, parity, drift detection, locking, publication, and mutable image work. Every root transform has a Cupid participant. One supplemental Toolchain publication output remains Python-only. The user ABI, artifact-size, and Toolchain manifest gates combine Cupid-built contracts with independent Python oracles. The disk image, ISO image, and Doom profile manifest are composite transforms because checked CupidObj authors their deterministic bytes first. |
 | Make recursion | 0 transforms | Native hosted CupidASM, CupidObj, CupidLD, and CupidDis targets remain available, but no supported root reaches them recursively |
 
 Checked-seed CupidDis can validate several inputs with
@@ -1075,12 +1088,13 @@ precede cutover. ADR 0300 records the source boundary.
 
 The final audit records 452 transforms across the three supported roots and
 443 under root `all`. Its tool participation totals are Python 452, CupidC
-248, CupidObj 192, CupidASM seven, CupidLD seven, and CupidDis six. The
-composite native Windows user ABI and artifact-size verifications account for
-the two added CupidC, CupidASM, and CupidLD participations. It retains
+249, CupidObj 192, CupidASM eight, CupidLD eight, and CupidDis six. The native
+Windows user ABI, artifact-size policy, and Toolchain manifest verifications
+account for the three added CupidC, CupidASM, and CupidLD participations. It retains
   the 5/18/17 fixed-point matrix and records strict validation plus flat
 extraction together on `kernel.bin`, with all 431 code inputs represented.
-`make bootstrap-audit` passed in 68.8 seconds.
+`make bootstrap-audit` passed in 63.0 seconds, and deterministic check mode
+passed in 62.6 seconds.
 
 The poisoned-host normal `make -j2` passed in 1,057.969 seconds with `CC`,
 `CXX`, `CPP`, `HOSTCC`, `HOSTCXX`, `ASM`, `AS`, `LD`, `AR`, `NM`, and
@@ -1313,9 +1327,9 @@ the next entry before further recursion, and restores both counters after a
 failed REPL evaluation. This changes embedded JIT safety without retiring or
 adding a host dependency.
 
-The hosted preprocessor contract runs 396 tracked profile executions through
+The hosted preprocessor contract runs 397 tracked profile executions through
 the repository file adapter. This covers 239 root-kernel and Doom C inputs,
-three user inputs, 108 Cupid programs, 33 strict hosted i386 Linux roots, four
+three user inputs, 108 Cupid programs, 35 strict hosted i386 Linux roots, four
 strict hosted i386 Windows tool drivers, two other strict hosted i386 Windows
 roots, one freestanding i386 Windows root, two
 strict hosted i386 kernel-bridge roots, and three GNU runtime roots. Only
@@ -1330,7 +1344,8 @@ cohort, so no hosted unit is deferred and no host C transform remains.
 The production-integration item above now includes the checked Toolchain
 contract cohort. Checked-seed CupidC owns the 239-source checked-in normal
 cohort, generated kernel symbols, and the six generated-install or user
-translations. The rebuilt compiler stages own all fifteen contract programs.
+translations. The rebuilt compiler stages own all fifteen published contract
+programs. A host-selected checked seed builds the separate manifest verifier.
 
 The broad inventory below records the original IR contract boundary. Its statements that wide multiplication, division, remainder, mutation, open-position arguments, and wider variadic reads were unsupported are historical. The phrase "eighteenth host-built artifact" names the owner at that old boundary. Both checked compiler stages now build it, while native binaries remain optional oracles. ADRs 0072 through 0075 supersede those gaps.
 

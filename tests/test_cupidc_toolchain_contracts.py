@@ -297,6 +297,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         } | {
             "kernel/lang/as_elf.cc",
             "kernel/lang/as_elf.h",
+            "toolchain/x86.cc",
             "toolchain/tests/hosted_i386_runtime_contract.cc",
         } | set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS) | set(
             cupidc_toolchain_contracts.WINDOWS_RUNTIME_INPUTS
@@ -637,7 +638,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 66)
+        self.assertEqual(len(inputs), 68)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -650,6 +651,11 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             set(cupidc_toolchain_contracts.USER_SYSCALL_ABI_INPUTS)
             <= set(inputs)
         )
+        self.assertIn(
+            "toolchain/tests/x86_catalogue_contract.inc", inputs
+        )
+        self.assertIn("toolchain/tests/x86_inline_cases.inc", inputs)
+        self.assertIn("toolchain/x86.cc", inputs)
 
     def test_kernel_bridge_sources_alone_receive_the_kernel_include_root(self):
         base = (
@@ -680,6 +686,22 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     ),
                     bridge,
                 )
+
+    def test_x86_contract_receives_its_sibling_catalogue_include_root(self):
+        arguments = cupidc_toolchain_contracts._compile_include_arguments(
+            "toolchain/tests/x86_contract.cc"
+        )
+        self.assertEqual(
+            arguments,
+            (
+                "-I",
+                "/toolchain",
+                "-I",
+                "/toolchain/tests",
+                "--include-angle",
+                "/toolchain/hosted/i386-linux/include",
+            ),
+        )
 
     def test_runtime_alone_uses_the_gnu_contract_profile(self):
         with tempfile.TemporaryDirectory(

@@ -73,6 +73,13 @@ class _FileCapture:
     payload: bytes | None
 
 
+@dataclass(frozen=True)
+class _DirectoryCapture:
+    logical: str
+    status: os.stat_result
+    names: tuple[str, ...]
+
+
 def _plural_bytes(size: int) -> str:
     return "byte" if size == 1 else "bytes"
 
@@ -373,6 +380,9 @@ class _PinnedRepository:
         self.root = root
         self._stack = ExitStack()
         self._directories: dict[tuple[str, ...], object] = {}
+        self._directory_captures: dict[
+            tuple[str, ...], _DirectoryCapture
+        ] = {}
         self._captures: list[_FileCapture] = []
         if os.name == "nt":
             kernel32, handle = _windows_open_root_handle(root)
@@ -428,6 +438,63 @@ class _PinnedRepository:
             self._stack.callback(os.close, opened)
         self._directories[parts] = opened
         return opened
+
+    def directory_snapshot(
+        self, logical: str
+    ) -> tuple[os.stat_result, tuple[str, ...]]:
+        """Return one directory identity and membership through its pinned handle."""
+        parts = PurePosixPath(logical).parts if logical else ()
+        opened = self._pin_directory(parts)
+        if os.name == "nt":
+            directory = self.root.joinpath(*parts)
+            status = directory.lstat()
+            names = tuple(sorted(os.listdir(directory)))
+        else:
+            status = os.fstat(opened)
+            names = tuple(sorted(os.listdir(opened)))
+        if not stat.S_ISDIR(status.st_mode):
+            raise OSError("path component is not a directory")
+        if parts not in self._directory_captures:
+            self._directory_captures[parts] = _DirectoryCapture(
+                logical, status, names
+            )
+        return status, names
+
+    def _fresh_directory_snapshot(
+        self, parts: tuple[str, ...]
+    ) -> tuple[os.stat_result, tuple[str, ...]]:
+        parent = self._directories[()]
+        with ExitStack() as directories:
+            for part in parts:
+                if os.name == "nt":
+                    kernel32, opened = _windows_open_relative_handle(
+                        parent,
+                        part,
+                        directory=True,
+                    )
+                    directories.callback(kernel32.CloseHandle, opened)
+                else:
+                    flags = (
+                        os.O_RDONLY
+                        | getattr(os, "O_DIRECTORY", 0)
+                        | getattr(os, "O_NOFOLLOW", 0)
+                    )
+                    opened = os.open(part, flags, dir_fd=parent)
+                    if not stat.S_ISDIR(os.fstat(opened).st_mode):
+                        os.close(opened)
+                        raise OSError("path component is not a directory")
+                    directories.callback(os.close, opened)
+                parent = opened
+            if os.name == "nt":
+                directory = self.root.joinpath(*parts)
+                status = directory.lstat()
+                names = tuple(sorted(os.listdir(directory)))
+            else:
+                status = os.fstat(parent)
+                names = tuple(sorted(os.listdir(parent)))
+        if not stat.S_ISDIR(status.st_mode):
+            raise OSError("path component is not a directory")
+        return status, names
 
     def _open_file_from_parent(self, parent, name: str) -> int:
         if os.name == "nt":
@@ -514,6 +581,23 @@ class _PinnedRepository:
             return None, issue
 
     def require_unchanged(self) -> None:
+        for parts, capture in self._directory_captures.items():
+            try:
+                current, names = self._fresh_directory_snapshot(parts)
+            except OSError as error:
+                raise SizePolicyError(
+                    f"{capture.logical or 'repository root'} changed while "
+                    "artifacts were inspected"
+                ) from error
+            if (
+                _stable_file_fields(current)
+                != _stable_file_fields(capture.status)
+                or names != capture.names
+            ):
+                raise SizePolicyError(
+                    f"{capture.logical or 'repository root'} changed while "
+                    "artifacts were inspected"
+                )
         for capture in self._captures:
             reopened = None
             try:

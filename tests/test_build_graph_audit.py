@@ -4267,7 +4267,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CUPID_RUNTIME": 108,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
-                "HOSTED_I386_LINUX": 34,
+                "HOSTED_I386_LINUX": 35,
                 "HOSTED_I386_WINDOWS": 6,
                 "HOSTED_I386_KERNEL_BRIDGE": 2,
                 "HOSTED_I386_LINUX_GNU": 3,
@@ -5497,9 +5497,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["help_cases"], 5)
         self.assertEqual(contract["success_behavior_cases"], 18)
         self.assertEqual(contract["failure_behavior_cases"], 17)
-        self.assertEqual(contract["contract_manifest_inputs"], 67)
+        self.assertEqual(contract["contract_manifest_inputs"], 68)
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 67
+            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 68
+        )
+        self.assertIn(
+            "toolchain/x86.cc",
+            module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
         self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 94)
         self.assertTrue(
@@ -7842,6 +7846,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(generated.returncode, 0, generated.stderr)
             self.assertTrue(summary.read_text(encoding="utf-8").endswith("\n\n"))
             audit_payload = json.loads(output.read_text(encoding="utf-8"))
+            module = _load_audit_module()
             control_paths = {
                 entry["path"]
                 for entry in audit_payload["provenance"]["control_files"]
@@ -7874,9 +7879,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 396,
+                    "tracked_translation_units": 397,
                     "generated_translation_units": 4,
-                    "total_translation_units": 400,
+                    "total_translation_units": 401,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -7902,7 +7907,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("CUPID_RUNTIME", 108, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
-                    ("HOSTED_I386_LINUX", 34, 0),
+                    ("HOSTED_I386_LINUX", 35, 0),
                     ("HOSTED_I386_WINDOWS", 6, 0),
                     ("HOSTED_I386_KERNEL_BRIDGE", 2, 0),
                     ("HOSTED_I386_LINUX_GNU", 3, 0),
@@ -7953,7 +7958,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 738,
+                    "active_sources": 739,
                     "features": 255,
                     "transforms": 452,
                     "unreachable_sources": 25,
@@ -7964,7 +7969,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6138, 173),
+                "c.expression.sizeof": (6206, 174),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -8468,7 +8473,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 248,
+                    "cupid_c_compiler": 249,
                     "host_c_compiler": 0,
                     "host_python": 452,
                 },
@@ -8479,7 +8484,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 87)
+            self.assertEqual(toolchain_cohort["source_count"], 88)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -8540,6 +8545,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("toolchain_core", "CupidASM"),
                 "toolchain/hosted/i386-windows/runtime.cc":
                     ("toolchain_core", "CupidC"),
+                "toolchain/hosted/i386-windows/publication_start.asm":
+                    ("toolchain_core", None),
                 "toolchain/hosted/i386-windows/start.asm":
                     ("toolchain_core", None),
                 "toolchain/hosted/i386-windows/tool_start.asm":
@@ -8580,6 +8587,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("toolchain_contract", "CupidC"),
                 "toolchain/tests/artifact_size_policy_contract.cc":
                     ("toolchain_contract", "CupidC"),
+                "toolchain/tests/toolchain_manifest_contract.cc":
+                    ("toolchain_contract", "CupidC"),
             }
             for path, (cohort, runtime_owner) in frontend_sources.items():
                 with self.subTest(path=path):
@@ -8618,16 +8627,30 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/all"
             ]
             self.assertEqual(
-                contract_verifier["operation"], "host_orchestration"
+                contract_verifier["operation"],
+                "verify_toolchain_manifest",
             )
-            self.assertEqual(contract_verifier["tools"], ["host_python"])
             self.assertEqual(
-                contract_verifier["inputs"],
-                ["toolchain/build/cupidc-contracts/manifest.json"],
+                contract_verifier["tools"],
+                [
+                    "cupid_assembler",
+                    "cupid_c_compiler",
+                    "cupid_c_contract",
+                    "cupid_linker",
+                    "host_python",
+                ],
             )
-            self.assertIn(
-                "cupidc_toolchain_contracts.py verify",
-                " ".join(contract_verifier["recipe"]),
+            self.assertEqual(
+                len(contract_verifier["inputs"]),
+                len(module.TOOLCHAIN_MANIFEST_CONTRACT_TRANSFORM_INPUTS),
+            )
+            self.assertEqual(
+                set(contract_verifier["inputs"]),
+                module.TOOLCHAIN_MANIFEST_CONTRACT_TRANSFORM_INPUTS,
+            )
+            self.assertEqual(
+                contract_verifier["recipe"],
+                ["$(TOOLCHAIN_MANIFEST_CONTRACT)"],
             )
             contract_manifest = toolchain_transform_by_output[
                 "toolchain/build/cupidc-contracts/manifest.json"
@@ -8666,7 +8689,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "396 tracked + 4 generated",
+                "397 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(
@@ -8678,7 +8701,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "recipe": ["$(CUPIDOBJ) wrap-text $< -o $@"],
                 }
             )
-            module = _load_audit_module()
             with self.assertRaisesRegex(
                 module.AuditError,
                 r"CupidObj install-source delivery content inputs changed",
@@ -9340,6 +9362,104 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     r"artifact-size contract transform differs",
                 ):
                     module._c_preprocessor_active_cases_manifest(changed)
+
+    def test_toolchain_manifest_contract_input_closure_fails_closed(self):
+        module = _load_audit_module()
+        audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
+        cases = (
+            (
+                "publication input removed",
+                "toolchain/tests/x86_catalogue_contract.inc",
+                None,
+            ),
+            (
+                "bootstrap source added",
+                None,
+                "toolchain/new-bootstrap-source.cc",
+            ),
+            (
+                "build Makefile removed",
+                "toolchain/Makefile",
+                None,
+            ),
+        )
+        for name, removed, added in cases:
+            with self.subTest(name=name):
+                changed = json.loads(json.dumps(audit))
+                build = next(
+                    item
+                    for item in changed["supplemental_builds"]
+                    if item["directory"] == "toolchain"
+                )
+                transform = next(
+                    item
+                    for item in build["transforms"]
+                    if item["output"] == "toolchain/all"
+                )
+                if removed is not None:
+                    transform["inputs"].remove(removed)
+                if added is not None:
+                    transform["inputs"].append(added)
+                with self.assertRaisesRegex(
+                    module.AuditError,
+                    r"Toolchain manifest contract transform differs",
+                ):
+                    module._c_preprocessor_active_cases_manifest(changed)
+
+    def test_toolchain_manifest_closure_follows_both_host_branches(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        variables = (
+            "TOOLCHAIN_MANIFEST_EXECUTION_INPUTS",
+            "TOOLCHAIN_MANIFEST_PUBLICATION_SEED_INPUTS",
+            "TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS",
+            "TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS",
+            "TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS",
+        )
+
+        def root_paths(value):
+            return {
+                path[3:] if path.startswith("../") else f"toolchain/{path}"
+                for path in value.split()
+            }
+
+        for host, expected_seed in (
+            ("Windows_NT", set(WINDOWS_PRODUCTION_SEED_INPUTS)),
+            ("Linux", set(LINUX_BOOTSTRAP_SEED_INPUTS)),
+        ):
+            with self.subTest(host=host):
+                with mock.patch.object(
+                    module, "CANONICAL_MAKE_VARIABLES", (f"OS={host}",)
+                ):
+                    values = module._read_evaluated_make_variables(
+                        REPO_ROOT / "toolchain", make, variables
+                    )
+                self.assertEqual(
+                    root_paths(values["TOOLCHAIN_MANIFEST_EXECUTION_INPUTS"]),
+                    expected_seed,
+                )
+                self.assertEqual(
+                    root_paths(
+                        values["TOOLCHAIN_MANIFEST_PUBLICATION_SEED_INPUTS"]
+                    ),
+                    set(LINUX_BOOTSTRAP_SEED_INPUTS),
+                )
+                self.assertEqual(
+                    root_paths(
+                        values["TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS"]
+                    ),
+                    set(module.TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS),
+                )
+                self.assertEqual(
+                    root_paths(values["TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS"]),
+                    set(module.TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS),
+                )
+                self.assertEqual(
+                    root_paths(values["TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS"]),
+                    set(module.TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS),
+                )
 
     def test_output_source_discovery_has_locale_neutral_order(self):
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")

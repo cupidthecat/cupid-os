@@ -680,11 +680,12 @@ nested level, and rejects removing the nested `const`.
 
 An external array may omit its bound when its element type is complete. The shared IR can take that linked object's address, decay it to the compatible element pointer, apply the element scale, and continue through member access. The array remains incomplete, so it cannot be loaded as a value or used as if its storage size were known.
 
-The exact hosted gate checks 42 strict C11 roots and three GNU-enabled runtime
+The exact hosted gate checks 44 strict C11 roots and three GNU-enabled runtime
 roots under four-byte i386 targets. It covers the 19-source static Linux tool
-union, `kernel/lang/as_elf.cc`, the runtime implementation and probes, and all
-fifteen Linux Toolchain contract programs. `HOSTED_I386_LINUX` owns 33 strict Linux
-roots that can include only the Toolchain tree and the angle-only hosted
+union, `kernel/lang/as_elf.cc`, the runtime implementation and probes, all
+fifteen published Linux Toolchain contract programs, and the separate
+Toolchain manifest verifier. `HOSTED_I386_LINUX` owns 35 strict Linux roots
+that can include only the Toolchain tree and the angle-only hosted
 declarations. `HOSTED_I386_WINDOWS` owns six roots with `_WIN32=1`: the host
 adapter, four platform-sensitive driver mains, and CupidLD's publication runtime.
 `FREESTANDING_I386` owns the headerless Windows command probe.
@@ -704,7 +705,7 @@ source trees, files, and symbolic links remain untouched. The initial,
 private, and newly discovered contract inventories must match exactly, which
 catches added or removed inputs and restored edits that changed a copied
 file. Every run derives its cohort from the requested executable, requires a
-named manifest artifact, and verifies the complete cohort, live 67-input
+named manifest artifact, and verifies the complete cohort, live 68-input
 contract set, checked seed manifest, and 50-file fixed-point source inventory
 before execution. The contract set includes the user syscall ABI contract and
 its six declarations, the Toolchain Makefile, the publisher, and the
@@ -712,7 +713,13 @@ independent Python ABI oracle. Seed-manifest hashing, JSON decoding, schema vali
 build-plan use share one captured byte sequence.
 The runner copies the verified cohort before execution and rejects later live
 replacement. The user ABI contract and Python oracle inspect one shared
-six-file snapshot, while the contract also rereads the live source tree.
+six-file snapshot, while the contract also rereads the live source tree. After
+publication, checked CupidC builds a strict-C11 verifier for a pinned
+`CUPMAN2` request. That request carries observations for the 21 artifacts, 68
+publication inputs, 50 bootstrap inputs, Linux publication seed, and its five
+tool images. Checked CupidASM supplies startup and checked CupidLD links the
+host-native contract. Python retains no-follow capture, launch, an independent
+oracle, and byte and membership drift checks. ADR 0302 records this boundary.
 
 Fourteen ordinary contracts compile through the bounded worker pool with
 900-second plan budgets. That pool closes before `cupidc-object` compiles alone
@@ -728,7 +735,7 @@ from the four-generation bootstrap. A complete 4,480.3-second private rebuild
 exposed the stale verifier only after every compile, link, comparison, and
 runtime check passed. The failed check published nothing, and exact positive
 and wrong-pair tests now cover the record.
-The final supported gate passed in 4,589.9 seconds. It compared stage-three and
+The preceding full publication gate passed in 4,589.9 seconds. It compared stage-three and
 stage-four contract outputs, ran and published stage four, verified 21
 artifacts from 65 inputs, passed the hosted runtime and syscall ABI, and
 matched the hello, ls, and cat objects and executables built by native Windows
@@ -1378,9 +1385,10 @@ The existing `__FILE__` diagnostic accounts for the new hash.
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, and literal pooling remain unfinished in the shared path. A block-static initializer may now take the address of another block-static object. Static initializers can also reuse a direct integer initializer from an earlier non-atomic `const` integer. This narrow Cupid C extension preserves the unchanged Toolchain object contract's address tables; it is not an ISO C integer constant expression. Mutable, automatic, atomic, indirect, and non-integer cases remain rejected.
 
-Across the root and supplemental builds, CupidC participates in 248
+Across the root and supplemental builds, CupidC participates in 249
 transforms. Of those, 246 are ordinary C-output transforms. The checked native
-Windows user ABI and artifact-size verifications supply two more. Its normal
+Windows user ABI, artifact-size, and Toolchain manifest verifications supply
+three more. Its normal
 cohort has 240 transforms: 239 checked-in sources plus the generated
 `kernel/cpu/ksyms_data.cc` source. All 240 sources use `.cc`.
 The five shared Toolchain roots also belong to the 19-source i386 Linux
@@ -1394,10 +1402,11 @@ transfer. No checked-in normal root remains host-owned.
 Three generated installation tables and the `hello.cc`, `ls.cc`, and
 `cat.cc` programs account for six more CupidC transforms. One contract
 transform builds the Windows user syscall ABI checker as a private PE before
-those programs compile. The other builds the artifact-size checker as a static
-ELF on Linux or a native PE on Windows. Both run without WSL on Windows and
-leave the Linux Toolchain contract publication untouched. ADRs 0295 and 0297
-record these boundaries.
+those programs compile. The other two build the artifact-size and Toolchain
+manifest checkers as static ELF files on Linux or native PE files on Windows.
+All three run without WSL on Windows. The manifest verifier reads the Linux
+publication seed as provenance but leaves the published cohort untouched.
+ADRs 0295, 0297, and 0302 record these boundaries.
 
 The Nuked OPL3 recipe compiles from a private snapshot of its source and
 three-header closure. The wrapper compares every live input before replacing
@@ -1432,13 +1441,16 @@ execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. Python
 participates in all 452 transforms across the three audited roots, and CupidC
-participates in 248. CupidObj participates in 192, CupidASM in seven, CupidLD
-in seven, and CupidDis in six. Root `all` has 443 transforms, and every one has
+participates in 249. CupidObj participates in 192, CupidASM in eight, CupidLD
+in eight, and CupidDis in six. Three transforms use Cupid-built semantic
+contracts. Root `all` has 443 transforms, and every one has
 a Cupid participant. The size verifier emits no OS artifact; it runs a private
 CupidC contract with CupidASM startup and a CupidLD link. The normal graph runs
 CupidC, CupidASM, CupidObj, CupidLD, and CupidDis from the manifest-checked
-seed; `toolchain:all` uses the rebuilt static tools for its contract cohort.
-The final `make bootstrap-audit` passed in 68.8 seconds. The private
+seed; `toolchain:all` uses the rebuilt static tools for its published contract
+cohort and a host-selected checked seed for the manifest verifier.
+The final `make bootstrap-audit` passed in 63.0 seconds, and deterministic
+check mode passed in 62.6 seconds. The private
 in-kernel CupidC compiler
 still handles embedded runtime compilation. The checked user compiler creates
 approved output directories for default and overridden `BUILD` paths. It uses

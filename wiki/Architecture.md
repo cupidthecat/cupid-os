@@ -140,8 +140,8 @@ The current 156-source production build passes. The broader two-pass frontier
 targets 156 sources and 312 checked compilations. Its latest rerun exceeded
 2,340 seconds without a compiler diagnostic and remains incomplete.
 
-The normal Toolchain root builds fifteen `.cc` contracts and the runtime
-probe with stage-three and stage-four CupidC. It runs and publishes the
+The normal Toolchain root builds fifteen published `.cc` contracts and the
+runtime probe with stage-three and stage-four CupidC. It runs and publishes the
 stage-four cohort. Its publisher accepts only a
 dedicated `cupidc-contracts` directory inside the source tree. It validates
 the target before work and again before promotion, and an existing
@@ -150,7 +150,7 @@ source trees, files, and symbolic links remain untouched. Exact initial,
 private, and newly discovered contract inventories catch additions, removals,
 and restored edits that changed a copied input. Every contract run derives the
 cohort from its executable, requires a named manifest artifact, and verifies
-all artifact hashes, the current 67-input contract set, the checked seed
+all artifact hashes, the current 68-input contract set, the checked seed
 manifest, and the 50-file fixed-point source inventory before execution. The
 contract inventory includes the small Windows probe, the native Windows tool
 runtime and startup, CupidLD publication runtime and bridge, direct contract,
@@ -164,7 +164,13 @@ Cupid contract and Python oracle one shared six-file snapshot. Linux runs the
 published ELF contract. Windows freezes a separate 26-file closure, builds a
 private PE with checked CupidC, CupidASM, and CupidLD, and runs it directly.
 The Windows path rechecks its source and seed closures and never touches the
-Linux publication.
+Linux publication. After publication, the host-selected checked seed builds a
+sixteenth Toolchain contract. Its pinned `CUPMAN2` request binds the 21
+artifacts, 68 publication inputs, 50 bootstrap inputs, Linux publication seed,
+and five seed images. Checked CupidC compiles it, CupidASM supplies startup,
+and CupidLD links a static ELF or native PE. Python retains no-follow capture,
+launch, an independent oracle, and drift checks. The separate manifest
+producer remains Python-only. ADR 0302 records this split.
 Fourteen ordinary contract compiles use the worker pool and 900-second
 budgets. The pool drains before `cupidc-object` receives an exclusive
 1,800-second compile. Runtime compilation and parallel contract linking keep
@@ -175,7 +181,7 @@ reaching publication with a missing strong definition.
 Its v2 manifest also binds stage three and stage four as the compared
 fixed-point pair. The verifier checks that exact provenance before directory
 promotion.
-The final gate passed in 4,589.9 seconds. It compared stage-three and
+The preceding full publication gate passed in 4,589.9 seconds. It compared stage-three and
 stage-four contract outputs, ran and published stage four, verified 21
 artifacts from 65 inputs, and matched all three native Windows user programs
 to the checked seed at both object and executable boundaries. The warmed path
@@ -190,8 +196,10 @@ twelve. Windows ran help plus a useful success and failure path for each tool.
 CupidDis also checked quoted raw-input parity with the Linux tool. These five
 images formed the preceding checked Windows execution seed used by
 output-bearing production recipes. The complete Toolchain contract cohort
-still runs the Linux seed through WSL. The user ABI and artifact-size gates
-build and run temporary PEs from the Windows seed without WSL. Source head freezes the
+still runs the Linux seed through WSL. The user ABI, artifact-size, and
+Toolchain manifest gates build and run temporary PEs from the Windows seed
+without WSL. The manifest verifier also checks the Linux publication seed.
+Source head freezes the
 PE execution seed and the Linux plan
 manifest separately, then reconstructs native Windows stages two through four.
 Stages two and three are transition generations; stages three and four are the

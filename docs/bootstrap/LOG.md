@@ -27877,3 +27877,148 @@ conditional and copy paths still lack full signature provenance. The larger
 parser changes the three deterministic kernel artifact sizes above. Production
 sources already use `.cc`, so no suffix rename is due. ADR 0301 records the
 decision, and `TempleOS/` remains untouched reference material.
+
+## 2026-08-20: verify the Toolchain publication with CupidC
+
+The `toolchain:all` manifest check used to leave its publication decision in
+Python. The publisher still creates the manifest in Python, but a checked
+CupidC program now decides whether the completed publication matches that
+record. This leaves one Python-only Toolchain transform, the manifest
+publisher itself.
+
+The strict C11 checker reads one length-prefixed `CUPMAN2` request. It binds
+the raw publication manifest, all 21 published artifacts, the exact 68-file
+publication inventory, the exact 50-file bootstrap source inventory, the
+static Linux publication-seed manifest, and its five tool images. The request
+records safe logical paths, file kinds, sizes where the schema carries them,
+and SHA-256 digests. The checker rejects malformed framing, duplicate or
+unknown fields, unsafe paths, wrong inventories, mismatched observations, and
+trailing data. It rereads the request before success and emits one canonical
+JSON report.
+
+The publication does not include the objects named by
+`object_comparisons`. The checker therefore fixes that map's names and hash
+syntax without claiming an independent byte comparison. The fixed-point
+publisher remains the source of stage-convergence evidence.
+
+Python keeps the filesystem boundary. One pinned repository reader captures
+the publication, the live source closures, both seed roles, and the 20 inputs
+used to build the checker. It builds a private checker with checked CupidC,
+CupidASM, and CupidLD, runs an independent oracle against the same captured
+bytes, and repeats the live checks before success. Linux links a static ELF.
+Windows links and runs a native PE from the checked Windows seed while still
+checking the Linux seed that produced the publication.
+
+Several race cases changed the runner before it was accepted. The first draft
+reread the live manifest for the Python oracle, so an A to B to A replacement
+could separate the oracle from the CupidC request. Later drafts checked file
+metadata without rechecking bytes, followed intermediate seed links, omitted
+wildcard directory membership, and reopened parts of the build through a
+second repository path. The final runner keeps all reads on the first pinned
+root, compares recaptured bytes, rewalks captured directories from that root,
+and verifies each directory's identity and membership. A persistent root
+replacement fails. A temporary POSIX rename and restore cannot redirect a
+read because the open handles still name the original tree.
+
+The direct checker suite passes all 16 tests in 1.743 seconds. The runner has
+24 tests. On Windows, 21 pass in 23.227 seconds and three POSIX-only rename or
+hard-link cases skip. All 24 pass through WSL in 24.068 seconds. The cases
+include the real checked PE and ELF builds, malformed requests and seeds,
+independent observation changes in every request lane, restored-metadata byte
+drift, linked parents, rogue seed images, manifest ABA, persistent and
+temporary root replacement, and a hard-linked source-directory replacement
+with one added header.
+
+Make exposes both seed roles and every live input. The Windows audit
+deduplicates the manifest verifier to 126 direct inputs. Only the 20 checker
+build inputs receive compiler or assembler ownership; files that are only
+hashed remain provenance inputs. Across the supported graph, CupidC now
+participates in 249 transforms, CupidObj in 192, CupidASM in eight, CupidLD in
+eight, and CupidDis in six. Three transforms run Cupid-built semantic
+contracts, while Python still participates in all 452 transforms.
+
+The first complete publication attempt reached 14 stage-three contract
+compiles, then stopped after 1,720.471 seconds. Checked CupidC could not find
+`x86_catalogue_contract.inc` while compiling `x86_contract.cc`. The
+67-file freezer already copied that file and `x86_inline_cases.inc`; the
+compile plan had only `/toolchain` and the hosted angle-include root. A
+focused regression failed in 0.001 seconds because `/toolchain/tests` was
+absent. The publisher now adds that quoted-include root only for the x86
+contract. Three focused tests pass in 0.457 seconds, all 53 publisher tests
+pass in 7.161 seconds, and the checked Linux seed compiles the corrected x86
+contract in 93.5 seconds. The failed run published nothing.
+
+The second complete publication attempt stopped after 1,728.003 seconds. The
+new include root let CupidC open `x86_catalogue_contract.inc`, but line 37 then
+included `../x86.cc`, which was missing from the private publication tree.
+The publisher now freezes `toolchain/x86.cc`, and Make, the checked contract,
+and the audit name the same 68-file inventory. The file was already one of the
+50 bootstrap sources, so `toolchain:all` still has 126 deduplicated direct
+inputs. A recursive check found 157 include edges across all 17 translation
+roots with no other dependency outside the snapshot. This failed run also
+published nothing.
+
+Audit regeneration passed in 63.0 seconds, and deterministic check mode passed
+in 62.6 seconds. The fail-closed source-drift mutation passed in 189.462
+seconds. The first hosted frontend run exposed four stale lexical locks from
+the new checker source. After updating the measured `for`, `while`, `if`,
+`else`, and `return` totals, all 97 frontend tests passed in 12.169
+seconds. The final graph has 739 active inputs, 452 transforms, 255 feature
+requirements, and 25 accounted unreachable files. Its active-source digest is
+`20eb8f85d95d7a6acb071a81e1884dd0fb8a45dd52157763324f147c54ad6f52`.
+The 2,700,777-byte JSON has SHA-256
+`924000ec9449d4874142c4240094aa4865c015f9af9dfc3f23c0b4b2677e0ae4`,
+and the 12,502-byte Markdown summary has SHA-256
+`56a05868915f15f3db58cd1d5d0a26cc60ebee1b3d625d1356e0dd0aa8059a41`.
+
+No checked seed is promoted by this change. The new production source already
+uses `.cc`, and `TempleOS/` remains read-only reference material outside
+the audit. ADR 0302 records the ownership and filesystem boundary.
+
+A third complete publication launch reached stage four but outlived its
+3,604-second wrapper. The detached child inherited a closed output pipe, so it
+did not produce trusted publication evidence. A clean run with a three-hour
+allowance passed in 3,933.424 seconds. All 21 stage-four artifacts matched
+stage three, the hosted runtime contract passed, the frozen live inputs
+matched, and the native Windows manifest checker returned success. The final
+22,931-byte manifest has SHA-256
+`8909105d516ef53d3c5081e5752fbef8596458fdfa673ec08275e7e435cd059a`.
+A separate publisher verification and checked manifest verification both
+passed against that publication after the final audit regeneration.
+
+The first final-source poisoned-host `make -j4 all` reached only the
+artifact-size gate in 633.542 seconds. All compilation, assembly, linking,
+flattening, and strict inspection steps had passed. The gate measured
+`kernel.bin` at 9,203,248 bytes, 1,188 bytes above the prior policy. Only that
+policy row changed. All 38 artifact-size and semantic-contract tests then
+passed in 2.784 seconds, with two Windows replacement cases skipped because
+pinned handles deny those operations. The repeated poisoned build passed in
+651.193 seconds and accepted all nine exact artifacts. Every conventional
+host compiler, assembler, linker, archiver, symbol tool, and binary copier
+variable was set to a nonexistent command for both runs.
+
+The final identities are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,299,616 | `7fe8556bae4262a1c16a206182b704310791874cb9d8ac61be6b9c5f671d2b90` |
+| `kernel/kernel.elf` | 9,422,496 | `8ceee43d12586d9fff73f1752940d295a2fc20e9e6364e37d7078c6ca2418027` |
+| `kernel/kernel.bin` | 9,203,248 | `403034fe4d727bba0fc4ee15545b5bc6f47840c541e95761f9cdc841ce19372f` |
+| `cupidos.img` | 209,715,200 | `3a2e5acc63b50d27aca68e4e7e8872adbfcab96674040a08a22c2c6aa614bebc` |
+
+The private four-vCPU e1000 guest smoke passed in 61.926 seconds. In-OS CupidC
+compiled `/bin/feature14_simd.cc` and printed the direct-call marker,
+`[feature14-callback] PASS float4=4 double2=2 calls=2`, overall PASS, and clean
+JIT completion. The 33,483-byte serial log has SHA-256
+`1bfea969c354abd447aada31982011082538fe1de6a9ea1dff61927bd76c73bb`.
+The private run left the source image unchanged.
+
+One final parallel test launch is not counted as evidence. Another suite
+created temporary repository entries while the real manifest checker held its
+pinned root, and the root-drift guard rejected the overlap. The stable rerun
+passed all 40 manifest checker and runner tests in 25.340 seconds, with three
+POSIX cases skipped on Windows. The remaining 188 publisher, frontend,
+artifact-policy, semantic-contract, and runner tests passed in 21.056 seconds,
+with the two expected Windows replacement skips. Ruff and Python syntax checks
+passed for every changed Python file.

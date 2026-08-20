@@ -77,6 +77,9 @@ KERNEL_LANG_SOURCES = frozenset(
 GNU_CONTRACT_SOURCES = frozenset(
     {"toolchain/tests/hosted_i386_runtime_contract.cc"}
 )
+CONTRACT_QUOTED_INCLUDE_ROOTS = {
+    "toolchain/tests/x86_contract.cc": ("/toolchain/tests",),
+}
 CONTRACT_CONTROL_INPUTS = (
     "toolchain/Makefile",
     "tools/bootstrap_toolchain.py",
@@ -438,6 +441,7 @@ def _contract_input_paths(root: Path) -> tuple[Path, ...]:
     paths.add(root / "toolchain/tests/hosted_i386_runtime_contract.cc")
     paths.add(root / "kernel/lang/as_elf.cc")
     paths.add(root / "kernel/lang/as_elf.h")
+    paths.add(root / "toolchain/x86.cc")
     paths.update((root / "toolchain").glob("*.h"))
     paths.update((root / "toolchain/tests").glob("*.inc"))
     paths.update((root / "toolchain/tests").glob("*.h"))
@@ -605,6 +609,10 @@ def _compile_include_arguments(logical_source: str) -> tuple[str, ...]:
     arguments = ["-I", "/toolchain"]
     if logical_source in KERNEL_LANG_SOURCES:
         arguments.extend(("-I", "/kernel/lang"))
+    for include_root in CONTRACT_QUOTED_INCLUDE_ROOTS.get(
+        logical_source, ()
+    ):
+        arguments.extend(("-I", include_root))
     arguments.extend(
         (
             "--include-angle",

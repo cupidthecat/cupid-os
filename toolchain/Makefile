@@ -9,6 +9,9 @@ EXE := .exe
 # LLD's default PE/COFF timestamp changes on every link. Keep /Brepro
 # link-only: Clang rejects an unused -Wl option on compile steps under -Werror.
 HOST_REPRO_LDFLAGS ?= -Wl,/Brepro
+TOOLCHAIN_MANIFEST_EXECUTION_MANIFEST ?= \
+	bootstrap/seeds/i386-windows/manifest.json
+TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX := exe
 else
 PYTHON ?= python3
 ifeq ($(origin CC),default)
@@ -16,6 +19,9 @@ CC := gcc
 endif
 EXE :=
 HOST_REPRO_LDFLAGS ?=
+TOOLCHAIN_MANIFEST_EXECUTION_MANIFEST ?= \
+	bootstrap/seeds/i386-linux/manifest.json
+TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX := elf
 endif
 
 BUILD_DIR ?= build
@@ -23,6 +29,47 @@ CONTRACT_DIR := $(BUILD_DIR)/cupidc-contracts
 CONTRACT_MANIFEST := $(CONTRACT_DIR)/manifest.json
 CONTRACT_RUN := $(PYTHON) ../tools/cupidc_toolchain_contracts.py run \
 	--root .. --executable
+TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY := \
+	../$(dir $(TOOLCHAIN_MANIFEST_EXECUTION_MANIFEST))
+TOOLCHAIN_MANIFEST_EXECUTION_INPUTS := \
+	../$(TOOLCHAIN_MANIFEST_EXECUTION_MANIFEST) \
+	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupidasm.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX) \
+	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupidc.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX) \
+	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupiddis.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX) \
+	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupidld.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX) \
+	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupidobj.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX)
+TOOLCHAIN_MANIFEST_PUBLICATION_SEED_INPUTS := \
+	../bootstrap/seeds/i386-linux/manifest.json \
+	../bootstrap/seeds/i386-linux/cupidasm.elf \
+	../bootstrap/seeds/i386-linux/cupidc.elf \
+	../bootstrap/seeds/i386-linux/cupiddis.elf \
+	../bootstrap/seeds/i386-linux/cupidld.elf \
+	../bootstrap/seeds/i386-linux/cupidobj.elf
+TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS := \
+	Makefile \
+	hosted/i386-linux/include/cupid_host_abi.h \
+	hosted/i386-linux/include/direct.h \
+	hosted/i386-linux/include/errno.h \
+	hosted/i386-linux/include/stdint.h \
+	hosted/i386-linux/include/stdio.h \
+	hosted/i386-linux/include/stdlib.h \
+	hosted/i386-linux/include/string.h \
+	hosted/i386-linux/include/unistd.h \
+	hosted/i386-linux/include/windows.h \
+	hosted/i386-linux/runtime.cc \
+	hosted/i386-linux/start.asm \
+	hosted/i386-windows/runtime.cc \
+	hosted/i386-windows/tool_start.asm \
+	tests/artifact_size_policy_contract.cc \
+	tests/toolchain_manifest_contract.cc \
+	../tools/artifact_size_policy.py \
+	../tools/bootstrap_toolchain.py \
+	../tools/cupidc_toolchain_contracts.py \
+	../tools/toolchain_manifest_contract.py
+TOOLCHAIN_MANIFEST_CONTRACT := \
+	$(PYTHON) ../tools/toolchain_manifest_contract.py verify \
+		--root .. --output toolchain/$(CONTRACT_DIR) \
+		--execution-manifest $(TOOLCHAIN_MANIFEST_EXECUTION_MANIFEST)
 CONTRACT_ARTIFACT := $(CONTRACT_DIR)/core-contract.elf
 CUPIDC_PP_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupidc-pp-contract.elf
 CUPIDC_TYPE_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupidc-type-contract.elf
@@ -146,12 +193,26 @@ USER_SYSCALL_ABI_INPUTS := ../tools/user_syscall_abi.py \
 CUPIDC_CONTRACT_SUPPORT := $(wildcard tests/*.inc) \
 	$(wildcard tests/*.h) ../kernel/lang/as_elf.cc \
 	../kernel/lang/as_elf.h
-CUPIDC_CONTRACT_SEED := ../bootstrap/seeds/i386-linux/manifest.json \
-	../bootstrap/seeds/i386-linux/cupidasm.elf \
-	../bootstrap/seeds/i386-linux/cupidc.elf \
-	../bootstrap/seeds/i386-linux/cupiddis.elf \
-	../bootstrap/seeds/i386-linux/cupidld.elf \
-	../bootstrap/seeds/i386-linux/cupidobj.elf
+TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
+	$(CUPIDC_CONTRACT_SOURCES) $(CUPIDC_CONTRACT_SUPPORT) \
+	$(CUPIDC_HOSTED_I386_HEADERS) \
+	$(CUPIDC_HOSTED_I386_WINDOWS_RUNTIME) \
+	$(USER_SYSCALL_ABI_INPUTS) \
+	ctool.h ctool_host.h cupidasm.h cupidc_emit.h \
+	cupidc_frontend.h cupidc_ir.h cupidc_pp.h cupidc_type.h \
+	cupiddis.h cupidld.h cupidobj.h elf32.h x86.h \
+	x86.cc \
+	tests/hosted_i386_runtime_contract.cc \
+	../tools/bootstrap_toolchain.py \
+	../tools/cupidc_toolchain_contracts.py Makefile
+TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS := ../link.ld \
+	$(filter-out tests/hosted_i386_runtime_contract.cc, \
+		$(CUPIDC_HOSTED_I386_CLOSURE)) \
+	$(CUPIDC_HOSTED_I386_WINDOWS_RUNTIME)
+all: $(TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS) \
+	$(TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS) \
+	$(TOOLCHAIN_MANIFEST_PUBLICATION_SEED_INPUTS)
+CUPIDC_CONTRACT_SEED := $(TOOLCHAIN_MANIFEST_PUBLICATION_SEED_INPUTS)
 CUPIDC_HOSTED_I386_ARTIFACTS := $(CONTRACT_DIR)/cupidc-cupidasm.elf \
 	$(CONTRACT_DIR)/cupidc-cupiddis.elf \
 	$(CONTRACT_DIR)/cupidc-cupidld.elf \
@@ -273,9 +334,10 @@ LDFLAGS ?=
 
 .DEFAULT_GOAL := all
 
-all: $(CONTRACT_MANIFEST)
-	$(PYTHON) ../tools/cupidc_toolchain_contracts.py verify \
-		--root .. --output $(CONTRACT_DIR)
+all: $(CONTRACT_MANIFEST) $(BOOTSTRAP_ARTIFACTS) \
+     $(TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS) \
+     $(TOOLCHAIN_MANIFEST_EXECUTION_INPUTS) Makefile
+	$(TOOLCHAIN_MANIFEST_CONTRACT)
 
 $(BUILD_DIR):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"

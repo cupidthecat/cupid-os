@@ -37,7 +37,7 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 9202060,
+      "exact_bytes": 9203248,
       "path": "kernel/kernel.bin",
       "producer": "CupidObj",
       "reason": "CupidObj emits deterministic bytes, and the disk image copies this output verbatim."

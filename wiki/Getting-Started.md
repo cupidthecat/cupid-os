@@ -12,7 +12,7 @@ This guide covers building Cupid OS from source and running it in QEMU.
 | **Python 3** | Portable host-side image and code-generation helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
-| **WSL** (Windows only) | Runs the checked Linux seed for Linux fixed-point work and the complete Toolchain contract cohort; native Windows reconstruction, the user ABI gate, and artifact-size verification do not use WSL |
+| **WSL** (Windows only) | Runs the checked Linux seed for Linux fixed-point work and the complete published Toolchain contract cohort; native Windows reconstruction, the user ABI gate, artifact-size verification, and Toolchain manifest verification do not use WSL |
 | **mtools** (optional) | Manual FAT16 inspection/copying from Linux hosts |
 | **GCC, Clang, and binutils** (optional) | Native development builds and comparison oracles; they do not produce normal OS artifacts |
 | **NASM** (optional) | Comparison oracle used by `make nasm-assembly-oracle` when installed |

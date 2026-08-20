@@ -98,8 +98,10 @@ The repository includes a checked static i386 Linux seed and a checked native
 PE32 Windows execution seed. Linux runs the static seed directly. Native
 Windows builds run output-bearing CupidC, CupidASM, CupidObj, CupidLD, and
 CupidDis recipes from the PE32 seed. WSL still runs the Linux seed for
-fixed-point reconstruction, the complete Toolchain contract cohort, and
-artifact-size policy. The user ABI contract runs as a checked native PE.
+fixed-point reconstruction and the complete published Toolchain contract
+cohort. The user ABI, artifact-size, and Toolchain manifest contracts run as
+checked native PE files. The last two still inspect Linux publication
+provenance.
 
 ```bash
 # Install dependencies (Ubuntu/Debian)

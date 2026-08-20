@@ -79,15 +79,16 @@ ELF files, and unexpected target metadata.
 The separate i386 runtime contract is not part of those 19 tool inputs. It
 uses `.cc` because CupidC compiles it, CupidLD links it with CupidASM startup
 and the repository runtime, and Linux or WSL runs the result. The normal
-Toolchain target also owns fifteen `.cc` contract programs. Stage-two and
+Toolchain publication owns fifteen `.cc` contract programs. Stage-two and
 stage-three CupidC compile them at the checked i386 ABI, CupidLD links each
 one against matching stage objects, and the harness requires all seventeen new
-objects and sixteen executables to match across stages. It freezes 65
-contract inputs and reconstructs that exact inventory under a private source
-root. That inventory includes the small Windows probe, the native Windows tool
-runtime and startup, CupidLD publication runtime and bridge, direct runtime
-contract, `direct.h`, `windows.h`, the user syscall ABI contract and its six declarations,
-the Toolchain Makefile, the publisher, and the independent Python ABI oracle.
+objects and sixteen executables to match across stages. It freezes 68 contract
+inputs and reconstructs that exact inventory under a private source root. That
+inventory includes the exact-decimal and x86 catalogue fixtures, small Windows
+probe, native Windows tool runtime and startup, CupidLD publication runtime and
+bridge, direct runtime contract, `direct.h`, `windows.h`, user syscall ABI
+contract and its six declarations, Toolchain Makefile, publisher, and
+independent Python ABI oracle.
 Newly discovered contract inventories catch additions, removals, and a
 transient edit copied before the live file is restored. The public manifest
 also binds the checked seed, build plan, and 50-file fixed-point source
@@ -100,9 +101,16 @@ source tree. It validates that target before work and again before promotion,
 and an existing destination must already verify as a complete cohort.
 Arbitrary directories, source trees, files, and symbolic links remain
 untouched. It publishes all sixteen contract executables, five refreshed
-tools, and a manifest together. ADR 0195 records the runtime probe rename, ADR
-0196 records the complete transfer, and ADR 0264 records the ABI checker
-transfer.
+tools, and a manifest together. A sixteenth Toolchain contract source verifies
+that publication after the publisher returns. Checked CupidC compiles it,
+checked CupidASM supplies its startup, and checked CupidLD links it. Its pinned
+`CUPMAN2` request carries the 21 artifacts, 68 publication inputs, 50 bootstrap
+inputs, Linux publication seed, and five seed images. Python keeps no-follow
+capture, private staging, process launch, the independent oracle, and final
+drift checks. The manifest producer remains the one Python-only Toolchain
+transform. ADR 0195 records the runtime probe rename, ADR 0196 records the
+complete transfer, ADR 0264 records the ABI checker transfer, and ADR 0302
+records the publication verifier.
 Fourteen ordinary contract compiles use the worker pool and 900-second plan
 budgets. The pool drains before the heavyweight `cupidc-object` compile starts
 alone with a 1,800-second budget. The separate runtime compile and all contract
@@ -117,7 +125,7 @@ The v2 manifest also requires `stage-three` and `stage-four` as the fixed-point
 comparison pair. A complete 4,480.3-second private rebuild reached this final
 check after every earlier gate passed. The stale verifier rejected it without
 publication; positive and wrong-pair tests now lock the exact record.
-The final supported gate passed in 4,589.9 seconds. It compared seventeen
+The preceding full publication gate passed in 4,589.9 seconds. It compared seventeen
 objects and sixteen executables between stages three and four, ran and
 published stage four, verified 21 artifacts from 65 inputs, then matched the
 three native Windows user objects and executables to the checked-seed frontier.
@@ -932,20 +940,30 @@ tests passed in 2.650 seconds, with two Windows replacement cases skipped
 because pinned handles already deny those operations. A repeated poisoned-host
 build passed in 692.768 seconds and published the current image.
 
+Toolchain manifest verification now runs through a checked CupidC contract.
+The final 21-artifact publication passed in 3,933.424 seconds. Its 22,931-byte
+manifest has SHA-256
+`8909105d516ef53d3c5081e5752fbef8596458fdfa673ec08275e7e435cd059a`.
+The first final-source poisoned-host build reached only the exact-size gate in
+633.542 seconds and measured `kernel.bin` 1,188 bytes above the prior policy.
+After that row moved, all 38 policy and semantic-contract tests passed in
+2.784 seconds, with two Windows replacement cases skipped. The repeated
+poisoned build passed in 651.193 seconds and published the current image.
+
 | Output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
-| `kernel/kernel.elf.pass1` | 9,299,616 | `9d2d8ceb5dbfcf5b727568d5413ad6dfa343ee496a8bbad75af652d46971065b` |
-| `kernel/kernel.elf` | 9,422,496 | `b6d9b973c192a77dabeba94dab1839e6cf7f0ee98db2748c1f993c3f233b12d1` |
-| `kernel/kernel.bin` | 9,202,060 | `5fb32842c9be1176ead0e924614bde7da8d28dfaec08be85696b52f7e202a2c2` |
-| `cupidos.img` | 209,715,200 | `fb79586e6bc9aaa998ef248265d5bc3eaf43524ffed8b1c96e71affb96d0460a` |
+| `kernel/kernel.elf.pass1` | 9,299,616 | `7fe8556bae4262a1c16a206182b704310791874cb9d8ac61be6b9c5f671d2b90` |
+| `kernel/kernel.elf` | 9,422,496 | `8ceee43d12586d9fff73f1752940d295a2fc20e9e6364e37d7078c6ca2418027` |
+| `kernel/kernel.bin` | 9,203,248 | `403034fe4d727bba0fc4ee15545b5bc6f47840c541e95761f9cdc841ce19372f` |
+| `cupidos.img` | 209,715,200 | `3a2e5acc63b50d27aca68e4e7e8872adbfcab96674040a08a22c2c6aa614bebc` |
 
 A private four-vCPU e1000 boot compiled `/bin/feature14_simd.cc` through in-OS
-CupidC and passed the SMP runtime contract in 66.095 seconds. The guest printed
+CupidC and passed the SMP runtime contract in 61.926 seconds. The guest printed
 `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`,
 `[feature14-callback] PASS float4=4 double2=2 calls=2`, overall PASS, and clean
-JIT completion. Its 31,408-byte log has SHA-256
-`27bb7ea972ef0ca034f09c47a91d9566cc571a5f1d9d113ff639c742f07454fd`.
+JIT completion. Its 33,483-byte log has SHA-256
+`1bfea969c354abd447aada31982011082538fe1de6a9ea1dff61927bd76c73bb`.
 The private run left the source image unchanged.
 
 The preceding dual-NIC checkpoint used image SHA-256
@@ -1133,20 +1151,20 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-Across the root and supplemental builds, the current audit assigns 248
+Across the root and supplemental builds, the current audit assigns 249
 participations to CupidC and none to a host C compiler. Of those, 246 are
-ordinary C-output transforms; the checked native Windows user ABI and
-artifact-size verifications supply the other two. Python participates in all
-452 transforms. The ordinary CupidC
+ordinary C-output transforms; the checked native Windows user ABI,
+artifact-size, and Toolchain manifest verifications supply the other three.
+Python participates in all 452 transforms. The ordinary CupidC
 total is 240 normal transforms plus three generated installation tables and
 the `hello.cc`, `ls.cc`, and `cat.cc` programs. Root `all` has 443 transforms:
 all 443 have a Cupid participant. The size verifier emits no OS artifact; it
 builds and runs a private CupidC contract with CupidASM and CupidLD. The 442
 artifact transforms retain five CupidASM, 192 CupidObj, two CupidLD, and six
 CupidDis participations from the manifest-checked five-tool seed. Across all
-three roots, CupidASM and CupidLD each participate in seven transforms because
-the native Windows user ABI and artifact-size gates assemble and link their
-checked PE contracts directly.
+three roots, CupidASM and CupidLD each participate in eight transforms because
+the native Windows user ABI, artifact-size, and Toolchain manifest gates
+assemble and link their checked contracts directly.
 Other native hosted commands remain explicit oracle targets. The same runner
 handles root commands.
 Checked production CupidC and checked user CupidLD pass it their caller-owned
@@ -1182,12 +1200,14 @@ ADR 0190 records the root handoff, and ADR 0196 records the Toolchain contract
 handoff. The user compiler and Toolchain contract publisher create their own
 output directories. The compiler pins each POSIX or Windows directory
 component during preparation and rejects links, junctions, and a changed
-resolved path. Two Python-only supplemental verification or orchestration
-outputs remain. The `user/test-syscall-abi` transform has Cupid-built contract
-and Python participants: the contract owns the layout rules, while Python checks
-an independent report and controls publication. ADR 0245 records the graph
-boundary, ADR 0246 records the shared invocation and post-run five-image
-check, and ADR 0264 records the ABI transfer.
+resolved path. One Python-only supplemental output remains: production of the
+Toolchain manifest. The `user/test-syscall-abi`, root artifact-size, and
+`toolchain:all` transforms have Cupid-built contract and Python participants.
+The contracts own their semantic decisions, while Python checks an independent
+report and controls the native boundary. ADR 0245 records the graph boundary,
+ADR 0246 records the shared invocation and post-run five-image check, ADR 0264
+records the ABI transfer, ADR 0297 records artifact-size verification, and ADR
+0302 records Toolchain manifest verification.
 
 The separate private in-kernel CupidC compiler now uses one scalar cdecl
 layout for direct, function-pointer, and method calls. Represented scalars and
@@ -1698,6 +1718,6 @@ ADR 0209 records the numerical correction.
 
 The [current production checkpoint](#current-production-checkpoint) is the
 canonical record of the final build, artifact identities, and private guest
-smokes. The current audit records 738 active language inputs, 452 transforms,
+smokes. The current audit records 739 active language inputs, 452 transforms,
 255 feature requirements, six CupidDis production checks, and no active
 CupidC-owned `.c` source.

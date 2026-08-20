@@ -86,6 +86,185 @@ ARTIFACT_SIZE_CONTRACT_TRANSFORM_INPUTS = frozenset(
         *WINDOWS_PRODUCTION_SEED_INPUTS,
     }
 )
+TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS = (
+    "toolchain/Makefile",
+    "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+    "toolchain/hosted/i386-linux/include/direct.h",
+    "toolchain/hosted/i386-linux/include/errno.h",
+    "toolchain/hosted/i386-linux/include/stdint.h",
+    "toolchain/hosted/i386-linux/include/stdio.h",
+    "toolchain/hosted/i386-linux/include/stdlib.h",
+    "toolchain/hosted/i386-linux/include/string.h",
+    "toolchain/hosted/i386-linux/include/unistd.h",
+    "toolchain/hosted/i386-linux/include/windows.h",
+    "toolchain/hosted/i386-linux/runtime.cc",
+    "toolchain/hosted/i386-linux/start.asm",
+    "toolchain/hosted/i386-windows/runtime.cc",
+    "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/tests/artifact_size_policy_contract.cc",
+    "toolchain/tests/toolchain_manifest_contract.cc",
+    "tools/artifact_size_policy.py",
+    "tools/bootstrap_toolchain.py",
+    "tools/cupidc_toolchain_contracts.py",
+    "tools/toolchain_manifest_contract.py",
+)
+TOOLCHAIN_MANIFEST_CONTRACT_ARTIFACT_INPUTS = (
+    "toolchain/build/cupidc-contracts/core-contract.elf",
+    "toolchain/build/cupidc-contracts/user-syscall-abi-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidc-pp-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidc-type-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidc-frontend-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidc-ir-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidc-object-contract.elf",
+    "toolchain/build/cupidc-contracts/elf32-contract.elf",
+    "toolchain/build/cupidc-contracts/x86-contract.elf",
+    "toolchain/build/cupidc-contracts/cupiddis-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidasm-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidasm-demos-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidasm-kernel-elf-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidobj-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidld-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidc-runtime-contract.elf",
+    "toolchain/build/cupidc-contracts/cupidc-cupidasm.elf",
+    "toolchain/build/cupidc-contracts/cupidc-cupiddis.elf",
+    "toolchain/build/cupidc-contracts/cupidc-cupidld.elf",
+    "toolchain/build/cupidc-contracts/cupidc-cupidobj.elf",
+    "toolchain/build/cupidc-contracts/cupidc-cupidc.elf",
+)
+TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
+    "kernel/core/syscall.cc",
+    "kernel/core/syscall.h",
+    "kernel/core/types.h",
+    "kernel/fs/vfs.h",
+    "kernel/lang/as_elf.cc",
+    "kernel/lang/as_elf.h",
+    "kernel/network/socket.h",
+    "toolchain/Makefile",
+    "toolchain/ctool.h",
+    "toolchain/ctool_host.h",
+    "toolchain/cupidasm.h",
+    "toolchain/cupidc_emit.h",
+    "toolchain/cupidc_frontend.h",
+    "toolchain/cupidc_ir.h",
+    "toolchain/cupidc_pp.h",
+    "toolchain/cupidc_type.h",
+    "toolchain/cupiddis.h",
+    "toolchain/cupidld.h",
+    "toolchain/cupidobj.h",
+    "toolchain/elf32.h",
+    "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+    "toolchain/hosted/i386-linux/include/direct.h",
+    "toolchain/hosted/i386-linux/include/errno.h",
+    "toolchain/hosted/i386-linux/include/stdint.h",
+    "toolchain/hosted/i386-linux/include/stdio.h",
+    "toolchain/hosted/i386-linux/include/stdlib.h",
+    "toolchain/hosted/i386-linux/include/string.h",
+    "toolchain/hosted/i386-linux/include/unistd.h",
+    "toolchain/hosted/i386-linux/include/windows.h",
+    "toolchain/hosted/i386-windows/publication_runtime.cc",
+    "toolchain/hosted/i386-windows/publication_start.asm",
+    "toolchain/hosted/i386-windows/runtime.cc",
+    "toolchain/hosted/i386-windows/start.asm",
+    "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/tests/core_contract.cc",
+    "toolchain/tests/cupidasm_contract.cc",
+    "toolchain/tests/cupidasm_demos_contract.cc",
+    "toolchain/tests/cupidasm_kernel_elf_contract.cc",
+    "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+    "toolchain/tests/cupidc_frontend_contract.cc",
+    "toolchain/tests/cupidc_ir_contract.cc",
+    "toolchain/tests/cupidc_kernel_simd_fixture.h",
+    "toolchain/tests/cupidc_object_contract.cc",
+    "toolchain/tests/cupidc_pp_active_cases.inc",
+    "toolchain/tests/cupidc_pp_conditional_cases.inc",
+    "toolchain/tests/cupidc_pp_contract.cc",
+    "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
+    "toolchain/tests/cupidc_static_long_double_control_fixture.h",
+    "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
+    "toolchain/tests/cupidc_type_contract.cc",
+    "toolchain/tests/cupiddis_contract.cc",
+    "toolchain/tests/cupidld_contract.cc",
+    "toolchain/tests/cupidobj_contract.cc",
+    "toolchain/tests/elf32_contract.cc",
+    "toolchain/tests/hosted_i386_runtime_contract.cc",
+    "toolchain/tests/hosted_i386_windows_contract.cc",
+    "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+    "toolchain/tests/user_syscall_abi_contract.cc",
+    "toolchain/tests/x86_active_cases.inc",
+    "toolchain/tests/x86_catalogue_contract.inc",
+    "toolchain/tests/x86_contract.cc",
+    "toolchain/tests/x86_inline_cases.inc",
+    "toolchain/x86.cc",
+    "toolchain/x86.h",
+    "tools/bootstrap_toolchain.py",
+    "tools/cupidc_toolchain_contracts.py",
+    "tools/user_syscall_abi.py",
+    "user/cupid.h",
+)
+TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
+    "link.ld",
+    "toolchain/ctool.cc",
+    "toolchain/ctool.h",
+    "toolchain/ctool_host.cc",
+    "toolchain/ctool_host.h",
+    "toolchain/cupidasm.cc",
+    "toolchain/cupidasm.h",
+    "toolchain/cupidasm_main.cc",
+    "toolchain/cupidc_emit.cc",
+    "toolchain/cupidc_emit.h",
+    "toolchain/cupidc_frontend.cc",
+    "toolchain/cupidc_frontend.h",
+    "toolchain/cupidc_ir.cc",
+    "toolchain/cupidc_ir.h",
+    "toolchain/cupidc_main.cc",
+    "toolchain/cupidc_pp.cc",
+    "toolchain/cupidc_pp.h",
+    "toolchain/cupidc_type.cc",
+    "toolchain/cupidc_type.h",
+    "toolchain/cupiddis.cc",
+    "toolchain/cupiddis.h",
+    "toolchain/cupiddis_main.cc",
+    "toolchain/cupidld.cc",
+    "toolchain/cupidld.h",
+    "toolchain/cupidld_main.cc",
+    "toolchain/cupidobj.cc",
+    "toolchain/cupidobj.h",
+    "toolchain/cupidobj_main.cc",
+    "toolchain/elf32.cc",
+    "toolchain/elf32.h",
+    "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+    "toolchain/hosted/i386-linux/include/direct.h",
+    "toolchain/hosted/i386-linux/include/errno.h",
+    "toolchain/hosted/i386-linux/include/stdint.h",
+    "toolchain/hosted/i386-linux/include/stdio.h",
+    "toolchain/hosted/i386-linux/include/stdlib.h",
+    "toolchain/hosted/i386-linux/include/string.h",
+    "toolchain/hosted/i386-linux/include/unistd.h",
+    "toolchain/hosted/i386-linux/include/windows.h",
+    "toolchain/hosted/i386-linux/runtime.cc",
+    "toolchain/hosted/i386-linux/start.asm",
+    "toolchain/hosted/i386-windows/publication_runtime.cc",
+    "toolchain/hosted/i386-windows/publication_start.asm",
+    "toolchain/hosted/i386-windows/runtime.cc",
+    "toolchain/hosted/i386-windows/start.asm",
+    "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/tests/hosted_i386_windows_contract.cc",
+    "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+    "toolchain/x86.cc",
+    "toolchain/x86.h",
+)
+TOOLCHAIN_MANIFEST_CONTRACT_TRANSFORM_INPUTS = frozenset(
+    {
+        "toolchain/Makefile",
+        "toolchain/build/cupidc-contracts/manifest.json",
+        *TOOLCHAIN_MANIFEST_CONTRACT_ARTIFACT_INPUTS,
+        *TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS,
+        *TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS,
+        *TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS,
+        *LINUX_BOOTSTRAP_SEED_INPUTS,
+        *WINDOWS_PRODUCTION_SEED_INPUTS,
+    }
+)
 TOOL_MARKERS = (
     ("build-iso --seed-manifest", "cupid_object"),
     ("image --seed-manifest", "cupid_object"),
@@ -125,6 +304,11 @@ TOOL_MARKERS = (
     ("$(ARTIFACT_SIZE_CONTRACT)", "cupid_c_contract"),
     ("$(ARTIFACT_SIZE_CONTRACT)", "cupid_linker"),
     ("$(ARTIFACT_SIZE_CONTRACT)", "host_python"),
+    ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "cupid_assembler"),
+    ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "cupid_c_compiler"),
+    ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "cupid_c_contract"),
+    ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "cupid_linker"),
+    ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "host_python"),
     ("$(USER_SYSCALL_ABI)", "cupid_assembler"),
     ("$(USER_SYSCALL_ABI)", "cupid_c_compiler"),
     ("$(USER_SYSCALL_ABI)", "cupid_c_contract"),
@@ -232,6 +416,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/tests/x86_catalogue_contract.inc",
     "toolchain/tests/x86_contract.cc",
     "toolchain/tests/x86_inline_cases.inc",
+    "toolchain/x86.cc",
     "toolchain/x86.h",
     "tools/bootstrap_toolchain.py",
     "tools/cupidc_toolchain_contracts.py",
@@ -624,7 +809,7 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 34,
+    "HOSTED_I386_LINUX": 35,
     "HOSTED_I386_WINDOWS": 6,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
@@ -1641,6 +1826,11 @@ def _operation_for_recipe(
     inputs: list[str],
 ) -> str:
     joined = " ".join(recipe).lower()
+    if (
+        "$(toolchain_manifest_contract)" in joined
+        and "cupid_c_contract" in tools
+    ):
+        return "verify_toolchain_manifest"
     if (
         "$(artifact_size_contract)" in joined
         and "cupid_c_contract" in tools
@@ -5193,7 +5383,13 @@ def build_audit(
     ]
     source_build_owners: dict[str, set[str]] = collections.defaultdict(set)
     for transform in all_transforms:
-        for source in transform["inputs"]:
+        ownership_inputs = transform["inputs"]
+        if transform.get("operation") == "verify_toolchain_manifest":
+            build_inputs = set(TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS)
+            ownership_inputs = [
+                source for source in ownership_inputs if source in build_inputs
+            ]
+        for source in ownership_inputs:
             if source in all_sources:
                 source_build_owners[source].update(transform["tools"])
     for source in _toolchain_contract_cupidc_ownership_inputs(models):
@@ -10863,6 +11059,7 @@ paths.update(root / path for path in USER_SYSCALL_ABI_INPUTS)
 paths.add(root / "toolchain/tests/hosted_i386_runtime_contract.cc")
 paths.add(root / "kernel/lang/as_elf.cc")
 paths.add(root / "kernel/lang/as_elf.h")
+paths.add(root / "toolchain/x86.cc")
 paths.update((root / "toolchain").glob("*.h"))
 paths.update((root / "toolchain/tests").glob("*.inc"))
 paths.update((root / "toolchain/tests").glob("*.h"))
@@ -10928,6 +11125,7 @@ return tuple(
             "toolchain/tests/hosted_i386_runtime_contract.cc",
             "kernel/lang/as_elf.cc",
             "kernel/lang/as_elf.h",
+            "toolchain/x86.cc",
         )
     }
     publication_paths.update((root / "toolchain").glob("*.h"))
@@ -12428,6 +12626,44 @@ def _c_preprocessor_active_cases_manifest(
                 )
                 active_by_profile["HOSTED_I386_LINUX_GNU"].extend(
                     _C_PP_HOSTED_I386_GNU_CASES
+                )
+                continue
+            if operation == "verify_toolchain_manifest":
+                expected_tools = [
+                    "cupid_assembler",
+                    "cupid_c_compiler",
+                    "cupid_c_contract",
+                    "cupid_linker",
+                    "host_python",
+                ]
+                inputs = transform.get("inputs")
+                if (
+                    directory != "toolchain"
+                    or output != "toolchain/all"
+                    or tools != expected_tools
+                    or transform.get("recipe")
+                    != ["$(TOOLCHAIN_MANIFEST_CONTRACT)"]
+                    or not isinstance(inputs, list)
+                    or not all(isinstance(path, str) for path in inputs)
+                    or len(inputs)
+                    != len(TOOLCHAIN_MANIFEST_CONTRACT_TRANSFORM_INPUTS)
+                    or set(inputs)
+                    != TOOLCHAIN_MANIFEST_CONTRACT_TRANSFORM_INPUTS
+                ):
+                    raise AuditError(
+                        "Cupid Toolchain manifest contract transform differs "
+                        "from the checked build contract"
+                    )
+                contract_source = (
+                    "toolchain/tests/toolchain_manifest_contract.cc"
+                )
+                entry = source_entries.get(contract_source)
+                if entry is None or entry.get("origin") != "tracked":
+                    raise AuditError(
+                        "Cupid Toolchain manifest contract source is not tracked"
+                    )
+                active_by_profile["HOSTED_I386_LINUX"].append(
+                    "/" + contract_source
                 )
                 continue
             if operation == "verify_artifact_size_policy":
