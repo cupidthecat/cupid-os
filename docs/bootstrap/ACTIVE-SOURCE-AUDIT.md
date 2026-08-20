@@ -31,11 +31,11 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1470 |
 | `cupid_c_browser_fragment` | 22 | 15958 |
-| `cupid_c_program` | 108 | 20131 |
+| `cupid_c_program` | 108 | 20164 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 7141 |
-| `cupidc` | 8 | 16770 |
-| `cupiddis` | 5 | 3785 |
+| `cupidc` | 8 | 18159 |
+| `cupiddis` | 5 | 4064 |
 | `doom_port` | 7 | 3986 |
 | `driver` | 22 | 3861 |
 | `generated_install_table` | 3 | 0 |
@@ -56,7 +56,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3527 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 24 | 163226 |
+| `toolchain_contract` | 24 | 163509 |
 | `toolchain_core` | 39 | 89332 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
@@ -99,16 +99,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 926 |
 | `asm.relocation` | 1 | 34 |
-| `c.control` | 12 | 84821 |
+| `c.control` | 12 | 85310 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3886 |
-| `c.expression` | 2 | 6180 |
+| `c.declarator` | 4 | 3900 |
+| `c.expression` | 2 | 6225 |
 | `c.extension` | 19 | 428 |
-| `c.initializer` | 1 | 687 |
-| `c.preprocessor` | 18 | 7104 |
-| `c.qualifier` | 2 | 16311 |
-| `c.storage` | 4 | 10395 |
-| `c.type` | 15 | 53684 |
+| `c.initializer` | 1 | 688 |
+| `c.preprocessor` | 18 | 7106 |
+| `c.qualifier` | 2 | 16365 |
+| `c.storage` | 4 | 10462 |
+| `c.type` | 15 | 53905 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -116,7 +116,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c.extension` | 1 | 9 |
 | `cupid_c.output` | 1 | 246 |
 | `cupid_c.storage` | 2 | 487 |
-| `cupid_c.type` | 12 | 224 |
+| `cupid_c.type` | 12 | 236 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
 

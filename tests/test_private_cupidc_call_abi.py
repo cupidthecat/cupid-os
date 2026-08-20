@@ -314,6 +314,12 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   int same_state_recovery_mode =
                       argc == 5 &&
                       strcmp(argv[4], "--recover-same-state") == 0;
+                  int recover_after_success_mode =
+                      argc == 5 &&
+                      strcmp(argv[4], "--recover-after-success") == 0;
+                  int double_failure_recovery_mode =
+                      argc == 5 &&
+                      strcmp(argv[4], "--recover-two-failures") == 0;
                   int aot_mode =
                       argc == 5 && strcmp(argv[4], "--aot") == 0;
                   if (argc == 3 &&
@@ -321,13 +327,61 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     return check_numeric_token_boundary(argv[2]);
                   if (argc != 4 && !repl_mode && !repl_rollback_mode &&
                       !recovery_mode && !same_state_recovery_mode &&
+                      !recover_after_success_mode &&
+                      !double_failure_recovery_mode &&
                       !aot_mode)
                     return 64;
                   source = read_source(argv[1]);
                   cc = new_compiler_state(aot_mode ? 0 : 1);
                   if (source == NULL || cc == NULL)
                     return 65;
-                  if (recovery_mode || same_state_recovery_mode) {
+                  if (recover_after_success_mode ||
+                      double_failure_recovery_mode) {
+                    char *failing_source = source;
+                    char *retry_source;
+                    while (*failing_source != 0 &&
+                           (unsigned char)*failing_source != 30u)
+                      failing_source++;
+                    if ((unsigned char)*failing_source != 30u)
+                      return 68;
+                    *failing_source = 0;
+                    failing_source++;
+                    retry_source = failing_source;
+                    while (*retry_source != 0 &&
+                           (unsigned char)*retry_source != 30u)
+                      retry_source++;
+                    if ((unsigned char)*retry_source != 30u)
+                      return 68;
+                    *retry_source = 0;
+                    retry_source++;
+                    cc_lex_init(cc, source);
+                    cc_parse_program(cc);
+                    if (double_failure_recovery_mode) {
+                      if (!cc->error)
+                        return 69;
+                      (void)fprintf(stderr, "%s", cc->error_msg);
+                      cc->error = 0;
+                      cc->error_msg[0] = 0;
+                      cc_lex_init(cc, failing_source);
+                      cc_parse_program(cc);
+                      if (!cc->error)
+                        return 69;
+                      (void)fprintf(stderr, "%s", cc->error_msg);
+                      cc->error = 0;
+                      cc->error_msg[0] = 0;
+                    } else {
+                      if (cc->error)
+                        return 70;
+                      cc_lex_init(cc, failing_source);
+                      cc_parse_program(cc);
+                      if (!cc->error)
+                        return 69;
+                      cc->error = 0;
+                      cc->error_msg[0] = 0;
+                    }
+                    cc_lex_init(cc, retry_source);
+                    cc_parse_program(cc);
+                  } else if (recovery_mode || same_state_recovery_mode) {
                     char *retry_source = source;
                     while (*retry_source != 0 &&
                            (unsigned char)*retry_source != 30u)
@@ -549,6 +603,66 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 str(code_path),
                 str(data_path),
                 "--recover-same-state" if same_state else "--recover",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+        return result, code_path, data_path
+
+    def _compile_after_intermediate_failure(
+        self, root, successful_source, failing_source, retry_source
+    ):
+        source_path = root / "fixture.cc"
+        code_path = root / "code.bin"
+        data_path = root / "data.bin"
+        source_path.write_text(
+            textwrap.dedent(successful_source)
+            + "\x1e"
+            + textwrap.dedent(failing_source)
+            + "\x1e"
+            + textwrap.dedent(retry_source),
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [
+                str(self.driver),
+                str(source_path),
+                str(code_path),
+                str(data_path),
+                "--recover-after-success",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+        return result, code_path, data_path
+
+    def _compile_after_two_failures(
+        self, root, first_failure, second_failure, retry_source
+    ):
+        source_path = root / "fixture.cc"
+        code_path = root / "code.bin"
+        data_path = root / "data.bin"
+        source_path.write_text(
+            textwrap.dedent(first_failure)
+            + "\x1e"
+            + textwrap.dedent(second_failure)
+            + "\x1e"
+            + textwrap.dedent(retry_source),
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [
+                str(self.driver),
+                str(source_path),
+                str(code_path),
+                str(data_path),
+                "--recover-two-failures",
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -1438,6 +1552,1478 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             """
         )
         self.assertEqual(result.returncode, 75, result.stdout + result.stderr)
+
+    def test_named_function_pointer_coercion_and_result_run_in_jit_and_aot(self):
+        source = """
+            int combine(double first, int second) {
+              return (int)first * 10 + second;
+            }
+
+            double echo_double(double value) {
+              return value;
+            }
+
+            int main() {
+              int (*combine_callback)(double, int) = combine;
+              double (*echo_callback)(double) = echo_double;
+              int combined = combine_callback(3, 4.75f);
+              double echoed = echo_callback(5);
+              if (combined != 34) return 1;
+              return echoed == 5.0 ? 0 : 2;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_named_function_pointer_record_pointer_result_keeps_identity(self):
+        source = """
+            struct Pair {
+              int left;
+              int right;
+            };
+
+            struct Pair values[2];
+
+            struct Pair *select_pair(int index) {
+              return &values[index];
+            }
+
+            int main() {
+              struct Pair *(*callback)(int) = select_pair;
+              values[0].left = 11;
+              values[1].left = 33;
+              values[1].right = 44;
+              if (callback(1)->right != 44) return 1;
+              return callback(0)[1].left == 33 ? 0 : 2;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_named_function_pointer_uses_typed_cdecl_slot_widths(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-layout-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, code_path, _data = self._compile(
+                root,
+                """
+                int combine(double first, int second) {
+                  return (int)first * 10 + second;
+                }
+
+                int main() {
+                  int (*callback)(double, int) = combine;
+                  return callback(3, 4.75f);
+                }
+                """,
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            code = code_path.read_bytes()
+            self.assertIn(b"\xff\xd0\x83\xc4\x0c", code)
+
+    def test_named_function_pointer_matches_active_callback_widths(self):
+        result = self._compile_and_run(
+            """
+            int inspect(const uint8_t *entry, uint32_t length, void *context) {
+              if (entry == 0 || context != 0) return 1;
+              return length;
+            }
+
+            int main() {
+              uint8_t entry = 1;
+              uint8_t length = 7;
+              int (*callback)(const uint8_t *, uint32_t, void *) = inspect;
+              return callback(&entry, length, 0);
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 7, result.stdout + result.stderr)
+
+    def test_named_variadic_function_pointer_converts_fixed_and_tail_slots(self):
+        source = """
+            int inspect(double fixed, ...) {
+              return (int)fixed;
+            }
+
+            int main() {
+              int (*callback)(double, ...) = inspect;
+              return callback(6, 2.5f);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 6, result.stdout + result.stderr
+                )
+
+    def test_named_function_pointer_keeps_nested_active_pointer_slots(self):
+        result = self._compile_and_run(
+            """
+            int inspect(void *drawer, char *rows, int marker) {
+              if (drawer == 0 || rows == 0) return 1;
+              return marker;
+            }
+
+            int draw(int x, int y) {
+              return x + y;
+            }
+
+            int main() {
+              char rows[6];
+              int (*callback)(void (*)(int, int), uint8_t (*)[6], int) =
+                  (void *)inspect;
+              return callback(draw, rows, 9);
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 9, result.stdout + result.stderr)
+
+    def test_named_function_pointer_initializer_parameter_mismatch_recovers(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-initializer-param-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int transform(double value) {
+                  return (int)value;
+                }
+
+                int invalid_initializer() {
+                  int (*callback)(int) = transform;
+                  return callback(1);
+                }
+                """,
+                """
+                int identity(int value) {
+                  return value;
+                }
+
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(7) == 7 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer initializer parameters do not match declaration",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_named_function_pointer_initializer_result_mismatch_recovers(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-initializer-result-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                double transform(int value) {
+                  return (double)value;
+                }
+
+                int invalid_initializer() {
+                  int (*callback)(int) = transform;
+                  return callback(1);
+                }
+                """,
+                """
+                int identity(int value) {
+                  return value;
+                }
+
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(9) == 9 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer initializer result does not match declaration",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_named_function_pointer_initializer_keeps_record_result_identity(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-initializer-record-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                struct First { int value; };
+                struct Second { int value; };
+                struct First first;
+
+                struct First *select_first(void) {
+                  return &first;
+                }
+
+                int invalid_initializer() {
+                  struct Second *(*callback)(void) = select_first;
+                  return callback()->value;
+                }
+                """,
+                """
+                int identity(int value) {
+                  return value;
+                }
+
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(4) == 4 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function-pointer initializer result does not match declaration",
+            result.stderr,
+        )
+
+    def test_named_function_pointer_initializer_variadic_mismatch_recovers(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-initializer-variadic-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                int inspect(int value, ...) {
+                  return value;
+                }
+
+                int invalid_initializer() {
+                  int (*callback)(int) = inspect;
+                  return callback(1);
+                }
+                """,
+                """
+                int identity(int value) {
+                  return value;
+                }
+
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(5) == 5 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function-pointer initializer parameters do not match declaration",
+            result.stderr,
+        )
+
+    def test_explicit_cast_erases_function_pointer_initializer_signature(self):
+        result = self._compile_and_run(
+            """
+            double transform(double value) {
+              return value;
+            }
+
+            int main() {
+              int (*callback)(int) = (void *)transform;
+              return callback != 0 ? 0 : 1;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_grouped_null_and_cast_function_pointer_initializers_run(self):
+        source = """
+            int observed;
+
+            int identity(int value) {
+              observed = value;
+              return value;
+            }
+
+            int main() {
+              int (*empty)(int) = ((void *)0);
+              int (*callback)(int) = ((void *)identity);
+              if (empty != 0) return 1;
+              if (callback(12) != 12) return 2;
+              return observed == 12 ? 0 : 3;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_conditional_explicit_casts_erase_only_the_selected_value(self):
+        source = """
+            int choose_second;
+            int first(int value) { return value + 1; }
+            int second(int value) { return value + 2; }
+
+            int main() {
+              choose_second = 1;
+              int (*callback)(int) =
+                  choose_second ? (void *)second : (void *)first;
+              int (*left_nullable)(int) =
+                  choose_second ? (void *)first : 0;
+              choose_second = 0;
+              int (*right_nullable)(int) =
+                  choose_second ? 0 : (void *)second;
+              if (callback(8) != 10) return 1;
+              if (left_nullable(8) != 9) return 2;
+              return right_nullable(8) == 10 ? 0 : 3;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-conditional-cast-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                int choose_object;
+                int object;
+                int identity(int value) { return value; }
+                int invalid(void) {
+                  int (*callback)(int) =
+                      choose_object ? (void *)identity : &object;
+                  return callback != 0;
+                }
+                """,
+                """
+                int identity(int value) { return value; }
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(6) == 6 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function-pointer initializer requires a function, zero, or explicit pointer cast",
+            result.stderr,
+        )
+
+    def test_integer_constant_expression_zero_is_a_null_callback(self):
+        source = r"""
+            int choose_target;
+            int identity(int value) { return value; }
+
+            int main() {
+              int (*negative_zero)(int) = -0;
+              int (*positive_zero)(int) = +0;
+              int (*character_zero)(int) = '\0';
+              int (*cast_zero)(int) = (int)0;
+              int (*difference_zero)(int) = 1 - 1;
+              int (*sizeof_zero)(int) = sizeof(int) - 4;
+              choose_target = 1;
+              int (*left_target)(int) =
+                  choose_target ? identity : -0;
+              choose_target = 0;
+              int (*right_target)(int) =
+                  choose_target ? 1 - 1 : identity;
+              if (negative_zero != 0 || positive_zero != 0 ||
+                  character_zero != 0 || cast_zero != 0 ||
+                  difference_zero != 0 || sizeof_zero != 0) return 1;
+              if (left_target(9) != 9) return 2;
+              return right_target(11) == 11 ? 0 : 3;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-nonconstant-zero-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                int value;
+                int invalid(void) {
+                  int (*callback)(int) = 1 ? 0 : value;
+                  return callback != 0;
+                }
+                """,
+                """
+                int identity(int value) { return value; }
+                int main(void) {
+                  int (*callback)(int) = identity;
+                  return callback(8) == 8 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function-pointer initializer requires a function, zero, or explicit pointer cast",
+            result.stderr,
+        )
+
+    def test_cast_in_condition_does_not_erase_selected_object_pointer(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-cast-provenance-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                int value;
+                int target(int input) { return input; }
+
+                int invalid_initializer() {
+                  int (*callback)(int) =
+                      (void *)target ? &value : (void *)target;
+                  return callback != 0;
+                }
+                """,
+                """
+                int identity(int value) { return value; }
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(5) == 5 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function-pointer initializer requires a function, zero, or explicit pointer cast",
+            result.stderr,
+        )
+
+    def test_cast_inside_subscript_does_not_erase_selected_object_pointer(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-child-cast-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                int target(int value) { return value; }
+
+                int invalid_initializer(void) {
+                  char bytes[8];
+                  int (*callback)(int) =
+                      &bytes[sizeof((void *)target)];
+                  return callback != 0;
+                }
+                """,
+                """
+                int identity(int value) { return value; }
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(4) == 4 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function-pointer initializer requires a function, zero, or explicit pointer cast",
+            result.stderr,
+        )
+
+    def test_function_pointer_initializer_patches_a_later_function_address(self):
+        source = """
+            double later(double value);
+
+            int main() {
+              double (*callback)(double) = later;
+              return callback(6) == 6.0 ? 0 : 1;
+            }
+
+            double later(double value) {
+              return value;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_callback_target_definition_must_match_its_prior_prototype(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-prototype-definition-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                double later(double value);
+
+                int invalid_initializer() {
+                  double (*callback)(double) = later;
+                  return callback != 0;
+                }
+
+                int later(int value) {
+                  return value;
+                }
+                """,
+                """
+                int identity(int value) {
+                  return value;
+                }
+
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(1) == 1 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function declaration does not match prior declaration",
+            result.stderr,
+        )
+
+    def test_rejected_forward_initializer_rolls_back_its_address_patch(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-patch-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int later(double value);
+
+                int invalid_initializer() {
+                  int (*callback)(int) = later;
+                  return 0;
+                }
+                """,
+                """
+                int identity(int value) {
+                  return value;
+                }
+
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(4) == 4 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer initializer parameters do not match declaration",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_prescanned_callback_signature_is_checked_at_later_definition(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-later-signature-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int invalid_initializer() {
+                  double (*callback)(double) = later;
+                  return callback != 0;
+                }
+
+                int later(int value) {
+                  return value;
+                }
+                """,
+                """
+                double later(double value) {
+                  return value;
+                }
+
+                int main() {
+                  double (*callback)(double) = later;
+                  return callback(3) == 3.0 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function definition does not match prior function-pointer initializer",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_malformed_later_callback_declaration_restores_provisional_signature(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-malformed-later-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int invalid_initializer() {
+                  double (*callback)(double) = later;
+                  return callback != 0;
+                }
+
+                double later(double) {
+                  return 0.0;
+                }
+                """,
+                """
+                double later(double value) {
+                  return value;
+                }
+
+                int main() {
+                  double (*callback)(double) = later;
+                  return callback(11) == 11.0 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("expected parameter name", result.stderr)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_failed_function_restores_inferred_target_signature(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-inference-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int invalid_initializer(void) {
+                  int (*callback)(int) = later;
+                  return missing_value;
+                }
+
+                int later(int value);
+                """,
+                """
+                double later(double value) {
+                  return value;
+                }
+
+                int main() {
+                  double (*callback)(double) = later;
+                  return callback(14) == 14.0 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("undefined variable", result.stderr)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_failed_program_restores_a_committed_function_definition(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-program-symbol-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_intermediate_failure(
+                root,
+                """
+                double later(double value) { return value + 1.0; }
+                """,
+                """
+                double later(double value);
+                int broken(void) { return missing_value; }
+                """,
+                """
+                int main() {
+                  double (*callback)(double) = later;
+                  return callback(4) == 5.0 ? 0 : 1;
+                }
+                """,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("undefined variable", result.stderr)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_failed_program_restores_a_preexisting_function_prototype(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-prototype-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_intermediate_failure(
+                root,
+                """
+                double later(double value);
+                """,
+                """
+                double later(double value) { return value + 1.0; }
+                int broken(void) { return missing_value; }
+                """,
+                """
+                double later(double value) { return value + 3.0; }
+                int main(void) {
+                  double (*callback)(double) = later;
+                  return callback(4) == 7.0 ? 0 : 1;
+                }
+                """,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("undefined variable", result.stderr)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_failed_program_restores_the_committed_start_thunk(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-start-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_intermediate_failure(
+                root,
+                """
+                int marker;
+                marker = 1;
+                """,
+                """
+                marker = 2;
+                missing();
+                """,
+                """
+                int main(void) {
+                  marker = 0;
+                  __start();
+                  return marker == 1 ? 0 : 1;
+                }
+                """,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("[cupidc] Unresolved symbol: missing", result.stderr)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_defined_start_thunk_rejects_an_incompatible_callback_signature(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-start-signature-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_intermediate_failure(
+                root,
+                """
+                int marker;
+                marker = 1;
+                """,
+                """
+                int capture(void) {
+                  void (*wrong)(int) = __start;
+                  return wrong != 0;
+                }
+                """,
+                """
+                int main(void) {
+                  void (*right)(void) = __start;
+                  marker = 0;
+                  right();
+                  return marker == 1 ? 0 : 1;
+                }
+                """,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer initializer parameters do not match declaration",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_implicit_start_thunk_has_a_complete_void_callback_signature(self):
+        source = """
+            int marker;
+            marker = 1;
+
+            int capture(void) {
+              void (*callback)(void) = __start;
+              return callback != 0;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                with tempfile.TemporaryDirectory(
+                    prefix="private-cupidc-start-signature-output-",
+                    ignore_cleanup_errors=True,
+                ) as temporary:
+                    result, code_path, _data = self._compile(
+                        Path(temporary), source, aot=aot
+                    )
+                    self.assertEqual(
+                        result.returncode,
+                        0,
+                        result.stdout + result.stderr,
+                    )
+                    self.assertGreater(code_path.stat().st_size, 0)
+
+    def test_matching_prototype_preserves_a_kernel_binding(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-kernel-prototype-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary),
+                """
+                void serial_printf(char *text);
+                int main(void) {
+                  serial_printf("callback prototype");
+                  return 0;
+                }
+                """,
+                aot=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_failed_method_restores_inferred_callback_signatures(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-method-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                class Broken {
+                  int Fail(void) {
+                    int (*callback)(int) = later;
+                    return missing_value;
+                  }
+                };
+
+                int later(int value);
+                """,
+                """
+                double later(double value) { return value + 2.0; }
+
+                int main() {
+                  double (*callback)(double) = later;
+                  return callback(5) == 7.0 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("undefined variable", result.stderr)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_failed_method_restores_control_context_before_recovery(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-method-control-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_two_failures(
+                root,
+                """
+                class Broken {
+                  int Fail(void) {
+                    while (missing_condition) {}
+                    return 0;
+                  }
+                };
+                """,
+                """
+                int main(void) {
+                  break;
+                  return 0;
+                }
+                """,
+                """
+                int main(void) { return 0; }
+                """,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("undefined variable", result.stderr)
+        self.assertIn("break outside loop or switch", result.stderr)
+
+    def test_failed_callback_unit_discards_every_new_forward_patch(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-program-patches-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int pending(void);
+
+                int invalid_initializer() {
+                  double (*callback)(double) = later;
+                  pending();
+                  return callback != 0;
+                }
+
+                int later(int value) {
+                  return value;
+                }
+                """,
+                """
+                int identity(int value) {
+                  return value;
+                }
+
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(13) == 13 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function definition does not match prior function-pointer initializer",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_prescanned_matching_callback_runs_in_jit_and_aot(self):
+        source = """
+            int observed;
+
+            int main() {
+              int (*callback)(int) = later;
+              if (callback(8) != 8) return 1;
+              return observed == 8 ? 0 : 2;
+            }
+
+            int later(int value) {
+              observed = value;
+              return value;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_provisional_callback_signature_refines_from_empty_to_typed(self):
+        source = """
+            int observed;
+
+            int main() {
+              int (*loose)() = later;
+              int (*typed)(int) = later;
+              if (typed(10) != 10) return 1;
+              return loose != 0 && observed == 10 ? 0 : 2;
+            }
+
+            int later(int value) {
+              observed = value;
+              return value;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_callable_provenance_does_not_survive_logical_not(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-unary-provenance-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                int target(int value) { return value; }
+                int invalid_initializer() {
+                  int (*callback)(int) = !target;
+                  return 0;
+                }
+                """,
+                """
+                int identity(int value) { return value; }
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(6) == 6 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function-pointer initializer requires a function, zero, or explicit pointer cast",
+            result.stderr,
+        )
+
+    def test_conditional_function_pointer_keeps_compatible_signatures(self):
+        source = """
+            int choose_second;
+
+            int main() {
+              int (*callback)(int) =
+                  choose_second ? later_second : later_first;
+              return callback(7) == 8 ? 0 : 1;
+            }
+
+            int later_first(int value) {
+              return value + 1;
+            }
+
+            int later_second(int value) {
+              return value + 2;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_conditional_function_pointer_accepts_null_in_either_arm(self):
+        source = """
+            int choose_null;
+            int observed;
+
+            int target(int value) {
+              observed = value;
+              return value;
+            }
+
+            int main() {
+              choose_null = 0;
+              int (*empty)(int) = choose_null ? target : 0;
+              int (*callback)(int) = choose_null ? 0 : target;
+              if (empty != 0) return 1;
+              if (callback(15) != 15) return 2;
+              return observed == 15 ? 0 : 3;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_conditional_function_pointer_checks_every_later_arm(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-conditional-signature-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                int flag;
+
+                int invalid_initializer() {
+                  double (*callback)(double) = flag ? later_a : later_b;
+                  return callback != 0;
+                }
+
+                double later_a(double value) { return value; }
+                int later_b(int value) { return value; }
+                """,
+                """
+                int identity(int value) { return value; }
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(8) == 8 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function definition does not match prior function-pointer initializer",
+            result.stderr,
+        )
+
+    def test_named_function_pointer_copy_checks_retained_signature(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-copy-signature-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int inspect(double value) {
+                  return (int)value;
+                }
+
+                int invalid_copy() {
+                  int (*first)(double) = inspect;
+                  int (*second)(int) = first;
+                  return second(1);
+                }
+                """,
+                """
+                int identity(int value) {
+                  return value;
+                }
+
+                int main() {
+                  int (*first)(int) = identity;
+                  int (*second)(int) = first;
+                  return second(7) == 7 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer initializer parameters do not match declaration",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_function_pointer_initializer_rejects_non_callable_values(self):
+        cases = (
+            ("floating value", "1.0", "floating"),
+            ("nonzero integer", "7", "integer"),
+            ("object pointer", "&value", "pointer"),
+        )
+        for label, initializer, declaration in cases:
+            with self.subTest(initializer=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-function-pointer-value-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile_after_failure(
+                    Path(temporary),
+                    f"""
+                    int invalid_initializer() {{
+                      int value = 1;
+                      int (*callback)(int) = {initializer};
+                      return value;
+                    }}
+                    """,
+                    """
+                    int identity(int value) {
+                      return value;
+                    }
+
+                    int main() {
+                      int (*callback)(int) = identity;
+                      return callback(2) == 2 ? 0 : 1;
+                    }
+                    """,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(
+                    "function-pointer initializer requires a function, zero, or explicit pointer cast",
+                    result.stderr,
+                )
+                self.assertNotIn(declaration + " conversion", result.stderr)
+
+    def test_function_pointer_initializer_accepts_zero(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              int (*callback)(int) = 0;
+              return callback == 0 ? 0 : 1;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_mutable_enum_storage_is_not_proven_as_a_null_callback(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-enum-zero-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                enum { NIL = 0 };
+
+                int invalid_initializer() {
+                  NIL = 7;
+                  int (*callback)(int) = NIL;
+                  return callback != 0;
+                }
+                """,
+                """
+                int identity(int value) { return value; }
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(3) == 3 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function-pointer initializer requires a function, zero, or explicit pointer cast",
+            result.stderr,
+        )
+
+    def test_function_pointer_initializer_checks_record_parameter_identity(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-record-parameter-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile_after_failure(
+                Path(temporary),
+                """
+                struct First { int value; };
+                struct Second { int value; };
+
+                int inspect(struct First *value) {
+                  return value->value;
+                }
+
+                int invalid_initializer() {
+                  int (*callback)(struct Second *) = inspect;
+                  return 0;
+                }
+                """,
+                """
+                int identity(int value) {
+                  return value;
+                }
+
+                int main() {
+                  int (*callback)(int) = identity;
+                  return callback(6) == 6 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "function-pointer initializer parameters do not match declaration",
+            result.stderr,
+        )
+
+    def test_named_function_pointer_type_failure_recovers_in_the_same_state(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int inspect(double value) {
+                  return (int)value;
+                }
+
+                int invalid_call() {
+                  float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
+                  int (*callback)(double) = inspect;
+                  return callback(value);
+                }
+                """,
+                """
+                int inspect(double value) {
+                  return (int)value;
+                }
+
+                int main() {
+                  int (*callback)(double) = inspect;
+                  return callback(7) == 7 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "cdecl argument type does not match fixed parameter",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_named_function_pointer_arity_failure_recovers_in_the_same_state(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-arity-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int combine(double first, int second) {
+                  return (int)first + second;
+                }
+
+                int invalid_call() {
+                  int (*callback)(double, int) = combine;
+                  return callback(1);
+                }
+                """,
+                """
+                int combine(double first, int second) {
+                  return (int)first + second;
+                }
+
+                int main() {
+                  int (*callback)(double, int) = combine;
+                  return callback(2, 3) == 5 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer call has too few arguments", result.stderr
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_named_function_pointer_excess_arity_recovers_in_the_same_state(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-excess-arity-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int combine(double first, int second) {
+                  return (int)first + second;
+                }
+
+                int invalid_call() {
+                  int (*callback)(double, int) = combine;
+                  return callback(1, 2, 3);
+                }
+                """,
+                """
+                int combine(double first, int second) {
+                  return (int)first + second;
+                }
+
+                int main() {
+                  int (*callback)(double, int) = combine;
+                  return callback(2, 3) == 5 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer call has too many arguments", result.stderr
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_named_function_pointer_struct_result_is_rejected_and_recovers(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-struct-result-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                struct Pair {
+                  int value;
+                };
+
+                int invalid_call() {
+                  struct Pair (*callback)(void);
+                  return 0;
+                }
+                """,
+                """
+                int main() {
+                  int (*callback)(void);
+                  return callback == 0 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer struct result is not supported; use pointer result",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_named_function_pointer_array_result_is_rejected_and_recovers(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-function-pointer-array-result-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                typedef int Row[2];
+
+                int invalid_call() {
+                  Row (*callback)(void);
+                  return 0;
+                }
+                """,
+                """
+                int main() {
+                  int (*callback)(void);
+                  return callback == 0 ? 0 : 1;
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer array result is not supported", result.stderr
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
 
     def test_alternating_widths_keep_source_evaluation_and_parameter_order(self):
         result = self._compile_and_run(
@@ -6276,7 +7862,26 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             runtime = self._run_i386(root, int(result.stdout.strip()))
         self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
 
-    def test_function_pointer_simd_argument_is_rejected_without_metadata(self):
+    def test_typed_function_pointer_simd_argument_uses_declared_slot(self):
+        result = self._compile_and_run(
+            """
+            float observed;
+
+            void consume(float4 value) {
+              observed = value.w;
+            }
+
+            int main() {
+              float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
+              void (*callback)(float4 value) = consume;
+              callback(value);
+              return observed == 4.0f ? 0 : 1;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_erased_pointer_simd_argument_is_rejected_without_metadata(self):
         with tempfile.TemporaryDirectory(
             prefix="private-cupidc-simd-function-pointer-",
             ignore_cleanup_errors=True,
@@ -6290,7 +7895,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
 
                 int invalid_call() {
                   float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
-                  void (*callback)(float4 value) = consume;
+                  void *callback = consume;
                   callback(value);
                   return 0;
                 }
@@ -6316,6 +7921,24 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             )
             runtime = self._run_i386(root, int(result.stdout.strip()))
         self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_prototyped_function_pointer_simd_result_uses_xmm0(self):
+        result = self._compile_and_run(
+            """
+            float4 make_value() {
+              float4 value = {1.0f, 2.0f, 3.0f, 4.0f};
+              return value;
+            }
+
+            int main() {
+              float4 (*callback)(void) = make_value;
+              float4 result;
+              result = callback();
+              return result.z == 3.0f ? 0 : 1;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_function_pointer_simd_result_is_rejected_without_metadata(self):
         with tempfile.TemporaryDirectory(

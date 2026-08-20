@@ -260,10 +260,9 @@ and the 9,096,008-byte raw kernel has SHA-256
 9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51.
 
 That checkpoint predates the guarded normal bootloader edge and this CTXT
-record. The live policy now records 9,211,340 bytes for the pass-one ELF,
-9,334,220 bytes for the final ELF, and 9,114,084 bytes for the raw kernel.
-Exact current hashes stay in the host bootstrap log because embedding them in
-this document would change the kernel they identify.
+record. The live policy records exact kernel sizes in the host bootstrap log.
+Embedding those self-referential values here would change the kernel they
+identify.
 The published 209,715,200-byte image has SHA-256
 dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e.
 A private four-vCPU /bin/ls.cc JIT boot passed from that image in 46.9 seconds.

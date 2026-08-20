@@ -358,8 +358,25 @@ and callers reclaim the complete outgoing area. Slots are packed at four-byte
 granularity; the private boundary does not promise 16-byte call-site alignment.
 A fixed SIMD prefix may precede scalar variadic values. SIMD variadic tails,
 unprototyped SIMD calls, and signature-erased function-pointer SIMD calls are
-rejected. Feature 13 retains ten calls through one mixed-width tolerance
-helper. Feature 14 adds six nested pass-by-value vector calls.
+rejected. A named block-local function pointer with an explicit prototype
+retains fixed parameter types, variadic state, and its result. The indirect
+call uses the same conversions and four-, eight-, or sixteen-byte cdecl slots,
+including SIMD arguments and XMM0 results. Empty (), typedef, global,
+parameter, field, and void-pointer forms remain signature-erased. Feature 13
+retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
+nested pass-by-value vector calls and two named SIMD callback calls. ADR 0301
+records the callback boundary.
+Plain function initializers must match the retained signature. An explicit
+void-pointer cast remains the deliberate erasure path. Local callback copies
+are checked, later addresses are fixed up, and provisional signatures must
+match their definitions. Compatible conditional selection checks every named
+arm. A represented integer constant expression that evaluates to zero is a
+null initializer. Unary signs, integer casts, arithmetic, character zero, and
+sizeof(int) - 4 are represented. Runtime zero is not. Null arms are neutral for
+explicit erasure, while every non-null object-pointer arm must be cast. Failed
+functions and methods restore emitted state, patches, signatures, labels, and
+control nesting. A failed source also restores touched prototypes, definitions,
+kernel bindings, and a reused __start. The implicit thunk is typed void(void).
 
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
@@ -370,8 +387,8 @@ remain rejected, and the existing represented pointer-category rule is
 unchanged. The unchanged /bin/ctxt.cc call to ctxt_parse_action reaches this
 coercion boundary. That file is an include fragment. /bin/notepad.cc includes
 it completely and passes private AOT compilation. A parsed variadic tail widens float to double and promotes
-char to int. Function-pointer calls, kernel bindings, and calls without fixed
-parameter metadata keep their source-width slots. Character operands undergo
+char to int. Calls without fixed parameter metadata keep their source-width
+slots. Character operands undergo
 integer promotion and use the scalar integer conversion path when mixed with
 floating values or explicitly cast. Fresh subscript metadata prevents a
 pointer result from inheriting an earlier array stride.

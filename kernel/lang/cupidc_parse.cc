@@ -1221,6 +1221,15 @@ static int cc_is_type_or_typedef(cc_state_t *cc, cc_token_t tok) {
 static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
 static int cc_last_expr_indirect_lvalue;
 static cc_symbol_t *cc_last_expr_direct_lvalue_sym;
+static cc_symbol_t *cc_last_expr_function_signature_sym;
+static cc_symbol_t *
+    cc_last_expr_function_signature_candidates[CC_MAX_PARAMS];
+static int cc_last_expr_function_signature_count;
+static int cc_last_expr_function_signature_erased;
+static int cc_last_expr_is_null_pointer_constant;
+static int cc_last_expr_is_integer_constant_expression;
+static uint32_t cc_last_expr_integer_constant_value;
+static int cc_last_expr_integer_constant_is_unsigned;
 static int cc_last_expr_simd_lane;
 static int cc_last_expr_const_lvalue;
 /* Inner-dimension stride for 3D-array expressions. When > 0, the
@@ -1251,6 +1260,53 @@ static cc_type_t cc_last_expr_array_elem_type;
 static int cc_expression_depth;
 static int cc_sizeof_simd_row_depth;
 static int cc_grouped_simd_row_depth;
+
+static void cc_clear_expr_function_signatures(void) {
+  cc_last_expr_function_signature_sym = NULL;
+  cc_last_expr_function_signature_count = 0;
+}
+
+static void cc_clear_expr_callable_provenance(void) {
+  cc_clear_expr_function_signatures();
+  cc_last_expr_function_signature_erased = 0;
+  cc_last_expr_is_null_pointer_constant = 0;
+  cc_last_expr_is_integer_constant_expression = 0;
+  cc_last_expr_integer_constant_value = 0;
+  cc_last_expr_integer_constant_is_unsigned = 0;
+}
+
+static void cc_publish_integer_constant_expression(uint32_t value,
+                                                   int is_unsigned) {
+  cc_last_expr_is_integer_constant_expression = 1;
+  cc_last_expr_integer_constant_value = value;
+  cc_last_expr_integer_constant_is_unsigned = is_unsigned;
+  cc_last_expr_is_null_pointer_constant = value == 0;
+}
+
+static int cc_append_expr_function_signature(cc_symbol_t *symbol) {
+  int candidate_index;
+
+  if (!symbol)
+    return 1;
+  for (candidate_index = 0;
+       candidate_index < cc_last_expr_function_signature_count;
+       candidate_index++) {
+    if (cc_last_expr_function_signature_candidates[candidate_index] == symbol)
+      return 1;
+  }
+  if (cc_last_expr_function_signature_count >= CC_MAX_PARAMS)
+    return 0;
+  cc_last_expr_function_signature_candidates
+      [cc_last_expr_function_signature_count++] = symbol;
+  cc_last_expr_function_signature_sym =
+      cc_last_expr_function_signature_candidates[0];
+  return 1;
+}
+
+static void cc_set_expr_function_signature(cc_symbol_t *symbol) {
+  cc_clear_expr_function_signatures();
+  (void)cc_append_expr_function_signature(symbol);
+}
 
 static int cc_has_incomplete_simd_row(void) {
   return cc_last_expr_array_rank > 0 &&
@@ -2339,20 +2395,48 @@ static int cc_coerce_cdecl_argument(cc_state_t *cc, cc_type_t target_type) {
   return 1;
 }
 
+static int cc_symbol_has_cdecl_parameter_metadata(
+    const cc_symbol_t *symbol) {
+  if (!symbol || !symbol->has_param_types)
+    return 0;
+  if (symbol->kind == SYM_FUNC)
+    return 1;
+  return (symbol->kind == SYM_LOCAL || symbol->kind == SYM_PARAM ||
+          symbol->kind == SYM_GLOBAL) &&
+         symbol->type == TYPE_FUNC_PTR;
+}
+
+static int cc_validate_named_function_pointer_arity(
+    cc_state_t *cc, const cc_symbol_t *symbol, int argument_count) {
+  if (!symbol || symbol->type != TYPE_FUNC_PTR ||
+      !cc_symbol_has_cdecl_parameter_metadata(symbol))
+    return 1;
+  if (argument_count < symbol->param_count) {
+    cc_error(cc, "function-pointer call has too few arguments");
+    return 0;
+  }
+  if (!symbol->is_variadic && argument_count > symbol->param_count) {
+    cc_error(cc, "function-pointer call has too many arguments");
+    return 0;
+  }
+  return 1;
+}
+
 static int cc_emit_call_argument_push(cc_state_t *cc,
                                       cc_symbol_t *callee,
                                       int argument_index,
                                       int *slot_size) {
   cc_type_t slot_type = cc_last_expr_type;
+  int has_parameter_metadata =
+      cc_symbol_has_cdecl_parameter_metadata(callee);
   int has_fixed_parameter =
-      callee && callee->kind == SYM_FUNC && callee->has_param_types &&
+      has_parameter_metadata &&
       argument_index < callee->param_count;
   if (has_fixed_parameter) {
     slot_type = (cc_type_t)callee->param_types[argument_index];
     if (!cc_coerce_cdecl_argument(cc, slot_type))
       return 0;
-  } else if (callee && callee->kind == SYM_FUNC &&
-             callee->has_param_types && callee->is_variadic &&
+  } else if (has_parameter_metadata && callee->is_variadic &&
              argument_index >= callee->param_count) {
     /* C's default argument promotions apply beyond the fixed prefix. */
     if (slot_type == TYPE_FLOAT) {
@@ -2712,6 +2796,142 @@ static cc_type_t cc_integer_operation_type(cc_state_t *cc,
   return cc_promote(cc, left_type, right_type);
 }
 
+/* Preserve only integer constant expressions whose value can be reproduced
+ * without invoking undefined arithmetic. The emitted runtime expression is
+ * still authoritative; this side channel exists solely for C null pointer
+ * constant rules and never folds or replaces generated code. */
+static int cc_eval_integer_constant_binary(
+    cc_token_type_t op, uint32_t left_value, int left_is_unsigned,
+    uint32_t right_value, int right_is_unsigned,
+    cc_type_t operation_type, uint32_t *result, int *result_is_unsigned) {
+  int is_unsigned = operation_type == TYPE_UINT ||
+                    left_is_unsigned || right_is_unsigned;
+  int32_t left_signed = (int32_t)left_value;
+  int32_t right_signed = (int32_t)right_value;
+  const int32_t min_value = (-2147483647 - 1);
+  const int32_t max_value = 2147483647;
+
+  *result_is_unsigned = is_unsigned;
+  switch (op) {
+  case CC_TOK_PLUS:
+    if (!is_unsigned &&
+        ((right_signed > 0 && left_signed > max_value - right_signed) ||
+         (right_signed < 0 && left_signed < min_value - right_signed)))
+      return 0;
+    *result = left_value + right_value;
+    return 1;
+  case CC_TOK_MINUS:
+    if (!is_unsigned &&
+        ((right_signed < 0 && left_signed > max_value + right_signed) ||
+         (right_signed > 0 && left_signed < min_value + right_signed)))
+      return 0;
+    *result = left_value - right_value;
+    return 1;
+  case CC_TOK_STAR:
+    if (!is_unsigned) {
+      if (left_signed != 0 && right_signed != 0) {
+        if (left_signed > 0) {
+          if ((right_signed > 0 && left_signed > max_value / right_signed) ||
+              (right_signed < 0 && right_signed < min_value / left_signed))
+            return 0;
+        } else if ((right_signed > 0 &&
+                    left_signed < min_value / right_signed) ||
+                   (right_signed < 0 &&
+                    left_signed < max_value / right_signed)) {
+          return 0;
+        }
+      }
+    }
+    *result = left_value * right_value;
+    return 1;
+  case CC_TOK_SLASH:
+  case CC_TOK_PERCENT:
+    if (right_value == 0)
+      return 0;
+    if (!is_unsigned && left_signed == min_value && right_signed == -1)
+      return 0;
+    if (is_unsigned) {
+      *result = op == CC_TOK_SLASH
+                    ? left_value / right_value
+                    : left_value % right_value;
+    } else {
+      *result = (uint32_t)(op == CC_TOK_SLASH
+                               ? left_signed / right_signed
+                               : left_signed % right_signed);
+    }
+    return 1;
+  case CC_TOK_AMP:
+    *result = left_value & right_value;
+    return 1;
+  case CC_TOK_BOR:
+    *result = left_value | right_value;
+    return 1;
+  case CC_TOK_BXOR:
+    *result = left_value ^ right_value;
+    return 1;
+  case CC_TOK_SHL: {
+    int32_t shift = right_signed;
+    *result_is_unsigned = operation_type == TYPE_UINT;
+    if (shift < 0 || shift >= 32)
+      return 0;
+    if (!*result_is_unsigned &&
+        (left_signed < 0 ||
+         (shift > 0 && left_signed > (max_value >> shift))))
+      return 0;
+    *result = left_value << (uint32_t)shift;
+    return 1;
+  }
+  case CC_TOK_SHR: {
+    int32_t shift = right_signed;
+    *result_is_unsigned = operation_type == TYPE_UINT;
+    if (shift < 0 || shift >= 32)
+      return 0;
+    *result = *result_is_unsigned
+                  ? left_value >> (uint32_t)shift
+                  : (uint32_t)(left_signed >> (uint32_t)shift);
+    return 1;
+  }
+  case CC_TOK_EQEQ:
+    *result = left_value == right_value;
+    *result_is_unsigned = 0;
+    return 1;
+  case CC_TOK_NE:
+    *result = left_value != right_value;
+    *result_is_unsigned = 0;
+    return 1;
+  case CC_TOK_LT:
+    *result = is_unsigned ? left_value < right_value
+                          : left_signed < right_signed;
+    *result_is_unsigned = 0;
+    return 1;
+  case CC_TOK_GT:
+    *result = is_unsigned ? left_value > right_value
+                          : left_signed > right_signed;
+    *result_is_unsigned = 0;
+    return 1;
+  case CC_TOK_LE:
+    *result = is_unsigned ? left_value <= right_value
+                          : left_signed <= right_signed;
+    *result_is_unsigned = 0;
+    return 1;
+  case CC_TOK_GE:
+    *result = is_unsigned ? left_value >= right_value
+                          : left_signed >= right_signed;
+    *result_is_unsigned = 0;
+    return 1;
+  case CC_TOK_AND:
+    *result = left_value != 0 && right_value != 0;
+    *result_is_unsigned = 0;
+    return 1;
+  case CC_TOK_OR:
+    *result = left_value != 0 || right_value != 0;
+    *result_is_unsigned = 0;
+    return 1;
+  default:
+    return 0;
+  }
+}
+
 static int32_t cc_sizeof_symbol_deref(cc_state_t *cc, cc_symbol_t *sym,
                                       int deref_count) {
   cc_type_t type = sym->type;
@@ -2829,6 +3049,15 @@ static int32_t cc_sizeof_symbol_deref(cc_state_t *cc, cc_symbol_t *sym,
 
 /* Symbol Table */
 
+/* A complete-source parse may reuse function and kernel-binding symbols from
+ * an earlier successful unit. Keep their original values in the unused tail
+ * of the existing symbol arena until the source commits. They stay outside
+ * sym_count, so ordinary lookup cannot observe the snapshots. */
+static cc_state_t *cc_program_symbol_snapshot_owner;
+static int cc_program_symbol_snapshot_checkpoint;
+static int cc_program_symbol_snapshot_indices[CC_MAX_SYMBOLS];
+static int cc_program_symbol_snapshot_count;
+
 void cc_sym_init(cc_state_t *cc) {
   cc->sym_count = 0;
   cc->current_return_type = TYPE_INT;
@@ -2846,7 +3075,11 @@ cc_symbol_t *cc_sym_find(cc_state_t *cc, const char *name) {
 
 cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
                         cc_type_t type) {
-  if (cc->sym_count >= CC_MAX_SYMBOLS) {
+  int reserved_snapshots =
+      cc_program_symbol_snapshot_owner == cc
+          ? cc_program_symbol_snapshot_count
+          : 0;
+  if (cc->sym_count >= CC_MAX_SYMBOLS - reserved_snapshots) {
     cc_error(cc, "too many symbols");
     return NULL;
   }
@@ -2861,6 +3094,72 @@ cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
   sym->kind = kind;
   sym->type = type;
   return sym;
+}
+
+static int cc_begin_program_symbol_transaction(
+    cc_state_t *cc, int symbol_checkpoint) {
+  if (cc_program_symbol_snapshot_owner) {
+    cc_error(cc, "nested program-symbol transaction");
+    return 0;
+  }
+  cc_program_symbol_snapshot_owner = cc;
+  cc_program_symbol_snapshot_checkpoint = symbol_checkpoint;
+  cc_program_symbol_snapshot_count = 0;
+  return 1;
+}
+
+static int cc_snapshot_program_symbol(cc_state_t *cc,
+                                      cc_symbol_t *symbol) {
+  int symbol_index;
+  int snapshot_index;
+  int snapshot_slot;
+
+  if (cc_program_symbol_snapshot_owner != cc || !symbol)
+    return 1;
+  symbol_index = (int)(symbol - cc->symbols);
+  if (symbol_index < 0 || symbol_index >= cc->sym_count) {
+    cc_error(cc, "program-symbol transaction target is invalid");
+    return 0;
+  }
+  if (symbol_index >= cc_program_symbol_snapshot_checkpoint)
+    return 1;
+  for (snapshot_index = 0;
+       snapshot_index < cc_program_symbol_snapshot_count;
+       snapshot_index++) {
+    if (cc_program_symbol_snapshot_indices[snapshot_index] == symbol_index)
+      return 1;
+  }
+  if (cc->sym_count >=
+      CC_MAX_SYMBOLS - cc_program_symbol_snapshot_count) {
+    cc_error(cc, "too many symbols for program rollback");
+    return 0;
+  }
+  snapshot_slot =
+      CC_MAX_SYMBOLS - 1 - cc_program_symbol_snapshot_count;
+  cc->symbols[snapshot_slot] = *symbol;
+  cc_program_symbol_snapshot_indices[cc_program_symbol_snapshot_count] =
+      symbol_index;
+  cc_program_symbol_snapshot_count++;
+  return 1;
+}
+
+static void cc_finish_program_symbol_transaction(cc_state_t *cc,
+                                                 int rollback) {
+  int snapshot_index;
+
+  if (cc_program_symbol_snapshot_owner != cc)
+    return;
+  if (rollback) {
+    for (snapshot_index = cc_program_symbol_snapshot_count - 1;
+         snapshot_index >= 0; snapshot_index--) {
+      int snapshot_slot = CC_MAX_SYMBOLS - 1 - snapshot_index;
+      cc->symbols[cc_program_symbol_snapshot_indices[snapshot_index]] =
+          cc->symbols[snapshot_slot];
+    }
+  }
+  cc_program_symbol_snapshot_count = 0;
+  cc_program_symbol_snapshot_checkpoint = 0;
+  cc_program_symbol_snapshot_owner = NULL;
 }
 
 static void cc_labels_reset(cc_state_t *cc) { cc->label_count = 0; }
@@ -2945,6 +3244,8 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec);
 static void cc_parse_primary(cc_state_t *cc);
 static int cc_emit_indirect_scalar_load(cc_state_t *cc,
                                         cc_type_t object_type);
+static int cc_function_pointer_signatures_match(
+    const cc_symbol_t *left, const cc_symbol_t *right);
 
 static int cc_is_prescan_type_token(cc_token_type_t t) {
   return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID ||
@@ -2961,6 +3262,8 @@ static int cc_is_prescan_type_token(cc_token_type_t t) {
 
 static void cc_prescan_add_function(cc_state_t *cc, const char *name) {
   cc_symbol_t *sym = cc_sym_find(cc, name);
+  if (sym && !cc_snapshot_program_symbol(cc, sym))
+    return;
   if (!sym) {
     sym = cc_sym_add(cc, name, SYM_FUNC, TYPE_INT);
   }
@@ -2969,7 +3272,9 @@ static void cc_prescan_add_function(cc_state_t *cc, const char *name) {
     if (!sym->is_defined) {
       sym->offset = 0;
       sym->address = 0;
-      sym->param_count = 0;
+      if (!sym->has_param_types &&
+          !sym->function_signature_is_provisional)
+        sym->param_count = 0;
     }
   }
 }
@@ -3629,6 +3934,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
   char name[CC_MAX_IDENT];
   int i = 0;
   cc_reset_expr_subscript_metadata();
+  cc_clear_expr_callable_provenance();
   while (cc->cur.text[i] && i < CC_MAX_IDENT - 1) {
     name[i] = cc->cur.text[i];
     i++;
@@ -3646,6 +3952,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       cc_emit_intrinsic(cc, intr);
       cc_reset_expr_subscript_metadata();
       cc_last_expr_direct_lvalue_sym = NULL;
+      cc_clear_expr_callable_provenance();
       cc_last_expr_indirect_lvalue = 0;
       return;
     }
@@ -3654,6 +3961,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
         (call_sym->kind == SYM_LOCAL || call_sym->kind == SYM_PARAM ||
          call_sym->kind == SYM_GLOBAL) &&
         call_sym->type == TYPE_FUNC_PTR &&
+        !cc_symbol_has_cdecl_parameter_metadata(call_sym) &&
         cc_is_simd_value_type(call_sym->function_pointer_return_type)) {
       cc_error(cc, "SIMD function-pointer returns are not supported");
       return;
@@ -3688,6 +3996,9 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       }
     }
     cc_expect(cc, CC_TOK_RPAREN);
+
+    if (!cc_validate_named_function_pointer_arity(cc, call_sym, argc))
+      return;
 
     if (!cc_emit_cdecl_argument_layout(cc, arg_sizes, argc))
       return;
@@ -3724,6 +4035,12 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     if (sym && (sym->kind == SYM_FUNC || sym->kind == SYM_KERNEL)) {
       call_ret_type = sym->type;
       call_ret_struct_index = sym->struct_index;
+    } else if (sym &&
+               (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM ||
+                sym->kind == SYM_GLOBAL) &&
+               sym->type == TYPE_FUNC_PTR) {
+      call_ret_type = sym->function_pointer_return_type;
+      call_ret_struct_index = sym->struct_index;
     }
     if (sym) {
       /* HolyC-style auto-main: if the user explicitly calls main() at the
@@ -3747,6 +4064,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           if (cc->patch_count < CC_MAX_PATCHES) {
             cc_patch_t *p = &cc->patches[cc->patch_count++];
             p->code_offset = patch_pos;
+            p->is_absolute = 0;
             int pi = 0;
             while (name[pi] && pi < CC_MAX_IDENT - 1) {
               p->name[pi] = name[pi];
@@ -3785,6 +4103,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       if (cc->patch_count < CC_MAX_PATCHES) {
         cc_patch_t *p = &cc->patches[cc->patch_count++];
         p->code_offset = patch_pos;
+        p->is_absolute = 0;
         int pi = 0;
         while (name[pi] && pi < CC_MAX_IDENT - 1) {
           p->name[pi] = name[pi];
@@ -3814,6 +4133,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     cc_seed_pointer_subscript_metadata(cc, cc_last_expr_type,
                                        call_ret_struct_index);
     cc_last_expr_direct_lvalue_sym = NULL;
+    cc_clear_expr_callable_provenance();
     cc_last_expr_indirect_lvalue = 0;
     return;
   }
@@ -3824,6 +4144,9 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     cc_error(cc, "undefined variable");
     return;
   }
+
+  if (sym->type == TYPE_FUNC_PTR)
+    cc_set_expr_function_signature(sym);
 
   if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
     if (sym->is_array || sym->type == TYPE_STRUCT) {
@@ -3940,12 +4263,32 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     if (sym->is_defined) {
       emit_mov_eax_imm(cc, cc->code_base + (uint32_t)sym->offset);
     } else {
-      emit_mov_eax_imm(cc, sym->address);
+      uint32_t patch_pos;
+      emit8(cc, 0xB8); /* mov eax, imm32 */
+      patch_pos = cc->code_pos;
+      emit32(cc, 0);
+      if (cc->patch_count >= CC_MAX_PATCHES) {
+        cc_error(cc, "too many forward function references");
+        return;
+      }
+      {
+        cc_patch_t *patch = &cc->patches[cc->patch_count++];
+        int name_index = 0;
+        patch->code_offset = patch_pos;
+        patch->is_absolute = 1;
+        while (name[name_index] && name_index < CC_MAX_IDENT - 1) {
+          patch->name[name_index] = name[name_index];
+          name_index++;
+        }
+        patch->name[name_index] = '\0';
+      }
     }
     cc_last_expr_type = TYPE_FUNC_PTR;
+    cc_set_expr_function_signature(sym);
   } else if (sym->kind == SYM_KERNEL) {
     emit_mov_eax_imm(cc, sym->address);
     cc_last_expr_type = TYPE_FUNC_PTR;
+    cc_set_expr_function_signature(sym);
   }
 }
 
@@ -3956,6 +4299,7 @@ static void cc_parse_primary(cc_state_t *cc) {
   cc_reset_expr_subscript_metadata();
   cc_last_expr_indirect_lvalue = 0;
   cc_last_expr_direct_lvalue_sym = NULL;
+  cc_clear_expr_callable_provenance();
   cc_last_expr_simd_lane = 0;
   cc_last_expr_const_lvalue = 0;
   cc_token_t tok = cc_next(cc);
@@ -3966,6 +4310,8 @@ static void cc_parse_primary(cc_state_t *cc) {
   case CC_TOK_NUMBER:
     emit_mov_eax_imm(cc, (uint32_t)tok.int_value);
     cc_last_expr_type = tok.int_is_unsigned ? TYPE_UINT : TYPE_INT;
+    cc_publish_integer_constant_expression((uint32_t)tok.int_value,
+                                           tok.int_is_unsigned);
     break;
 
   case CC_TOK_FLIT: {
@@ -3994,6 +4340,7 @@ static void cc_parse_primary(cc_state_t *cc) {
   case CC_TOK_CHAR_LIT:
     emit_mov_eax_imm(cc, (uint32_t)tok.int_value);
     cc_last_expr_type = TYPE_CHAR;
+    cc_publish_integer_constant_expression((uint32_t)tok.int_value, 0);
     break;
 
   case CC_TOK_STRING: {
@@ -4136,6 +4483,8 @@ static void cc_parse_primary(cc_state_t *cc) {
     cc_last_expr_indirect_lvalue = 0;
     cc_last_expr_direct_lvalue_sym = NULL;
     cc_reset_expr_subscript_metadata();
+    cc_clear_expr_callable_provenance();
+    cc_publish_integer_constant_expression((uint32_t)size, 1);
     break;
   }
 
@@ -4151,6 +4500,10 @@ static void cc_parse_primary(cc_state_t *cc) {
       if (cc_reject_incomplete_simd_row(cc))
         break;
       cc_type_t src_type = cc_last_expr_type;
+      int source_is_integer_constant =
+          cc_last_expr_is_integer_constant_expression;
+      uint32_t source_integer_constant =
+          cc_last_expr_integer_constant_value;
       /* Integer <-> float <-> double explicit casts. Character values use
        * the same EAX representation as integers after byte loads, so their
        * FP conversions use the scalar integer CVT instructions too. */
@@ -4208,6 +4561,17 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_last_expr_type = cast_type;
       cc_last_expr_struct_index = cast_si;
       cc_last_expr_direct_lvalue_sym = NULL;
+      cc_clear_expr_callable_provenance();
+      cc_last_expr_function_signature_erased = cast_type == TYPE_PTR;
+      if (source_is_integer_constant &&
+          (cast_type == TYPE_INT || cast_type == TYPE_UINT ||
+           cast_type == TYPE_CHAR)) {
+        uint32_t cast_value = source_integer_constant;
+        if (cast_type == TYPE_CHAR)
+          cast_value &= 0xffu;
+        cc_publish_integer_constant_expression(
+            cast_value, cast_type == TYPE_UINT);
+      }
       cc_last_expr_indirect_lvalue = 0;
     } else {
       int saved_sizeof_simd_row_depth = cc_sizeof_simd_row_depth;
@@ -4293,6 +4657,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     }
     cc_last_expr_struct_index = sym->struct_index;
     cc_last_expr_direct_lvalue_sym = NULL;
+    cc_clear_expr_callable_provenance();
     cc_last_expr_indirect_lvalue = 0;
     cc_last_expr_simd_lane = 0;
     cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
@@ -4324,6 +4689,10 @@ static void cc_parse_primary(cc_state_t *cc) {
   case CC_TOK_NOT: {
     /* Logical NOT: !expr */
     cc_parse_primary(cc);
+    int operand_is_integer_constant =
+        cc_last_expr_is_integer_constant_expression;
+    uint32_t operand_integer_constant =
+        cc_last_expr_integer_constant_value;
     if (cc_reject_incomplete_simd_row(cc))
       break;
     if (cc->error ||
@@ -4337,6 +4706,10 @@ static void cc_parse_primary(cc_state_t *cc) {
     cc_last_expr_type = TYPE_INT;
     cc_reset_expr_subscript_metadata();
     cc_last_expr_direct_lvalue_sym = NULL;
+    cc_clear_expr_callable_provenance();
+    if (operand_is_integer_constant)
+      cc_publish_integer_constant_expression(
+          operand_integer_constant == 0, 0);
     cc_last_expr_indirect_lvalue = 0;
     break;
   }
@@ -4344,6 +4717,10 @@ static void cc_parse_primary(cc_state_t *cc) {
   case CC_TOK_BNOT: {
     /* Bitwise NOT: ~expr */
     cc_parse_primary(cc);
+    int operand_is_integer_constant =
+        cc_last_expr_is_integer_constant_expression;
+    uint32_t operand_integer_constant =
+        cc_last_expr_integer_constant_value;
     if (cc_reject_incomplete_simd_row(cc))
       break;
     cc_type_t operand_type = cc_last_expr_type;
@@ -4357,6 +4734,10 @@ static void cc_parse_primary(cc_state_t *cc) {
     cc_last_expr_type = operand_type == TYPE_UINT ? TYPE_UINT : TYPE_INT;
     cc_reset_expr_subscript_metadata();
     cc_last_expr_direct_lvalue_sym = NULL;
+    cc_clear_expr_callable_provenance();
+    if (operand_is_integer_constant)
+      cc_publish_integer_constant_expression(
+          ~operand_integer_constant, operand_type == TYPE_UINT);
     cc_last_expr_indirect_lvalue = 0;
     break;
   }
@@ -4367,6 +4748,12 @@ static void cc_parse_primary(cc_state_t *cc) {
      * in XMM0, while integer results live in EAX. */
     int negate = tok.type == CC_TOK_MINUS;
     cc_parse_primary(cc);
+    int operand_is_integer_constant =
+        cc_last_expr_is_integer_constant_expression;
+    uint32_t operand_integer_constant =
+        cc_last_expr_integer_constant_value;
+    int operand_integer_constant_is_unsigned =
+        cc_last_expr_integer_constant_is_unsigned;
     if (cc->error)
       return;
     if (cc_reject_incomplete_simd_row(cc))
@@ -4397,6 +4784,15 @@ static void cc_parse_primary(cc_state_t *cc) {
     }
     cc_reset_expr_subscript_metadata();
     cc_last_expr_direct_lvalue_sym = NULL;
+    cc_clear_expr_callable_provenance();
+    if (operand_is_integer_constant &&
+        (operand_integer_constant_is_unsigned || !negate ||
+         operand_integer_constant != 0x80000000u)) {
+      cc_publish_integer_constant_expression(
+          negate ? 0u - operand_integer_constant
+                 : operand_integer_constant,
+          operand_integer_constant_is_unsigned);
+    }
     cc_last_expr_indirect_lvalue = 0;
     break;
   }
@@ -4498,6 +4894,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     }
     cc_last_expr_direct_lvalue_sym = NULL;
     cc_last_expr_indirect_lvalue = 0;
+    cc_clear_expr_callable_provenance();
 
     break;
   }
@@ -4648,6 +5045,7 @@ static void cc_parse_primary(cc_state_t *cc) {
               if (cc->patch_count < CC_MAX_PATCHES) {
                 cc_patch_t *p = &cc->patches[cc->patch_count++];
                 p->code_offset = patch_pos;
+                p->is_absolute = 0;
                 int mi = 0;
                 while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
                   p->name[mi] = method_sym_name[mi];
@@ -4671,6 +5069,7 @@ static void cc_parse_primary(cc_state_t *cc) {
               if (cc->patch_count < CC_MAX_PATCHES) {
                 cc_patch_t *p = &cc->patches[cc->patch_count++];
                 p->code_offset = patch_pos;
+                p->is_absolute = 0;
                 int mi = 0;
                 while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
                   p->name[mi] = method_sym_name[mi];
@@ -4703,6 +5102,7 @@ static void cc_parse_primary(cc_state_t *cc) {
           cc_seed_pointer_subscript_metadata(cc, mret, mret_si);
           cc_last_expr_direct_lvalue_sym = NULL;
           cc_last_expr_indirect_lvalue = 0;
+          cc_clear_expr_callable_provenance();
         }
         continue;
       }
@@ -4908,6 +5308,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       }
 
       cc_expect(cc, CC_TOK_RBRACK);
+      cc_clear_expr_callable_provenance();
       if (address_of_array_element &&
           cc_peek(cc).type != CC_TOK_LBRACK) {
         cc_type_t selected_type = cc_last_expr_type;
@@ -5005,6 +5406,12 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
     cc_next(cc); /* consume operator */
 
     cc_type_t left_type = cc_last_expr_type;
+    int left_is_integer_constant =
+        cc_last_expr_is_integer_constant_expression;
+    uint32_t left_integer_constant =
+        cc_last_expr_integer_constant_value;
+    int left_integer_constant_is_unsigned =
+        cc_last_expr_integer_constant_is_unsigned;
     int left_is_fp = (left_type == TYPE_FLOAT || left_type == TYPE_DOUBLE);
     int left_is_simd =
         (left_type == TYPE_FLOAT4 || left_type == TYPE_DOUBLE2);
@@ -5026,11 +5433,18 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
     }
     cc_parse_expression(cc, prec + 1);
     cc_type_t right_type = cc_last_expr_type;
+    int right_is_integer_constant =
+        cc_last_expr_is_integer_constant_expression;
+    uint32_t right_integer_constant =
+        cc_last_expr_integer_constant_value;
+    int right_integer_constant_is_unsigned =
+        cc_last_expr_integer_constant_is_unsigned;
     int right_is_fp = (right_type == TYPE_FLOAT || right_type == TYPE_DOUBLE);
     int right_is_simd =
         (right_type == TYPE_FLOAT4 || right_type == TYPE_DOUBLE2);
 
     cc_last_expr_direct_lvalue_sym = NULL;
+    cc_clear_expr_callable_provenance();
     cc_last_expr_indirect_lvalue = 0;
     cc_last_expr_simd_lane = 0;
 
@@ -5218,6 +5632,18 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
     } else {
       cc_last_expr_type = TYPE_INT;
     }
+    if (left_is_integer_constant && right_is_integer_constant) {
+      uint32_t constant_result;
+      int constant_result_is_unsigned;
+      if (cc_eval_integer_constant_binary(
+              op.type, left_integer_constant,
+              left_integer_constant_is_unsigned, right_integer_constant,
+              right_integer_constant_is_unsigned, integer_operation_type,
+              &constant_result, &constant_result_is_unsigned)) {
+        cc_publish_integer_constant_expression(
+            constant_result, constant_result_is_unsigned);
+      }
+    }
   }
 
   /* Ternary operator ?: (lowest precedence; right-associative).
@@ -5225,6 +5651,10 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
    * it when caller accepts lowest-precedence expressions (min_prec <= 1).*/
   while (!cc->error && min_prec <= 1 && cc_peek(cc).type == CC_TOK_QUESTION) {
     cc_type_t condition_type = cc_last_expr_type;
+    int condition_is_integer_constant =
+        cc_last_expr_is_integer_constant_expression;
+    uint32_t condition_integer_constant =
+        cc_last_expr_integer_constant_value;
     if (cc_reject_incomplete_simd_row(cc))
       return;
     cc_next(cc); /* consume ? */
@@ -5243,6 +5673,23 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
     /* Parse true arm. */
     cc_parse_expression(cc, 1);
     cc_type_t true_type = cc_last_expr_type;
+    int true_signature_erased =
+        cc_last_expr_function_signature_erased;
+    int true_is_null_pointer_constant =
+        cc_last_expr_is_null_pointer_constant;
+    int true_is_integer_constant =
+        cc_last_expr_is_integer_constant_expression;
+    uint32_t true_integer_constant =
+        cc_last_expr_integer_constant_value;
+    int true_integer_constant_is_unsigned =
+        cc_last_expr_integer_constant_is_unsigned;
+    cc_symbol_t *true_function_signatures[CC_MAX_PARAMS];
+    int true_function_signature_count =
+        cc_last_expr_function_signature_count;
+    memcpy(true_function_signatures,
+           cc_last_expr_function_signature_candidates,
+           sizeof(*true_function_signatures) *
+               (size_t)true_function_signature_count);
 
     /* Jump over false arm. */
     uint32_t jmp_off = cc->code_pos;
@@ -5262,6 +5709,18 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
      * a ? b : c ? d : e  => a ? b : (c ? d : e).*/
     cc_parse_expression(cc, 1);
     cc_type_t false_type = cc_last_expr_type;
+    int false_signature_erased =
+        cc_last_expr_function_signature_erased;
+    int false_is_null_pointer_constant =
+        cc_last_expr_is_null_pointer_constant;
+    int false_is_integer_constant =
+        cc_last_expr_is_integer_constant_expression;
+    uint32_t false_integer_constant =
+        cc_last_expr_integer_constant_value;
+    int false_integer_constant_is_unsigned =
+        cc_last_expr_integer_constant_is_unsigned;
+    int false_function_signature_count =
+        cc_last_expr_function_signature_count;
     cc_last_expr_direct_lvalue_sym = NULL;
     cc_last_expr_indirect_lvalue = 0;
 
@@ -5272,6 +5731,97 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
         (false_type == TYPE_INT || false_type == TYPE_UINT ||
          false_type == TYPE_CHAR)) {
       cc_last_expr_type = cc_promote(cc, true_type, false_type);
+    } else if (cc_is_object_pointer_type(true_type) &&
+               false_is_null_pointer_constant) {
+      cc_last_expr_type = true_type;
+    } else if (true_is_null_pointer_constant &&
+               cc_is_object_pointer_type(false_type)) {
+      cc_last_expr_type = false_type;
+    }
+    if (true_type == TYPE_FUNC_PTR && false_type == TYPE_FUNC_PTR) {
+      int true_candidate_index;
+      int false_candidate_index;
+
+      for (true_candidate_index = 0;
+           true_candidate_index < true_function_signature_count;
+           true_candidate_index++) {
+        for (false_candidate_index = 0;
+             false_candidate_index < false_function_signature_count;
+             false_candidate_index++) {
+          if (!cc_function_pointer_signatures_match(
+                  true_function_signatures[true_candidate_index],
+                  cc_last_expr_function_signature_candidates
+                      [false_candidate_index])) {
+            cc_error(
+                cc, "conditional function-pointer signatures do not match");
+            return;
+          }
+        }
+      }
+      cc_last_expr_type = TYPE_FUNC_PTR;
+      if (true_function_signature_count == 0 ||
+          false_function_signature_count == 0) {
+        cc_clear_expr_function_signatures();
+      } else {
+        for (true_candidate_index = 0;
+             true_candidate_index < true_function_signature_count;
+             true_candidate_index++) {
+          if (!cc_append_expr_function_signature(
+                  true_function_signatures[true_candidate_index])) {
+            cc_error(cc, "too many conditional function-pointer candidates");
+            return;
+          }
+        }
+      }
+    } else if (true_type == TYPE_FUNC_PTR &&
+               false_is_null_pointer_constant) {
+      int true_candidate_index;
+      cc_last_expr_type = TYPE_FUNC_PTR;
+      cc_clear_expr_function_signatures();
+      for (true_candidate_index = 0;
+           true_candidate_index < true_function_signature_count;
+           true_candidate_index++) {
+        if (!cc_append_expr_function_signature(
+                true_function_signatures[true_candidate_index])) {
+          cc_error(cc, "too many conditional function-pointer candidates");
+          return;
+        }
+      }
+    } else if (true_is_null_pointer_constant &&
+               false_type == TYPE_FUNC_PTR) {
+      cc_last_expr_type = TYPE_FUNC_PTR;
+    } else {
+      cc_clear_expr_function_signatures();
+    }
+    if (cc_is_object_pointer_type(true_type) &&
+        cc_is_object_pointer_type(false_type)) {
+      cc_last_expr_function_signature_erased =
+          true_signature_erased && false_signature_erased;
+    } else if (cc_is_object_pointer_type(true_type) &&
+               false_is_null_pointer_constant) {
+      cc_last_expr_function_signature_erased = true_signature_erased;
+    } else if (true_is_null_pointer_constant &&
+               cc_is_object_pointer_type(false_type)) {
+      cc_last_expr_function_signature_erased = false_signature_erased;
+    } else {
+      cc_last_expr_function_signature_erased = 0;
+    }
+    cc_last_expr_is_null_pointer_constant = 0;
+    cc_last_expr_is_integer_constant_expression = 0;
+    cc_last_expr_integer_constant_value = 0;
+    cc_last_expr_integer_constant_is_unsigned = 0;
+    if (condition_is_integer_constant &&
+        true_is_integer_constant && false_is_integer_constant &&
+        (cc_last_expr_type == TYPE_INT ||
+         cc_last_expr_type == TYPE_UINT ||
+         cc_last_expr_type == TYPE_CHAR)) {
+      if (condition_integer_constant != 0) {
+        cc_publish_integer_constant_expression(
+            true_integer_constant, true_integer_constant_is_unsigned);
+      } else {
+        cc_publish_integer_constant_expression(
+            false_integer_constant, false_integer_constant_is_unsigned);
+      }
     }
     cc_last_expr_array_object_size = 0;
   }
@@ -7747,6 +8297,532 @@ static void cc_parse_statement(cc_state_t *cc) {
   cc->statement_depth--;
 }
 
+static int cc_skip_balanced_declarator_tokens(cc_state_t *cc,
+                                               cc_token_type_t open,
+                                               cc_token_type_t close) {
+  int depth = 1;
+  if (cc_peek(cc).type != open) {
+    cc_error(cc, "expected declarator delimiter");
+    return 0;
+  }
+  cc_next(cc);
+  while (depth > 0 && !cc->error) {
+    cc_token_t token = cc_next(cc);
+    if (token.type == open)
+      depth++;
+    else if (token.type == close)
+      depth--;
+    else if (token.type == CC_TOK_EOF) {
+      cc_error(cc, "unexpected EOF in function-pointer declarator");
+      return 0;
+    }
+  }
+  return !cc->error;
+}
+
+static int cc_parse_function_pointer_parameter_type(
+    cc_state_t *cc, cc_type_t *out_type, int8_t *out_struct_index) {
+  cc_type_t parameter_type = cc_parse_type(cc);
+  int parameter_struct_index = cc_last_type_struct_index;
+  int typedef_array_count = cc_last_type_array_count;
+  if (cc->error)
+    return 0;
+
+  if (cc_peek(cc).type == CC_TOK_LPAREN) {
+    int pointer_depth = 0;
+    cc_next(cc);
+    while (cc_peek(cc).type == CC_TOK_STAR) {
+      cc_next(cc);
+      pointer_depth++;
+      while (cc_is_type_prefix(cc_peek(cc).type)) {
+        if (cc_peek(cc).type == CC_TOK_ATTRIBUTE)
+          cc_skip_attributes(cc);
+        else
+          cc_next(cc);
+      }
+    }
+    if (pointer_depth == 0) {
+      cc_error(cc, "function-pointer parameter declarator requires '*'");
+      return 0;
+    }
+    if (cc_peek(cc).type == CC_TOK_IDENT)
+      cc_next(cc); /* optional parameter name */
+    cc_expect(cc, CC_TOK_RPAREN);
+    if (cc->error)
+      return 0;
+
+    if (cc_peek(cc).type == CC_TOK_LPAREN) {
+      /* A nested function-pointer parameter is one four-byte ABI value.
+       * Its own signature is not needed to lay out the outer call. */
+      if (!cc_skip_balanced_declarator_tokens(
+              cc, CC_TOK_LPAREN, CC_TOK_RPAREN))
+        return 0;
+      parameter_type = TYPE_FUNC_PTR;
+    } else {
+      parameter_type = cc_apply_pointer_declarator(
+          cc, parameter_type, pointer_depth);
+      if (cc->error)
+        return 0;
+      /* Pointer-to-array parameters also occupy one pointer slot. */
+      while (cc_peek(cc).type == CC_TOK_LBRACK) {
+        if (!cc_skip_balanced_declarator_tokens(
+                cc, CC_TOK_LBRACK, CC_TOK_RBRACK))
+          return 0;
+      }
+    }
+  } else {
+    if (cc_peek(cc).type == CC_TOK_IDENT)
+      cc_next(cc); /* optional parameter name */
+    parameter_type = cc_adjust_array_parameter_declarator(
+        cc, parameter_type, typedef_array_count);
+    if (cc->error)
+      return 0;
+  }
+
+  if (cc_peek(cc).type == CC_TOK_ATTRIBUTE)
+    cc_skip_attributes(cc);
+  if (cc_cdecl_slot_size(parameter_type) == 0) {
+    cc_error(cc, "function-pointer parameter type is not supported");
+    return 0;
+  }
+  *out_type = parameter_type;
+  *out_struct_index = parameter_type == TYPE_STRUCT_PTR
+                          ? (int8_t)parameter_struct_index
+                          : (int8_t)-1;
+  return 1;
+}
+
+static int cc_parse_function_pointer_signature(
+    cc_state_t *cc, uint8_t param_types[CC_MAX_PARAMS],
+    int8_t param_struct_indices[CC_MAX_PARAMS], int *param_count,
+    int *has_param_types, int *is_variadic) {
+  cc_lexer_checkpoint_t checkpoint;
+  *param_count = 0;
+  *has_param_types = 0;
+  *is_variadic = 0;
+  memset(param_types, 0, CC_MAX_PARAMS * sizeof(param_types[0]));
+  memset(param_struct_indices, -1,
+         CC_MAX_PARAMS * sizeof(param_struct_indices[0]));
+
+  cc_expect(cc, CC_TOK_LPAREN);
+  if (cc->error)
+    return 0;
+  if (cc_peek(cc).type == CC_TOK_RPAREN) {
+    cc_next(cc); /* C's empty, unprototyped parameter list */
+    return 1;
+  }
+
+  /* A sole void is a complete zero-parameter prototype. */
+  if (cc_peek(cc).type == CC_TOK_VOID) {
+    cc_type_t void_type;
+    cc_checkpoint_lexer(cc, &checkpoint);
+    void_type = cc_parse_type(cc);
+    if (!cc->error && void_type == TYPE_VOID &&
+        cc_peek(cc).type == CC_TOK_RPAREN) {
+      cc_next(cc);
+      *has_param_types = 1;
+      return 1;
+    }
+    cc_restore_lexer(cc, &checkpoint);
+  }
+
+  while (!cc->error) {
+    cc_type_t parameter_type;
+    int8_t parameter_struct_index;
+    if (cc_peek(cc).type == CC_TOK_ELLIPSIS) {
+      cc_next(cc);
+      *has_param_types = 1;
+      *is_variadic = 1;
+      cc_expect(cc, CC_TOK_RPAREN);
+      return !cc->error;
+    }
+    if (*param_count >= CC_MAX_PARAMS) {
+      cc_error(cc, "too many function-pointer parameters");
+      return 0;
+    }
+    if (!cc_parse_function_pointer_parameter_type(
+            cc, &parameter_type, &parameter_struct_index))
+      return 0;
+    param_types[*param_count] = (uint8_t)parameter_type;
+    param_struct_indices[*param_count] = parameter_struct_index;
+    (*param_count)++;
+    *has_param_types = 1;
+
+    if (cc_peek(cc).type == CC_TOK_RPAREN) {
+      cc_next(cc);
+      return 1;
+    }
+    cc_expect(cc, CC_TOK_COMMA);
+    if (cc->error)
+      return 0;
+  }
+  return 0;
+}
+
+typedef enum {
+  CC_FP_INITIALIZER_OTHER = 0,
+  CC_FP_INITIALIZER_DESIGNATOR,
+  CC_FP_INITIALIZER_ZERO,
+  CC_FP_INITIALIZER_EXPLICIT_CAST
+} cc_function_pointer_initializer_kind_t;
+
+/* Classify the few initializer shapes whose function-pointer meaning the
+ * private type model can prove. Grouped designators and zero are retained.
+ * A cast through void * deliberately erases the source signature. */
+static cc_function_pointer_initializer_kind_t
+cc_probe_function_pointer_initializer(cc_state_t *cc,
+                                      cc_symbol_t **out_target) {
+  cc_lexer_checkpoint_t checkpoint;
+  cc_token_t token;
+  cc_symbol_t *target = NULL;
+  int grouping_depth = 0;
+
+  *out_target = NULL;
+
+  cc_checkpoint_lexer(cc, &checkpoint);
+  while (cc_lex_peek(cc).type == CC_TOK_LPAREN) {
+    (void)cc_lex_next(cc);
+    grouping_depth++;
+  }
+
+  token = cc_lex_next(cc);
+  if (token.type != CC_TOK_IDENT && token.type != CC_TOK_NUMBER)
+    goto done;
+  while (grouping_depth > 0) {
+    if (cc_lex_next(cc).type != CC_TOK_RPAREN)
+      goto done;
+    grouping_depth--;
+  }
+  if (cc_lex_peek(cc).type != CC_TOK_SEMICOLON)
+    goto done;
+
+  if (token.type == CC_TOK_NUMBER && token.int_value == 0) {
+    cc_restore_lexer(cc, &checkpoint);
+    return CC_FP_INITIALIZER_ZERO;
+  }
+  if (token.type != CC_TOK_IDENT)
+    goto done;
+
+  target = cc_sym_find(cc, token.text);
+  if (!target ||
+      ((target->kind != SYM_FUNC && target->kind != SYM_KERNEL) &&
+       !((target->kind == SYM_LOCAL || target->kind == SYM_PARAM ||
+          target->kind == SYM_GLOBAL) &&
+         target->type == TYPE_FUNC_PTR)))
+    goto done;
+
+  cc_restore_lexer(cc, &checkpoint);
+  *out_target = target;
+  return CC_FP_INITIALIZER_DESIGNATOR;
+
+done:
+  cc_restore_lexer(cc, &checkpoint);
+  return CC_FP_INITIALIZER_OTHER;
+}
+
+static cc_type_t cc_function_pointer_designator_result_type(
+    const cc_symbol_t *target) {
+  if (target && target->type == TYPE_FUNC_PTR)
+    return target->function_pointer_return_type;
+  return target ? target->type : TYPE_VOID;
+}
+
+static int cc_function_signature_is_prescan_unknown(
+    const cc_symbol_t *target) {
+  return target && target->kind == SYM_FUNC && !target->is_defined &&
+         !target->has_param_types &&
+         !target->function_signature_is_provisional;
+}
+
+static int cc_function_pointer_signatures_match(
+    const cc_symbol_t *left, const cc_symbol_t *right) {
+  cc_type_t left_result;
+  cc_type_t right_result;
+  int parameter_index;
+
+  if (!left || !right)
+    return 0;
+  if (cc_function_signature_is_prescan_unknown(left) ||
+      cc_function_signature_is_prescan_unknown(right))
+    return 1;
+  left_result = cc_function_pointer_designator_result_type(left);
+  right_result = cc_function_pointer_designator_result_type(right);
+  if (left_result != right_result ||
+      (left_result == TYPE_STRUCT_PTR &&
+       left->struct_index != right->struct_index))
+    return 0;
+  if (!left->has_param_types || !right->has_param_types)
+    return 1;
+  if (left->param_count != right->param_count ||
+      left->is_variadic != right->is_variadic)
+    return 0;
+  for (parameter_index = 0; parameter_index < left->param_count;
+       parameter_index++) {
+    if (left->param_types[parameter_index] !=
+            right->param_types[parameter_index] ||
+        (left->param_types[parameter_index] == TYPE_STRUCT_PTR &&
+         left->param_struct_indices[parameter_index] !=
+             right->param_struct_indices[parameter_index]))
+      return 0;
+  }
+  return 1;
+}
+
+typedef enum {
+  CC_SIGNATURE_ROLLBACK_PRESCAN_UNKNOWN,
+  CC_SIGNATURE_ROLLBACK_UNTYPED_PROVISIONAL
+} cc_signature_rollback_kind_t;
+
+typedef struct {
+  int symbol_index;
+  cc_signature_rollback_kind_t kind;
+  cc_type_t prior_type;
+  int prior_struct_index;
+} cc_signature_rollback_entry_t;
+
+static cc_state_t *cc_signature_journal_owner;
+static cc_signature_rollback_entry_t
+    cc_signature_journal[CC_MAX_SYMBOLS];
+static int cc_signature_journal_count;
+
+static void cc_restore_signature_journal_entry(
+    cc_state_t *cc, const cc_signature_rollback_entry_t *entry) {
+  cc_symbol_t *target = &cc->symbols[entry->symbol_index];
+  target->param_count = 0;
+  memset(target->param_types, 0, sizeof(target->param_types));
+  if (entry->kind == CC_SIGNATURE_ROLLBACK_PRESCAN_UNKNOWN) {
+    memset(target->param_struct_indices, -1,
+           sizeof(target->param_struct_indices));
+    target->type = entry->prior_type;
+    target->struct_index = entry->prior_struct_index;
+    target->has_param_types = 0;
+    target->function_signature_is_provisional = 0;
+    target->is_variadic = 0;
+  } else {
+    memset(target->param_struct_indices, -1,
+           sizeof(target->param_struct_indices));
+    target->has_param_types = 0;
+    target->is_variadic = 0;
+  }
+}
+
+static int cc_begin_function_signature_transaction(cc_state_t *cc) {
+  if (cc_signature_journal_owner) {
+    cc_error(cc, "nested function-signature transaction");
+    return 0;
+  }
+  cc_signature_journal_owner = cc;
+  cc_signature_journal_count = 0;
+  return 1;
+}
+
+static int cc_journal_function_signature(
+    cc_state_t *cc, cc_symbol_t *target,
+    cc_signature_rollback_kind_t kind) {
+  int symbol_index;
+  int journal_index;
+
+  if (cc_signature_journal_owner != cc)
+    return 1;
+  symbol_index = (int)(target - cc->symbols);
+  if (symbol_index < 0 || symbol_index >= cc->sym_count) {
+    cc_error(cc, "function-signature transaction target is invalid");
+    return 0;
+  }
+  for (journal_index = 0;
+       journal_index < cc_signature_journal_count;
+       journal_index++) {
+    if (cc_signature_journal[journal_index].symbol_index == symbol_index)
+      return 1;
+  }
+  if (cc_signature_journal_count >= CC_MAX_SYMBOLS) {
+    cc_error(cc, "too many inferred function signatures");
+    return 0;
+  }
+  cc_signature_journal[cc_signature_journal_count].symbol_index =
+      symbol_index;
+  cc_signature_journal[cc_signature_journal_count].kind = kind;
+  cc_signature_journal[cc_signature_journal_count].prior_type =
+      target->type;
+  cc_signature_journal[cc_signature_journal_count].prior_struct_index =
+      target->struct_index;
+  cc_signature_journal_count++;
+  return 1;
+}
+
+static void cc_finish_function_signature_transaction(cc_state_t *cc,
+                                                     int rollback) {
+  int journal_index;
+
+  if (cc_signature_journal_owner != cc)
+    return;
+  if (rollback) {
+    for (journal_index = cc_signature_journal_count - 1;
+         journal_index >= 0; journal_index--) {
+      cc_restore_signature_journal_entry(
+          cc, &cc_signature_journal[journal_index]);
+    }
+  }
+  cc_signature_journal_count = 0;
+  cc_signature_journal_owner = NULL;
+}
+
+static void cc_seed_provisional_function_signature(
+    cc_symbol_t *target, const cc_symbol_t *pointer) {
+  target->type = pointer->function_pointer_return_type;
+  target->struct_index = pointer->struct_index;
+  target->param_count = pointer->param_count;
+  memcpy(target->param_types, pointer->param_types,
+         sizeof(target->param_types));
+  memcpy(target->param_struct_indices, pointer->param_struct_indices,
+         sizeof(target->param_struct_indices));
+  target->has_param_types = pointer->has_param_types;
+  target->is_variadic = pointer->is_variadic;
+  target->function_signature_is_provisional = 1;
+}
+
+static int cc_check_function_pointer_initializer(
+    cc_state_t *cc, const cc_symbol_t *pointer,
+    const cc_symbol_t *target) {
+  int parameter_index;
+  cc_type_t target_result_type;
+
+  if (!pointer || !target)
+    return 0;
+
+  /* A prescan-only function has a placeholder result and no parameter
+   * metadata. Retain this declaration as a provisional signature, then check
+   * it when the real declaration or definition is parsed. */
+  if (cc_function_signature_is_prescan_unknown(target))
+    return 1;
+
+  target_result_type = cc_function_pointer_designator_result_type(target);
+  if (pointer->function_pointer_return_type != target_result_type ||
+      (target_result_type == TYPE_STRUCT_PTR &&
+       pointer->struct_index != target->struct_index)) {
+    cc_error(
+        cc,
+        "function-pointer initializer result does not match declaration");
+    return 0;
+  }
+
+  if (target->kind == SYM_FUNC &&
+      target->function_signature_is_provisional &&
+      pointer->has_param_types && !target->has_param_types)
+    return 1;
+
+  /* An unprototyped destination deliberately erases fixed-parameter metadata.
+   * Kernel bindings may also lack a source prototype. Other typed local
+   * copies must not silently acquire a signature they did not carry. */
+  if (!pointer->has_param_types)
+    return 1;
+  if (!target->has_param_types) {
+    if (target->kind == SYM_KERNEL)
+      return 1;
+    cc_error(
+        cc,
+        "function-pointer initializer parameters do not match declaration");
+    return 0;
+  }
+  if (pointer->param_count != target->param_count ||
+      pointer->is_variadic != target->is_variadic) {
+    cc_error(
+        cc,
+        "function-pointer initializer parameters do not match declaration");
+    return 0;
+  }
+  for (parameter_index = 0; parameter_index < pointer->param_count;
+       parameter_index++) {
+    if (pointer->param_types[parameter_index] !=
+            target->param_types[parameter_index] ||
+        (pointer->param_types[parameter_index] == TYPE_STRUCT_PTR &&
+         pointer->param_struct_indices[parameter_index] !=
+             target->param_struct_indices[parameter_index])) {
+      cc_error(
+          cc,
+          "function-pointer initializer parameters do not match declaration");
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int cc_apply_function_pointer_initializer(
+    cc_state_t *cc, const cc_symbol_t *pointer, cc_symbol_t *target) {
+  if (cc_function_signature_is_prescan_unknown(target)) {
+    if (!cc_snapshot_program_symbol(cc, target))
+      return 0;
+    if (!cc_journal_function_signature(
+            cc, target, CC_SIGNATURE_ROLLBACK_PRESCAN_UNKNOWN))
+      return 0;
+    cc_seed_provisional_function_signature(target, pointer);
+    return 1;
+  }
+  if (target->kind == SYM_FUNC &&
+      target->function_signature_is_provisional &&
+      pointer->has_param_types && !target->has_param_types) {
+    if (!cc_snapshot_program_symbol(cc, target))
+      return 0;
+    if (!cc_journal_function_signature(
+            cc, target, CC_SIGNATURE_ROLLBACK_UNTYPED_PROVISIONAL))
+      return 0;
+    target->param_count = pointer->param_count;
+    memcpy(target->param_types, pointer->param_types,
+           sizeof(target->param_types));
+    memcpy(target->param_struct_indices, pointer->param_struct_indices,
+           sizeof(target->param_struct_indices));
+    target->has_param_types = 1;
+    target->is_variadic = pointer->is_variadic;
+  }
+  return 1;
+}
+
+static int cc_check_function_pointer_initializer_candidates(
+    cc_state_t *cc, const cc_symbol_t *pointer,
+    cc_symbol_t *const *targets, int target_count) {
+  int target_index;
+
+  if (target_count <= 0)
+    return 0;
+  for (target_index = 0; target_index < target_count; target_index++) {
+    if (!cc_check_function_pointer_initializer(
+            cc, pointer, targets[target_index]))
+      return 0;
+  }
+  return 1;
+}
+
+static int cc_apply_function_pointer_initializer_candidates(
+    cc_state_t *cc, const cc_symbol_t *pointer,
+    cc_symbol_t *const *targets, int target_count) {
+  int target_index;
+  for (target_index = 0; target_index < target_count; target_index++) {
+    if (!cc_apply_function_pointer_initializer(
+            cc, pointer, targets[target_index]))
+      return 0;
+  }
+  return 1;
+}
+
+static int cc_validate_function_pointer_initializer_value(
+    cc_state_t *cc, const cc_symbol_t *pointer,
+    cc_function_pointer_initializer_kind_t initializer_kind,
+    cc_symbol_t *const *targets, int target_count) {
+  if (initializer_kind == CC_FP_INITIALIZER_DESIGNATOR)
+    return cc_check_function_pointer_initializer_candidates(
+        cc, pointer, targets, target_count);
+  if (initializer_kind == CC_FP_INITIALIZER_ZERO)
+    return 1;
+  if (initializer_kind == CC_FP_INITIALIZER_EXPLICIT_CAST &&
+      (cc_is_object_pointer_type(cc_last_expr_type) ||
+       cc_last_expr_type == TYPE_FUNC_PTR))
+    return 1;
+  cc_error(
+      cc,
+      "function-pointer initializer requires a function, zero, or explicit pointer cast");
+  return 0;
+}
+
 static void cc_parse_simple_statement(cc_state_t *cc) {
   if (cc->error)
     return;
@@ -7768,6 +8844,8 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
   /* Variable declaration (including typedef aliases) */
   if (cc_is_type_or_typedef(cc, tok)) {
     cc_type_t type = cc_parse_type(cc);
+    int function_pointer_return_struct_index = cc_last_type_struct_index;
+    int function_pointer_return_array_count = cc_last_type_array_count;
     cc_skip_attributes(cc);
 
     /* Check for function pointer: type (*name)(params) */
@@ -7781,42 +8859,103 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
           return;
         }
         cc_expect(cc, CC_TOK_RPAREN);
-        /* Skip parameter list: just consume ( ... ) */
-        cc_expect(cc, CC_TOK_LPAREN);
-        int depth = 1;
-        while (depth > 0 && !cc->error) {
-          cc_token_t t = cc_next(cc);
-          if (t.type == CC_TOK_LPAREN)
-            depth++;
-          else if (t.type == CC_TOK_RPAREN)
-            depth--;
-          else if (t.type == CC_TOK_EOF) {
-            cc_error(cc, "unexpected EOF");
-            return;
-          }
+        if (type == TYPE_STRUCT) {
+          cc_error(
+              cc,
+              "function-pointer struct result is not supported; use pointer result");
+          return;
         }
+        if (function_pointer_return_array_count > 0) {
+          cc_error(cc, "function-pointer array result is not supported");
+          return;
+        }
+        uint8_t pointer_param_types[CC_MAX_PARAMS];
+        int8_t pointer_param_struct_indices[CC_MAX_PARAMS];
+        int pointer_param_count;
+        int pointer_has_param_types;
+        int pointer_is_variadic;
+        if (!cc_parse_function_pointer_signature(
+                cc, pointer_param_types, pointer_param_struct_indices,
+                &pointer_param_count,
+                &pointer_has_param_types, &pointer_is_variadic))
+          return;
         /* Allocate local variable of type TYPE_FUNC_PTR */
         int32_t local_slot;
         if (!cc_reserve_local_frame(cc, 4, 4, &local_slot))
           return;
         cc_symbol_t *sym =
             cc_sym_add(cc, fname_tok.text, SYM_LOCAL, TYPE_FUNC_PTR);
+        cc_symbol_t *initializer_targets[CC_MAX_PARAMS];
+        int initializer_target_count = 0;
+        int apply_initializer_targets = 0;
         if (sym) {
           sym->offset = local_slot;
-          /* Function-pointer signatures are otherwise erased. Keep the
-           * declared result only so unsupported SIMD returns fail clearly. */
           sym->function_pointer_return_type = type;
+          sym->struct_index = function_pointer_return_struct_index;
+          sym->param_count = pointer_param_count;
+          memcpy(sym->param_types, pointer_param_types,
+                 sizeof(sym->param_types));
+          memcpy(sym->param_struct_indices, pointer_param_struct_indices,
+                 sizeof(sym->param_struct_indices));
+          sym->has_param_types = pointer_has_param_types;
+          sym->is_variadic = pointer_is_variadic;
         }
         /* Check for initializer */
         if (cc_peek(cc).type == CC_TOK_EQ) {
+          cc_symbol_t *initializer_target;
+          cc_function_pointer_initializer_kind_t initializer_kind;
+          uint32_t initializer_code_pos = cc->code_pos;
+          uint32_t initializer_data_pos = cc->data_pos;
+          int initializer_patch_count = cc->patch_count;
           cc_next(cc);
+          initializer_kind = cc_probe_function_pointer_initializer(
+              cc, &initializer_target);
           cc_parse_expression(cc, 1);
+          if (cc_last_expr_function_signature_erased) {
+            initializer_kind = CC_FP_INITIALIZER_EXPLICIT_CAST;
+            initializer_target = NULL;
+          } else if (cc_last_expr_is_null_pointer_constant) {
+            initializer_kind = CC_FP_INITIALIZER_ZERO;
+            initializer_target = NULL;
+          } else if (cc_last_expr_type == TYPE_FUNC_PTR &&
+                     cc_last_expr_function_signature_count > 0) {
+            initializer_kind = CC_FP_INITIALIZER_DESIGNATOR;
+            initializer_target = cc_last_expr_function_signature_sym;
+          }
+          if (initializer_kind == CC_FP_INITIALIZER_DESIGNATOR &&
+              cc_last_expr_function_signature_count == 0 &&
+              initializer_target)
+            cc_set_expr_function_signature(initializer_target);
+          if (cc->error ||
+              !cc_validate_function_pointer_initializer_value(
+                  cc, sym, initializer_kind,
+                  cc_last_expr_function_signature_candidates,
+                  cc_last_expr_function_signature_count)) {
+            cc->code_pos = initializer_code_pos;
+            cc->data_pos = initializer_data_pos;
+            cc->patch_count = initializer_patch_count;
+            return;
+          }
+          if (initializer_kind == CC_FP_INITIALIZER_DESIGNATOR) {
+            initializer_target_count =
+                cc_last_expr_function_signature_count;
+            memcpy(initializer_targets,
+                   cc_last_expr_function_signature_candidates,
+                   sizeof(*initializer_targets) *
+                       (size_t)initializer_target_count);
+            apply_initializer_targets = 1;
+          }
           emit_store_local(cc, local_slot);
         } else {
           emit_mov_eax_imm(cc, 0);
           emit_store_local(cc, local_slot);
         }
         cc_expect(cc, CC_TOK_SEMICOLON);
+        if (!cc->error && apply_initializer_targets &&
+            !cc_apply_function_pointer_initializer_candidates(
+                cc, sym, initializer_targets,
+                initializer_target_count))
+          return;
         return;
       } else {
         /* Not a function pointer, put back the '(' - actually we can't easily
@@ -8093,6 +9232,7 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
                   if (cc->patch_count < CC_MAX_PATCHES) {
                     cc_patch_t *p = &cc->patches[cc->patch_count++];
                     p->code_offset = patch_pos;
+                    p->is_absolute = 0;
                     int mi = 0;
                     while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
                       p->name[mi] = method_sym_name[mi];
@@ -8116,6 +9256,7 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
                   if (cc->patch_count < CC_MAX_PATCHES) {
                     cc_patch_t *p = &cc->patches[cc->patch_count++];
                     p->code_offset = patch_pos;
+                    p->is_absolute = 0;
                     int mi = 0;
                     while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
                       p->name[mi] = method_sym_name[mi];
@@ -8245,10 +9386,25 @@ static void cc_parse_block(cc_state_t *cc) {
 /* Function Parsing */
 
 static void cc_parse_function(cc_state_t *cc) {
+  uint32_t function_code_checkpoint = cc->code_pos;
+  uint32_t function_data_checkpoint = cc->data_pos;
+  int function_patch_checkpoint = cc->patch_count;
   cc_type_t ret_type = cc_parse_type(cc);
   cc_type_t saved_return_type = cc->current_return_type;
   int ret_struct_index = cc_last_type_struct_index;
   int ret_array_count = cc_last_type_array_count;
+  int symbol_count_before_registration;
+  int saved_scope;
+  uint32_t saved_entry_offset = cc->entry_offset;
+  int saved_has_entry = cc->has_entry;
+  int saved_label_count = cc->label_count;
+  int saved_control_depth = cc->control_depth;
+  int saved_statement_depth = cc->statement_depth;
+  int had_prior_symbol = 0;
+  int had_prior_signature = 0;
+  int prior_signature_was_provisional = 0;
+  int function_signature_transaction_active = 0;
+  cc_symbol_t prior_function_symbol;
   if (ret_type == TYPE_STRUCT && ret_array_count == 0) {
     cc_error(cc, "struct return unsupported; use pointer-out parameter");
     return;
@@ -8262,9 +9418,23 @@ static void cc_parse_function(cc_state_t *cc) {
   }
 
   /* Register function symbol */
+  symbol_count_before_registration = cc->sym_count;
   cc_symbol_t *func_sym = cc_sym_find(cc, name_tok.text);
+  if (func_sym && !cc_snapshot_program_symbol(cc, func_sym))
+    return;
+  if (func_sym) {
+    prior_function_symbol = *func_sym;
+    had_prior_symbol = 1;
+  }
   if (!func_sym) {
     func_sym = cc_sym_add(cc, name_tok.text, SYM_FUNC, ret_type);
+  }
+  if (func_sym && func_sym->kind == SYM_FUNC &&
+      (func_sym->function_signature_is_provisional ||
+       func_sym->has_param_types)) {
+    had_prior_signature = 1;
+    prior_signature_was_provisional =
+        func_sym->function_signature_is_provisional;
   }
   if (func_sym) {
     func_sym->kind = SYM_FUNC;
@@ -8273,8 +9443,11 @@ static void cc_parse_function(cc_state_t *cc) {
     func_sym->offset = (int32_t)cc->code_pos;
     func_sym->is_defined = 1;
     func_sym->has_param_types = 1;
+    func_sym->function_signature_is_provisional = 0;
     func_sym->is_variadic = 0;
     memset(func_sym->param_types, 0, sizeof(func_sym->param_types));
+    memset(func_sym->param_struct_indices, -1,
+           sizeof(func_sym->param_struct_indices));
   }
 
   /* Is this main()? */
@@ -8283,10 +9456,12 @@ static void cc_parse_function(cc_state_t *cc) {
     cc->has_entry = 1;
   }
 
-  cc_expect(cc, CC_TOK_LPAREN);
-
   /* Save scope state */
-  int saved_scope = cc->sym_count;
+  saved_scope = cc->sym_count;
+  cc_expect(cc, CC_TOK_LPAREN);
+  if (cc->error)
+    goto function_failure;
+
   cc->local_offset = 0;
   cc->max_local_offset = 0;
   cc->param_count = 0;
@@ -8311,7 +9486,7 @@ static void cc_parse_function(cc_state_t *cc) {
         cc_token_t pname = cc_next(cc);
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
-          return;
+          goto function_failure;
         }
         /* `T name[N]` decays to a pointer per C99 §6.7.5.3p7. Consume
          * the dimension (its value is irrelevant - we only track the
@@ -8319,18 +9494,20 @@ static void cc_parse_function(cc_state_t *cc) {
         ptype = cc_adjust_array_parameter_declarator(
             cc, ptype, ptype_array_count);
         if (cc->error)
-          return;
+          goto function_failure;
         if (cc->param_count >= CC_MAX_PARAMS) {
           cc_error(cc, "too many parameters");
-          return;
+          goto function_failure;
         }
         if (func_sym)
           func_sym->param_types[cc->param_count] = (uint8_t)ptype;
+        if (func_sym && ptype == TYPE_STRUCT_PTR)
+          func_sym->param_struct_indices[cc->param_count] = (int8_t)psi;
         {
           int slot_size = cc_bind_cdecl_parameter(
               cc, pname.text, ptype, psi, ptype_is_const, param_offset);
           if (slot_size == 0)
-            return;
+            goto function_failure;
           param_offset += slot_size;
         }
         cc->param_count++;
@@ -8350,23 +9527,25 @@ static void cc_parse_function(cc_state_t *cc) {
         cc_token_t pname = cc_next(cc);
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
-          return;
+          goto function_failure;
         }
         ptype = cc_adjust_array_parameter_declarator(
             cc, ptype, ptype_array_count);
         if (cc->error)
-          return;
+          goto function_failure;
         if (cc->param_count >= CC_MAX_PARAMS) {
           cc_error(cc, "too many parameters");
-          return;
+          goto function_failure;
         }
         if (func_sym)
           func_sym->param_types[cc->param_count] = (uint8_t)ptype;
+        if (func_sym && ptype == TYPE_STRUCT_PTR)
+          func_sym->param_struct_indices[cc->param_count] = (int8_t)psi;
         {
           int slot_size = cc_bind_cdecl_parameter(
               cc, pname.text, ptype, psi, ptype_is_const, param_offset);
           if (slot_size == 0)
-            return;
+            goto function_failure;
           param_offset += slot_size;
         }
         cc->param_count++;
@@ -8375,9 +9554,44 @@ static void cc_parse_function(cc_state_t *cc) {
   }
 
   cc_expect(cc, CC_TOK_RPAREN);
+  if (cc->error)
+    goto function_failure;
 
   if (func_sym) {
     func_sym->param_count = cc->param_count;
+  }
+
+  if (had_prior_signature) {
+    int signature_matches =
+        prior_function_symbol.type == ret_type &&
+        (ret_type != TYPE_STRUCT_PTR ||
+         prior_function_symbol.struct_index == ret_struct_index);
+    if (signature_matches && prior_function_symbol.has_param_types) {
+      signature_matches =
+          func_sym && func_sym->has_param_types &&
+          prior_function_symbol.param_count == func_sym->param_count &&
+          prior_function_symbol.is_variadic == func_sym->is_variadic;
+      for (int parameter_index = 0;
+           signature_matches &&
+           parameter_index < prior_function_symbol.param_count;
+           parameter_index++) {
+        signature_matches =
+            prior_function_symbol.param_types[parameter_index] ==
+                func_sym->param_types[parameter_index] &&
+            (prior_function_symbol.param_types[parameter_index] !=
+                 TYPE_STRUCT_PTR ||
+             prior_function_symbol.param_struct_indices[parameter_index] ==
+                  func_sym->param_struct_indices[parameter_index]);
+      }
+    }
+    if (!signature_matches) {
+      cc_error(
+          cc,
+          prior_signature_was_provisional
+              ? "function definition does not match prior function-pointer initializer"
+              : "function declaration does not match prior declaration");
+      goto function_failure;
+    }
   }
 
   /* Forward function declaration: `T name(params);` with no body. The
@@ -8389,14 +9603,33 @@ static void cc_parse_function(cc_state_t *cc) {
   if (cc_peek(cc).type == CC_TOK_SEMICOLON) {
     cc_next(cc);
     if (func_sym) {
-      func_sym->is_defined = 0;
-      func_sym->offset = 0;
+      if (had_prior_symbol &&
+          (prior_function_symbol.kind == SYM_KERNEL ||
+           prior_function_symbol.is_defined ||
+           (prior_function_symbol.has_param_types &&
+            !prior_function_symbol.function_signature_is_provisional))) {
+        *func_sym = prior_function_symbol;
+      } else {
+        func_sym->is_defined = 0;
+        func_sym->offset = 0;
+      }
     }
     cc->sym_count = saved_scope;
-    if (ret_array_count > 0)
+    if (ret_array_count > 0) {
       cc_error(cc, "function return type cannot be an array");
+      goto function_failure;
+    }
     return;
   }
+
+  if (had_prior_symbol && prior_function_symbol.is_defined) {
+    cc_error(cc, "redefinition of function");
+    goto function_failure;
+  }
+
+  if (!cc_begin_function_signature_transaction(cc))
+    goto function_failure;
+  function_signature_transaction_active = 1;
 
   cc_labels_reset(cc);
   cc->current_return_type = ret_type;
@@ -8410,13 +9643,19 @@ static void cc_parse_function(cc_state_t *cc) {
 
   /* Parse body */
   cc_expect(cc, CC_TOK_LBRACE);
+  if (cc->error)
+    goto function_failure;
 
   while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
          cc_peek(cc).type != CC_TOK_EOF) {
     cc_parse_statement(cc);
   }
   cc_expect(cc, CC_TOK_RBRACE);
+  if (cc->error)
+    goto function_failure;
   cc_resolve_labels(cc);
+  if (cc->error)
+    goto function_failure;
 
   /* Patch the sub esp with actual local space used */
   int32_t locals_size = -cc->max_local_offset;
@@ -8446,23 +9685,70 @@ static void cc_parse_function(cc_state_t *cc) {
       new_sym->param_count = func_sym->param_count;
       memcpy(new_sym->param_types, func_sym->param_types,
              sizeof(new_sym->param_types));
+      memcpy(new_sym->param_struct_indices, func_sym->param_struct_indices,
+             sizeof(new_sym->param_struct_indices));
       new_sym->has_param_types = func_sym->has_param_types;
       new_sym->is_variadic = func_sym->is_variadic;
       new_sym->is_defined = 1;
     }
   }
-  if (ret_array_count > 0)
+  if (ret_array_count > 0) {
     cc_error(cc, "function return type cannot be an array");
+    goto function_failure;
+  }
+  cc_finish_function_signature_transaction(cc, 0);
+  function_signature_transaction_active = 0;
+  return;
+
+function_failure:
+  if (function_signature_transaction_active)
+    cc_finish_function_signature_transaction(cc, 1);
+  if (had_prior_symbol && func_sym)
+    *func_sym = prior_function_symbol;
+  cc->code_pos = function_code_checkpoint;
+  cc->data_pos = function_data_checkpoint;
+  cc->patch_count = function_patch_checkpoint;
+  cc->sym_count = had_prior_symbol ? saved_scope
+                                   : symbol_count_before_registration;
+  cc->entry_offset = saved_entry_offset;
+  cc->has_entry = saved_has_entry;
+  cc->label_count = saved_label_count;
+  cc->control_depth = saved_control_depth;
+  cc->statement_depth = saved_statement_depth;
+  cc->local_offset = 0;
+  cc->max_local_offset = 0;
+  cc->param_count = 0;
+  cc->current_return_type = saved_return_type;
 }
 
 static void cc_parse_class_method(cc_state_t *cc, int class_index,
                                   cc_type_t ret_type,
                                   const char *method_name) {
+  uint32_t method_code_checkpoint = cc->code_pos;
+  uint32_t method_data_checkpoint = cc->data_pos;
+  int method_patch_checkpoint = cc->patch_count;
+  int method_symbol_checkpoint = cc->sym_count;
   cc_type_t saved_return_type = cc->current_return_type;
+  int saved_local_offset = cc->local_offset;
+  int saved_max_local_offset = cc->max_local_offset;
+  int saved_param_count = cc->param_count;
+  int saved_scope_start = cc->scope_start;
+  int saved_label_count = cc->label_count;
+  int saved_control_depth = cc->control_depth;
+  int saved_statement_depth = cc->statement_depth;
+  int had_prior_symbol = 0;
+  int signature_transaction_active = 0;
+  cc_symbol_t prior_function_symbol;
   char full_name[CC_MAX_IDENT];
   cc_make_method_symbol(full_name, cc->structs[class_index].name, method_name);
 
   cc_symbol_t *func_sym = cc_sym_find(cc, full_name);
+  if (func_sym && !cc_snapshot_program_symbol(cc, func_sym))
+    return;
+  if (func_sym) {
+    prior_function_symbol = *func_sym;
+    had_prior_symbol = 1;
+  }
   if (!func_sym) {
     func_sym = cc_sym_add(cc, full_name, SYM_FUNC, ret_type);
   }
@@ -8474,9 +9760,13 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
     func_sym->has_param_types = 1;
     func_sym->is_variadic = 0;
     memset(func_sym->param_types, 0, sizeof(func_sym->param_types));
+    memset(func_sym->param_struct_indices, -1,
+           sizeof(func_sym->param_struct_indices));
   }
 
   cc_expect(cc, CC_TOK_LPAREN);
+  if (cc->error)
+    goto method_failure;
 
   int saved_scope = cc->sym_count;
   cc->local_offset = 0;
@@ -8488,9 +9778,11 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
   {
     if (func_sym)
       func_sym->param_types[0] = (uint8_t)TYPE_STRUCT_PTR;
+    if (func_sym)
+      func_sym->param_struct_indices[0] = (int8_t)class_index;
     if (cc_bind_cdecl_parameter(cc, "self", TYPE_STRUCT_PTR, class_index, 0,
                                 8) == 0)
-      return;
+      goto method_failure;
     cc->param_count = 1;
   }
 
@@ -8511,23 +9803,25 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
         cc_token_t pname = cc_next(cc);
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
-          return;
+          goto method_failure;
         }
         ptype = cc_adjust_array_parameter_declarator(
             cc, ptype, ptype_array_count);
         if (cc->error)
-          return;
+          goto method_failure;
         if (cc->param_count >= CC_MAX_PARAMS) {
           cc_error(cc, "too many parameters");
-          return;
+          goto method_failure;
         }
         if (func_sym)
           func_sym->param_types[cc->param_count] = (uint8_t)ptype;
+        if (func_sym && ptype == TYPE_STRUCT_PTR)
+          func_sym->param_struct_indices[cc->param_count] = (int8_t)psi;
         {
           int slot_size = cc_bind_cdecl_parameter(
               cc, pname.text, ptype, psi, ptype_is_const, param_offset);
           if (slot_size == 0)
-            return;
+            goto method_failure;
           param_offset += slot_size;
         }
         cc->param_count++;
@@ -8547,23 +9841,25 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
         cc_token_t pname = cc_next(cc);
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
-          return;
+          goto method_failure;
         }
         ptype = cc_adjust_array_parameter_declarator(
             cc, ptype, ptype_array_count);
         if (cc->error)
-          return;
+          goto method_failure;
         if (cc->param_count >= CC_MAX_PARAMS) {
           cc_error(cc, "too many parameters");
-          return;
+          goto method_failure;
         }
         if (func_sym)
           func_sym->param_types[cc->param_count] = (uint8_t)ptype;
+        if (func_sym && ptype == TYPE_STRUCT_PTR)
+          func_sym->param_struct_indices[cc->param_count] = (int8_t)psi;
         {
           int slot_size = cc_bind_cdecl_parameter(
               cc, pname.text, ptype, psi, ptype_is_const, param_offset);
           if (slot_size == 0)
-            return;
+            goto method_failure;
           param_offset += slot_size;
         }
         cc->param_count++;
@@ -8572,10 +9868,20 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
   }
 
   cc_expect(cc, CC_TOK_RPAREN);
+  if (cc->error)
+    goto method_failure;
 
   if (func_sym) {
     func_sym->param_count = cc->param_count;
   }
+
+  if (had_prior_symbol && prior_function_symbol.is_defined) {
+    cc_error(cc, "redefinition of class method");
+    goto method_failure;
+  }
+  if (!cc_begin_function_signature_transaction(cc))
+    goto method_failure;
+  signature_transaction_active = 1;
 
   cc->current_return_type = ret_type;
   emit_prologue(cc);
@@ -8584,11 +9890,15 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
     emit_sub_esp(cc, 256);
 
     cc_expect(cc, CC_TOK_LBRACE);
+    if (cc->error)
+      goto method_failure;
     while (!cc->error && cc_peek(cc).type != CC_TOK_RBRACE &&
            cc_peek(cc).type != CC_TOK_EOF) {
       cc_parse_statement(cc);
     }
     cc_expect(cc, CC_TOK_RBRACE);
+    if (cc->error)
+      goto method_failure;
 
     {
       int32_t locals_size = -cc->max_local_offset;
@@ -8615,17 +9925,71 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
       new_sym->param_count = func_sym->param_count;
       memcpy(new_sym->param_types, func_sym->param_types,
              sizeof(new_sym->param_types));
+      memcpy(new_sym->param_struct_indices, func_sym->param_struct_indices,
+             sizeof(new_sym->param_struct_indices));
       new_sym->has_param_types = func_sym->has_param_types;
       new_sym->is_variadic = func_sym->is_variadic;
       new_sym->is_defined = 1;
     }
+  }
+  cc_finish_function_signature_transaction(cc, 0);
+  return;
+
+method_failure:
+  if (signature_transaction_active)
+    cc_finish_function_signature_transaction(cc, 1);
+  if (had_prior_symbol && func_sym)
+    *func_sym = prior_function_symbol;
+  cc->code_pos = method_code_checkpoint;
+  cc->data_pos = method_data_checkpoint;
+  cc->patch_count = method_patch_checkpoint;
+  cc->sym_count = method_symbol_checkpoint;
+  cc->local_offset = saved_local_offset;
+  cc->max_local_offset = saved_max_local_offset;
+  cc->param_count = saved_param_count;
+  cc->scope_start = saved_scope_start;
+  cc->label_count = saved_label_count;
+  cc->control_depth = saved_control_depth;
+  cc->statement_depth = saved_statement_depth;
+  cc->current_return_type = saved_return_type;
+}
+
+static void cc_apply_function_patch(cc_state_t *cc, const cc_patch_t *patch,
+                                    uint32_t target) {
+  if (patch->is_absolute) {
+    patch32(cc, patch->code_offset, target);
+  } else {
+    uint32_t from = cc->code_base + patch->code_offset + 4;
+    int32_t relative = (int32_t)(target - from);
+    patch32(cc, patch->code_offset, (uint32_t)relative);
   }
 }
 
 /* Top-Level Program Parsing */
 
 void cc_parse_program(cc_state_t *cc) {
+  uint32_t program_code_checkpoint = cc->code_pos;
+  uint32_t program_data_checkpoint = cc->data_pos;
+  int program_patch_checkpoint = cc->patch_count;
+  int program_symbol_checkpoint = cc->sym_count;
+  int program_typedef_checkpoint = cc->typedef_count;
+  uint32_t program_entry_checkpoint = cc->entry_offset;
+  int program_has_entry_checkpoint = cc->has_entry;
+  int program_local_offset_checkpoint = cc->local_offset;
+  int program_max_local_offset_checkpoint = cc->max_local_offset;
+  int program_param_count_checkpoint = cc->param_count;
+  cc_type_t program_return_type_checkpoint = cc->current_return_type;
+  int program_scope_start_checkpoint = cc->scope_start;
+  int program_in_top_level_checkpoint = cc->in_top_level;
+  int program_main_called_checkpoint = cc->main_called_top_level;
+  int program_label_count_checkpoint = cc->label_count;
+  int program_control_depth_checkpoint = cc->control_depth;
+  int program_statement_depth_checkpoint = cc->statement_depth;
   cc->struct_count = 0;
+
+  if (!cc_begin_program_symbol_transaction(
+          cc, program_symbol_checkpoint))
+    return;
 
   /* Pass 1: collect top-level function symbols for use-before-define. */
   cc_prescan_functions(cc);
@@ -9472,12 +10836,21 @@ void cc_parse_program(cc_state_t *cc) {
         if (!start_sym) {
           start_sym = cc_sym_add(cc, "__start", SYM_FUNC, TYPE_VOID);
         }
+        if (start_sym && !cc_snapshot_program_symbol(cc, start_sym))
+          break;
         if (start_sym) {
           start_sym->kind = SYM_FUNC;
           start_sym->type = TYPE_VOID;
           start_sym->offset = (int32_t)cc->code_pos;
           start_sym->is_defined = 1;
           start_sym->param_count = 0;
+          memset(start_sym->param_types, 0,
+                 sizeof(start_sym->param_types));
+          memset(start_sym->param_struct_indices, -1,
+                 sizeof(start_sym->param_struct_indices));
+          start_sym->has_param_types = 1;
+          start_sym->function_signature_is_provisional = 0;
+          start_sym->is_variadic = 0;
         }
 
         top_level_offset = cc->code_pos;
@@ -9558,20 +10931,17 @@ void cc_parse_program(cc_state_t *cc) {
     cc->has_entry = 1;
   }
 
-  /* Resolve forward references */
-  for (int i = 0; i < cc->patch_count; i++) {
+  /* A failed source must not revisit or rewrite committed patch sites. */
+  for (int i = program_patch_checkpoint;
+       !cc->error && i < cc->patch_count; i++) {
     cc_patch_t *p = &cc->patches[i];
     cc_symbol_t *sym = cc_sym_find(cc, p->name);
     if (sym && sym->kind == SYM_FUNC && sym->is_defined) {
       uint32_t target = cc->code_base + (uint32_t)sym->offset;
-      uint32_t from = cc->code_base + p->code_offset + 4;
-      int32_t rel = (int32_t)(target - from);
-      patch32(cc, p->code_offset, (uint32_t)rel);
+      cc_apply_function_patch(cc, p, target);
     } else if (sym && sym->kind == SYM_KERNEL) {
       uint32_t target = sym->address;
-      uint32_t from = cc->code_base + p->code_offset + 4;
-      int32_t rel = (int32_t)(target - from);
-      patch32(cc, p->code_offset, (uint32_t)rel);
+      cc_apply_function_patch(cc, p, target);
     } else {
       serial_printf("[cupidc] Unresolved symbol: %s\n", p->name);
       /* Build descriptive error with symbol name */
@@ -9590,6 +10960,28 @@ void cc_parse_program(cc_state_t *cc) {
         cc->error_msg[ei] = '\0';
       }
     }
+  }
+  if (cc->error) {
+    cc_finish_program_symbol_transaction(cc, 1);
+    cc->code_pos = program_code_checkpoint;
+    cc->data_pos = program_data_checkpoint;
+    cc->patch_count = program_patch_checkpoint;
+    cc->sym_count = program_symbol_checkpoint;
+    cc->typedef_count = program_typedef_checkpoint;
+    cc->entry_offset = program_entry_checkpoint;
+    cc->has_entry = program_has_entry_checkpoint;
+    cc->local_offset = program_local_offset_checkpoint;
+    cc->max_local_offset = program_max_local_offset_checkpoint;
+    cc->param_count = program_param_count_checkpoint;
+    cc->current_return_type = program_return_type_checkpoint;
+    cc->scope_start = program_scope_start_checkpoint;
+    cc->in_top_level = program_in_top_level_checkpoint;
+    cc->main_called_top_level = program_main_called_checkpoint;
+    cc->label_count = program_label_count_checkpoint;
+    cc->control_depth = program_control_depth_checkpoint;
+    cc->statement_depth = program_statement_depth_checkpoint;
+  } else {
+    cc_finish_program_symbol_transaction(cc, 0);
   }
 }
 
@@ -9642,6 +11034,7 @@ static int cc_repl_try_zero_arg_call(cc_state_t *cc, int *is_expr) {
       if (cc->patch_count < CC_MAX_PATCHES) {
         cc_patch_t *p = &cc->patches[cc->patch_count++];
         p->code_offset = patch_pos;
+        p->is_absolute = 0;
         int pi = 0;
         while (ident_tok.text[pi] && pi < CC_MAX_IDENT - 1) {
           p->name[pi] = ident_tok.text[pi];
@@ -9968,14 +11361,10 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         cc_symbol_t *sym = cc_sym_find(cc, p->name);
         if (sym && sym->kind == SYM_FUNC && sym->is_defined) {
           uint32_t target = cc->code_base + (uint32_t)sym->offset;
-          uint32_t from = cc->code_base + p->code_offset + 4;
-          int32_t rel = (int32_t)(target - from);
-          patch32(cc, p->code_offset, (uint32_t)rel);
+          cc_apply_function_patch(cc, p, target);
         } else if (sym && sym->kind == SYM_KERNEL) {
           uint32_t target = sym->address;
-          uint32_t from = cc->code_base + p->code_offset + 4;
-          int32_t rel = (int32_t)(target - from);
-          patch32(cc, p->code_offset, (uint32_t)rel);
+          cc_apply_function_patch(cc, p, target);
         }
       }
       return;
@@ -10271,14 +11660,10 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
       cc_symbol_t *sym = cc_sym_find(cc, p->name);
       if (sym && sym->kind == SYM_FUNC && sym->is_defined) {
         uint32_t target = cc->code_base + (uint32_t)sym->offset;
-        uint32_t from = cc->code_base + p->code_offset + 4;
-        int32_t rel = (int32_t)(target - from);
-        patch32(cc, p->code_offset, (uint32_t)rel);
+        cc_apply_function_patch(cc, p, target);
       } else if (sym && sym->kind == SYM_KERNEL) {
         uint32_t target = sym->address;
-        uint32_t from = cc->code_base + p->code_offset + 4;
-        int32_t rel = (int32_t)(target - from);
-        patch32(cc, p->code_offset, (uint32_t)rel);
+        cc_apply_function_patch(cc, p, target);
       }
     }
   }

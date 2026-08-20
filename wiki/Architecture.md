@@ -136,8 +136,9 @@ byte-identical and total 3,749,796 bytes. The combined graph keeps the ISO
 runtime fixture as an explicit image input. No strict checked-in kernel or
 driver root still uses the host compiler.
 
-The current 156-source production build passes. A broader two-generation
-frontier run timed out after 1,204 seconds and remains incomplete.
+The current 156-source production build passes. The broader two-pass frontier
+targets 156 sources and 312 checked compilations. Its latest rerun exceeded
+2,340 seconds without a compiler diagnostic and remains incomplete.
 
 The normal Toolchain root builds fifteen `.cc` contracts and the runtime
 probe with stage-three and stage-four CupidC. It runs and publishes the

@@ -242,11 +242,25 @@ independent 16-byte copy, and a const parameter cannot be modified.
 
 A fixed SIMD prefix may precede scalar variadic values. SIMD values in the
 variadic tail and unprototyped SIMD calls are rejected because no fixed type is
-available. Stored function pointers still erase their parameter and result
-signatures, so SIMD arguments and returns through them fail explicitly. Scalar
-function-pointer calls keep their existing source-width behavior. Named SIMD
-intrinsics continue to lower inline. `feature13_double.cc` retains its ten
-mixed-scalar calls, while `feature14_simd.cc` checks six nested vector calls.
+available. A named block-local `T (*name)(parameters)` declaration retains its
+fixed types, variadic state, and result. Its indirect call uses the same cdecl
+conversions and 4-, 8-, or 16-byte slots as a direct call, including SIMD
+arguments and XMM0 results. Empty `()`, typedef, global, parameter, field, and
+`void *` pointers still erase that metadata. Named SIMD intrinsics continue to
+lower inline. A plain function initializer must match the retained result,
+record identity, fixed parameters, and variadic boundary. Casting through
+`void *` deliberately skips that comparison. Named local copies follow the
+same rule. Later function addresses are fixed up, and a prescan-only signature
+must match the real definition. A compatible conditional keeps and checks
+every callback arm. A represented integer constant expression that evaluates
+to zero is valid, including unary, cast, arithmetic, character, and `sizeof`
+forms. Runtime zeros and mutable enum storage remain unproved. Null conditional
+arms are neutral for explicit erasure; every non-null object arm must be cast
+through `void *`. Failed functions, methods, and complete sources restore
+emission, patches, control state, prior function symbols, kernel bindings, and
+the reused `void(void)` `__start` thunk. `feature13_double.cc` retains its ten
+mixed-scalar calls. `feature14_simd.cc` checks six nested vector calls and two
+named SIMD callback calls. ADR 0301 records the named local callback boundary.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations
@@ -938,8 +952,8 @@ completed dual-NIC checkpoint immediately before this
 rebuild used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
-The current production checkpoint includes in-kernel CupidLD and the guarded
-normal boot edge. A poisoned-host normal build passed in 674.693 seconds
+The guarded 2026-08-14 production checkpoint includes in-kernel CupidLD and
+the guarded normal boot edge. A poisoned-host normal build passed in 674.693 seconds
 after CupidDis accepted all 431 inputs. The pass-one ELF is 9,211,340 bytes
 with SHA-256
 `2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`.
@@ -1402,8 +1416,9 @@ print `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
 `FPU boot smoke passed`, then finish
 `feature16_asm_fpu.cc`. Checked CupidObj generates the symbol source from
 canonical CupidDis text, while Python checks the bytes before publication. The
-current 156-source production build passes. A broader two-generation frontier
-run timed out after 1,204 seconds and remains incomplete. The
+current 156-source production build passes. The broader two-pass frontier
+targets 156 sources and 312 checked compilations. Its latest rerun exceeded
+2,340 seconds without a compiler diagnostic and remains incomplete. The
 current 114,851-byte logical blob uses little-endian `unsigned int` words with
 one trailing pad byte.
 

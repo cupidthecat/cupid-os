@@ -221,9 +221,10 @@ the desktop and terminal, and complete in-OS CupidC execution. Both NIC runs
 print [fpu] boot smoke ok and FPU boot smoke passed, then finish
 feature16_asm_fpu.cc.
 
-The current production command compiles 156 checked-in strict roots. A broader
-kernel frontier reached generation two before its 1,204-second command limit.
-That timeout is not a completed frontier pass.
+The current production command compiles 156 checked-in strict roots. The
+broader two-pass frontier targets 156 roots and 312 checked compilations. Its
+latest run exceeded 2,340 seconds without a compiler diagnostic, so it is not
+a completed frontier pass.
 
 The production path generates kernel/cpu/ksyms_data.cc after the pass-one
 link. Its normal recipe uses the checked CupidC wrapper. The source stores the
@@ -1222,10 +1223,9 @@ dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e.
 A private four-vCPU /bin/ls.cc JIT boot passed from that image in 46.9 seconds.
 
 That checkpoint predates the guarded normal bootloader edge and this CTXT
-record. The live policy now records 9,211,340 bytes for the pass-one ELF,
-9,334,220 bytes for the final ELF, and 9,114,084 bytes for the raw kernel.
-Exact current hashes stay in the host bootstrap log because embedding them in
-this document would change the kernel they identify.
+record. The live policy records exact kernel sizes in the host bootstrap log.
+Embedding those self-referential values here would change the kernel they
+identify.
 
 An independent poisoned-host reproof passed in 766.9 seconds. All five seed
 images match stage two. Stage two and stage three match across all 19 C
@@ -1676,8 +1676,27 @@ unchanged i386 word. Narrow and floating destinations remain rejected. A
 parsed variadic tail widens float to double and promotes char to int. Its fixed
 prefix may contain vectors, but a SIMD tail value is rejected. Unprototyped
 SIMD calls and signature-erased function-pointer SIMD calls also fail with a
-focused diagnostic. Scalar function-pointer calls, kernel bindings, and calls
-without fixed parameter metadata keep their source-width slots. Character operands undergo
+focused diagnostic. A named block-local function pointer with an explicit
+prototype retains its fixed parameter types, variadic state, and result. Its
+indirect call uses the direct call's conversions and four-, eight-, or
+sixteen-byte slots, including SIMD arguments and XMM0 results. Empty (),
+typedef, global, parameter, field, and void-pointer forms keep source-width
+slots. Kernel bindings and other calls without fixed metadata do the same.
+Plain function initializers must match the retained result, record identity,
+fixed parameters, and variadic boundary. An explicit void-pointer cast erases
+that comparison. Named local copies use the same check. Later target addresses
+are fixed up, and an inferred signature must match the real definition.
+Unproved scalar, mutable enum-storage, and object values are rejected. A
+compatible conditional keeps and checks every named arm. A represented integer
+constant expression that evaluates to zero is a
+valid null initializer. Unary signs, integer casts, arithmetic, character zero,
+and sizeof(int) - 4 are represented. Runtime zero is not. Null conditional
+arms are neutral for explicit erasure, and every non-null object-pointer arm
+must be cast. Failed functions and methods restore emitted state, patches,
+signatures, labels, and control nesting. A failed source also restores touched
+prototypes, definitions, kernel bindings, and a reused __start. The implicit
+thunk has a complete void(void) signature.
+Character operands undergo
 integer promotion and use the scalar integer conversion path when mixed with
 floating values or explicitly cast. Fresh subscript metadata prevents a
 pointer result from inheriting an earlier array stride.
@@ -1758,7 +1777,8 @@ index, and indexed-record updates, including the stored result and one
 evaluation of each designator, before the loaded process exits.
 feature14_simd checks packed operators, one-dimensional arrays, matrices,
 cubes, NaN handling, fixed float4 and double2 calls, and SSE intrinsics. Its
-call marker covers six nested pass-by-value calls and XMM0 returns. The
+call marker covers six nested pass-by-value calls and XMM0 returns. Its callback
+marker covers two named SIMD callback calls through the same ABI. The
 Browser's binary64 token and AST tables use the fixed double-array path.
 See also: 14FPU-SSE.CTXT for full FPU/SSE reference.
 [Open FPU/SSE guide](open:14FPU-SSE.CTXT)

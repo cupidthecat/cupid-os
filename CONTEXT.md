@@ -167,7 +167,11 @@ do not receive that rule. The existing represented pointer-category rule is
 unchanged. A parsed variadic tail widens
 `float` to `double` and promotes `char` to `int`. Function-pointer calls,
 kernel bindings, and calls without fixed parameter metadata keep their source
-width.
+width. A named block-local function-pointer declaration retains its fixed
+parameter types, variadic state, and result type. Its indirect call uses the
+same conversion and 4-, 8-, or 16-byte slot path as a direct call, enforces
+fixed arity, and publishes floating or SIMD results through XMM0. Typedef,
+global, parameter, and field signatures are still erased.
 _Avoid_: reversing source evaluation, four bytes for every parameter, splitting a double into unrelated arguments
 
 **Represented bit-field assignment**:
@@ -325,7 +329,7 @@ All 20 `kernel/crypto` translation units built by checked-seed CupidC in the nor
 _Avoid_: compiler-head frontier, partial crypto cohort
 
 **Production CupidC kernel cohort**:
-The 156 checked-in normal-build translation units owned by checked-seed CupidC, plus the generated kernel symbol-table translation unit. All 157 sources use `.cc`. The five shared Toolchain roots are also part of the 19-source i386 Linux fixed-point plan; their native GCC and Clang rules select C explicitly with `-x c`. The symbol build freezes the pass-one kernel and five-tool seed, runs checked CupidDis to capture canonical symbol text, and runs checked CupidObj to generate the packed source. Python independently renders the expected bytes, rejects malformed text, missing symbols, output mismatch, or live input drift, and publishes only a regular complete file. The checked compiler wrapper freezes that source and its two-header closure before it validates and publishes the data-only object. It also freezes the exact source-driven closures for the kernel entry, SIMD services, the core string implementation, Nuked OPL3, JPEG decoding, glyph rasterization, libm, FPU state, per-CPU setup, and SMP bring-up. Checked execution uses the shared runner with that caller-owned five-tool capture. The runner verifies the complete live cohort after CupidC returns. Drift detected by that check prevents publication even when compilation succeeded. ADR 0124 records the first 111-root naming transfer, ADR 0126 completes the fixed-point naming boundary, ADR 0129 transfers the in-kernel CupidC lexer, ADR 0135 transfers Nuked OPL3, ADR 0139 transfers JPEG and glyph rasterization, ADR 0167 transfers the FPU and SMP roots, ADR 0176 transfers libm, ADR 0180 transfers the kernel entry and SIMD roots, ADR 0181 transfers the final strict host root, ADR 0224 transfers kernel-symbol source generation to CupidObj, ADR 0246 records the shared invocation boundary, and ADR 0276 adds the checked CupidLD kernel source. Poisoned-host rebuilds and exact recursive header closures cover every recipe. The most recent complete two-pass frontier predates that addition: it covers 155 sources in a 445-file snapshot with SHA-256 `99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`, and both 155-object passes are byte-identical at 3,749,796 bytes each. The current 156-source production build passed, while a broader two-generation frontier run reached its second generation and timed out after 1,204 seconds. That timeout is not a complete frontier pass. Input discovery skips hidden paths under the active include roots, which keeps private compiler staging headers out of the repository snapshot during concurrent builds. Final directory promotion retries only short permission-style locks; a persistent lock or any other filesystem error fails without publishing a partial frontier. A data-only relocatable object is valid without `.text` when its sections and symbols pass the remaining ELF checks. The combined graph includes the ISO runtime fixture as an image input. Strong four-vCPU checks cover both supported NICs, all three FPU milestones, the promoted SMP, libm, and string paths, RDRAND, all 62 crypto checks, USB storage, desktop and terminal startup, audio output, TrueType glyph use, an exact baseline JPEG decode, and in-OS CupidC execution. The strict checked-in kernel and driver cohort has no host-compiled root.
+The 156 checked-in normal-build translation units owned by checked-seed CupidC, plus the generated kernel symbol-table translation unit. All 157 sources use `.cc`. The five shared Toolchain roots are also part of the 19-source i386 Linux fixed-point plan; their native GCC and Clang rules select C explicitly with `-x c`. The symbol build freezes the pass-one kernel and five-tool seed, runs checked CupidDis to capture canonical symbol text, and runs checked CupidObj to generate the packed source. Python independently renders the expected bytes, rejects malformed text, missing symbols, output mismatch, or live input drift, and publishes only a regular complete file. The checked compiler wrapper freezes that source and its two-header closure before it validates and publishes the data-only object. It also freezes the exact source-driven closures for the kernel entry, SIMD services, the core string implementation, Nuked OPL3, JPEG decoding, glyph rasterization, libm, FPU state, per-CPU setup, and SMP bring-up. Checked execution uses the shared runner with that caller-owned five-tool capture. The runner verifies the complete live cohort after CupidC returns. Drift detected by that check prevents publication even when compilation succeeded. ADR 0124 records the first 111-root naming transfer, ADR 0126 completes the fixed-point naming boundary, ADR 0129 transfers the in-kernel CupidC lexer, ADR 0135 transfers Nuked OPL3, ADR 0139 transfers JPEG and glyph rasterization, ADR 0167 transfers the FPU and SMP roots, ADR 0176 transfers libm, ADR 0180 transfers the kernel entry and SIMD roots, ADR 0181 transfers the final strict host root, ADR 0224 transfers kernel-symbol source generation to CupidObj, ADR 0246 records the shared invocation boundary, and ADR 0276 adds the checked CupidLD kernel source. Poisoned-host rebuilds and exact recursive header closures cover every recipe. The most recent complete two-pass frontier predates that addition: it covers 155 sources in a 445-file snapshot with SHA-256 `99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`, and both 155-object passes are byte-identical at 3,749,796 bytes each. The current 156-source production build passed. The broader two-pass frontier targets 156 sources and 312 checked compilations; its latest rerun exceeded 2,340 seconds without a compiler diagnostic. That timeout is not a complete frontier pass. Input discovery skips hidden paths under the active include roots, which keeps private compiler staging headers out of the repository snapshot during concurrent builds. Final directory promotion retries only short permission-style locks; a persistent lock or any other filesystem error fails without publishing a partial frontier. A data-only relocatable object is valid without `.text` when its sections and symbols pass the remaining ELF checks. The combined graph includes the ISO runtime fixture as an image input. Strong four-vCPU checks cover both supported NICs, all three FPU milestones, the promoted SMP, libm, and string paths, RDRAND, all 62 crypto checks, USB storage, desktop and terminal startup, audio output, TrueType glyph use, an exact baseline JPEG decode, and in-OS CupidC execution. The strict checked-in kernel and driver cohort has no host-compiled root.
 _Avoid_: all kernel C, compiler-head frontier, checked seed alone
 
 **Unbootstrapped C census**:
@@ -734,12 +738,30 @@ so parameter loads and stores use `MOVUPS` and do not promise 16-byte call-site
 alignment. Arguments still evaluate from left to right, parameters receive
 independent copies, and the caller reclaims every 4-, 8-, or 16-byte slot.
 Fixed SIMD parameters may precede a scalar variadic tail. SIMD values in the
-tail, unprototyped SIMD calls, and SIMD calls through signature-erased function
-pointers receive focused diagnostics. Named SIMD intrinsics keep their existing
-inline lowering rather than crossing this ABI.
+tail and unprototyped SIMD calls receive focused diagnostics. A named
+block-local function pointer with an explicit prototype carries a fixed
+SIMD argument or result through the ordinary call path. A typedef, global,
+parameter, field, `void *`, or empty-`()` pointer still lacks that metadata and
+keeps the focused rejection. A plain function initializer must match the local
+pointer's result, record identity, fixed parameters, and variadic boundary.
+Named local callback copies follow the same rule. Later target addresses are
+patched and a prescan-only signature is checked against its definition. A
+compatible conditional retains and checks every callback arm. A represented
+integer constant expression that evaluates to zero is accepted, including
+unary, cast, arithmetic, character, and `sizeof` forms. A
+conditional keeps that proof only when all required arms remain constant.
+Unproved scalar, mutable enum-storage, or object values are rejected. An
+explicit `void *` cast deliberately erases the check, but only for the value it
+actually covers. Null conditional arms are neutral; every non-null object arm
+must be erased. Failed functions and methods restore their emitted state,
+patches, signatures, labels, and control nesting. A failed source also restores
+touched prototypes, definitions, kernel bindings, and a reused `__start`, then
+drops its new patches. The implicit thunk has a complete `void(void)` signature.
+Named SIMD intrinsics retain their existing inline lowering rather than
+crossing this ABI.
 ADR 0216 records the first fixed-array model, ADR 0257 records multidimensional
 row descent, ADR 0294 records whole-vector updates, and ADR 0299 records the
-fixed SIMD call boundary.
+fixed SIMD call boundary. ADR 0301 records the named local callback boundary.
 _Avoid_: untyped SIMD storage, escaped row pointers, reordered packed operands,
 an implied 16-byte private call-site alignment
 
@@ -1085,8 +1107,8 @@ pixels. AC97 produced 33,452,396 frames at peak 25,600, and the PC speaker
 produced 76,614 frames at peak 31,877. USB detach/replug and the post-replug
 survival window also passed. The private run left the source image unchanged.
 
-The current production checkpoint includes in-kernel CupidLD and the guarded
-normal boot edge. A poisoned-host normal build passed in 674.693 seconds
+The guarded 2026-08-14 production checkpoint includes in-kernel CupidLD and
+the guarded normal boot edge. A poisoned-host normal build passed in 674.693 seconds
 after CupidDis accepted all 431 production inputs. The pass-one ELF is
 9,211,340 bytes with SHA-256
 `2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`.

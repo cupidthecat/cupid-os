@@ -7753,8 +7753,8 @@ static int validate_toolchain_frontier(const char *host_root) {
   static const toolchain_frontier_case_t cases[] = {
       {"/toolchain/ctool.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u,
        5981u, 133u, 33u, 0u, 0u},
-      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 77u, 1742u,
-       11267u, 181u, 137u, 0u, 0u},
+      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 83u, 1907u,
+       12277u, 206u, 150u, 0u, 0u},
       {"/toolchain/cupidld.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 2875u,
        18200u, 369u, 337u, 0u, 2u},
       {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 140u, 3451u,
@@ -7848,8 +7848,8 @@ static int validate_toolchain_frontier(const char *host_root) {
                           "/toolchain/cupiddis.cc") == 0) {
           static_string_valid =
               validate_toolchain_static_string(
-                  &unit, 46u, "hex", 28u, "/toolchain/cupiddis.cc",
-                  613u) == 0;
+                  &unit, 72u, "hex", 42u, "/toolchain/cupiddis.cc",
+                  835u) == 0;
         }
         if (status == CTOOL_OK && ctool_job_diagnostic_count(job) == 0u &&
             unit.function_definition_count ==

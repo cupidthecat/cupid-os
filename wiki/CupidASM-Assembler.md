@@ -302,8 +302,8 @@ completed dual-NIC checkpoint immediately before this
 rebuild used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
-The current production checkpoint includes in-kernel CupidLD and the guarded
-normal boot edge. A poisoned-host normal build passed in 674.693 seconds
+The guarded 2026-08-14 production checkpoint includes in-kernel CupidLD and
+the guarded normal boot edge. A poisoned-host normal build passed in 674.693 seconds
 after CupidDis accepted all 431 inputs. The pass-one ELF is 9,211,340 bytes,
 the final ELF is 9,334,220 bytes, and the raw kernel is 9,114,084 bytes. Their
 SHA-256 values are

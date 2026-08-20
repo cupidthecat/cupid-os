@@ -197,8 +197,28 @@ destinations remain rejected, and the existing represented pointer-category
 rule is unchanged. A parsed variadic tail widens `float` to `double` and promotes
 `char` to `int`. Its fixed prefix may contain vectors, but a SIMD tail value is
 rejected. Unprototyped and signature-erased function-pointer SIMD calls also
-fail explicitly. Scalar function-pointer calls, kernel bindings, and calls
-without fixed parameter metadata retain their source-width slots. Character operands
+fail explicitly. A named block-local function pointer with an explicit
+prototype is signature-bearing: its scalar, floating, pointer, or
+SIMD arguments use the declared fixed slots, its variadic tail receives default
+promotions, and its result keeps the declared type. Empty `()`, typedef,
+global, parameter, field, and `void *` forms retain their source-width slots.
+Kernel bindings and other calls without fixed parameter metadata do the same.
+When the initializer is a plain function designator, its result, record
+identity, fixed parameters, and variadic boundary must match the local pointer.
+The same check applies when copying another named local callback. A function
+defined later receives an address fixup, and a prescan-only signature must
+match its definition. A compatible conditional retains every named candidate
+and checks each arm. A represented integer constant expression that evaluates
+to zero is a valid null initializer. This includes unary signs, integer casts,
+arithmetic, character zero, and `sizeof(int) - 4`. A conditional keeps that
+proof only when every required arm remains constant. Other scalar, mutable
+enum-storage, or object values are rejected unless an explicit `void *` cast
+erases the selected value's source type. Null conditional arms are neutral;
+every possible non-null object pointer must be cast. Failed functions and
+methods restore emitted state, patches, signatures, labels, and control
+nesting. A failed source also restores touched prototypes, definitions, kernel
+bindings, and a reused `__start`. The implicit thunk is typed `void(void)`.
+Character operands
 undergo integer promotion in integer arithmetic and use the integer conversion
 path for floating arithmetic and explicit casts.
 Pointer-producing expressions reset subscript metadata before publishing a
@@ -372,7 +392,8 @@ SHA-256
 The earlier 1,057.969-second build and definitive four-vCPU E1000 and RTL8139
 boot frontiers remain pre-freeze evidence. Those boots passed with exits 0 in
 794.034 and 758.667 seconds.
-The current poisoned-host normal build finished in 674.693 seconds. Its
+The guarded 2026-08-14 poisoned-host normal build finished in 674.693
+seconds. Its
 2,560-byte boot image keeps the same SHA-256. The 9,211,340-byte pass-one ELF
 has SHA-256
 `2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`,

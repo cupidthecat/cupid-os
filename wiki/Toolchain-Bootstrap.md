@@ -712,8 +712,9 @@ compiles all 155 roots twice against a 445-file snapshot with SHA-256
 Both object sets are byte-identical; each totals 3,749,796 bytes. The combined graph passes the
 two-link symbol and memory checks, clean normal and partitioned image builds,
 and strong four-vCPU runtime gates with both NICs.
-The current 156-source production build passes. A broader two-generation
-frontier run timed out after 1,204 seconds and remains incomplete.
+The current 156-source production build passes. The broader two-pass frontier
+targets 156 sources and 312 checked compilations. Its latest rerun exceeded
+2,340 seconds without a compiler diagnostic and remains incomplete.
 
 Checked-seed CupidObj generates three installation tables, and checked-seed
 CupidC compiles them. CupidC also compiles the three example external ELF
@@ -906,8 +907,8 @@ also passed. The private run left the source image unchanged.
 
 ## Current production checkpoint
 
-The current production checkpoint adds a CupidC-built artifact-size contract
-to the guarded normal boot edge. All 443 root transforms now have a Cupid
+The current production checkpoint guards the normal boot edge with a
+CupidC-built artifact-size contract. All 443 root transforms have a Cupid
 participant. The first poisoned-host build reached the new gate in 695.8
 seconds and rejected the embedded-manual change that made `kernel.bin` 436
 bytes larger. After that one policy row moved, a complete poisoned-host rebuild
@@ -920,21 +921,31 @@ exact-size gate in 659.6 seconds and measured both ELFs 8,228 bytes larger and
 `kernel.bin` 8,252 bytes larger. A 600-second replay allowance expired during
 strict inspection and is not counted as a result. The direct contract passed
 in 12.4 seconds, and an uninterrupted poisoned-host build passed in 668.5
-seconds and published the image below.
+seconds.
+
+The named local callback boundary then expanded the private compiler,
+feature-14 guest, and embedded manuals. Review discarded an intermediate image
+whose build predated the settled CTXT text. The settled poisoned-host build
+reached the exact-size gate in 690.910 seconds and reported only the pass-one
+ELF and raw-kernel changes. All 38 artifact-size policy and semantic-contract
+tests passed in 2.650 seconds, with two Windows replacement cases skipped
+because pinned handles already deny those operations. A repeated poisoned-host
+build passed in 692.768 seconds and published the current image.
 
 | Output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
-| `kernel/kernel.elf.pass1` | 9,244,564 | `8aedcd004a22ed58d0aaca2552db1342adda911732c43d3414a97481951297ed` |
-| `kernel/kernel.elf` | 9,367,444 | `fb2449be0e094751b245657fe7f5e2bff850ac4e1e07639c47cde11b562a84f2` |
-| `kernel/kernel.bin` | 9,148,256 | `104a4e6ede53d7afe24df05c5774753550af14180e6a2b4e26a01fee5f37e275` |
-| `cupidos.img` | 209,715,200 | `deb59e1957f6f58f7e40cefa4c5febefed18ebdb4ee9c5a24e9a716b80554ed8` |
+| `kernel/kernel.elf.pass1` | 9,299,616 | `9d2d8ceb5dbfcf5b727568d5413ad6dfa343ee496a8bbad75af652d46971065b` |
+| `kernel/kernel.elf` | 9,422,496 | `b6d9b973c192a77dabeba94dab1839e6cf7f0ee98db2748c1f993c3f233b12d1` |
+| `kernel/kernel.bin` | 9,202,060 | `5fb32842c9be1176ead0e924614bde7da8d28dfaec08be85696b52f7e202a2c2` |
+| `cupidos.img` | 209,715,200 | `fb79586e6bc9aaa998ef248265d5bc3eaf43524ffed8b1c96e71affb96d0460a` |
 
 A private four-vCPU e1000 boot compiled `/bin/feature14_simd.cc` through in-OS
-CupidC and passed the SMP runtime contract in 63.1 seconds. The guest printed
-`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`, overall PASS, and
-clean JIT completion. Its 33,293-byte log has SHA-256
-`91ff376016bb3444c88e8689c69a8d2bec47bc2abb39093c593c2039878ccc2c`.
+CupidC and passed the SMP runtime contract in 66.095 seconds. The guest printed
+`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`,
+`[feature14-callback] PASS float4=4 double2=2 calls=2`, overall PASS, and clean
+JIT completion. Its 31,408-byte log has SHA-256
+`27bb7ea972ef0ca034f09c47a91d9566cc571a5f1d9d113ff639c742f07454fd`.
 The private run left the source image unchanged.
 
 The preceding dual-NIC checkpoint used image SHA-256
@@ -1280,11 +1291,25 @@ evaluation, all four raw vector words, exact caller cleanup, pass-by-value
 mutation, const parameters, prototypes, methods, and nested returns have JIT
 and AOT execution coverage. SIMD values in a variadic tail, unprototyped SIMD
 calls, and calls through signature-erased function pointers remain rejected.
+A named block-local function pointer with an explicit prototype keeps its
+fixed parameter types, variadic state, and result. Its indirect call reuses the
+same conversions and 4-, 8-, or 16-byte slots, including SIMD arguments and
+XMM0 results. Empty `()`, typedef, global, parameter, field, and `void *` forms
+remain signature-erased. A plain function initializer must match the retained
+signature. Local copies share the check, later addresses are fixed up, and a
+provisional signature must match its definition. An explicit cast opts into
+erasure only for the value it covers. Compatible conditional selection checks
+every named arm. A represented integer constant expression that evaluates to
+zero is a null pointer; runtime zeros are not. Null arms are neutral for
+erasure, while every non-null object arm must be cast. Failed functions,
+methods, and sources restore emission, patches, control state, touched function
+symbols, kernel bindings, and a reused `void(void)` `__start` thunk.
 The feature-14 guest publishes
-`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`.
+`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6` followed by
+`[feature14-callback] PASS float4=4 double2=2 calls=2`.
 ADR 0216 records the fixed-array boundary. ADR 0257 records multidimensional
 row descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD
-calls.
+calls. ADR 0301 records named local callbacks.
 
 Private decimal literals now use a fixed 1536-bit integer workspace. CupidC
 forms the exact decimal ratio and rounds once to the selected binary32 or
@@ -1301,10 +1326,23 @@ types before cdecl layout. Represented pointer categories and integer null
 forms can fill a pointer slot. Character arithmetic follows integer promotion
 and uses the scalar integer conversion path when mixed with floating values.
 A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
-Function-pointer calls, kernel bindings, and calls without fixed parameter
-metadata retain source-width arguments. ADR 0210 records the first typed-array
-slice and the Browser path that requires it. ADR 0215 records the expanded
-private floating lvalue model.
+A named block-local function pointer with an explicit prototype uses those
+same conversions and keeps its declared result. Empty `()`, typedef, global,
+parameter, field, and `void *` forms remain metadata-free. Kernel bindings and
+other calls without fixed parameter metadata retain source-width arguments. A
+plain function initializer is checked before storage, while an explicit cast
+remains the deliberate erasure path. Later targets receive absolute fixups;
+their definitions must match any signature inferred during prescan. Compatible
+conditionals retain each named candidate, and a failed source discards all new
+forward fixups. It also restores touched prototypes, definitions, kernel
+bindings, and a reused implicit `__start`. The thunk has a complete
+`void(void)` signature. Null initializers use represented integer constant
+expressions that evaluate to zero; `sizeof(int) - 4` is covered, while runtime
+zero is not. Explicit erasure survives a conditional only when every non-null
+object-pointer arm is cast.
+ADR 0210 records the first typed-array slice and the Browser path that requires
+it. ADR 0215 records the expanded private floating lvalue model, and ADR 0301
+records named local callbacks.
 
 Checked CupidASM assembles the ISO spanning fixture from
 `test_iso/big_pattern.asm`. Hostbuild freezes that source and the checked seed,

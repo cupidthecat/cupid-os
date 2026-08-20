@@ -234,13 +234,16 @@ typedef struct {
   uint32_t address; /* absolute address (kernel/func) */
   int param_count;  /* for functions */
   uint8_t param_types[CC_MAX_PARAMS]; /* fixed parameter types when known */
+  int8_t param_struct_indices[CC_MAX_PARAMS]; /* record-pointer identities */
   int has_param_types; /* parsed prototype or definition supplied types */
+  int function_signature_is_provisional; /* inferred from a local initializer */
   int is_variadic;     /* fixed parameters may be followed by ellipsis */
   int is_defined;   /* has function body been emitted? */
   int is_array;     /* stack-allocated array? */
   int is_const_qualified; /* object or fixed-array element is const */
-  cc_type_t function_pointer_return_type; /* retained for unsupported SIMD calls */
-  int struct_index; /* index into structs[] for struct types */
+  cc_type_t function_pointer_return_type; /* declared result for named indirect calls */
+  int struct_index; /* record identity for struct values, pointers,
+                       and callback results */
   int array_elem_size; /* element size for array subscript scaling */
   int array_object_size; /* complete fixed-array size before frame padding */
   cc_type_t array_elem_type; /* declared element type for fixed arrays */
@@ -279,6 +282,7 @@ typedef struct {
 typedef struct {
   uint32_t code_offset;    /* where in code buffer to patch */
   char name[CC_MAX_IDENT]; /* target symbol name */
+  int is_absolute;        /* function address, rather than relative call */
 } cc_patch_t;
 
 typedef struct {

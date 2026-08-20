@@ -8,11 +8,11 @@ stable shape, then covers the Linux branch with direct build tests.
 language graph contains 31 assembly inputs, 297 headers, and 410 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`85ef0fd0a036c42e176266c029e6f359da4d3f950c5014fb8df2b626e21311ae`.
-The 2,691,298-byte audit JSON has SHA-256
-`18ca91d3528349401b1896a5dafbb059027e6b4e16f90dac23693f624511091a`,
+`f314cb75f8c8ad4ae29ea95926bfb073f1ed1533ab07b94d29751b473f70aa92`.
+The 2,691,506-byte audit JSON has SHA-256
+`1d4df91f4c6598c77f6c897d62c765e79e8e45ea59055061d7a9c420d3dc20c6`,
 and the 12,502-byte summary has SHA-256
-`6527bec3d8a2fdddb602fb484cea0baf43a7a08d7e89f8860be4c9f2c0a54707`.
+`5c9fbf214d5419a497041a27128a2569fe4f22dde8e24dfa15f4f5d650980bcf`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -393,10 +393,25 @@ object pointer can fill a fixed `int` or `unsigned int` slot as one unchanged
 i386 word. Narrow and floating destinations remain rejected. A parsed variadic
 tail widens `float` to `double` and promotes `char` to `int`. Function-pointer
 calls, kernel bindings, and calls without parameter metadata keep their
-source-width slots. A focused host-built runtime remains an optional ABI oracle.
-Checked-seed CupidC builds the production parser object, and the four-CPU guest
-frontier executes ten mixed-width feature13 calls. No host compiler, assembler,
-linker, or packaging dependency was added or retired.
+source-width slots. A named block-local function-pointer declaration keeps
+its fixed parameter types, variadic state, and result type. Its indirect call
+uses the same conversion and 4-, 8-, or 16-byte slot path as a direct call.
+Empty `()`, typedef, global, parameter, field, and `void *` forms remain
+metadata-free. Plain function initializers are checked against the retained
+signature, including record-pointer parameters, while an explicit cast opts
+into erasure. Later function addresses and provisional signatures are resolved
+inside CupidC. Compatible conditional selection checks every callback arm, and
+represented integer constant expressions that evaluate to zero are accepted as
+null pointers. Null arms are neutral for explicit erasure, but every non-null
+object arm must be cast through `void *`. Failed functions, methods, and sources
+restore emitted state, patches, control state, touched function symbols, kernel
+bindings, and the reused `__start` thunk. A focused host-built runtime remains
+an optional ABI oracle.
+Checked-seed CupidC builds the production parser object. The four-CPU guest
+frontier executes ten mixed-width feature13 calls, six direct SIMD calls, and
+two named SIMD callback calls. The poisoned production build passes with the
+same dependency set. No host compiler, assembler, linker, or packaging
+dependency was added or retired.
 
 Positive fixed-array bounds, checked count-by-stride multiplication, REPL data
 reservation, character promotion, and fresh pointer subscript metadata also
@@ -493,9 +508,10 @@ two-pass frontier predates the 156th source. It covers 155 roots against a
 The two object sets are byte-identical; each totals 3,749,796 bytes. The combined 155-root graph
 also carries the ISO fixture as an explicit image input and passes the strong
 four-vCPU runtime gate with both NICs.
-The current 156-source production build passes. A broader two-generation
-frontier run reached generation two and timed out after 1,204 seconds, so it is
-not a complete replacement for that historical two-pass proof.
+The current 156-source production build passes. The broader two-pass frontier
+targets 156 sources and 312 checked compilations. Its latest rerun exceeded
+2,340 seconds without a compiler diagnostic, so it is not a complete
+replacement for that historical two-pass proof.
 ADRs
 0110 and 0111 record the earlier transfers, ADR 0115 records
 the first source-driven ownership, ADR 0123 records the latest production
@@ -1105,8 +1121,8 @@ completed dual-NIC checkpoint immediately before this
 rebuild used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
-The current production checkpoint includes in-kernel CupidLD and the guarded
-normal boot edge. A poisoned-host normal build passed in 674.693 seconds
+The guarded 2026-08-14 production checkpoint includes in-kernel CupidLD and
+the guarded normal boot edge. A poisoned-host normal build passed in 674.693 seconds
 after CupidDis accepted all 431 production inputs. The pass-one ELF is
 9,211,340 bytes with SHA-256
 `2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`.
@@ -1297,7 +1313,7 @@ the next entry before further recursion, and restores both counters after a
 failed REPL evaluation. This changes embedded JIT safety without retiring or
 adding a host dependency.
 
-The hosted preprocessor contract runs 395 tracked profile executions through
+The hosted preprocessor contract runs 396 tracked profile executions through
 the repository file adapter. This covers 239 root-kernel and Doom C inputs,
 three user inputs, 108 Cupid programs, 33 strict hosted i386 Linux roots, four
 strict hosted i386 Windows tool drivers, two other strict hosted i386 Windows

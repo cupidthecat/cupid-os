@@ -168,6 +168,7 @@ def _frontier_command_outputs():
             "[feature14-update] PASS direct=6 leaves=3 once=6 "
             "payload=8\n"
             "[feature14-call] PASS float4=4 double2=2 nested=2 calls=6\n"
+            "[feature14-callback] PASS float4=4 double2=2 calls=2\n"
             "[feature14-minmax] PASS nan=4 signed_zero=4\n"
             "[feature14-nan] PASS float_left=4 float_right=0 "
             "double_left=4 double_right=0\n"
@@ -2112,6 +2113,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "payload=8\n"
             ),
             "[feature14-call] PASS float4=4 double2=2 nested=2 calls=6\n",
+            "[feature14-callback] PASS float4=4 double2=2 calls=2\n",
             "[feature14-minmax] PASS nan=4 signed_zero=4\n",
             (
                 "[feature14-nan] PASS float_left=4 float_right=0 "
@@ -2134,6 +2136,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-matrix] FAIL",
             "[feature14-update] FAIL",
             "[feature14-call] FAIL",
+            "[feature14-callback] FAIL",
             "[feature14-minmax] FAIL",
             "[feature14-nan] FAIL",
             "FAIL feature14_simd",
@@ -2166,6 +2169,8 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "feature14_merge_float4(first, 7, second)",
             "return feature14_merge_double2(",
             "feature14_merge_double2(first, 13, second)",
+            "float4 (*float_callback)(float4 left, int marker, float4 right)",
+            "double2 (*double_callback)(double2 left, int marker, double2 right)",
             "sizeof(feature14_global_matrix[feature14_sizeof_index()])",
             "_mm_min_ps(edge_float_first, edge_float_second)",
             "_mm_max_pd(edge_double_first, edge_double_second)",
@@ -2179,6 +2184,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "sizes=8 index=6 unevaluated=2 canary=4",
             "[feature14-update] PASS direct=6 leaves=3 once=6 payload=8",
             "[feature14-call] PASS float4=4 double2=2 nested=2 calls=6",
+            "[feature14-callback] PASS float4=4 double2=2 calls=2",
         ):
             self.assertIn(spelling, source)
 

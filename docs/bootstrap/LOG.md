@@ -27748,3 +27748,132 @@ valid same-mode instruction start remains outside this structural proof;
 source-label identity needs richer assembler metadata. No owner, dependency,
 artifact, or source suffix changes in this step. ADR 0300 records the
 decision, and `TempleOS/` remains untouched reference material.
+
+## 2026-08-20: retain named local callback signatures in private CupidC
+
+Private CupidC now keeps the result, fixed parameter types, record-pointer
+identities, prototype state, and variadic boundary from a named block-local
+`T (*name)(parameters)` declaration. Calls through that pointer use the same
+cdecl conversions and 4-, 8-, or 16-byte slots as direct calls. Floating and
+SIMD results stay in XMM0; represented integer and pointer results stay in EAX.
+The caller enforces fixed arity and reclaims the complete outgoing area.
+
+The initializer is part of the ABI check. A plain function designator or named
+local callback must match the retained result and parameter boundary before it
+is stored. Record-pointer results and parameters keep their record identity. A
+represented integer constant expression that evaluates to zero is a null
+initializer. Covered forms include unary signs, integer casts, arithmetic,
+character zero, and `sizeof(int) - 4`. A conditional keeps the proof only when
+all required arms remain constant. Floating values, nonzero integers, runtime
+zeros, mutable enum storage, unrelated object pointers, and other unproved
+values receive a focused error. Casting through `void *` erases the signature
+only for the value it covers. Null conditional arms are neutral, while every
+possible non-null object-pointer arm must be cast.
+
+A later function no longer contributes a zero pointer. CupidC records an
+absolute function-address fixup and resolves it with the existing forward-call
+patches. When only the name prescan has seen the target, the local declaration
+provides a provisional signature. The later declaration or definition must
+match it. An ordinary prior prototype is checked against its definition too.
+Both prototype-first and prescan-only forward callbacks execute in JIT and AOT
+tests. A compatible conditional retains every named candidate. CupidC checks
+all arms before it applies provisional metadata, including arms known only to
+the prescan.
+
+The first red tests exposed the old behavior directly. Mismatched initializers
+compiled, later targets stored zero, callback copies bypassed checking, one
+conditional constrained only one arm, and a floating initializer could store
+stale EAX while its value lived in XMM0. Later tests found child-expression
+cast provenance leaking into an unrelated pointer, invalid runtime zeros being
+treated as constants, and null callback arms losing the valid callable type.
+Recovery initially leaked provisional symbols, forward patches, control
+nesting, kernel bindings, and reused `__start` state.
+
+Function and method failures now restore emitted code and data, patch tables,
+inferred signatures, entry state, labels, control nesting, and statement
+nesting. A failed complete source restores every touched pre-existing symbol,
+including prototypes, definitions, kernel bindings, and a reused implicit
+`__start`. Only source-added patches are resolved or discarded. The implicit
+thunk publishes a complete `void(void)` signature, so an incompatible callback
+cannot retag it as an unknown function.
+
+The full private call-ABI module passed all 217 tests in 40.806 seconds. Its
+cases cover scalar, floating, SIMD, variadic, record-pointer, forward, copy,
+conditional, null, explicit-cast, invalid-value, and same-state recovery paths.
+The GUI and runtime contract module passed all 125 tests in 3.659 seconds. Two
+mistyped focused selectors were rejected by unittest during development; the
+final evidence comes from the complete modules, not those selector attempts.
+The build-graph audit run passed 94 of 100 tests. All six failures rejected the
+separate untracked `toolchain/tests/toolchain_manifest_contract.cc` as an
+unreachable source. That next-slice file is not part of this callback commit,
+so this audit run is recorded as workspace interference rather than a callback
+graph result.
+
+A detached callback-only worktree excluded those four unrelated files. The
+regenerated audit exposed six stale control-flow totals and one CupidDis
+source-head tuple. The first frontend run failed seven locks as intended.
+After the measured values were updated, all 97 frontend tests passed in 14.134
+seconds. Audit regeneration followed by check mode passed in 138.660 seconds.
+The final inventory has 738 active sources, 452 transforms, 255 feature rows,
+and 25 unreachable sources. Its active-source digest is
+`f314cb75f8c8ad4ae29ea95926bfb073f1ed1533ab07b94d29751b473f70aa92`.
+The 2,691,506-byte JSON has SHA-256
+`1d4df91f4c6598c77f6c897d62c765e79e8e45ea59055061d7a9c420d3dc20c6`,
+and the 12,502-byte Markdown rendering has SHA-256
+`5c9fbf214d5419a497041a27128a2569fe4f22dde8e24dfa15f4f5d650980bcf`.
+
+The first checked-seed launch used a ten-second wrapper and stopped before the
+compiler could finish. An intermediate source passed in 66.8 seconds, followed
+by an 83.9-second object from an earlier implementation. Neither object is the
+final identity. The checked kernel compile suite passed all 35 tests in 97.926
+seconds. The settled checked Linux CupidC seed compiled
+`kernel/lang/cupidc_parse.cc` in 74.531 seconds to a 450,176-byte ELF32 object
+with SHA-256
+`93aed3434532b1c2db297165cbcc8a8e7d70e253341eb91d6be6d3534737d260`.
+
+The complete frontier is a two-pass deterministic proof over 156 sources, for
+312 checked compilations. A first run outlived its 604-second outer wrapper and
+detached, so its eventual status was not counted. The official rerun reached
+the test's 2,340-second limit without a compiler diagnostic. This is a timeout,
+not a completed frontier pass. The normal production build supplies the
+separate one-pass ownership proof.
+
+Review found that the first callback artifacts and 70.8-second guest smoke
+predated the settled CTXT text. Those identities and their 33,811-byte log were
+discarded. A pre-publication rebuild was also stopped when another embedded
+manual still carried self-referential artifact values. No result is claimed
+for either intermediate checkpoint.
+
+The settled poisoned-host `make -j4 all` reached only the expected exact-size
+mismatch after 690.910 seconds. It measured 9,299,616 bytes for
+`kernel.elf.pass1` and 9,202,060 bytes for `kernel.bin`; the 9,422,496-byte
+`kernel.elf` row remained exact. The policy changed only those two rows. All 38
+artifact-size policy and semantic-contract tests passed in 2.650 seconds; two
+Windows replacement cases were skipped because pinned handles already deny
+those operations. The repeated poisoned build passed in 692.768 seconds and
+accepted all nine exact artifacts.
+The final identities are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,299,616 | `9d2d8ceb5dbfcf5b727568d5413ad6dfa343ee496a8bbad75af652d46971065b` |
+| `kernel/kernel.elf` | 9,422,496 | `b6d9b973c192a77dabeba94dab1839e6cf7f0ee98db2748c1f993c3f233b12d1` |
+| `kernel/kernel.bin` | 9,202,060 | `5fb32842c9be1176ead0e924614bde7da8d28dfaec08be85696b52f7e202a2c2` |
+| `cupidos.img` | 209,715,200 | `fb79586e6bc9aaa998ef248265d5bc3eaf43524ffed8b1c96e71affb96d0460a` |
+
+The four-vCPU e1000 guest smoke passed in 66.095 seconds. The private in-OS
+compiler ran `/bin/feature14_simd.cc` and printed the six-call direct marker,
+`[feature14-callback] PASS float4=4 double2=2 calls=2`, the overall feature
+result, and the JIT completion marker. The 31,408-byte serial log has SHA-256
+`27bb7ea972ef0ca034f09c47a91d9566cc571a5f1d9d113ff639c742f07454fd`.
+The private-image run left the tracked input image unchanged.
+
+This source capability moves no normal-build owner and adds no host dependency.
+Typedef, global, parameter, and record-field function-pointer signatures;
+later pointer assignments; recursive nested callback types; and aggregate
+results remain open. Computed callback expressions outside the represented
+conditional and copy paths still lack full signature provenance. The larger
+parser changes the three deterministic kernel artifact sizes above. Production
+sources already use `.cc`, so no suffix rename is due. ADR 0301 records the
+decision, and `TempleOS/` remains untouched reference material.

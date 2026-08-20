@@ -170,7 +170,8 @@ The earlier 1,057.969-second build and definitive four-vCPU E1000 and RTL8139
 frontiers remain pre-freeze evidence. Those boots passed the AC97 and PC
 speaker checks with exits 0 in 794.034 and 758.667 seconds.
 
-The current poisoned-host normal build finished in 674.693 seconds. Its
+The guarded 2026-08-14 poisoned-host normal build finished in 674.693
+seconds. Its
 2,560-byte boot image keeps the same SHA-256. The 9,211,340-byte pass-one ELF
 has SHA-256
 `2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`,
@@ -391,8 +392,20 @@ slot type before cdecl layout. Represented pointer categories and integer null
 forms can fill a pointer slot. A represented object pointer can fill a fixed
 `int` or `unsigned int` slot as one unchanged i386 word. Narrow and floating
 destinations remain rejected. A parsed variadic tail widens `float` to `double`
-and promotes `char` to `int`. Function-pointer calls, kernel bindings, and
-calls without that metadata keep their source-width slots.
+and promotes `char` to `int`. A named block-local function pointer with an
+explicit prototype uses those same conversions and keeps its declared result.
+Empty `()`, typedef, global, parameter, field, and `void *` forms remain
+metadata-free. Kernel bindings and other calls without fixed metadata keep
+their source-width slots. A plain function initializer must match the retained
+signature, including record-pointer parameters. Local callback copies use the
+same check, and later function addresses are fixed up. An explicit cast erases
+the source signature. Compatible conditional selection checks every callback
+arm. Represented integer constant expressions that evaluate to zero are valid
+null pointers; runtime and otherwise unproved zeros are rejected. Null arms are
+neutral for erasure, while every non-null object arm must carry an explicit
+`void *` cast. Failed functions, methods, and sources restore emitted state,
+patches, control state, prior function symbols, kernel bindings, and a reused
+`void(void)` `__start`. ADR 0301 records the named local callback boundary.
 
 Private decimal `float` and `double` literals use a fixed 1536-bit integer
 workspace. The converter forms the exact decimal ratio and rounds once to the
@@ -446,6 +459,16 @@ remain unsupported. Fixed-prototype direct functions and methods pass either
 vector by value in one 16-byte cdecl slot and return it through XMM0. The slot
 uses `MOVUPS` and may begin at a four-byte boundary. SIMD variadic tails,
 unprototyped calls, and signature-erased function-pointer calls are rejected.
+A named block-local function pointer with an explicit prototype retains a
+fixed SIMD parameter or result and uses the same 16-byte slot and XMM0 return
+path. Empty `()`, typedef, global, parameter, field, and `void *` pointers do
+not retain that signature. Plain function initializers are checked before the
+pointer is stored. Later definitions receive address fixups and must match a
+provisional signature. A compatible conditional checks all of its named arms.
+An explicit cast opts into erasure only for the value it covers. Null arms are
+neutral, and every non-null object-pointer arm must be cast. The active
+feature14 guest executes two named SIMD callback calls in addition to its six
+direct vector calls. ADR 0301 records this callback boundary.
 The fixed-array boundary is in ADR 0216. ADR 0257 records multidimensional row
 descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD
 calls.

@@ -303,7 +303,13 @@ census interpretation.
 
 A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
 Function-pointer calls, kernel bindings, and calls without fixed parameter
-metadata keep their source-width slots. Character operands undergo integer
+metadata keep their source-width slots. A named block-local function-pointer
+declaration retains fixed parameter and result types.
+Its indirect call uses the same conversions and 4-, 8-, or 16-byte slot
+layout, enforces fixed arity, applies default promotions after a variadic
+prefix, and publishes floating or vector results through XMM0. Empty `()`,
+`void *`, typedef, global, parameter, and field forms remain metadata-free.
+Character operands undergo integer
 promotion in ordinary integer arithmetic and use the integer SSE conversion
 path when paired with a floating operand or cast.
 
@@ -423,14 +429,32 @@ the exact 4-, 8-, and 16-byte outgoing area. The private ABI does not promise
 
 A fixed SIMD prefix is valid before scalar variadic values. SIMD variadic-tail
 arguments and unprototyped SIMD calls are rejected because they have no fixed
-type metadata. Function-pointer signatures are still erased, so SIMD arguments
-and results through them also fail explicitly. Named `_mm_*` intrinsics retain
-their inline lowering. Const SIMD parameters remain readable but cannot be
-modified. ADR 0216 records the first fixed-array boundary, ADR 0257 records
-multidimensional row descent, ADR 0294 records whole-vector updates, and ADR
-0299 records the call boundary. The active guest requires both
+type metadata. A named block-local function pointer with an explicit prototype
+keeps its fixed types, variadic boundary, and result, so scalar and SIMD values
+use the same 4-, 8-, or 16-byte call path. A plain function initializer must
+match that signature; an explicit `void *` cast erases the check. Empty `()`,
+typedef, global, parameter, field, and `void *` pointers remain metadata-free.
+Named local callback copies are checked too. A later target receives an
+absolute address fixup, and its real definition must match any provisional
+signature inferred from the initializer. Compatible conditional selection
+keeps every candidate and checks each arm. A represented integer constant
+expression that evaluates to zero is a null initializer; covered forms include
+unary signs, casts, arithmetic, character zero, and `sizeof(int) - 4`. A
+conditional keeps the proof only when every required arm is constant. Null arms
+are neutral for explicit erasure, while every non-null object-pointer arm must
+be cast through `void *`. Unproved scalar, mutable enum-storage, and object
+values are rejected. Failed functions and methods restore emitted state,
+patches, inferred signatures, labels, and control nesting. A failed source also
+restores touched prototypes, definitions, kernel bindings, and a reused
+`__start`, then drops its new patches. The implicit thunk is typed `void(void)`.
+Named `_mm_*` intrinsics retain their inline lowering. Const SIMD parameters
+remain readable but cannot be modified. ADR 0216 records the first fixed-array
+boundary, ADR 0257 records multidimensional row descent, ADR 0294 records
+whole-vector updates, ADR 0299 records the call boundary, and ADR 0301 records
+named local callbacks. The active guest requires both
 `[feature14-update] PASS direct=6 leaves=3 once=6 payload=8` and
-`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6` before the overall
+`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`, followed by
+`[feature14-callback] PASS float4=4 double2=2 calls=2`, before the overall
 feature-14 result.
 
 Private decimal floating tokens now enter a fixed 1536-bit integer converter.
@@ -996,8 +1020,8 @@ also passed. The private run left the source image unchanged.
 
 ## Current production checkpoint
 
-The current checkpoint adds a CupidC-built artifact-size contract to the
-guarded normal boot edge. All 443 root transforms now have a Cupid
+The current checkpoint guards the normal boot edge with a CupidC-built
+artifact-size contract. All 443 root transforms have a Cupid
 participant. The first poisoned-host build reached the new gate in 695.8
 seconds and rejected the embedded-manual change that made `kernel.bin` 436
 bytes larger. After that one policy row moved, a complete poisoned-host rebuild
@@ -1011,22 +1035,32 @@ exact-size gate in 659.6 seconds and measured both ELFs 8,228 bytes larger and
 `kernel.bin` 8,252 bytes larger. A 600-second replay allowance expired during
 strict inspection and is not counted as a result. The direct contract passed
 in 12.4 seconds, and an uninterrupted poisoned-host build passed in 668.5
-seconds and published the image below.
+seconds.
+
+The named local callback boundary then expanded the private compiler,
+feature-14 guest, and embedded manuals. Review discarded an intermediate image
+whose build predated the settled CTXT text. The settled poisoned-host build
+reached the exact-size gate in 690.910 seconds and reported only the pass-one
+ELF and raw-kernel changes. All 38 artifact-size policy and semantic-contract
+tests passed in 2.650 seconds, with two Windows replacement cases skipped
+because pinned handles already deny those operations. A repeated poisoned-host
+build passed in 692.768 seconds and published the current image.
 
 | Output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
-| `kernel/kernel.elf.pass1` | 9,244,564 | `8aedcd004a22ed58d0aaca2552db1342adda911732c43d3414a97481951297ed` |
-| `kernel/kernel.elf` | 9,367,444 | `fb2449be0e094751b245657fe7f5e2bff850ac4e1e07639c47cde11b562a84f2` |
-| `kernel/kernel.bin` | 9,148,256 | `104a4e6ede53d7afe24df05c5774753550af14180e6a2b4e26a01fee5f37e275` |
-| `cupidos.img` | 209,715,200 | `deb59e1957f6f58f7e40cefa4c5febefed18ebdb4ee9c5a24e9a716b80554ed8` |
+| `kernel/kernel.elf.pass1` | 9,299,616 | `9d2d8ceb5dbfcf5b727568d5413ad6dfa343ee496a8bbad75af652d46971065b` |
+| `kernel/kernel.elf` | 9,422,496 | `b6d9b973c192a77dabeba94dab1839e6cf7f0ee98db2748c1f993c3f233b12d1` |
+| `kernel/kernel.bin` | 9,202,060 | `5fb32842c9be1176ead0e924614bde7da8d28dfaec08be85696b52f7e202a2c2` |
+| `cupidos.img` | 209,715,200 | `fb79586e6bc9aaa998ef248265d5bc3eaf43524ffed8b1c96e71affb96d0460a` |
 
 The five-sector boot image is unchanged. A private four-vCPU e1000 boot
 compiled `/bin/feature14_simd.cc` through in-OS CupidC and passed the SMP
-runtime contract in 63.1 seconds. The guest printed
-`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`, overall PASS, and
-clean JIT completion. Its 33,293-byte log has SHA-256
-`91ff376016bb3444c88e8689c69a8d2bec47bc2abb39093c593c2039878ccc2c`.
+runtime contract in 66.095 seconds. The guest printed
+`[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`,
+`[feature14-callback] PASS float4=4 double2=2 calls=2`, overall PASS, and clean
+JIT completion. Its 31,408-byte log has SHA-256
+`27bb7ea972ef0ca034f09c47a91d9566cc571a5f1d9d113ff639c742f07454fd`.
 The private run left the source image unchanged.
 
 The preceding dual-NIC checkpoint used image SHA-256
@@ -1379,9 +1413,10 @@ bounded delays; persistent locks and other filesystem errors publish nothing.
 Its input inventory skips hidden paths under active include roots, so a
 concurrent checked compile cannot add private staging headers to the frozen
 repository snapshot.
-The current 156-source production build passes. A broader two-generation run
-reached its second frontier generation and timed out after 1,204 seconds. It is
-recorded as a timeout, not a complete frontier pass.
+The current 156-source production build passes. The broader two-pass frontier
+targets 156 sources and 312 checked compilations. Its latest rerun exceeded
+2,340 seconds without a compiler diagnostic, so it is not a complete frontier
+pass.
 The kernel-entry recipe freezes 63 recursively included headers, and the SIMD
 recipe freezes seven. Poisoning `CC` leaves both recipes on the checked
 wrapper. Their validated objects are 25,920 and 8,768 bytes, respectively,
@@ -1926,7 +1961,7 @@ initializers: `ctool.cc` 65/1,012/5,981/133/33; `cupidasm.cc`
 `cupidc_frontend.cc` 461/17,619/115,690/2,629/1,584; `cupidc_ir.cc`
 270/7,624/70,606/1,004/369; `cupidc_pp.cc` 143/3,932/25,287/479/286;
 `cupidc_type.cc` 31/737/5,487/85/43; `cupiddis.cc`
-77/1,742/11,267/181/137; `cupidld.cc` 82/2,875/18,200/369/337;
+83/1,907/12,277/206/150; `cupidld.cc` 82/2,875/18,200/369/337;
 `cupidobj.cc` 140/3,451/23,768/532/452; `elf32.cc`
 37/1,219/9,457/143/70; and `x86.cc` 65/1,866/12,549/200/17,124. The
 generated audit records the current lexical totals and source graph. These
@@ -1952,9 +1987,9 @@ The preprocessing module owns translation-phase tokenization, ordered
 object, function, and variadic macros, C11 conditionals and predefined macros,
 `#line` locations, direct and macro-expanded includes, forced inputs,
 guarded traversal, canonical once identity, pack metadata, and typed Cupid
-`#exe` markers. Checked manifests classify all 2,459 include operands as
-2,202 direct quoted plus 257 direct angle forms with zero macro operands
-across 702 active C-family inputs. The generated manifest drives 395 tracked
+`#exe` markers. Checked manifests classify all 2,460 include operands as
+2,203 direct quoted plus 257 direct angle forms with zero macro operands
+across 703 active C-family inputs. The generated manifest drives 396 tracked
 profile runs under twelve profiles plus four generated kernel roots. The
 profile counts are 156 kernel, three Doom compatibility, 80 Doom tree, three
 user, 108 Cupid programs, 33 strict hosted i386 Linux, four strict hosted i386
@@ -1996,16 +2031,16 @@ treat those spellings as ordinary identifiers. The graph contains 738 active
 language inputs: 31 assembly files, 297 headers, and 410 Cupid C files. No
 ordinary C translation unit remains in the supported roots. It records 255
 feature IDs, 452 transforms, and 25 accounted unreachable files. The preprocessor
-inventory covers 703 files and 2,459 include occurrences, split into 2,202
+inventory covers 703 files and 2,460 include occurrences, split into 2,203
 quoted and 257 angle forms. Its active roots contain 396 tracked and four
 generated translation units.
 
 The active-source digest is
-`85ef0fd0a036c42e176266c029e6f359da4d3f950c5014fb8df2b626e21311ae`.
-The 2,691,298-byte audit JSON has SHA-256
-`18ca91d3528349401b1896a5dafbb059027e6b4e16f90dac23693f624511091a`,
+`f314cb75f8c8ad4ae29ea95926bfb073f1ed1533ab07b94d29751b473f70aa92`.
+The 2,691,506-byte audit JSON has SHA-256
+`1d4df91f4c6598c77f6c897d62c765e79e8e45ea59055061d7a9c420d3dc20c6`,
 and the 12,502-byte summary has SHA-256
-`6527bec3d8a2fdddb602fb484cea0baf43a7a08d7e89f8860be4c9f2c0a54707`.
+`5c9fbf214d5419a497041a27128a2569fe4f22dde8e24dfa15f4f5d650980bcf`.
 
 Across the three supported roots, CupidC participates in 248 transforms,
 CupidASM in seven, CupidLD in seven, and CupidObj in 192. Python participates in
