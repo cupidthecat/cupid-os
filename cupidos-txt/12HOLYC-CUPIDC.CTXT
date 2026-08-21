@@ -364,9 +364,13 @@ call uses the same conversions and four-, eight-, or sixteen-byte cdecl slots,
 including SIMD arguments and XMM0 results. A file-scope function-pointer
 typedef retains its result, fixed parameters, record identities, prototype
 state, and variadic boundary. A free-function parameter declared through that
-typedef gets the same signature for JIT and private AOT calls. Empty (),
-typedef-typed local, global, and field objects, bare nested callback signatures,
-method parameters, and void-pointer forms remain signature-erased. Feature 13
+typedef gets the same signature for JIT and private AOT calls. A file object
+declared directly with the typedef also keeps the signature across null
+initialization, checked plain assignment, indirect call, and clearing. Empty
+(), typedef-typed automatic and block-static objects, fields, callback arrays,
+bare nested callback signatures, method parameters, alias chains, and
+void-pointer forms remain signature-erased. A direct function designator in
+static data still needs an address fixup. Feature 13
 retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
 nested pass-by-value vector
 calls and named SIMD callback forms. ADR 0301 records the earlier named-local
@@ -385,15 +389,18 @@ kernel bindings, and a reused __start. The implicit thunk is typed void(void).
 
 kernel/fs/iso9660.cc supplies the active scalar case with susp_entry_cb, whose
 three fixed parameters are preserved when susp_walk calls it. The feature14
-source adds a float4 callback typedef and passes it to a helper. Focused JIT
-and private AOT tests execute these typedef-parameter calls, including the
+source adds a float4 callback typedef, passes it to a helper, and retains it on
+a file object. Focused JIT and private AOT tests execute these
+typedef-parameter and typedef-global calls, including the
 16-byte float4 slot and XMM0 result. They also cover arity, variadic promotion,
 record identity, incompatible signatures, null constant expressions, explicit
 erasure, forward definitions, and same-state recovery.
 
 The four-vCPU e1000 feature14 guest contract requires ordered direct-call,
-named-callback, and typedef-callback evidence. The typedef path must print
-`[feature14-callback-typedef] PASS float4=4 calls=1`. The command must then
+named-callback, typedef-parameter, and typedef-global callback evidence. The
+last two paths must print
+`[feature14-callback-typedef] PASS float4=4 calls=1` and
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. The command must then
 print the overall feature14 PASS and finish with CupidC JIT completion.
 
 Function-pointer typedef declarations remain file-scope, allow one alias per

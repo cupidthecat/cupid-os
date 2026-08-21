@@ -20,6 +20,7 @@ int feature14_double_call_count;
 
 typedef float4 (*feature14_float_callback_t)(float4 left, int marker,
                                              float4 right);
+feature14_float_callback_t feature14_global_callback = ((void *)0);
 
 int feature14_next_outer() {
     feature14_matrix_outer_calls += 1;
@@ -147,6 +148,10 @@ float4 feature14_invoke_float_callback(
     return callback(left, marker, right);
 }
 
+void feature14_set_global_callback(feature14_float_callback_t callback) {
+    feature14_global_callback = callback;
+}
+
 float4 feature14_nested_float4(float4 first, float4 second, float4 third) {
     feature14_float_call_count += 1;
     return feature14_merge_float4(
@@ -226,6 +231,23 @@ int feature14_test_callback_typedef_parameter() {
     if (feature14_float_call_count != 1) return 1;
     if (result.x != 6.0f || result.y != 8.0f ||
         result.z != 10.0f || result.w != 12.0f) return 2;
+    return 0;
+}
+
+int feature14_test_callback_typedef_global() {
+    float4 first = {1.0f, 2.0f, 3.0f, 4.0f};
+    float4 second = {5.0f, 6.0f, 7.0f, 8.0f};
+    float4 result;
+
+    feature14_float_call_count = 0;
+    if (feature14_global_callback != 0) return 1;
+    feature14_set_global_callback(feature14_merge_float4);
+    result = feature14_global_callback(first, 7, second);
+    feature14_set_global_callback(0);
+    if (feature14_global_callback != 0) return 2;
+    if (feature14_float_call_count != 1) return 3;
+    if (result.x != 6.0f || result.y != 8.0f ||
+        result.z != 10.0f || result.w != 12.0f) return 4;
     return 0;
 }
 
@@ -693,6 +715,15 @@ int main() {
     } else {
         serial_printf("[feature14-callback-typedef] FAIL check=%d\n",
                       callback_typedef_result);
+        ok = 0;
+    }
+
+    int callback_global_result = feature14_test_callback_typedef_global();
+    if (callback_global_result == 0) {
+        serial_printf("[feature14-callback-global] PASS float4=4 calls=1 cleared=1\n");
+    } else {
+        serial_printf("[feature14-callback-global] FAIL check=%d\n",
+                      callback_global_result);
         ok = 0;
     }
 

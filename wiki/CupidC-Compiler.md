@@ -131,16 +131,21 @@ A direct file-scope function-pointer typedef retains its result, record
 identities, fixed parameter list, prototype state, and variadic boundary. A
 free-function parameter declared with that alias carries the signature through
 JIT, AOT, and persistent REPL compilation, including use from a later REPL
-unit. Indirect calls through the parameter use the same cdecl conversion and
-layout path as direct calls. The private typedef table holds sixteen entries,
+unit. A file object declared directly with the alias also keeps the signature.
+It may start as `NULL`, receive a compatible callback through checked plain
+assignment, make a typed indirect call, and be cleared. Indirect calls through
+either storage path use the same cdecl conversion and layout as direct calls.
+The private typedef table holds sixteen entries,
 and each callback signature may contain at most 32 parameters. Each declaration
-may introduce only one function-pointer alias. Alias chains, method parameters,
-global callback objects, record fields, typedef-typed local objects, later
-assignments, recursive callback signatures, and arbitrary computed callback
-expressions remain outside this typed path. Direct structure and array callback
+may introduce only one function-pointer alias. A direct function designator in
+a global initializer is rejected until initialized data has address fixups.
+Alias chains, method parameters, record fields, typedef-typed automatic and
+block-static objects, callback arrays, recursive callback signatures, and
+arbitrary computed callback expressions remain outside this typed path. Direct structure and array callback
 results are rejected; record-pointer results retain their record identity. A
 rejected source or REPL unit restores the typedef table with the prior symbols,
-patches, control state, code, and data. ADR 0303 records this boundary.
+patches, control state, code, and data. ADR 0303 records typedef parameters,
+and ADR 0306 records global callback storage and checked assignment.
 
 ### Unsigned 32-bit operations
 
@@ -262,8 +267,12 @@ fixed types, variadic state, and result. Its indirect call uses the same cdecl
 conversions and 4-, 8-, or 16-byte slots as a direct call, including SIMD
 arguments and XMM0 results. A free-function parameter declared with a direct
 file-scope function-pointer typedef carries the same metadata and call path.
-Empty `()`, typedef-typed local objects, global and field objects, callback
-alias chains, recursive callback signatures, later assignments, and `void *`
+A file object declared with that typedef carries the metadata too. Grouped
+zero or `((void *)0)` initializes its zero-filled storage. Compatible plain
+assignment stores a callback, null clears it, and a direct static function
+initializer remains rejected until a data-address fixup exists. Empty `()`,
+typedef-typed automatic and block-static objects, fields, callback arrays,
+alias chains, recursive callback signatures, and `void *`
 pointers still erase it. Direct structure and array callback results are
 rejected; record-pointer results retain their record identity. Named SIMD
 intrinsics continue to lower inline. A plain function initializer or direct
@@ -281,8 +290,11 @@ state, prior function symbols, kernel bindings, and the reused `void(void)`
 `__start` thunk. The active ISO callback passes its `uint8_t` entry length to a
 declared `uint32_t` slot through this path. `feature13_double.cc` retains its
 ten mixed-scalar calls. `feature14_simd.cc` contains distinct direct, named
-local callback, and typedef-parameter callback markers. ADR 0301 records the
-named local callback foundation, and ADR 0303 records typedef parameters.
+local callback, typedef-parameter callback, and typedef-global callback
+markers. The global marker is
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. ADR 0301 records
+the named local callback foundation, ADR 0303 records typedef parameters, and
+ADR 0306 records global callback storage.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations
@@ -2686,11 +2698,14 @@ When the parser encounters a call to an undefined function, it emits a placehold
   direct function, method, named local callback, and direct callback-typedef
   parameter boundaries. Variadic tails, unprototyped calls, and
   signature-erased function pointers remain rejected.
-- Callback signature metadata is limited to named block-local declarators and
+- Callback signature metadata is limited to named block-local declarators,
   free-function parameters declared with a direct file-scope function-pointer
-  typedef. Method parameters, callback alias chains, global objects, record
-  fields, later assignments, recursive callback signatures, aggregate results,
-  and arbitrary computed callback expressions remain unrepresented.
+  typedef, and file objects declared directly with that typedef. Method
+  parameters, callback alias chains, typedef-typed automatic and block-static
+  objects, record fields, callback arrays, recursive callback signatures,
+  aggregate results, and arbitrary computed callback expressions remain
+  unrepresented. Static callback storage accepts null initialization, but a
+  direct function address still needs an initialized-data fixup.
 
 The private compiler implements a broader runtime floating and SIMD language.
 The hosted self-hosting path converts between `float` and `double`, evaluates

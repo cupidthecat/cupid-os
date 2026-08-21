@@ -565,8 +565,9 @@ completion. The same logs pass all 62 crypto checks and reach the desktop and
 terminal.
 
 The four-vCPU e1000 gate also runs feature14_simd.cc. It requires direct-call,
-named-callback, and typedef-callback evidence in that order, including
-`[feature14-callback-typedef] PASS float4=4 calls=1`. It then requires the
+named-callback, typedef-parameter, and typedef-global callback evidence in that
+order, including `[feature14-callback-typedef] PASS float4=4 calls=1` followed
+by `[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. It then requires the
 overall feature14 PASS and CupidC JIT completion. The gate rejects known SMP,
 storage, crypto, exception, corruption, and illegal-instruction failures.
 

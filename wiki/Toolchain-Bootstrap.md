@@ -1006,8 +1006,12 @@ The private CupidC source accepts direct file-scope function-pointer
 typedefs in free-function parameters. JIT, AOT, and persistent REPL compilation
 retain the callback result, fixed and variadic parameters, record identities,
 and prototype state. The call reuses direct cdecl coercion and 4-, 8-, and
-16-byte layout, including SIMD results through XMM0. Global callback objects,
-method parameters, record fields, alias chains, later assignments, recursive
+16-byte layout, including SIMD results through XMM0. A file object declared
+directly with the typedef keeps the same signature across null initialization,
+checked plain assignment, indirect call, and null clearing. A direct function
+designator in static data remains rejected until initialized data has an
+address fixup. Method parameters, record fields, callback arrays, alias chains,
+typedef-typed automatic and block-static objects, recursive
 callback signatures, aggregate results, and arbitrary computed callback
 expressions remain outside this typed path. The AOT writer uses one executable
 `PT_LOAD` for zero-data programs and adds the writable data segment only when
@@ -1501,7 +1505,8 @@ fixed parameter types, variadic state, and result. Its indirect call reuses the
 same conversions and 4-, 8-, or 16-byte slots, including SIMD arguments and
 XMM0 results. A free-function parameter declared with a direct file-scope
 function-pointer typedef carries the same metadata and call path. Empty `()`,
-global, field, callback alias chains, recursive callback signatures, later assignment, and
+fields, callback arrays, callback alias chains, typedef-typed automatic and
+block-static objects, recursive callback signatures, and
 `void *` forms remain signature-erased. A plain function initializer or direct
 callback argument must match the retained signature. Local copies share the
 check, later addresses are fixed up, and a provisional signature must match its
@@ -1518,10 +1523,15 @@ The feature-14 guest publishes
 The preceding private e1000 smoke checkpoint printed a separate
 `[feature14-callback-typedef] PASS float4=4 calls=1` marker for the
 typedef-parameter path after the direct and named callback markers.
+Source head then requires
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. The focused JIT
+and AOT contracts pass this typedef-global SIMD path. A new full guest run
+remains open because the preceding e1000 checkpoint predates the marker.
 ADR 0216 records the fixed-array boundary. ADR 0257 records multidimensional
 row descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD
-calls. ADR 0301 records named local callbacks, and ADR 0303 records callback
-typedef parameters and the zero-data AOT layout.
+calls. ADR 0301 records named local callbacks, ADR 0303 records callback
+typedef parameters and the zero-data AOT layout, and ADR 0306 records global
+callback storage and checked assignment.
 
 Private decimal literals now use a fixed 1536-bit integer workspace. CupidC
 forms the exact decimal ratio and rounds once to the selected binary32 or
@@ -1540,8 +1550,11 @@ and uses the scalar integer conversion path when mixed with floating values.
 A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
 A named block-local function pointer with an explicit prototype uses those
 same conversions and keeps its declared result. A free-function parameter declared
-with a direct file-scope function-pointer typedef does the same. Empty `()`,
-global, field, callback alias chains, recursive callback signatures, later assignment, and
+with a direct file-scope function-pointer typedef does the same. A file object
+declared directly with the typedef keeps the signature across null
+initialization, checked assignment, indirect call, and clearing. Empty `()`,
+fields, callback arrays, typedef-typed automatic and block-static objects,
+callback alias chains, recursive callback signatures, and
 `void *` forms remain metadata-free. Kernel bindings and other calls without
 fixed parameter metadata retain source-width arguments. A plain function
 initializer or direct callback argument is checked before storage or call,

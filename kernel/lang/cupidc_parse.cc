@@ -3350,6 +3350,11 @@ static int cc_emit_indirect_scalar_load(cc_state_t *cc,
                                         cc_type_t object_type);
 static int cc_function_pointer_signatures_match(
     const cc_symbol_t *left, const cc_symbol_t *right);
+static int cc_validate_function_pointer_assignment_value(
+    cc_state_t *cc, const cc_symbol_t *pointer);
+static int cc_apply_function_pointer_initializer_candidates(
+    cc_state_t *cc, const cc_symbol_t *pointer,
+    cc_symbol_t *const *targets, int target_count);
 
 static int cc_is_prescan_type_token(cc_token_type_t t) {
   return t == CC_TOK_INT || t == CC_TOK_CHAR || t == CC_TOK_VOID ||
@@ -6216,6 +6221,8 @@ static int cc_finish_indirect_assignment(cc_state_t *cc,
 /* Parse assignment: var = expr, var += expr, *ptr = expr, arr[i] = expr */
 static void cc_parse_assignment(cc_state_t *cc, const char *name) {
   cc_symbol_t *sym = cc_sym_find(cc, name);
+  cc_symbol_t *assignment_targets[CC_MAX_PARAMS];
+  int assignment_target_count = 0;
   if (!sym) {
     cc_error(cc, "undefined variable in assignment");
     return;
@@ -6231,6 +6238,24 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
   if (!cc_coerce_unsigned_assignment(cc, sym->type,
                                      cc_last_expr_type, op.type))
     return;
+
+  if (sym->type == TYPE_FUNC_PTR) {
+    if (op.type != CC_TOK_EQ) {
+      cc_error(cc, "function-pointer assignment requires plain =");
+      return;
+    }
+    if (!cc_validate_function_pointer_assignment_value(cc, sym))
+      return;
+    if (!cc_last_expr_is_null_pointer_constant &&
+        !cc_last_expr_function_signature_erased &&
+        cc_last_expr_type == TYPE_FUNC_PTR) {
+      assignment_target_count = cc_last_expr_function_signature_count;
+      memcpy(assignment_targets,
+             cc_last_expr_function_signature_candidates,
+             sizeof(*assignment_targets) *
+                 (size_t)assignment_target_count);
+    }
+  }
 
   /* SIMD assignment path - MOVUPS xmm0 to the 16-byte destination.
    * Plain '=' and the four arithmetic compound ops (+=, -=, *=, /=) are
@@ -6416,6 +6441,9 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
     emit8(cc, 0xA3);
     emit32(cc, sym->address);
   }
+  if (assignment_target_count > 0)
+    (void)cc_apply_function_pointer_initializer_candidates(
+        cc, sym, assignment_targets, assignment_target_count);
 }
 
 /* Parse pointer dereference assignment: *expr = val */
@@ -9082,6 +9110,73 @@ static int cc_validate_function_pointer_initializer_value(
   return 0;
 }
 
+static int cc_validate_function_pointer_assignment_value(
+    cc_state_t *cc, const cc_symbol_t *pointer) {
+  int target_index;
+
+  if (cc_last_expr_is_null_pointer_constant)
+    return 1;
+  if (cc_last_expr_function_signature_erased &&
+      (cc_is_object_pointer_type(cc_last_expr_type) ||
+       cc_last_expr_type == TYPE_FUNC_PTR))
+    return 1;
+  if (cc_last_expr_type != TYPE_FUNC_PTR ||
+      cc_last_expr_function_signature_count <= 0) {
+    cc_error(
+        cc,
+        "function-pointer assignment requires a function, zero, or explicit pointer cast");
+    return 0;
+  }
+  for (target_index = 0;
+       target_index < cc_last_expr_function_signature_count;
+       target_index++) {
+    if (!cc_check_function_pointer_value_compatibility(
+            cc, pointer,
+            cc_last_expr_function_signature_candidates[target_index],
+            "function-pointer assignment result does not match destination",
+            "function-pointer assignment parameters do not match destination"))
+      return 0;
+  }
+  return 1;
+}
+
+static int cc_parse_global_function_pointer_null_inner(
+    cc_state_t *cc, int depth) {
+  cc_token_t token;
+
+  if (depth >= CC_MAX_PARAMS)
+    return 0;
+  token = cc_peek(cc);
+  if (token.type == CC_TOK_NUMBER && token.int_value == 0) {
+    cc_next(cc);
+    return 1;
+  }
+  if (token.type != CC_TOK_LPAREN)
+    return 0;
+
+  cc_next(cc);
+  if (cc_peek(cc).type == CC_TOK_VOID) {
+    cc_next(cc);
+    if (!cc_match(cc, CC_TOK_STAR) || !cc_match(cc, CC_TOK_RPAREN))
+      return 0;
+    return cc_parse_global_function_pointer_null_inner(cc, depth + 1);
+  }
+  if (!cc_parse_global_function_pointer_null_inner(cc, depth + 1) ||
+      !cc_match(cc, CC_TOK_RPAREN))
+    return 0;
+  return 1;
+}
+
+static int cc_parse_global_function_pointer_null_initializer(
+    cc_state_t *cc) {
+  if (cc_parse_global_function_pointer_null_inner(cc, 0))
+    return 1;
+  cc_error(
+      cc,
+      "global function-pointer initializer must be null; function addresses need data fixups");
+  return 0;
+}
+
 static void cc_parse_simple_statement(cc_state_t *cc) {
   if (cc->error)
     return;
@@ -10825,6 +10920,7 @@ void cc_parse_program(cc_state_t *cc) {
         int gtype_si = cc_last_type_struct_index;
         int gtype_array_count = cc_last_type_array_count;
         int gtype_is_const = cc_last_type_is_const_qualified;
+        int gtype_typedef_index = cc_last_type_typedef_index;
         cc_skip_attributes(cc);
         cc_token_t gname = cc_next(cc);
         if (gname.type != CC_TOK_IDENT) {
@@ -11011,13 +11107,23 @@ void cc_parse_program(cc_state_t *cc) {
             gsym->address = cc->data_base + cc->data_pos;
             gsym->is_const_qualified = gtype_is_const;
             gsym->struct_index = gtype_si;
+            if (gtype == TYPE_FUNC_PTR)
+              (void)cc_copy_function_pointer_typedef_signature(
+                  cc, gtype_typedef_index, gsym);
             memset(cc->data + cc->data_pos, 0, (size_t)scalar_size);
             cc->data_pos += (uint32_t)scalar_size;
 
             /* Handle initializer: int x = 42; int y = -1; char *s = "hi"; */
             if (cc_match(cc, CC_TOK_EQ)) {
-              cc_token_t val = cc_next(cc);
               uint32_t addr_off = gsym->address - cc->data_base;
+              cc_token_t val;
+              if (gtype == TYPE_FUNC_PTR) {
+                if (!cc_parse_global_function_pointer_null_initializer(cc))
+                  break;
+                cc_expect(cc, CC_TOK_SEMICOLON);
+                continue;
+              }
+              val = cc_next(cc);
               /* Handle negative initializer: -NUMBER */
               int negate = 0;
               if (val.type == CC_TOK_MINUS) {

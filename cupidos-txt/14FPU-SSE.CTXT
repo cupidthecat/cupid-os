@@ -421,18 +421,24 @@ rejected. A named block-local function pointer with an explicit prototype can
 carry a fixed SIMD parameter or result through the same 16-byte slot and XMM0
 return path. A parameter of the free function helper declared with the
 feature14 float4 callback typedef keeps that same slot and result metadata.
-Typedef-typed local, global, and field objects still erase the signature.
+A file object declared directly with that typedef also keeps the signature
+through null initialization, checked assignment, indirect call, and clearing.
+Typedef-typed automatic and block-static objects, fields, callback arrays,
+method parameters, and alias chains still erase the signature. A direct static
+function-address initializer still needs an initialized-data fixup.
 Named SIMD intrinsics keep their inline lowering. A plain function initializer
 must match the retained
 signature; an explicit cast opts into erasure. Local callback copies share the
 check, and later target addresses are fixed up. A compatible conditional checks
 all named arms.
 
-Focused JIT and private AOT tests execute both named SIMD callbacks and the
-typedef-parameter callback. The source expects
-`[feature14-callback-typedef] PASS float4=4 calls=1` after the typedef path.
+Focused JIT and private AOT tests execute the named SIMD callbacks plus the
+typedef-parameter and typedef-global callbacks. The source expects
+`[feature14-callback-typedef] PASS float4=4 calls=1` followed by
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`.
 These tests cover the 16-byte argument and XMM0 result. The four-vCPU e1000
-guest contract requires the direct-call, named-callback, and typedef-callback
+guest contract requires the direct-call, named-callback, typedef-parameter, and
+typedef-global callback
 markers in that order. It then requires `PASS feature14_simd` and CupidC JIT
 completion. These paths belong to the private in-kernel compiler. The
 standalone Linux and Windows toolchain seed reproofs do not prove them.

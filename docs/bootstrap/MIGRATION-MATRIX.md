@@ -540,6 +540,25 @@ markers, and the source image stayed unchanged.
 The promoted standalone CupidC seeds do not contain this private parser or ELF
 writer, so their reproof is not callback or AOT carriage evidence.
 
+ADR 0306 carries the retained typedef signature into a file object. Grouped
+zero and the active `((void *)0)` spelling produce zero-filled callback
+storage. Checked plain assignment accepts a compatible callback, rejects a
+different result, record identity, fixed parameter list, or variadic boundary,
+and permits null clearing. Indirect JIT and AOT calls through the object use
+the same 4-, 8-, and 16-byte slots as the retained parameter path. A direct
+function designator in static data remains rejected because private
+initialized data has no address fixup. The focused ABI suite passes 235 tests
+in 35.950 seconds. The 125-test marker contract passes in 2.771 seconds and
+requires `[feature14-callback-global] PASS float4=4 calls=1 cleared=1`.
+The preceding full guest frontier predates that marker, so integrated boot
+evidence remains open. The checked self-host object build passes with a
+462,552-byte `cupidc_parse.o`, SHA-256
+`05abc78236517ccc9b3ddd861f85b7670fa104bbe9a14463a96ad5cebc56cb31`.
+This moves no build owner and removes no host
+dependency. Typedef-typed automatic and block-static objects, method
+parameters, fields, callback arrays, alias chains, recursive signatures,
+aggregate results, and arbitrary computed callbacks remain open.
+
 Private CupidC now converts decimal `float` and `double` tokens with a fixed
 1536-bit integer workspace. It rounds the exact decimal ratio once to the
 selected IEEE width using nearest-even, and an `f` suffix selects binary32

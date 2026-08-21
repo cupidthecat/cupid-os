@@ -395,8 +395,11 @@ destinations remain rejected. A parsed variadic tail widens `float` to `double`
 and promotes `char` to `int`. A named block-local function pointer with an
 explicit prototype uses those same conversions and keeps its declared result.
 A free-function parameter declared with a direct file-scope function-pointer
-typedef does the same, including fixed and variadic scalar slots. Empty `()`,
-global, field, callback alias chains, recursive callback signatures, later assignment, and
+typedef does the same, including fixed and variadic scalar slots. A file object
+declared directly with the typedef also retains the signature across null
+initialization, checked plain assignment, indirect call, and null clearing.
+Empty `()`, field, callback arrays, callback alias chains, typedef-typed
+automatic and block-static objects, recursive callback signatures, and
 `void *` forms remain metadata-free. Kernel bindings and other calls without
 fixed metadata keep their source-width slots. A plain function initializer or
 direct callback argument must match the retained signature, including
@@ -408,8 +411,10 @@ runtime and otherwise unproved zeros are rejected. Null arms are neutral for
 erasure, while every non-null object arm must carry an explicit `void *` cast.
 Failed functions, methods, and sources restore typedef entries, emitted state,
 patches, control state, prior function symbols, kernel bindings, and a reused
-`void(void)` `__start`. ADR 0301 records the named local callback foundation, and ADR 0303
-records typedef parameters.
+`void(void)` `__start`. A direct function designator in a global initializer
+remains rejected until initialized data has address fixups. ADR 0301 records
+the named local callback foundation, ADR 0303 records typedef parameters, and
+ADR 0306 records global callback storage.
 
 Private decimal `float` and `double` literals use a fixed 1536-bit integer
 workspace. The converter forms the exact decimal ratio and rounds once to the
@@ -466,8 +471,10 @@ unprototyped calls, and signature-erased function-pointer calls are rejected.
 A named block-local function pointer with an explicit prototype retains a
 fixed SIMD parameter or result and uses the same 16-byte slot and XMM0 return
 path. A free-function parameter declared with a direct file-scope callback
-typedef uses that path too. Empty `()`, global, field, callback alias chains,
-recursive callback signatures, later assignments, and `void *` pointers do not
+typedef uses that path too. A file object declared with that typedef also uses
+the 16-byte slot and XMM0 return path after checked assignment. Empty `()`,
+fields, callback arrays, callback alias chains, typedef-typed automatic and
+block-static objects, recursive callback signatures, and `void *` pointers do not
 retain the signature.
 Plain function initializers and direct callback arguments are checked before
 the call or store. Later definitions receive address fixups and must match a
@@ -481,6 +488,10 @@ seconds on four `max` vCPUs and printed the three markers in order, ending with
 feature14 and JIT completion markers. No reject marker appeared. Its
 33,219-byte log has SHA-256
 `e39a1905002c2baa483c65eb6e763f4f62907c22f8954873dbb20f4ba5a53e93`.
+The source contract now adds
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1` after the
+typedef-parameter marker. Focused JIT and AOT tests pass that global SIMD path;
+a new full guest run remains open.
 The associated poisoned-host OS build passed in 684.260 seconds with all
 fourteen exact policy artifacts accepted. The pre-documentation artifact gate
 later passed in 651.3 seconds and measured `kernel/kernel.bin` at 9,225,092

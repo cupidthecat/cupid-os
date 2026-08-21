@@ -1101,19 +1101,28 @@ table, parser cursors, arenas, symbols, sections, and control state together.
 Direct and indirect calls share the same
 argument checks, including record-pointer identity. Direct structure and array
 results remain rejected. Typedef-typed local objects and method parameters
-remain outside this slice. A zero-data AOT executable reports one program
+remain outside this parameter slice. A file object declared directly with the
+same alias also retains the signature. It may start as `NULL`, receive a
+compatible callback through checked plain assignment, call it indirectly, and
+be cleared. Static initialization with a function designator remains rejected
+until private initialized data has address fixups. Typedef-typed automatic and
+block-static objects, method parameters, fields, callback arrays, alias chains,
+and recursive signatures remain outside the retained path. A zero-data AOT executable reports one program
 header and keeps code at file offset `0x80`; data-bearing executables retain
 two headers. This slice adds no host tool or output owner. Its focused suites
-pass 231 callback tests
-and 125 GUI marker tests. The final checked self-host object build passed in
-70.9 seconds with the promoted Windows seed. It produced 459,544-byte
+pass 235 callback tests in 35.950 seconds
+and 125 GUI marker tests in 2.771 seconds. The marker contract requires
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. A new integrated
+guest run remains open. The source-head checked self-host object build passes
+with the promoted Windows seed. It produces a 462,552-byte
 `cupidc_parse.o`, SHA-256
-`266eeb3e531d26770501e514fd51a64bd98022b738c2165aa3bb8b2fed38ac62`,
+`05abc78236517ccc9b3ddd861f85b7670fa104bbe9a14463a96ad5cebc56cb31`,
 and 3,604-byte `cupidc_elf.o`, SHA-256
 `c2ad171aacd493a33a477e7a3196a5d28b04b0f74521cd8cbaec2598f391880c`.
-The definitive OS image build and combined guest smoke pass with the identities
-recorded above. The promoted standalone seeds do not contain this private
-parser or ELF writer. ADR 0303 records this private compiler boundary.
+The definitive OS image build and combined guest smoke recorded above predate
+the global-callback marker. The promoted standalone seeds do not contain this private
+parser or ELF writer. ADR 0303 records typedef parameters, and ADR 0306 records
+global callback storage. Neither changes a host tool or output owner.
 
 Block function declarations are part of the Cupid-built contract cohort. The frontend gives each lexical name its visible type and one canonical linked function. Linear IR validates both function types without allocating storage or emitting an instruction for the declaration. The ELF32 proof is byte-identical to equivalent file-scope declarations and contains one undefined function, two `R_386_PC32` call relocations, and one `R_386_32` address relocation. Both checked compiler stages build the compiler and contracts. GCC or Clang builds only the optional native copies.
 

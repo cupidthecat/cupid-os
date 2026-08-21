@@ -1776,6 +1776,172 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     result.returncode, 7, result.stdout + result.stderr
                 )
 
+    def test_function_pointer_typedef_global_matches_active_doom_callback(self):
+        doom_header = (
+            REPO_ROOT / "kernel" / "doom" / "src" / "v_video.h"
+        ).read_text(encoding="utf-8")
+        doom_source = (
+            REPO_ROOT / "kernel" / "doom" / "src" / "v_video.cc"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "typedef boolean (*vpatchclipfunc_t)(patch_t *, int, int);",
+            doom_header,
+        )
+        for fragment in (
+            "static vpatchclipfunc_t patchclip_callback = NULL;",
+            "void V_SetPatchClipCallback(vpatchclipfunc_t func)",
+            "patchclip_callback = func;",
+            "if(!patchclip_callback(patch, x, y))",
+        ):
+            with self.subTest(active_doom_fragment=fragment):
+                self.assertIn(fragment, doom_source)
+
+        source = """
+            typedef int boolean;
+            typedef boolean (*vpatchclipfunc_t)(int *patch, int x, int y);
+
+            static vpatchclipfunc_t patchclip_callback = ((void *)0);
+
+            boolean allow_patch(int *patch, int x, int y) {
+              return *patch + x + y == 12;
+            }
+
+            void V_SetPatchClipCallback(vpatchclipfunc_t func) {
+              patchclip_callback = func;
+            }
+
+            int main() {
+              int patch = 3;
+              if (patchclip_callback != 0) return 1;
+              V_SetPatchClipCallback(allow_patch);
+              if (!patchclip_callback(&patch, 4, 5)) return 2;
+              V_SetPatchClipCallback(0);
+              return patchclip_callback == 0 ? 0 : 3;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_function_pointer_typedef_global_assignment_mismatch_recovers(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-callback-global-assignment-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                typedef int (*callback_t)(double value);
+                callback_t callback = 0;
+
+                int wrong(int value) { return value; }
+
+                int main() {
+                  callback = wrong;
+                  return 1;
+                }
+                """,
+                """
+                typedef int (*callback_t)(double value);
+                callback_t callback = 0;
+
+                int right(double value) { return (int)value; }
+
+                int main() {
+                  callback = right;
+                  return callback(9);
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer assignment parameters do not match destination",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode, 9, runtime.stdout + runtime.stderr
+            )
+
+    def test_function_pointer_typedef_global_function_initializer_needs_fixup(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-callback-global-initializer-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                typedef int (*callback_t)(int value);
+                int target(int value) { return value; }
+                callback_t callback = target;
+                int main() { return callback(1); }
+                """,
+                """
+                typedef int (*callback_t)(int value);
+                callback_t callback = ((void *)0);
+                int target(int value) { return value; }
+
+                int main() {
+                  callback = target;
+                  return callback(6);
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "global function-pointer initializer must be null; "
+                "function addresses need data fixups",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode, 6, runtime.stdout + runtime.stderr
+            )
+
+    def test_function_pointer_typedef_global_keeps_simd_slots_and_result(self):
+        source = """
+            typedef float4 (*callback_t)(float4 left, int marker,
+                                         float4 right);
+            callback_t callback = ((void *)0);
+            int calls;
+
+            float4 merge(float4 left, int marker, float4 right) {
+              calls += 1;
+              if (marker != 7) return left;
+              return left + right;
+            }
+
+            void set_callback(callback_t value) {
+              callback = value;
+            }
+
+            int main() {
+              float4 left = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 right = {5.0f, 6.0f, 7.0f, 8.0f};
+              float4 result;
+              set_callback(merge);
+              result = callback(left, 7, right);
+              set_callback(0);
+              if (callback != 0 || calls != 1) return 1;
+              if (result.x != 6.0f || result.y != 8.0f) return 2;
+              if (result.z != 10.0f || result.w != 12.0f) return 3;
+              return 0;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
     def test_function_pointer_typedef_parameter_keeps_simd_slots_and_result(self):
         source = """
             typedef float4 (*blend_cb)(float4 left, double marker,

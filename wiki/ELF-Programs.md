@@ -716,14 +716,21 @@ This AOT path accepts a direct file-scope function-pointer typedef when a free
 function parameter names it. The parameter retains the callback result, fixed
 and variadic arguments, record identities, and prototype state, so indirect
 calls use the direct cdecl conversion and 4-, 8-, and 16-byte layout. SIMD
-results return through XMM0. Method parameters, global callback objects, record
-fields, callback alias chains, later assignments, recursive callback
+results return through XMM0. A file object declared directly with that typedef
+retains the same signature. It may start as null, receive a checked plain
+assignment, make a typed indirect call, and be cleared. The static initializer
+cannot contain a direct function designator until initialized data supports
+address fixups. Method parameters, record
+fields, callback arrays, callback alias chains, typedef-typed automatic and
+block-static objects, recursive callback
 signatures, aggregate results, and arbitrary computed callback expressions
 remain signature-erased or unsupported. AOT still compiles one translation
 unit into a fixed-address executable and does not emit a relocatable object for
 a later link.
 [ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records the callback and one-header AOT boundaries.
+[ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
+records the global storage and assignment boundary.
 
 The preceding poisoned-host build checkpoint passed in 684.260 seconds with
 all fourteen exact policy artifacts accepted. It produced a 9,320,424-byte

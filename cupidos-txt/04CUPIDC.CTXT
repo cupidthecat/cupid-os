@@ -1742,11 +1742,17 @@ prototype retains its fixed parameter types, variadic state, result, and record
 identity. A file-scope function-pointer typedef retains the same signature,
 including per-parameter record identity. A free-function parameter declared
 through that typedef receives the signature and uses it for indirect
-calls in the JIT and private AOT paths. These calls use the direct call's
+calls in the JIT and private AOT paths. A file object declared directly with
+that typedef also retains the signature. It can start as NULL, receive a
+compatible callback through checked plain assignment, call it indirectly, and
+be cleared. These calls use the direct call's
 conversions and four-, eight-, or sixteen-byte slots, including SIMD arguments
 and XMM0 results.
-Empty (), typedef-typed local, global, and field objects, bare nested callback
-signatures, method parameters, and void-pointer forms keep source-width slots.
+Empty (), typedef-typed automatic and block-static objects, fields, callback
+arrays, bare nested callback signatures, method parameters, alias chains, and
+void-pointer forms keep source-width slots. A direct function designator in a
+global initializer remains unsupported until initialized data has an address
+fixup.
 Kernel bindings and other calls without fixed metadata do the same.
 Plain function initializers must match the retained result, record identity,
 fixed parameters, and variadic boundary. An explicit void-pointer cast erases
@@ -1848,12 +1854,14 @@ feature14_simd checks packed operators, one-dimensional arrays, matrices,
 cubes, NaN handling, fixed float4 and double2 calls, and SSE intrinsics. Its
 call marker covers six nested pass-by-value calls and XMM0 returns. The source
 also defines a file-scope float4 callback typedef and uses it on a free-function
-parameter. Focused JIT and private AOT tests execute the named and
-typedef-parameter callback forms.
+parameter and a file object. Focused JIT and private AOT tests execute the
+named, typedef-parameter, and typedef-global callback forms.
 
 The four-vCPU e1000 guest contract requires ordered direct-call,
-named-callback, and typedef-callback evidence. The typedef path must print
-`[feature14-callback-typedef] PASS float4=4 calls=1`. The command must then
+named-callback, typedef-parameter, and typedef-global callback evidence. The
+last two paths must print
+`[feature14-callback-typedef] PASS float4=4 calls=1` and
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. The command must then
 print `PASS feature14_simd` and finish with CupidC JIT completion.
 kernel/fs/iso9660.cc provides the active scalar case through susp_entry_cb. The
 Browser's binary64 token and AST tables use the fixed double-array path.

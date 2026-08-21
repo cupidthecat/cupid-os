@@ -170,19 +170,28 @@ retained fixed parameter metadata and kernel bindings keep their source width.
 A named block-local function-pointer declaration retains its fixed
 parameter types, variadic state, and result type. Its indirect call uses the
 same conversion and 4-, 8-, or 16-byte slot path as a direct call, enforces
-fixed arity, and publishes floating or SIMD results through XMM0. Global-object,
-typedef-typed local-object, method-parameter, field, and other typedef uses
-remain signature-erased. A file-scope function-pointer typedef can now
+fixed arity, and publishes floating or SIMD results through XMM0. A
+file-scope function-pointer typedef can
 retain the same signature in the existing sixteen-entry typedef table, with at
 most 32 fixed parameters per signature. One direct function-pointer
 typedef declaration publishes one alias. When a free-function parameter uses
 that alias directly, the parameter symbol carries
 its typedef index and indirect calls keep the fixed types, record-pointer
-identities, variadic boundary, and result channel. Direct structure and array
-results remain rejected. Program and REPL rollback restore the typedef count
-and side-table metadata. The promoted standalone CupidC seeds do not contain
-this private parser or ELF writer, so their reproof is not callback carriage
-evidence. ADR 0303 records this extension.
+identities, variadic boundary, and result channel. A file object declared
+directly with the alias now carries the same metadata. It may start as grouped
+zero or the active `((void *)0)` null spelling, accept a checked plain
+assignment, clear to null, and make a typed indirect call. A non-null assignment
+must match the retained result, record-pointer identities, fixed parameters,
+and variadic boundary before the address is stored. Direct function-designator
+initialization in static data remains unsupported until the private writer has
+data-address fixups. Typedef-typed automatic and block-static objects, method
+parameters, fields, callback arrays, alias chains, and recursive signatures
+remain signature-erased. Direct structure and array results remain rejected.
+Program and REPL rollback restore the typedef count, side-table metadata,
+provisional signatures, code, and data. The promoted standalone CupidC seeds
+do not contain this private parser or ELF writer, so their reproof is not
+callback carriage evidence. ADR 0303 records typedef parameters, and ADR 0306
+records global callback storage and checked assignment.
 _Avoid_: reversing source evaluation, four bytes for every parameter, splitting a double into unrelated arguments
 
 **Represented bit-field assignment**:

@@ -28496,3 +28496,57 @@ seconds including the wrapper.
 The source-current consolidated focused run was repeated after this boundary
 test landed. It passed all 527 tests in 112.817 seconds, with seven expected
 skips; the outer stopwatch read 113.253 seconds.
+
+## 2026-08-21: retain typedef callback signatures on private globals
+
+ADR 0306 extends the private callback path to a file object declared directly
+with a function-pointer typedef. Doom supplies the active shape:
+`vpatchclipfunc_t` declares the ABI, `patchclip_callback` starts as `NULL`,
+`V_SetPatchClipCallback` stores its callback parameter, and the video path
+invokes the stored value. Typedef-typed local objects and method parameters
+were not chosen as the source boundary because no active method uses such a
+parameter, while the local examples still depend on global or field metadata.
+
+The first JIT and AOT tracer test failed at the intended public seam with
+`unsupported global scalar initializer`. Private CupidC now captures the
+typedef index immediately after the global type parse, copies its retained
+signature to the global symbol, and accepts grouped zero or the active
+`((void *)0)` null spelling as zero-filled static storage. A direct function
+designator still receives a focused rejection because initialized data has no
+function-address fixup.
+
+Plain assignment to a signature-bearing function pointer now validates the
+result, record-pointer identities, fixed parameter list, and variadic boundary
+before storing the address. Null clears the object, and an explicit pointer
+cast remains the deliberate erasure path. Compound assignment is rejected.
+Provisional target metadata is applied only after the right-hand expression
+passes the complete check. Program and REPL transactions retain ownership of
+rollback after an initializer or assignment failure.
+
+`python -B -m unittest -q tests.test_private_cupidc_call_abi` passes all 235
+tests in 35.950 seconds. JIT and AOT cover the Doom-shaped Boolean callback and
+a `float4` callback with a 16-byte argument and XMM0 result. Negative cases
+reject a fixed-parameter mismatch and an unfixable static function address,
+then compile and execute valid sources in the same compiler state.
+
+`python -B -m unittest -q tests.test_gui_terminal_smoke` passes all 125 tests
+in 2.771 seconds. The smoke contract requires
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1` after the
+typedef-parameter marker and rejects its failure marker. The preceding full
+guest frontier predates this marker. A new image build and integrated guest
+run remain open.
+
+`make kernel/lang/cupidc_parse.o kernel/lang/cupidc_elf.o` passes with the
+promoted Windows checked seed. It produces a 462,552-byte `cupidc_parse.o`,
+SHA-256
+`05abc78236517ccc9b3ddd861f85b7670fa104bbe9a14463a96ad5cebc56cb31`,
+and the unchanged 3,604-byte `cupidc_elf.o`, SHA-256
+`c2ad171aacd493a33a477e7a3196a5d28b04b0f74521cd8cbaec2598f391880c`.
+
+The retained signature remains bounded by the existing sixteen typedef entries
+and 32 fixed parameters. Typedef-typed automatic and block-static objects,
+method parameters, fields, callback arrays, alias chains, recursive
+signatures, aggregate results, and arbitrary computed callback expressions
+remain open. This slice changes no build owner or host dependency. The
+promoted standalone seeds do not contain the private parser or ELF writer, and
+`TempleOS/` remains untouched reference material.

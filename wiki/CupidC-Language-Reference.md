@@ -52,19 +52,26 @@ parameters, record identities, prototype state, and variadic boundary. A free
 function parameter declared with that alias carries the signature in JIT, AOT,
 and persistent REPL source, including a later REPL unit. Its indirect calls use
 the direct cdecl conversions and 4-, 8-, and 16-byte slots, with SIMD results
-returned through XMM0. This covers the active ISO callback whose `uint8_t`
+returned through XMM0. A file object declared directly with the alias keeps the
+same signature. It can start as `NULL`, receive a compatible callback through
+plain assignment, call it indirectly, and be cleared. This covers Doom's
+`vpatchclipfunc_t` storage shape as well as the active ISO callback whose `uint8_t`
 entry length is converted to the declared `uint32_t` parameter. The private
 table holds sixteen typedefs, and a callback signature may have at most 32
 parameters. Each declaration may introduce only one function-pointer alias.
-Method parameters, callback alias chains, global callback objects, record
-fields, typedef-typed local objects, later callback assignments, recursive
+Method parameters, callback alias chains, record fields, callback arrays,
+typedef-typed automatic and block-static objects, recursive
 callback signatures, and arbitrary computed callback expressions do not retain
 this metadata. Direct structure and array callback results are rejected;
 record-pointer results retain their record identity. A rejected source or REPL
 unit restores the typedef table with the prior symbols, patches, control state,
 code, and data.
 [ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
-records this boundary.
+records the parameter boundary.
+[ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
+records global callback storage and checked assignment. A direct function
+designator in static data remains rejected until initialized data has an
+address fixup.
 
 The preceding poisoned-host OS build checkpoint passed in 684.260 seconds and
 accepted all fourteen exact policy artifacts. A private four-vCPU `max`/e1000
@@ -246,16 +253,20 @@ rule is unchanged. A parsed variadic tail widens `float` to `double` and promote
 rejected. Unprototyped and signature-erased function-pointer SIMD calls also
 fail explicitly. A named block-local function pointer with an explicit
 prototype is signature-bearing. A free-function parameter declared with a direct
-file-scope function-pointer typedef is signature-bearing too. Its scalar,
+file-scope function-pointer typedef is signature-bearing too. A file object
+declared directly with that typedef also retains the signature. Its scalar,
 floating, pointer, or SIMD arguments use the declared fixed slots, its variadic
 tail receives default promotions, and its result keeps the declared type.
-Empty `()`, typedef-typed local objects, global and field objects, callback
-alias chains, recursive callback signatures, later assignments, and `void *`
+Grouped zero and `((void *)0)` may initialize a callback file object. Checked
+plain assignment stores a compatible callback or clears it to null. Empty
+`()`, typedef-typed automatic and block-static objects, fields, callback
+arrays, alias chains, recursive callback signatures, and `void *`
 forms retain source-width slots. Direct structure and array callback results
 are rejected; record-pointer results retain their record identity. Kernel
 bindings and other calls without fixed parameter metadata do the same.
-When a plain function designator initializes a named local or fills a typed
-callback parameter, its result, record identity, fixed parameters, and variadic
+When a plain function designator initializes a named local, fills a typed
+callback parameter, or is assigned to a signature-bearing destination, its
+result, record identity, fixed parameters, and variadic
 boundary must match. The same check applies when copying another named local callback. A function
 defined later receives an address fixup, and a prescan-only signature must
 match its definition. A compatible conditional retains every named candidate
