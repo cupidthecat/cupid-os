@@ -340,7 +340,9 @@ plus their `ORG` base. The hosted CLI can write a `cupid.raw-map.v1` file, and
 CupidDis can consume it with `--raw --range-map`. One checked raw-image
 transaction serves the SMP and bootloader callers. It owns locking, source and
 seed freezing, drift checks, private candidates, publication-boundary checks,
-and atomic replacement. Callers retain image and map policy. The central
+and atomic replacement. Callers retain image and map policy. Both callers ask
+CupidASM for source-derived maps. The SMP caller also requires the map bytes to
+match its fixed AP startup layout before CupidDis runs. The central
 eleven-test suite passed in 1.708 seconds, including direct mismatch and
 live-output drift checks for both callers. Parent-replacement tests exposed a
 POSIX candidate leak when private work lived below the output parent. Private
@@ -404,9 +406,12 @@ with Doom compatibility. C11 remains the default. ADR 0270 records the public
 driver boundary.
 
 The production SMP trampoline is assembled and inspected in one guarded
-transaction. CupidDis checks the exact 16-bit code, data, 32-bit code, and
-trailing-data ranges before the 4 KiB candidate replaces the previous output.
-ADR 0271 records the mixed-mode map and publication rule.
+transaction. CupidASM writes a private `cupid.raw-map.v1` file from the active
+source. Hostbuild requires the exact 16-bit code, data, 32-bit code, and
+trailing-data policy, pins the accepted map through CupidDis, and publishes
+only the 4 KiB candidate. Manual range arguments no longer cross this
+production boundary. ADR 0271 records the fixed layout, and ADR 0308 records
+the source-derived handoff.
 
 CupidASM now accepts `align POWER_OF_TWO[, FILL_BYTE]` in the shared source
 path. Raw output aligns `ORG + output offset`. ELF32 output aligns the current

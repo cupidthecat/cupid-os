@@ -204,6 +204,9 @@ options. ADR 0277 records the schema.
 One checked raw-image transaction serves the SMP and bootloader callers. It
 owns output locking, source and seed freezing, drift checks, private candidates,
 and atomic publication. Each caller retains its image-size and map policy. The
+SMP caller requires CupidASM's private map to match the fixed AP startup layout
+before CupidDis runs. The accepted map stays pinned through inspection and is
+removed with the private transaction root. The
 expanded eleven-test suite passed in 1.708 seconds, including direct mismatch
 and live-output drift checks for both callers. Parent-replacement tests exposed
 a POSIX candidate leak when private work lived below the output parent. Private
@@ -221,10 +224,11 @@ and output parent must still match before atomic publication. The later final
 kernel gate remains as a whole-kernel check. ADR 0286 records this object
 boundary.
 
-The normal SMP trampoline recipe uses this map as a publication gate.
-Hostbuild freezes the selected seed and source, asks CupidASM for a private
-4,096-byte candidate, and runs CupidDis with
-`--require-known --require-local-targets --raw`. The local-target option
+The normal SMP trampoline recipe uses CupidASM's own map as a publication gate.
+Hostbuild freezes the selected seed and source, asks CupidASM for private image
+and map candidates, and requires the map to match the canonical 4 KiB policy.
+It then runs CupidDis with `--raw --range-map`, `--require-known`, and
+`--require-local-targets`. The local-target option
 requires both `--require-known` and `--raw`. The exact map is code16
 `[0x000, 0x01f)`, data `[0x01f, 0x210)`, code32 `[0x210, 0x254)`, and data
 `[0x254, 0x1000)`. A local-target check on raw input that contains code16
@@ -232,7 +236,7 @@ rejects images larger than 65,536 bytes because wrapped target mapping would
 be ambiguous. Four direct relative targets must land on instruction starts in
 the matching code mode. The far mode transition and indirect call are
 excluded. Only a validated candidate may replace the prior output. ADR 0271
-records the transaction.
+records the fixed map. ADR 0308 records the source-derived handoff.
 
 The production boot transaction applies the same local-target rule to its
 2,560-byte candidate and range map. It checks nine direct relative targets and

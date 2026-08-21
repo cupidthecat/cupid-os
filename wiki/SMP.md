@@ -265,10 +265,11 @@ BSP writes it there before sending SIPI. It runs in 16-bit real mode then
 transitions each AP to 32-bit protected mode.
 
 The production build assembles a private 4,096-byte candidate with CupidASM.
-CupidDis checks 16-bit code in `[0x000, 0x01f)`, data in `[0x01f, 0x210)`,
-32-bit code in `[0x210, 0x254)`, and data in `[0x254, 0x1000)`. Every
-instruction in both code ranges must pass
-`--require-known --require-local-targets --raw`. The local-target check validates
+CupidASM also writes a private source-derived range map. Hostbuild requires it
+to match 16-bit code in `[0x000, 0x01f)`, data in `[0x01f, 0x210)`, 32-bit
+code in `[0x210, 0x254)`, and data in `[0x254, 0x1000)`. The map stays pinned
+while CupidDis runs with `--raw --range-map`, `--require-known`, and
+`--require-local-targets`. The local-target check validates
 four direct relative transfers. The far jump that changes mode and the
 indirect call to `ap_main_c` are excluded. A target outside the image, inside
 data, in the wrong mode, or in the middle of an instruction fails. Far
@@ -277,7 +278,8 @@ rule. A changed displacement can still pass if it reaches a different valid
 instruction start in same-mode code, because the raw image does not retain
 source-label identity. Hostbuild replaces `kernel/smp_trampoline.bin` only
 after assembly and inspection succeed. A failure preserves the previous
-trampoline. ADR 0305 records promoted-seed production adoption.
+trampoline, and the private map is not published. ADR 0305 records
+promoted-seed production adoption. ADR 0308 records the map handoff.
 
 ### Trampoline stages
 

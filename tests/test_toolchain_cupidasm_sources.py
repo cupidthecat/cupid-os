@@ -11,6 +11,15 @@ from tools import bootstrap_baseline
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
+SMP_RAW_MAP = (
+    b"cupid.raw-map.v1\n"
+    b"size 4096\n"
+    b"base 0x00008000\n"
+    b"range 0x00000000 code16\n"
+    b"range 0x0000001f data\n"
+    b"range 0x00000210 code32\n"
+    b"range 0x00000254 data\n"
+)
 
 
 RAW_FIXTURES = (
@@ -300,57 +309,6 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                     self.assertEqual(
                         hashlib.sha256(cupid).hexdigest(), fixture["sha256"]
                     )
-                    if fixture["name"] == "smp-trampoline":
-                        checked = subprocess.run(
-                            [
-                                str(self.dis_path),
-                                "--require-known",
-                                "--require-local-targets",
-                                "--raw",
-                                "--mode=16",
-                                "--range-at=0x1f:data",
-                                "--range-at=0x210:32",
-                                "--range-at=0x254:data",
-                                "--base=0x8000",
-                                str(cupid_path),
-                            ],
-                            cwd=REPO_ROOT,
-                            text=True,
-                            capture_output=True,
-                        )
-                        self.assertEqual(checked.returncode, 0, checked.stderr)
-                        self.assertEqual(checked.stdout, "")
-                        self.assertEqual(checked.stderr, "")
-
-                        bad_target = bytearray(cupid)
-                        self.assertEqual(bad_target[0x230], 0x09)
-                        bad_target[0x230] = 0x08
-                        bad_path = root / "smp-trampoline.bad-target.bin"
-                        bad_path.write_bytes(bad_target)
-                        rejected = subprocess.run(
-                            [
-                                str(self.dis_path),
-                                "--require-known",
-                                "--require-local-targets",
-                                "--raw",
-                                "--mode=16",
-                                "--range-at=0x1f:data",
-                                "--range-at=0x210:32",
-                                "--range-at=0x254:data",
-                                "--base=0x8000",
-                                str(bad_path),
-                            ],
-                            cwd=REPO_ROOT,
-                            text=True,
-                            capture_output=True,
-                        )
-                        self.assertEqual(rejected.returncode, 1)
-                        self.assertEqual(rejected.stdout, "")
-                        self.assertIn(
-                            "1 of 4 direct relative targets invalid",
-                            rejected.stderr,
-                        )
-                        self.assertIn("1 mid-instruction", rejected.stderr)
                     if (
                         self.nasm_command is not None
                         and fixture.get("nasm_oracle", True)
@@ -362,6 +320,88 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                             "bin",
                         )
                         self.assertEqual(cupid, oracle)
+
+    def test_smp_map_drives_strict_source_derived_inspection(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupidasm-active-smp-map-"
+        ) as directory:
+            root = Path(directory)
+            images = []
+            maps = []
+            for repetition in range(2):
+                image = root / f"smp-{repetition}.bin"
+                range_map = root / f"smp-{repetition}.cupidmap"
+                assembled = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "-f",
+                        "bin",
+                        "--map",
+                        str(range_map),
+                        str(REPO_ROOT / "kernel" / "smp" / "smp_trampoline.S"),
+                        "-o",
+                        str(image),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(assembled.returncode, 0, assembled.stderr)
+                images.append(image.read_bytes())
+                maps.append(range_map.read_bytes())
+
+            self.assertEqual(images[0], images[1])
+            self.assertEqual(len(images[0]), 4096)
+            self.assertEqual(
+                hashlib.sha256(images[0]).hexdigest(),
+                "b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90",
+            )
+            self.assertEqual(maps, [SMP_RAW_MAP, SMP_RAW_MAP])
+
+            checked = subprocess.run(
+                [
+                    str(self.dis_path),
+                    "--raw",
+                    "--range-map",
+                    str(root / "smp-0.cupidmap"),
+                    "--require-known",
+                    "--require-local-targets",
+                    str(root / "smp-0.bin"),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+            self.assertEqual(checked.stdout, "")
+            self.assertEqual(checked.stderr, "")
+
+            bad_target = bytearray(images[0])
+            self.assertEqual(bad_target[0x230], 0x09)
+            bad_target[0x230] = 0x08
+            bad_path = root / "smp.bad-target.bin"
+            bad_path.write_bytes(bad_target)
+            rejected = subprocess.run(
+                [
+                    str(self.dis_path),
+                    "--raw",
+                    "--range-map",
+                    str(root / "smp-0.cupidmap"),
+                    "--require-known",
+                    "--require-local-targets",
+                    str(bad_path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "1 of 4 direct relative targets invalid",
+                rejected.stderr,
+            )
+            self.assertIn("1 mid-instruction", rejected.stderr)
 
     def test_boot_map_drives_strict_source_derived_inspection(self):
         with tempfile.TemporaryDirectory(

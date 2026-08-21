@@ -215,12 +215,14 @@ with its wrapper. These corrections change test fixtures and expectations, not
 the checked host dependency boundary.
 
 The SMP trampoline now has two Cupid tool owners on one production transform.
-CupidASM assembles a private 4 KiB candidate. CupidDis validates its exact
-16-bit code, data, 32-bit code, and trailing-data ranges with `--require-known
---require-local-targets` before hostbuild publishes it. Host Python still owns the
-transaction, output lock, drift checks, and atomic replacement. ADR 0271
-records the first inspection boundary, and ADR 0305 records local-target
-adoption.
+CupidASM assembles a private 4 KiB candidate and writes its source-derived
+range map. Hostbuild requires the map to match the fixed AP startup policy and
+keeps it pinned while CupidDis runs with `--require-known`,
+`--require-local-targets`, `--raw`, and `--range-map`. Only the binary is
+published. Host Python still owns the transaction, output lock, drift checks,
+and atomic replacement. ADR 0271 records the first inspection boundary, ADR
+0305 records local-target adoption, and ADR 0308 records the map handoff. This
+changes no host dependency.
 
 Source head adds no code-producing host dependency for the current five
 capabilities. Hosted CupidC probes each page of a large fixed frame. Kernel AOT

@@ -5350,6 +5350,17 @@ def assemble_cupidasm_object(
         ) from error
 
 
+_SMP_TRAMPOLINE_RAW_MAP = (
+    b"cupid.raw-map.v1\n"
+    b"size 4096\n"
+    b"base 0x00008000\n"
+    b"range 0x00000000 code16\n"
+    b"range 0x0000001f data\n"
+    b"range 0x00000210 code32\n"
+    b"range 0x00000254 data\n"
+)
+
+
 def assemble_smp_trampoline(
     seed_manifest: Path,
     root: Path,
@@ -5381,6 +5392,8 @@ def assemble_smp_trampoline(
             temporary_prefix=".smp-trampoline-",
         ) as transaction:
             candidate_logical = transaction.candidate_logical
+            map_logical = candidate_logical + ".cupidmap"
+            map_output = transaction.pin_private_output(map_logical)
 
             try:
                 assembled = transaction.run_tool(
@@ -5388,6 +5401,8 @@ def assemble_smp_trampoline(
                     (
                         "-f",
                         "bin",
+                        "--map",
+                        map_logical,
                         "-o",
                         candidate_logical,
                         source_logical,
@@ -5432,22 +5447,50 @@ def assemble_smp_trampoline(
                     f"4096 bytes, got {candidate_snapshot.size}",
                     tool_stderr=tool_stderr,
                 )
+            map_snapshot = _code_output_entry(map_output)
+            if map_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidASM SMP trampoline range map does not exist: "
+                    f"{map_output.logical}",
+                    tool_stderr=tool_stderr,
+                )
+            if map_snapshot.size == 0:
+                raise CodeValidationError(
+                    "checked CupidASM SMP trampoline range map may not be empty",
+                    tool_stderr=tool_stderr,
+                )
+            try:
+                map_payload = map_output.path.read_bytes()
+            except OSError as error:
+                raise CodeValidationError(
+                    "checked CupidASM SMP trampoline range map cannot be read: "
+                    f"{map_output.logical}: {error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            if (
+                len(map_payload) != map_snapshot.size
+                or hashlib.sha256(map_payload).hexdigest()
+                != map_snapshot.sha256
+            ):
+                raise CodeValidationError(
+                    "checked CupidASM SMP trampoline range map changed while "
+                    "layout policy validation ran",
+                    tool_stderr=tool_stderr,
+                )
+            if map_payload != _SMP_TRAMPOLINE_RAW_MAP:
+                raise CodeValidationError(
+                    "checked CupidASM SMP trampoline range map does not match "
+                    "the required layout policy",
+                    tool_stderr=tool_stderr,
+                )
 
             try:
                 disassembled = transaction.run_tool(
                     "cupiddis",
                     (
                         "--raw",
-                        "--mode",
-                        "16",
-                        "--range-at",
-                        "0x1f:data",
-                        "--range-at",
-                        "0x210:32",
-                        "--range-at",
-                        "0x254:data",
-                        "--base",
-                        "0x8000",
+                        "--range-map",
+                        map_logical,
                         "--require-known",
                         "--require-local-targets",
                         candidate_logical,
@@ -5465,6 +5508,12 @@ def assemble_smp_trampoline(
             )
             transaction.require_candidate_unchanged(
                 candidate_snapshot,
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_private_output_unchanged(
+                map_output,
+                map_snapshot,
+                description="checked CupidASM SMP trampoline range map",
                 tool_stderr=combined_stderr,
             )
             transaction.require_publication_boundary_unchanged(combined_stderr)

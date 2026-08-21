@@ -1143,6 +1143,12 @@ data ranges as `db` rows without entering the x86 decoder. The assembler, not
 a byte heuristic, places source-derived transitions at statement boundaries.
 _Avoid_: raw mode map, automatic code or mode detection, one kind per retained instruction
 
+**Raw layout policy**:
+The artifact owner's accepted size, origin, and ordered raw range map for one
+flat image. CupidASM reports source layout, while the owner decides whether
+that layout is safe to inspect and publish.
+_Avoid_: raw range map, assembler approval, inferred policy
+
 **Local relative target check**:
 The checked-seed CupidDis policy that checks constant relative calls and jumps
 in a raw image against its instruction starts and range map. A target must

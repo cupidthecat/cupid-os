@@ -169,6 +169,15 @@ The cross-platform seed fixtures each prove one local target; the active-source
 tests prove all nine bootloader and four SMP targets. [ADR 0305](docs/adr/0305-promote-and-adopt-local-relative-target-checks.md)
 records promotion and adoption.
 
+The SMP publisher now gets its mixed-mode layout from CupidASM instead of
+repeating the range starts on the CupidDis command line. Hostbuild requires the
+private `cupid.raw-map.v1` file to match the fixed 4 KiB trampoline policy,
+pins it through strict CupidDis inspection, and publishes only the binary. A
+forced checked-seed build kept the reviewed trampoline SHA-256
+`b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+[ADR 0308](docs/adr/0308-bind-the-smp-trampoline-to-cupidasm-raw-layout-metadata.md)
+records the handoff.
+
 The first completed 86-test checked-seed module run took 2,394.660 seconds and
 reported one failure and four errors. The small source-tree fixtures lacked the
 new Windows `publication_start.asm` and `publication_runtime.cc` inputs. The

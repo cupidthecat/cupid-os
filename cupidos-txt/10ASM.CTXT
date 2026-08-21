@@ -80,17 +80,19 @@ atomically. ADR 0238 records this production handoff.
 ADR 0244 records the guarded profile-manifest handoff.
 
 The SMP trampoline is assembled and inspected in one guarded production
-transaction. CupidASM emits a private 4,096-byte image. CupidDis treats
-0000h..001Eh as 16-bit code, 001Fh..020Fh as data, 0210h..0253h as 32-bit
-code, and 0254h..0FFFh as data. Every instruction in the code ranges must be
-known. The four constant direct relative targets must also land at instruction
-starts in code of the same mode. A failed check leaves the previous output
-unchanged.
+transaction. CupidASM emits a private 4,096-byte image and a source-derived
+range map. Hostbuild requires that map to describe 0000h..001Eh as 16-bit
+code, 001Fh..020Fh as data, 0210h..0253h as 32-bit code, and 0254h..0FFFh as
+data. CupidDis reads the accepted map. Every instruction in the code ranges
+must be known, and the four constant direct relative targets must land at
+instruction starts in code of the same mode. A failed check leaves the
+previous output unchanged. The private map is not installed in Cupid OS.
 
 The SMP and bootloader paths now use one checked raw-image transaction. It owns
 the output lock, frozen source and seed captures, drift checks, private
 candidates, publication-boundary checks, and atomic replacement. Callers keep
-their image and map policy. The expanded eleven-test suite passed in 1.708
+their image and map policy. The SMP caller also checks the exact map bytes and
+pins them through CupidDis. The expanded eleven-test suite passed in 1.708
 seconds, including direct mismatch and live-output drift checks for both callers.
 Parent-replacement tests exposed a POSIX candidate leak when private work lived
 below the output parent. Private roots now live directly below the stable
@@ -248,7 +250,7 @@ at 64 KiB; input larger than 65,536 bytes is rejected as ambiguous.
 
 The bootloader supplies nine direct targets and the SMP trampoline supplies
 four. Production hostbuild now passes --require-local-targets for both guarded
-raw images. Four active-source tests cover all nine bootloader targets and all
+raw images. Five active-source tests cover all nine bootloader targets and all
 four trampoline targets. The two cross-platform seed carriage fixtures are
 narrower: promoted Linux and native Windows CupidDis each accept EB 00 C3 and
 reject EB 7F, with one direct target in each fixture. Ten hostbuild tests also

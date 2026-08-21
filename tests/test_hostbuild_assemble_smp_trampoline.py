@@ -10,6 +10,17 @@ from unittest import mock
 from tools import hostbuild
 
 
+SMP_RAW_MAP = (
+    b"cupid.raw-map.v1\n"
+    b"size 4096\n"
+    b"base 0x00008000\n"
+    b"range 0x00000000 code16\n"
+    b"range 0x0000001f data\n"
+    b"range 0x00000210 code32\n"
+    b"range 0x00000254 data\n"
+)
+
+
 class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
     def _write_fixture(self, root: Path) -> tuple[Path, Path, Path]:
         seed = root / "bootstrap" / "seeds" / "manifest.json"
@@ -29,6 +40,23 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
         source.write_text("bits 16\norg 0x8000\nnop\n", encoding="utf-8")
         output.write_bytes(b"last known good trampoline")
         return seed, source, output
+
+    def _write_assembler_outputs(
+        self,
+        private_root: Path,
+        arguments,
+        candidate_payload: bytes,
+        *,
+        map_payload: bytes | None = SMP_RAW_MAP,
+    ) -> None:
+        string_arguments = tuple(str(argument) for argument in arguments)
+        output_index = string_arguments.index("-o") + 1
+        (private_root / string_arguments[output_index]).write_bytes(
+            candidate_payload
+        )
+        if map_payload is not None:
+            map_index = string_arguments.index("--map") + 1
+            (private_root / string_arguments[map_index]).write_bytes(map_payload)
 
     def _run_cli(self, root: Path, seed: Path) -> tuple[int, str, str]:
         stdout = io.StringIO()
@@ -61,6 +89,7 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
             checked_seed = object()
             candidate_payload = bytes(range(256)) * 16
             calls: list[tuple[str, tuple[str, ...]]] = []
+            private_roots: list[Path] = []
 
             def run_checked(
                 seed_manifest,
@@ -74,6 +103,7 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                 del seed_manifest, timeout
                 self.assertIs(frozen_seed, checked_seed)
                 private_root = Path(working_directory)
+                private_roots.append(private_root)
                 string_arguments = tuple(str(argument) for argument in arguments)
                 calls.append((tool_name, string_arguments))
                 if tool_name == "cupidasm":
@@ -82,33 +112,34 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                         (
                             "-f",
                             "bin",
+                            "--map",
+                            ".cupid-output/smp_trampoline.bin.cupidmap",
                             "-o",
                             ".cupid-output/smp_trampoline.bin",
                             "kernel/smp/smp_trampoline.S",
                         ),
                     )
-                    candidate = private_root / string_arguments[3]
-                    candidate.write_bytes(candidate_payload)
+                    self._write_assembler_outputs(
+                        private_root,
+                        arguments,
+                        candidate_payload,
+                    )
                 else:
                     self.assertEqual(tool_name, "cupiddis")
                     self.assertEqual(
                         string_arguments,
                         (
                             "--raw",
-                            "--mode",
-                            "16",
-                            "--range-at",
-                            "0x1f:data",
-                            "--range-at",
-                            "0x210:32",
-                            "--range-at",
-                            "0x254:data",
-                            "--base",
-                            "0x8000",
+                            "--range-map",
+                            ".cupid-output/smp_trampoline.bin.cupidmap",
                             "--require-known",
                             "--require-local-targets",
                             ".cupid-output/smp_trampoline.bin",
                         ),
+                    )
+                    self.assertEqual(
+                        (private_root / string_arguments[2]).read_bytes(),
+                        SMP_RAW_MAP,
                     )
                     self.assertEqual(
                         (private_root / string_arguments[-1]).read_bytes(),
@@ -128,13 +159,19 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                     side_effect=run_checked,
                 ),
             ):
-                status, stdout, stderr = self._run_cli(root, seed)
+                first = self._run_cli(root, seed)
+                second = self._run_cli(root, seed)
 
-            self.assertEqual([name for name, _ in calls], ["cupidasm", "cupiddis"])
-            self.assertEqual(status, 0)
-            self.assertEqual(stdout, "")
-            self.assertEqual(stderr, "")
+            self.assertEqual(
+                [name for name, _ in calls],
+                ["cupidasm", "cupiddis", "cupidasm", "cupiddis"],
+            )
+            self.assertEqual(first, (0, "", ""))
+            self.assertEqual(second, (0, "", ""))
             self.assertEqual(output.read_bytes(), candidate_payload)
+            self.assertTrue(private_roots)
+            self.assertTrue(all(not path.exists() for path in private_roots))
+            self.assertEqual(list(root.rglob("*.cupidmap")), [])
 
     def test_cupiddis_rejection_preserves_the_published_trampoline(self):
         with tempfile.TemporaryDirectory(
@@ -160,8 +197,11 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                 private_root = Path(working_directory)
                 private_roots.append(private_root)
                 if tool_name == "cupidasm":
-                    candidate = private_root / str(arguments[3])
-                    candidate.write_bytes(bytes(4096))
+                    self._write_assembler_outputs(
+                        private_root,
+                        arguments,
+                        bytes(4096),
+                    )
                     return subprocess.CompletedProcess(
                         list(arguments), 0, "", ""
                     )
@@ -251,11 +291,11 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                 self.assertIs(frozen_seed, checked_seed)
                 private_root = Path(working_directory)
                 if tool_name == "cupidasm":
-                    (
-                        private_root
-                        / ".cupid-output"
-                        / "smp_trampoline.bin"
-                    ).write_bytes(bytes(4096))
+                    self._write_assembler_outputs(
+                        private_root,
+                        arguments,
+                        bytes(4096),
+                    )
                 elif os.name != "nt":
                     output.parent.rename(displaced)
                     replacement.rename(output.parent)
@@ -359,6 +399,41 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                 "checked CupidASM output changed while CupidDis ran",
             ),
             (
+                "missing range map",
+                {"map_payload": None},
+                "SMP trampoline range map does not exist",
+            ),
+            (
+                "empty range map",
+                {"map_payload": b""},
+                "SMP trampoline range map may not be empty",
+            ),
+            (
+                "malformed range map",
+                {
+                    "map_payload": (
+                        b"cupid.raw-map.v2\n"
+                        b"size 4096\n"
+                        b"base 0x00008000\n"
+                    )
+                },
+                "range map does not match the required layout policy",
+            ),
+            (
+                "range boundary drift",
+                {
+                    "map_payload": SMP_RAW_MAP.replace(
+                        b"0x0000001f data", b"0x00000020 data"
+                    )
+                },
+                "range map does not match the required layout policy",
+            ),
+            (
+                "range map drift",
+                {"drift": "map"},
+                "SMP trampoline range map changed while CupidDis ran",
+            ),
+            (
                 "published output drift",
                 {"drift": "output"},
                 "code output changed while checked tools ran",
@@ -373,6 +448,7 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                 seed, source, output = self._write_fixture(root)
                 original = output.read_bytes()
                 checked_seed = object()
+                private_roots: list[Path] = []
 
                 def run_checked(
                     seed_manifest,
@@ -386,10 +462,21 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                     del seed_manifest, timeout
                     self.assertIs(frozen_seed, checked_seed)
                     private_root = Path(working_directory)
-                    candidate = private_root / str(arguments[3])
+                    private_roots.append(private_root)
+                    candidate = (
+                        private_root
+                        / ".cupid-output"
+                        / "smp_trampoline.bin"
+                    )
+                    range_map = Path(str(candidate) + ".cupidmap")
                     if tool_name == "cupidasm":
-                        candidate.write_bytes(
-                            bytes(options.get("candidate_size", 4096))
+                        self._write_assembler_outputs(
+                            private_root,
+                            arguments,
+                            bytes(options.get("candidate_size", 4096)),
+                            map_payload=options.get(
+                                "map_payload", SMP_RAW_MAP
+                            ),
                         )
                         if options.get("drift") == "source":
                             source.write_text(
@@ -408,9 +495,14 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                         )
 
                     self.assertEqual(tool_name, "cupiddis")
-                    candidate = private_root / str(arguments[-1])
                     if options.get("drift") == "candidate":
                         candidate.write_bytes(bytes([1]) * 4096)
+                    if options.get("drift") == "map":
+                        range_map.write_bytes(
+                            SMP_RAW_MAP.replace(
+                                b"0x00000254 data", b"0x00000255 data"
+                            )
+                        )
                     if options.get("drift") == "output":
                         output.write_bytes(b"competing publisher")
                     return subprocess.CompletedProcess(
@@ -441,6 +533,9 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                     else original
                 )
                 self.assertEqual(output.read_bytes(), expected_output)
+                self.assertTrue(private_roots)
+                self.assertTrue(all(not path.exists() for path in private_roots))
+                self.assertEqual(list(root.rglob("*.cupidmap")), [])
 
 
 if __name__ == "__main__":

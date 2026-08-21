@@ -251,13 +251,14 @@ writes it before sending SIPI; it runs in real mode then transitions each
 AP to 32-bit protected mode.
 
 The production build assembles a private 4,096-byte candidate with CupidASM.
-CupidDis checks 16-bit code in [0x000, 0x01f), data in [0x01f, 0x210),
-32-bit code in [0x210, 0x254), and data in [0x254, 0x1000). Every instruction
-in both code ranges must pass --require-known. Production hostbuild also passes
---require-local-targets. The four constant direct relative targets must remain
-inside the image and land at instruction starts in code with the same mode.
-Hostbuild replaces kernel/smp_trampoline.bin only after assembly and inspection
-succeed. A failure preserves the previous trampoline.
+CupidASM also writes a private source-derived range map. Hostbuild requires it
+to match 16-bit code in [0x000, 0x01f), data in [0x01f, 0x210), 32-bit code in
+[0x210, 0x254), and data in [0x254, 0x1000). CupidDis reads that map and
+requires every code byte to be known. The four constant direct relative
+targets must remain inside the image and land at instruction starts in code
+with the same mode. Hostbuild replaces kernel/smp_trampoline.bin only after
+assembly and inspection succeed. A failure preserves the previous trampoline,
+and the private map is removed without becoming an OS file.
 
 The policy checks direct CALL, short and near JMP, and short and near
 conditional branches. The far pointer used for the protected-mode transition,
@@ -267,7 +268,7 @@ check. Raw 16-bit address mapping may wrap at 64 KiB, while input larger than
 on another valid same-mode instruction start cannot be identified without
 label metadata.
 
-The promoted Linux and native Windows CupidDis seeds carry this option. Four
+The promoted Linux and native Windows CupidDis seeds carry this option. Five
 active-source tests cover all nine bootloader targets and all four trampoline
 targets. The two cross-platform seed carriage fixtures are narrower: each
 platform accepts EB 00 C3 and rejects EB 7F, with one direct target in each

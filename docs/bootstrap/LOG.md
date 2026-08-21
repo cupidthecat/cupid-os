@@ -28550,3 +28550,34 @@ signatures, aggregate results, and arbitrary computed callback expressions
 remain open. This slice changes no build owner or host dependency. The
 promoted standalone seeds do not contain the private parser or ELF writer, and
 `TempleOS/` remains untouched reference material.
+
+## 2026-08-21: hand the SMP raw layout from CupidASM to CupidDis
+
+The production SMP transaction used to repeat four mixed-mode regions as
+manual CupidDis arguments. It now asks checked CupidASM to write a private
+`cupid.raw-map.v1` file beside the private image candidate. Hostbuild compares
+that file with the fixed 4 KiB AP startup policy before inspection, pins both
+files through CupidDis, and publishes only the binary. A missing, empty,
+malformed, different, or changed map stops the transaction and preserves the
+previous trampoline.
+
+The first public transaction test failed because hostbuild still invoked
+CupidASM without `--map` and sent `--mode`, `--base`, and `--range-at` options
+to CupidDis. The completed path passes the map through `--range-map` instead.
+It succeeds twice with identical inputs and leaves no private root or public
+map. Negative cases cover schema damage, range drift, live map replacement,
+strict disassembly rejection, input and output drift, and unexpected tool
+output.
+
+The focused hostbuild, active-source, and CupidDis group passed 40 tests in
+10.215 seconds with one platform skip. The active source produces the same map
+on two assemblies and retains the four-target mid-instruction rejection. A
+forced checked-seed `kernel/smp_trampoline.bin` build passed. The output is
+4,096 bytes with SHA-256
+`b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+The broader CupidASM and guarded object group passed 24 tests in 3.004
+seconds. `make check-bootstrap-audit` passed against the three supported build
+roots without requiring a generated audit refresh.
+No `.c` source qualifies for a `.cc` rename. Owner counts, checked seeds, the
+host dependency inventory, and OS bytes do not change. ADR 0308 records the
+policy boundary.
