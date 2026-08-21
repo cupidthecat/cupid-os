@@ -1119,35 +1119,35 @@ fourteen exact paths. It measured `kernel/kernel.bin` at 9,225,092 bytes. The
 pinned contract runner passed 24 tests in 27.752 seconds, and the complete
 artifact group passed 45 tests in 2.557 seconds.
 
-The source-current, fully poisoned `make -j4 all` first reached only the
-expected policy mismatches after 680.281 seconds. Only the
-`kernel/kernel.elf` and `kernel/kernel.bin` policy rows changed. The artifact
-group passed all 45 tests in 2.582 seconds, with four expected Windows skips.
-The definitive poisoned build then passed in 708.912 seconds. All fourteen
-artifacts matched the exact-size policy, existing FAT contents were preserved,
-and `hello.iso` was staged.
+The integrated fully poisoned `make -j4 all` first reached the exact-size gate
+with three rebuilt kernel outputs. The artifact group passed all 45 tests in
+3.733 seconds, with four expected Windows skips. After the pass-one ELF, final
+ELF, and raw kernel policy rows were updated, the repeated build passed in
+about 763 seconds. All fourteen artifacts matched the exact-size policy,
+existing FAT contents were preserved, and `hello.iso` was staged.
 
-| Final post-documentation output | Bytes | SHA-256 |
+| Integrated output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
 | `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
-| `kernel/kernel.elf.pass1` | 9,324,520 | `453c34c8c21498427b0b38564956cd46be4689d456ccfbec682092c2c03be1c4` |
-| `kernel/kernel.elf` | 9,451,496 | `718470e9e08ee8eb07aeae7512c6c74c9bcb4b102290fdcf237d956cc9afc616` |
-| `kernel/kernel.bin` | 9,228,296 | `8e5d7c172814dd5db51a16acd41bf0436cb613a7da5f67511622c4b6517e0dbb` |
-| `cupidos.img` | 209,715,200 | `8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195` |
-| `bootstrap/artifact-size-policy.json` | 2,960 | `c8f320020a28ef914c38871e01b175bf6f15db7459ca9a7f54554e412ecc5b85` |
+| `kernel/kernel.elf.pass1` | 9,341,344 | `fd4cbac1fe8d1df276187cdc4bfc2815444de9ed7dae1748b7c68118518cc45e` |
+| `kernel/kernel.elf` | 9,468,320 | `3a13757bcaf6ffb7b7c2b54d00fb3cad5c4a5eea84e6647e6d6b238fddecc38e` |
+| `kernel/kernel.bin` | 9,246,248 | `4d71ec865fb3ef972842432e0cf4c76c6a10706399d95b481779d0744f23f256` |
+| `cupidos.img` | 209,715,200 | `973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `dfd5a56087bfe6ef42dd1b1511d6ea492a90d044a7084c47ebb16d415b6709d0` |
 
-The source-current strong full private frontier smoke passed in 801.490 seconds
+The integrated strong full private frontier smoke passed in about 889 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
-fixture. The 640-by-480 framebuffer changed 96,925 pixels. AC97 produced
-32,722,102 stereo 44.1 kHz frames with a peak of 25,600, and the PC speaker
-produced 73,533 stereo 44.1 kHz frames with a peak of 8,415. The expected
-direct-call, named-callback, typedef-callback, overall feature14 PASS, and JIT
-completion markers each appeared once and in order. The 150,376-byte log has
-SHA-256
-`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`.
+fixture. The 640-by-480 framebuffer changed 108,232 pixels. AC97 produced
+35,625,459 stereo 44.1 kHz frames with a peak of 25,600, and the PC speaker
+produced 78,384 stereo 44.1 kHz frames with a peak of 32,016. The expected
+direct-call, named-callback, typedef-callback, global-callback,
+automatic-callback, and overall feature14 PASS markers each appeared once and
+in order. The feature run then printed a clean JIT completion. The 148,491-byte
+log has SHA-256
+`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
 The source image was unchanged at SHA-256
-`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
+`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
 
 The preceding dual-NIC checkpoint used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
@@ -1541,9 +1541,9 @@ typedef-parameter path after the direct and named callback markers.
 Source head then requires
 `[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, followed by
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2`. The focused JIT
-and AOT contracts pass the typedef-global, automatic, and method SIMD paths. A
-new full guest run remains open because the preceding e1000 checkpoint predates
-both markers.
+and AOT contracts pass the typedef-global, automatic, and method SIMD paths.
+The integrated e1000 frontier observes both markers in order before the overall
+feature PASS and clean JIT completion.
 ADR 0216 records the fixed-array boundary. ADR 0257 records multidimensional
 row descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD
 calls. ADR 0301 records named local callbacks, ADR 0303 records callback

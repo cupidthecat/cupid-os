@@ -65,10 +65,14 @@ The same module pins the active USB callback typedef and its UHCI and EHCI
 automatic declarations. `tests.test_gui_terminal_smoke` passes all 125 tests in
 0.753 second. It requires
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2` after the
-existing typedef callback marker and rejects the matching failure marker. This
-is a marker contract and source execution check. The last full guest smoke
-predates the new marker.
+existing typedef callback marker and rejects the matching failure marker.
 
+The later integrated four-vCPU guest frontier printed the automatic marker
+once after the global callback marker and completed the feature run cleanly.
+Its 148,491-byte log has SHA-256
+`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
+
+At the focused automatic-object and method-parameter checkpoint,
 `make kernel/lang/cupidc_parse.o kernel/lang/cupidc_elf.o` passes in 68.8
 seconds with the promoted Windows checked seed. `cupidc_parse.o` is 461,624
 bytes with SHA-256
@@ -95,8 +99,9 @@ free-function parameters, Cupid class method parameters, and automatic objects
 initialized in their declarations. Mixed scalar and SIMD indirect calls use
 the declared ABI in JIT and AOT output.
 
-Global callback objects, record and class fields, block-static objects, later
-assignments, recursive signatures, direct structure or array results, and
-arbitrary computed callback expressions remain open. The slice changes no
-build owner, checked seed, or host dependency. `TempleOS/` remains read-only
-reference material.
+Record and class fields, block-static objects, later assignment to automatic
+objects, recursive signatures, direct structure or array results, and
+arbitrary computed callback expressions remain open. ADR 0306 separately
+records global callback objects and their checked plain assignment. The slice
+changes no build owner, checked seed, or host dependency. `TempleOS/` remains
+read-only reference material.

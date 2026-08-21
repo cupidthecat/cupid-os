@@ -467,37 +467,41 @@ overall feature-14, and JIT markers each appeared once and in order. The
 and no rejection markers. The source image stayed unchanged at SHA-256
 `9045807b2bfffe41e2eaab92ab6fd4a4615fb7d72a26649ca2c037ae050bb15f`.
 
-The final source-current size check reached the expected policy mismatch after
-680.281 seconds. The pass-one ELF kept its exact 9,324,520-byte policy size.
-The final ELF moved to 9,451,496 bytes, and the raw kernel moved to 9,228,296
-bytes. Only those two policy rows changed. The artifact group then passed all
-45 tests in 2.582 seconds, with four expected Windows skips. The definitive
-fully poisoned `make -j4 all` passed in 708.912 seconds. It checked all
-fourteen exact paths, preserved the FAT contents, and staged
-`test_iso/hello.iso`.
+The integrated checkpoint's first poisoned build reached the exact-size gate
+after the complete checked Cupid build. The gate rejected only the three
+rebuilt kernel outputs: a 9,341,344-byte pass-one ELF, a 9,468,320-byte final
+ELF, and a 9,246,248-byte raw kernel. The artifact contract group then passed
+all 45 tests in 3.733 seconds, with four expected Windows skips. After those
+three policy rows were updated, a repeated fully poisoned `make -j4 all`
+passed in about 763 seconds. It checked all fourteen exact paths, preserved the
+FAT contents, and staged `test_iso/hello.iso`.
 
-| Final source-current output | Bytes | SHA-256 |
+| Integrated source-current output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
 | `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
-| `kernel/kernel.elf.pass1` | 9,324,520 | `453c34c8c21498427b0b38564956cd46be4689d456ccfbec682092c2c03be1c4` |
-| `kernel/kernel.elf` | 9,451,496 | `718470e9e08ee8eb07aeae7512c6c74c9bcb4b102290fdcf237d956cc9afc616` |
-| `kernel/kernel.bin` | 9,228,296 | `8e5d7c172814dd5db51a16acd41bf0436cb613a7da5f67511622c4b6517e0dbb` |
-| `cupidos.img` | 209,715,200 | `8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195` |
-| `bootstrap/artifact-size-policy.json` | 2,960 | `c8f320020a28ef914c38871e01b175bf6f15db7459ca9a7f54554e412ecc5b85` |
+| `kernel/kernel.elf.pass1` | 9,341,344 | `fd4cbac1fe8d1df276187cdc4bfc2815444de9ed7dae1748b7c68118518cc45e` |
+| `kernel/kernel.elf` | 9,468,320 | `3a13757bcaf6ffb7b7c2b54d00fb3cad5c4a5eea84e6647e6d6b238fddecc38e` |
+| `kernel/kernel.bin` | 9,246,248 | `4d71ec865fb3ef972842432e0cf4c76c6a10706399d95b481779d0744f23f256` |
+| `cupidos.img` | 209,715,200 | `973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `dfd5a56087bfe6ef42dd1b1511d6ea492a90d044a7084c47ebb16d415b6709d0` |
 | `test_usb_partitioned.img` | 33,554,432 | `057e0c86874090c99095f0558e9fa604bd7f1929f4da357da2c1baca949bb2bb` |
 
-The source-current strong private frontier passed in 801.490 seconds with
-e1000, four `max` vCPUs, SMP, a private image, and the USB fixture. The 640x480
-framebuffer changed 96,925 pixels. AC97 produced 32,722,102 stereo 44,100 Hz
-frames with a peak of 25,600. The PC speaker produced 73,533 stereo 44,100 Hz
-frames with a peak of 8,415. The direct-call, named-callback, typedef-callback,
-overall feature-14 PASS, and JIT markers appeared in order. Both callback
-markers appeared exactly once. The 150,376-byte log has SHA-256
-`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`
+The integrated strong private frontier passed in about 889 seconds with e1000,
+four `max` vCPUs, SMP, a private image, and the USB fixture. The 640x480
+framebuffer changed 108,232 pixels. AC97 produced 35,625,459 stereo 44,100 Hz
+frames with a peak of 25,600. The PC speaker produced 78,384 stereo 44,100 Hz
+frames with a peak of 32,016. The direct-call, named-callback,
+typedef-callback, global-callback, automatic-callback, and overall feature-14
+PASS markers each appeared once and in order. The feature run then printed a
+clean JIT completion. The 148,491-byte log has
+SHA-256
+`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`
 and no rejection markers. The source image stayed unchanged at SHA-256
-`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
-ADRs 0303 through 0305 record these current boundaries.
+`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
+ADR 0303 records typedef callback parameters, ADR 0306 records global callback
+storage, ADR 0310 records automatic objects and method parameters, and ADR 0305
+records the promoted seed and build boundary.
 _Avoid_: native fixed point, Python-free build, hosted Toolchain contract cohort
 
 **Production CupidObj disk template**:
@@ -1410,11 +1414,11 @@ from those captured bytes, and compares the report with an independent Python
 oracle. Before success, Python rereads the captured Windows byte sequence and
 walks the pinned repository view again. A leaf, parent, membership, or byte
 replacement fails. Linux builds and runs the static ELF contract from its
-checked seed. The final artifact group runs 45 tests in 2.582 seconds, with
+checked seed. The final artifact group runs 45 tests in 3.733 seconds, with
 four expected Windows skips. Its POSIX runner passes all 15 tests in 0.146
-seconds. The source-current measurement build reached only the expected
-final-ELF and raw-kernel size mismatches after 680.281 seconds; the pass-one
-ELF kept its exact policy size. The definitive build passed in 708.912
+seconds. The integrated measurement build reached the exact-size gate with
+changed pass-one ELF, final ELF, and raw-kernel outputs. After those three
+policy rows were updated, the repeated poisoned build passed in about 763
 seconds and checked all fourteen artifacts.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,

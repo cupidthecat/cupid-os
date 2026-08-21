@@ -502,10 +502,12 @@ function pointers remain rejected. A syntactic block-local
 `T (*name)(parameters)` declaration retains its fixed types, variadic
 state, and result. Its indirect call reuses the same cdecl conversions and
 4-, 8-, or 16-byte slots, including typed SIMD transport through XMM0. Empty
-`()`, typedef, global, parameter, field, and `void *` forms remain
-signature-erased. A plain function initializer must match the local pointer's
-result, record identity, fixed types, and variadic boundary. An explicit cast
-opts into erasure. Named local copies share the check. Later targets receive
+`()`, record and class fields, callback arrays, block-static objects, callback
+alias chains, recursive signatures, and `void *` forms remain
+signature-erased. Later assignment to an automatic callback object is also
+open. A plain function initializer must match the local pointer's result,
+record identity, fixed types, and variadic boundary. An explicit cast opts into
+erasure. Named local copies share the check. Later targets receive
 absolute fixups, and provisional signatures must match their definitions. A
 compatible conditional retains and checks every target arm. A null initializer
 must satisfy the represented integer constant-expression rule, which includes
@@ -535,24 +537,26 @@ open. Direct structure or array results remain rejected. A
 code-only AOT image still emits one program header with code at offset `0x80`.
 The focused ABI suite passes 248 tests in 43.968 seconds. The checked self-host
 object build passes in 68.8 seconds with the promoted Windows seed. The
-684.260-second poisoned-host build and
-64.601-second private smoke are preceding checkpoint history. The first
-post-documentation fully poisoned build reached only the expected size
-mismatches for the final ELF and raw kernel after 680.281 seconds. The final
-artifact group ran 45 tests in 2.582 seconds with four expected Windows skips.
-The definitive fully poisoned build passed in 708.912 seconds. It checked all
-fourteen artifacts, preserved the FAT contents, and staged
-`test_iso/hello.iso`. The final image has SHA-256
-`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
-The strong full private e1000 frontier passed in 801.490 seconds. Its
-150,376-byte log has SHA-256
-`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`.
-The 640x480 framebuffer changed 96,925 pixels. AC97 and the PC speaker produced
-32,722,102 and 73,533 stereo 44,100 Hz frames with peaks of 25,600 and 8,415.
-The direct-call, named-callback, typedef-callback, overall feature-14, and JIT
-markers each appeared once and in order. That full guest checkpoint predates
-the global and automatic callback markers. The log contains no rejection markers, and the
-source image stayed unchanged.
+684.260-second poisoned-host build and 64.601-second private smoke are preceding
+checkpoint history. The integrated build first reached the exact-size gate with
+a 9,341,344-byte pass-one ELF, a 9,468,320-byte final ELF, and a 9,246,248-byte
+raw kernel. The artifact contract group ran 45 tests in 3.733 seconds with four
+expected Windows skips. After those three policy rows were updated, the repeated
+fully poisoned build passed in about 763 seconds. It checked all fourteen
+artifacts, preserved the FAT contents, and staged `test_iso/hello.iso`. The final
+image has SHA-256
+`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
+The integrated strong private e1000 frontier passed in about 889 seconds. Its
+148,491-byte log has SHA-256
+`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
+The 640x480 framebuffer changed 108,232 pixels. AC97 and the PC speaker produced
+35,625,459 and 78,384 stereo 44,100 Hz frames with peaks of 25,600 and 32,016.
+The direct-call, named-callback, typedef-callback, global-callback,
+automatic-callback, and overall feature-14 PASS markers each appeared once and
+in order. The feature run then printed a clean JIT completion. The log contains
+no rejection markers, and the source image stayed
+unchanged at SHA-256
+`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
 The promoted standalone CupidC seeds do not contain this private parser or ELF
 writer, so their reproof is not callback or AOT carriage evidence.
 
@@ -566,12 +570,13 @@ function designator in static data remains rejected because private
 initialized data has no address fixup. The focused ABI suite passes 235 tests
 in 35.950 seconds. The 125-test marker contract passes in 2.771 seconds and
 requires `[feature14-callback-global] PASS float4=4 calls=1 cleared=1`.
-The preceding full guest frontier predates that marker, so integrated boot
-evidence remains open. The combined callback ABI and GUI suites pass all 377
+The integrated guest frontier observes that marker before the overall feature
+PASS. The combined callback ABI and GUI suites pass all 377
 tests in 43.411 seconds. The checked self-host build produces a 464,636-byte
 `cupidc_parse.o`, SHA-256
 `a68593438c9ea8e69dd356cfe883d1ff9616a7c3af2e5f24f59904735fe32cf2`.
-This moves no build owner and removes no host dependency. Fields, callback
+The capability is confined to the private compiler. Supported build ownership
+and host requirements remain as listed elsewhere in this matrix. Fields, callback
 arrays, block-static objects, alias chains, recursive signatures, aggregate
 results, and arbitrary computed callbacks remain open.
 
@@ -593,8 +598,9 @@ Hosted CupidC emits deterministic i386 ELF32 objects for all fifteen regular fil
 
 The exact-decimal fixture and fingerprint-bound x86 catalogue corpus raised
 the publication closure from 65 to 67 inputs. The catalogue's nested `x86.cc`
-include raised it from 67 to 68. CUPMAN3 adds the artifact-size and Toolchain
-manifest contract sources, raising the current closure from 68 to 70. The
+include raised it from 67 to 68. The earlier `CUPMAN3` publication added the
+artifact-size and Toolchain manifest contract sources, raising the current
+closure from 68 to 70. The
 source graph retains 739 active language inputs, including 297 headers. The
 C-family inventory covers 704 files and 2,461 include operands, including
 2,204 quoted operands. These source-current counts supersede the 65-input,
@@ -1381,7 +1387,7 @@ shape.
 | Assembly migration | All five production assembly sources produced by CupidASM with equivalent bytes/behavior | Complete: the normal graph has five CupidASM-owned and zero NASM-owned transforms; exact/semantic parity, clean poisoned-tool build, ISO lane parity, interrupt/scheduler contracts, UP JIT, and four-CPU boot/runtime gates pass |
 | C migration | Every reachable kernel, tool, application, Doom, and vendored C cohort compiles and passes behavior gates with CupidC | In progress: all 239 checked-in normal roots plus the generated kernel-symbol translation compile through the checked seed. Three generated installation tables and three example programs add CupidC ownership outside that cohort. The 15 hosted Toolchain contracts also compile, link, and run through the checked i386 seed. Linux runs that seed directly; Windows uses WSL for the complete Linux cohort and checked native PE tools for production. The user ABI, artifact-size, and `CUPMAN2` verifier contracts run as checked native PE files without WSL. The `CUPMAN4` author is a static Linux ELF and uses WSL on Windows. It decides all 58 fixed-point stage equalities from raw bytes before Python's independent oracle. Only host-built native drivers and contract runners remain optional development oracles. All Doom production objects compile, and the no-WAD, explicit missing-IWAD recovery, shell-survival, and dual-NIC frontier checks pass. Full IWAD gameplay, input, audio, and save behavior remain to be checked. |
 | Toolchain self-hosting | Checked seeds rebuild host tools; consecutive post-transition generations are byte-identical on Windows and Linux | The static i386 Linux seed rebuilds the 19-source union, fresh startup, and all five Linux tools from a private captured root. The PE execution seed and verified Linux plan rebuild 20 C objects, two assembly objects, and all five native Windows tools. Both bind snapshot `a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817`. Linux passed a 1,323.117-second promoted-seed reproof with all initial images equal and 5/19/18 behavior. Windows passed a 1,090.390-second reproof with all initial images equal and 5/5/6 behavior. After fixture and oracle corrections, an isolated complete fixed point passed in 1,187.863 seconds and the full checked-seed module passed all 86 tests in 2,444.917 seconds. The complete Linux Toolchain cohort on Windows still uses WSL, and Python coordinates both fixed points. ADRs 0278 and 0279 record the driver and convergence rule; ADRs 0292 and earlier preserve history; ADR 0305 records the current promotion. |
-| Normal-build cutover | Make invokes CupidC, CupidASM, CupidLD, CupidObj, and CupidDis without GCC, Clang, NASM, LLVM, or binutils | In progress: all 443 root transforms have a Cupid participant. Across all three supported graphs, CupidC participates in 250 transforms, CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in six, and Python in all 452. Four transforms run Cupid-built semantic contracts. No transform is Python-only, invokes a host C compiler, or recurses through Make. Windows selects the native checked execution seed for output-bearing tools, the user ABI, artifact-size, and `CUPMAN2` verifier contracts; Linux keeps the static seed. The `CUPMAN4` author stays on the converged Linux path and uses WSL on Windows. It owns all 58 stage-pair decisions, while Python retains coordination, independent comparison, safety, drift, locking, and publication work. The raw boot paths select local-target and strict-decode checks before publication. Kernel AOT links with in-kernel CupidLD. The latest complete schema v3 Toolchain publication still predates `CUPMAN4`. The definitive fully poisoned build passes in 708.912 seconds, and the strong four-vCPU e1000 frontier passes in 801.490 seconds with the required feature-14 and JIT markers once and in order. |
+| Normal-build cutover | Make invokes CupidC, CupidASM, CupidLD, CupidObj, and CupidDis without GCC, Clang, NASM, LLVM, or binutils | In progress: all 443 root transforms have a Cupid participant. Across all three supported graphs, CupidC participates in 250 transforms, CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in six, and Python in all 452. Four transforms run Cupid-built semantic contracts. No transform is Python-only, invokes a host C compiler, or recurses through Make. Windows selects the native checked execution seed for output-bearing tools, the user ABI, artifact-size, and `CUPMAN2` verifier contracts; Linux keeps the static seed. The `CUPMAN4` author stays on the converged Linux path and uses WSL on Windows. It owns all 58 stage-pair decisions, while Python retains coordination, independent comparison, safety, drift, locking, and publication work. The raw boot paths select local-target and strict-decode checks before publication. Kernel AOT links with in-kernel CupidLD. The latest complete schema v3 Toolchain publication still predates `CUPMAN4`. The integrated fully poisoned build passes in about 763 seconds, and the strong four-vCPU e1000 frontier passes in about 889 seconds with the required feature-14 PASS marker followed by the feature's clean JIT completion. |
 
 The normal cutover uses one checked invocation for root tools, checked
 production CupidC, and checked user CupidLD. Each production wrapper keeps its

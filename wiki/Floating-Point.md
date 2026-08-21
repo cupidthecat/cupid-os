@@ -398,13 +398,16 @@ A free-function parameter declared with a direct file-scope function-pointer
 typedef does the same, including fixed and variadic scalar slots. A file object
 declared directly with the typedef also retains the signature across null
 initialization, checked plain assignment, indirect call, and null clearing.
-Empty `()`, field, callback arrays, callback alias chains, typedef-typed
-automatic and block-static objects, recursive callback signatures, and
-`void *` forms remain metadata-free. Kernel bindings and other calls without
-fixed metadata keep their source-width slots. A plain function initializer or
-direct callback argument must match the retained signature, including
-record-pointer parameters. Local callback copies use the same check, and later
-function addresses are fixed up. An explicit cast erases the source signature.
+Cupid class method parameters and declaration-initialized automatic objects
+declared directly with the same file-scope typedef retain the signature too.
+Empty `()`, fields, callback arrays, callback alias chains, block-static
+objects, recursive callback signatures, and `void *` forms remain
+metadata-free. Later assignment to an automatic callback object is also open.
+Kernel bindings and other calls without fixed metadata keep their source-width
+slots. A plain function initializer or direct callback argument must match the
+retained signature, including record-pointer parameters. Local callback copies
+use the same check, and later function addresses are fixed up. An explicit cast
+erases the source signature.
 Compatible conditional selection checks every callback arm. Represented
 integer constant expressions that evaluate to zero are valid null pointers;
 runtime and otherwise unproved zeros are rejected. Null arms are neutral for
@@ -413,8 +416,9 @@ Failed functions, methods, and sources restore typedef entries, emitted state,
 patches, control state, prior function symbols, kernel bindings, and a reused
 `void(void)` `__start`. A direct function designator in a global initializer
 remains rejected until initialized data has address fixups. ADR 0301 records
-the named local callback foundation, ADR 0303 records typedef parameters, and
-ADR 0306 records global callback storage.
+the named local callback foundation, ADR 0303 records typedef parameters, ADR
+0306 records global callback storage, and ADR 0310 records automatic objects
+and Cupid class method parameters.
 
 Private decimal `float` and `double` literals use a fixed 1536-bit integer
 workspace. The converter forms the exact decimal ratio and rounds once to the
@@ -493,33 +497,34 @@ The source contract now adds
 `[feature14-callback-global] PASS float4=4 calls=1 cleared=1` after the
 typedef-parameter marker, followed by
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2`. Focused JIT and
-AOT tests pass the global, automatic, and method SIMD paths. The full guest
-checkpoint above predates both new markers, so a new full guest run remains
-open.
+AOT tests pass the global, automatic, and method SIMD paths. The integrated
+guest frontier below observes both markers in order.
 The associated poisoned-host OS build passed in 684.260 seconds with all
 fourteen exact policy artifacts accepted. The pre-documentation artifact gate
 later passed in 651.3 seconds and measured `kernel/kernel.bin` at 9,225,092
 bytes.
 
-The source-current, fully poisoned build first reached only the expected
-policy mismatches after 680.281 seconds. Only the `kernel/kernel.elf` and
-`kernel/kernel.bin` policy rows changed. The artifact group passed all 45 tests
-in 2.582 seconds, with four expected Windows skips. The definitive poisoned
-build then passed in 708.912 seconds with all fourteen artifacts accepted,
-existing FAT contents preserved, and `hello.iso` staged.
+The integrated fully poisoned build first reached the exact-size gate with
+three rebuilt kernel outputs. The artifact group passed all 45 tests in 3.733
+seconds, with four expected Windows skips. After the pass-one ELF, final ELF,
+and raw kernel policy rows were updated, the repeated build passed in about 763
+seconds with all fourteen artifacts accepted, existing FAT contents preserved,
+and `hello.iso` staged.
 
-The source-current strong full private frontier smoke passed in 801.490 seconds
+The integrated strong full private frontier smoke passed in about 889 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
-fixture. The expected direct-call, named-callback, typedef-callback, overall
-feature14 PASS, and JIT completion markers each appeared once and in order.
-AC97 produced 32,722,102 stereo 44.1 kHz frames with a peak of 25,600, and the
-PC speaker produced 73,533 stereo 44.1 kHz frames with a peak of 8,415. The
-150,376-byte log has SHA-256
-`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`.
+fixture. The expected direct-call, named-callback, typedef-callback,
+global-callback, automatic-callback, and overall feature14 PASS markers each
+appeared once and in order. The feature run then printed a clean JIT completion.
+AC97 produced 35,625,459 stereo 44.1
+kHz frames with a peak of 25,600, and the PC speaker produced 78,384 stereo
+44.1 kHz frames with a peak of 32,016. The 148,491-byte log has SHA-256
+`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
 The source image was unchanged at SHA-256
-`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
-ADR 0301 records the named local callback foundation, and ADR 0303 records
-typedef parameters.
+`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
+ADR 0301 records the named local callback foundation, ADR 0303 records typedef
+parameters, ADR 0306 records global callback storage, and ADR 0310 records
+automatic objects and method parameters.
 
 The fixed-array boundary is in ADR 0216. ADR 0257 records multidimensional row
 descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD

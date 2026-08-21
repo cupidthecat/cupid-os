@@ -62,8 +62,11 @@ declaration, global object, setter assignment, and indirect call.
 in 2.771 seconds. The feature-14 contract now requires
 `[feature14-callback-global] PASS float4=4 calls=1 cleared=1` after the existing
 typedef-parameter callback marker and rejects its failure marker. A new full
-image and guest run are still required before this marker becomes integrated
-boot evidence.
+image and guest run were still required at this focused checkpoint. The later
+integrated four-vCPU guest frontier printed the global marker once, followed by
+the automatic callback marker, and completed the feature run cleanly. Its
+148,491-byte log has SHA-256
+`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
 
 `make kernel/lang/cupidc_parse.o kernel/lang/cupidc_elf.o` passes with the
 promoted Windows checked seed. `cupidc_parse.o` is 462,552 bytes with SHA-256
@@ -96,6 +99,8 @@ method parameters, record and class fields, callback arrays, alias chains,
 recursive signatures, aggregate results, and arbitrary computed callback
 expressions remain outside this boundary. Direct function-designator global
 initialization also remains unsupported until initialized-data fixups exist.
+ADR 0310 later adds declaration-initialized automatic callback objects and
+Cupid class method parameters.
 
 This changes no build owner or host dependency. The promoted standalone
 CupidC seeds do not contain the private in-kernel parser or ELF writer, so seed

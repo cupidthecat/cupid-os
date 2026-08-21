@@ -86,23 +86,23 @@ appeared, and the source image was unchanged. The 33,219-byte log has SHA-256
 The pre-documentation artifact gate later passed in 651.3 seconds, accepted all
 fourteen exact paths, and measured `kernel/kernel.bin` at 9,225,092 bytes.
 
-The source-current, fully poisoned build first reached only the expected
-policy mismatches after 680.281 seconds. Only the `kernel/kernel.elf` and
-`kernel/kernel.bin` policy rows changed. The artifact group passed all 45 tests
-in 2.582 seconds, with four expected Windows skips. The definitive poisoned
-build then passed in 708.912 seconds with all fourteen artifacts accepted,
-existing FAT contents preserved, and `hello.iso` staged. Its 9,228,296-byte raw
-kernel has SHA-256
-`8e5d7c172814dd5db51a16acd41bf0436cb613a7da5f67511622c4b6517e0dbb`.
+The integrated fully poisoned build first reached the exact-size gate with
+three rebuilt kernel outputs. The artifact group passed all 45 tests in 3.733
+seconds, with four expected Windows skips. After the pass-one ELF, final ELF,
+and raw kernel policy rows were updated, the repeated build passed in about 763
+seconds with all fourteen artifacts accepted, existing FAT contents preserved,
+and `hello.iso` staged. Its 9,246,248-byte raw kernel has SHA-256
+`4d71ec865fb3ef972842432e0cf4c76c6a10706399d95b481779d0744f23f256`.
 
-The source-current strong full private frontier smoke passed in 801.490 seconds
+The integrated strong full private frontier smoke passed in about 889 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
-fixture. The expected direct-call, named-callback, typedef-callback, overall
-feature14 PASS, and JIT completion markers each appeared once and in order.
-The 150,376-byte log has SHA-256
-`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`.
+fixture. The expected direct-call, named-callback, typedef-callback,
+global-callback, automatic-callback, and overall feature14 PASS markers each
+appeared once and in order. The feature run then printed a clean JIT completion.
+The 148,491-byte log has SHA-256
+`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
 The source image was unchanged at SHA-256
-`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
+`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
 
 Field arrays require a positive count and a checked count-by-stride product.
 Each padding step, field addition, and final record alignment must fit the

@@ -28793,3 +28793,57 @@ The current request is about 67 MiB because it carries both generations of all
 framed request while it validates slices. Python-free coordination, native
 Windows author execution, and a complete `CUPMAN4` publication remain open.
 `TempleOS/` was not read into the graph or changed.
+
+## 2026-08-21: rebuild and boot the integrated toolchain slices
+
+The first integrated OS build set `CC`, `CXX`, `CPP`, `HOSTCC`, `HOSTCXX`,
+`ASM`, `AS`, `LD`, `AR`, `RANLIB`, `NM`, `NASM`, `OBJCOPY`, and `STRIP` to
+invalid commands. Checked CupidC compiled the kernel, Toolchain sources,
+generated installation tables, and the complete Doom tree. Checked CupidASM,
+CupidLD, CupidObj, and CupidDis assembled, linked, wrapped, and inspected the
+remaining outputs. The build reached the final exact-size contract without
+calling a poisoned host tool.
+
+The contract rejected three measured changes. The pass-one ELF grew from
+9,324,520 to 9,341,344 bytes, the final ELF grew from 9,451,496 to 9,468,320
+bytes, and the raw kernel grew from 9,228,296 to 9,246,248 bytes. The callback
+source and embedded manuals account for this reviewed checkpoint. The exact
+policy rows were updated from those measured candidates. The artifact policy,
+checked C contract, and pinned runner group then passed all 45 tests in 3.733
+seconds with four expected Windows skips.
+
+The repeated fully poisoned build passed in about 763 seconds. It accepted all
+fourteen exact artifacts, preserved the existing FAT contents, and staged the
+checked ISO fixture.
+
+| Integrated output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,341,344 | `fd4cbac1fe8d1df276187cdc4bfc2815444de9ed7dae1748b7c68118518cc45e` |
+| `kernel/kernel.elf` | 9,468,320 | `3a13757bcaf6ffb7b7c2b54d00fb3cad5c4a5eea84e6647e6d6b238fddecc38e` |
+| `kernel/kernel.bin` | 9,246,248 | `4d71ec865fb3ef972842432e0cf4c76c6a10706399d95b481779d0744f23f256` |
+| `cupidos.img` | 209,715,200 | `973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `dfd5a56087bfe6ef42dd1b1511d6ea492a90d044a7084c47ebb16d415b6709d0` |
+
+A private e1000 frontier then booted that exact image with four `max` vCPUs,
+SMP and full frontier verification, and the partitioned USB fixture. It passed
+in about 889 seconds. The 640x480 framebuffer changed 108,232 pixels. AC97
+produced 35,625,459 stereo 44,100 Hz frames with a peak of 25,600. The PC
+speaker produced 78,384 stereo 44,100 Hz frames with a peak of 32,016.
+
+The guest compiled and ran `/bin/feature14_simd.cc` through the in-OS compiler.
+The direct-call, named-callback, typedef-callback, global-callback,
+automatic-callback, and overall feature PASS markers each appeared once and in
+order. The feature run then printed a clean JIT completion. The same run completed the SMP, networking,
+graphics, audio, Doom, browser, ISO, swap, and repeated USB lifetime checks.
+Its 148,491-byte serial log has SHA-256
+`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
+The private run left the source image unchanged and produced no panic, fatal,
+assertion, exception, triple-fault, or feature rejection marker.
+
+The active-source audit still finds no CupidC-owned `.c` translation unit that
+can be renamed safely. The 17 tracked `.c` files are unreachable historical
+copies, host fixtures, dormant sources, or explicit host oracles. Issues #13,
+#25, #29, and #32 remain open because their wider ownership and self-hosting
+work is unfinished. `TempleOS/` remains read-only reference material.

@@ -37,11 +37,11 @@ outside-section or mid-instruction failures. Linked `ET_EXEC` input remains
 outside this rule. This source slice does not promote the checked seeds or add
 the option to production object publication. ADR 0309 records that boundary.
 
-The preceding source slices and their focused checks are settled. The latest
-complete schema v3 Toolchain publication, final post-CTXT audit, fully poisoned
-OS build, and preceding strong full private guest frontier are complete, but
-the publication predates `CUPMAN4`. The global and automatic callback markers
-still need an integrated guest rerun.
+The private CupidC callback work, SMP raw-map handoff, relocatable-object local
+target checks, and `CUPMAN4` paired-evidence author pass their focused gates.
+The fully poisoned OS build and integrated four-vCPU private guest frontier are
+also complete. The latest complete schema v3 Toolchain publication still
+predates `CUPMAN4`.
 
 Private CupidC carries a file-scope function-pointer typedef signature on direct
 free-function parameters, Cupid class method parameters,
@@ -150,39 +150,39 @@ The 33,219-byte log has SHA-256
 It has no rejection markers, and the source image stayed unchanged at the
 `cupidos.img` identity above.
 
-The first post-documentation fully poisoned `make -j4 all` completed every
-compile, assemble, link, flatten, and CupidDis check before stopping only at
-the expected size mismatches after 680.281 seconds. The 9,324,520-byte
-pass-one ELF stayed within policy, while the final ELF measured 9,451,496
-bytes and the raw kernel measured 9,228,296 bytes. Only the policy rows for
-those two outputs changed. The final artifact group then ran 45 tests in
-2.582 seconds with four expected Windows skips.
+The integrated checkpoint's first fully poisoned `make -j4 all` completed the
+compile, assemble, link, flatten, and CupidDis work before the exact-size gate
+rejected its three rebuilt kernel outputs. The pass-one ELF measured 9,341,344
+bytes, the final ELF measured 9,468,320 bytes, and the raw kernel measured
+9,246,248 bytes. The artifact contract group then ran 45 tests in 3.733 seconds
+with four expected Windows skips.
 
-The definitive fully poisoned `make -j4 all` passed in 708.912 seconds. It
-checked all fourteen artifacts, preserved the FAT contents, and staged
-`test_iso/hello.iso`.
+After those three policy rows were updated, the repeated fully poisoned build
+passed in about 763 seconds. It checked all fourteen artifacts, preserved the
+FAT contents, and staged `test_iso/hello.iso`.
 
-| Final output | Bytes | SHA-256 |
+| Integrated output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
 | `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
-| `kernel/kernel.elf.pass1` | 9,324,520 | `453c34c8c21498427b0b38564956cd46be4689d456ccfbec682092c2c03be1c4` |
-| `kernel/kernel.elf` | 9,451,496 | `718470e9e08ee8eb07aeae7512c6c74c9bcb4b102290fdcf237d956cc9afc616` |
-| `kernel/kernel.bin` | 9,228,296 | `8e5d7c172814dd5db51a16acd41bf0436cb613a7da5f67511622c4b6517e0dbb` |
-| `cupidos.img` | 209,715,200 | `8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195` |
-| `bootstrap/artifact-size-policy.json` | 2,960 | `c8f320020a28ef914c38871e01b175bf6f15db7459ca9a7f54554e412ecc5b85` |
+| `kernel/kernel.elf.pass1` | 9,341,344 | `fd4cbac1fe8d1df276187cdc4bfc2815444de9ed7dae1748b7c68118518cc45e` |
+| `kernel/kernel.elf` | 9,468,320 | `3a13757bcaf6ffb7b7c2b54d00fb3cad5c4a5eea84e6647e6d6b238fddecc38e` |
+| `kernel/kernel.bin` | 9,246,248 | `4d71ec865fb3ef972842432e0cf4c76c6a10706399d95b481779d0744f23f256` |
+| `cupidos.img` | 209,715,200 | `973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `dfd5a56087bfe6ef42dd1b1511d6ea492a90d044a7084c47ebb16d415b6709d0` |
 
-The strong full private frontier used e1000, four `max` vCPUs, SMP, a private
-image, and the USB fixture. It passed in 801.490 seconds. The 640x480
-framebuffer changed 96,925 pixels. AC97 produced 32,722,102 stereo 44,100 Hz
-frames with a peak of 25,600, and the PC speaker produced 73,533 stereo 44,100
-Hz frames with a peak of 8,415. The direct-call,
-named-callback, typedef-callback, overall feature-14, and JIT markers each
-appeared once and in order. The 150,376-byte log has SHA-256
-`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`
+The integrated strong private frontier used e1000, four `max` vCPUs, SMP, a
+private image, and the USB fixture. It passed in about 889 seconds. The 640x480
+framebuffer changed 108,232 pixels. AC97 produced 35,625,459 stereo 44,100 Hz
+frames with a peak of 25,600, and the PC speaker produced 78,384 stereo 44,100
+Hz frames with a peak of 32,016. The direct-call, named-callback,
+typedef-callback, global-callback, automatic-callback, and overall feature-14
+PASS markers each appeared once and in order. The feature run then printed a
+clean JIT completion. The 148,491-byte log has SHA-256
+`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`
 and no rejection markers. The private smoke left the source image unchanged at
 SHA-256
-`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
+`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
 
 The promoted Linux seed binds revision
 `ed6a91ba954881475ac5ab73d5168d292a584c90`, the 50-input snapshot
@@ -533,8 +533,9 @@ Cupid class method parameters, and declaration-initialized automatic objects.
 Its indirect call uses the same conversions and 4-, 8-, or 16-byte slot
 layout, enforces fixed arity, applies default promotions after a variadic
 prefix, and publishes floating or vector results through XMM0. Empty `()`,
-`void *`, global, field, block-static, and later-assignment forms remain
-metadata-free.
+`void *`, record and class fields, callback arrays, block-static objects,
+callback alias chains, recursive signatures, arbitrary computed expressions,
+and later assignment to automatic callback objects remain metadata-free.
 Character operands undergo integer
 promotion in ordinary integer arithmetic and use the integer SSE conversion
 path when paired with a floating operand or cast.
@@ -699,9 +700,9 @@ active guest source requires
 `[feature14-callback-typedef] PASS float4=4 calls=1`, then
 `[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, then
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2` before the
-overall feature-14 result. The 64.601-second combined guest run and the strong
-801.490-second frontier are preceding checkpoint history. They predate both new
-markers, so a new integrated run remains open.
+overall feature-14 result. The integrated private frontier observes every
+marker once and in order before the clean JIT completion. It passes in about
+889 seconds from the source-current image.
 
 A private AOT executable with no data now reports one program header and emits
 only its code load segment. Code remains at file offset `0x80`. A nonempty-data
@@ -1134,11 +1135,12 @@ image publisher and preserves the existing image. An intentional output change
 moves its row in `bootstrap/artifact-size-policy.json` during the same review.
 Missing, unknown, duplicate, linked, nonregular, and incorrectly sized
 artifacts fail with direct diagnostics. The final artifact group runs 45 tests
-in 2.582 seconds with four expected Windows skips. Its POSIX runner passes all
-15 tests in 0.146 seconds. The first fully poisoned OS build reached only the
-expected size mismatches for the final ELF and raw kernel after 680.281
-seconds. The definitive build passed in 708.912 seconds. It checked all
-fourteen paths, preserved the FAT contents, and staged `test_iso/hello.iso`.
+in 3.733 seconds with four expected Windows skips. Its POSIX runner passes all
+15 tests in 0.146 seconds. The integrated measurement build reached the
+exact-size gate with changed pass-one ELF, final ELF, and raw-kernel outputs.
+After those three policy rows were updated, the repeated poisoned build passed
+in about 763 seconds. It checked all fourteen paths, preserved the FAT
+contents, and staged `test_iso/hello.iso`.
 The 684.260-second build remains preceding checkpoint history. ADR 0267 records
 the size policy, ADR 0297 records its contract transfer, and ADR 0305 records
 the fourteen-path expansion.
