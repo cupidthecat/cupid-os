@@ -37,7 +37,8 @@ static void cupiddis_usage(FILE *stream) {
       stream,
       "usage: cupiddis [--headers] [--sections] [--symbols] "
       "[--relocations] [--disassemble] [--all] [--nm] FILE\n"
-      "       cupiddis --require-known [--headers] [--sections] "
+      "       cupiddis --require-known [--require-local-targets] "
+      "[--headers] [--sections] "
       "[--symbols] [--relocations] [--disassemble] [--all] "
       "FILE [FILE...]\n"
       "       cupiddis --raw --mode 16|32 "
@@ -641,7 +642,7 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
     return 0;
   }
   if (cli->require_local_targets == CTOOL_TRUE &&
-      (cli->require_known == CTOOL_FALSE || cli->raw == CTOOL_FALSE)) {
+      cli->require_known == CTOOL_FALSE) {
     return 0;
   }
   if (cli->raw == CTOOL_TRUE) {
@@ -900,27 +901,50 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
     failed = 1;
   }
   if (cli->require_local_targets == CTOOL_TRUE) {
-    ctool_u64 invalid_targets =
-        report.decode_summary.direct_relative_outside_image_count +
-        report.decode_summary.direct_relative_data_count +
-        report.decode_summary.direct_relative_wrong_mode_count +
-        report.decode_summary.direct_relative_mid_instruction_count;
+    ctool_u64 invalid_targets;
+    if (cli->raw == CTOOL_TRUE) {
+      invalid_targets =
+          report.decode_summary.direct_relative_outside_image_count +
+          report.decode_summary.direct_relative_data_count +
+          report.decode_summary.direct_relative_wrong_mode_count +
+          report.decode_summary.direct_relative_mid_instruction_count;
+    } else {
+      invalid_targets =
+          report.decode_summary.direct_relative_outside_section_count +
+          report.decode_summary.direct_relative_mid_instruction_count;
+    }
     if (invalid_targets != 0u) {
-      (void)fprintf(
-          stderr,
-          "cupiddis: %s: local target check failed: %llu of %llu direct "
-          "relative targets invalid (%llu outside image, %llu in data, "
-          "%llu wrong mode, %llu mid-instruction)\n",
-          input, (unsigned long long)invalid_targets,
-          (unsigned long long)
-              report.decode_summary.direct_relative_target_count,
-          (unsigned long long)
-              report.decode_summary.direct_relative_outside_image_count,
-          (unsigned long long)report.decode_summary.direct_relative_data_count,
-          (unsigned long long)
-              report.decode_summary.direct_relative_wrong_mode_count,
-          (unsigned long long)
-              report.decode_summary.direct_relative_mid_instruction_count);
+      if (cli->raw == CTOOL_TRUE) {
+        (void)fprintf(
+            stderr,
+            "cupiddis: %s: local target check failed: %llu of %llu direct "
+            "relative targets invalid (%llu outside image, %llu in data, "
+            "%llu wrong mode, %llu mid-instruction)\n",
+            input, (unsigned long long)invalid_targets,
+            (unsigned long long)
+                report.decode_summary.direct_relative_target_count,
+            (unsigned long long)
+                report.decode_summary.direct_relative_outside_image_count,
+            (unsigned long long)
+                report.decode_summary.direct_relative_data_count,
+            (unsigned long long)
+                report.decode_summary.direct_relative_wrong_mode_count,
+            (unsigned long long)
+                report.decode_summary.direct_relative_mid_instruction_count);
+      } else {
+        (void)fprintf(
+            stderr,
+            "cupiddis: %s: local target check failed: %llu of %llu direct "
+            "relative targets invalid (%llu outside section, "
+            "%llu mid-instruction)\n",
+            input, (unsigned long long)invalid_targets,
+            (unsigned long long)
+                report.decode_summary.direct_relative_target_count,
+            (unsigned long long)
+                report.decode_summary.direct_relative_outside_section_count,
+            (unsigned long long)
+                report.decode_summary.direct_relative_mid_instruction_count);
+      }
       failed = 1;
     }
   }

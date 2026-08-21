@@ -273,6 +273,8 @@ static int summaries_equal(const ctool_dis_decode_summary_t *left,
                      right->direct_relative_target_count &&
                  left->direct_relative_outside_image_count ==
                      right->direct_relative_outside_image_count &&
+                 left->direct_relative_outside_section_count ==
+                     right->direct_relative_outside_section_count &&
                  left->direct_relative_data_count ==
                      right->direct_relative_data_count &&
                  left->direct_relative_wrong_mode_count ==
@@ -376,23 +378,147 @@ static int run_indexed(void) {
 
 static int target_summary_matches(
     const ctool_dis_decode_summary_t *summary, ctool_u64 total,
-    ctool_u64 outside_image, ctool_u64 data, ctool_u64 wrong_mode,
-    ctool_u64 mid_instruction, const char *operation) {
+    ctool_u64 outside_image, ctool_u64 outside_section, ctool_u64 data,
+    ctool_u64 wrong_mode, ctool_u64 mid_instruction, const char *operation) {
   if (summary->direct_relative_target_count != total ||
       summary->direct_relative_outside_image_count != outside_image ||
+      summary->direct_relative_outside_section_count != outside_section ||
       summary->direct_relative_data_count != data ||
       summary->direct_relative_wrong_mode_count != wrong_mode ||
       summary->direct_relative_mid_instruction_count != mid_instruction) {
     (void)fprintf(stderr,
-                  "%s: target summary differs: %llu/%llu/%llu/%llu/%llu\n",
+                  "%s: target summary differs: "
+                  "%llu/%llu/%llu/%llu/%llu/%llu\n",
                   operation,
                   (unsigned long long)summary->direct_relative_target_count,
                   (unsigned long long)
                       summary->direct_relative_outside_image_count,
+                  (unsigned long long)
+                      summary->direct_relative_outside_section_count,
                   (unsigned long long)summary->direct_relative_data_count,
                   (unsigned long long)summary->direct_relative_wrong_mode_count,
                   (unsigned long long)
                       summary->direct_relative_mid_instruction_count);
+    return 0;
+  }
+  return 1;
+}
+
+static int build_local_target_object(ctool_job_t *job,
+                                     const ctool_u8 *text,
+                                     ctool_u32 text_size,
+                                     ctool_buffer_t **buffer_out) {
+  ctool_elf32_section_spec_t section;
+  ctool_elf32_object_spec_t object;
+  ctool_status_t status =
+      ctool_job_open_buffer(job, 256u, ctool_default_limits().output_bytes,
+                            buffer_out);
+  if (status != CTOOL_OK) {
+    return 0;
+  }
+  (void)memset(&section, 0, sizeof(section));
+  section.name = ctool_string(".text");
+  section.type = CTOOL_ELF32_SHT_PROGBITS;
+  section.flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR;
+  section.alignment = 1u;
+  section.size = text_size;
+  section.contents = ctool_bytes(text, text_size);
+  (void)memset(&object, 0, sizeof(object));
+  object.sections = &section;
+  object.section_count = 1u;
+  status = ctool_elf32_write(job, &object, *buffer_out);
+  if (status != CTOOL_OK) {
+    ctool_buffer_close(*buffer_out);
+    *buffer_out = (ctool_buffer_t *)0;
+    return 0;
+  }
+  return 1;
+}
+
+static int build_relocated_local_target_object(
+    ctool_job_t *job, ctool_buffer_t **buffer_out) {
+  static const ctool_u8 text[] = {
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0xc3u};
+  ctool_elf32_section_spec_t section;
+  ctool_elf32_symbol_spec_t symbol;
+  ctool_elf32_relocation_spec_t relocation;
+  ctool_elf32_object_spec_t object;
+  ctool_status_t status =
+      ctool_job_open_buffer(job, 256u, ctool_default_limits().output_bytes,
+                            buffer_out);
+  if (status != CTOOL_OK) {
+    return 0;
+  }
+  (void)memset(&section, 0, sizeof(section));
+  section.name = ctool_string(".text");
+  section.type = CTOOL_ELF32_SHT_PROGBITS;
+  section.flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR;
+  section.alignment = 1u;
+  section.size = (ctool_u32)sizeof(text);
+  section.contents = ctool_bytes(text, (ctool_u32)sizeof(text));
+  (void)memset(&symbol, 0, sizeof(symbol));
+  symbol.name = ctool_string("external");
+  symbol.binding = CTOOL_ELF32_BIND_GLOBAL;
+  symbol.type = CTOOL_ELF32_SYMBOL_FUNCTION;
+  symbol.visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbol.placement = CTOOL_ELF32_SYMBOL_UNDEFINED;
+  symbol.section = CTOOL_ELF32_NO_SECTION;
+  relocation.target_section = 0u;
+  relocation.offset = 1u;
+  relocation.symbol = 0u;
+  relocation.type = CTOOL_ELF32_R_386_PC32;
+  relocation.addend = -4;
+  (void)memset(&object, 0, sizeof(object));
+  object.sections = &section;
+  object.section_count = 1u;
+  object.symbols = &symbol;
+  object.symbol_count = 1u;
+  object.relocations = &relocation;
+  object.relocation_count = 1u;
+  status = ctool_elf32_write(job, &object, *buffer_out);
+  if (status != CTOOL_OK) {
+    ctool_buffer_close(*buffer_out);
+    *buffer_out = (ctool_buffer_t *)0;
+    return 0;
+  }
+  return 1;
+}
+
+static int build_two_section_local_target_object(
+    ctool_job_t *job, ctool_buffer_t **buffer_out) {
+  static const ctool_u8 first_text[] = {0x90u, 0x90u, 0x90u, 0xc3u};
+  static const ctool_u8 second_text[] = {
+      0xebu, 0x01u, 0xb8u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc3u};
+  ctool_elf32_section_spec_t sections[2];
+  ctool_elf32_object_spec_t object;
+  ctool_status_t status =
+      ctool_job_open_buffer(job, 256u, ctool_default_limits().output_bytes,
+                            buffer_out);
+  if (status != CTOOL_OK) {
+    return 0;
+  }
+  (void)memset(sections, 0, sizeof(sections));
+  sections[0].name = ctool_string(".text.first");
+  sections[0].type = CTOOL_ELF32_SHT_PROGBITS;
+  sections[0].flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR;
+  sections[0].alignment = 1u;
+  sections[0].size = (ctool_u32)sizeof(first_text);
+  sections[0].contents =
+      ctool_bytes(first_text, (ctool_u32)sizeof(first_text));
+  sections[1].name = ctool_string(".text.second");
+  sections[1].type = CTOOL_ELF32_SHT_PROGBITS;
+  sections[1].flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR;
+  sections[1].alignment = 1u;
+  sections[1].size = (ctool_u32)sizeof(second_text);
+  sections[1].contents =
+      ctool_bytes(second_text, (ctool_u32)sizeof(second_text));
+  (void)memset(&object, 0, sizeof(object));
+  object.sections = sections;
+  object.section_count = 2u;
+  status = ctool_elf32_write(job, &object, *buffer_out);
+  if (status != CTOOL_OK) {
+    ctool_buffer_close(*buffer_out);
+    *buffer_out = (ctool_buffer_t *)0;
     return 0;
   }
   return 1;
@@ -419,6 +545,9 @@ static int run_targets(void) {
       0x0fu, 0x85u, 0x00u, 0x00u, 0x00u, 0x00u,
       0xc3u};
   static ctool_u8 oversized_code16[65537];
+  static ctool_u8 elf_code_fixture[16384];
+  static ctool_u8 elf_allocation_fixture[24576];
+  ctool_u32 elf_allocation_fixture_size = 0u;
   static const ctool_dis_raw_range_t data_ranges[] = {
       {0u, CTOOL_DIS_RAW_RANGE_CODE32},
       {2u, CTOOL_DIS_RAW_RANGE_DATA}};
@@ -494,12 +623,192 @@ static int run_targets(void) {
     if (!check_status(status, CTOOL_OK, cases[index].path) ||
         !target_summary_matches(
             &report.decode_summary, cases[index].target_count,
-            cases[index].outside_image,
+            cases[index].outside_image, 0u,
             cases[index].data, cases[index].wrong_mode,
             cases[index].mid_instruction, cases[index].path)) {
       ctool_job_close(job);
       return 1;
     }
+  }
+  {
+    ctool_buffer_t *object_bytes = (ctool_buffer_t *)0;
+    ctool_source_t source;
+    ctool_dis_request_t request;
+    ctool_dis_report_t report;
+    capture_t capture;
+    ctool_status_t status;
+    if (!build_local_target_object(
+            job, valid32, (ctool_u32)sizeof(valid32), &object_bytes)) {
+      ctool_job_close(job);
+      return 1;
+    }
+    source.path.text = ctool_string("/valid-local-target.o");
+    source.contents = ctool_buffer_view(object_bytes);
+    (void)memset(&request, 0, sizeof(request));
+    request.input = CTOOL_DIS_INPUT_ELF32;
+    request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    (void)memset(&capture, 0, sizeof(capture));
+    if (status == CTOOL_OK) {
+      status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                                capture_sink(&capture));
+    }
+    if (!check_status(status, CTOOL_OK, "ELF local target policy") ||
+        report.elf32.file_type != CTOOL_ELF32_ET_REL ||
+        report.policies != CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS ||
+        !target_summary_matches(&report.decode_summary, 1u, 0u, 0u, 0u, 0u,
+                                0u, "ELF local target policy") ||
+        !contains(&capture, "[disassembly .text]",
+                  "ELF local target rendering")) {
+      ctool_buffer_close(object_bytes);
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_buffer_close(object_bytes);
+  }
+  {
+    ctool_buffer_t *object_bytes = (ctool_buffer_t *)0;
+    ctool_source_t source;
+    ctool_dis_request_t request;
+    ctool_dis_report_t report;
+    ctool_status_t status;
+    if (!build_two_section_local_target_object(job, &object_bytes)) {
+      ctool_job_close(job);
+      return 1;
+    }
+    source.path.text = ctool_string("/two-section-local-target.o");
+    source.contents = ctool_buffer_view(object_bytes);
+    (void)memset(&request, 0, sizeof(request));
+    request.input = CTOOL_DIS_INPUT_ELF32;
+    request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK,
+                      "two-section ELF local target policy") ||
+        report.decode_summary.known_count != 7u ||
+        !target_summary_matches(&report.decode_summary, 1u, 0u, 0u, 0u, 0u,
+                                1u,
+                                "two-section ELF local target policy")) {
+      ctool_buffer_close(object_bytes);
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_buffer_close(object_bytes);
+  }
+  {
+    ctool_host_adapter_t view_adapter;
+    ctool_job_t *view_job;
+    ctool_buffer_t *object_bytes = (ctool_buffer_t *)0;
+    ctool_source_t source;
+    ctool_dis_request_t request;
+    ctool_dis_report_t report;
+    ctool_status_t status;
+    if (!open_job(&view_adapter, &view_job) ||
+        !build_local_target_object(
+            view_job, valid32, (ctool_u32)sizeof(valid32), &object_bytes)) {
+      ctool_job_close(job);
+      return 1;
+    }
+    source.path.text = ctool_string("/missing-local-target-view.o");
+    source.contents = ctool_buffer_view(object_bytes);
+    (void)memset(&request, 0, sizeof(request));
+    request.input = CTOOL_DIS_INPUT_ELF32;
+    request.views = CTOOL_DIS_VIEW_HEADER;
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    (void)memset(&report, 0xa5, sizeof(report));
+    status = ctool_dis_inspect(view_job, &source, &request, &report);
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "ELF local target view") ||
+        !is_zeroed(&report, sizeof(report)) ||
+        ctool_job_diagnostic_count(view_job) != 1u ||
+        !check_diagnostic(
+            view_job, 0u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+            "ELF local target checks require the disassembly view",
+            "ELF local target view diagnostic")) {
+      ctool_buffer_close(object_bytes);
+      ctool_job_close(view_job);
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_buffer_close(object_bytes);
+    ctool_job_close(view_job);
+  }
+  {
+    static const struct {
+      const char *path;
+      const ctool_u8 *bytes;
+      ctool_u32 size;
+      ctool_u64 outside_section;
+      ctool_u64 mid_instruction;
+    } elf_cases[] = {
+        {"/outside-local-target.o", outside32,
+         (ctool_u32)sizeof(outside32), 1u, 0u},
+        {"/middle-local-target.o", middle32,
+         (ctool_u32)sizeof(middle32), 0u, 1u},
+        {"/far-indirect-local-target.o", direct_far_indirect,
+         (ctool_u32)sizeof(direct_far_indirect), 0u, 0u}};
+    for (index = 0u;
+         index < (ctool_u32)(sizeof(elf_cases) / sizeof(elf_cases[0]));
+         index++) {
+      ctool_buffer_t *object_bytes = (ctool_buffer_t *)0;
+      ctool_source_t source;
+      ctool_dis_request_t request;
+      ctool_dis_report_t report;
+      ctool_status_t status;
+      if (!build_local_target_object(job, elf_cases[index].bytes,
+                                     elf_cases[index].size,
+                                     &object_bytes)) {
+        ctool_job_close(job);
+        return 1;
+      }
+      source.path.text = ctool_string(elf_cases[index].path);
+      source.contents = ctool_buffer_view(object_bytes);
+      (void)memset(&request, 0, sizeof(request));
+      request.input = CTOOL_DIS_INPUT_ELF32;
+      request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+      request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+      status = ctool_dis_inspect(job, &source, &request, &report);
+      if (!check_status(status, CTOOL_OK, elf_cases[index].path) ||
+          !target_summary_matches(
+              &report.decode_summary, 1u, 0u,
+              elf_cases[index].outside_section, 0u, 0u,
+              elf_cases[index].mid_instruction, elf_cases[index].path)) {
+        ctool_buffer_close(object_bytes);
+        ctool_job_close(job);
+        return 1;
+      }
+      ctool_buffer_close(object_bytes);
+    }
+  }
+  {
+    ctool_buffer_t *object_bytes = (ctool_buffer_t *)0;
+    ctool_source_t source;
+    ctool_dis_request_t request;
+    ctool_dis_report_t report;
+    ctool_status_t status;
+    if (!build_relocated_local_target_object(job, &object_bytes)) {
+      ctool_job_close(job);
+      return 1;
+    }
+    source.path.text = ctool_string("/relocated-external-target.o");
+    source.contents = ctool_buffer_view(object_bytes);
+    (void)memset(&request, 0, sizeof(request));
+    request.input = CTOOL_DIS_INPUT_ELF32;
+    request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK,
+                      "relocated ELF local target policy") ||
+        report.decode_summary.executable_relocation_count != 1u ||
+        report.decode_summary.unmatched_executable_relocation_count != 0u ||
+        !target_summary_matches(&report.decode_summary, 0u, 0u, 0u, 0u, 0u,
+                                0u, "relocated ELF local target policy")) {
+      ctool_buffer_close(object_bytes);
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_buffer_close(object_bytes);
   }
   {
     ctool_source_t source;
@@ -526,13 +835,13 @@ static int run_targets(void) {
     request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
     (void)memset(&report, 0xa5, sizeof(report));
     status = ctool_dis_inspect(job, &source, &request, &report);
-    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
-                      "ELF local target policy") ||
+    if (!check_status(status, CTOOL_ERR_INPUT,
+                      "malformed ELF local target policy") ||
         !is_zeroed(&report, sizeof(report)) ||
         ctool_job_diagnostic_count(job) != 2u ||
-        !check_diagnostic(job, 1u, CTOOL_DIS_DIAG_INVALID_REQUEST,
-                          "CupidDis policies only apply to raw input",
-                          "ELF policy diagnostic")) {
+        !check_diagnostic(job, 1u, CTOOL_ELF32_DIAG_BAD_HEADER,
+                          "ELF32 header is truncated",
+                          "malformed ELF policy diagnostic")) {
       ctool_job_close(job);
       return 1;
     }
@@ -575,7 +884,7 @@ static int run_targets(void) {
     status = ctool_dis_inspect(job, &source, &request, &report);
     if (!check_status(status, CTOOL_OK, "local target policy recovery") ||
         report.policies != CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS ||
-        !target_summary_matches(&report.decode_summary, 1u, 0u, 0u, 0u,
+        !target_summary_matches(&report.decode_summary, 1u, 0u, 0u, 0u, 0u,
                                 0u, "local target policy recovery")) {
       ctool_job_close(job);
       return 1;
@@ -594,6 +903,26 @@ static int run_targets(void) {
         return 1;
       }
     }
+  }
+  {
+    ctool_buffer_t *object_bytes = (ctool_buffer_t *)0;
+    ctool_bytes_t object_view;
+    if (!build_local_target_object(
+            job, elf_code_fixture, (ctool_u32)sizeof(elf_code_fixture),
+            &object_bytes)) {
+      ctool_job_close(job);
+      return 1;
+    }
+    object_view = ctool_buffer_view(object_bytes);
+    if (object_view.size > (ctool_u32)sizeof(elf_allocation_fixture)) {
+      ctool_buffer_close(object_bytes);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(elf_allocation_fixture, object_view.data,
+                 object_view.size);
+    elf_allocation_fixture_size = object_view.size;
+    ctool_buffer_close(object_bytes);
   }
   ctool_job_close(job);
   {
@@ -634,6 +963,51 @@ static int run_targets(void) {
     if (!check_status(status, CTOOL_OK,
                       "local target allocation recovery") ||
         report.decode_summary.known_count != 512u ||
+        report.decode_summary.direct_relative_target_count != 0u) {
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_job_close(job);
+  }
+  {
+    ctool_host_adapter_t limited_adapter;
+    ctool_job_config_t config;
+    ctool_limits_t limits = ctool_default_limits();
+    ctool_source_t source;
+    ctool_dis_request_t request;
+    ctool_dis_report_t report;
+    ctool_status_t status = ctool_host_adapter_init(&limited_adapter, ".");
+    job = (ctool_job_t *)0;
+    limits.arena_block_bytes = 512u;
+    limits.arena_bytes = 2047u;
+    config = ctool_host_job_config(&limited_adapter, limits);
+    if (status == CTOOL_OK) {
+      status = ctool_job_open(&config, &job);
+    }
+    if (!check_status(status, CTOOL_OK, "limited ELF local target job")) {
+      return 1;
+    }
+    source.path.text = ctool_string("/local-target-limit.o");
+    source.contents = ctool_bytes(elf_allocation_fixture,
+                                  elf_allocation_fixture_size);
+    (void)memset(&request, 0, sizeof(request));
+    request.input = CTOOL_DIS_INPUT_ELF32;
+    request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    (void)memset(&report, 0xa5, sizeof(report));
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_ERR_LIMIT,
+                      "ELF local target instruction map limit") ||
+        !is_zeroed(&report, sizeof(report)) ||
+        ctool_job_diagnostic_count(job) != 0u) {
+      ctool_job_close(job);
+      return 1;
+    }
+    request.policies = 0u;
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK,
+                      "ELF local target allocation recovery") ||
+        report.decode_summary.known_count != 8192u ||
         report.decode_summary.direct_relative_target_count != 0u) {
       ctool_job_close(job);
       return 1;
@@ -1933,6 +2307,21 @@ static int run_exec(void) {
   (void)memset(&request, 0, sizeof(request));
   request.input = CTOOL_DIS_INPUT_ELF32;
   request.views = CTOOL_DIS_VIEW_HEADER | CTOOL_DIS_VIEW_DISASSEMBLY;
+  request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "executable local target policy") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 1u ||
+      !check_diagnostic(
+          job, 0u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+          "local target checks require static relocatable ELF32 input",
+          "executable local target diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  request.policies = 0u;
   (void)memset(&capture, 0, sizeof(capture));
   status = ctool_dis_inspect(job, &source, &request, &report);
   if (status == CTOOL_OK) {

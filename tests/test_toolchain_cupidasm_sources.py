@@ -145,6 +145,7 @@ def _parse_elf32_semantics(image):
                 "name": name,
                 "type": row[1],
                 "flags": row[2],
+                "file_offset": row[4],
                 "link": row[6],
                 "info": row[7],
                 "alignment": row[8],
@@ -520,13 +521,44 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                     self.assertEqual(cupid["relocations"], fixture["relocations"])
 
                     inspected = subprocess.run(
-                        [str(self.dis_path), "--require-known", str(object_path)],
+                        [
+                            str(self.dis_path),
+                            "--require-known",
+                            "--require-local-targets",
+                            str(object_path),
+                        ],
                         cwd=REPO_ROOT,
                         text=True,
                         capture_output=True,
                     )
                     self.assertEqual(inspected.returncode, 0, inspected.stderr)
                     self.assertEqual(inspected.stdout, "")
+
+                    if fixture["name"] == "context-switch":
+                        bad_target = bytearray(cupid_image)
+                        displacement = text["file_offset"] + 0x29
+                        self.assertEqual(bad_target[displacement], 0x0D)
+                        bad_target[displacement] = 0x0C
+                        bad_object = root / "context-switch.bad-target.o"
+                        bad_object.write_bytes(bad_target)
+                        rejected = subprocess.run(
+                            [
+                                str(self.dis_path),
+                                "--require-known",
+                                "--require-local-targets",
+                                str(bad_object),
+                            ],
+                            cwd=REPO_ROOT,
+                            text=True,
+                            capture_output=True,
+                        )
+                        self.assertEqual(rejected.returncode, 1)
+                        self.assertEqual(rejected.stdout, "")
+                        self.assertIn(
+                            "1 of 3 direct relative targets invalid",
+                            rejected.stderr,
+                        )
+                        self.assertIn("1 mid-instruction", rejected.stderr)
 
                     rendered = subprocess.run(
                         [str(self.dis_path), str(object_path)],

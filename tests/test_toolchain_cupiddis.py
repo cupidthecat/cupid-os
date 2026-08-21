@@ -267,6 +267,61 @@ class CupidDisContractTests(unittest.TestCase):
             Path(cls._fixture_directory.name) / "wrapped-target.bin"
         )
         cls.wrapped_target_path.write_bytes(bytes.fromhex("eb 00 c3"))
+        local_object_sources = (
+            (
+                "local_target_object_path",
+                "valid-local-target.asm",
+                "valid-local-target.o",
+                "BITS 32\n"
+                "extern external\n"
+                "section .text\n"
+                "entry:\n"
+                "    call external\n"
+                "    jmp done\n"
+                "    nop\n"
+                "done:\n"
+                "    ret\n",
+            ),
+            (
+                "outside_target_object_path",
+                "outside-local-target.asm",
+                "outside-local-target.o",
+                "BITS 32\nsection .text\ndb 0xeb, 0x7f\n",
+            ),
+            (
+                "middle_target_object_path",
+                "middle-local-target.asm",
+                "middle-local-target.o",
+                "BITS 32\nsection .text\n"
+                "db 0xeb, 0x01, 0xb8, 0, 0, 0, 0, 0xc3\n",
+            ),
+        )
+        for attribute, source_name, object_name, source_text in (
+            local_object_sources
+        ):
+            source_path = Path(cls._fixture_directory.name) / source_name
+            object_path = Path(cls._fixture_directory.name) / object_name
+            source_path.write_text(source_text, encoding="utf-8")
+            assembled = subprocess.run(
+                [
+                    str(cls.asm_path),
+                    "-f",
+                    "elf32",
+                    str(source_path),
+                    "-o",
+                    str(object_path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            if assembled.returncode != 0:
+                raise AssertionError(
+                    "CupidDis local-target fixture assembly failed\n"
+                    + assembled.stdout
+                    + assembled.stderr
+                )
+            setattr(cls, attribute, object_path)
         cls.exec_path = Path(cls._fixture_directory.name) / "program.elf"
         executable = bytearray(90)
         executable[:7] = b"\x7fELF\x01\x01\x01"
@@ -512,7 +567,7 @@ class CupidDisContractTests(unittest.TestCase):
             "ctool_dis_inspect_indexed(job, decoder,", helper
         )
 
-    def test_cli_requires_local_relative_targets_on_raw_images(self):
+    def test_cli_requires_local_relative_targets_on_raw_and_object_code(self):
         def run(path, *options):
             return subprocess.run(
                 [
@@ -616,6 +671,53 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertEqual(missing_known.returncode, 2)
         self.assertIn("usage: cupiddis", missing_known.stderr)
 
+        valid_object = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--require-local-targets",
+                str(self.local_target_object_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(valid_object.returncode, 0, valid_object.stderr)
+        self.assertEqual(valid_object.stdout, "")
+        self.assertEqual(valid_object.stderr, "")
+
+        object_failures = (
+            (self.outside_target_object_path, "1 outside section, "),
+            (self.middle_target_object_path, "0 outside section, "),
+        )
+        for path, outside_reason in object_failures:
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-local-targets",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(
+                    f"{path}: local target check failed: "
+                    "1 of 1 direct relative targets invalid",
+                    result.stderr,
+                )
+                self.assertIn(outside_reason, result.stderr)
+                self.assertIn(
+                    "0 mid-instruction"
+                    if path == self.outside_target_object_path
+                    else "1 mid-instruction",
+                    result.stderr,
+                )
+
         elf_policy = subprocess.run(
             [
                 str(self.cli_path),
@@ -627,8 +729,12 @@ class CupidDisContractTests(unittest.TestCase):
             text=True,
             capture_output=True,
         )
-        self.assertEqual(elf_policy.returncode, 2)
-        self.assertIn("usage: cupiddis", elf_policy.stderr)
+        self.assertEqual(elf_policy.returncode, 1)
+        self.assertNotIn("usage: cupiddis", elf_policy.stderr)
+        self.assertIn(
+            "local target checks require static relocatable ELF32 input",
+            elf_policy.stderr,
+        )
 
     def test_cli_explicit_view_and_nm_modes_are_deterministic(self):
         sections = subprocess.run(

@@ -228,8 +228,9 @@ The normal SMP trampoline recipe uses CupidASM's own map as a publication gate.
 Hostbuild freezes the selected seed and source, asks CupidASM for private image
 and map candidates, and requires the map to match the canonical 4 KiB policy.
 It then runs CupidDis with `--raw --range-map`, `--require-known`, and
-`--require-local-targets`. The local-target option
-requires both `--require-known` and `--raw`. The exact map is code16
+`--require-local-targets`. The local-target option always requires
+`--require-known`. This production call also supplies `--raw` and the exact map:
+code16
 `[0x000, 0x01f)`, data `[0x01f, 0x210)`, code32 `[0x210, 0x254)`, and data
 `[0x254, 0x1000)`. A local-target check on raw input that contains code16
 rejects images larger than 65,536 bytes because wrapped target mapping would
@@ -242,11 +243,32 @@ The production boot transaction applies the same local-target rule to its
 2,560-byte candidate and range map. It checks nine direct relative targets and
 excludes three far jumps. Both callers distinguish a target outside the image,
 inside data, in the wrong mode, or in the middle of an instruction. Far
-pointers, indirect register or memory targets, and ELF input remain outside
-the rule. A displacement can still pass if it reaches a different valid
+pointers and indirect register or memory targets remain outside the rule. A
+displacement can still pass if it reaches a different valid
 instruction start in same-mode code, because raw decoding does not preserve
 source-label identity. ADR 0300 records this boundary.
 ADR 0305 records the promoted-seed carriage and production adoption.
+
+Source-head CupidDis can apply the same explicit option to a static ELF32
+relocatable object:
+
+```text
+cupiddis --require-known --require-local-targets program.o
+```
+
+Each executable `PROGBITS` section gets its own instruction-start map and two
+decode passes. An unrelocated direct relative target must stay inside that
+section and land on an instruction start there. A relocation at the operand
+field leaves the destination for link time, while the existing executable
+relocation rule still checks its field. Failures distinguish a target outside
+the section from one in the middle of an instruction. Linked `ET_EXEC` input is
+rejected for this option.
+
+The active ISR and context-switch objects pass the source-head check. Eleven
+ISR call relocations are excluded from the local count. A one-byte change to a
+context-switch branch produces one mid-instruction failure. The promoted
+seeds and production object transaction have not adopted this form. ADR 0309
+records the source boundary.
 
 ### Requiring complete code coverage
 

@@ -1150,19 +1150,26 @@ that layout is safe to inspect and publish.
 _Avoid_: raw range map, assembler approval, inferred policy
 
 **Local relative target check**:
-The checked-seed CupidDis policy that checks constant relative calls and jumps
-in a raw image against its instruction starts and range map. A target must
-stay inside the image and land at an instruction boundary in code with the
-same mode. The report separates outside-image, data, wrong-mode, and
-mid-instruction failures. Far pointers, indirect transfers, and ELF inputs are
-outside this first boundary. The typed inspector records the counts; its
-caller decides whether nonzero failures reject an artifact. The CLI exposes
-that decision as `--require-local-targets` beside `--require-known --raw`.
-The production bootloader transaction covers nine targets, and the SMP
-transaction covers four. Both pass `--require-known
---require-local-targets --raw`; a failure preserves the prior output. ADR 0300
-records the source rule, and ADR 0305 records seed carriage and adoption.
-_Avoid_: source-label proof, automatic code discovery, ELF target proof
+The explicit CupidDis policy that checks constant direct relative calls and
+jumps against decoded instruction starts. For raw input, a target must stay in
+the image and land in same-mode code. The report separates outside-image,
+data, wrong-mode, and mid-instruction failures. For static ELF32 `ET_REL`
+input, source head checks each executable `PROGBITS` section separately. An
+unrelocated target must stay in its source section and land at an instruction
+start there. A relocated operand is left to the existing relocation-ownership
+and link rules. The object report separates outside-section and
+mid-instruction failures. Far pointers and indirect transfers remain outside
+the policy, and linked `ET_EXEC` input is rejected.
+
+The CLI exposes the policy as `--require-local-targets` beside
+`--require-known`. The promoted seeds and production hostbuild use only its
+raw form. The bootloader transaction covers nine targets, and the SMP
+transaction covers four. A failure preserves the prior output. Source-head
+tests also cover both active CupidASM objects, but this capability has not been
+promoted or added to their production transaction. ADR 0300 records the raw
+source rule, ADR 0305 records its seed carriage and adoption, and ADR 0309
+records the relocatable-object rule.
+_Avoid_: source-label proof, automatic code discovery, linked-image target proof, cross-section instruction identity
 
 **Relocatable entry symbol**:
 The caller-priority code label selected by CupidASM for an ELF32 relocatable

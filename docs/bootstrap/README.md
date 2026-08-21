@@ -29,7 +29,14 @@ CupidC globals.
 
 ## 2026-08-21 source-current checkpoint
 
-The four source slices and their focused checks are settled. The schema v3
+Source-head CupidDis now checks unrelocated direct relative targets in static
+ELF32 relocatable objects. It gives each executable `PROGBITS` section its own
+instruction-start map, excludes relocated operand fields, and reports
+outside-section or mid-instruction failures. Linked `ET_EXEC` input remains
+outside this rule. This source slice does not promote the checked seeds or add
+the option to production object publication. ADR 0309 records that boundary.
+
+The preceding source slices and their focused checks are settled. The schema v3
 Toolchain publication, final post-CTXT audit, fully poisoned OS build, and
 preceding strong full private guest frontier are complete. The new
 global-callback marker still needs an integrated guest rerun.
@@ -355,11 +362,12 @@ carries both options. The normal boot rule calls
 the checked closure. ADR 0277 records the schema, and ADR 0283 records the
 production cutover.
 
-Checked-seed CupidDis can also require every constant relative call or jump in
-a raw image to land on an instruction start in same-mode code. The explicit
-`--require-local-targets` option is valid only beside `--require-known --raw`.
-It reports outside-image, data, wrong-mode, and mid-instruction targets while
-leaving far pointers, indirect transfers, and ELF input for later rules. The
+Checked-seed CupidDis can require every constant relative call or jump in a
+raw image to land on an instruction start in same-mode code. The explicit
+`--require-local-targets` option requires `--require-known`; the production
+seeds use its raw form. Raw reports distinguish outside-image, data,
+wrong-mode, and mid-instruction targets while leaving far pointers and
+indirect transfers outside the rule. The
 active-source contracts freeze nine checked bootloader targets and four SMP
 trampoline targets. They also corrupt one displacement in each image and
 require the exact failure total. The promoted Linux and Windows seeds carry
@@ -367,6 +375,20 @@ the option, and both production transactions select it. A failure preserves
 the prior output. [ADR 0300](../adr/0300-validate-local-relative-targets-in-raw-images.md)
 records the source boundary, and [ADR 0305](../adr/0305-promote-and-adopt-local-relative-target-checks.md)
 records carriage and adoption.
+
+Source-head CupidDis also accepts the option for static i386 `ET_REL` input.
+It scans each executable `PROGBITS` section twice and gives that section its
+own instruction identity. Unrelocated constant direct targets must stay in
+the section and land on a decoded start. A relocation at the operand field
+excludes the target from this count; the existing relocation-ownership check
+still validates the field. The typed report appends an outside-section count.
+The hosted CLI rejects an outside-section or mid-instruction target and
+rejects `ET_EXEC` with a focused inspection diagnostic. Both active CupidASM
+objects pass source-head validation, including eleven excluded ISR call
+relocations. Changing one context-switch displacement produces the expected
+mid-instruction failure. The promoted seeds and production hostbuild do not
+select this object form in this slice. [ADR 0309](../adr/0309-validate-local-relative-targets-in-relocatable-objects.md)
+records the source boundary.
 
 Source-head and checked-seed raw CupidASM have one origin and one section identity. An `equ`
 preamble defines an absolute symbol without claiming implicit `.text`. The

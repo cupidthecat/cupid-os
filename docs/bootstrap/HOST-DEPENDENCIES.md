@@ -1211,6 +1211,14 @@ production transactions select it. A failure
 preserves the prior output. ADR 0300 records the source boundary, and ADR 0305
 records seed carriage and production cutover.
 
+The source-head relocatable form adds no dependency or owner count either.
+CupidDis checks each executable `ET_REL` section with a private two-pass start
+map, excludes relocated operand fields, and reports outside-section and
+mid-instruction targets. It explicitly rejects `ET_EXEC` for this option. Both
+active CupidASM objects pass through the hosted source-head command, but the
+promoted seeds predate the behavior and production hostbuild does not select
+it. ADR 0309 records this rollout boundary.
+
 The current source graph records 452 transforms across the three supported
 roots and 443 under root `all`. Its tool participation totals are Python 452,
 CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis six. Four

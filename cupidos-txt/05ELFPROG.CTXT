@@ -364,6 +364,13 @@ relocations.
 Both cohorts carry the raw local-target policy used by the guarded bootloader
 and SMP transactions. Exact seed identities and dated proof evidence are kept
 in the host bootstrap log.
+
+Source-head CupidDis also checks unrelocated direct targets inside each
+executable section of a static ELF32 relocatable object. Relocated operand
+fields stay under the separate relocation-ownership rule. Targets outside
+their source section or inside an instruction fail. Linked ET_EXEC input is
+not covered. The promoted cohorts and production object transaction have not
+adopted this source-head form.
 >endtree
 
 >h2 See Also

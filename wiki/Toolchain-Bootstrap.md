@@ -945,21 +945,31 @@ carry the rule, so normal object publication enforces it on both supported
 hosts. ADR 0290 records the boundary, and ADR 0292 records the promotion.
 
 Promoted-seed CupidDis applies an explicit raw control-flow check in both
-production raw-image transactions. `--require-local-targets` requires both
-`--require-known` and `--raw`. It verifies constant relative calls and jumps
-against the image's instruction starts and typed ranges. A local-target check
-on raw input that contains code16 rejects images larger than 65,536 bytes
-because wrapped target mapping would be ambiguous. The report separates targets
-outside the image, in data, in another code mode, and in the middle of an
-instruction.
+production raw-image transactions. `--require-local-targets` requires
+`--require-known`; these production calls also supply `--raw`. It verifies
+constant relative calls and jumps against the image's instruction starts and
+typed ranges. A local-target check on raw input that contains code16 rejects
+images larger than 65,536 bytes because wrapped target mapping would be
+ambiguous. The report separates targets outside the image, in data, in another
+code mode, and in the middle of an instruction.
 The 2,560-byte boot image contributes nine checked targets. Its three far jumps
 are excluded. The 4,096-byte SMP trampoline contributes four checked targets;
-its far mode transition and indirect call are excluded. Far pointers, indirect
-register or memory targets, and ELF input remain outside this rule. A changed
+its far mode transition and indirect call are excluded. Far pointers and
+indirect register or memory targets remain outside this rule. A changed
 displacement can still pass if it lands on a different valid instruction start
 in same-mode code, because the check does not retain source-label identity.
 ADR 0300 records the decoder rule, and ADR 0305 records seed carriage and
 production adoption.
+
+Source-head CupidDis also applies the option to static ELF32 relocatable
+objects. It gives each executable `PROGBITS` section its own instruction-start
+map and checks unrelocated direct targets against that section. A relocation
+at the operand field leaves the destination for link time, while relocation
+ownership still validates the field. The report distinguishes targets outside
+the section from targets inside an instruction. Linked `ET_EXEC` input is
+rejected. Both active CupidASM objects pass this source-head check, but the
+checked seeds and production object transaction have not adopted it. ADR 0309
+records this boundary.
 
 The poisoned-host normal `make -j2` then passed in 1,057.969 seconds. All
 eleven host code-generation variables named invalid commands, and that

@@ -178,6 +178,18 @@ forced checked-seed build kept the reviewed trampoline SHA-256
 [ADR 0308](docs/adr/0308-bind-the-smp-trampoline-to-cupidasm-raw-layout-metadata.md)
 records the handoff.
 
+Source-head CupidDis now applies the same explicit policy to executable
+`PROGBITS` sections in static ELF32 relocatable objects. Each section has its
+own two-pass instruction-start map. Unrelocated direct relative targets must
+stay in that section and land on an instruction start, while relocated operand
+fields remain link-time targets and stay under the executable-relocation rule.
+The typed report adds an outside-section count, and linked `ET_EXEC` input is
+rejected explicitly. Both active CupidASM objects pass the source-head check,
+and a one-byte context-switch mutation fails as a mid-instruction target. The
+promoted seeds and production object publishers do not select this new form
+yet. [ADR 0309](docs/adr/0309-validate-local-relative-targets-in-relocatable-objects.md)
+records the source-only boundary.
+
 The first completed 86-test checked-seed module run took 2,394.660 seconds and
 reported one failure and four errors. The small source-tree fixtures lacked the
 new Windows `publication_start.asm` and `publication_runtime.cc` inputs. The
@@ -2411,9 +2423,15 @@ objects. A strict match requires the relocation site, four-byte width, and
 relative or absolute kind to agree with one decoded field. Ordinary rendering
 and strict inspection share that rule. Data-section relocations do not enter
 the count. The same promoted inspector checks direct relative targets in the
-raw bootloader and SMP trampoline before publication. ADR 0290 records the
-relocation boundary, ADR 0300 records the local-target capability, and ADR
-0305 records its checked-seed carriage and production adoption.
+raw bootloader and SMP trampoline before publication. Source-head CupidDis can
+also apply the explicit target policy to static relocatable objects. It checks
+unrelocated targets against instruction starts in their own executable
+section, ignores operands with relocation fields, and reports
+outside-section and mid-instruction failures. This object form is not in the
+promoted seeds or production hostbuild yet. ADR 0290 records the relocation
+boundary, ADR 0300 records the raw local-target capability, ADR 0305 records
+its checked-seed carriage and production adoption, and ADR 0309 records the
+source-head relocatable rule.
 
 The 187.054-second transaction result above is an earlier checkpoint. The next
 2026-08-13 poisoned-host checkpoint produced an 8,962,776-byte raw kernel with

@@ -35,28 +35,12 @@ dis_field_accepts_relocation(const ctool_x86_field_t *field,
   return CTOOL_FALSE;
 }
 
-static ctool_u32 dis_find_field_relocation(
+static ctool_u32 dis_relocation_site_lower_bound(
     const ctool_dis_report_t *report, ctool_u32 section_file_index,
-    ctool_u32 logical_address, ctool_u32 instruction_offset,
-    const ctool_x86_field_t *field,
-    const ctool_u8 *relocation_claimed) {
+    ctool_u32 site) {
   const ctool_elf32_object_t *object = &report->elf32;
   ctool_u32 first = 0u;
   ctool_u32 last = report->relocation_site_order_count;
-  ctool_u32 site;
-  if (object->file_type == CTOOL_ELF32_ET_EXEC) {
-    if (logical_address > DIS_U32_MAX - (ctool_u32)field->byte_offset) {
-      return DIS_U32_MAX;
-    }
-    site = logical_address + (ctool_u32)field->byte_offset;
-  } else {
-    if (object->file_type != CTOOL_ELF32_ET_REL ||
-        section_file_index >= object->section_count ||
-        instruction_offset > DIS_U32_MAX - (ctool_u32)field->byte_offset) {
-      return DIS_U32_MAX;
-    }
-    site = instruction_offset + (ctool_u32)field->byte_offset;
-  }
   while (first < last) {
     ctool_u32 middle = first + (last - first) / 2u;
     const ctool_elf32_relocation_t *relocation =
@@ -72,6 +56,32 @@ static ctool_u32 dis_find_field_relocation(
       last = middle;
     }
   }
+  return first;
+}
+
+static ctool_u32 dis_find_field_relocation(
+    const ctool_dis_report_t *report, ctool_u32 section_file_index,
+    ctool_u32 logical_address, ctool_u32 instruction_offset,
+    const ctool_x86_field_t *field,
+    const ctool_u8 *relocation_claimed) {
+  const ctool_elf32_object_t *object = &report->elf32;
+  ctool_u32 first;
+  ctool_u32 site;
+  if (object->file_type == CTOOL_ELF32_ET_EXEC) {
+    if (logical_address > DIS_U32_MAX - (ctool_u32)field->byte_offset) {
+      return DIS_U32_MAX;
+    }
+    site = logical_address + (ctool_u32)field->byte_offset;
+  } else {
+    if (object->file_type != CTOOL_ELF32_ET_REL ||
+        section_file_index >= object->section_count ||
+        instruction_offset > DIS_U32_MAX - (ctool_u32)field->byte_offset) {
+      return DIS_U32_MAX;
+    }
+    site = instruction_offset + (ctool_u32)field->byte_offset;
+  }
+  first =
+      dis_relocation_site_lower_bound(report, section_file_index, site);
   while (first < report->relocation_site_order_count) {
     ctool_u32 relocation_index = report->relocation_site_order[first];
     const ctool_elf32_relocation_t *relocation =
@@ -89,6 +99,30 @@ static ctool_u32 dis_find_field_relocation(
     first++;
   }
   return DIS_U32_MAX;
+}
+
+static ctool_bool dis_field_has_relocation(
+    const ctool_dis_report_t *report, ctool_u32 section_file_index,
+    ctool_u32 instruction_offset, const ctool_x86_field_t *field) {
+  const ctool_elf32_object_t *object = &report->elf32;
+  ctool_u32 first;
+  ctool_u32 site;
+  if (object->file_type != CTOOL_ELF32_ET_REL ||
+      instruction_offset > DIS_U32_MAX - (ctool_u32)field->byte_offset) {
+    return CTOOL_FALSE;
+  }
+  site = instruction_offset + (ctool_u32)field->byte_offset;
+  first =
+      dis_relocation_site_lower_bound(report, section_file_index, site);
+  if (first < report->relocation_site_order_count) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[report->relocation_site_order[first]];
+    if (relocation->target_section_file_index == section_file_index &&
+        relocation->offset == site) {
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
 }
 
 static void dis_zero_report(ctool_dis_report_t *report) {
@@ -405,6 +439,118 @@ static ctool_status_t dis_prepare_raw_local_target_summary(
   return status == CTOOL_OK ? rewind_status : status;
 }
 
+static ctool_status_t dis_scan_elf_local_target_section(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_dis_report_t *report, const ctool_elf32_section_t *section,
+    ctool_u8 *instruction_starts, ctool_bool mark_starts) {
+  ctool_u32 offset = 0u;
+  while (offset < section->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_status_t status =
+        decoder == (const ctool_x86_decoder_t *)0
+            ? ctool_x86_decode(job, CTOOL_X86_MODE_32, section->contents,
+                               offset, &decoded)
+            : ctool_x86_decode_indexed(job, decoder, CTOOL_X86_MODE_32,
+                                       section->contents, offset, &decoded);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (decoded.kind == CTOOL_X86_DECODE_KNOWN) {
+      if (mark_starts == CTOOL_TRUE) {
+        dis_instruction_start_set(instruction_starts, offset);
+      } else {
+        ctool_u32 operand_index;
+        for (operand_index = 0u;
+             operand_index < (ctool_u32)decoded.instruction.operand_count;
+             operand_index++) {
+          const ctool_x86_operand_t *operand =
+              &decoded.instruction.operands[operand_index];
+          ctool_bool relocated = CTOOL_FALSE;
+          ctool_u32 field_index;
+          ctool_u32 target;
+          if (operand->kind != CTOOL_X86_OPERAND_RELATIVE ||
+              operand->as.value.kind != CTOOL_X86_VALUE_CONSTANT) {
+            continue;
+          }
+          for (field_index = 0u;
+               field_index < (ctool_u32)decoded.encoding.field_count;
+               field_index++) {
+            const ctool_x86_field_t *field =
+                &decoded.encoding.fields[field_index];
+            if ((ctool_u32)field->operand_index == operand_index &&
+                field->kind == CTOOL_X86_FIELD_RELATIVE &&
+                dis_field_has_relocation(report, section->file_index, offset,
+                                         field) == CTOOL_TRUE) {
+              relocated = CTOOL_TRUE;
+            }
+          }
+          if (relocated == CTOOL_TRUE) {
+            continue;
+          }
+          report->decode_summary.direct_relative_target_count++;
+          target = dis_relative_target(offset, &decoded, operand);
+          if (target >= section->contents.size) {
+            report->decode_summary.direct_relative_outside_section_count++;
+          } else if (dis_instruction_start_get(instruction_starts, target) ==
+                     CTOOL_FALSE) {
+            report->decode_summary.direct_relative_mid_instruction_count++;
+          }
+        }
+      }
+    } else if (decoded.kind == CTOOL_X86_DECODE_TRUNCATED) {
+      decoded.consumed = decoded.encoding.size;
+    }
+    if (decoded.consumed == 0u ||
+        decoded.consumed > section->contents.size - offset) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    offset += (ctool_u32)decoded.consumed;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t dis_prepare_elf_local_target_summary(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_dis_report_t *report) {
+  ctool_arena_t *arena = ctool_job_arena(job);
+  ctool_u32 index;
+  for (index = 0u; index < report->elf32.section_count; index++) {
+    const ctool_elf32_section_t *section = &report->elf32.sections[index];
+    ctool_arena_mark_t mark;
+    ctool_u8 *instruction_starts = (ctool_u8 *)0;
+    ctool_u32 bitset_size;
+    ctool_u32 pass;
+    ctool_status_t status = CTOOL_OK;
+    ctool_status_t rewind_status;
+    if (section->type != CTOOL_ELF32_SHT_PROGBITS ||
+        (section->flags & CTOOL_ELF32_SHF_EXECINSTR) == 0u ||
+        section->contents.size == 0u) {
+      continue;
+    }
+    mark = ctool_arena_mark(arena);
+    bitset_size = section->contents.size / 8u;
+    if (section->contents.size % 8u != 0u) {
+      bitset_size++;
+    }
+    status = ctool_arena_alloc_zero(
+        arena, bitset_size, (ctool_u32)sizeof(ctool_u8),
+        (ctool_u32)sizeof(ctool_u8), (void **)&instruction_starts);
+    for (pass = 0u; status == CTOOL_OK && pass < 2u; pass++) {
+      status = dis_scan_elf_local_target_section(
+          job, decoder, report, section, instruction_starts,
+          pass == 0u ? CTOOL_TRUE : CTOOL_FALSE);
+    }
+    rewind_status = ctool_arena_rewind(arena, mark);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (rewind_status != CTOOL_OK) {
+      return rewind_status;
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t
 dis_summarize_region(ctool_job_t *job, const ctool_x86_decoder_t *decoder,
                      ctool_bytes_t bytes,
@@ -692,9 +838,12 @@ static ctool_status_t dis_inspect(
   if (request->input != CTOOL_DIS_INPUT_ELF32) {
     return dis_bad_request(job, source, "CupidDis input kind is invalid");
   }
-  if (request->policies != 0u) {
-    return dis_bad_request(job, source,
-                           "CupidDis policies only apply to raw input");
+  if ((request->policies &
+       CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u &&
+      (request->views & CTOOL_DIS_VIEW_DISASSEMBLY) == 0u) {
+    return dis_bad_request(
+        job, source,
+        "ELF local target checks require the disassembly view");
   }
   if (request->label_count != 0u ||
       request->labels != (const ctool_dis_label_t *)0) {
@@ -707,6 +856,15 @@ static ctool_status_t dis_inspect(
   if (status != CTOOL_OK) {
     dis_zero_report(report_out);
     return status;
+  }
+  if ((request->policies &
+       CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u &&
+      report_out->elf32.file_type != CTOOL_ELF32_ET_REL) {
+    (void)ctool_arena_rewind(arena, mark);
+    dis_zero_report(report_out);
+    return dis_bad_request(
+        job, source,
+        "local target checks require static relocatable ELF32 input");
   }
   if ((request->views & CTOOL_DIS_VIEW_DISASSEMBLY) != 0u) {
     for (index = 0u; index < report_out->elf32.section_count; index++) {
@@ -761,6 +919,11 @@ static ctool_status_t dis_inspect(
   status = dis_prepare_report_orders(job, report_out);
   if (status == CTOOL_OK) {
     status = dis_prepare_decode_summary(job, decoder, report_out);
+  }
+  if (status == CTOOL_OK &&
+      (report_out->policies &
+       CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u) {
+    status = dis_prepare_elf_local_target_summary(job, decoder, report_out);
   }
   if (status != CTOOL_OK) {
     (void)ctool_arena_rewind(arena, mark);
@@ -2437,7 +2600,9 @@ static ctool_bool dis_report_shape_valid(const ctool_dis_report_t *report) {
     return CTOOL_TRUE;
   }
   if (report->input != CTOOL_DIS_INPUT_ELF32 ||
-      report->policies != 0u ||
+      (report->policies != 0u &&
+       (report->elf32.file_type != CTOOL_ELF32_ET_REL ||
+        (report->views & CTOOL_DIS_VIEW_DISASSEMBLY) == 0u)) ||
       report->mode != CTOOL_X86_MODE_32 ||
       (report->elf32.file_type != CTOOL_ELF32_ET_REL &&
        report->elf32.file_type != CTOOL_ELF32_ET_EXEC) ||

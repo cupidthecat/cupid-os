@@ -28581,3 +28581,83 @@ roots without requiring a generated audit refresh.
 No `.c` source qualifies for a `.cc` rename. Owner counts, checked seeds, the
 host dependency inventory, and OS bytes do not change. ADR 0308 records the
 policy boundary.
+
+## 2026-08-21: Validate section-local targets in relocatable objects
+
+Source-head CupidDis now accepts `--require-local-targets` for static i386
+ELF32 `ET_REL` input when `--require-known` supplies the disassembly view. The
+local-target check scans each executable `PROGBITS` section twice after the
+strict decode summary. The first local pass records starts in a
+one-bit-per-byte scratch map, and the second checks unrelocated constant direct
+relative operands against that map. The map is rewound before the next
+section, so equal offsets in different sections never share identity.
+
+A relocation at the relative operand field removes that operand from the local
+count. The existing executable-relocation pass still checks its width, kind,
+and site. This keeps external `R_386_PC32` calls out of section-local control
+flow without weakening relocation ownership. Far pointers and indirect
+register or memory transfers remain excluded.
+
+The public summary appends
+`direct_relative_outside_section_count`. Reusing the raw outside-image count
+was rejected because it would misstate the object contract. Appending the new
+field preserves every prior summary-field offset while growing the summary and
+inspection report by eight bytes. Relocatable failures now distinguish a
+target outside its source section from one inside an instruction.
+
+Linked `ET_EXEC` input receives the focused
+`local target checks require static relocatable ELF32 input` diagnostic. A
+policy request without the disassembly view also fails before parsing. Raw
+behavior and its four existing failure classes are unchanged.
+
+The TDD sequence exposed the intended gaps:
+
+- a clean object first returned `invalid_argument`;
+- a relocated external call was counted as one mid-instruction local target;
+- the typed contract could not compile before the outside-section field was
+  added;
+- the first 8,192-byte constrained fixture still fit its 2,048-byte arena, so
+  the final case uses a 16,384-byte section whose map alone exceeds the entire
+  2,047-byte arena limit;
+- a valid object reached command-line usage rejection because the option was
+  restricted to raw input;
+- rendering a valid policy report failed report-shape validation;
+- an ELF policy request without the disassembly view was accepted.
+
+Each case is green now. The typed contract also covers a clean local jump,
+positive outside-section and mid-instruction targets, separate start maps for
+two executable sections with overlapping offsets, far and indirect exclusion,
+malformed ELF, fail-atomic reports, same-job recovery, and explicit `ET_EXEC`
+rejection. The constrained failure rewinds all inspection state, zeros the
+report, emits no diagnostic, and the next non-policy inspection succeeds in
+the same job.
+
+The hosted CLI fixtures are assembled by source-head CupidASM. A valid object
+contains one relocated external call and one resolved local jump. Separate
+objects produce the exact outside-section and mid-instruction failures. The
+raw CLI cases retain their previous output. The full CupidDis module passed 25
+tests with one expected platform skip. The focused active-source object test
+also passed. Both the 417-byte ISR text and 73-byte context-switch text pass
+the new option. Eleven ISR call relocations are excluded. Changing the
+context-switch displacement byte at `.text+0x29` from `0x0d` to `0x0c`
+produces one invalid target out of three and reports one mid-instruction
+failure.
+
+The combined command
+`python -B -m unittest -q tests.test_toolchain_cupiddis
+tests.test_toolchain_cupidasm_sources` passed all 29 tests in 8.473 seconds
+with one expected platform skip. Ruff passes both changed Python modules when
+the files' established post-path-insertion `E402` exemptions are ignored.
+
+This is a source-only capability step. Neither checked seed was rebuilt or
+promoted, production hostbuild still applies only strict decode and relocation
+ownership to the two CupidASM objects, and no owner or transform count moved.
+No OS artifact, active source suffix, or `TempleOS/` file changed. ADR 0309
+records the rollout boundary.
+
+No OS build or guest smoke was run. The appended summary field is a C source
+interface compiled into the hosted producer and consumers by the focused
+tests. It does not change an object format, persisted artifact, guest ABI, or
+active kernel path, and no production executable was rebuilt. A runtime smoke
+becomes relevant when a later slice promotes the seeds or selects this policy
+inside the OS.

@@ -21,10 +21,11 @@ typedef enum {
 #define CTOOL_DIS_VIEW_DISASSEMBLY 0x00000010u
 #define CTOOL_DIS_VIEW_ALL 0x0000001fu
 
-/* Raw callers can ask CupidDis to classify every constant relative target.
- * Inspection still succeeds for a structurally valid request.  A caller that
- * enforces this policy must reject a report when any invalid-target counter
- * below is nonzero. */
+/* Raw callers and static ET_REL callers can ask CupidDis to classify constant
+ * direct relative targets.  An ET_REL request must include the disassembly
+ * view.  Inspection still succeeds for structurally valid code, so a caller
+ * that enforces this policy rejects a report when the input-specific invalid
+ * target counters below are nonzero.  Linked ET_EXEC input is not covered. */
 #define CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS 0x00000001u
 #define CTOOL_DIS_POLICY_ALL CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS
 
@@ -62,8 +63,10 @@ typedef struct {
  * counted.  Relocation counts cover relocations whose targets are executable
  * ET_REL sections.  An unmatched relocation does not name a compatible
  * four-byte field in a decoded instruction.  Direct-relative target counts
- * are populated only when the matching raw-input policy is selected.  Far
- * pointers and register or memory targets are outside that policy. */
+ * are populated only when the matching raw or static ET_REL policy is
+ * selected.  Outside-image counts belong to raw input; outside-section counts
+ * belong to ET_REL.  Far pointers and register or memory targets are outside
+ * that policy. */
 typedef struct {
   ctool_u64 known_count;
   ctool_u64 unknown_count;
@@ -76,6 +79,7 @@ typedef struct {
   ctool_u64 direct_relative_data_count;
   ctool_u64 direct_relative_wrong_mode_count;
   ctool_u64 direct_relative_mid_instruction_count;
+  ctool_u64 direct_relative_outside_section_count;
 } ctool_dis_decode_summary_t;
 
 typedef struct {
