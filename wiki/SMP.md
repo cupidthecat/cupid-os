@@ -267,9 +267,17 @@ transitions each AP to 32-bit protected mode.
 The production build assembles a private 4,096-byte candidate with CupidASM.
 CupidDis checks 16-bit code in `[0x000, 0x01f)`, data in `[0x01f, 0x210)`,
 32-bit code in `[0x210, 0x254)`, and data in `[0x254, 0x1000)`. Every
-instruction in both code ranges must pass `--require-known`. Hostbuild replaces
-`kernel/smp_trampoline.bin` only after assembly and inspection succeed. A
-failure preserves the previous trampoline.
+instruction in both code ranges must pass
+`--require-known --require-local-targets --raw`. The local-target check validates
+four direct relative transfers. The far jump that changes mode and the
+indirect call to `ap_main_c` are excluded. A target outside the image, inside
+data, in the wrong mode, or in the middle of an instruction fails. Far
+pointers, indirect register or memory targets, and ELF input are outside this
+rule. A changed displacement can still pass if it reaches a different valid
+instruction start in same-mode code, because the raw image does not retain
+source-label identity. Hostbuild replaces `kernel/smp_trampoline.bin` only
+after assembly and inspection succeed. A failure preserves the previous
+trampoline. ADR 0305 records promoted-seed production adoption.
 
 ### Trampoline stages
 
@@ -526,13 +534,57 @@ validates each i386 ELF32 object, and only then replaces the production
 output. A forced build with an invalid host compiler proves that none of
 these recipes falls back to Clang or GCC.
 
+The promoted Linux and Windows seed manifests bind revision
+`ed6a91ba954881475ac5ab73d5168d292a584c90` and exact 50-input snapshot
+`a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817`.
+The 5,573-byte Linux manifest has SHA-256
+`51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
+The 2,118-byte Windows manifest has SHA-256
+`e7367e50f64fac29cb03f8ef530b350408bdc492b6d924f63809cf862b8dd1c7`
+and names the Linux manifest as its parent.
+
+The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
+seconds with all fourteen exact policy artifacts accepted. Its 4,096-byte
+`kernel/smp_trampoline.bin` has SHA-256
+`b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+A private four-vCPU `max`/e1000 smoke passed in 64.601 seconds. The BSP and all
+three APs came online, the ordered direct, named, and typedef callback markers
+passed, the overall feature14 and JIT completion markers followed, and no
+reject marker appeared. The source image was unchanged. The 33,219-byte log
+has SHA-256
+`e39a1905002c2baa483c65eb6e763f4f62907c22f8954873dbb20f4ba5a53e93`.
+This run remains checkpoint evidence for the promoted local-target adoption.
+The pre-documentation artifact gate later passed in 651.3 seconds and accepted
+all fourteen exact paths.
+
+The source-current, fully poisoned build first reached only the expected
+policy mismatches after 680.281 seconds. Only the `kernel/kernel.elf` and
+`kernel/kernel.bin` policy rows changed. The artifact group passed all 45 tests
+in 2.582 seconds, with four expected Windows skips. The definitive poisoned
+build then passed in 708.912 seconds with all fourteen artifacts accepted,
+existing FAT contents preserved, and `hello.iso` staged. The 4,096-byte SMP
+trampoline kept SHA-256
+`b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+
+The source-current strong full private frontier smoke passed in 801.490 seconds
+with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
+fixture. The BSP and all three APs completed the SMP checks. The 640-by-480
+framebuffer changed 96,925 pixels. AC97 produced 32,722,102 stereo 44.1 kHz
+frames with a peak of 25,600, and the PC speaker produced 73,533 stereo 44.1 kHz
+frames with a peak of 8,415. The expected direct-call, named-callback,
+typedef-callback, overall feature14 PASS, and JIT completion markers each
+appeared once and in order. The 150,376-byte log has SHA-256
+`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`.
+The source image was unchanged at SHA-256
+`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
+
 The earlier `smp.c` compiler proof produced an 8,444-byte object with SHA-256
 `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
 The checked production root is now `kernel/smp/smp.cc`. Its current hash is
 `bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1`;
 the existing `__FILE__` diagnostic accounts for the change.
 
-Sequential e1000 and RTL8139 gates use four `max` vCPUs. Each run brings the
+The earlier sequential e1000 and RTL8139 gates use four `max` vCPUs. Each run brings the
 BSP and all three APs online, initializes the selected NIC, prints
 `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
 `FPU boot smoke passed`, then finishes

@@ -6,13 +6,15 @@ int artifact_size_policy_contract_library_main(int argc, char **argv);
 
 static const unsigned char manifest_request_magic[8] = {
     'C', 'U', 'P', 'M', 'A', 'N', '2', 0};
-static const char manifest_schema[] = "cupid.toolchain-contracts.v2";
+static const unsigned char manifest_author_request_magic[8] = {
+    'C', 'U', 'P', 'M', 'A', 'N', '3', 0};
+static const char manifest_schema[] = "cupid.toolchain-contracts.v3";
 static const char manifest_report_schema[] =
     "cupid.toolchain-manifest-verification.v1";
 
 #define MANIFEST_ARTIFACT_COUNT 21u
 #define MANIFEST_INPUT_LIMIT 256u
-#define MANIFEST_EXPECTED_INPUT_COUNT 68u
+#define MANIFEST_EXPECTED_INPUT_COUNT 70u
 #define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 50u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
@@ -22,7 +24,7 @@ static const char manifest_expected_seed_path[] =
 static const char manifest_expected_build_plan_sha256[] =
     "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc";
 static const char manifest_expected_seed_manifest_sha256[] =
-    "d571125256d11dd707f661299738891edc5c1a8d3358554076875a3e0cac22d0";
+    "51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65";
 
 static const char *const
     manifest_expected_input_paths[MANIFEST_EXPECTED_INPUT_COUNT] = {
@@ -60,6 +62,7 @@ static const char *const
         "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
+        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -83,6 +86,7 @@ static const char *const
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
         "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+        "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_active_cases.inc",
         "toolchain/tests/x86_catalogue_contract.inc",
@@ -169,7 +173,13 @@ typedef struct {
 typedef struct {
   text_t path;
   text_t sha256;
+  uint64_t size;
 } manifest_input_t;
+
+typedef struct {
+  text_t sha256;
+  uint64_t size;
+} manifest_digest_size_t;
 
 typedef struct {
   manifest_artifact_t artifacts[MANIFEST_ARTIFACT_COUNT];
@@ -185,6 +195,8 @@ typedef struct {
   text_t seed_manifest_sha256;
   text_t build_plan_sha256;
   text_t comparisons[MANIFEST_COMPARISON_COUNT];
+  manifest_digest_size_t
+      object_comparisons[MANIFEST_OBJECT_COMPARISON_COUNT];
 } manifest_state_t;
 
 static const char *const manifest_artifact_names[MANIFEST_ARTIFACT_COUNT] = {
@@ -209,6 +221,12 @@ static const char *const manifest_artifact_names[MANIFEST_ARTIFACT_COUNT] = {
     "cupidc-cupidld.elf",
     "cupidc-cupidobj.elf",
     "cupidc-cupidc.elf",
+};
+
+static const unsigned int
+    manifest_artifact_output_order[MANIFEST_ARTIFACT_COUNT] = {
+        0u, 10u, 11u, 12u, 16u, 20u, 17u, 18u, 19u, 4u, 5u,
+        6u, 2u,  15u, 3u,  9u,  14u, 13u, 7u,  1u, 8u,
 };
 
 static const char *const manifest_comparison_names[MANIFEST_COMPARISON_COUNT] = {
@@ -248,6 +266,19 @@ static const char *const
         "as_elf",        "runtime",
 };
 
+static const unsigned int
+    manifest_comparison_output_order[MANIFEST_COMPARISON_COUNT] = {
+        0u, 10u, 11u, 12u, 4u, 5u, 6u, 2u,
+        3u, 9u,  14u, 13u, 7u, 15u, 1u, 8u,
+};
+
+static const unsigned int
+    manifest_object_comparison_output_order
+        [MANIFEST_OBJECT_COMPARISON_COUNT] = {
+            15u, 0u, 10u, 11u, 12u, 4u, 5u, 6u, 2u,
+            3u,  9u, 14u, 13u, 7u, 16u, 1u, 8u,
+};
+
 static void manifest_artifact_release(manifest_artifact_t *artifact) {
   text_release(&artifact->path);
   text_release(&artifact->sha256);
@@ -278,6 +309,9 @@ static void manifest_state_release(manifest_state_t *state) {
   text_release(&state->build_plan_sha256);
   for (index = 0u; index < MANIFEST_COMPARISON_COUNT; index++) {
     text_release(&state->comparisons[index]);
+  }
+  for (index = 0u; index < MANIFEST_OBJECT_COMPARISON_COUNT; index++) {
+    text_release(&state->object_comparisons[index].sha256);
   }
 }
 
@@ -342,6 +376,57 @@ static int manifest_sha256_valid(const text_t *digest) {
     }
   }
   return 1;
+}
+
+static int manifest_slice_sha256_valid(const byte_slice_t *digest) {
+  size_t index;
+  if (digest->size != 64u) {
+    return 0;
+  }
+  for (index = 0u; index < digest->size; index++) {
+    unsigned char value = digest->bytes[index];
+    if (!((value >= (unsigned char)'0' && value <= (unsigned char)'9') ||
+          (value >= (unsigned char)'a' && value <= (unsigned char)'f'))) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int manifest_text_copy_slice(text_t *target,
+                                    const byte_slice_t *source) {
+  target->bytes = (unsigned char *)malloc(
+      source->size == 0u ? 1u : source->size);
+  if (target->bytes == (unsigned char *)0) {
+    target->size = 0u;
+    return set_error("cannot allocate manifest author evidence");
+  }
+  if (source->size != 0u) {
+    (void)memcpy(target->bytes, source->bytes, source->size);
+  }
+  target->size = source->size;
+  return 1;
+}
+
+static int manifest_slice_literal_index(const byte_slice_t *value,
+                                        const char *const *names,
+                                        size_t count) {
+  size_t index;
+  for (index = 0u; index < count; index++) {
+    size_t length = strlen(names[index]);
+    if (value->size == length &&
+        memcmp(value->bytes, names[index], length) == 0) {
+      return (int)index;
+    }
+  }
+  return -1;
+}
+
+static int manifest_slice_equals_literal(const byte_slice_t *value,
+                                         const char *literal) {
+  size_t length = strlen(literal);
+  return value->size == length &&
+         memcmp(value->bytes, literal, length) == 0;
 }
 
 static int manifest_basename_valid(const text_t *path) {
@@ -752,6 +837,131 @@ static int manifest_parse_digest_map(json_reader_t *reader,
   return 1;
 }
 
+static int manifest_parse_digest_size_record(
+    json_reader_t *reader, manifest_digest_size_t *record,
+    const char *message) {
+  unsigned int fields = 0u;
+  (void)memset(record, 0, sizeof(*record));
+  if (!json_take(reader, (unsigned char)'{')) {
+    return set_error(message);
+  }
+  json_skip_space(reader);
+  if (reader->position < reader->size &&
+      reader->bytes[reader->position] == (unsigned char)'}') {
+    return set_error(message);
+  }
+  for (;;) {
+    text_t key = {(unsigned char *)0, 0u};
+    unsigned int field = 0u;
+    int ok = json_parse_string(reader, &key) &&
+             json_take(reader, (unsigned char)':');
+    if (!ok) {
+      text_release(&key);
+      return 0;
+    }
+    if (text_equals_literal(&key, "sha256")) {
+      field = 1u;
+      ok = json_parse_string(reader, &record->sha256);
+    } else if (text_equals_literal(&key, "size")) {
+      field = 2u;
+      ok = manifest_parse_nonnegative_u64(reader, &record->size);
+    } else {
+      text_release(&key);
+      return set_error(message);
+    }
+    text_release(&key);
+    if (!ok) {
+      return 0;
+    }
+    if ((fields & field) != 0u) {
+      return set_error(message);
+    }
+    fields |= field;
+    json_skip_space(reader);
+    if (reader->position < reader->size &&
+        reader->bytes[reader->position] == (unsigned char)'}') {
+      reader->position++;
+      break;
+    }
+    if (!json_take(reader, (unsigned char)',')) {
+      return 0;
+    }
+  }
+  if (fields != 3u || !manifest_sha256_valid(&record->sha256)) {
+    return set_error(message);
+  }
+  return 1;
+}
+
+static int manifest_parse_digest_size_map(
+    json_reader_t *reader, const char *const *names,
+    manifest_digest_size_t *records, size_t expected_count) {
+  int seen[MANIFEST_OBJECT_COMPARISON_COUNT];
+  size_t count = 0u;
+  size_t index;
+  (void)memset(seen, 0, sizeof(seen));
+  if (expected_count > MANIFEST_OBJECT_COMPARISON_COUNT ||
+      !json_take(reader, (unsigned char)'{')) {
+    return set_error("manifest object comparison map is not an object");
+  }
+  json_skip_space(reader);
+  if (reader->position < reader->size &&
+      reader->bytes[reader->position] == (unsigned char)'}') {
+    return set_error("manifest object comparison map is empty");
+  }
+  for (;;) {
+    text_t key = {(unsigned char *)0, 0u};
+    manifest_digest_size_t record = {
+        {(unsigned char *)0, 0u},
+        0u,
+    };
+    int map_index;
+    int ok = json_parse_string(reader, &key) &&
+             json_take(reader, (unsigned char)':') &&
+             manifest_parse_digest_size_record(
+                 reader, &record,
+                 "manifest object comparison record differs");
+    if (!ok) {
+      text_release(&key);
+      text_release(&record.sha256);
+      return 0;
+    }
+    if (record.size == 0u) {
+      text_release(&key);
+      text_release(&record.sha256);
+      return set_error("manifest object comparison record differs");
+    }
+    map_index = manifest_digest_map_index(&key, names, expected_count);
+    if (map_index < 0 || seen[(size_t)map_index] != 0) {
+      text_release(&key);
+      text_release(&record.sha256);
+      return set_error("manifest object comparison record differs");
+    }
+    records[(size_t)map_index] = record;
+    seen[(size_t)map_index] = 1;
+    count++;
+    text_release(&key);
+    json_skip_space(reader);
+    if (reader->position < reader->size &&
+        reader->bytes[reader->position] == (unsigned char)'}') {
+      reader->position++;
+      break;
+    }
+    if (!json_take(reader, (unsigned char)',')) {
+      return 0;
+    }
+  }
+  if (count != expected_count) {
+    return set_error("manifest object comparison inventory differs");
+  }
+  for (index = 0u; index < expected_count; index++) {
+    if (seen[index] == 0) {
+      return set_error("manifest object comparison inventory differs");
+    }
+  }
+  return 1;
+}
+
 static int manifest_comparison_digests_match(
     const manifest_state_t *state) {
   size_t index;
@@ -779,35 +989,37 @@ static int manifest_parse_inputs(json_reader_t *reader,
   }
   for (;;) {
     text_t path = {(unsigned char *)0, 0u};
-    text_t digest = {(unsigned char *)0, 0u};
+    manifest_digest_size_t record;
     size_t index;
     int ok;
+    (void)memset(&record, 0, sizeof(record));
     if (state->input_count >= MANIFEST_INPUT_LIMIT) {
       return set_error("manifest input inventory exceeds its checked limit");
     }
     ok = json_parse_string(reader, &path) &&
          json_take(reader, (unsigned char)':') &&
-         json_parse_string(reader, &digest);
+         manifest_parse_digest_size_record(
+             reader, &record, "manifest input record differs");
     if (!ok) {
       text_release(&path);
-      text_release(&digest);
+      text_release(&record.sha256);
       return 0;
     }
-    if (!logical_path_valid(path.bytes, path.size) ||
-        !manifest_sha256_valid(&digest)) {
+    if (!logical_path_valid(path.bytes, path.size)) {
       text_release(&path);
-      text_release(&digest);
+      text_release(&record.sha256);
       return set_error("manifest input record differs");
     }
     for (index = 0u; index < state->input_count; index++) {
       if (text_compare(&path, &state->inputs[index].path) == 0) {
         text_release(&path);
-        text_release(&digest);
+        text_release(&record.sha256);
         return set_error("manifest input path is duplicated");
       }
     }
     state->inputs[state->input_count].path = path;
-    state->inputs[state->input_count].sha256 = digest;
+    state->inputs[state->input_count].sha256 = record.sha256;
+    state->inputs[state->input_count].size = record.size;
     state->input_count++;
     json_skip_space(reader);
     if (reader->position < reader->size &&
@@ -1659,8 +1871,9 @@ static int manifest_parse(byte_slice_t source, manifest_state_t *state) {
       ok = manifest_parse_inputs(&reader, state);
     } else if (text_equals_literal(&key, "object_comparisons")) {
       field = 32u;
-      ok = manifest_parse_digest_map(
-          &reader, manifest_object_comparison_names, (text_t *)0,
+      ok = manifest_parse_digest_size_map(
+          &reader, manifest_object_comparison_names,
+          state->object_comparisons,
           MANIFEST_OBJECT_COMPARISON_COUNT);
     } else if (text_equals_literal(&key, "schema")) {
       field = 64u;
@@ -1797,7 +2010,6 @@ static int manifest_validate_request(const file_image_t *request,
         !binary_read_slice(&reader, &digest)) {
       return 0;
     }
-    (void)size;
     for (input_index = 0u; input_index < state->input_count; input_index++) {
       if (slice_equals_text(&path, &state->inputs[input_index].path)) {
         found = (int)input_index;
@@ -1805,6 +2017,7 @@ static int manifest_validate_request(const file_image_t *request,
       }
     }
     if (found < 0 || input_matched[(size_t)found] != 0 || kind != 1u ||
+        size != state->inputs[(size_t)found].size ||
         !slice_equals_text(&digest, &state->inputs[(size_t)found].sha256)) {
       return set_error("live input observation differs from the manifest");
     }
@@ -1924,6 +2137,464 @@ static int manifest_validate_request(const file_image_t *request,
   return 1;
 }
 
+static int manifest_author_read_observation(binary_reader_t *reader,
+                                            byte_slice_t *name,
+                                            uint64_t *size,
+                                            byte_slice_t *digest) {
+  uint32_t kind;
+  if (!binary_read_slice(reader, name) ||
+      !binary_read_u32(reader, &kind) ||
+      !binary_read_u64(reader, size) ||
+      !binary_read_slice(reader, digest)) {
+    return 0;
+  }
+  if (kind != 1u || !manifest_slice_sha256_valid(digest)) {
+    return set_error("manifest author observation differs");
+  }
+  return 1;
+}
+
+static int manifest_author_read_artifacts(binary_reader_t *reader,
+                                          manifest_state_t *state) {
+  int seen[MANIFEST_ARTIFACT_COUNT];
+  uint32_t count;
+  size_t index;
+  (void)memset(seen, 0, sizeof(seen));
+  if (!binary_read_u32(reader, &count) ||
+      count != MANIFEST_ARTIFACT_COUNT) {
+    return set_error("manifest author artifact count differs");
+  }
+  state->artifact_count = MANIFEST_ARTIFACT_COUNT;
+  for (index = 0u; index < MANIFEST_ARTIFACT_COUNT; index++) {
+    byte_slice_t name;
+    byte_slice_t digest;
+    uint64_t size;
+    int artifact_index;
+    if (!manifest_author_read_observation(
+            reader, &name, &size, &digest)) {
+      return 0;
+    }
+    artifact_index = manifest_slice_literal_index(
+        &name, manifest_artifact_names, MANIFEST_ARTIFACT_COUNT);
+    if (artifact_index < 0 || seen[(size_t)artifact_index] != 0) {
+      return set_error("manifest author artifact inventory differs");
+    }
+    if (state->artifact_total_bytes > ~(uint64_t)0u - size) {
+      return set_error("manifest author artifact byte total overflows");
+    }
+    if (!manifest_text_copy_slice(
+            &state->artifacts[(size_t)artifact_index].path, &name) ||
+        !manifest_text_copy_slice(
+            &state->artifacts[(size_t)artifact_index].sha256, &digest)) {
+      return 0;
+    }
+    state->artifacts[(size_t)artifact_index].size = size;
+    state->artifact_total_bytes += size;
+    seen[(size_t)artifact_index] = 1;
+  }
+  for (index = 0u; index < MANIFEST_COMPARISON_COUNT; index++) {
+    const manifest_artifact_t *artifact = manifest_find_artifact(
+        state, manifest_comparison_artifacts[index]);
+    byte_slice_t digest;
+    if (artifact == (const manifest_artifact_t *)0) {
+      return set_error("manifest author comparison artifact is missing");
+    }
+    digest.bytes = artifact->sha256.bytes;
+    digest.size = artifact->sha256.size;
+    if (!manifest_text_copy_slice(&state->comparisons[index], &digest)) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int manifest_author_read_inputs(binary_reader_t *reader,
+                                       manifest_state_t *state) {
+  int seen[MANIFEST_EXPECTED_INPUT_COUNT];
+  uint32_t count;
+  size_t index;
+  (void)memset(seen, 0, sizeof(seen));
+  if (!binary_read_u32(reader, &count) ||
+      count != MANIFEST_EXPECTED_INPUT_COUNT) {
+    return set_error("manifest author input count differs");
+  }
+  state->input_count = MANIFEST_EXPECTED_INPUT_COUNT;
+  state->declared_input_count = MANIFEST_EXPECTED_INPUT_COUNT;
+  for (index = 0u; index < MANIFEST_EXPECTED_INPUT_COUNT; index++) {
+    byte_slice_t path;
+    byte_slice_t digest;
+    uint64_t size;
+    int input_index;
+    if (!manifest_author_read_observation(
+            reader, &path, &size, &digest)) {
+      return 0;
+    }
+    input_index = manifest_slice_literal_index(
+        &path, manifest_expected_input_paths,
+        MANIFEST_EXPECTED_INPUT_COUNT);
+    if (input_index < 0 || seen[(size_t)input_index] != 0) {
+      return set_error("manifest author input inventory differs");
+    }
+    if (!manifest_text_copy_slice(
+            &state->inputs[(size_t)input_index].path, &path) ||
+        !manifest_text_copy_slice(
+            &state->inputs[(size_t)input_index].sha256, &digest)) {
+      return 0;
+    }
+    state->inputs[(size_t)input_index].size = size;
+    seen[(size_t)input_index] = 1;
+  }
+  return 1;
+}
+
+static int manifest_author_read_bootstrap_inputs(
+    binary_reader_t *reader, manifest_state_t *state) {
+  int seen[MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT];
+  byte_slice_t expected_snapshot;
+  char actual_snapshot[65];
+  uint32_t count;
+  size_t index;
+  (void)memset(seen, 0, sizeof(seen));
+  if (!binary_read_u32(reader, &count) ||
+      count != MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT) {
+    return set_error("manifest author bootstrap input count differs");
+  }
+  state->bootstrap_file_count =
+      MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT;
+  state->declared_bootstrap_file_count =
+      MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT;
+  for (index = 0u; index < MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT;
+       index++) {
+    byte_slice_t path;
+    byte_slice_t digest;
+    uint64_t size;
+    int input_index;
+    if (!manifest_author_read_observation(
+            reader, &path, &size, &digest)) {
+      return 0;
+    }
+    input_index = manifest_slice_literal_index(
+        &path, manifest_expected_bootstrap_paths,
+        MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT);
+    if (input_index < 0 || seen[(size_t)input_index] != 0) {
+      return set_error("manifest author bootstrap inventory differs");
+    }
+    if (!manifest_text_copy_slice(
+            &state->bootstrap_files[(size_t)input_index].path, &path) ||
+        !manifest_text_copy_slice(
+            &state->bootstrap_files[(size_t)input_index].sha256, &digest)) {
+      return 0;
+    }
+    state->bootstrap_files[(size_t)input_index].size = size;
+    seen[(size_t)input_index] = 1;
+  }
+  if (!binary_read_slice(reader, &expected_snapshot)) {
+    return 0;
+  }
+  if (!manifest_slice_sha256_valid(&expected_snapshot)) {
+    return set_error("manifest author bootstrap snapshot differs");
+  }
+  if (!manifest_bootstrap_snapshot_digest(state, actual_snapshot)) {
+    return 0;
+  }
+  if (memcmp(expected_snapshot.bytes, actual_snapshot, 64u) != 0) {
+    return set_error("manifest author bootstrap snapshot differs");
+  }
+  return 1;
+}
+
+static int manifest_author_read_seed(binary_reader_t *reader,
+                                     manifest_state_t *state) {
+  byte_slice_t seed_path;
+  byte_slice_t seed_source;
+  manifest_seed_closure_t closure;
+  char seed_digest[65];
+  int seen[SEED_ARTIFACT_COUNT];
+  uint32_t count;
+  size_t index;
+  int ok = 1;
+  (void)memset(&closure, 0, sizeof(closure));
+  (void)memset(seen, 0, sizeof(seen));
+  if (!binary_read_slice(reader, &seed_path) ||
+      !binary_read_slice(reader, &seed_source)) {
+    return 0;
+  }
+  manifest_digest_hex(seed_source.bytes, seed_source.size, seed_digest);
+  if (!manifest_slice_equals_literal(
+          &seed_path, manifest_expected_seed_path) ||
+      memcmp(seed_digest, manifest_expected_seed_manifest_sha256, 64u) != 0 ||
+      !manifest_parse_seed_closure(seed_source, &closure) ||
+      !text_equals_literal(&closure.build_plan_sha256,
+                           manifest_expected_build_plan_sha256)) {
+    manifest_seed_closure_release(&closure);
+    if (contract_error[0] == '\0') {
+      return set_error("manifest author seed closure differs");
+    }
+    return 0;
+  }
+  if (!binary_read_u32(reader, &count) || count != SEED_ARTIFACT_COUNT) {
+    manifest_seed_closure_release(&closure);
+    return set_error("manifest author seed observation count differs");
+  }
+  for (index = 0u; index < SEED_ARTIFACT_COUNT; index++) {
+    byte_slice_t name;
+    byte_slice_t digest;
+    uint64_t size;
+    int seed_index;
+    if (!manifest_author_read_observation(
+            reader, &name, &size, &digest)) {
+      ok = 0;
+      break;
+    }
+    seed_index = manifest_slice_literal_index(
+        &name, seed_files, SEED_ARTIFACT_COUNT);
+    if (seed_index < 0 || seen[(size_t)seed_index] != 0 ||
+        size != closure.sizes[(size_t)seed_index] ||
+        !slice_equals_text(
+            &digest, &closure.sha256[(size_t)seed_index])) {
+      ok = set_error("manifest author seed observation differs");
+      break;
+    }
+    seen[(size_t)seed_index] = 1;
+  }
+  if (ok) {
+    byte_slice_t seed_digest_slice = {
+        (const unsigned char *)seed_digest,
+        64u,
+    };
+    byte_slice_t build_plan_slice = {
+        closure.build_plan_sha256.bytes,
+        closure.build_plan_sha256.size,
+    };
+    ok = manifest_text_copy_slice(&state->seed_manifest_path, &seed_path) &&
+         manifest_text_copy_slice(
+             &state->seed_manifest_sha256, &seed_digest_slice) &&
+         manifest_text_copy_slice(
+             &state->build_plan_sha256, &build_plan_slice);
+  }
+  manifest_seed_closure_release(&closure);
+  return ok;
+}
+
+static int manifest_author_read_object_comparisons(
+    binary_reader_t *reader, manifest_state_t *state) {
+  int seen[MANIFEST_OBJECT_COMPARISON_COUNT];
+  uint32_t count;
+  size_t index;
+  (void)memset(seen, 0, sizeof(seen));
+  if (!binary_read_u32(reader, &count) ||
+      count != MANIFEST_OBJECT_COMPARISON_COUNT) {
+    return set_error("manifest author object comparison count differs");
+  }
+  for (index = 0u; index < MANIFEST_OBJECT_COMPARISON_COUNT; index++) {
+    byte_slice_t name;
+    byte_slice_t digest;
+    uint64_t size;
+    int comparison_index;
+    if (!manifest_author_read_observation(
+            reader, &name, &size, &digest)) {
+      return 0;
+    }
+    comparison_index = manifest_slice_literal_index(
+        &name, manifest_object_comparison_names,
+        MANIFEST_OBJECT_COMPARISON_COUNT);
+    if (comparison_index < 0 || seen[(size_t)comparison_index] != 0 ||
+        size == 0u) {
+      return set_error("manifest author object comparison differs");
+    }
+    if (!manifest_text_copy_slice(
+            &state->object_comparisons[(size_t)comparison_index].sha256,
+            &digest)) {
+      return 0;
+    }
+    state->object_comparisons[(size_t)comparison_index].size = size;
+    seen[(size_t)comparison_index] = 1;
+  }
+  return 1;
+}
+
+static int manifest_author_read_fixed_point(binary_reader_t *reader) {
+  uint32_t all_equal;
+  uint32_t c_objects;
+  uint32_t generation_count;
+  uint32_t startup_objects;
+  uint32_t tool_images;
+  byte_slice_t stage_three;
+  byte_slice_t stage_four;
+  if (!binary_read_u32(reader, &all_equal) ||
+      !binary_read_u32(reader, &c_objects) ||
+      !binary_read_u32(reader, &generation_count) ||
+      !binary_read_slice(reader, &stage_three) ||
+      !binary_read_slice(reader, &stage_four) ||
+      !binary_read_u32(reader, &startup_objects) ||
+      !binary_read_u32(reader, &tool_images)) {
+    return 0;
+  }
+  if (all_equal != 1u || c_objects != 19u || generation_count != 2u ||
+      !manifest_slice_equals_literal(&stage_three, "stage-three") ||
+      !manifest_slice_equals_literal(&stage_four, "stage-four") ||
+      startup_objects != 1u || tool_images != 5u) {
+    return set_error("manifest author fixed-point evidence differs");
+  }
+  return 1;
+}
+
+static int manifest_validate_author_request(const file_image_t *request,
+                                            manifest_state_t *state) {
+  binary_reader_t reader = {request->bytes, request->size, 0u};
+  (void)memset(state, 0, sizeof(*state));
+  if (reader.size < sizeof(manifest_author_request_magic) ||
+      memcmp(reader.bytes, manifest_author_request_magic,
+             sizeof(manifest_author_request_magic)) != 0) {
+    return set_error("request magic differs from CUPMAN3");
+  }
+  reader.position = sizeof(manifest_author_request_magic);
+  if (!manifest_author_read_artifacts(&reader, state) ||
+      !manifest_author_read_inputs(&reader, state) ||
+      !manifest_author_read_bootstrap_inputs(&reader, state) ||
+      !manifest_author_read_seed(&reader, state) ||
+      !manifest_author_read_object_comparisons(&reader, state) ||
+      !manifest_author_read_fixed_point(&reader)) {
+    return 0;
+  }
+  if (reader.position != reader.size) {
+    return set_error("manifest author request has trailing input");
+  }
+  return manifest_expected_inventories_match(state);
+}
+
+static void manifest_write_text(const text_t *text) {
+  if (text->size != 0u) {
+    (void)fwrite(text->bytes, 1u, text->size, stdout);
+  }
+}
+
+static int manifest_write_author_report(manifest_state_t *state) {
+  char snapshot_digest[65];
+  size_t index;
+  if (!manifest_bootstrap_snapshot_digest(state, snapshot_digest)) {
+    return 0;
+  }
+  (void)printf("{\n  \"artifacts\": [\n");
+  for (index = 0u; index < MANIFEST_ARTIFACT_COUNT; index++) {
+    const manifest_artifact_t *artifact =
+        &state->artifacts[manifest_artifact_output_order[index]];
+    (void)printf("    {\n      \"path\": \"");
+    manifest_write_text(&artifact->path);
+    (void)printf("\",\n      \"sha256\": \"");
+    manifest_write_text(&artifact->sha256);
+    (void)printf("\",\n      \"size\": %llu\n    }%s\n",
+                 (unsigned long long)artifact->size,
+                 index + 1u == MANIFEST_ARTIFACT_COUNT ? "" : ",");
+  }
+  (void)printf("  ],\n  \"bootstrap\": {\n"
+               "    \"build_plan_sha256\": \"");
+  manifest_write_text(&state->build_plan_sha256);
+  (void)printf("\",\n    \"seed_manifest\": {\n      \"path\": \"");
+  manifest_write_text(&state->seed_manifest_path);
+  (void)printf("\",\n      \"sha256\": \"");
+  manifest_write_text(&state->seed_manifest_sha256);
+  (void)printf("\"\n    },\n    \"source_inputs\": {\n"
+               "      \"count\": %u,\n      \"files\": {\n",
+               (unsigned int)state->bootstrap_file_count);
+  for (index = 0u; index < state->bootstrap_file_count; index++) {
+    const manifest_bootstrap_file_t *file =
+        &state->bootstrap_files[index];
+    (void)printf("        \"");
+    manifest_write_text(&file->path);
+    (void)printf("\": {\n          \"sha256\": \"");
+    manifest_write_text(&file->sha256);
+    (void)printf("\",\n          \"size\": %llu\n        }%s\n",
+                 (unsigned long long)file->size,
+                 index + 1u == state->bootstrap_file_count ? "" : ",");
+  }
+  (void)printf("      },\n      \"sha256\": \"%s\"\n"
+               "    }\n  },\n  \"comparisons\": {\n",
+               snapshot_digest);
+  for (index = 0u; index < MANIFEST_COMPARISON_COUNT; index++) {
+    size_t comparison_index =
+        (size_t)manifest_comparison_output_order[index];
+    (void)printf("    \"%s\": \"",
+                 manifest_comparison_names[comparison_index]);
+    manifest_write_text(&state->comparisons[comparison_index]);
+    (void)printf("\"%s\n",
+                 index + 1u == MANIFEST_COMPARISON_COUNT ? "" : ",");
+  }
+  (void)printf("  },\n  \"input_count\": %u,\n  \"inputs\": {\n",
+               (unsigned int)state->input_count);
+  for (index = 0u; index < state->input_count; index++) {
+    const manifest_input_t *input = &state->inputs[index];
+    (void)printf("    \"");
+    manifest_write_text(&input->path);
+    (void)printf("\": {\n      \"sha256\": \"");
+    manifest_write_text(&input->sha256);
+    (void)printf("\",\n      \"size\": %llu\n    }%s\n",
+                 (unsigned long long)input->size,
+                 index + 1u == state->input_count ? "" : ",");
+  }
+  (void)printf("  },\n  \"object_comparisons\": {\n");
+  for (index = 0u; index < MANIFEST_OBJECT_COMPARISON_COUNT; index++) {
+    size_t comparison_index =
+        (size_t)manifest_object_comparison_output_order[index];
+    (void)printf("    \"%s\": {\n      \"sha256\": \"",
+                 manifest_object_comparison_names[comparison_index]);
+    manifest_write_text(
+        &state->object_comparisons[comparison_index].sha256);
+    (void)printf("\",\n      \"size\": %llu\n    }%s\n",
+                 (unsigned long long)
+                     state->object_comparisons[comparison_index].size,
+                 index + 1u == MANIFEST_OBJECT_COMPARISON_COUNT ? "" : ",");
+  }
+  (void)printf(
+      "  },\n  \"schema\": \"%s\",\n  \"status\": \"pass\",\n"
+      "  \"target\": {\n    \"architecture\": \"i386\",\n"
+      "    \"entry\": 134512640,\n    \"linkage\": \"static\",\n"
+      "    \"operating_system\": \"linux\"\n  },\n"
+      "  \"tool_fixed_point\": {\n    \"all_equal\": true,\n"
+      "    \"c_objects\": 19,\n    \"compared_generations\": [\n"
+      "      \"stage-three\",\n      \"stage-four\"\n    ],\n"
+      "    \"startup_objects\": 1,\n    \"tool_images\": 5\n  }\n}\n",
+      manifest_schema);
+  if (fflush(stdout) != 0 || ferror(stdout) != 0) {
+    return set_error("manifest author output could not be written");
+  }
+  return 1;
+}
+
+static int manifest_run_author(const char *path) {
+  file_image_t first;
+  file_image_t second;
+  manifest_state_t state;
+  int ok;
+  (void)memset(&state, 0, sizeof(state));
+  contract_error[0] = '\0';
+  if (!read_request_file(path, &first)) {
+    (void)fprintf(stderr, "Cupid Toolchain manifest contract failed: %s\n",
+                  contract_error);
+    return 1;
+  }
+  ok = manifest_validate_author_request(&first, &state);
+  if (ok) {
+    ok = read_request_file(path, &second);
+    if (ok && (second.size != first.size ||
+               memcmp(second.bytes, first.bytes, first.size) != 0)) {
+      ok = set_error("request changed while it was checked");
+    }
+    file_image_release(&second);
+  }
+  file_image_release(&first);
+  if (ok) {
+    ok = manifest_write_author_report(&state);
+  }
+  manifest_state_release(&state);
+  if (!ok) {
+    (void)fprintf(stderr, "Cupid Toolchain manifest contract failed: %s\n",
+                  contract_error);
+    return 1;
+  }
+  return 0;
+}
+
 static int manifest_run_check(const char *path) {
   file_image_t first;
   file_image_t second;
@@ -1968,8 +2639,11 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "check") == 0) {
     return manifest_run_check(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "author") == 0) {
+    return manifest_run_author(argv[2]);
+  }
   (void)fprintf(stderr,
                 "Cupid Toolchain manifest contract failed: usage: "
-                "toolchain-manifest-contract check REQUEST\n");
+                "toolchain-manifest-contract (check|author) REQUEST\n");
   return 2;
 }

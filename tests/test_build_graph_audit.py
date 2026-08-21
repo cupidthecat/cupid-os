@@ -307,8 +307,19 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             },
         )[0]
 
-        self.assertEqual(transform["tools"], ["host_python"])
-        self.assertEqual(transform["operation"], "host_orchestration")
+        self.assertEqual(
+            transform["tools"],
+            [
+                "cupid_assembler",
+                "cupid_c_compiler",
+                "cupid_c_contract",
+                "cupid_linker",
+                "host_python",
+            ],
+        )
+        self.assertEqual(
+            transform["operation"], "generate_toolchain_manifest"
+        )
         model = mock.Mock(directory="toolchain", transforms=[transform])
         self.assertEqual(
             module._toolchain_contract_cupidc_ownership_inputs([model]),
@@ -1865,7 +1876,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 703)
+            self.assertEqual(contract["source_files"], 704)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1886,7 +1897,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 703 source files; max conditional depth 0",
+                "0 numeric markers; 704 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -3645,9 +3656,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 703)
-            self.assertEqual(contract["include_occurrences"], 2460)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2203)
+            self.assertEqual(contract["source_files"], 704)
+            self.assertEqual(contract["include_occurrences"], 2461)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2204)
             self.assertEqual(contract["direct_angle_occurrences"], 257)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
@@ -4273,7 +4284,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "HOSTED_I386_LINUX_GNU": 3,
             },
         )
-        self.assertEqual(len(active), 396)
+        self.assertEqual(len(active), 397)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -5497,15 +5508,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["help_cases"], 5)
         self.assertEqual(contract["success_behavior_cases"], 18)
         self.assertEqual(contract["failure_behavior_cases"], 17)
-        self.assertEqual(contract["contract_manifest_inputs"], 68)
+        self.assertEqual(contract["contract_manifest_inputs"], 70)
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 68
+            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 70
         )
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 94)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 96)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -7250,10 +7261,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         def contract_cohort_audit(
             *,
             include_seed=True,
-            operation="host_orchestration",
-            tool="host_python",
+            operation="generate_toolchain_manifest",
+            tools=None,
             recipe=None,
         ):
+            if tools is None:
+                tools = [
+                    "cupid_assembler",
+                    "cupid_c_compiler",
+                    "cupid_c_contract",
+                    "cupid_linker",
+                    "host_python",
+                ]
             inputs = [
                 path[1:]
                 for path in (
@@ -7303,7 +7322,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                                     "cupidc-contracts/manifest.json"
                                 ),
                                 "inputs": inputs,
-                                "tools": [tool],
+                                "tools": tools,
                                 "operation": operation,
                                 "recipe": (
                                     [
@@ -7543,8 +7562,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                                         "cupidc-contracts/manifest.json"
                                     ),
                                     "inputs": ["toolchain/ctool.cc"],
-                                    "tools": ["host_python"],
-                                    "operation": "host_orchestration",
+                                    "tools": [
+                                        "cupid_assembler",
+                                        "cupid_c_compiler",
+                                        "cupid_c_contract",
+                                        "cupid_linker",
+                                        "host_python",
+                                    ],
+                                    "operation": (
+                                        "generate_toolchain_manifest"
+                                    ),
                                     "recipe": ["checked orchestration"],
                                 }
                             ],
@@ -7567,9 +7594,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ),
                 r"recipe no longer invokes the checked fixed-point builder",
             ),
-            "contract cohort changes orchestrator": (
-                contract_cohort_audit(tool="host_shell"),
-                r"cohort transform differs from the checked orchestration",
+            "contract cohort loses manifest author": (
+                contract_cohort_audit(tools=["host_python"]),
+                r"cohort transform differs from the checked manifest-author",
             ),
         }
         for name, (synthetic, message) in cases.items():
@@ -7846,6 +7873,27 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(generated.returncode, 0, generated.stderr)
             self.assertTrue(summary.read_text(encoding="utf-8").endswith("\n\n"))
             audit_payload = json.loads(output.read_text(encoding="utf-8"))
+            source_by_path = {
+                source["path"]: source for source in audit_payload["sources"]
+            }
+            observed_contract_source = source_by_path[
+                "toolchain/tests/core_contract.cc"
+            ]
+            self.assertEqual(
+                observed_contract_source["build_owners"],
+                ["cupid_c_contract"],
+            )
+            manifest_author_source = source_by_path[
+                "toolchain/tests/toolchain_manifest_contract.cc"
+            ]
+            self.assertTrue(
+                {
+                    "cupid_assembler",
+                    "cupid_c_compiler",
+                    "cupid_c_contract",
+                    "cupid_linker",
+                }.issubset(manifest_author_source["build_owners"])
+            )
             module = _load_audit_module()
             control_paths = {
                 entry["path"]
@@ -7969,7 +8017,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6206, 174),
+                "c.expression.sizeof": (6228, 174),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -8468,15 +8516,38 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                     for tool in (
                         "cupid_c_compiler",
+                        "cupid_assembler",
+                        "cupid_object",
+                        "cupid_linker",
+                        "cupid_disassembler",
+                        "cupid_c_contract",
                         "host_c_compiler",
                         "host_python",
                     )
                 },
                 {
-                    "cupid_c_compiler": 249,
+                    "cupid_c_compiler": 250,
+                    "cupid_assembler": 9,
+                    "cupid_object": 192,
+                    "cupid_linker": 9,
+                    "cupid_disassembler": 6,
+                    "cupid_c_contract": 4,
                     "host_c_compiler": 0,
                     "host_python": 452,
                 },
+            )
+            self.assertFalse(
+                any(
+                    not {
+                        "cupid_c_compiler",
+                        "cupid_assembler",
+                        "cupid_object",
+                        "cupid_linker",
+                        "cupid_disassembler",
+                        "cupid_c_contract",
+                    }.intersection(transform["tools"])
+                    for transform in all_transforms
+                )
             )
 
             toolchain_cohort = next(
@@ -8656,9 +8727,19 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/build/cupidc-contracts/manifest.json"
             ]
             self.assertEqual(
-                contract_manifest["operation"], "host_orchestration"
+                contract_manifest["operation"],
+                "generate_toolchain_manifest",
             )
-            self.assertEqual(contract_manifest["tools"], ["host_python"])
+            self.assertEqual(
+                contract_manifest["tools"],
+                [
+                    "cupid_assembler",
+                    "cupid_c_compiler",
+                    "cupid_c_contract",
+                    "cupid_linker",
+                    "host_python",
+                ],
+            )
             for input_path in (
                 "toolchain/hosted/i386-linux/runtime.cc",
                 "toolchain/hosted/i386-linux/start.asm",
@@ -9309,6 +9390,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "host_python",
             ],
         )
+        self.assertEqual(
+            size_contract["recipe"],
+            ["$(ARTIFACT_SIZE_CONTRACT)"],
+        )
         self.assertTrue(seed_inputs.issubset(size_contract["inputs"]))
         self.assertTrue(
             {
@@ -9362,6 +9447,21 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     r"artifact-size contract transform differs",
                 ):
                     module._c_preprocessor_active_cases_manifest(changed)
+
+    def test_artifact_size_contract_recipe_fails_closed(self):
+        module = _load_audit_module()
+        audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
+        transform = next(
+            item
+            for item in audit["build"]["transforms"]
+            if item["output"] == "verify-artifact-sizes"
+        )
+        transform["recipe"] = ["unexpected artifact-size recipe"]
+        with self.assertRaisesRegex(
+            module.AuditError,
+            r"artifact-size contract transform differs",
+        ):
+            module._c_preprocessor_active_cases_manifest(audit)
 
     def test_toolchain_manifest_contract_input_closure_fails_closed(self):
         module = _load_audit_module()
@@ -9679,6 +9779,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertIn(
             "--seed-manifest bootstrap/seeds/i386-linux/manifest.json",
+            contract_command,
+        )
+        self.assertIn(
+            "--checked-manifest bootstrap/seeds/i386-windows/manifest.json",
             contract_command,
         )
         self.assertIn(

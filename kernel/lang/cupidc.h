@@ -234,7 +234,9 @@ typedef struct {
   uint32_t address; /* absolute address (kernel/func) */
   int param_count;  /* for functions */
   uint8_t param_types[CC_MAX_PARAMS]; /* fixed parameter types when known */
-  int8_t param_struct_indices[CC_MAX_PARAMS]; /* record-pointer identities */
+  /* Record identity for TYPE_STRUCT_PTR; signature-bearing typedef index for
+   * a file-scope TYPE_FUNC_PTR parameter; -1 when neither applies. */
+  int8_t param_struct_indices[CC_MAX_PARAMS];
   int has_param_types; /* parsed prototype or definition supplied types */
   int function_signature_is_provisional; /* inferred from a local initializer */
   int is_variadic;     /* fixed parameters may be followed by ellipsis */
@@ -368,6 +370,14 @@ typedef struct {
   int typedef_struct_indices[16];
   int typedef_array_counts[16];
   int typedef_is_const_qualified[16];
+  int typedef_function_pointer_signature_valid[16];
+  cc_type_t typedef_function_pointer_return_types[16];
+  int typedef_function_pointer_return_struct_indices[16];
+  int typedef_function_pointer_param_counts[16];
+  uint8_t typedef_function_pointer_param_types[16][CC_MAX_PARAMS];
+  int8_t typedef_function_pointer_param_struct_indices[16][CC_MAX_PARAMS];
+  int typedef_function_pointer_has_param_types[16];
+  int typedef_function_pointer_is_variadic[16];
   int typedef_count;
 
   /* HolyC-style top-level / auto-main handling.

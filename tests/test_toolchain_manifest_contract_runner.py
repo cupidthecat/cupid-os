@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import struct
@@ -72,12 +71,10 @@ def _rewrite_with_live_closure(output: Path, manifest):
         toolchain_manifest_contract.cupidc_toolchain_contracts
         ._contract_input_paths(root)
     )
-    manifest["inputs"] = {
-        path.relative_to(root).as_posix(): hashlib.sha256(
-            path.read_bytes()
-        ).hexdigest()
-        for path in contract_inputs
-    }
+    manifest["inputs"] = (
+        toolchain_manifest_contract.cupidc_toolchain_contracts
+        ._snapshot_contract_inputs(root, contract_inputs)
+    )
     manifest["input_count"] = len(manifest["inputs"])
     seed_path = root / "bootstrap/seeds/i386-linux/manifest.json"
     seed = bootstrap_toolchain.verify_seed_inputs(seed_path)
@@ -111,7 +108,7 @@ def _expected_report():
         "artifact_count": 21,
         "artifact_total_bytes": 652,
         "bootstrap_source_input_count": 50,
-        "input_count": 68,
+        "input_count": 70,
         "schema": "cupid.toolchain-manifest-verification.v1",
     }
 
@@ -175,8 +172,8 @@ def _decode_request(request: bytes):
 
 def _fixture_closure(_reader, _root, report):
     input_observations = tuple(
-        (path, 1, 0, digest)
-        for path, digest in sorted(report["inputs"].items())
+        (path, 1, record["size"], record["sha256"])
+        for path, record in sorted(report["inputs"].items())
     )
     source_files = report["bootstrap"]["source_inputs"]["files"]
     bootstrap_observations = tuple(
@@ -420,7 +417,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 decoded["artifact_observations"],
                 sorted(observations),
             )
-            self.assertEqual(len(decoded["input_observations"]), 68)
+            self.assertEqual(len(decoded["input_observations"]), 70)
             self.assertIn(
                 "toolchain/x86.cc",
                 {
@@ -461,7 +458,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 self.assertEqual(call.args[0], root.resolve())
                 self.assertEqual(
                     call.args[1]["schema"],
-                    "cupid.toolchain-contracts.v2",
+                    "cupid.toolchain-contracts.v3",
                 )
 
     def test_second_live_input_check_rejects_drift_after_the_contract(self):
@@ -498,7 +495,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
             execution_manifest.write_text("{}\n", encoding="ascii")
             manifest_b = json.loads(json.dumps(manifest_a))
             first_input = sorted(manifest_a["inputs"])[0]
-            manifest_a["inputs"][first_input] = "0" * 64
+            manifest_a["inputs"][first_input]["sha256"] = "0" * 64
             manifest_a_bytes = (
                 json.dumps(manifest_a, indent=2, sort_keys=True) + "\n"
             ).encode("ascii")
@@ -528,7 +525,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                     )
 
             def reject_manifest_a(_root, report):
-                if report["inputs"][first_input] == "0" * 64:
+                if report["inputs"][first_input]["sha256"] == "0" * 64:
                     raise toolchain_manifest_contract.cupidc_toolchain_contracts.ContractError(
                         "published contract inputs differ from the live source"
                     )

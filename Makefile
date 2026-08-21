@@ -23,6 +23,7 @@ endif
 BOOTSTRAP_SEED_MANIFEST ?= bootstrap/seeds/i386-linux/manifest.json
 BOOTSTRAP_SEED_DIRECTORY := $(dir $(BOOTSTRAP_SEED_MANIFEST))
 BOOTSTRAP_WINDOWS_SEED_MANIFEST ?= bootstrap/seeds/i386-windows/manifest.json
+BOOTSTRAP_WINDOWS_SEED_DIRECTORY := $(dir $(BOOTSTRAP_WINDOWS_SEED_MANIFEST))
 ifeq ($(OS),Windows_NT)
 PRODUCTION_SEED_MANIFEST ?= bootstrap/seeds/i386-windows/manifest.json
 PRODUCTION_SEED_SUFFIX := exe
@@ -203,6 +204,11 @@ ARTIFACT_SIZE_OUTPUTS = $(BOOTLOADER) \
 	$(BOOTSTRAP_SEED_DIRECTORY)cupiddis.elf \
 	$(BOOTSTRAP_SEED_DIRECTORY)cupidld.elf \
 	$(BOOTSTRAP_SEED_DIRECTORY)cupidobj.elf \
+	$(BOOTSTRAP_WINDOWS_SEED_DIRECTORY)cupidasm.exe \
+	$(BOOTSTRAP_WINDOWS_SEED_DIRECTORY)cupidc.exe \
+	$(BOOTSTRAP_WINDOWS_SEED_DIRECTORY)cupiddis.exe \
+	$(BOOTSTRAP_WINDOWS_SEED_DIRECTORY)cupidld.exe \
+	$(BOOTSTRAP_WINDOWS_SEED_DIRECTORY)cupidobj.exe \
 	$(KERNEL) kernel/kernel.elf kernel/kernel.elf.pass1
 ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS := \
 	Makefile \
@@ -226,6 +232,7 @@ ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS := \
 ARTIFACT_SIZE_CONTRACT := $(PYTHON) tools/artifact_size_contract.py verify --root . \
 	--policy $(ARTIFACT_SIZE_POLICY) \
 	--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \
 	--execution-manifest $(PRODUCTION_SEED_MANIFEST)
 HDD_MB ?= 200
 FAT_START_LBA ?= 20480
@@ -1251,7 +1258,8 @@ verify-windows-bootstrap-seed:
 
 verify-artifact-sizes: $(ARTIFACT_SIZE_OUTPUTS) \
 	$(ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS) $(ARTIFACT_SIZE_POLICY) \
-	$(BOOTSTRAP_SEED_MANIFEST) $(CHECKED_SEED_INPUTS)
+	$(BOOTSTRAP_SEED_MANIFEST) $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \
+	$(CHECKED_SEED_INPUTS)
 	$(ARTIFACT_SIZE_CONTRACT)
 
 bootstrap-from-seed: verify-bootstrap-seed

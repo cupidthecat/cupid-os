@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ARTIFACT_COUNT 9u
+#define ARTIFACT_COUNT 14u
 #define SEED_ARTIFACT_COUNT 5u
-#define FIXED_ARTIFACT_COUNT 4u
+#define FIXED_ARTIFACT_COUNT 9u
 #define JSON_MAX_DEPTH 64u
 
 typedef struct {
@@ -71,10 +71,18 @@ static const char *const seed_files[SEED_ARTIFACT_COUNT] = {
 static const char *const seed_owners[SEED_ARTIFACT_COUNT] = {
     "CupidASM", "CupidC", "CupidDis", "CupidLD", "CupidObj"};
 static const char *const fixed_paths[FIXED_ARTIFACT_COUNT] = {
-    "boot/boot.bin", "kernel/kernel.bin", "kernel/kernel.elf",
+    "boot/boot.bin",
+    "bootstrap/seeds/i386-windows/cupidasm.exe",
+    "bootstrap/seeds/i386-windows/cupidc.exe",
+    "bootstrap/seeds/i386-windows/cupiddis.exe",
+    "bootstrap/seeds/i386-windows/cupidld.exe",
+    "bootstrap/seeds/i386-windows/cupidobj.exe",
+    "kernel/kernel.bin",
+    "kernel/kernel.elf",
     "kernel/kernel.elf.pass1"};
 static const char *const fixed_owners[FIXED_ARTIFACT_COUNT] = {
-    "CupidASM", "CupidObj", "CupidLD", "CupidLD"};
+    "CupidASM", "CupidASM", "CupidC", "CupidDis", "CupidLD",
+    "CupidObj", "CupidObj", "CupidLD", "CupidLD"};
 static char contract_error[512];
 
 static int set_error(const char *message) {
@@ -975,7 +983,7 @@ static int parse_policy_artifacts(json_reader_t *reader, policy_t *policy) {
     }
   }
   if (policy->count != ARTIFACT_COUNT) {
-    return set_error("policy does not contain nine artifacts");
+    return set_error("policy does not contain fourteen artifacts");
   }
   return 1;
 }
@@ -1244,7 +1252,7 @@ static int validate_request(const file_image_t *request, uint64_t *total) {
     return set_error("seed manifest logical path is unsafe");
   }
   if (observation_count != ARTIFACT_COUNT) {
-    return set_error("request does not contain nine artifact observations");
+    return set_error("request does not contain fourteen artifact observations");
   }
   for (index = 0u; index < ARTIFACT_COUNT; index++) {
     if (!binary_read_slice(&reader, &observations[index].path) ||
@@ -1333,9 +1341,10 @@ static int run_check(const char *path) {
                   contract_error);
     return 1;
   }
-  (void)printf("{\"artifact_count\":9,\"schema\":\"%s\","
-               "\"total_exact_bytes\":%llu}\n",
-               report_schema, (unsigned long long)total);
+  (void)printf(
+      "{\"artifact_count\":14,\"schema\":\"%s\","
+      "\"total_exact_bytes\":%llu}\n",
+      report_schema, (unsigned long long)total);
   return 0;
 }
 

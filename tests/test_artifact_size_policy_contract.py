@@ -21,14 +21,19 @@ SEED_TOOLS = (
 )
 FIXED_ARTIFACTS = (
     ("boot/boot.bin", "CupidASM", 10),
+    ("bootstrap/seeds/i386-windows/cupidasm.exe", "CupidASM", 51),
+    ("bootstrap/seeds/i386-windows/cupidc.exe", "CupidC", 52),
+    ("bootstrap/seeds/i386-windows/cupiddis.exe", "CupidDis", 53),
+    ("bootstrap/seeds/i386-windows/cupidld.exe", "CupidLD", 54),
+    ("bootstrap/seeds/i386-windows/cupidobj.exe", "CupidObj", 55),
     ("kernel/kernel.bin", "CupidObj", 20),
     ("kernel/kernel.elf", "CupidLD", 30),
     ("kernel/kernel.elf.pass1", "CupidLD", 40),
 )
 SUCCESS_REPORT = (
-    '{"artifact_count":9,'
+    '{"artifact_count":14,'
     '"schema":"cupid.artifact-size-verification.v1",'
-    '"total_exact_bytes":615}\n'
+    '"total_exact_bytes":880}\n'
 )
 
 
@@ -243,6 +248,20 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         observations[0] = (path, kind, size + 1)
         self.assert_contract_failure(
             _request(policy=policy, observations=observations)
+        )
+
+    def test_observation_count_diagnostic_names_full_cohort(self):
+        policy = _policy()
+        observations = _observations(policy)[:-1]
+        result = self.run_request(
+            _request(policy=policy, observations=observations)
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(
+            result.stderr,
+            "Cupid artifact-size contract failed: request does not contain "
+            "fourteen artifact observations\n",
         )
 
     def test_policy_and_manifest_schemas_are_checked(self):

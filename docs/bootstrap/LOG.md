@@ -28022,3 +28022,477 @@ POSIX cases skipped on Windows. The remaining 188 publisher, frontend,
 artifact-policy, semantic-contract, and runner tests passed in 21.056 seconds,
 with the two expected Windows replacement skips. Ruff and Python syntax checks
 passed for every changed Python file.
+
+## 2026-08-20: carry typedef callback signatures through private CupidC
+
+ADR 0303 extends the named local callback work from ADR 0301 to free-function
+parameters declared directly with a file-scope function-pointer typedef. Each
+such typedef declaration publishes one alias. Private CupidC keeps the result,
+fixed parameter types, record-pointer identities, prototype state, and
+variadic state in the existing bounded typedef table. The parameter symbol
+retains a reference to that entry. Direct and indirect
+calls now use the same cdecl checks and conversions in JIT and AOT output.
+
+Program and REPL failures restore the typedef metadata together with parser
+cursors, arenas, symbols, kernel bindings, patches, labels, control frames,
+statement depth, and emitted code and data boundaries. A rejected declaration
+cannot leave a callback signature for the next translation. The code-only AOT
+case now writes one truthful program header, retains code at file offset
+`0x80`, and reports `e_phnum` as one. Executables with data keep two headers.
+
+`python -B -m unittest -q tests.test_private_cupidc_call_abi` passes all 229
+tests in 35.274 seconds. The cases cover the ISO callback conversion, fixed
+SIMD slots, variadic prefixes and promotions, later target definitions, REPL
+reuse, code-only and data-bearing ELF output, wrong arity and types, record
+identity, result channels, null provenance, and rollback after program and
+REPL failures. `tests.test_gui_terminal_smoke` passes all 125 tests in 1.000
+second and requires
+`[feature14-callback-typedef] PASS float4=4 calls=1`.
+
+The final checked self-host command,
+`make kernel/lang/cupidc_parse.o kernel/lang/cupidc_elf.o`, passed in 70.9
+seconds with the promoted Windows checked seed. `cupidc_parse.o` is 459,544
+bytes with SHA-256
+`266eeb3e531d26770501e514fd51a64bd98022b738c2165aa3bb8b2fed38ac62`.
+`cupidc_elf.o` is 3,604 bytes with SHA-256
+`c2ad171aacd493a33a477e7a3196a5d28b04b0f74521cd8cbaec2598f391880c`.
+This supersedes the earlier 81.9-second pre-final object build. The integrated
+OS build and callback guest evidence are recorded after the three slice
+entries below. The inherited four-byte-only parameter representation was rejected
+because it erased the declared ABI. Per-call inference and callback-name
+special cases were also rejected. The fixed table remains limited to sixteen
+file-scope typedefs and 32 fixed parameters per signature, with one alias
+per function-pointer typedef declaration.
+Typedef-typed local objects, method parameters, global callback objects, record
+and class fields, later pointer assignments, recursive signatures, direct
+structure and array results, and arbitrary computed callbacks remain open. The
+promoted standalone CupidC seeds do not contain this private parser or ELF
+writer, so their reproof is not callback or AOT carriage evidence.
+
+## 2026-08-20: author the Toolchain publication manifest with CupidC
+
+ADR 0304 adds a strict C11 `author` mode to the Toolchain manifest contract.
+The `CUPMAN3` request contains independent observations, not a draft manifest.
+Its separate lanes bind 21 artifact facts, 70 publication inputs, 50
+bootstrap inputs, the bootstrap snapshot, the promoted Linux seed manifest
+and five images, 17 object comparisons, and the fixed-point generation and
+build-plan facts. Missing, extra, duplicate, unsafe, malformed, truncated, or
+trailing facts fail before the author emits canonical JSON.
+
+The author includes the artifact-size contract under a renamed entry point so
+the strict C11 programs share checked JSON, SHA-256, observation, and file
+helpers. The converged stage-four CupidC, CupidASM, and CupidLD tools build the
+private author. Python still pins the filesystem cohort, launches the
+contract, renders an independent oracle from the same captured facts, checks
+byte equality, rechecks the live inputs, verifies private staging, and swaps
+the complete directory atomically. A failure restores the prior publication.
+
+The direct module passes 27 tests in 42.642 seconds, including a real author
+build and run with the promoted Linux seed and an independent byte oracle.
+Its negative tables change each CUPMAN3 lane independently: artifact facts;
+bootstrap count, path, size, and digest; seed path, bytes, artifact size, and
+digest; object-comparison membership, duplication, and zero size; and
+generation and count fields. The publisher passes 56 tests in 9.356 seconds.
+The non-pinned runner executes 24 tests in 29.017 seconds, with three
+POSIX-only skips on Windows. The focused fail-closed graph-drift case passes
+in 236.549 seconds.
+
+The source graph remains at 739 active language inputs, 452 transforms, 255
+feature requirements, and 25 accounted unreachable files. Ownership is now
+CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, and CupidDis 6, with four
+Cupid-built semantic contracts. Python participates in all 452 transforms,
+but none is Python-only. Root `all` remains 443 transforms, each with a Cupid
+participant.
+
+Giving the author a draft manifest was rejected because it would make the
+result a normalized copy of the claim being checked. Letting the contract
+walk the live repository was rejected because it would bypass the pinned
+Windows and POSIX filesystem boundary. Publishing after process success but
+before complete cohort verification was also rejected.
+
+`make -C toolchain all` passed in 4,340.8 seconds. Every stage-three object and
+executable matched its stage-four counterpart. The hosted runtime passed, and
+the live inputs stayed frozen. The publisher wrote all 21 artifacts. The
+23,177-byte manifest
+has SHA-256
+`645380339e6df96cea163bd9730d707626535eb9e58de14fb57ee9d7498b5a82`.
+It records 70 publication inputs, 50 bootstrap files, 17 object comparisons,
+and Linux seed manifest
+`51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
+The native Windows `CUPMAN2` verifier printed
+`Cupid Toolchain manifest: ok (21 artifacts)`.
+
+The first `make bootstrap-audit` run against the final tree failed after
+65.183 seconds. The artifact-size transform recipe lock omitted the new
+Windows seed verifier.
+`tools/build_graph_audit.py` and `tests/test_build_graph_audit.py` now lock the
+exact two-command recipe: `$(PYTHON) tools/bootstrap_toolchain.py verify
+--manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`, followed by
+`$(ARTIFACT_SIZE_CONTRACT)`. Audit generation then passed in 66.441 seconds,
+and `make check-bootstrap-audit` passed in 66.584 seconds.
+
+The final graph has 739 active sources, 452 transforms, 255 feature
+requirements, and 25 accounted unreachable files. Participation is CupidC
+250, CupidObj 192, CupidASM 9, CupidLD 9, and CupidDis 6, with four Cupid C
+contracts. Python participates in all 452 transforms, but none is Python-only.
+The active-source digest is
+`8778b88e3055fe62d82ec56da780db397ad4faf98f57384210ee88e0045644c1`.
+The 2,700,493-byte JSON has SHA-256
+`96a276244406ae06044f5546b471a0f45dd8be73a0e9df8349262afc0ac6079c`,
+and the 12,502-byte Markdown summary has SHA-256
+`8da29f4800709b2f438cdf19528e9e37961beaa85ec216940c5edadb44cb16d6`.
+The source-current OS artifact and guest result are recorded after the local
+relative target entry below.
+
+## 2026-08-20: promote and adopt local relative target checks
+
+ADR 0305 promotes Linux and Windows tool cohorts from revision
+`ed6a91ba954881475ac5ab73d5168d292a584c90`. The Linux manifest binds the exact
+50-input snapshot
+`a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817`
+and build plan
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+The Windows manifest binds the same revision and snapshot and names the Linux
+manifest as its parent instead of repeating the build plan.
+
+| Linux seed artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `manifest.json` | 5,573 | `51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65` |
+| CupidASM | 458,256 | `1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e` |
+| CupidC | 2,687,436 | `273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094` |
+| CupidDis | 421,652 | `e325206f591e79997f24b1cb8943c682b3362eb72d01dc9ca7dbd38c32531096` |
+| CupidLD | 312,792 | `a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295` |
+| CupidObj | 392,688 | `99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a` |
+
+| Windows seed artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `manifest.json` | 2,118 | `e7367e50f64fac29cb03f8ef530b350408bdc492b6d924f63809cf862b8dd1c7` |
+| CupidASM | 438,784 | `c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6` |
+| CupidC | 2,613,760 | `c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002` |
+| CupidDis | 400,896 | `d29e4e82571c3fe7895bff215f0e32c25c9c98dce8893fa9a000968d979919d0` |
+| CupidLD | 296,448 | `9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02` |
+| CupidObj | 375,808 | `079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79` |
+
+Linux reproof passed in 1,323.117 seconds. It matched 19 C objects, one
+assembly object, and five tools, all five initial comparisons were true, and
+both compared stages passed 5 help, 19 success, and 18 useful failure cases.
+Windows reproof passed in 1,090.390 seconds. It matched 20 C objects, two
+assembly objects, and five tools, all five initial comparisons were true, and
+both stages passed the 5/5/6 behavior matrix.
+
+The bootloader and SMP transactions now run promoted CupidDis with
+`--require-known --require-local-targets --raw`. The bootloader policy covers
+the nine direct targets proved by active-source tests, and the SMP policy covers
+four. Separate Linux and Windows seed fixtures each prove one local target. A
+failed local-target check blocks atomic replacement and preserves the old
+output. The hostbuild
+modules pass 10 tests in 1.541 seconds, the active-source checks pass four in
+3.328 seconds, and the promoted-seed carriage checks pass two in 1.547
+seconds. Artifact policy now covers four OS outputs, five Linux seed images,
+and five Windows seed images, for fourteen exact paths. The final policy rerun
+passes 39 tests in 2.739 seconds with two expected Windows replacement skips;
+its outer wrapper completed in 3.077 seconds. Three graph tests pass in 34.677
+seconds, and both seed verifiers pass in 0.369 seconds.
+
+The full seed module exceeded 604 seconds without output. It is incomplete
+and is not counted as evidence. Source-only adoption was rejected because the
+production executors did not yet carry the option. Inferred source-label
+identity was rejected because the policy proves only that a constant relative
+target lands on an instruction start in same-mode code. Far pointers,
+indirect transfers, ELF targets, and source-label identity remain outside the
+rule. The Toolchain publication that consumes these seeds passed in 4,340.8
+seconds. The final audit generation and deterministic check also passed. The
+source-current OS and guest gates complete the integrated evidence below.
+
+A pre-final-CTXT build reached the exact-size gate after 668.414 seconds. It
+measured `kernel/kernel.elf.pass1` at 9,320,424 bytes and
+`kernel/kernel.bin` at 9,224,756 bytes. The 9,447,400-byte
+`kernel/kernel.elf` remained exact. Only the pass-one and raw-kernel rows moved
+in `bootstrap/artifact-size-policy.json`. The 39-test policy rerun described
+above passed after those two changes.
+
+The definitive poisoned-host `make -j4 all` set `CC`, `CXX`, `CPP`, `HOSTCC`,
+`HOSTCXX`, `ASM`, `AS`, `LD`, `AR`, `RANLIB`, `NM`, `NASM`, `OBJCOPY`, and
+`STRIP` to invalid commands. It passed in 684.260 seconds, checked all fourteen
+artifacts, preserved the existing FAT contents, and staged
+`test_iso/hello.iso`.
+
+| Source-current output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,320,424 | `3f9a1c681fbcfb1aa453e42a9d77ed1069b9a487110c9ec22ac318d278bdd1e6` |
+| `kernel/kernel.elf` | 9,447,400 | `92d4e2f890b657c9881eb2184c7f8f9f0e96b18b5b060dbabab17e7ea305b1ce` |
+| `kernel/kernel.bin` | 9,224,756 | `4d53e0456d8e63e140f6dcab135765662d12df6e4a83b246409572501f3b4cbd` |
+| `cupidos.img` | 209,715,200 | `43409d159d2da70feb20deccda0d79a695c6ab56d87a179fe21a66ab40c5eedd` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `b23bdcb3757a7ddc2a49eeef51cad48cdbd6899f0080c75896b67ef0c665da6e` |
+
+The final private four-vCPU e1000 smoke used CPU `max` and passed in 64.601
+seconds. It printed these markers in order:
+
+```text
+[feature14-call] PASS float4=4 double2=2 nested=2 calls=6
+[feature14-callback] PASS float4=4 double2=2 calls=2
+[feature14-callback-typedef] PASS float4=4 calls=1
+PASS feature14_simd
+[cupidc] JIT execution complete (stack: 0 bytes used, peak: 0 bytes)
+```
+
+The 33,219-byte log has SHA-256
+`e39a1905002c2baa483c65eb6e763f4f62907c22f8954873dbb20f4ba5a53e93`.
+It contains no rejection markers. The smoke used a private copy, and the source
+image stayed unchanged at SHA-256
+`43409d159d2da70feb20deccda0d79a695c6ab56d87a179fe21a66ab40c5eedd`.
+
+### Final checked-seed module replay
+
+The earlier full-module wrapper that exceeded 604 seconds remains incomplete.
+The next run completed all 86 tests in 2,394.660 seconds and ended with
+`FAILED (failures=1, errors=4)`. The tiny source-tree fixtures did not include
+the newly required Windows `publication_start.asm` and
+`publication_runtime.cc` files. The fixed-point report also expected the
+preceding four-byte CupidASM output with SHA-256
+`e26807846248e3d1ea2d9dc0980c4329e7b4638db148879849c725e57de64559`
+instead of the promoted six-byte output with SHA-256
+`95d76dfca4cb4f279611a6ea7a86202898305a4906c6c822c1bfce2ec9ecf06b`.
+One PE temporary-file read failed once. Both focused PE validator cases passed
+on immediate replay, so no validator change followed.
+
+The shared source-tree helper and the manually assembled fixture now include
+both publication inputs. The exact promoted report expectation uses the
+six-byte CupidASM result. Six focused freeze and PE tests passed in 0.736
+seconds. The isolated
+`test_checked_seed_builds_a_complete_toolchain_fixed_point` case passed in
+1,187.863 seconds, with a 1,188.356-second wrapper. The final
+`python -B -m unittest -v tests.test_toolchain_bootstrap_seed` run passed all
+86 tests in 2,444.917 seconds, with a 2,445.438-second wrapper.
+
+### Correct the current manifest and artifact-policy boundaries
+
+A later source review corrected two descriptions above. The `CUPMAN3` author
+is always a static Linux ELF built and run by the converged stage-four Linux
+tools. Windows runs it through WSL. Only the `CUPMAN2` verifier is selected for
+the host and runs as a native PE on Windows. Schema
+`cupid.toolchain-contracts.v3` stores each of the 70 publication inputs and 17
+object comparisons as an exact `sha256` and `size` pair. Object-comparison
+sizes must be nonzero, and any exact size change fails validation.
+
+Make now runs artifact-size verification through one
+`$(ARTIFACT_SIZE_CONTRACT)` command with `--checked-manifest`. The wrapper
+captures and pins the policy, complete Linux policy manifest, fourteen
+observations, and the complete Windows manifest with its five PE files. It
+uses the captured Windows bytes for native execution and rereads the manifest
+and all five PE files before success. The C policy contract parses the policy
+and Linux manifest, not the Windows manifest.
+
+| Focused check | Result |
+| --- | --- |
+| Manifest contract | 28 tests passed in 39.599 seconds |
+| Publisher | 56 tests passed in 5.694 seconds |
+| Non-pinned runner | 24 tests passed in 28.389 seconds, with three Windows skips |
+| Artifact-policy group | 41 tests passed in 3.080 seconds, with two platform skips |
+
+### Clarify object-comparison size evidence
+
+The preceding correction overstates the object-size check. `CUPMAN2` rejects
+live input observation size drift, and Python checks the report with an
+independent oracle. The `CUPMAN3` author requires each object-comparison size
+to be nonzero and binds its `sha256` and `size` record into canonical output.
+Those records remain producer evidence because the author does not
+independently read the object bytes.
+
+The two earlier entries call `test_toolchain_manifest_contract_runner` the
+"non-pinned runner." It is the pinned verifier runner. The recorded test
+counts, timings, and Windows skips are unchanged.
+
+### Publish schema v3 and recheck the artifact boundary
+
+The source-current `make -C toolchain all` passed in 3,994.2 seconds. Every
+stage-three object and executable matched stage four, the hosted runtime
+passed, and the live inputs stayed frozen. The publisher wrote all 21
+artifacts. The schema v3 manifest records 70 publication inputs, 50 bootstrap
+files, and 17 object-comparison records. It is 27,069 bytes with SHA-256
+`69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
+The native Windows `CUPMAN2` verifier printed
+`Cupid Toolchain manifest: ok (21 artifacts)`.
+
+Focused checks passed with the current boundaries:
+
+| Check | Result |
+| --- | --- |
+| Direct manifest module | 29 tests in 39.068 seconds |
+| Publisher | 59 tests in 3.518 seconds |
+| Pinned verifier runner | 24 tests in 27.752 seconds, with three POSIX-only skips on Windows |
+| Artifact group | 45 tests in 2.557 seconds, with four expected Windows skips |
+| POSIX artifact runner | 15 tests in 0.146 seconds |
+
+The pre-final-CTXT audit generated in 65.8 seconds, and deterministic check
+mode passed in 65.0 seconds. It records 739 active sources, 452 transforms, 255
+feature requirements, and 25 accounted unreachable files. Tool participation
+is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, and CupidDis 6. Four
+transforms run Cupid-built contracts. Python participates in every transform,
+but none is Python-only. The active-source digest is
+`6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
+The 2,700,372-byte JSON has SHA-256
+`98adc224910ec61661878fde98ddb335073a0c8e95779b4765c34ebf39499bce`,
+and the 12,502-byte Markdown summary has SHA-256
+`094200553d690746387801ffd42ed970b1c0ba13a2ac24ad14ed9ed4ea73db70`.
+CTXT changes after this checkpoint require one final generated-identity
+refresh.
+
+Production `make -j4 verify-artifact-sizes` passed in 651.3 seconds. It checked
+all fourteen policy artifacts and measured `kernel/kernel.bin` at 9,225,092
+bytes. This gate does not replace the final post-documentation OS build or
+private guest smoke. Both remain pending.
+
+### Finalize the post-CTXT audit identity
+
+After CTXT settled, `make bootstrap-audit` passed in 65.335 seconds and
+`make check-bootstrap-audit` passed in 65.380 seconds. The totals remain 739
+active sources, 452 transforms, 255 feature requirements, and 25 accounted
+unreachable files. Tool participation remains CupidC 250, CupidObj 192,
+CupidASM 9, CupidLD 9, and CupidDis 6, with four Cupid-built contracts and no
+Python-only transform.
+
+The final active-source digest is
+`6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
+The 2,700,372-byte JSON has SHA-256
+`98adc224910ec61661878fde98ddb335073a0c8e95779b4765c34ebf39499bce`,
+and the 12,502-byte Markdown summary has SHA-256
+`094200553d690746387801ffd42ed970b1c0ba13a2ac24ad14ed9ed4ea73db70`.
+The post-documentation OS build and private guest smoke remain pending.
+
+### Complete the post-documentation OS and guest gates
+
+The 684.260-second build and 64.601-second private smoke recorded above are
+preceding checkpoint history.
+
+The first fully poisoned `make -j4 all` completed every compile, assemble,
+link, flatten, and CupidDis check before stopping only at the expected size
+mismatches after 641.474 seconds. It measured
+`kernel/kernel.elf.pass1` at 9,324,520 bytes and `kernel/kernel.bin` at
+9,228,268 bytes. The 9,447,400-byte final ELF stayed exact. Only the pass-one
+and raw-kernel rows changed in `bootstrap/artifact-size-policy.json`.
+
+The artifact group then ran 45 tests in 2.625 seconds and passed with four
+expected Windows skips. The definitive fully poisoned `make -j4 all` passed in
+654.397 seconds. It checked all fourteen artifacts, preserved the existing FAT
+contents, and staged `test_iso/hello.iso`.
+
+| Final output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,324,520 | `379437b3ad088f645e718773ae3c122d91e763e8af72fac12d14db1785cab0ef` |
+| `kernel/kernel.elf` | 9,447,400 | `b282d1bbaf1e1cb2f2c254d64d32a2c4a9e18d94a2c72c806c4bb839a0a64c19` |
+| `kernel/kernel.bin` | 9,228,268 | `9c3042e8a0963e904e805905b14da7aca3bb991abdbbc8a547a56b59be6e2698` |
+| `cupidos.img` | 209,715,200 | `9045807b2bfffe41e2eaab92ab6fd4a4615fb7d72a26649ca2c037ae050bb15f` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `63d912a9e9d9399efc03826af8b4628737b685f3180f1df74a84ce9b7306f895` |
+
+The strong full private frontier used e1000, four `max` vCPUs, SMP, a private
+image, and the USB fixture. It passed in 787.369
+seconds. The 640x480 framebuffer changed 52,616 pixels. AC97 produced
+32,149,003 stereo 44,100 Hz frames with a peak of 25,600. The PC speaker
+produced 75,924 stereo 44,100 Hz frames with a peak of 8,415.
+
+The direct-call, named-callback, typedef-callback, overall feature-14, and JIT
+markers each appeared once and in order. The log contains no rejection
+markers. It is 144,309 bytes with SHA-256
+`effdd6128933e99ada7b8203e16397a2d5c1ba7fcf864dc8f34fe4963e767ec2`.
+The private smoke left the source image unchanged at SHA-256
+`9045807b2bfffe41e2eaab92ab6fd4a4615fb7d72a26649ca2c037ae050bb15f`.
+
+### Pin both private AOT program-header layouts
+
+`python -B -m unittest -q tests.test_private_cupidc_call_abi` passed all 230
+tests in 23.571 seconds. The new initialized-data case requires two program
+headers and executes the extracted image to exit 17. The neighboring
+data-free case requires one program header, code at file offset `0x80` and
+virtual address `0x01100000`, and the same successful execution result. The
+earlier 229-test entry remains the checkpoint before this symmetric layout
+case was added.
+
+After the promoted-seed wording and stable CTXT publication boundary were
+settled, `make bootstrap-audit` passed in 69.253 seconds and
+`make check-bootstrap-audit` passed in 68.717 seconds. The checked identities
+remain 2,700,372 bytes and SHA-256
+`98adc224910ec61661878fde98ddb335073a0c8e95779b4765c34ebf39499bce`
+for JSON, and 12,502 bytes and SHA-256
+`094200553d690746387801ffd42ed970b1c0ba13a2ac24ad14ed9ed4ea73db70`
+for Markdown. The active-source digest remains
+`6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
+
+## 2026-08-21: rerun the complete source-current checkpoint
+
+The final `make -C toolchain all` publication passed in 4,273.533 seconds.
+The schema v3 manifest stayed at 27,069 bytes with SHA-256
+`69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
+It records 21 artifacts, 70 publication inputs, 50 bootstrap files, and 17
+object comparisons. The native Windows verifier printed
+`Cupid Toolchain manifest: ok (21 artifacts)`.
+
+Four stale CupidC scratch directories were moved, rather than deleted, to the
+ignored `build/quarantine/stale-cupidc-audit-20260820` directory. They remain
+recoverable but no longer sit in the repository root seen by the audit. The
+source-current `make bootstrap-audit` then passed in 71.299 seconds, and
+`make check-bootstrap-audit` passed in 72.051 seconds. The active-source digest
+is `6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
+The 2,700,372-byte JSON has SHA-256
+`98adc224910ec61661878fde98ddb335073a0c8e95779b4765c34ebf39499bce`,
+and the 12,502-byte Markdown summary has SHA-256
+`094200553d690746387801ffd42ed970b1c0ba13a2ac24ad14ed9ed4ea73db70`.
+A later `make check-bootstrap-audit` replay passed against the tracked
+generated files in 66.292 seconds.
+
+A consolidated `python -B -m unittest -q` run covered the private ABI, GUI
+smoke, manifest contract, publisher and runner, boot and SMP hostbuild checks,
+active CupidASM sources, and artifact policy, contract, and runner. It reported
+526 tests in 118.555 seconds, `OK`, with seven expected skips. The outer
+stopwatch read 119.404 seconds. Ruff passed over every changed Python and test
+file, and both seed verifiers passed in 0.476 seconds.
+
+The first fully poisoned `make -j4 all` completed the build and stopped at the
+expected size gate after 680.281 seconds. The pass-one ELF kept its exact
+9,324,520-byte policy size. The final ELF moved to 9,451,496 bytes, and the raw
+kernel moved to 9,228,296 bytes. Only those two policy rows changed. The
+artifact group then passed all 45 tests in 2.582 seconds, with four expected
+Windows skips.
+
+The definitive fully poisoned `make -j4 all` passed in 708.912 seconds. It
+checked all fourteen exact paths, preserved the FAT contents, and staged
+`test_iso/hello.iso`.
+
+| Final source-current output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,324,520 | `453c34c8c21498427b0b38564956cd46be4689d456ccfbec682092c2c03be1c4` |
+| `kernel/kernel.elf` | 9,451,496 | `718470e9e08ee8eb07aeae7512c6c74c9bcb4b102290fdcf237d956cc9afc616` |
+| `kernel/kernel.bin` | 9,228,296 | `8e5d7c172814dd5db51a16acd41bf0436cb613a7da5f67511622c4b6517e0dbb` |
+| `cupidos.img` | 209,715,200 | `8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `c8f320020a28ef914c38871e01b175bf6f15db7459ca9a7f54554e412ecc5b85` |
+| `test_usb_partitioned.img` | 33,554,432 | `057e0c86874090c99095f0558e9fa604bd7f1929f4da357da2c1baca949bb2bb` |
+
+The strong private frontier passed in 801.490 seconds with e1000, four `max`
+vCPUs, SMP, a private image, and the USB fixture. The 640x480 framebuffer
+changed 96,925 pixels. AC97 produced 32,722,102 stereo 44,100 Hz frames with a
+peak of 25,600. The PC speaker produced 73,533 stereo 44,100 Hz frames with a
+peak of 8,415. The direct-call, named-callback, typedef-callback, overall
+feature-14 PASS, and JIT markers appeared in order. Both callback markers
+appeared exactly once. The 150,376-byte log has SHA-256
+`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`.
+The private run left the source image unchanged at SHA-256
+`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
+
+### Pin the callback parameter capacity
+
+`python -B -m unittest -q tests.test_private_cupidc_call_abi` passed all 231
+tests in 37.585 seconds. The new boundary case carries 32 fixed parameters
+through both JIT and AOT calls, rejects a 33-parameter callback typedef with
+the focused capacity diagnostic, and then compiles and runs the valid source
+in the same compiler state. Its isolated run passed in 1.061 seconds, or 1.267
+seconds including the wrapper.
+
+The source-current consolidated focused run was repeated after this boundary
+test landed. It passed all 527 tests in 112.817 seconds, with seven expected
+skips; the outer stopwatch read 113.253 seconds.

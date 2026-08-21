@@ -202,7 +202,9 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	cupidc_frontend.h cupidc_ir.h cupidc_pp.h cupidc_type.h \
 	cupiddis.h cupidld.h cupidobj.h elf32.h x86.h \
 	x86.cc \
+	tests/artifact_size_policy_contract.cc \
 	tests/hosted_i386_runtime_contract.cc \
+	tests/toolchain_manifest_contract.cc \
 	../tools/bootstrap_toolchain.py \
 	../tools/cupidc_toolchain_contracts.py Makefile
 TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS := ../link.ld \
@@ -491,12 +493,9 @@ $(NATIVE_CUPIDC_OBJECT_CONTRACT): $(CUPIDC_OBJECT_CONTRACT_OBJECTS)
 $(CUPIDC): $(CUPIDC_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_OBJECTS) -o $@
 
-$(CONTRACT_MANIFEST): ../tools/cupidc_toolchain_contracts.py \
-	../tools/bootstrap_toolchain.py $(CUPIDC_CONTRACT_SEED) \
-	../link.ld \
-	$(CUPIDC_HOSTED_I386_CLOSURE) $(CUPIDC_CONTRACT_SOURCES) \
-	$(CUPIDC_CONTRACT_SUPPORT) $(CUPIDC_HOSTED_I386_WINDOWS_RUNTIME) \
-	$(USER_SYSCALL_ABI_INPUTS) Makefile
+$(CONTRACT_MANIFEST): $(TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS) \
+	$(TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS) \
+	$(TOOLCHAIN_MANIFEST_PUBLICATION_SEED_INPUTS)
 	$(PYTHON) ../tools/cupidc_toolchain_contracts.py build \
 		--root .. --manifest ../bootstrap/seeds/i386-linux/manifest.json \
 		--output $(CONTRACT_DIR)

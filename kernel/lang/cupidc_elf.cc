@@ -6,7 +6,7 @@
  *
  * The output ELF has:
  *   - ELF header (52 bytes)
- *   - Two program headers (PT_LOAD for code, PT_LOAD for data)
+ *   - A PT_LOAD program header for code and one for non-empty data
  *   - Code section loaded at CC_AOT_CODE_BASE (0x01100000)
  *   - Data section loaded at CC_AOT_DATA_BASE
 */
@@ -32,19 +32,19 @@ int cc_write_elf(cc_state_t *cc, const char *path) {
      * Layout:
      *   Offset 0x00: ELF header (52 bytes)
      *   Offset 0x34: Program header 1 - code (32 bytes)
-     *   Offset 0x54: Program header 2 - data (32 bytes)
-     *   Offset 0x74: padding to 0x80
+     *   Offset 0x54: optional program header 2 - data (32 bytes)
+     *   After the final program header: padding to 0x80
      *   Offset 0x80: code section
      *   Offset 0x80 + code_size (aligned): data section
 */
 
-    uint32_t headers_size = 52 + 32 * 2;  /* ehdr + 2 phdrs = 116 */
     uint32_t code_offset = 0x80;           /* file offset of code */
     uint32_t code_size = cc->code_pos;
     uint32_t data_offset = code_offset + code_size;
     /* Align data offset to 4 bytes */
     data_offset = (data_offset + 3) & ~3u;
     uint32_t data_size = cc->data_pos;
+    uint32_t headers_size = 52 + 32 * (data_size > 0 ? 2 : 1);
     uint32_t total_file_size = data_offset + data_size;
 
     /* Virtual addresses */

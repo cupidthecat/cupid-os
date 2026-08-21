@@ -27,6 +27,7 @@ try:
         _validate_static_i386_pe32,
         freeze_seed_inputs,
         require_live_seed_inputs,
+        verify_seed_inputs,
     )
 except ModuleNotFoundError:
     import artifact_size_policy
@@ -41,6 +42,7 @@ except ModuleNotFoundError:
         _validate_static_i386_pe32,
         freeze_seed_inputs,
         require_live_seed_inputs,
+        verify_seed_inputs,
     )
 
 
@@ -50,6 +52,21 @@ REGULAR_FILE = 1
 LINUX_ENTRY = 0x08048000
 WINDOWS_ENTRY = int(EXPECTED_WINDOWS_TARGET["entry"])
 DEFAULT_TIMEOUT = 900
+WINDOWS_CHECKED_MANIFEST = "bootstrap/seeds/i386-windows/manifest.json"
+WINDOWS_CHECKED_FILES = (
+    "cupidasm.exe",
+    "cupidc.exe",
+    "cupiddis.exe",
+    "cupidld.exe",
+    "cupidobj.exe",
+)
+LINUX_EXECUTION_FILES = (
+    "cupidasm.elf",
+    "cupidc.elf",
+    "cupiddis.elf",
+    "cupidld.elf",
+    "cupidobj.elf",
+)
 
 BUILD_INPUTS = (
     "Makefile",
@@ -107,6 +124,24 @@ def _encode_request(
 def _resolve_repository_file(root: Path, argument: Path, label: str) -> tuple[str, Path]:
     logical = artifact_size_policy._repository_argument(root, argument, label)
     return logical, root.joinpath(*PurePosixPath(logical).parts)
+
+
+def _require_root_unchanged(root: Path, expected: os.stat_result) -> None:
+    try:
+        current = root.lstat()
+    except OSError as error:
+        raise ArtifactSizeContractError(
+            "repository root changed while the Cupid contract ran"
+        ) from error
+    if (
+        artifact_size_policy._is_link_or_reparse(current)
+        or not stat.S_ISDIR(current.st_mode)
+        or artifact_size_policy._stable_file_fields(current)
+        != artifact_size_policy._stable_file_fields(expected)
+    ):
+        raise ArtifactSizeContractError(
+            "repository root changed while the Cupid contract ran"
+        )
 
 
 def _expected_report(entries: Sequence[dict[str, object]]) -> dict[str, object]:
@@ -194,14 +229,160 @@ def _capture_verification_request(
     return request, _expected_report(entries)
 
 
-def _freeze_build_inputs(
+def _capture_seed(
     reader: artifact_size_policy._PinnedRepository,
-    source_root: Path,
-) -> None:
-    for logical in BUILD_INPUTS:
-        payload = artifact_size_policy._required_capture(
-            reader, logical, "contract build input"
+    logical_manifest: str,
+    file_names: Sequence[str],
+    expected_schema: str,
+    label: str,
+) -> tuple[tuple[str, bytes], ...]:
+    directory = str(PurePosixPath(logical_manifest).parent)
+    _status, names = reader.directory_snapshot(directory)
+    expected_names = ("manifest.json", *file_names)
+    if names != tuple(sorted(expected_names)):
+        raise ArtifactSizeContractError(
+            f"{label} directory inventory differs"
         )
+    logical_paths = (
+        logical_manifest,
+        *tuple(f"{directory}/{name}" for name in file_names),
+    )
+    captures = tuple(
+        (
+            logical,
+            artifact_size_policy._required_capture(
+                reader, logical, f"{label} input"
+            ),
+        )
+        for logical in logical_paths
+    )
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-checked-execution-seed-"
+        ) as temporary:
+            private = Path(temporary)
+            for logical, payload in captures:
+                target = private / PurePosixPath(logical).name
+                target.write_bytes(payload)
+            seed = verify_seed_inputs(private / "manifest.json")
+            if seed.manifest.get("schema") != expected_schema:
+                raise ArtifactSizeContractError(
+                    f"{label} schema differs"
+                )
+    except ArtifactSizeContractError:
+        raise
+    except (BootstrapError, OSError) as error:
+        raise ArtifactSizeContractError(
+            f"{label} could not be verified: {error}"
+        ) from error
+    return captures
+
+
+def _capture_checked_seed(
+    reader: artifact_size_policy._PinnedRepository,
+    logical_manifest: str,
+) -> tuple[tuple[str, bytes], ...]:
+    if logical_manifest != WINDOWS_CHECKED_MANIFEST:
+        raise ArtifactSizeContractError(
+            "checked seed manifest is not the production Windows manifest"
+        )
+    return _capture_seed(
+        reader,
+        logical_manifest,
+        WINDOWS_CHECKED_FILES,
+        WINDOWS_SEED_SCHEMA,
+        "checked Windows seed",
+    )
+
+
+def _capture_execution_seed(
+    reader: artifact_size_policy._PinnedRepository,
+    logical_manifest: str,
+) -> tuple[tuple[str, bytes], ...]:
+    if os.name == "nt":
+        return _capture_seed(
+            reader,
+            logical_manifest,
+            WINDOWS_CHECKED_FILES,
+            WINDOWS_SEED_SCHEMA,
+            "Windows execution seed",
+        )
+    return _capture_seed(
+        reader,
+        logical_manifest,
+        LINUX_EXECUTION_FILES,
+        artifact_size_policy.SEED_SCHEMA,
+        "Linux execution seed",
+    )
+
+
+def _select_execution_seed(
+    reader: artifact_size_policy._PinnedRepository,
+    logical_checked_manifest: str,
+    checked_seed: Sequence[tuple[str, bytes]],
+    logical_execution_manifest: str,
+    *,
+    windows: bool,
+) -> Sequence[tuple[str, bytes]]:
+    if windows:
+        if logical_execution_manifest != logical_checked_manifest:
+            raise ArtifactSizeContractError(
+                "Windows execution seed is not the checked Windows seed"
+            )
+        return checked_seed
+    return _capture_execution_seed(reader, logical_execution_manifest)
+
+
+def _require_captures_unchanged(
+    reader: artifact_size_policy._PinnedRepository,
+    captures: Sequence[tuple[str, bytes]],
+    label: str,
+) -> None:
+    for logical, expected in captures:
+        actual = artifact_size_policy._required_capture(
+            reader, logical, f"{label} input"
+        )
+        if actual != expected:
+            raise ArtifactSizeContractError(
+                f"{label} changed while the Cupid contract ran"
+            )
+
+
+def _materialize_seed(
+    captures: Sequence[tuple[str, bytes]], destination: Path
+) -> Path:
+    destination.mkdir()
+    manifest: Path | None = None
+    for logical, payload in captures:
+        target = destination / PurePosixPath(logical).name
+        target.write_bytes(payload)
+        if PurePosixPath(logical).name == "manifest.json":
+            manifest = target
+    if manifest is None:
+        raise ArtifactSizeContractError(
+            "captured execution seed omits its manifest"
+        )
+    return manifest
+
+
+def _capture_build_inputs(
+    reader: artifact_size_policy._PinnedRepository,
+) -> tuple[tuple[str, bytes], ...]:
+    return tuple(
+        (
+            logical,
+            artifact_size_policy._required_capture(
+                reader, logical, "contract build input"
+            ),
+        )
+        for logical in BUILD_INPUTS
+    )
+
+
+def _materialize_build_inputs(
+    captures: Sequence[tuple[str, bytes]], source_root: Path
+) -> None:
+    for logical, payload in captures:
         target = source_root.joinpath(*PurePosixPath(logical).parts)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
@@ -344,17 +525,13 @@ def _link_contract(
 
 
 def _build_and_run_contract(
-    root: Path,
-    execution_manifest: Path,
     request: bytes,
     timeout: int,
+    build_inputs: Sequence[tuple[str, bytes]],
+    execution_seed: Sequence[tuple[str, bytes]],
 ) -> dict[str, object]:
     if timeout <= 0:
         raise ArtifactSizeContractError("contract timeout must be positive")
-    logical_execution, resolved_execution = _resolve_repository_file(
-        root, execution_manifest, "execution seed manifest"
-    )
-    del logical_execution
     try:
         with tempfile.TemporaryDirectory(
             prefix="cupid-artifact-size-contract-"
@@ -362,126 +539,126 @@ def _build_and_run_contract(
             private = Path(temporary)
             source_root = private / "source"
             source_root.mkdir()
-            with artifact_size_policy._PinnedRepository(root) as reader:
-                _freeze_build_inputs(reader, source_root)
-                seed = freeze_seed_inputs(resolved_execution, private / "seed")
-                windows = os.name == "nt"
-                schema = seed.manifest.get("schema")
-                if windows and schema != WINDOWS_SEED_SCHEMA:
-                    raise ArtifactSizeContractError(
-                        "Windows requires the checked native execution seed"
-                    )
-                if not windows and schema != artifact_size_policy.SEED_SCHEMA:
-                    raise ArtifactSizeContractError(
-                        "Linux requires the checked bootstrap seed"
-                    )
-
-                build_root = source_root / "build/artifact-size-contract"
-                build_root.mkdir(parents=True)
-                runner = ToolRunner(source_root)
-                contract_object = build_root / "contract.o"
-                runtime_object = build_root / "runtime.o"
-                start_object = build_root / "start.o"
-                runtime_source = (
-                    "toolchain/hosted/i386-windows/runtime.cc"
-                    if windows
-                    else "toolchain/hosted/i386-linux/runtime.cc"
+            _materialize_build_inputs(build_inputs, source_root)
+            captured_manifest = _materialize_seed(
+                execution_seed, private / "execution-seed"
+            )
+            seed = freeze_seed_inputs(captured_manifest, private / "seed")
+            windows = os.name == "nt"
+            schema = seed.manifest.get("schema")
+            if windows and schema != WINDOWS_SEED_SCHEMA:
+                raise ArtifactSizeContractError(
+                    "Windows requires the checked native execution seed"
                 )
-                startup_source = (
-                    "toolchain/hosted/i386-windows/tool_start.asm"
-                    if windows
-                    else "toolchain/hosted/i386-linux/start.asm"
+            if not windows and schema != artifact_size_policy.SEED_SCHEMA:
+                raise ArtifactSizeContractError(
+                    "Linux requires the checked bootstrap seed"
                 )
-                _compile_source(
-                    seed,
-                    runner,
-                    source_root,
-                    "toolchain/tests/artifact_size_policy_contract.cc",
-                    contract_object,
-                    (),
-                    False,
-                    timeout,
-                )
-                _compile_source(
-                    seed,
-                    runner,
-                    source_root,
-                    runtime_source,
-                    runtime_object,
-                    ("_WIN32=1",) if windows else (),
-                    True,
-                    timeout,
-                )
-                _run_checked_tool(
-                    seed,
-                    runner,
-                    "cupidasm",
-                    (
-                        "-f",
-                        "elf32",
-                        source_root.joinpath(
-                            *PurePosixPath(startup_source).parts
-                        ),
-                        "-o",
-                        start_object,
+            build_root = source_root / "build/artifact-size-contract"
+            build_root.mkdir(parents=True)
+            runner = ToolRunner(source_root)
+            contract_object = build_root / "contract.o"
+            runtime_object = build_root / "runtime.o"
+            start_object = build_root / "start.o"
+            runtime_source = (
+                "toolchain/hosted/i386-windows/runtime.cc"
+                if windows
+                else "toolchain/hosted/i386-linux/runtime.cc"
+            )
+            startup_source = (
+                "toolchain/hosted/i386-windows/tool_start.asm"
+                if windows
+                else "toolchain/hosted/i386-linux/start.asm"
+            )
+            _compile_source(
+                seed,
+                runner,
+                source_root,
+                "toolchain/tests/artifact_size_policy_contract.cc",
+                contract_object,
+                (),
+                False,
+                timeout,
+            )
+            _compile_source(
+                seed,
+                runner,
+                source_root,
+                runtime_source,
+                runtime_object,
+                ("_WIN32=1",) if windows else (),
+                True,
+                timeout,
+            )
+            _run_checked_tool(
+                seed,
+                runner,
+                "cupidasm",
+                (
+                    "-f",
+                    "elf32",
+                    source_root.joinpath(
+                        *PurePosixPath(startup_source).parts
                     ),
-                    "CupidASM for the artifact-size contract startup",
-                    timeout,
-                )
-                _validate_i386_relocatable(start_object)
-                executable = build_root / (
-                    "artifact-size-policy-contract.exe"
-                    if windows
-                    else "artifact-size-policy-contract.elf"
-                )
-                _link_contract(
-                    seed,
-                    runner,
-                    (start_object, contract_object, runtime_object),
+                    "-o",
+                    start_object,
+                ),
+                "CupidASM for the artifact-size contract startup",
+                timeout,
+            )
+            _validate_i386_relocatable(start_object)
+            executable = build_root / (
+                "artifact-size-policy-contract.exe"
+                if windows
+                else "artifact-size-policy-contract.elf"
+            )
+            _link_contract(
+                seed,
+                runner,
+                (start_object, contract_object, runtime_object),
+                executable,
+                windows,
+                timeout,
+            )
+            request_path = source_root / "artifact-size-request.bin"
+            request_path.write_bytes(request)
+            try:
+                result = runner.run(
                     executable,
-                    windows,
+                    ("check", request_path),
                     timeout,
                 )
-                request_path = source_root / "artifact-size-request.bin"
-                request_path.write_bytes(request)
-                try:
-                    result = runner.run(
-                        executable,
-                        ("check", request_path),
-                        timeout,
-                    )
-                    require_live_seed_inputs(seed)
-                except subprocess.TimeoutExpired as error:
-                    raise ArtifactSizeContractError(
-                        f"artifact-size contract timed out after {timeout} seconds"
-                    ) from error
-                except (BootstrapError, OSError) as error:
-                    raise ArtifactSizeContractError(
-                        f"artifact-size contract could not run: {error}"
-                    ) from error
-                if result.returncode != 0 or result.stderr:
-                    detail = result.stderr.strip() or result.stdout.strip()
-                    suffix = f": {detail}" if detail else ""
-                    raise ArtifactSizeContractError(
-                        "Cupid-built artifact-size contract failed"
-                        f" with status {result.returncode}{suffix}"
-                    )
-                try:
-                    report = json.loads(result.stdout)
-                except (TypeError, json.JSONDecodeError) as error:
-                    raise ArtifactSizeContractError(
-                        "Cupid-built artifact-size contract returned invalid JSON"
-                    ) from error
-                report = _validate_contract_report(report)
-                canonical = json.dumps(
-                    report, separators=(",", ":"), sort_keys=True
-                ) + "\n"
-                if result.stdout != canonical:
-                    raise ArtifactSizeContractError(
-                        "Cupid-built artifact-size contract report is not canonical"
-                    )
-                reader.require_unchanged()
-                return report
+                require_live_seed_inputs(seed)
+            except subprocess.TimeoutExpired as error:
+                raise ArtifactSizeContractError(
+                    f"artifact-size contract timed out after {timeout} seconds"
+                ) from error
+            except (BootstrapError, OSError) as error:
+                raise ArtifactSizeContractError(
+                    f"artifact-size contract could not run: {error}"
+                ) from error
+            if result.returncode != 0 or result.stderr:
+                detail = result.stderr.strip() or result.stdout.strip()
+                suffix = f": {detail}" if detail else ""
+                raise ArtifactSizeContractError(
+                    "Cupid-built artifact-size contract failed"
+                    f" with status {result.returncode}{suffix}"
+                )
+            try:
+                report = json.loads(result.stdout)
+            except (TypeError, json.JSONDecodeError) as error:
+                raise ArtifactSizeContractError(
+                    "Cupid-built artifact-size contract returned invalid JSON"
+                ) from error
+            report = _validate_contract_report(report)
+            canonical = json.dumps(
+                report, separators=(",", ":"), sort_keys=True
+            ) + "\n"
+            if result.stdout != canonical:
+                raise ArtifactSizeContractError(
+                    "Cupid-built artifact-size contract report is not canonical"
+                )
+            return report
     except ArtifactSizeContractError:
         raise
     except artifact_size_policy.SizePolicyError as error:
@@ -498,6 +675,7 @@ def verify_with_contract(
     root_argument: Path,
     policy_argument: Path,
     seed_manifest_argument: Path,
+    checked_manifest_argument: Path,
     execution_manifest_argument: Path,
     *,
     timeout: int = DEFAULT_TIMEOUT,
@@ -521,16 +699,37 @@ def verify_with_contract(
     logical_manifest, _ = _resolve_repository_file(
         root, seed_manifest_argument, "seed manifest"
     )
-    _, execution_manifest = _resolve_repository_file(
+    logical_checked_manifest, _ = _resolve_repository_file(
+        root, checked_manifest_argument, "checked seed manifest"
+    )
+    logical_execution_manifest, _ = _resolve_repository_file(
         root, execution_manifest_argument, "execution seed manifest"
     )
     try:
         with artifact_size_policy._PinnedRepository(root) as reader:
+            pinned_root, _ = reader.directory_snapshot("")
+            if artifact_size_policy._stable_file_fields(
+                pinned_root
+            ) != artifact_size_policy._stable_file_fields(root_info):
+                raise ArtifactSizeContractError(
+                    "repository root changed before it could be pinned"
+                )
             request, oracle_report = _capture_verification_request(
                 reader, logical_policy, logical_manifest
             )
+            checked_seed = _capture_checked_seed(
+                reader, logical_checked_manifest
+            )
+            build_inputs = _capture_build_inputs(reader)
+            execution_seed = _select_execution_seed(
+                reader,
+                logical_checked_manifest,
+                checked_seed,
+                logical_execution_manifest,
+                windows=os.name == "nt",
+            )
             contract_report = _build_and_run_contract(
-                root, execution_manifest, request, timeout
+                request, timeout, build_inputs, execution_seed
             )
             contract_report = _validate_contract_report(contract_report)
             if contract_report != oracle_report:
@@ -538,12 +737,23 @@ def verify_with_contract(
                     "Cupid-built artifact-size report differs from the "
                     "independent Python oracle"
                 )
+            _require_captures_unchanged(
+                reader, checked_seed, "checked Windows seed"
+            )
+            _require_captures_unchanged(
+                reader, build_inputs, "contract build input"
+            )
+            if execution_seed is not checked_seed:
+                _require_captures_unchanged(
+                    reader, execution_seed, "execution seed"
+                )
             try:
                 reader.require_unchanged()
             except artifact_size_policy.SizePolicyError as error:
                 raise ArtifactSizeContractError(
                     f"artifact changed while the Cupid contract ran: {error}"
                 ) from error
+            _require_root_unchanged(root, root_info)
             return contract_report
     except ArtifactSizeContractError:
         raise
@@ -562,6 +772,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     verify.add_argument("--root", required=True, type=Path)
     verify.add_argument("--policy", required=True, type=Path)
     verify.add_argument("--seed-manifest", required=True, type=Path)
+    verify.add_argument("--checked-manifest", required=True, type=Path)
     verify.add_argument("--execution-manifest", required=True, type=Path)
     verify.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
     return parser.parse_args(argv)
@@ -574,6 +785,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.root,
             args.policy,
             args.seed_manifest,
+            args.checked_manifest,
             args.execution_manifest,
             timeout=args.timeout,
         )

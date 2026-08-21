@@ -15,6 +15,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 POLICY_TOOL = REPO_ROOT / "tools/artifact_size_policy.py"
 CHECKED_POLICY = REPO_ROOT / "bootstrap/artifact-size-policy.json"
 SEED_MANIFEST = REPO_ROOT / "bootstrap/seeds/i386-linux/manifest.json"
+WINDOWS_SEED_MANIFEST = (
+    REPO_ROOT / "bootstrap/seeds/i386-windows/manifest.json"
+)
 ARTIFACT_OWNERS = {
     "boot/boot.bin": "CupidASM",
     "bootstrap/seeds/i386-linux/cupidasm.elf": "CupidASM",
@@ -22,6 +25,11 @@ ARTIFACT_OWNERS = {
     "bootstrap/seeds/i386-linux/cupiddis.elf": "CupidDis",
     "bootstrap/seeds/i386-linux/cupidld.elf": "CupidLD",
     "bootstrap/seeds/i386-linux/cupidobj.elf": "CupidObj",
+    "bootstrap/seeds/i386-windows/cupidasm.exe": "CupidASM",
+    "bootstrap/seeds/i386-windows/cupidc.exe": "CupidC",
+    "bootstrap/seeds/i386-windows/cupiddis.exe": "CupidDis",
+    "bootstrap/seeds/i386-windows/cupidld.exe": "CupidLD",
+    "bootstrap/seeds/i386-windows/cupidobj.exe": "CupidObj",
     "kernel/kernel.bin": "CupidObj",
     "kernel/kernel.elf": "CupidLD",
     "kernel/kernel.elf.pass1": "CupidLD",
@@ -98,7 +106,7 @@ class ArtifactSizePolicyTests(unittest.TestCase):
                     "producer": owners[path],
                     "reason": "fixture lock",
                 }
-                for path in owners
+                for path in sorted(owners)
             ]
         policy = root / "policy.json"
         policy.write_text(
@@ -153,7 +161,7 @@ class ArtifactSizePolicyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "Cupid artifact sizes: ok (9 exact artifacts)\n",
+            "Cupid artifact sizes: ok (14 exact artifacts)\n",
         )
         self.assertEqual(result.stderr, "")
 
@@ -199,7 +207,7 @@ class ArtifactSizePolicyTests(unittest.TestCase):
     def test_verify_reports_every_exact_size_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            policy, _, _, _ = self.write_fixture(root)
+            policy, _, sizes, _ = self.write_fixture(root)
             (root / "boot/boot.bin").write_bytes(b"larger")
             (root / "kernel/kernel.bin").write_bytes(b"")
 
@@ -211,7 +219,8 @@ class ArtifactSizePolicyTests(unittest.TestCase):
             result.stderr,
             "artifact size verification failed:\n"
             "- boot/boot.bin has 6 bytes; expected exactly 1 byte\n"
-            "- kernel/kernel.bin has 0 bytes; expected exactly 7 bytes\n",
+            "- kernel/kernel.bin has 0 bytes; expected exactly "
+            f"{sizes['kernel/kernel.bin']} bytes\n",
         )
 
     def test_verify_rejects_missing_nonregular_and_linked_outputs(self):
@@ -328,7 +337,7 @@ class ArtifactSizePolicyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "Cupid artifact sizes: ok (9 exact artifacts)\n",
+            "Cupid artifact sizes: ok (14 exact artifacts)\n",
         )
         self.assertEqual(result.stderr, "")
 
@@ -488,11 +497,18 @@ class ArtifactSizePolicyTests(unittest.TestCase):
             ARTIFACT_OWNERS,
         )
 
-        manifest = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
-        seed_sizes = {
-            "bootstrap/seeds/i386-linux/" + artifact["file"]: artifact["size"]
-            for artifact in manifest["artifacts"]
-        }
+        seed_sizes = {}
+        for directory, manifest_path in (
+            ("bootstrap/seeds/i386-linux/", SEED_MANIFEST),
+            ("bootstrap/seeds/i386-windows/", WINDOWS_SEED_MANIFEST),
+        ):
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            seed_sizes.update(
+                {
+                    directory + artifact["file"]: artifact["size"]
+                    for artifact in manifest["artifacts"]
+                }
+            )
         policy_sizes = {
             entry["path"]: entry["exact_bytes"]
             for entry in entries
@@ -512,6 +528,13 @@ class ArtifactSizePolicyTests(unittest.TestCase):
                     "bootstrap/seeds/i386-linux/"
                     + token.removeprefix("$(BOOTSTRAP_SEED_DIRECTORY)")
                 )
+            elif token.startswith("$(BOOTSTRAP_WINDOWS_SEED_DIRECTORY)"):
+                make_paths.append(
+                    "bootstrap/seeds/i386-windows/"
+                    + token.removeprefix(
+                        "$(BOOTSTRAP_WINDOWS_SEED_DIRECTORY)"
+                    )
+                )
             else:
                 make_paths.append(token)
         self.assertEqual(make_paths, list(ARTIFACT_OWNERS))
@@ -524,6 +547,10 @@ class ArtifactSizePolicyTests(unittest.TestCase):
             "verify-artifact-sizes: $(ARTIFACT_SIZE_OUTPUTS) \\",
             makefile,
         )
+        target_start = makefile.index("verify-artifact-sizes:")
+        target_end = makefile.index("\nbootstrap-from-seed:", target_start)
+        artifact_target = makefile[target_start:target_end]
+        self.assertNotIn("bootstrap_toolchain.py verify", artifact_target)
         self.assertIn(
             "tools/artifact_size_contract.py verify --root . \\",
             makefile,
@@ -534,6 +561,10 @@ class ArtifactSizePolicyTests(unittest.TestCase):
         )
         self.assertIn(
             "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)",
+            makefile,
+        )
+        self.assertIn(
+            "--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)",
             makefile,
         )
         self.assertIn(

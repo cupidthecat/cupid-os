@@ -1159,6 +1159,15 @@ static cc_type_t cc_find_typedef(cc_state_t *cc, const char *name) {
   return (cc_type_t)-1;
 }
 
+static int cc_find_typedef_index(cc_state_t *cc, const char *name) {
+  int i;
+  for (i = 0; i < cc->typedef_count; i++) {
+    if (strcmp(cc->typedef_names[i], name) == 0)
+      return i;
+  }
+  return -1;
+}
+
 static int cc_find_typedef_struct_index(cc_state_t *cc, const char *name) {
   int i;
   for (i = 0; i < cc->typedef_count; i++) {
@@ -1205,7 +1214,85 @@ static void cc_add_typedef_alias(cc_state_t *cc, const char *name,
   cc->typedef_struct_indices[cc->typedef_count] = struct_index;
   cc->typedef_array_counts[cc->typedef_count] = array_count;
   cc->typedef_is_const_qualified[cc->typedef_count] = is_const_qualified;
+  cc->typedef_function_pointer_signature_valid[cc->typedef_count] = 0;
+  cc->typedef_function_pointer_return_types[cc->typedef_count] = TYPE_VOID;
+  cc->typedef_function_pointer_return_struct_indices[cc->typedef_count] = -1;
+  cc->typedef_function_pointer_param_counts[cc->typedef_count] = 0;
+  memset(cc->typedef_function_pointer_param_types[cc->typedef_count], 0,
+         sizeof(cc->typedef_function_pointer_param_types[cc->typedef_count]));
+  memset(cc->typedef_function_pointer_param_struct_indices[cc->typedef_count],
+         -1,
+         sizeof(cc->typedef_function_pointer_param_struct_indices[
+             cc->typedef_count]));
+  cc->typedef_function_pointer_has_param_types[cc->typedef_count] = 0;
+  cc->typedef_function_pointer_is_variadic[cc->typedef_count] = 0;
   cc->typedef_count++;
+}
+
+static int cc_copy_function_pointer_typedef_signature(
+    cc_state_t *cc, int typedef_index, cc_symbol_t *symbol) {
+  if (!symbol || typedef_index < 0 || typedef_index >= cc->typedef_count ||
+      !cc->typedef_function_pointer_signature_valid[typedef_index])
+    return 0;
+  symbol->function_pointer_return_type =
+      cc->typedef_function_pointer_return_types[typedef_index];
+  symbol->struct_index =
+      cc->typedef_function_pointer_return_struct_indices[typedef_index];
+  symbol->param_count =
+      cc->typedef_function_pointer_param_counts[typedef_index];
+  memcpy(symbol->param_types,
+         cc->typedef_function_pointer_param_types[typedef_index],
+         sizeof(symbol->param_types));
+  memcpy(symbol->param_struct_indices,
+         cc->typedef_function_pointer_param_struct_indices[typedef_index],
+         sizeof(symbol->param_struct_indices));
+  symbol->has_param_types =
+      cc->typedef_function_pointer_has_param_types[typedef_index];
+  symbol->is_variadic =
+      cc->typedef_function_pointer_is_variadic[typedef_index];
+  return 1;
+}
+
+static int cc_function_pointer_typedef_signatures_match(
+    cc_state_t *cc, int left_index, int right_index) {
+  int parameter_index;
+  if (left_index < 0 || right_index < 0 ||
+      left_index >= cc->typedef_count || right_index >= cc->typedef_count ||
+      !cc->typedef_function_pointer_signature_valid[left_index] ||
+      !cc->typedef_function_pointer_signature_valid[right_index])
+    return 1;
+  if (cc->typedef_function_pointer_return_types[left_index] !=
+          cc->typedef_function_pointer_return_types[right_index] ||
+      (cc->typedef_function_pointer_return_types[left_index] ==
+           TYPE_STRUCT_PTR &&
+       cc->typedef_function_pointer_return_struct_indices[left_index] !=
+           cc->typedef_function_pointer_return_struct_indices[right_index]))
+    return 0;
+  if (!cc->typedef_function_pointer_has_param_types[left_index] ||
+      !cc->typedef_function_pointer_has_param_types[right_index])
+    return 1;
+  if (cc->typedef_function_pointer_param_counts[left_index] !=
+          cc->typedef_function_pointer_param_counts[right_index] ||
+      cc->typedef_function_pointer_is_variadic[left_index] !=
+          cc->typedef_function_pointer_is_variadic[right_index])
+    return 0;
+  for (parameter_index = 0;
+       parameter_index <
+       cc->typedef_function_pointer_param_counts[left_index];
+       parameter_index++) {
+    if (cc->typedef_function_pointer_param_types[left_index]
+            [parameter_index] !=
+            cc->typedef_function_pointer_param_types[right_index]
+                [parameter_index] ||
+        (cc->typedef_function_pointer_param_types[left_index]
+             [parameter_index] == TYPE_STRUCT_PTR &&
+         cc->typedef_function_pointer_param_struct_indices[left_index]
+             [parameter_index] !=
+             cc->typedef_function_pointer_param_struct_indices[right_index]
+                 [parameter_index]))
+      return 0;
+  }
+  return 1;
 }
 
 static int cc_find_struct(cc_state_t *cc, const char *name);
@@ -1248,6 +1335,7 @@ static cc_type_t cc_last_type_base;
 static int cc_last_type_pointer_depth;
 static int cc_last_type_array_count;
 static int cc_last_type_is_const_qualified;
+static int cc_last_type_typedef_index;
 static int cc_last_expr_elem_size;    /* element size for array subscripts */
 /* Size of the array object produced by the most recent subscript. The next
  * subscript uses cc_last_expr_elem_size as its stride, while sizeof needs the
@@ -1972,6 +2060,7 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
   cc_last_type_pointer_depth = 0;
   cc_last_type_array_count = 0;
   cc_last_type_is_const_qualified = 0;
+  cc_last_type_typedef_index = -1;
 
   /* Accept storage classes, qualifiers, and width modifiers around the base
    * type. Signed and unsigned integers keep distinct 32-bit semantics. Widths
@@ -2061,6 +2150,7 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
     /* Check if this is a typedef alias */
     cc_type_t td = cc_find_typedef(cc, tok.text);
     if ((int)td >= 0) {
+      cc_last_type_typedef_index = cc_find_typedef_index(cc, tok.text);
       cc_last_type_struct_index =
           cc_find_typedef_struct_index(cc, tok.text);
       cc_last_type_array_count = cc_find_typedef_array_count(cc, tok.text);
@@ -2422,6 +2512,9 @@ static int cc_validate_named_function_pointer_arity(
   return 1;
 }
 
+static int cc_validate_function_pointer_argument_value(
+    cc_state_t *cc, int function_pointer_typedef_index);
+
 static int cc_emit_call_argument_push(cc_state_t *cc,
                                       cc_symbol_t *callee,
                                       int argument_index,
@@ -2434,6 +2527,11 @@ static int cc_emit_call_argument_push(cc_state_t *cc,
       argument_index < callee->param_count;
   if (has_fixed_parameter) {
     slot_type = (cc_type_t)callee->param_types[argument_index];
+    if (slot_type == TYPE_FUNC_PTR &&
+        !cc_validate_function_pointer_argument_value(
+            cc,
+            callee->param_struct_indices[argument_index]))
+      return 0;
     if (!cc_coerce_cdecl_argument(cc, slot_type))
       return 0;
   } else if (has_parameter_metadata && callee->is_variadic &&
@@ -2460,6 +2558,7 @@ static int cc_emit_call_argument_push(cc_state_t *cc,
 static int cc_bind_cdecl_parameter(cc_state_t *cc, const char *name,
                                    cc_type_t type, int struct_index,
                                    int is_const_qualified,
+                                   int function_pointer_typedef_index,
                                    int32_t offset) {
   int slot_size = cc_cdecl_slot_size(type);
   cc_symbol_t *symbol;
@@ -2475,6 +2574,9 @@ static int cc_bind_cdecl_parameter(cc_state_t *cc, const char *name,
   symbol->offset = offset;
   symbol->is_const_qualified = is_const_qualified;
   symbol->struct_index = struct_index;
+  if (type == TYPE_FUNC_PTR)
+    (void)cc_copy_function_pointer_typedef_signature(
+        cc, function_pointer_typedef_index, symbol);
   return slot_size;
 }
 
@@ -3085,6 +3187,8 @@ cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
   }
   cc_symbol_t *sym = &cc->symbols[cc->sym_count++];
   memset(sym, 0, sizeof(*sym));
+  memset(sym->param_struct_indices, -1,
+         sizeof(sym->param_struct_indices));
   int i = 0;
   while (name[i] && i < CC_MAX_IDENT - 1) {
     sym->name[i] = name[i];
@@ -8459,6 +8563,114 @@ static int cc_parse_function_pointer_signature(
   return 0;
 }
 
+/* Parse the declaration tail after a consumed typedef token. Program parsing
+ * requires the terminator; the REPL keeps its existing optional terminator. */
+static int cc_parse_typedef_declaration(cc_state_t *cc,
+                                        int require_semicolon) {
+  cc_type_t declared_type = cc_parse_type(cc);
+  cc_type_t base_type = cc_last_type_base;
+  int struct_index = cc_last_type_struct_index;
+  int array_count = cc_last_type_array_count;
+  int is_const = cc_last_type_is_const_qualified;
+  int pointer_depth;
+  int semicolon_consumed = 0;
+
+  if (cc->error)
+    return 0;
+  pointer_depth = cc_last_type_pointer_depth;
+
+  if (cc_peek(cc).type == CC_TOK_LPAREN) {
+    uint8_t parameter_types[CC_MAX_PARAMS];
+    int8_t parameter_struct_indices[CC_MAX_PARAMS];
+    int parameter_count;
+    int has_parameter_types;
+    int is_variadic;
+    int alias_index;
+    cc_token_t alias_tok;
+
+    cc_next(cc);
+    cc_expect(cc, CC_TOK_STAR);
+    alias_tok = cc_next(cc);
+    if (alias_tok.type != CC_TOK_IDENT) {
+      cc_error(cc, "expected function-pointer typedef name");
+      return 0;
+    }
+    cc_expect(cc, CC_TOK_RPAREN);
+    if (declared_type == TYPE_STRUCT) {
+      cc_error(
+          cc,
+          "function-pointer struct result is not supported; use pointer result");
+      return 0;
+    }
+    if (array_count > 0) {
+      cc_error(cc, "function-pointer array result is not supported");
+      return 0;
+    }
+    if (!cc_parse_function_pointer_signature(
+            cc, parameter_types, parameter_struct_indices, &parameter_count,
+            &has_parameter_types, &is_variadic))
+      return 0;
+    alias_index = cc->typedef_count;
+    cc_add_typedef_alias(cc, alias_tok.text, TYPE_FUNC_PTR, struct_index, 0,
+                         is_const);
+    if (cc->error)
+      return 0;
+    cc->typedef_function_pointer_signature_valid[alias_index] = 1;
+    cc->typedef_function_pointer_return_types[alias_index] = declared_type;
+    cc->typedef_function_pointer_return_struct_indices[alias_index] =
+        declared_type == TYPE_STRUCT_PTR ? struct_index : -1;
+    cc->typedef_function_pointer_param_counts[alias_index] = parameter_count;
+    memcpy(cc->typedef_function_pointer_param_types[alias_index],
+           parameter_types, sizeof(parameter_types));
+    memcpy(cc->typedef_function_pointer_param_struct_indices[alias_index],
+           parameter_struct_indices, sizeof(parameter_struct_indices));
+    cc->typedef_function_pointer_has_param_types[alias_index] =
+        has_parameter_types;
+    cc->typedef_function_pointer_is_variadic[alias_index] = is_variadic;
+    if (require_semicolon)
+      cc_expect(cc, CC_TOK_SEMICOLON);
+    else if (cc_peek(cc).type == CC_TOK_SEMICOLON)
+      cc_next(cc);
+    return !cc->error;
+  }
+
+  while (!cc->error) {
+    cc_token_t alias_tok;
+    cc_type_t alias_type;
+    int alias_array_count;
+
+    while (cc_match(cc, CC_TOK_STAR))
+      pointer_depth++;
+    alias_tok = cc_next(cc);
+    if (alias_tok.type != CC_TOK_IDENT) {
+      semicolon_consumed = alias_tok.type == CC_TOK_SEMICOLON;
+      cc_error(cc, "expected typedef alias name");
+      break;
+    }
+    if (pointer_depth > 0 && array_count > 0) {
+      cc_error(cc, "pointer to typedef array is not supported");
+      break;
+    }
+    alias_type = cc_apply_pointer_declarator(cc, base_type, pointer_depth);
+    if (cc->error)
+      break;
+    if (!cc_parse_typedef_array_declarator(
+            cc, alias_type, struct_index, array_count, &alias_array_count))
+      break;
+    cc_add_typedef_alias(cc, alias_tok.text, alias_type, struct_index,
+                         alias_array_count, is_const);
+    if (cc->error || !cc_match(cc, CC_TOK_COMMA))
+      break;
+    pointer_depth = 0;
+  }
+  if (!cc->error && require_semicolon && !semicolon_consumed)
+    cc_expect(cc, CC_TOK_SEMICOLON);
+  else if (!cc->error && !require_semicolon &&
+           cc_peek(cc).type == CC_TOK_SEMICOLON)
+    cc_next(cc);
+  return !cc->error;
+}
+
 typedef enum {
   CC_FP_INITIALIZER_OTHER = 0,
   CC_FP_INITIALIZER_DESIGNATOR,
@@ -8681,9 +8893,10 @@ static void cc_seed_provisional_function_signature(
   target->function_signature_is_provisional = 1;
 }
 
-static int cc_check_function_pointer_initializer(
+static int cc_check_function_pointer_value_compatibility(
     cc_state_t *cc, const cc_symbol_t *pointer,
-    const cc_symbol_t *target) {
+    const cc_symbol_t *target, const char *result_diagnostic,
+    const char *parameters_diagnostic) {
   int parameter_index;
   cc_type_t target_result_type;
 
@@ -8700,9 +8913,7 @@ static int cc_check_function_pointer_initializer(
   if (pointer->function_pointer_return_type != target_result_type ||
       (target_result_type == TYPE_STRUCT_PTR &&
        pointer->struct_index != target->struct_index)) {
-    cc_error(
-        cc,
-        "function-pointer initializer result does not match declaration");
+    cc_error(cc, result_diagnostic);
     return 0;
   }
 
@@ -8719,16 +8930,12 @@ static int cc_check_function_pointer_initializer(
   if (!target->has_param_types) {
     if (target->kind == SYM_KERNEL)
       return 1;
-    cc_error(
-        cc,
-        "function-pointer initializer parameters do not match declaration");
+    cc_error(cc, parameters_diagnostic);
     return 0;
   }
   if (pointer->param_count != target->param_count ||
       pointer->is_variadic != target->is_variadic) {
-    cc_error(
-        cc,
-        "function-pointer initializer parameters do not match declaration");
+    cc_error(cc, parameters_diagnostic);
     return 0;
   }
   for (parameter_index = 0; parameter_index < pointer->param_count;
@@ -8738,13 +8945,20 @@ static int cc_check_function_pointer_initializer(
         (pointer->param_types[parameter_index] == TYPE_STRUCT_PTR &&
          pointer->param_struct_indices[parameter_index] !=
              target->param_struct_indices[parameter_index])) {
-      cc_error(
-          cc,
-          "function-pointer initializer parameters do not match declaration");
+      cc_error(cc, parameters_diagnostic);
       return 0;
     }
   }
   return 1;
+}
+
+static int cc_check_function_pointer_initializer(
+    cc_state_t *cc, const cc_symbol_t *pointer,
+    const cc_symbol_t *target) {
+  return cc_check_function_pointer_value_compatibility(
+      cc, pointer, target,
+      "function-pointer initializer result does not match declaration",
+      "function-pointer initializer parameters do not match declaration");
 }
 
 static int cc_apply_function_pointer_initializer(
@@ -8802,6 +9016,51 @@ static int cc_apply_function_pointer_initializer_candidates(
       return 0;
   }
   return 1;
+}
+
+static int cc_validate_function_pointer_argument_value(
+    cc_state_t *cc, int function_pointer_typedef_index) {
+  cc_symbol_t expected;
+  int target_index;
+
+  if (function_pointer_typedef_index < 0 ||
+      function_pointer_typedef_index >= cc->typedef_count ||
+      !cc->typedef_function_pointer_signature_valid[
+          function_pointer_typedef_index])
+    return 1;
+  if (cc_last_expr_is_null_pointer_constant)
+    return 1;
+  if (cc_last_expr_function_signature_erased &&
+      (cc_is_object_pointer_type(cc_last_expr_type) ||
+       cc_last_expr_type == TYPE_FUNC_PTR))
+    return 1;
+  if (cc_last_expr_type != TYPE_FUNC_PTR ||
+      cc_last_expr_function_signature_count <= 0) {
+    cc_error(
+        cc,
+        "function-pointer argument requires a function, zero, or explicit pointer cast");
+    return 0;
+  }
+
+  memset(&expected, 0, sizeof(expected));
+  expected.type = TYPE_FUNC_PTR;
+  if (!cc_copy_function_pointer_typedef_signature(
+          cc, function_pointer_typedef_index, &expected))
+    return 1;
+
+  for (target_index = 0;
+       target_index < cc_last_expr_function_signature_count;
+       target_index++) {
+    if (!cc_check_function_pointer_value_compatibility(
+            cc, &expected,
+            cc_last_expr_function_signature_candidates[target_index],
+            "function-pointer argument result does not match parameter type",
+            "function-pointer argument parameters do not match parameter type"))
+      return 0;
+  }
+  return cc_apply_function_pointer_initializer_candidates(
+      cc, &expected, cc_last_expr_function_signature_candidates,
+      cc_last_expr_function_signature_count);
 }
 
 static int cc_validate_function_pointer_initializer_value(
@@ -9480,6 +9739,7 @@ static void cc_parse_function(cc_state_t *cc) {
       int psi = cc_last_type_struct_index;
       int ptype_array_count = cc_last_type_array_count;
       int ptype_is_const = cc_last_type_is_const_qualified;
+      int ptype_typedef_index = cc_last_type_typedef_index;
 
       /* Special-case: foo(void) */
       if (!(ptype == TYPE_VOID && cc_peek(cc).type == CC_TOK_RPAREN)) {
@@ -9503,9 +9763,17 @@ static void cc_parse_function(cc_state_t *cc) {
           func_sym->param_types[cc->param_count] = (uint8_t)ptype;
         if (func_sym && ptype == TYPE_STRUCT_PTR)
           func_sym->param_struct_indices[cc->param_count] = (int8_t)psi;
+        if (func_sym && ptype == TYPE_FUNC_PTR &&
+            ptype_typedef_index >= 0 &&
+            ptype_typedef_index < cc->typedef_count &&
+            cc->typedef_function_pointer_signature_valid[
+                ptype_typedef_index])
+          func_sym->param_struct_indices[cc->param_count] =
+              (int8_t)ptype_typedef_index;
         {
           int slot_size = cc_bind_cdecl_parameter(
-              cc, pname.text, ptype, psi, ptype_is_const, param_offset);
+              cc, pname.text, ptype, psi, ptype_is_const,
+              ptype_typedef_index, param_offset);
           if (slot_size == 0)
             goto function_failure;
           param_offset += slot_size;
@@ -9524,6 +9792,7 @@ static void cc_parse_function(cc_state_t *cc) {
         psi = cc_last_type_struct_index;
         ptype_array_count = cc_last_type_array_count;
         ptype_is_const = cc_last_type_is_const_qualified;
+        ptype_typedef_index = cc_last_type_typedef_index;
         cc_token_t pname = cc_next(cc);
         if (pname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected parameter name");
@@ -9541,9 +9810,17 @@ static void cc_parse_function(cc_state_t *cc) {
           func_sym->param_types[cc->param_count] = (uint8_t)ptype;
         if (func_sym && ptype == TYPE_STRUCT_PTR)
           func_sym->param_struct_indices[cc->param_count] = (int8_t)psi;
+        if (func_sym && ptype == TYPE_FUNC_PTR &&
+            ptype_typedef_index >= 0 &&
+            ptype_typedef_index < cc->typedef_count &&
+            cc->typedef_function_pointer_signature_valid[
+                ptype_typedef_index])
+          func_sym->param_struct_indices[cc->param_count] =
+              (int8_t)ptype_typedef_index;
         {
           int slot_size = cc_bind_cdecl_parameter(
-              cc, pname.text, ptype, psi, ptype_is_const, param_offset);
+              cc, pname.text, ptype, psi, ptype_is_const,
+              ptype_typedef_index, param_offset);
           if (slot_size == 0)
             goto function_failure;
           param_offset += slot_size;
@@ -9581,7 +9858,14 @@ static void cc_parse_function(cc_state_t *cc) {
             (prior_function_symbol.param_types[parameter_index] !=
                  TYPE_STRUCT_PTR ||
              prior_function_symbol.param_struct_indices[parameter_index] ==
-                  func_sym->param_struct_indices[parameter_index]);
+                  func_sym->param_struct_indices[parameter_index]) &&
+            (prior_function_symbol.param_types[parameter_index] !=
+                 TYPE_FUNC_PTR ||
+             cc_function_pointer_typedef_signatures_match(
+                 cc,
+                 prior_function_symbol.param_struct_indices[
+                     parameter_index],
+                 func_sym->param_struct_indices[parameter_index]));
       }
     }
     if (!signature_matches) {
@@ -9781,7 +10065,7 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
     if (func_sym)
       func_sym->param_struct_indices[0] = (int8_t)class_index;
     if (cc_bind_cdecl_parameter(cc, "self", TYPE_STRUCT_PTR, class_index, 0,
-                                8) == 0)
+                                -1, 8) == 0)
       goto method_failure;
     cc->param_count = 1;
   }
@@ -9819,7 +10103,8 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
           func_sym->param_struct_indices[cc->param_count] = (int8_t)psi;
         {
           int slot_size = cc_bind_cdecl_parameter(
-              cc, pname.text, ptype, psi, ptype_is_const, param_offset);
+              cc, pname.text, ptype, psi, ptype_is_const,
+              -1, param_offset);
           if (slot_size == 0)
             goto method_failure;
           param_offset += slot_size;
@@ -9857,7 +10142,8 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
           func_sym->param_struct_indices[cc->param_count] = (int8_t)psi;
         {
           int slot_size = cc_bind_cdecl_parameter(
-              cc, pname.text, ptype, psi, ptype_is_const, param_offset);
+              cc, pname.text, ptype, psi, ptype_is_const,
+              -1, param_offset);
           if (slot_size == 0)
             goto method_failure;
           param_offset += slot_size;
@@ -10136,48 +10422,8 @@ void cc_parse_program(cc_state_t *cc) {
     /* Typedef: typedef <type> <alias>; */
     if (tok.type == CC_TOK_TYPEDEF) {
       cc_next(cc); /* consume 'typedef' */
-      cc_parse_type(cc);
-      cc_type_t td_base_type = cc_last_type_base;
-      int td_struct_index = cc_last_type_struct_index;
-      int td_array_count = cc_last_type_array_count;
-      int td_is_const = cc_last_type_is_const_qualified;
-      if (cc->error)
+      if (!cc_parse_typedef_declaration(cc, 1))
         break;
-      int pointer_depth = cc_last_type_pointer_depth;
-      int semicolon_consumed = 0;
-      while (1) {
-        while (cc_match(cc, CC_TOK_STAR))
-          pointer_depth++;
-        cc_token_t alias_tok = cc_next(cc);
-        if (alias_tok.type != CC_TOK_IDENT) {
-          semicolon_consumed = alias_tok.type == CC_TOK_SEMICOLON;
-          cc_error(cc, "expected typedef alias name");
-          break;
-        }
-        if (pointer_depth > 0 && td_array_count > 0) {
-          cc_error(cc, "pointer to typedef array is not supported");
-          break;
-        }
-        cc_type_t alias_type =
-            cc_apply_pointer_declarator(cc, td_base_type, pointer_depth);
-        if (cc->error)
-          break;
-        int alias_array_count;
-        if (!cc_parse_typedef_array_declarator(
-                cc, alias_type, td_struct_index, td_array_count,
-                &alias_array_count))
-          break;
-        cc_add_typedef_alias(cc, alias_tok.text, alias_type,
-                             td_struct_index, alias_array_count,
-                             td_is_const);
-        if (cc->error)
-          break;
-        if (!cc_match(cc, CC_TOK_COMMA))
-          break;
-        pointer_depth = 0;
-      }
-      if (!semicolon_consumed)
-        cc_expect(cc, CC_TOK_SEMICOLON);
       continue;
     }
 
@@ -11152,46 +11398,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
   /* Typedef: typedef <type> <alias>; */
   if (tok.type == CC_TOK_TYPEDEF) {
     cc_next(cc);
-    cc_parse_type(cc);
-    cc_type_t td_base_type = cc_last_type_base;
-    int td_struct_index = cc_last_type_struct_index;
-    int td_array_count = cc_last_type_array_count;
-    int td_is_const = cc_last_type_is_const_qualified;
-    if (cc->error)
-      return;
-    int pointer_depth = cc_last_type_pointer_depth;
-    while (1) {
-      while (cc_match(cc, CC_TOK_STAR))
-        pointer_depth++;
-      cc_token_t alias_tok = cc_next(cc);
-      if (alias_tok.type != CC_TOK_IDENT) {
-        cc_error(cc, "expected typedef alias name");
-        return;
-      }
-      if (pointer_depth > 0 && td_array_count > 0) {
-        cc_error(cc, "pointer to typedef array is not supported");
-        return;
-      }
-      cc_type_t alias_type =
-          cc_apply_pointer_declarator(cc, td_base_type, pointer_depth);
-      if (cc->error)
-        return;
-      int alias_array_count;
-      if (!cc_parse_typedef_array_declarator(
-              cc, alias_type, td_struct_index, td_array_count,
-              &alias_array_count))
-        return;
-      cc_add_typedef_alias(cc, alias_tok.text, alias_type,
-                           td_struct_index, alias_array_count,
-                           td_is_const);
-      if (cc->error)
-        return;
-      if (!cc_match(cc, CC_TOK_COMMA))
-        break;
-      pointer_depth = 0;
-    }
-    if (cc_peek(cc).type == CC_TOK_SEMICOLON)
-      cc_next(cc);
+    (void)cc_parse_typedef_declaration(cc, 0);
     return;
   }
 

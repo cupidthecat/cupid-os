@@ -86,6 +86,7 @@ ARTIFACT_SIZE_CONTRACT_TRANSFORM_INPUTS = frozenset(
         *WINDOWS_PRODUCTION_SEED_INPUTS,
     }
 )
+ARTIFACT_SIZE_CONTRACT_RECIPE = ["$(ARTIFACT_SIZE_CONTRACT)"]
 TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS = (
     "toolchain/Makefile",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
@@ -166,6 +167,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/tests/artifact_size_policy_contract.cc",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
@@ -189,6 +191,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/tests/hosted_i386_runtime_contract.cc",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+    "toolchain/tests/toolchain_manifest_contract.cc",
     "toolchain/tests/user_syscall_abi_contract.cc",
     "toolchain/tests/x86_active_cases.inc",
     "toolchain/tests/x86_catalogue_contract.inc",
@@ -309,6 +312,10 @@ TOOL_MARKERS = (
     ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "cupid_c_contract"),
     ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "cupid_linker"),
     ("$(TOOLCHAIN_MANIFEST_CONTRACT)", "host_python"),
+    ("cupidc_toolchain_contracts.py build", "cupid_assembler"),
+    ("cupidc_toolchain_contracts.py build", "cupid_c_compiler"),
+    ("cupidc_toolchain_contracts.py build", "cupid_c_contract"),
+    ("cupidc_toolchain_contracts.py build", "cupid_linker"),
     ("$(USER_SYSCALL_ABI)", "cupid_assembler"),
     ("$(USER_SYSCALL_ABI)", "cupid_c_compiler"),
     ("$(USER_SYSCALL_ABI)", "cupid_c_contract"),
@@ -388,6 +395,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/tests/artifact_size_policy_contract.cc",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
@@ -411,6 +419,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/tests/hosted_i386_runtime_contract.cc",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+    "toolchain/tests/toolchain_manifest_contract.cc",
     "toolchain/tests/user_syscall_abi_contract.cc",
     "toolchain/tests/x86_active_cases.inc",
     "toolchain/tests/x86_catalogue_contract.inc",
@@ -864,6 +873,7 @@ _C_PP_TOOLCHAIN_CONTRACT_CASES = (
     "/toolchain/tests/cupidobj_contract.cc",
     "/toolchain/tests/elf32_contract.cc",
     "/toolchain/tests/hosted_i386_windows_contract.cc",
+    "/toolchain/tests/toolchain_manifest_contract.cc",
     "/toolchain/tests/user_syscall_abi_contract.cc",
     "/toolchain/tests/x86_contract.cc",
 )
@@ -1836,6 +1846,18 @@ def _operation_for_recipe(
         and "cupid_c_contract" in tools
     ):
         return "verify_artifact_size_policy"
+    if (
+        "cupidc_toolchain_contracts.py build" in joined
+        and tools
+        == [
+            "cupid_assembler",
+            "cupid_c_compiler",
+            "cupid_c_contract",
+            "cupid_linker",
+            "host_python",
+        ]
+    ):
+        return "generate_toolchain_manifest"
     if (
         "cupid_object" in tools
         and "--write-profile-input-manifest"
@@ -5384,7 +5406,10 @@ def build_audit(
     source_build_owners: dict[str, set[str]] = collections.defaultdict(set)
     for transform in all_transforms:
         ownership_inputs = transform["inputs"]
-        if transform.get("operation") == "verify_toolchain_manifest":
+        if transform.get("operation") in {
+            "generate_toolchain_manifest",
+            "verify_toolchain_manifest",
+        }:
             build_inputs = set(TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS)
             ownership_inputs = [
                 source for source in ownership_inputs if source in build_inputs
@@ -10965,6 +10990,8 @@ def _cupid_toolchain_fixed_point_contract(
     )
     required_contract_control_inputs = (
         "toolchain/Makefile",
+        "toolchain/tests/artifact_size_policy_contract.cc",
+        "toolchain/tests/toolchain_manifest_contract.cc",
         "tools/bootstrap_toolchain.py",
         "tools/cupidc_toolchain_contracts.py",
         "tools/user_syscall_abi.py",
@@ -11528,8 +11555,16 @@ def _toolchain_contract_cupidc_ownership_inputs(
             if (
                 transform.get("output")
                 != "toolchain/build/cupidc-contracts/manifest.json"
-                or transform.get("operation") != "host_orchestration"
-                or transform.get("tools") != ["host_python"]
+                or transform.get("operation")
+                != "generate_toolchain_manifest"
+                or transform.get("tools")
+                != [
+                    "cupid_assembler",
+                    "cupid_c_compiler",
+                    "cupid_c_contract",
+                    "cupid_linker",
+                    "host_python",
+                ]
             ):
                 continue
             inputs = transform.get("inputs")
@@ -12529,22 +12564,31 @@ def _c_preprocessor_active_cases_manifest(
                 and output
                 == "toolchain/build/cupidc-contracts/manifest.json"
             ):
+                expected_tools = [
+                    "cupid_assembler",
+                    "cupid_c_compiler",
+                    "cupid_c_contract",
+                    "cupid_linker",
+                    "host_python",
+                ]
                 inputs = transform.get("inputs")
                 if (
-                    operation != "host_orchestration"
-                    or tools != ["host_python"]
+                    operation != "generate_toolchain_manifest"
+                    or tools != expected_tools
                     or not isinstance(inputs, list)
                     or not all(isinstance(path, str) for path in inputs)
                 ):
                     raise AuditError(
                         "CupidC contract cohort transform differs from "
-                        "the checked orchestration contract"
+                        "the checked manifest-author build contract"
                     )
                 closure_roots = [
                     _c_preprocessor_logical_path(path)
                     for path in inputs
                     if _language(path) in {"c", "cupid_c"}
                     and path not in USER_SYSCALL_ABI_SOURCE_INPUTS
+                    and path
+                    != "toolchain/tests/artifact_size_policy_contract.cc"
                 ]
                 expected_closure = (
                     _C_PP_HOSTED_I386_STRICT_CASES
@@ -12662,9 +12706,6 @@ def _c_preprocessor_active_cases_manifest(
                     raise AuditError(
                         "Cupid Toolchain manifest contract source is not tracked"
                     )
-                active_by_profile["HOSTED_I386_LINUX"].append(
-                    "/" + contract_source
-                )
                 continue
             if operation == "verify_artifact_size_policy":
                 expected_tools = [
@@ -12680,7 +12721,7 @@ def _c_preprocessor_active_cases_manifest(
                     or output != "verify-artifact-sizes"
                     or tools != expected_tools
                     or transform.get("recipe")
-                    != ["$(ARTIFACT_SIZE_CONTRACT)"]
+                    != ARTIFACT_SIZE_CONTRACT_RECIPE
                     or not isinstance(inputs, list)
                     or not all(isinstance(path, str) for path in inputs)
                     or len(inputs) != len(ARTIFACT_SIZE_CONTRACT_TRANSFORM_INPUTS)

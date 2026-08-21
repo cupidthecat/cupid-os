@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-08-15
+Verified against source on: 2026-08-20
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -257,6 +257,31 @@ header closure. It uses the USER_I386 profile, then links with entry symbol
 _start at the fixed external base. Source, header, tool-image, or control-file
 drift stops publication.
 
+The Toolchain publication manifest now includes a Cupid-built author stage.
+Python freezes the facts for 21 artifacts, the 70-file publication inventory,
+and the 50-file bootstrap inventory, then frames a CUPMAN3 request. Stage-four
+checked Linux CupidC compiles the author, CupidASM builds its startup, and
+CupidLD links the static ELF. The author validates the request and emits the
+canonical manifest. Python independently renders the same JSON and requires
+byte-for-byte equality. Python still owns filesystem traversal, hashing, drift
+checks, and atomic publication. CUPMAN2 remains the publication verifier.
+
+A valid schema-v3 publication binds exactly 21 artifacts, 70 publication
+inputs, 50 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
+the published cohort. Focused evidence passes 29 direct contract tests in
+39.068 seconds, 59 publisher tests in 3.518 seconds, and 24 pinned runner tests
+in 27.752 seconds. The host bootstrap log records the exact publication
+identity and completion evidence.
+
+The publication gate requires stage-three and stage-four identity, hosted
+runtime checks, live-input checks, and native Windows verification. The normal
+`all` path uses Cupid tooling with the host code-generation variables poisoned.
+Its exact policy covers fourteen paths: four OS artifacts, five Linux seed
+images, and five Windows seed images. The complete gate and its 45-test policy
+group pass. The host bootstrap log records the post-manual-freeze poisoned
+build and strong private four-vCPU e1000 frontier. Exact OS identities and
+runtime measurements stay there because this manual is an image input.
+
 Build and check all three examples:
   make test-user-cupidc-frontier
 
@@ -292,6 +317,22 @@ assigned.
 A separate lease gate starts the same external program twice at 0x01C00000.
 The first process exits and releases the arena before the second process
 claims it and loads at the same address.
+
+Private CupidC's data-free AOT output uses e_phnum=1 and one executable
+PT_LOAD. Code remains at file offset 0x80. A data-bearing output keeps two
+program headers, one for executable code and one for writable data.
+
+Private CupidC tests also compile and execute callback calls in both JIT and
+AOT modes. They cover named callback declarators and a file-scope,
+signature-bearing function-pointer typedef on a free-function parameter,
+including a float4 result in XMM0. Method parameters remain outside this typed
+callback path.
+
+The four-vCPU e1000 feature14 guest contract requires direct-call,
+named-callback, and typedef-callback evidence in that order. The typedef step
+must print `[feature14-callback-typedef] PASS float4=4 calls=1`, followed by the
+overall feature14 PASS and CupidC JIT completion. This private compiler boundary
+does not change the external ELF loader ABI or the fixed process arena.
 >endtree
 
 >h2 When To Use ELF Instead Of CupidC
@@ -308,21 +349,16 @@ Choose CupidC when you want:
 - TempleOS-style source-first workflow
 >endtree
 
->h2 Current checked toolchain seeds
+>h2 Checked toolchain seed boundary
 >tree
-The current Linux bootstrap manifest has SHA-256
-d571125256d11dd707f661299738891edc5c1a8d3358554076875a3e0cac22d0.
-The current Windows execution manifest has SHA-256
-ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e.
-Both bind revision bf52d135348bc33ff32e66d549bbee5edc69d8ad and the
-same 50-input source snapshot.
+The promoted Linux and Windows cohorts are complete five-tool trust units.
+Their fixed-point gates compare the final stages and exercise each platform's
+success and failure behavior. CupidDis must reject unmatched executable
+relocations.
 
-Linux stages three and four match 19 C objects, startup, and five tools. The
-promoted-seed reproof passes 5 help cases, 18 successes, and 17 failures.
-Windows stages three and four match 20 C objects, two assembly objects, and
-five tools. Its reproof passes 5 help cases, 5 successes, and 6 failures. Both
-failure sets require CupidDis to reject unmatched executable relocations.
-ADR 0292 records the promotion.
+Both cohorts carry the raw local-target policy used by the guarded bootloader
+and SMP transactions. Exact seed identities and dated proof evidence are kept
+in the host bootstrap log.
 >endtree
 
 >h2 See Also

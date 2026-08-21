@@ -102,12 +102,19 @@ cases. Both reports bind the same 50-input snapshot, SHA-256
 Those reports remain preliminary. Linux later passed a clean 1,294.3-second
 proof, promoted the stage-four seed, and passed a 1,473.9-second reproof from
 that seed. Native Windows then passed a clean 1,253.4-second proof and a
-1,061.3-second promoted-seed reproof. Both current Windows runs matched 20 C
+1,061.3-second promoted-seed reproof. Both of those Windows runs matched 20 C
 objects, two assembly objects, and five PE32 tools and passed the 5/5/6
 behavior matrix. The
 old seed comparison was false for CupidASM, CupidC, and CupidDis and true for
-CupidLD and CupidObj. The promoted 2,118-byte manifest has SHA-256
+CupidLD and CupidObj. That promoted 2,118-byte manifest has SHA-256
 `ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e`.
+The current 2,118-byte Windows manifest has SHA-256
+`e7367e50f64fac29cb03f8ef530b350408bdc492b6d924f63809cf862b8dd1c7`.
+It binds revision `ed6a91ba954881475ac5ab73d5168d292a584c90`, exact 50-input
+snapshot
+`a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817`,
+and Linux parent manifest
+`51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
 See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
@@ -696,6 +703,65 @@ Then in Cupid OS:
 ---
 
 ## Technical Details
+
+### Private CupidC AOT Images
+
+Private CupidC AOT output is separate from the CupidLD-linked external program
+path described elsewhere on this page. It places code at virtual address
+`0x01100000` and file offset `0x80`. A program with no data has one executable
+`PT_LOAD`; a program with data adds a writable segment at virtual address
+`0x01200000`. The code offset remains `0x80` in either form.
+
+This AOT path accepts a direct file-scope function-pointer typedef when a free
+function parameter names it. The parameter retains the callback result, fixed
+and variadic arguments, record identities, and prototype state, so indirect
+calls use the direct cdecl conversion and 4-, 8-, and 16-byte layout. SIMD
+results return through XMM0. Method parameters, global callback objects, record
+fields, callback alias chains, later assignments, recursive callback
+signatures, aggregate results, and arbitrary computed callback expressions
+remain signature-erased or unsupported. AOT still compiles one translation
+unit into a fixed-address executable and does not emit a relocatable object for
+a later link.
+[ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
+records the callback and one-header AOT boundaries.
+
+The preceding poisoned-host build checkpoint passed in 684.260 seconds with
+all fourteen exact policy artifacts accepted. It produced a 9,320,424-byte
+`kernel/kernel.elf.pass1`, SHA-256
+`3f9a1c681fbcfb1aa453e42a9d77ed1069b9a487110c9ec22ac318d278bdd1e6`,
+and a 9,447,400-byte `kernel/kernel.elf`, SHA-256
+`92d4e2f890b657c9881eb2184c7f8f9f0e96b18b5b060dbabab17e7ea305b1ce`.
+The 9,224,756-byte raw kernel has SHA-256
+`4d53e0456d8e63e140f6dcab135765662d12df6e4a83b246409572501f3b4cbd`.
+A private four-vCPU `max`/e1000 smoke of the resulting image passed in 64.601
+seconds and left that image unchanged. Its typedef callback marker belongs to
+the JIT path. The zero-data AOT layout and typed AOT callback path remain
+covered by the focused private compiler contracts rather than this guest run.
+
+The pre-documentation artifact gate later passed in 651.3 seconds, accepted all
+fourteen exact paths, and measured `kernel/kernel.bin` at 9,225,092 bytes.
+
+The source-current, fully poisoned build first reached only the expected
+policy mismatches after 680.281 seconds. Only the `kernel/kernel.elf` and
+`kernel/kernel.bin` policy rows changed. The artifact group passed all 45 tests
+in 2.582 seconds, with four expected Windows skips. The definitive poisoned
+build then passed in 708.912 seconds with all fourteen artifacts accepted,
+existing FAT contents preserved, and `hello.iso` staged. The final pass-one ELF
+is 9,324,520 bytes with SHA-256
+`453c34c8c21498427b0b38564956cd46be4689d456ccfbec682092c2c03be1c4`;
+the final ELF is 9,451,496 bytes with SHA-256
+`718470e9e08ee8eb07aeae7512c6c74c9bcb4b102290fdcf237d956cc9afc616`;
+the raw kernel is 9,228,296 bytes with SHA-256
+`8e5d7c172814dd5db51a16acd41bf0436cb613a7da5f67511622c4b6517e0dbb`.
+
+The source-current strong full private frontier smoke passed in 801.490 seconds
+with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
+fixture. The expected direct-call, named-callback, typedef-callback, overall
+feature14 PASS, and JIT completion markers each appeared once and in order.
+The 150,376-byte log has SHA-256
+`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`.
+The source image was unchanged at SHA-256
+`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
 
 ### ELF Header Validation
 

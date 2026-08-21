@@ -1281,6 +1281,80 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     runtime.stdout + runtime.stderr,
                 )
 
+    def test_aot_zero_data_program_keeps_advertised_code_offset(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-zero-data-aot-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, elf_path, _data = self._compile(
+                root,
+                """
+                int main() {
+                  return 17;
+                }
+                """,
+                aot=True,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            entry_offset = int(result.stdout.strip())
+            image = elf_path.read_bytes()
+            header = struct.unpack_from("<16sHHIIIIIHHHHHH", image)
+            self.assertEqual(header[5], 52)
+            self.assertEqual(header[9], 32)
+            self.assertEqual(header[10], 1)
+            program_header = struct.unpack_from("<IIIIIIII", image, 52)
+            self.assertEqual(program_header[0], 1)
+            self.assertEqual(program_header[1], 0x80)
+            self.assertEqual(program_header[2], 0x01100000)
+            self._extract_aot_segments(root, elf_path, entry_offset)
+            runtime = self._run_i386(root, entry_offset)
+            self.assertEqual(
+                runtime.returncode,
+                17,
+                runtime.stdout + runtime.stderr,
+            )
+
+    def test_aot_initialized_data_program_keeps_two_load_segments(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-data-aot-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, elf_path, _data = self._compile(
+                root,
+                """
+                int value = 17;
+
+                int main() {
+                  return value;
+                }
+                """,
+                aot=True,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            entry_offset = int(result.stdout.strip())
+            image = elf_path.read_bytes()
+            header = struct.unpack_from("<16sHHIIIIIHHHHHH", image)
+            self.assertEqual(header[5], 52)
+            self.assertEqual(header[9], 32)
+            self.assertEqual(header[10], 2)
+            self._extract_aot_segments(root, elf_path, entry_offset)
+            runtime = self._run_i386(root, entry_offset)
+            self.assertEqual(
+                runtime.returncode,
+                17,
+                runtime.stdout + runtime.stderr,
+            )
+
     def test_simd_calls_execute_through_private_aot(self):
         result = self._compile_and_run(
             """
@@ -1650,6 +1724,483 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             """
         )
         self.assertEqual(result.returncode, 7, result.stdout + result.stderr)
+
+    def test_function_pointer_typedef_parameter_matches_active_iso_callback_widths(self):
+        iso_source = (REPO_ROOT / "kernel" / "fs" / "iso9660.cc").read_text(
+            encoding="utf-8"
+        )
+        for fragment in (
+            "typedef int (*susp_entry_cb)(const uint8_t *entry, "
+            "uint32_t elen, void *ctx);",
+            "static int susp_walk(block_device_t *bdev,\n"
+            "                     const uint8_t *su, uint32_t su_len,\n"
+            "                     susp_entry_cb cb, void *ctx)",
+            "uint8_t elen = cur[i + 2];",
+            "int rc = cb(cur + i, elen, ctx);",
+            "static int nm_entry_cb(const uint8_t *e, uint32_t elen, "
+            "void *ctx)",
+            "(void)susp_walk(bdev, su, su_len, nm_entry_cb, &nc);",
+        ):
+            with self.subTest(active_iso_fragment=fragment):
+                self.assertIn(fragment, iso_source)
+
+        source = """
+            typedef int (*susp_entry_cb)(const uint8_t *entry,
+                                         uint32_t elen, void *ctx);
+
+            int inspect(const uint8_t *entry, uint32_t elen, void *ctx) {
+              if (entry == 0 || ctx != 0) return 1;
+              return elen;
+            }
+
+            int susp_walk(susp_entry_cb cb);
+
+            int susp_walk(susp_entry_cb cb) {
+              uint8_t entry = 1;
+              uint8_t elen = 7;
+              return cb(&entry, elen, 0);
+            }
+
+            int forward_walk(susp_entry_cb cb) {
+              return susp_walk(cb);
+            }
+
+            int main() {
+              return forward_walk(inspect);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 7, result.stdout + result.stderr
+                )
+
+    def test_function_pointer_typedef_parameter_keeps_simd_slots_and_result(self):
+        source = """
+            typedef float4 (*blend_cb)(float4 left, double marker,
+                                       float4 right);
+
+            float4 blend(float4 left, double marker, float4 right) {
+              if (marker != 9.0) return left;
+              return left + right;
+            }
+
+            int invoke_blend(blend_cb cb) {
+              float4 left = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 right = {5.0f, 6.0f, 7.0f, 8.0f};
+              float4 result;
+              result = cb(left, 9, right);
+              if (result.x != 6.0f || result.y != 8.0f) return 1;
+              if (result.z != 10.0f || result.w != 12.0f) return 2;
+              return 0;
+            }
+
+            int main() {
+              return invoke_blend(blend);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_function_pointer_typedef_parameter_keeps_variadic_promotions(self):
+        source = """
+            typedef int (*inspect_cb)(double fixed, ...);
+
+            int inspect(double fixed, ...) {
+              return (int)fixed;
+            }
+
+            int invoke_inspect(inspect_cb cb) {
+              return cb(6, 2.5f);
+            }
+
+            int main() {
+              return invoke_inspect(inspect);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 6, result.stdout + result.stderr
+                )
+
+    def test_function_pointer_typedef_parameter_mismatch_recovers_same_state(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-callback-typedef-parameter-mismatch-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                typedef int (*susp_entry_cb)(const uint8_t *entry,
+                                             uint32_t elen, void *ctx);
+
+                int wrong(double value) {
+                  return (int)value;
+                }
+
+                int susp_walk(susp_entry_cb cb) {
+                  uint8_t entry = 1;
+                  return cb(&entry, 7, 0);
+                }
+
+                int main() {
+                  return susp_walk(wrong);
+                }
+                """,
+                """
+                typedef int (*susp_entry_cb)(const uint8_t *entry,
+                                             uint32_t elen, void *ctx);
+
+                int inspect(const uint8_t *entry, uint32_t elen,
+                            void *ctx) {
+                  if (entry == 0 || ctx != 0) return 1;
+                  return elen;
+                }
+
+                int susp_walk(susp_entry_cb cb) {
+                  uint8_t entry = 1;
+                  return cb(&entry, 7, 0);
+                }
+
+                int main() {
+                  return susp_walk(inspect);
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer argument parameters do not match parameter type",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode, 7, runtime.stdout + runtime.stderr
+            )
+
+    def test_function_pointer_typedef_parameter_checks_full_signature(self):
+        cases = (
+            (
+                "result",
+                """
+                typedef int (*callback_t)(int value);
+                double wrong(int value) { return value; }
+                int invoke(callback_t cb) { return 0; }
+                int main() { return invoke(wrong); }
+                """,
+                "function-pointer argument result does not match parameter type",
+            ),
+            (
+                "variadic",
+                """
+                typedef int (*callback_t)(double fixed, ...);
+                int wrong(double fixed) { return (int)fixed; }
+                int invoke(callback_t cb) { return 0; }
+                int main() { return invoke(wrong); }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "record identity",
+                """
+                struct One { int value; };
+                struct Two { int value; };
+                typedef struct One *(*callback_t)(struct One *value);
+                struct Two *wrong(struct Two *value) { return value; }
+                int invoke(callback_t cb) { return 0; }
+                int main() { return invoke(wrong); }
+                """,
+                "function-pointer argument result does not match parameter type",
+            ),
+            (
+                "nonzero integer",
+                """
+                typedef int (*callback_t)(int value);
+                int invoke(callback_t cb) { return 0; }
+                int main() { return invoke(1); }
+                """,
+                "function-pointer argument requires a function, zero, or "
+                "explicit pointer cast",
+            ),
+        )
+        retry_source = """
+            typedef int (*callback_t)(int value);
+            int right(int value) { return value; }
+            int invoke(callback_t cb) { return cb(9); }
+            int main() { return invoke(right); }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-callback-typedef-full-signature-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode,
+                    9,
+                    runtime.stdout + runtime.stderr,
+                )
+
+    def test_function_pointer_typedef_parameter_keeps_null_and_erased_forms(self):
+        source = """
+            typedef int (*callback_t)(int value);
+
+            double wrong(double value) {
+              return value;
+            }
+
+            int inspect(callback_t cb) {
+              return cb == 0 ? 3 : 5;
+            }
+
+            int main() {
+              if (inspect(1 - 1) != 3) return 1;
+              return inspect((void *)wrong) == 5 ? 0 : 2;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_function_pointer_typedef_parameter_prototype_mismatch_recovers(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-callback-typedef-prototype-mismatch-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                typedef int (*integer_cb)(int value);
+                typedef int (*double_cb)(double value);
+                int invoke(integer_cb cb);
+                int invoke(double_cb cb) { return 0; }
+                int main() { return 0; }
+                """,
+                """
+                typedef int (*callback_t)(int value);
+                int right(int value) { return value; }
+                int invoke(callback_t cb);
+                int invoke(callback_t cb) { return cb(4); }
+                int main() { return invoke(right); }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function declaration does not match prior declaration",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode, 4, runtime.stdout + runtime.stderr
+            )
+
+    def test_function_pointer_typedef_argument_constrains_later_definition(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-callback-typedef-later-definition-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                typedef int (*callback_t)(double value);
+                int invoke(callback_t cb) { return cb(6); }
+                int main() { return invoke(later); }
+                int later(int value) { return value; }
+                """,
+                """
+                typedef int (*callback_t)(double value);
+                int invoke(callback_t cb) { return cb(6); }
+                int main() { return invoke(later); }
+                int later(double value) { return (int)value; }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function definition does not match prior "
+                "function-pointer initializer",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode, 6, runtime.stdout + runtime.stderr
+            )
+
+    def test_function_pointer_typedef_parameter_call_arity_recovers_same_state(self):
+        cases = (
+            (
+                "too few",
+                """
+                typedef int (*callback_t)(int left, int right);
+                int invoke(callback_t cb) { return cb(1); }
+                int main() { return 0; }
+                """,
+                "function-pointer call has too few arguments",
+            ),
+            (
+                "too many",
+                """
+                typedef int (*callback_t)(int value);
+                int invoke(callback_t cb) { return cb(1, 2); }
+                int main() { return 0; }
+                """,
+                "function-pointer call has too many arguments",
+            ),
+        )
+        retry_source = """
+            typedef int (*callback_t)(int left, int right);
+            int add(int left, int right) { return left + right; }
+            int invoke(callback_t cb) { return cb(4, 5); }
+            int main() { return invoke(add); }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-callback-typedef-arity-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode,
+                    9,
+                    runtime.stdout + runtime.stderr,
+                )
+
+    def test_function_pointer_typedef_parameter_capacity_accepts_32_and_recovers(self):
+        accepted_parameters = ", ".join(
+            f"int value{index}" for index in range(32)
+        )
+        accepted_arguments = ", ".join(
+            str(index + 1) for index in range(32)
+        )
+        accepted_source = f"""
+            typedef int (*callback_t)({accepted_parameters});
+
+            int target({accepted_parameters}) {{
+              return value0 + value31;
+            }}
+
+            int invoke(callback_t cb) {{
+              return cb({accepted_arguments});
+            }}
+
+            int main() {{
+              return invoke(target);
+            }}
+        """
+
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(accepted_source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    33,
+                    result.stdout + result.stderr,
+                )
+
+        rejected_parameters = ", ".join(
+            f"int value{index}" for index in range(33)
+        )
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-callback-typedef-parameter-capacity-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            recovery, _code, _data = self._compile_after_failure(
+                root,
+                f"typedef int (*callback_t)({rejected_parameters});",
+                accepted_source,
+                same_state=True,
+            )
+            self.assertEqual(
+                recovery.returncode,
+                0,
+                recovery.stdout + recovery.stderr,
+            )
+            self.assertIn(
+                "too many function-pointer parameters",
+                recovery.stderr,
+            )
+            runtime = self._run_i386(root, int(recovery.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                33,
+                runtime.stdout + runtime.stderr,
+            )
+
+    def test_function_pointer_typedef_parameter_keeps_record_parameter_identity(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-callback-typedef-record-parameter-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                struct One { int value; };
+                struct Two { int value; };
+                typedef int (*callback_t)(struct One *value);
+                int wrong(struct Two *value) { return value->value; }
+                int invoke(callback_t cb) { return 0; }
+                int main() { return invoke(wrong); }
+                """,
+                """
+                struct One { int value; };
+                typedef int (*callback_t)(struct One *value);
+                int right(struct One *value) { return value->value; }
+                int invoke(callback_t cb) {
+                  struct One value;
+                  value.value = 11;
+                  return cb(&value);
+                }
+                int main() { return invoke(right); }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "function-pointer argument parameters do not match parameter type",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode, 11, runtime.stdout + runtime.stderr
+            )
 
     def test_named_variadic_function_pointer_converts_fixed_and_tail_slots(self):
         source = """
@@ -3693,6 +4244,27 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_repl_keeps_function_pointer_typedef_for_later_parameter_unit(self):
+        result = self._compile_repl_and_run(
+            (
+                "typedef int (*entry_cb)(const uint8_t *, uint32_t, void *);",
+                """
+                int inspect(const uint8_t *entry, uint32_t elen, void *ctx) {
+                  if (entry == 0 || ctx != 0) return 1;
+                  return elen;
+                }
+                """,
+                """
+                int invoke(entry_cb cb) {
+                  uint8_t entry = 1;
+                  return cb(&entry, 7, 0);
+                }
+                """,
+                "int main() { return invoke(inspect); }",
+            )
+        )
+        self.assertEqual(result.returncode, 7, result.stdout + result.stderr)
+
     def test_repl_struct_field_keeps_a_fixed_array_typedef_shape(self):
         result = self._compile_repl_and_run(
             (
@@ -4968,6 +5540,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "sizes=8 index=6 unevaluated=2 canary=4",
             "[feature14-update] PASS direct=6 leaves=3 once=6 payload=8",
             "[feature14-call] PASS float4=4 double2=2 nested=2 calls=6",
+            "[feature14-callback] PASS float4=4 double2=2 calls=2",
+            "[feature14-callback-typedef] PASS float4=4 calls=1",
             "[feature14-minmax] PASS nan=4 signed_zero=4",
             "[feature14-nan] PASS float_left=",
             "PASS feature14_simd",

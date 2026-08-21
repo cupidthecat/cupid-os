@@ -18,6 +18,11 @@ SCHEMA = "cupid.artifact-size-policy.v1"
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
 FIXED_ARTIFACT_OWNERS = {
     "boot/boot.bin": "CupidASM",
+    "bootstrap/seeds/i386-windows/cupidasm.exe": "CupidASM",
+    "bootstrap/seeds/i386-windows/cupidc.exe": "CupidC",
+    "bootstrap/seeds/i386-windows/cupiddis.exe": "CupidDis",
+    "bootstrap/seeds/i386-windows/cupidld.exe": "CupidLD",
+    "bootstrap/seeds/i386-windows/cupidobj.exe": "CupidObj",
     "kernel/kernel.bin": "CupidObj",
     "kernel/kernel.elf": "CupidLD",
     "kernel/kernel.elf.pass1": "CupidLD",

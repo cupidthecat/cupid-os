@@ -223,10 +223,26 @@ boundary.
 
 The normal SMP trampoline recipe uses this map as a publication gate.
 Hostbuild freezes the selected seed and source, asks CupidASM for a private
-4,096-byte candidate, and runs CupidDis with `--require-known`. The exact map
-is code16 `[0x000, 0x01f)`, data `[0x01f, 0x210)`, code32
-`[0x210, 0x254)`, and data `[0x254, 0x1000)`. Only a validated candidate may
-replace the prior output. ADR 0271 records the transaction.
+4,096-byte candidate, and runs CupidDis with
+`--require-known --require-local-targets --raw`. The local-target option
+requires both `--require-known` and `--raw`. The exact map is code16
+`[0x000, 0x01f)`, data `[0x01f, 0x210)`, code32 `[0x210, 0x254)`, and data
+`[0x254, 0x1000)`. A local-target check on raw input that contains code16
+rejects images larger than 65,536 bytes because wrapped target mapping would
+be ambiguous. Four direct relative targets must land on instruction starts in
+the matching code mode. The far mode transition and indirect call are
+excluded. Only a validated candidate may replace the prior output. ADR 0271
+records the transaction.
+
+The production boot transaction applies the same local-target rule to its
+2,560-byte candidate and range map. It checks nine direct relative targets and
+excludes three far jumps. Both callers distinguish a target outside the image,
+inside data, in the wrong mode, or in the middle of an instruction. Far
+pointers, indirect register or memory targets, and ELF input remain outside
+the rule. A displacement can still pass if it reaches a different valid
+instruction start in same-mode code, because raw decoding does not preserve
+source-label identity. ADR 0300 records this boundary.
+ADR 0305 records the promoted-seed carriage and production adoption.
 
 ### Requiring complete code coverage
 
@@ -386,9 +402,9 @@ proof in 1,253.4 seconds, promoted the 438,784-byte CupidASM image with SHA-256
 and passed a 1,061.3-second reproof with every initial seed comparison true.
 ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
 0272 records checked carriage and production selection, and ADRs 0278 and 0279
-record native reconstruction and convergence. ADR 0280 records the Linux
-promotion, ADR 0281 records the preceding Windows promotion, and ADR 0292
-records the current Linux and Windows promotion.
+record native reconstruction and convergence. ADRs 0280, 0281, and 0292
+record preceding Linux and Windows promotions. ADR 0305 records the current
+promotion.
 
 ### Function Example
 
@@ -515,8 +531,8 @@ records its seed promotion, ADR 0226 records SHRD, and ADR 0228 records
 SHRD's first seed carriage. ADR 0243 records the preceding seed, ADR 0252
 records the x87 integer forms, ADR 0258 records the preceding promotion, ADR
 0259 records the parity predicates, ADR 0265 records their preceding seed
-carriage, ADR 0280 records the preceding seed, and ADR 0292 records the current
-seed.
+carriage, and ADRs 0280 and 0292 record preceding seeds. ADR 0305 records the
+current seed.
 
 `setp` and `setnp` accept one byte register or memory destination in either
 mode. They encode as `0F 9A /r` and `0F 9B /r`. Address-size overrides work
@@ -1421,10 +1437,61 @@ main:
 
 ## Current source-head proof
 
-The 2026-08-14 integration guards both production ELF32 assembly objects with
+The earlier 2026-08-14 integration guarded both production ELF32 assembly objects with
 private validation and CupidDis inspection. Raw source now rejects duplicate
 origins and section switches with stable diagnostics, and every active demo
 assembles with implicit externs disabled. The normal image build passed in
 625.8 seconds with the host code-generation commands poisoned. A private
 four-vCPU guest assembled and ran `/demos/hello.asm` through CupidASM as part
 of a 60.5-second parallel smoke pair.
+
+The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
+seconds with all fourteen exact policy artifacts accepted. CupidASM produced
+the 2,560-byte `boot/boot.bin`, SHA-256
+`46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`,
+and the 4,096-byte `kernel/smp_trampoline.bin`, SHA-256
+`b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+A private four-vCPU `max`/e1000 smoke of the resulting image passed in 64.601
+seconds, reached the full JIT completion marker, and found no reject marker.
+The source image was unchanged. Its 33,219-byte log has SHA-256
+`e39a1905002c2baa483c65eb6e763f4f62907c22f8954873dbb20f4ba5a53e93`.
+
+The promoted Linux CupidASM image is 458,256 bytes with SHA-256
+`1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e`.
+Its 5,573-byte seed manifest has SHA-256
+`51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
+The promoted Windows CupidASM image is 438,784 bytes with SHA-256
+`c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6`.
+Its 2,118-byte manifest has SHA-256
+`e7367e50f64fac29cb03f8ef530b350408bdc492b6d924f63809cf862b8dd1c7`.
+Both bind revision `ed6a91ba954881475ac5ab73d5168d292a584c90` and exact
+50-input snapshot
+`a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817`.
+The Windows manifest names the Linux manifest as its parent. The 2026-08-14
+build and smoke evidence above predates this promotion; the later poisoned
+build and e1000 smoke followed it. The pre-documentation artifact gate then
+passed in 651.3 seconds and accepted all fourteen exact paths.
+
+The source-current, fully poisoned build first reached only the expected
+policy mismatches after 680.281 seconds. Only the `kernel/kernel.elf` and
+`kernel/kernel.bin` policy rows changed. The artifact group passed all 45 tests
+in 2.582 seconds, with four expected Windows skips. The definitive poisoned
+build then passed in 708.912 seconds with all fourteen artifacts accepted,
+existing FAT contents preserved, and `hello.iso` staged. CupidASM's outputs
+remained the 2,560-byte boot image with SHA-256
+`46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`
+and the 4,096-byte SMP trampoline with SHA-256
+`b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+
+The source-current strong full private frontier smoke passed in 801.490 seconds
+with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
+fixture. The 640-by-480 framebuffer changed 96,925 pixels. AC97 produced
+32,722,102 stereo 44.1 kHz frames with a peak of 25,600, and the PC speaker
+produced 73,533 stereo 44.1 kHz frames with a peak of 8,415. The expected
+direct-call, named-callback, typedef-callback, overall feature14 PASS, and JIT
+completion markers each appeared once and in order. The 150,376-byte log has
+SHA-256
+`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`.
+The source image was unchanged at SHA-256
+`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
+ADR 0305 records the seed identities.

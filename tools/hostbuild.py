@@ -5449,6 +5449,7 @@ def assemble_smp_trampoline(
                         "--base",
                         "0x8000",
                         "--require-known",
+                        "--require-local-targets",
                         candidate_logical,
                     ),
                 )
@@ -5609,6 +5610,7 @@ def assemble_bootloader(
                     "cupiddis",
                     (
                         "--require-known",
+                        "--require-local-targets",
                         "--raw",
                         "--range-map",
                         map_logical,

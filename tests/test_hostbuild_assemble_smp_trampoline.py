@@ -106,6 +106,7 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                             "--base",
                             "0x8000",
                             "--require-known",
+                            "--require-local-targets",
                             ".cupid-output/smp_trampoline.bin",
                         ),
                     )

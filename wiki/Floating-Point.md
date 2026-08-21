@@ -394,18 +394,22 @@ forms can fill a pointer slot. A represented object pointer can fill a fixed
 destinations remain rejected. A parsed variadic tail widens `float` to `double`
 and promotes `char` to `int`. A named block-local function pointer with an
 explicit prototype uses those same conversions and keeps its declared result.
-Empty `()`, typedef, global, parameter, field, and `void *` forms remain
-metadata-free. Kernel bindings and other calls without fixed metadata keep
-their source-width slots. A plain function initializer must match the retained
-signature, including record-pointer parameters. Local callback copies use the
-same check, and later function addresses are fixed up. An explicit cast erases
-the source signature. Compatible conditional selection checks every callback
-arm. Represented integer constant expressions that evaluate to zero are valid
-null pointers; runtime and otherwise unproved zeros are rejected. Null arms are
-neutral for erasure, while every non-null object arm must carry an explicit
-`void *` cast. Failed functions, methods, and sources restore emitted state,
+A free-function parameter declared with a direct file-scope function-pointer
+typedef does the same, including fixed and variadic scalar slots. Empty `()`,
+global, field, callback alias chains, recursive callback signatures, later assignment, and
+`void *` forms remain metadata-free. Kernel bindings and other calls without
+fixed metadata keep their source-width slots. A plain function initializer or
+direct callback argument must match the retained signature, including
+record-pointer parameters. Local callback copies use the same check, and later
+function addresses are fixed up. An explicit cast erases the source signature.
+Compatible conditional selection checks every callback arm. Represented
+integer constant expressions that evaluate to zero are valid null pointers;
+runtime and otherwise unproved zeros are rejected. Null arms are neutral for
+erasure, while every non-null object arm must carry an explicit `void *` cast.
+Failed functions, methods, and sources restore typedef entries, emitted state,
 patches, control state, prior function symbols, kernel bindings, and a reused
-`void(void)` `__start`. ADR 0301 records the named local callback boundary.
+`void(void)` `__start`. ADR 0301 records the named local callback foundation, and ADR 0303
+records typedef parameters.
 
 Private decimal `float` and `double` literals use a fixed 1536-bit integer
 workspace. The converter forms the exact decimal ratio and rounds once to the
@@ -461,14 +465,47 @@ uses `MOVUPS` and may begin at a four-byte boundary. SIMD variadic tails,
 unprototyped calls, and signature-erased function-pointer calls are rejected.
 A named block-local function pointer with an explicit prototype retains a
 fixed SIMD parameter or result and uses the same 16-byte slot and XMM0 return
-path. Empty `()`, typedef, global, parameter, field, and `void *` pointers do
-not retain that signature. Plain function initializers are checked before the
-pointer is stored. Later definitions receive address fixups and must match a
+path. A free-function parameter declared with a direct file-scope callback
+typedef uses that path too. Empty `()`, global, field, callback alias chains,
+recursive callback signatures, later assignments, and `void *` pointers do not
+retain the signature.
+Plain function initializers and direct callback arguments are checked before
+the call or store. Later definitions receive address fixups and must match a
 provisional signature. A compatible conditional checks all of its named arms.
 An explicit cast opts into erasure only for the value it covers. Null arms are
-neutral, and every non-null object-pointer arm must be cast. The active
-feature14 guest executes two named SIMD callback calls in addition to its six
-direct vector calls. ADR 0301 records this callback boundary.
+neutral, and every non-null object-pointer arm must be cast. The preceding
+private e1000 smoke checkpoint covers six direct vector calls, two named SIMD
+callback calls, and one typedef-parameter callback call. It passed in 64.601
+seconds on four `max` vCPUs and printed the three markers in order, ending with
+`[feature14-callback-typedef] PASS float4=4 calls=1`, before the overall
+feature14 and JIT completion markers. No reject marker appeared. Its
+33,219-byte log has SHA-256
+`e39a1905002c2baa483c65eb6e763f4f62907c22f8954873dbb20f4ba5a53e93`.
+The associated poisoned-host OS build passed in 684.260 seconds with all
+fourteen exact policy artifacts accepted. The pre-documentation artifact gate
+later passed in 651.3 seconds and measured `kernel/kernel.bin` at 9,225,092
+bytes.
+
+The source-current, fully poisoned build first reached only the expected
+policy mismatches after 680.281 seconds. Only the `kernel/kernel.elf` and
+`kernel/kernel.bin` policy rows changed. The artifact group passed all 45 tests
+in 2.582 seconds, with four expected Windows skips. The definitive poisoned
+build then passed in 708.912 seconds with all fourteen artifacts accepted,
+existing FAT contents preserved, and `hello.iso` staged.
+
+The source-current strong full private frontier smoke passed in 801.490 seconds
+with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
+fixture. The expected direct-call, named-callback, typedef-callback, overall
+feature14 PASS, and JIT completion markers each appeared once and in order.
+AC97 produced 32,722,102 stereo 44.1 kHz frames with a peak of 25,600, and the
+PC speaker produced 73,533 stereo 44.1 kHz frames with a peak of 8,415. The
+150,376-byte log has SHA-256
+`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`.
+The source image was unchanged at SHA-256
+`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
+ADR 0301 records the named local callback foundation, and ADR 0303 records
+typedef parameters.
+
 The fixed-array boundary is in ADR 0216. ADR 0257 records multidimensional row
 descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD
 calls.

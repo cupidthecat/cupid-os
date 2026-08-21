@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 FPU + SSE2 + CupidC Float/Double
-Verified against source on: 2026-08-09
+Verified against source on: 2026-08-20
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -311,10 +311,12 @@ their checked-seed carriage. In GUI mode, the listing remains in the terminal an
 to serial after normal sink and redirection handling, which lets the runtime
 gate inspect production CupidDis output.
 
-The promoted seed carried the static arithmetic, ordinary floating updates,
-and parity predicates through a poisoned-host normal root build in 1,057.969
-seconds. Definitive four-CPU E1000 and RTL8139 frontiers then passed the AC97
-and PC speaker checks with exits 0 in 794.034 and 758.667 seconds.
+The normal poisoned-host root uses the promoted Cupid tools for static
+arithmetic, ordinary floating updates, and parity predicates. Four-CPU e1000
+and RTL8139 runtime gates also cover AC97 and PC speaker behavior. Exact
+artifact identities and dated run evidence are kept in the host bootstrap log.
+That log records the post-manual-freeze poisoned build and strong private
+four-vCPU e1000 frontier because this manual is an image input.
 
 Twelve-byte direct and
 indirect fixed, variadic, and unprototyped arguments, function returns, direct
@@ -339,9 +341,14 @@ remain rejected. A parsed variadic tail widens float to double and
 promotes char to int. Function-pointer calls, kernel bindings, and calls
 without that metadata keep their source-width slots. A named block-local
 function pointer with an explicit prototype uses the same conversions and
-keeps its declared result. Empty (), typedef, global, parameter, field, and
-void-pointer forms remain metadata-free. Plain function initializers must
+keeps its declared result. A file-scope function-pointer typedef retains the
+result, fixed parameters, record identities, prototype state, and variadic
+boundary. A free-function parameter declared through that typedef receives the
+signature for JIT and private AOT calls. Empty (), typedef-typed local,
+global, and field objects, bare nested callback signatures, method parameters,
+and void-pointer forms remain metadata-free. Plain function initializers must
 match the retained signature; an explicit cast erases it. ADR 0301 records the
+earlier named-local
 callback rule. Named local copies share the check. Later targets receive
 absolute fixups, and provisional signatures must match their definitions.
 Compatible conditional selection checks every named arm, and failed
@@ -351,6 +358,12 @@ zero is not. Null conditional arms are neutral for erasure, and every non-null
 object arm must be cast. A failed function, method, or complete source restores
 its emitted state, patches, control state, touched function symbols, kernel
 bindings, and reused void(void) __start thunk.
+
+Function-pointer typedef declarations remain file-scope, allow one alias per
+declaration, and share a sixteen-entry table. Direct record and array callback
+results are rejected; record-pointer results retain identity. Nested callback
+parameters still occupy one four-byte word without preserving their inner
+signature.
 
 Private decimal float and double literals use a fixed 1536-bit integer
 workspace. CupidC forms the exact decimal ratio and rounds once to the selected
@@ -406,13 +419,23 @@ A fixed SIMD prefix may precede scalar variadic values. SIMD variadic tails,
 unprototyped SIMD calls, and signature-erased function-pointer calls are
 rejected. A named block-local function pointer with an explicit prototype can
 carry a fixed SIMD parameter or result through the same 16-byte slot and XMM0
-return path. Empty (), typedef, global, parameter, field, and void-pointer
-forms still erase the signature. Named SIMD intrinsics keep their inline
-lowering. A plain function initializer must match the retained signature; an
-explicit cast opts into erasure. Local callback copies share the check, and
-later target addresses are fixed up. A compatible conditional checks all named
-arms. The feature14 guest runs two named SIMD callback calls after its six
-direct vector calls. ADR 0301 records the callback boundary.
+return path. A parameter of the free function helper declared with the
+feature14 float4 callback typedef keeps that same slot and result metadata.
+Typedef-typed local, global, and field objects still erase the signature.
+Named SIMD intrinsics keep their inline lowering. A plain function initializer
+must match the retained
+signature; an explicit cast opts into erasure. Local callback copies share the
+check, and later target addresses are fixed up. A compatible conditional checks
+all named arms.
+
+Focused JIT and private AOT tests execute both named SIMD callbacks and the
+typedef-parameter callback. The source expects
+`[feature14-callback-typedef] PASS float4=4 calls=1` after the typedef path.
+These tests cover the 16-byte argument and XMM0 result. The four-vCPU e1000
+guest contract requires the direct-call, named-callback, and typedef-callback
+markers in that order. It then requires `PASS feature14_simd` and CupidC JIT
+completion. These paths belong to the private in-kernel compiler. The
+standalone Linux and Windows toolchain seed reproofs do not prove them.
 
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE

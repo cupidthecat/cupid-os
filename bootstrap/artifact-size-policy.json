@@ -13,13 +13,13 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 2666324,
+      "exact_bytes": 2687436,
       "path": "bootstrap/seeds/i386-linux/cupidc.elf",
       "producer": "CupidC",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 413204,
+      "exact_bytes": 421652,
       "path": "bootstrap/seeds/i386-linux/cupiddis.elf",
       "producer": "CupidDis",
       "reason": "The checked seed is immutable between reviewed promotions."
@@ -37,19 +37,49 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 9203248,
+      "exact_bytes": 438784,
+      "path": "bootstrap/seeds/i386-windows/cupidasm.exe",
+      "producer": "CupidASM",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 2613760,
+      "path": "bootstrap/seeds/i386-windows/cupidc.exe",
+      "producer": "CupidC",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 400896,
+      "path": "bootstrap/seeds/i386-windows/cupiddis.exe",
+      "producer": "CupidDis",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 296448,
+      "path": "bootstrap/seeds/i386-windows/cupidld.exe",
+      "producer": "CupidLD",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 375808,
+      "path": "bootstrap/seeds/i386-windows/cupidobj.exe",
+      "producer": "CupidObj",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 9228296,
       "path": "kernel/kernel.bin",
       "producer": "CupidObj",
       "reason": "CupidObj emits deterministic bytes, and the disk image copies this output verbatim."
     },
     {
-      "exact_bytes": 9422496,
+      "exact_bytes": 9451496,
       "path": "kernel/kernel.elf",
       "producer": "CupidLD",
       "reason": "The final CupidLD link is deterministic for a fixed source and object cohort."
     },
     {
-      "exact_bytes": 9299616,
+      "exact_bytes": 9324520,
       "path": "kernel/kernel.elf.pass1",
       "producer": "CupidLD",
       "reason": "The pass-one CupidLD link is deterministic for a fixed source and object cohort."

@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -60,7 +61,8 @@ except ModuleNotFoundError:
     from user_syscall_abi import UserSyscallAbiError, check_syscall_abi
 
 
-REPORT_SCHEMA = "cupid.toolchain-contracts.v2"
+REPORT_SCHEMA = "cupid.toolchain-contracts.v3"
+LEGACY_REPORT_SCHEMAS = ("cupid.toolchain-contracts.v2",)
 TARGET_ENTRY = 0x08048000
 ORDINARY_COMPILE_TIMEOUT = 900
 CONVERGED_GENERATIONS = ("stage-three", "stage-four")
@@ -82,10 +84,14 @@ CONTRACT_QUOTED_INCLUDE_ROOTS = {
 }
 CONTRACT_CONTROL_INPUTS = (
     "toolchain/Makefile",
+    "toolchain/tests/artifact_size_policy_contract.cc",
+    "toolchain/tests/toolchain_manifest_contract.cc",
     "tools/bootstrap_toolchain.py",
     "tools/cupidc_toolchain_contracts.py",
     "tools/user_syscall_abi.py",
 )
+MANIFEST_AUTHOR_SOURCE = "toolchain/tests/toolchain_manifest_contract.cc"
+MANIFEST_AUTHOR_MAGIC = b"CUPMAN3\0"
 WINDOWS_RUNTIME_INPUTS = (
     "toolchain/hosted/i386-linux/include/windows.h",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
@@ -470,6 +476,19 @@ def _snapshot_inputs(root: Path, paths: Sequence[Path]) -> dict[str, str]:
     }
 
 
+def _snapshot_contract_inputs(
+    root: Path, paths: Sequence[Path]
+) -> dict[str, dict[str, object]]:
+    snapshot: dict[str, dict[str, object]] = {}
+    for path in paths:
+        payload = path.read_bytes()
+        snapshot[path.relative_to(root).as_posix()] = {
+            "sha256": hashlib.sha256(payload).hexdigest(),
+            "size": len(payload),
+        }
+    return snapshot
+
+
 def _native_windows_user_abi_input_paths(root: Path) -> tuple[Path, ...]:
     root = root.resolve()
     paths: list[Path] = []
@@ -539,9 +558,9 @@ def _freeze_native_windows_user_abi_inputs(
 
 
 def _require_inputs_unchanged(
-    root: Path, expected: dict[str, str]
+    root: Path, expected: dict[str, dict[str, object]]
 ) -> None:
-    actual = _snapshot_inputs(root, _contract_input_paths(root))
+    actual = _snapshot_contract_inputs(root, _contract_input_paths(root))
     if actual != expected:
         raise ContractError(
             "contract inputs changed while the checked build ran"
@@ -552,7 +571,8 @@ def _freeze_contract_inputs(
     root: Path,
     destination: Path,
     paths: Sequence[Path],
-    expected: dict[str, str],
+    expected: dict[str, dict[str, object]],
+    bootstrap_files: dict[str, object] | None = None,
 ) -> None:
     relative_paths = {
         path.relative_to(root).as_posix()
@@ -563,8 +583,24 @@ def _freeze_contract_inputs(
             "contract input paths differ from the initial snapshot"
         )
     _require_inputs_unchanged(root, expected)
+    bootstrap_snapshot: dict[str, dict[str, object]] = {}
+    copy_paths = set(paths)
+    if bootstrap_files is not None:
+        bootstrap_snapshot = _manifest_author_bootstrap_snapshot(
+            root, bootstrap_files
+        )
+        if bootstrap_snapshot != bootstrap_files:
+            raise ContractError(
+                "bootstrap author inputs differ from the checked bootstrap"
+            )
+        copy_paths.update(
+            root.joinpath(*PurePosixPath(logical_path).parts)
+            for logical_path in bootstrap_snapshot
+        )
     destination.mkdir()
-    for source in paths:
+    for source in sorted(
+        copy_paths, key=lambda path: path.relative_to(root).as_posix()
+    ):
         relative = source.relative_to(root)
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -573,13 +609,27 @@ def _freeze_contract_inputs(
             raise ContractError(
                 f"could not freeze contract input: {relative.as_posix()}"
             )
-    frozen = _snapshot_inputs(
+    frozen = _snapshot_contract_inputs(
         destination, _contract_input_paths(destination)
     )
     if frozen != expected:
         raise ContractError(
             "frozen contract inputs differ from the initial snapshot"
         )
+    if bootstrap_files is not None:
+        frozen_bootstrap = _manifest_author_bootstrap_snapshot(
+            destination, bootstrap_files
+        )
+        live_bootstrap = _manifest_author_bootstrap_snapshot(
+            root, bootstrap_files
+        )
+        if (
+            frozen_bootstrap != bootstrap_snapshot
+            or live_bootstrap != bootstrap_snapshot
+        ):
+            raise ContractError(
+                "frozen bootstrap author inputs differ from their snapshot"
+            )
 
 
 def _run_clean(
@@ -820,6 +870,70 @@ def _compare_stage_files(
     return comparisons
 
 
+def _build_manifest_author(
+    source_root: Path,
+    stage_four: Path,
+    output: Path,
+) -> Path:
+    output.mkdir()
+    runner = ToolRunner(source_root)
+    contract_object = output / "toolchain-manifest-author.o"
+    _compile_source(
+        runner,
+        stage_four / "cupidc.elf",
+        source_root,
+        MANIFEST_AUTHOR_SOURCE,
+        contract_object,
+        "stage four CupidC for the Toolchain manifest author",
+        ORDINARY_COMPILE_TIMEOUT,
+    )
+
+    startup_object = output / "toolchain-manifest-author-start.o"
+    _run_clean(
+        runner,
+        stage_four / "cupidasm.elf",
+        (
+            "-f",
+            "elf32",
+            source_root / "toolchain/hosted/i386-linux/start.asm",
+            "-o",
+            startup_object,
+        ),
+        "stage four CupidASM for the Toolchain manifest author",
+        120,
+    )
+    _validate_i386_relocatable(startup_object)
+
+    shared_objects = tuple(
+        stage_four / name
+        for name in ("ctool_host.o", "ctool.o", "runtime.o")
+    )
+    for shared_object in shared_objects:
+        _validate_i386_relocatable(shared_object)
+    executable = output / "toolchain-manifest-author.elf"
+    _run_clean(
+        runner,
+        stage_four / "cupidld.elf",
+        (
+            "-m",
+            "elf_i386",
+            "--text-address",
+            "0x08048000",
+            "--entry",
+            "_start",
+            "-o",
+            executable,
+            startup_object,
+            contract_object,
+            *shared_objects,
+        ),
+        "stage four CupidLD for the Toolchain manifest author",
+        360,
+    )
+    _validate_static_i386_elf(executable, TARGET_ENTRY)
+    return executable
+
+
 def _run_runtime_contract(
     root: Path, executable: Path, workspace: Path
 ) -> None:
@@ -848,6 +962,286 @@ def _artifact_record(path: Path) -> dict[str, object]:
     }
 
 
+def _append_author_bytes(payload: bytearray, value: bytes) -> None:
+    if len(value) > 0xFFFFFFFF:
+        raise ContractError("manifest author fact exceeds its framing limit")
+    payload.extend(struct.pack("<I", len(value)))
+    payload.extend(value)
+
+
+def _append_author_observations(
+    payload: bytearray,
+    observations: Sequence[tuple[str, int, int, str]],
+) -> None:
+    if len(observations) > 0xFFFFFFFF:
+        raise ContractError(
+            "manifest author observation inventory exceeds its framing limit"
+        )
+    payload.extend(struct.pack("<I", len(observations)))
+    for name, kind, size, digest in observations:
+        if (
+            isinstance(kind, bool)
+            or not isinstance(kind, int)
+            or kind < 0
+            or kind > 0xFFFFFFFF
+            or isinstance(size, bool)
+            or not isinstance(size, int)
+            or size < 0
+            or size > 0xFFFFFFFFFFFFFFFF
+            or not _valid_sha256(digest)
+        ):
+            raise ContractError("manifest author observation differs")
+        try:
+            encoded_name = name.encode("ascii")
+            encoded_digest = digest.encode("ascii")
+        except (AttributeError, UnicodeEncodeError) as error:
+            raise ContractError(
+                "manifest author observation is not ASCII"
+            ) from error
+        _append_author_bytes(payload, encoded_name)
+        payload.extend(struct.pack("<IQ", kind, size))
+        _append_author_bytes(payload, encoded_digest)
+
+
+def _manifest_author_request(
+    artifact_observations: Sequence[tuple[str, int, int, str]],
+    input_observations: Sequence[tuple[str, int, int, str]],
+    bootstrap_observations: Sequence[tuple[str, int, int, str]],
+    bootstrap_snapshot_sha256: str,
+    seed_path: str,
+    seed_manifest: bytes,
+    seed_observations: Sequence[tuple[str, int, int, str]],
+    object_observations: Sequence[tuple[str, int, int, str]],
+    fixed_point: dict[str, object],
+) -> bytes:
+    payload = bytearray(MANIFEST_AUTHOR_MAGIC)
+    _append_author_observations(payload, artifact_observations)
+    _append_author_observations(payload, input_observations)
+    _append_author_observations(payload, bootstrap_observations)
+    if not _valid_sha256(bootstrap_snapshot_sha256):
+        raise ContractError("manifest author bootstrap snapshot differs")
+    _append_author_bytes(payload, bootstrap_snapshot_sha256.encode("ascii"))
+    try:
+        encoded_seed_path = seed_path.encode("ascii")
+    except (AttributeError, UnicodeEncodeError) as error:
+        raise ContractError("manifest author seed path is not ASCII") from error
+    _append_author_bytes(payload, encoded_seed_path)
+    _append_author_bytes(payload, seed_manifest)
+    _append_author_observations(payload, seed_observations)
+    _append_author_observations(payload, object_observations)
+
+    generations = fixed_point.get("compared_generations")
+    all_equal = fixed_point.get("all_equal")
+    c_objects = fixed_point.get("c_objects")
+    startup_objects = fixed_point.get("startup_objects")
+    tool_images = fixed_point.get("tool_images")
+    if (
+        not isinstance(all_equal, bool)
+        or isinstance(c_objects, bool)
+        or not isinstance(c_objects, int)
+        or not isinstance(generations, list)
+        or len(generations) > 0xFFFFFFFF
+        or isinstance(startup_objects, bool)
+        or not isinstance(startup_objects, int)
+        or isinstance(tool_images, bool)
+        or not isinstance(tool_images, int)
+        or any(
+            value < 0 or value > 0xFFFFFFFF
+            for value in (c_objects, startup_objects, tool_images)
+        )
+    ):
+        raise ContractError("manifest author fixed-point evidence differs")
+    payload.extend(
+        struct.pack(
+            "<III", int(all_equal), c_objects, len(generations)
+        )
+    )
+    for generation in generations:
+        try:
+            encoded_generation = generation.encode("ascii")
+        except (AttributeError, UnicodeEncodeError) as error:
+            raise ContractError(
+                "manifest author generation is not ASCII"
+            ) from error
+        _append_author_bytes(payload, encoded_generation)
+    payload.extend(struct.pack("<II", startup_objects, tool_images))
+    return bytes(payload)
+
+
+def _manifest_author_bootstrap_snapshot(
+    source_root: Path, files: dict[str, object]
+) -> dict[str, dict[str, object]]:
+    snapshot: dict[str, dict[str, object]] = {}
+    source_root = source_root.resolve()
+    for logical_path in sorted(files):
+        if not _valid_logical_path(logical_path):
+            raise ContractError(
+                "manifest author bootstrap input path differs"
+            )
+        source = source_root.joinpath(*PurePosixPath(logical_path).parts)
+        if source.is_symlink():
+            raise ContractError(
+                "manifest author bootstrap input is a symlink: "
+                f"{logical_path}"
+            )
+        try:
+            resolved = source.resolve(strict=True)
+            resolved.relative_to(source_root)
+            contents = resolved.read_bytes()
+        except (OSError, ValueError) as error:
+            raise ContractError(
+                "manifest author bootstrap input is unavailable: "
+                f"{logical_path}"
+            ) from error
+        if not resolved.is_file():
+            raise ContractError(
+                "manifest author bootstrap input is not a regular file: "
+                f"{logical_path}"
+            )
+        snapshot[logical_path] = {
+            "sha256": hashlib.sha256(contents).hexdigest(),
+            "size": len(contents),
+        }
+    return snapshot
+
+
+def _checked_manifest_author_bytes(
+    source_root: Path,
+    stage_four: Path,
+    workspace: Path,
+    manifest: Path,
+    manifest_relative: str,
+    report: dict[str, object],
+    artifacts: Sequence[Path],
+    object_paths: dict[str, Path],
+) -> bytes:
+    try:
+        seed = freeze_seed_inputs(
+            manifest, workspace / "manifest-author-seed"
+        )
+    except (BootstrapError, OSError) as error:
+        raise ContractError(
+            f"manifest author seed capture failed: {error}"
+        ) from error
+
+    bootstrap = report.get("bootstrap")
+    if not isinstance(bootstrap, dict):
+        raise ContractError("manifest author bootstrap evidence differs")
+    seed_record = bootstrap.get("seed_manifest")
+    source_inputs = bootstrap.get("source_inputs")
+    inputs = report.get("inputs")
+    fixed_point = report.get("tool_fixed_point")
+    if (
+        not isinstance(seed_record, dict)
+        or seed_record.get("path") != manifest_relative
+        or seed_record.get("sha256") != seed.manifest_sha256
+        or not isinstance(source_inputs, dict)
+        or not isinstance(source_inputs.get("files"), dict)
+        or not isinstance(inputs, dict)
+        or not isinstance(fixed_point, dict)
+    ):
+        raise ContractError("manifest author evidence differs")
+
+    _require_inputs_unchanged(source_root, inputs)
+
+    artifact_observations = tuple(
+        (
+            path.name,
+            1,
+            path.stat().st_size,
+            _sha256(path),
+        )
+        for path in sorted(artifacts, key=lambda value: value.name)
+    )
+    input_observations = tuple(
+        (
+            logical_path,
+            1,
+            source_root.joinpath(
+                *PurePosixPath(logical_path).parts
+            ).stat().st_size,
+            _sha256(
+                source_root.joinpath(*PurePosixPath(logical_path).parts)
+            ),
+        )
+        for logical_path, record in sorted(inputs.items())
+        if isinstance(logical_path, str) and isinstance(record, dict)
+    )
+    bootstrap_files = source_inputs["files"]
+    bootstrap_snapshot = _manifest_author_bootstrap_snapshot(
+        source_root, bootstrap_files
+    )
+    bootstrap_observations = tuple(
+        (
+            logical_path,
+            1,
+            record["size"],
+            record["sha256"],
+        )
+        for logical_path, record in bootstrap_snapshot.items()
+    )
+    seed_observations = tuple(
+        (
+            seed.tools[name].name,
+            1,
+            len(contents),
+            hashlib.sha256(contents).hexdigest(),
+        )
+        for name, contents in seed.artifact_bytes
+    )
+    object_observations = tuple(
+        (
+            name,
+            1,
+            path.stat().st_size,
+            _sha256(path),
+        )
+        for name, path in sorted(object_paths.items())
+    )
+    request = _manifest_author_request(
+        artifact_observations,
+        input_observations,
+        bootstrap_observations,
+        _snapshot_sha256(bootstrap_snapshot),
+        manifest_relative,
+        seed.manifest_bytes,
+        seed_observations,
+        object_observations,
+        fixed_point,
+    )
+    request_path = workspace / "toolchain-manifest-author-request.bin"
+    request_path.write_bytes(request)
+    executable = _build_manifest_author(
+        source_root,
+        stage_four,
+        source_root / "manifest-author-build",
+    )
+    try:
+        require_live_seed_inputs(seed)
+        result = ToolRunner(source_root).run(
+            executable, ("author", request_path), 120
+        )
+        require_live_seed_inputs(seed)
+        _require_inputs_unchanged(source_root, inputs)
+    except (BootstrapError, OSError, subprocess.TimeoutExpired) as error:
+        raise ContractError(
+            f"Toolchain manifest author could not run: {error}"
+        ) from error
+    if result.returncode != 0 or result.stderr:
+        detail = result.stderr.strip() or result.stdout.strip()
+        suffix = f": {detail}" if detail else ""
+        raise ContractError(
+            "Toolchain manifest author failed with status "
+            f"{result.returncode}{suffix}"
+        )
+    try:
+        return result.stdout.encode("ascii")
+    except UnicodeEncodeError as error:
+        raise ContractError(
+            "Toolchain manifest author output is not ASCII"
+        ) from error
+
+
 def _expected_artifact_names() -> tuple[str, ...]:
     return tuple(plan.artifact for plan in CONTRACT_PLANS) + (
         "cupidc-runtime-contract.elf",
@@ -860,6 +1254,21 @@ def _valid_sha256(value: object) -> bool:
         isinstance(value, str)
         and len(value) == 64
         and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _valid_digest_size_record(
+    value: object, *, require_nonzero: bool = False
+) -> bool:
+    if not isinstance(value, dict) or set(value) != {"sha256", "size"}:
+        return False
+    size = value.get("size")
+    return (
+        _valid_sha256(value.get("sha256"))
+        and not isinstance(size, bool)
+        and isinstance(size, int)
+        and size >= (1 if require_nonzero else 0)
+        and size <= 0xFFFFFFFFFFFFFFFF
     )
 
 
@@ -985,8 +1394,8 @@ def verify_publication(output: Path) -> dict[str, object]:
         or any(
             not isinstance(path, str)
             or not path
-            or not _valid_sha256(digest)
-            for path, digest in inputs.items()
+            or not _valid_digest_size_record(record)
+            for path, record in inputs.items()
         )
     ):
         raise ContractError("published contract input inventory differs")
@@ -1066,8 +1475,9 @@ def verify_publication(output: Path) -> dict[str, object]:
         not isinstance(object_comparisons, dict)
         or set(object_comparisons) != expected_object_comparisons
         or any(
-            not isinstance(name, str) or not _valid_sha256(digest)
-            for name, digest in object_comparisons.items()
+            not isinstance(name, str)
+            or not _valid_digest_size_record(record, require_nonzero=True)
+            for name, record in object_comparisons.items()
         )
     ):
         raise ContractError(
@@ -1083,7 +1493,7 @@ def verify_publication_inputs(
     expected = report.get("inputs")
     if not isinstance(expected, dict):
         raise ContractError("published contract input inventory differs")
-    actual = _snapshot_inputs(root, _contract_input_paths(root))
+    actual = _snapshot_contract_inputs(root, _contract_input_paths(root))
     if actual != expected:
         raise ContractError(
             "published contract inputs differ from the live source"
@@ -1151,6 +1561,62 @@ def verify_publication_inputs(
         )
 
 
+def _validate_replaceable_legacy_publication(output: Path) -> None:
+    expected_names = set(_expected_artifact_names())
+    expected_members = expected_names | {"manifest.json"}
+    if output.is_symlink() or not output.is_dir():
+        raise ContractError("legacy contract output is not a directory")
+    members = tuple(output.iterdir())
+    if (
+        {path.name for path in members} != expected_members
+        or any(path.is_symlink() or not path.is_file() for path in members)
+    ):
+        raise ContractError("legacy contract output is incomplete")
+    try:
+        report = json.loads(
+            (output / "manifest.json").read_text(encoding="ascii")
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ContractError("legacy contract manifest is invalid") from error
+    if (
+        not isinstance(report, dict)
+        or report.get("schema") not in LEGACY_REPORT_SCHEMAS
+    ):
+        raise ContractError("legacy contract manifest schema differs")
+    records = report.get("artifacts")
+    if not isinstance(records, list):
+        raise ContractError("legacy contract artifact inventory is absent")
+    records_by_name: dict[str, dict[str, object]] = {}
+    for record in records:
+        if (
+            not isinstance(record, dict)
+            or set(record) != {"path", "sha256", "size"}
+        ):
+            raise ContractError("legacy contract artifact record differs")
+        name = record.get("path")
+        size = record.get("size")
+        if (
+            not isinstance(name, str)
+            or name != Path(name).name
+            or name in records_by_name
+            or not _valid_sha256(record.get("sha256"))
+            or isinstance(size, bool)
+            or not isinstance(size, int)
+            or size < 0
+        ):
+            raise ContractError("legacy contract artifact record differs")
+        records_by_name[name] = record
+    if set(records_by_name) != expected_names:
+        raise ContractError("legacy contract artifact inventory differs")
+    for name, record in records_by_name.items():
+        artifact = output / name
+        if (
+            artifact.stat().st_size != record["size"]
+            or _sha256(artifact) != record["sha256"]
+        ):
+            raise ContractError(f"legacy contract artifact differs: {name}")
+
+
 def _validate_output_target(root: Path, output: Path) -> Path:
     root = root.resolve()
     if output.is_symlink():
@@ -1172,10 +1638,13 @@ def _validate_output_target(root: Path, output: Path) -> Path:
     if output.exists():
         try:
             verify_publication(output)
-        except ContractError as error:
-            raise ContractError(
-                "existing contract output is not a complete cohort"
-            ) from error
+        except ContractError:
+            try:
+                _validate_replaceable_legacy_publication(output)
+            except (ContractError, OSError) as legacy_error:
+                raise ContractError(
+                    "existing contract output is not a complete cohort"
+                ) from legacy_error
     return output
 
 
@@ -1289,7 +1758,7 @@ def build_contracts(
     output = _validate_output_target(root, output)
 
     inputs = _contract_input_paths(root)
-    snapshot = _snapshot_inputs(root, inputs)
+    snapshot = _snapshot_contract_inputs(root, inputs)
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(
         prefix=f".{output.name}-build-", dir=output.parent
@@ -1307,9 +1776,32 @@ def build_contracts(
             ) from error
         _announce("checked-seed bootstrap completed")
 
+        bootstrap_inputs = bootstrap_report.get("source_inputs")
+        if (
+            not isinstance(bootstrap_inputs, dict)
+            or bootstrap_report.get("seed_manifest_sha256")
+            != _sha256(manifest)
+        ):
+            raise ContractError(
+                "checked bootstrap report lacks its verified input inventory"
+            )
+        bootstrap_record: dict[str, object] = {
+            "build_plan_sha256": bootstrap_report.get("build_plan_sha256"),
+            "seed_manifest": {
+                "path": manifest_relative,
+                "sha256": bootstrap_report.get("seed_manifest_sha256"),
+            },
+            "source_inputs": bootstrap_inputs,
+        }
+        _validate_bootstrap_record(bootstrap_record)
+
         private_root = workspace / "source"
         _freeze_contract_inputs(
-            root, private_root, inputs, snapshot
+            root,
+            private_root,
+            inputs,
+            snapshot,
+            bootstrap_inputs["files"],
         )
         stage_three_objects, stage_three_executables = _build_contract_stage(
             private_root,
@@ -1325,11 +1817,18 @@ def build_contracts(
             "stage four",
             workers,
         )
-        object_comparisons = _compare_stage_files(
+        object_digests = _compare_stage_files(
             stage_three_objects,
             stage_four_objects,
             "contract object",
         )
+        object_comparisons = {
+            name: {
+                "sha256": digest,
+                "size": stage_four_objects[name].stat().st_size,
+            }
+            for name, digest in object_digests.items()
+        }
         comparisons = _compare_stage_files(
             stage_three_executables,
             stage_four_executables,
@@ -1365,25 +1864,6 @@ def build_contracts(
             )
             artifacts.append(target)
 
-        bootstrap_inputs = bootstrap_report.get("source_inputs")
-        if (
-            not isinstance(bootstrap_inputs, dict)
-            or bootstrap_report.get("seed_manifest_sha256")
-            != _sha256(manifest)
-        ):
-            raise ContractError(
-                "checked bootstrap report lacks its verified input inventory"
-            )
-        bootstrap_record: dict[str, object] = {
-            "build_plan_sha256": bootstrap_report.get("build_plan_sha256"),
-            "seed_manifest": {
-                "path": manifest_relative,
-                "sha256": bootstrap_report.get("seed_manifest_sha256"),
-            },
-            "source_inputs": bootstrap_inputs,
-        }
-        _validate_bootstrap_record(bootstrap_record)
-
         report: dict[str, object] = {
             "artifacts": [
                 _artifact_record(path)
@@ -1404,13 +1884,27 @@ def build_contracts(
             },
             "tool_fixed_point": bootstrap_report["comparisons"],
         }
-        report_path = publication / "manifest.json"
-        report_path.write_bytes(
-            (
-                json.dumps(report, indent=2, sort_keys=True)
-                + "\n"
-            ).encode("ascii")
+        authored_report = _checked_manifest_author_bytes(
+            private_root,
+            bootstrap_output / CONVERGED_GENERATIONS[1],
+            workspace,
+            manifest,
+            manifest_relative,
+            report,
+            artifacts,
+            stage_four_objects,
         )
+        oracle_report = (
+            json.dumps(report, indent=2, sort_keys=True) + "\n"
+        ).encode("ascii")
+        if authored_report != oracle_report:
+            raise ContractError(
+                "Toolchain manifest author output differs from the "
+                "independent Python oracle"
+            )
+        _require_inputs_unchanged(root, snapshot)
+        report_path = publication / "manifest.json"
+        report_path.write_bytes(authored_report)
         verify_publication(publication)
         verify_publication_inputs(root, report)
         required_names = _expected_artifact_names() + ("manifest.json",)
@@ -1435,8 +1929,8 @@ def ensure_contracts(
     manifest, manifest_relative = _resolve_manifest(root, manifest)
     output = _validate_output_target(root, output)
     if output.exists() or output.is_symlink():
-        report = verify_publication(output)
         try:
+            report = verify_publication(output)
             verify_publication_inputs(root, report)
             _require_report_manifest(report, manifest, manifest_relative)
         except ContractError:

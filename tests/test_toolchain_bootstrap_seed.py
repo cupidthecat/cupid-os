@@ -61,11 +61,75 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "e76d36ed4edc7679e91ac237135fe476dff6e69946bbffca56077afbf19a47f9"
+    "a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817"
 )
 
 
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    def _assert_checked_seed_local_relative_target_policy(
+        self,
+        manifest: Path,
+        *,
+        native_windows: bool = False,
+    ) -> None:
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-local-targets-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            valid = root / "valid.bin"
+            invalid = root / "invalid.bin"
+            valid.write_bytes(bytes([0xEB, 0x00, 0xC3]))
+            invalid.write_bytes(bytes([0xEB, 0x7F]))
+            arguments = (
+                "--require-known",
+                "--require-local-targets",
+                "--raw",
+                "--mode",
+                "32",
+                "--base",
+                "0",
+            )
+            runner_guard = (
+                mock.patch(
+                    "tools.bootstrap_toolchain.shutil.which",
+                    side_effect=AssertionError(
+                        "native seed must not probe WSL"
+                    ),
+                )
+                if native_windows
+                else contextlib.nullcontext()
+            )
+            with runner_guard:
+                accepted = run_seed_tool(
+                    manifest,
+                    REPO_ROOT,
+                    "cupiddis",
+                    (*arguments, valid),
+                    timeout=60,
+                )
+                rejected = run_seed_tool(
+                    manifest,
+                    REPO_ROOT,
+                    "cupiddis",
+                    (*arguments, invalid),
+                    timeout=60,
+                )
+
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            self.assertEqual(accepted.stdout, "")
+            self.assertEqual(accepted.stderr, "")
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "1 of 1 direct relative targets invalid",
+                rejected.stderr,
+            )
+            self.assertIn(
+                "1 outside image, 0 in data, 0 wrong mode, "
+                "0 mid-instruction",
+                rejected.stderr,
+            )
+
     @staticmethod
     def _committed_source_inventory(
         revision: str,
@@ -497,6 +561,16 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             encoding="utf-8",
             newline="\n",
         )
+        (windows / "publication_start.asm").write_text(
+            "bits 32\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        (windows / "publication_runtime.cc").write_text(
+            "int windows_publication_runtime(void) { return 1; }\n",
+            encoding="utf-8",
+            newline="\n",
+        )
         (toolchain / "tests").mkdir()
         (toolchain / "tests" / "hosted_i386_windows_contract.cc").write_text(
             "int main(void) { return 0; }\n",
@@ -549,6 +623,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "int windows_runtime(void) { return 1; }\n"
             )
             (windows / "tool_start.asm").write_text("bits 32\n")
+            (windows / "publication_start.asm").write_text("bits 32\n")
+            (windows / "publication_runtime.cc").write_text(
+                "int windows_publication_runtime(void) { return 1; }\n"
+            )
             (toolchain / "tests").mkdir()
             (
                 toolchain / "tests" / "hosted_i386_windows_contract.cc"
@@ -1390,8 +1468,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
                 (
-                    "8b6b0f0508b1565d095297f3571ef9bb"
-                    "4d444d19be0700165706877b210b087c"
+                    "273f2621401878f673cc3d2987e267cf"
+                    "188ed016ac2005dc9573b3242b225094"
                 ),
             )
 
@@ -1423,6 +1501,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "checked i386 Linux seed: ok (5 tools)\n",
         )
         self.assertEqual(result.stderr, "")
+
+    def test_checked_i386_linux_seed_carries_local_relative_target_policy(
+        self,
+    ):
+        self._assert_checked_seed_local_relative_target_policy(SEED_MANIFEST)
 
     def test_checked_i386_linux_seed_snapshot_matches_its_named_commit(self):
         manifest = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
@@ -1487,6 +1570,15 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertIn("usage:", result.stdout.casefold())
         self.assertIn("cupiddis", result.stdout.casefold())
         self.assertEqual(result.stderr, "")
+
+    @unittest.skipUnless(os.name == "nt", "native Windows seed")
+    def test_checked_i386_windows_seed_carries_local_relative_target_policy(
+        self,
+    ):
+        self._assert_checked_seed_local_relative_target_policy(
+            WINDOWS_SEED_MANIFEST,
+            native_windows=True,
+        )
 
     @unittest.skipUnless(os.name == "nt", "native Windows seed")
     def test_checked_i386_windows_seed_runs_all_tool_boundaries(self):
@@ -1723,11 +1815,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "d571125256d11dd707f661299738891e"
-                    "dc5c1a8d3358554076875a3e0cac22d0"
+                    "51c8244aa51fce8ccaf7f2eb24df848"
+                    "f02d9269109599cdbdfb0f1f699b5ee65"
                 ),
                 "parent_seed_source_revision": (
-                    "bf52d135348bc33ff32e66d549bbee5edc69d8ad"
+                    "ed6a91ba954881475ac5ab73d5168d292a584c90"
                 ),
                 "producer_lineage": {
                     "assembly": (
@@ -1745,7 +1837,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
                 "source_input_count": 50,
                 "source_revision": (
-                    "bf52d135348bc33ff32e66d549bbee5edc69d8ad"
+                    "ed6a91ba954881475ac5ab73d5168d292a584c90"
                 ),
                 "source_snapshot_sha256": SOURCE_HEAD_SNAPSHOT_SHA256,
             }
@@ -6085,7 +6177,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "bf52d135348bc33ff32e66d549bbee5edc69d8ad",
+                "ed6a91ba954881475ac5ab73d5168d292a584c90",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -6137,9 +6229,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                             "failure_return_code": 1,
                             "help_return_code": 0,
                             "output_sha256": (
-                                "e26807846248e3d1ea2d9dc0980c4329e7b4638db148879849c725e57de64559"
+                                "95d76dfca4cb4f279611a6ea7a86202898305a4906c6c822c1bfce2ec9ecf06b"
                             ),
-                            "output_size": 4,
+                            "output_size": 6,
                             "return_code": 0,
                             "status": "pass",
                         }
@@ -6325,9 +6417,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "f6d38d66f002c4440aacea08ca32b848d470665679afc13dca5f5ae8ce6b913b"
+                        "d29e4e82571c3fe7895bff215f0e32c25c9c98dce8893fa9a000968d979919d0"
                     ),
-                    "size": 391680,
+                    "size": 400896,
                 },
             )
             self.assertEqual(
@@ -6391,9 +6483,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
                 "cupidc": {
                     "sha256": (
-                        "765fa14724c1615088fb9280a16f3457a4c4f14fa2d1915d3c56ff73b2b797cd"
+                        "c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002"
                     ),
-                    "size": 2592768,
+                    "size": 2613760,
                 },
                 "cupidld": {
                     "sha256": (

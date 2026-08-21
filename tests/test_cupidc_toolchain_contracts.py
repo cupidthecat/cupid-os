@@ -236,9 +236,11 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             },
             "comparisons": comparisons,
             "input_count": 1,
-            "inputs": {"toolchain/ctool.h": "5" * 64},
+            "inputs": {
+                "toolchain/ctool.h": {"sha256": "5" * 64, "size": 1}
+            },
             "object_comparisons": {
-                name: "3" * 64
+                name: {"sha256": "3" * 64, "size": 1}
                 for name in object_comparison_names
             },
             "schema": cupidc_toolchain_contracts.REPORT_SCHEMA,
@@ -266,7 +268,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
 
     @staticmethod
     def _bind_publication_inputs(
-        output: Path, inputs: dict[str, str]
+        output: Path, inputs: dict[str, dict[str, object]]
     ) -> None:
         manifest = output / "manifest.json"
         report = json.loads(manifest.read_text(encoding="ascii"))
@@ -290,7 +292,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         )
 
     @staticmethod
-    def _write_minimal_source_root(root: Path) -> dict[str, str]:
+    def _write_minimal_source_root(
+        root: Path,
+    ) -> dict[str, dict[str, object]]:
         logical_paths = {
             plan.source
             for plan in cupidc_toolchain_contracts.CONTRACT_PLANS
@@ -314,7 +318,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             )
             path.write_text(marker, encoding="ascii")
         paths = cupidc_toolchain_contracts._contract_input_paths(root)
-        return cupidc_toolchain_contracts._snapshot_inputs(root, paths)
+        return cupidc_toolchain_contracts._snapshot_contract_inputs(
+            root, paths
+        )
 
     @staticmethod
     def _write_minimal_bootstrap_root(root: Path) -> dict[str, object]:
@@ -371,10 +377,10 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
     @classmethod
     def _write_verified_source_root(
         cls, root: Path
-    ) -> tuple[dict[str, str], dict[str, object]]:
+    ) -> tuple[dict[str, dict[str, object]], dict[str, object]]:
         cls._write_minimal_source_root(root)
         bootstrap = cls._write_minimal_bootstrap_root(root)
-        inputs = cupidc_toolchain_contracts._snapshot_inputs(
+        inputs = cupidc_toolchain_contracts._snapshot_contract_inputs(
             root, cupidc_toolchain_contracts._contract_input_paths(root)
         )
         return inputs, bootstrap
@@ -633,12 +639,12 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
 
     def test_contract_input_inventory_includes_build_control_files(self):
         root = Path(__file__).resolve().parents[1]
-        inputs = cupidc_toolchain_contracts._snapshot_inputs(
+        inputs = cupidc_toolchain_contracts._snapshot_contract_inputs(
             root,
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 68)
+        self.assertEqual(len(inputs), 70)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -743,6 +749,274 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             self.assertIn("--gnu", runtime_arguments)
             self.assertNotIn("--gnu", strict_arguments)
 
+    def test_manifest_author_build_uses_the_converged_cupid_tools(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-manifest-author-build-"
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            startup = (
+                source_root / "toolchain/hosted/i386-linux/start.asm"
+            )
+            startup.parent.mkdir(parents=True)
+            startup.write_text("ret\n", encoding="ascii")
+            stage_four = root / "stage-four"
+            stage_four.mkdir()
+            for name in ("ctool_host.o", "ctool.o", "runtime.o"):
+                (stage_four / name).write_bytes(_test_relocatable_elf32())
+            calls: list[
+                tuple[Path, tuple[str | Path, ...], str, int]
+            ] = []
+
+            def compile_source(
+                runner,
+                compiler: Path,
+                checked_root: Path,
+                logical_source: str,
+                output: Path,
+                label: str,
+                timeout: int,
+            ) -> None:
+                del runner, label, timeout
+                self.assertEqual(compiler, stage_four / "cupidc.elf")
+                self.assertEqual(checked_root, source_root)
+                self.assertEqual(
+                    logical_source,
+                    "toolchain/tests/toolchain_manifest_contract.cc",
+                )
+                output.write_bytes(_test_relocatable_elf32())
+
+            def run_clean(
+                runner,
+                executable: Path,
+                arguments: tuple[str | Path, ...],
+                label: str,
+                timeout: int,
+            ) -> None:
+                del runner
+                calls.append((executable, arguments, label, timeout))
+                output = arguments[arguments.index("-o") + 1]
+                self.assertIsInstance(output, Path)
+                output.write_bytes(
+                    _test_relocatable_elf32()
+                    if "-f" in arguments
+                    else _test_static_elf32()
+                )
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts,
+                "_compile_source",
+                side_effect=compile_source,
+            ), mock.patch.object(
+                cupidc_toolchain_contracts,
+                "_run_clean",
+                side_effect=run_clean,
+            ):
+                executable = (
+                    cupidc_toolchain_contracts._build_manifest_author(
+                        source_root,
+                        stage_four,
+                        source_root / "manifest-author-build",
+                    )
+                )
+
+            self.assertEqual(
+                [call[0] for call in calls],
+                [
+                    stage_four / "cupidasm.elf",
+                    stage_four / "cupidld.elf",
+                ],
+            )
+            self.assertEqual(calls[0][1][:3], ("-f", "elf32", startup))
+            self.assertEqual(
+                calls[1][1][0:6],
+                (
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x08048000",
+                    "--entry",
+                    "_start",
+                ),
+            )
+            self.assertEqual(
+                calls[1][1][-5:],
+                (
+                    source_root
+                    / (
+                        "manifest-author-build/"
+                        "toolchain-manifest-author-start.o"
+                    ),
+                    source_root
+                    / "manifest-author-build/toolchain-manifest-author.o",
+                    stage_four / "ctool_host.o",
+                    stage_four / "ctool.o",
+                    stage_four / "runtime.o",
+                ),
+            )
+            self.assertEqual(
+                executable,
+                source_root
+                / "manifest-author-build/toolchain-manifest-author.elf",
+            )
+
+    def test_manifest_author_rehashes_and_rechecks_the_frozen_source(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-manifest-author-source-"
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            source = source_root / "toolchain/source.cc"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"frozen author input\n")
+            bootstrap_source = source_root / "toolchain/bootstrap.cc"
+            bootstrap_source.write_bytes(b"frozen bootstrap input\n")
+            stage_four = root / "stage-four"
+            stage_four.mkdir()
+            workspace = root / "workspace"
+            workspace.mkdir()
+            manifest = root / "manifest.json"
+            manifest.write_bytes(b"seed manifest\n")
+            manifest_relative = "seed/manifest.json"
+            oracle_inputs = {
+                "toolchain/source.cc": {"sha256": "0" * 64, "size": 999}
+            }
+            report = {
+                "bootstrap": {
+                    "seed_manifest": {
+                        "path": manifest_relative,
+                        "sha256": "a" * 64,
+                    },
+                    "source_inputs": {
+                        "files": {
+                            "toolchain/bootstrap.cc": {
+                                "sha256": "c" * 64,
+                                "size": 999,
+                            }
+                        },
+                        "sha256": "b" * 64,
+                    },
+                },
+                "inputs": oracle_inputs,
+                "tool_fixed_point": {},
+            }
+            seed = SimpleNamespace(
+                manifest_sha256="a" * 64,
+                manifest_bytes=b"seed manifest\n",
+                artifact_bytes=(),
+                tools={},
+            )
+            captured: dict[str, object] = {}
+
+            def author_request(
+                artifact_observations,
+                input_observations,
+                bootstrap_observations,
+                bootstrap_snapshot_sha256,
+                seed_path,
+                seed_manifest,
+                seed_observations,
+                object_observations,
+                fixed_point,
+            ):
+                del (
+                    artifact_observations,
+                    seed_path,
+                    seed_manifest,
+                    seed_observations,
+                    object_observations,
+                    fixed_point,
+                )
+                captured["inputs"] = input_observations
+                captured["bootstrap"] = bootstrap_observations
+                captured["bootstrap_sha256"] = (
+                    bootstrap_snapshot_sha256
+                )
+                return b"author request"
+
+            with (
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "freeze_seed_inputs",
+                    return_value=seed,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_manifest_author_request",
+                    side_effect=author_request,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_build_manifest_author",
+                    return_value=workspace / "author.elf",
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "ToolRunner",
+                ) as runner_type,
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "require_live_seed_inputs",
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_require_inputs_unchanged",
+                ) as require_inputs,
+            ):
+                runner_type.return_value.run.return_value = (
+                    subprocess.CompletedProcess([], 0, "authored\n", "")
+                )
+
+                result = (
+                    cupidc_toolchain_contracts._checked_manifest_author_bytes(
+                        source_root,
+                        stage_four,
+                        workspace,
+                        manifest,
+                        manifest_relative,
+                        report,
+                        (),
+                        {},
+                    )
+                )
+
+            self.assertEqual(result, b"authored\n")
+            self.assertEqual(
+                captured["inputs"],
+                (
+                    (
+                        "toolchain/source.cc",
+                        1,
+                        len(b"frozen author input\n"),
+                        hashlib.sha256(b"frozen author input\n").hexdigest(),
+                    ),
+                ),
+            )
+            self.assertEqual(
+                captured["bootstrap"],
+                (
+                    (
+                        "toolchain/bootstrap.cc",
+                        1,
+                        23,
+                        "a5e50d5a07183f751154345eb1cfdcdb00eb5af47942c405"
+                        "88561fec202d642f",
+                    ),
+                ),
+            )
+            self.assertEqual(
+                captured["bootstrap_sha256"],
+                "633989f6d686744936dd39811e588a4a353530cd15c638d328d0f41e"
+                "09937fc9",
+            )
+            self.assertEqual(
+                require_inputs.call_args_list,
+                [
+                    mock.call(source_root, oracle_inputs),
+                    mock.call(source_root, oracle_inputs),
+                ],
+            )
+
     def test_build_creates_its_missing_output_parent_before_bootstrap(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-contract-output-parent-"
@@ -761,7 +1035,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 ),
                 mock.patch.object(
                     cupidc_toolchain_contracts,
-                    "_snapshot_inputs",
+                    "_snapshot_contract_inputs",
                     return_value={},
                 ),
                 mock.patch.object(
@@ -905,6 +1179,34 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     executable.read_bytes().decode("ascii").split(":", 1)[0]
                 )
 
+            author_generations: list[str] = []
+            author_output_valid = [True]
+
+            def author_bytes(
+                source_root: Path,
+                stage_four: Path,
+                workspace: Path,
+                seed_manifest: Path,
+                manifest_relative: str,
+                report: dict[str, object],
+                artifacts: list[Path],
+                object_paths: dict[str, Path],
+            ) -> bytes:
+                del (
+                    source_root,
+                    workspace,
+                    seed_manifest,
+                    manifest_relative,
+                    artifacts,
+                    object_paths,
+                )
+                author_generations.append(stage_four.name)
+                if not author_output_valid[0]:
+                    return b"not the independently checked manifest\n"
+                return (
+                    json.dumps(report, indent=2, sort_keys=True) + "\n"
+                ).encode("ascii")
+
             with (
                 mock.patch.object(
                     cupidc_toolchain_contracts,
@@ -913,7 +1215,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 ),
                 mock.patch.object(
                     cupidc_toolchain_contracts,
-                    "_snapshot_inputs",
+                    "_snapshot_contract_inputs",
                     return_value={},
                 ),
                 mock.patch.object(
@@ -942,6 +1244,11 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 ),
                 mock.patch.object(
                     cupidc_toolchain_contracts,
+                    "_checked_manifest_author_bytes",
+                    side_effect=author_bytes,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
                     "_require_inputs_unchanged",
                 ),
                 mock.patch.object(
@@ -956,11 +1263,26 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 report = cupidc_toolchain_contracts.build_contracts(
                     root, manifest, output, workers=8
                 )
+                published_manifest = (output / "manifest.json").read_bytes()
+                author_output_valid[0] = False
+                with self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    "author output differs from the independent Python oracle",
+                ):
+                    cupidc_toolchain_contracts.build_contracts(
+                        root, manifest, output, workers=8
+                    )
+                self.assertEqual(
+                    (output / "manifest.json").read_bytes(),
+                    published_manifest,
+                )
 
             self.assertEqual(
-                built_generations, ["stage-three", "stage-four"]
+                built_generations,
+                ["stage-three", "stage-four"] * 2,
             )
-            self.assertEqual(runtime_generations, ["stage-four"])
+            self.assertEqual(runtime_generations, ["stage-four"] * 2)
+            self.assertEqual(author_generations, ["stage-four"] * 2)
             self.assertEqual(
                 report["tool_fixed_point"]["compared_generations"],
                 ["stage-three", "stage-four"],
@@ -1240,6 +1562,44 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 sentinel.read_text(encoding="ascii"), "int source;\n"
             )
 
+    def test_output_target_allows_one_verified_legacy_schema_upgrade(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-legacy-upgrade-"
+        ) as temporary:
+            root = Path(temporary)
+            output = root / "toolchain/build/cupidc-contracts"
+            self._write_publication(output)
+            manifest = output / "manifest.json"
+            report = json.loads(manifest.read_text(encoding="ascii"))
+            report["schema"] = "cupid.toolchain-contracts.v2"
+            report["inputs"] = {
+                path: record["sha256"]
+                for path, record in report["inputs"].items()
+            }
+            report["object_comparisons"] = {
+                name: record["sha256"]
+                for name, record in report["object_comparisons"].items()
+            }
+            manifest.write_text(
+                json.dumps(report, indent=2, sort_keys=True) + "\n",
+                encoding="ascii",
+            )
+
+            self.assertEqual(
+                cupidc_toolchain_contracts._validate_output_target(
+                    root, output
+                ),
+                output.resolve(),
+            )
+            (output / "core-contract.elf").write_bytes(b"tampered")
+            with self.assertRaisesRegex(
+                cupidc_toolchain_contracts.ContractError,
+                "existing contract output is not a complete cohort",
+            ):
+                cupidc_toolchain_contracts._validate_output_target(
+                    root, output
+                )
+
     def test_published_cohort_verifies_every_artifact(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-contract-verify-"
@@ -1264,6 +1624,35 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 len(report["artifacts"]),
                 len(cupidc_toolchain_contracts._expected_artifact_names()),
             )
+
+    def test_published_cohort_rejects_digest_sizes_outside_uint64(self):
+        cases = (
+            ("inputs", "published contract input inventory differs"),
+            (
+                "object_comparisons",
+                "published contract object comparison record differs",
+            ),
+        )
+        for field, message in cases:
+            with self.subTest(field=field), tempfile.TemporaryDirectory(
+                prefix="cupid-contract-size-range-"
+            ) as temporary:
+                output = Path(temporary) / "contracts"
+                self._write_publication(output)
+                manifest = output / "manifest.json"
+                report = json.loads(manifest.read_text(encoding="ascii"))
+                record = next(iter(report[field].values()))
+                record["size"] = 1 << 64
+                manifest.write_text(
+                    json.dumps(report, indent=2, sort_keys=True) + "\n",
+                    encoding="ascii",
+                )
+
+                with self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    message,
+                ):
+                    cupidc_toolchain_contracts.verify_publication(output)
 
     def test_published_cohort_rejects_the_wrong_convergence_pair(self):
         with tempfile.TemporaryDirectory(
@@ -1559,7 +1948,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     root, initial
                 )
 
-            with_added = cupidc_toolchain_contracts._snapshot_inputs(
+            with_added = cupidc_toolchain_contracts._snapshot_contract_inputs(
                 root,
                 cupidc_toolchain_contracts._contract_input_paths(root),
             )
@@ -1586,11 +1975,44 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 root, frozen, paths, expected
             )
 
-            actual = cupidc_toolchain_contracts._snapshot_inputs(
+            actual = cupidc_toolchain_contracts._snapshot_contract_inputs(
                 frozen,
                 cupidc_toolchain_contracts._contract_input_paths(frozen),
             )
             self.assertEqual(actual, expected)
+
+    def test_frozen_input_tree_includes_the_bootstrap_author_closure(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-bootstrap-input-freeze-"
+        ) as temporary:
+            workspace = Path(temporary)
+            root = workspace / "source"
+            expected = self._write_minimal_source_root(root)
+            bootstrap_source = root / "toolchain/bootstrap-only.cc"
+            bootstrap_source.write_bytes(b"bootstrap author source\n")
+            bootstrap_files = {
+                "toolchain/bootstrap-only.cc": {
+                    "sha256": (
+                        "4114fd04bb1ab2ed167e297c98519a4fadac13bb6eff8a8b0"
+                        "433fcd1366c5aaa"
+                    ),
+                    "size": 24,
+                }
+            }
+            frozen = workspace / "frozen"
+
+            cupidc_toolchain_contracts._freeze_contract_inputs(
+                root,
+                frozen,
+                cupidc_toolchain_contracts._contract_input_paths(root),
+                expected,
+                bootstrap_files,
+            )
+
+            self.assertEqual(
+                (frozen / "toolchain/bootstrap-only.cc").read_bytes(),
+                b"bootstrap author source\n",
+            )
 
     def test_freeze_rejects_bytes_changed_after_the_live_check(self):
         with tempfile.TemporaryDirectory(
@@ -2150,6 +2572,42 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "bootstrap/seeds/i386-linux/manifest.json",
         )
         build.assert_not_called()
+
+    def test_ensure_rebuilds_a_complete_legacy_contract_cohort(self):
+        root = Path("contract-root").resolve()
+        manifest = root / "bootstrap/seeds/i386-linux/manifest.json"
+        output = root / "toolchain/build/cupidc-contracts"
+        rebuilt = {"schema": cupidc_toolchain_contracts.REPORT_SCHEMA}
+
+        with mock.patch.object(
+            Path, "exists", return_value=True
+        ), mock.patch.object(
+            Path, "is_dir", return_value=True
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_resolve_manifest",
+            return_value=(manifest, "bootstrap/seeds/i386-linux/manifest.json"),
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_validate_output_target",
+            return_value=output,
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "verify_publication",
+            side_effect=cupidc_toolchain_contracts.ContractError(
+                "published contract manifest metadata differs"
+            ),
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "build_contracts",
+            return_value=rebuilt,
+        ) as build:
+            checked = cupidc_toolchain_contracts.ensure_contracts(
+                root, manifest, output, workers=3
+            )
+
+        self.assertIs(checked, rebuilt)
+        build.assert_called_once_with(root, manifest, output, 3)
 
     def test_user_abi_operation_rejects_oracle_disagreement(self):
         root = Path("contract-root").resolve()

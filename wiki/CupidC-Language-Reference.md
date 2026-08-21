@@ -44,9 +44,56 @@ elements through direct or pointer access. Indexed reads and assignments can
 continue to an element member from either a named record or a record-array
 element. Unsized and multidimensional aliases, pointers to array aliases, a
 second array declarator, array returns, array casts, and `new` with an array
-alias report a focused error. Function-pointer typedef declarators remain
-outside the private path. [ADR 0220](../docs/adr/0220-support-private-fixed-array-typedefs.md)
+alias report a focused error. [ADR 0220](../docs/adr/0220-support-private-fixed-array-typedefs.md)
+records this array boundary.
+
+A direct file-scope function-pointer typedef also retains its result, fixed
+parameters, record identities, prototype state, and variadic boundary. A free
+function parameter declared with that alias carries the signature in JIT, AOT,
+and persistent REPL source, including a later REPL unit. Its indirect calls use
+the direct cdecl conversions and 4-, 8-, and 16-byte slots, with SIMD results
+returned through XMM0. This covers the active ISO callback whose `uint8_t`
+entry length is converted to the declared `uint32_t` parameter. The private
+table holds sixteen typedefs, and a callback signature may have at most 32
+parameters. Each declaration may introduce only one function-pointer alias.
+Method parameters, callback alias chains, global callback objects, record
+fields, typedef-typed local objects, later callback assignments, recursive
+callback signatures, and arbitrary computed callback expressions do not retain
+this metadata. Direct structure and array callback results are rejected;
+record-pointer results retain their record identity. A rejected source or REPL
+unit restores the typedef table with the prior symbols, patches, control state,
+code, and data.
+[ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records this boundary.
+
+The preceding poisoned-host OS build checkpoint passed in 684.260 seconds and
+accepted all fourteen exact policy artifacts. A private four-vCPU `max`/e1000
+smoke of that checkpoint passed in 64.601 seconds. It printed the direct,
+named, and typedef callback markers in order, including
+`[feature14-callback-typedef] PASS float4=4 calls=1`, before
+`PASS feature14_simd` and `[cupidc] JIT execution complete`. No reject marker
+appeared, and the source image was unchanged. The 33,219-byte log has SHA-256
+`e39a1905002c2baa483c65eb6e763f4f62907c22f8954873dbb20f4ba5a53e93`.
+The pre-documentation artifact gate later passed in 651.3 seconds, accepted all
+fourteen exact paths, and measured `kernel/kernel.bin` at 9,225,092 bytes.
+
+The source-current, fully poisoned build first reached only the expected
+policy mismatches after 680.281 seconds. Only the `kernel/kernel.elf` and
+`kernel/kernel.bin` policy rows changed. The artifact group passed all 45 tests
+in 2.582 seconds, with four expected Windows skips. The definitive poisoned
+build then passed in 708.912 seconds with all fourteen artifacts accepted,
+existing FAT contents preserved, and `hello.iso` staged. Its 9,228,296-byte raw
+kernel has SHA-256
+`8e5d7c172814dd5db51a16acd41bf0436cb613a7da5f67511622c4b6517e0dbb`.
+
+The source-current strong full private frontier smoke passed in 801.490 seconds
+with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
+fixture. The expected direct-call, named-callback, typedef-callback, overall
+feature14 PASS, and JIT completion markers each appeared once and in order.
+The 150,376-byte log has SHA-256
+`73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`.
+The source image was unchanged at SHA-256
+`8a7a67e3da4dd8e256bbe1f69d511b59dc9f669cb6026acbeca055c998889195`.
 
 Field arrays require a positive count and a checked count-by-stride product.
 Each padding step, field addition, and final record alignment must fit the
@@ -198,14 +245,18 @@ rule is unchanged. A parsed variadic tail widens `float` to `double` and promote
 `char` to `int`. Its fixed prefix may contain vectors, but a SIMD tail value is
 rejected. Unprototyped and signature-erased function-pointer SIMD calls also
 fail explicitly. A named block-local function pointer with an explicit
-prototype is signature-bearing: its scalar, floating, pointer, or
-SIMD arguments use the declared fixed slots, its variadic tail receives default
-promotions, and its result keeps the declared type. Empty `()`, typedef,
-global, parameter, field, and `void *` forms retain their source-width slots.
-Kernel bindings and other calls without fixed parameter metadata do the same.
-When the initializer is a plain function designator, its result, record
-identity, fixed parameters, and variadic boundary must match the local pointer.
-The same check applies when copying another named local callback. A function
+prototype is signature-bearing. A free-function parameter declared with a direct
+file-scope function-pointer typedef is signature-bearing too. Its scalar,
+floating, pointer, or SIMD arguments use the declared fixed slots, its variadic
+tail receives default promotions, and its result keeps the declared type.
+Empty `()`, typedef-typed local objects, global and field objects, callback
+alias chains, recursive callback signatures, later assignments, and `void *`
+forms retain source-width slots. Direct structure and array callback results
+are rejected; record-pointer results retain their record identity. Kernel
+bindings and other calls without fixed parameter metadata do the same.
+When a plain function designator initializes a named local or fills a typed
+callback parameter, its result, record identity, fixed parameters, and variadic
+boundary must match. The same check applies when copying another named local callback. A function
 defined later receives an address fixup, and a prescan-only signature must
 match its definition. A compatible conditional retains every named candidate
 and checks each arm. A represented integer constant expression that evaluates

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-08-09
+Verified against source on: 2026-08-20
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -361,11 +361,16 @@ unprototyped SIMD calls, and signature-erased function-pointer SIMD calls are
 rejected. A named block-local function pointer with an explicit prototype
 retains fixed parameter types, variadic state, and its result. The indirect
 call uses the same conversions and four-, eight-, or sixteen-byte cdecl slots,
-including SIMD arguments and XMM0 results. Empty (), typedef, global,
-parameter, field, and void-pointer forms remain signature-erased. Feature 13
+including SIMD arguments and XMM0 results. A file-scope function-pointer
+typedef retains its result, fixed parameters, record identities, prototype
+state, and variadic boundary. A free-function parameter declared through that
+typedef gets the same signature for JIT and private AOT calls. Empty (),
+typedef-typed local, global, and field objects, bare nested callback signatures,
+method parameters, and void-pointer forms remain signature-erased. Feature 13
 retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
-nested pass-by-value vector calls and two named SIMD callback calls. ADR 0301
-records the callback boundary.
+nested pass-by-value vector
+calls and named SIMD callback forms. ADR 0301 records the earlier named-local
+boundary.
 Plain function initializers must match the retained signature. An explicit
 void-pointer cast remains the deliberate erasure path. Local callback copies
 are checked, later addresses are fixed up, and provisional signatures must
@@ -377,6 +382,25 @@ explicit erasure, while every non-null object-pointer arm must be cast. Failed
 functions and methods restore emitted state, patches, signatures, labels, and
 control nesting. A failed source also restores touched prototypes, definitions,
 kernel bindings, and a reused __start. The implicit thunk is typed void(void).
+
+kernel/fs/iso9660.cc supplies the active scalar case with susp_entry_cb, whose
+three fixed parameters are preserved when susp_walk calls it. The feature14
+source adds a float4 callback typedef and passes it to a helper. Focused JIT
+and private AOT tests execute these typedef-parameter calls, including the
+16-byte float4 slot and XMM0 result. They also cover arity, variadic promotion,
+record identity, incompatible signatures, null constant expressions, explicit
+erasure, forward definitions, and same-state recovery.
+
+The four-vCPU e1000 feature14 guest contract requires ordered direct-call,
+named-callback, and typedef-callback evidence. The typedef path must print
+`[feature14-callback-typedef] PASS float4=4 calls=1`. The command must then
+print the overall feature14 PASS and finish with CupidC JIT completion.
+
+Function-pointer typedef declarations remain file-scope, allow one alias per
+declaration, and share a sixteen-entry table. Direct record and array results
+are rejected. Record-pointer results retain identity. Nested function-pointer
+parameters occupy one four-byte word, but their inner signature is not yet
+retained.
 
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
@@ -495,6 +519,42 @@ Useful commands:
 [Run feature21_net](shell:feature21_net)
 [Run feature24_widetypes](shell:feature24_widetypes)
 [Open Networking guide](open:18NET.CTXT)
+>endtree
+
+>h2 Current Bootstrap Boundary
+>tree open Current Bootstrap Boundary
+Normal `all` uses poisoned-host Cupid tooling. Its exact artifact-size policy
+covers fourteen paths: four OS artifacts, five Linux seed images, and five
+Windows seed images. Both seed manifests must verify before the policy contract
+runs. The complete gate and its 45-test policy group pass.
+
+The promoted Linux and Windows cohorts are complete five-tool trust units.
+Their CupidDis images carry the raw local-target validation used by the guarded
+bootloader and SMP transactions. Active-source tests cover all nine bootloader
+targets and all four trampoline targets. Separate Linux and Windows seed
+fixtures each exercise one valid and one invalid direct target.
+
+The private in-kernel callback parser and AOT writer remain separate from the
+standalone toolchain compiler seeds. Private CupidC supports file-scope callback
+typedefs on free-function parameters. Method parameters and typedef-typed
+local, global, and field objects remain outside that typed path.
+
+The Toolchain manifest has a Cupid-built author and verifier, while Python keeps
+filesystem capture and atomic publication. A valid schema-v3 publication binds
+exactly 21 artifacts, 70 publication inputs, 50 bootstrap inputs, and 17 object
+comparisons, and CUPMAN2 must accept it. The direct contract passes 29 tests in
+39.068 seconds, the publisher passes 59 in 3.518 seconds, and the pinned runner
+passes 24 in 27.752 seconds. The host bootstrap log records the exact
+publication identity and completion evidence.
+
+Audit generation and checked reproduction pass. The audit records 739 active
+inputs, 452 transforms, 255 feature requirements,
+and 25 accounted unreachable files. Ownership participation is CupidC 250,
+CupidObj 192, CupidASM 9, CupidLD 9, and CupidDis 6. Four transforms run
+Cupid-built contracts, and none is Python-only. The host bootstrap log records
+the post-manual-freeze poisoned build and strong private four-vCPU e1000
+frontier. Exact OS identities and runtime measurements stay there because this
+manual is an image input.
 >endtree
 
 >h2 Practical Notes

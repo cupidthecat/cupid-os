@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 SMP Tier 2
-Verified against source on: 2026-08-13
+Verified against source on: 2026-08-20
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -253,9 +253,28 @@ AP to 32-bit protected mode.
 The production build assembles a private 4,096-byte candidate with CupidASM.
 CupidDis checks 16-bit code in [0x000, 0x01f), data in [0x01f, 0x210),
 32-bit code in [0x210, 0x254), and data in [0x254, 0x1000). Every instruction
-in both code ranges must pass --require-known. Hostbuild replaces
-kernel/smp_trampoline.bin only after assembly and inspection succeed. A failure
-preserves the previous trampoline.
+in both code ranges must pass --require-known. Production hostbuild also passes
+--require-local-targets. The four constant direct relative targets must remain
+inside the image and land at instruction starts in code with the same mode.
+Hostbuild replaces kernel/smp_trampoline.bin only after assembly and inspection
+succeed. A failure preserves the previous trampoline.
+
+The policy checks direct CALL, short and near JMP, and short and near
+conditional branches. The far pointer used for the protected-mode transition,
+indirect transfers, and ELF relocation targets are outside this raw-image
+check. Raw 16-bit address mapping may wrap at 64 KiB, while input larger than
+65,536 bytes is rejected as ambiguous. A bad displacement that happens to land
+on another valid same-mode instruction start cannot be identified without
+label metadata.
+
+The promoted Linux and native Windows CupidDis seeds carry this option. Four
+active-source tests cover all nine bootloader targets and all four trampoline
+targets. The two cross-platform seed carriage fixtures are narrower: each
+platform accepts EB 00 C3 and rejects EB 7F, with one direct target in each
+fixture. Ten hostbuild tests also pass with the production option. This records
+current source and build-path adoption. The guarded bootloader and trampoline
+outputs retain the local-target check. Exact artifact identities and dated run
+evidence are kept in the host bootstrap log.
 
 >h3 Trampoline stages (Cupid ASM)
 
@@ -542,20 +561,23 @@ or GCC. Sequential e1000 and RTL8139 gates discover every virtual CPU through
 ACPI, bring the BSP and all three APs online, initialize the selected NIC,
 print [fpu] SSE2 enabled, [fpu] boot smoke ok, and FPU boot smoke passed,
 then finish feature16_asm_fpu.cc with its PASS marker and CupidC JIT
-completion. The same
-logs pass all 62 crypto checks and reach the desktop and terminal. The gate
-rejects known SMP, storage, crypto, exception, corruption, and
-illegal-instruction failures.
+completion. The same logs pass all 62 crypto checks and reach the desktop and
+terminal.
+
+The four-vCPU e1000 gate also runs feature14_simd.cc. It requires direct-call,
+named-callback, and typedef-callback evidence in that order, including
+`[feature14-callback-typedef] PASS float4=4 calls=1`. It then requires the
+overall feature14 PASS and CupidC JIT completion. The gate rejects known SMP,
+storage, crypto, exception, corruption, and illegal-instruction failures.
 
 The normal LAPIC recipe compiles kernel/smp/lapic.cc with the checked CupidC
 seed. Its checked wrapper validates the ELF32 object and blocks host compiler
 fallback.
 
-The earlier smp.c compiler proof produced an 8,444-byte object with SHA-256
-806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54.
-The checked production root is kernel/smp/smp.cc. Its current hash is
-bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1.
-The existing __FILE__ diagnostic accounts for the change.
+The checked production root is kernel/smp/smp.cc. Its object is validated as
+i386 ELF32 before publication, and its exact identity stays in the host
+bootstrap log. That log records the post-manual-freeze poisoned build and
+strong private four-vCPU e1000 frontier because this manual is an image input.
 >endtree
 
 >h2 Source File Index
