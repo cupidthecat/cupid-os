@@ -123,14 +123,18 @@ records the runtime probe rename, ADR 0196 records the complete transfer, ADR
 0264 records the ABI checker transfer, ADR 0302 records the verifier, ADR 0304
 records the manifest author, and ADR 0307 records raw stage-pair evidence.
 
-The complete Toolchain publication was not rerun for `CUPMAN4`. The latest
-complete result is the preceding `CUPMAN3` publication, which passed in
-4,273.533 seconds and wrote 21 artifacts from 70 publication inputs and the
-exact 50-file bootstrap inventory. Its 27,069-byte manifest has SHA-256
-`69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
-The source-current direct contract suite passes 40 tests in 43.019 seconds,
-the publisher suite passes 60 tests in 7.144 seconds, and the pinned verifier
-runner passes 24 tests in 28.302 seconds with three POSIX-only Windows skips.
+The source-current schema v3 `CUPMAN4` publication passed in 3,989.13 seconds and
+wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
+inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
+Its 27,071-byte manifest has SHA-256
+`615cdfd4095d684f31684b9887ba9610c033513580e7332d2d153841947c9311`.
+Its final verifier reported
+`Cupid Toolchain manifest: ok (21 artifacts)`.
+Both checked Python contract launchers resolve `tools` from this checkout. The
+direct contract suite passes 40 tests in 40.828 seconds, the publisher suite
+passes 62 tests in 7.266 seconds, and the pinned verifier runner passes 25 tests
+in 32.773 seconds with three POSIX-only Windows skips. ADR 0311 records this
+host import boundary.
 The final poisoned build and private guest results are in the latest complete
 production checkpoint.
 
@@ -1372,7 +1376,7 @@ checked Windows manifest, and host-selected execution manifest.
 is
 `a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
 The 2,700,638-byte JSON report has SHA-256
-`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`.
+`194b2a4c056f92a869cf63d7e3d477bd1a55273c424150576d7e9ec0dccb56b0`.
 The 12,502-byte Markdown summary has SHA-256
 `015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 

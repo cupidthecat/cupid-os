@@ -14,6 +14,12 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Sequence
 
+
+REPOSITORY_IMPORT_ROOT = Path(__file__).resolve().parent.parent
+if not sys.path or sys.path[0] != str(REPOSITORY_IMPORT_ROOT):
+    sys.path.insert(0, str(REPOSITORY_IMPORT_ROOT))
+
+
 try:
     from tools import artifact_size_policy
     from tools.bootstrap_toolchain import (

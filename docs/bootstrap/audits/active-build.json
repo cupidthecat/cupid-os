@@ -54734,7 +54734,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "c29f333e6fa8992093dca2b0e56174280a41b7c837fa63e170b14939939b72cd"
+        "sha256": "14e214e7ba6934e212a98eb022f676a928e0662bb3a471223952b60d830f60d9"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -54759,7 +54759,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "3ff735898bfef0cf2d47a2fe299e7bf50d2b174f939d3e5419c3f39b3e57a091"
+      "sha256": "551a82a005d141e9271eb023378500e4f826b3f05aa1b149a73ffad7d3784973"
     },
     "text_hash_policy": "canonical_lf"
   },

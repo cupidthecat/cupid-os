@@ -40,8 +40,9 @@ the option to production object publication. ADR 0309 records that boundary.
 The private CupidC callback work, SMP raw-map handoff, relocatable-object local
 target checks, and `CUPMAN4` paired-evidence author pass their focused gates.
 The fully poisoned OS build and integrated four-vCPU private guest frontier are
-also complete. The latest complete schema v3 Toolchain publication still
-predates `CUPMAN4`.
+also complete. The source-current `CUPMAN4` publication and final `CUPMAN2`
+verification pass in 3,989.13 seconds after the publisher-order, pair-capture,
+and checkout-local import fixes.
 
 Private CupidC carries a file-scope function-pointer typedef signature on direct
 free-function parameters, Cupid class method parameters,
@@ -76,26 +77,31 @@ inventories. The protocol has no caller `all_equal` field. Schema
 Python makes the same 58 comparisons independently after the author succeeds
 and retains pinned filesystem capture, drift checks, staging, rollback, and
 atomic publication. The author is a static Linux ELF built and run by the
-converged stage-four Linux tools. Windows uses WSL for this mode. The direct
-module passes 40 tests in 43.019 seconds, the publisher passes 60 tests in
-7.144 seconds, and the pinned verifier runner executes 24 tests in 28.302
-seconds with three POSIX-only skips on Windows. The direct suite includes a
-checked stage-four build and run of the author. The source graph retains 739
+converged stage-four Linux tools. Windows uses WSL for this mode. Both checked
+Python contract launchers resolve `tools` from this checkout before consulting
+installed packages. The direct module passes 40 tests in 40.828 seconds, the
+publisher passes 62 tests in 7.266 seconds, and the pinned verifier runner
+executes 25 tests in 32.773 seconds with three POSIX-only skips on Windows. The
+direct suite includes a checked stage-four build and run of the author. The
+source graph retains 739
 active inputs, 452 transforms,
 255 feature requirements, and 25 accounted unreachable files. Participation
 is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 6, and four
 Cupid-built contracts. Python participates in every transform, but none is
-Python-only. The latest complete schema v3 `make -C toolchain all` predates
-`CUPMAN4` and passed under `CUPMAN3` in 4,273.533 seconds. Every stage-three
-object and executable matched its stage-four counterpart. The hosted runtime
-passed, and the live inputs stayed frozen. The publisher wrote 21 artifacts
-and a 27,069-byte manifest with SHA-256
-`69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
+Python-only. The source-current schema v3 `CUPMAN4` `make -C toolchain all`
+passed in 3,989.13 seconds. The Cupid author and Python oracle agreed on all 58 stage
+pairs. Every stage-three object and executable matched its stage-four
+counterpart. The hosted runtime passed, and live inputs stayed frozen. The
+publisher wrote 21 artifacts and a 27,071-byte manifest with SHA-256
+`615cdfd4095d684f31684b9887ba9610c033513580e7332d2d153841947c9311`.
 It records 70 inputs, 50 bootstrap files, 17 object comparisons, and Linux seed
 manifest
 `51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
-The native Windows `CUPMAN2` verifier printed
-`Cupid Toolchain manifest: ok (21 artifacts)`. An earlier
+Its final `CUPMAN2` verifier printed
+`Cupid Toolchain manifest: ok (21 artifacts)`. The first corrected attempt
+published a valid cohort but failed this last read-only verifier because WSL
+found an unrelated installed `tools` package. ADR 0311 records the launcher pin
+that closed the gap. An earlier
 `make bootstrap-audit` run failed after 65.183 seconds because its
 artifact-size recipe lock omitted the Windows seed verifier. The current graph
 locks one `$(ARTIFACT_SIZE_CONTRACT)` command with
@@ -105,7 +111,7 @@ locks one `$(ARTIFACT_SIZE_CONTRACT)` command with
 digest is
 `a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
 The 2,700,638-byte JSON has SHA-256
-`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
+`194b2a4c056f92a869cf63d7e3d477bd1a55273c424150576d7e9ec0dccb56b0`,
 and the 12,502-byte Markdown summary has SHA-256
 `015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 
@@ -2312,16 +2318,17 @@ fixed-point summary from the exact pair inventories. The request has no caller
 repeats all 58 comparisons independently after the author accepts the request.
 Schema `cupid.toolchain-contracts.v3` does not change. Only
 actual contract build inputs receive compiler or assembler ownership; provenance-only
-observations do not. The latest complete schema v3 publication predates
-`CUPMAN4`; it passed under `CUPMAN3` in 4,273.533 seconds and
-wrote 21 artifacts and a 27,069-byte manifest with
+observations do not. The source-current schema v3 `CUPMAN4` publication passed
+in 3,989.13 seconds and wrote 21 artifacts and a 27,071-byte manifest with
 SHA-256
-`69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
-Every stage-three object and executable matched its stage-four counterpart.
-The hosted runtime passed, and the live inputs stayed frozen. The native Windows verifier printed
-`Cupid Toolchain manifest: ok (21 artifacts)`. The direct manifest module
-passes 40 tests in 43.019 seconds, the publisher passes 60 in 7.144 seconds,
-and the pinned verifier runner executes 24 tests in 28.302 seconds with three
+`615cdfd4095d684f31684b9887ba9610c033513580e7332d2d153841947c9311`.
+The Cupid author and Python oracle agreed on all 58 stage pairs. Every
+stage-three object and executable matched its stage-four counterpart. The
+hosted runtime passed, live inputs stayed frozen, and its final verifier printed
+`Cupid Toolchain manifest: ok (21 artifacts)`. Both checked Python launchers
+resolve `tools` from this checkout. The direct manifest module passes 40 tests
+in 40.828 seconds, the publisher passes 62 in 7.266 seconds, and the pinned
+verifier runner executes 25 tests in 32.773 seconds with three
 POSIX-only skips on Windows.
 The publisher gives `x86_contract.cc` its sibling `/toolchain/tests`
 quoted-include root so checked CupidC can read both frozen x86 `.inc`
@@ -2366,7 +2373,7 @@ The source-current generation passed in about 115 seconds, and deterministic
 check mode passed in 122.30 seconds. Its active-source digest is
 `a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
 The 2,700,638-byte audit JSON has SHA-256
-`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
+`194b2a4c056f92a869cf63d7e3d477bd1a55273c424150576d7e9ec0dccb56b0`,
 and the 12,502-byte Markdown summary has SHA-256
 `015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 

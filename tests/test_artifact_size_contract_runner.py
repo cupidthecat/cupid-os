@@ -1,6 +1,8 @@
 import json
 import os
 import struct
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
@@ -80,6 +82,34 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
             artifact_size_contract.BUILD_INPUTS,
             EXPECTED_BUILD_INPUTS,
         )
+
+    def test_make_shaped_cli_ignores_a_conflicting_tools_package(self):
+        with tempfile.TemporaryDirectory() as directory:
+            shadow_root = Path(directory)
+            shadow_tools = shadow_root / "tools"
+            shadow_tools.mkdir()
+            (shadow_tools / "__init__.py").write_text(
+                'raise RuntimeError("shadow tools package imported")\n',
+                encoding="ascii",
+            )
+            environment = os.environ.copy()
+            environment["PYTHONPATH"] = str(shadow_root)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPO_ROOT / "tools/artifact_size_contract.py"),
+                    "--help",
+                ],
+                cwd=REPO_ROOT / "toolchain",
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("verify", result.stdout)
+        self.assertNotIn("shadow tools package imported", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
     def test_checked_windows_seed_capture_is_complete_and_verified(self):
         with artifact_size_contract.artifact_size_policy._PinnedRepository(

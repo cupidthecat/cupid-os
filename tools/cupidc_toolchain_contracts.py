@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import struct
 import subprocess
 import sys
@@ -28,7 +29,7 @@ try:
         _validate_i386_relocatable,
         _validate_static_i386_elf,
         _validate_static_i386_pe32,
-        bootstrap_from_seed,
+        _bootstrap_for_manifest_author,
         capture_source_snapshot,
         freeze_seed_inputs,
         require_live_seed_inputs,
@@ -45,7 +46,7 @@ except ModuleNotFoundError:
         _validate_i386_relocatable,
         _validate_static_i386_elf,
         _validate_static_i386_pe32,
-        bootstrap_from_seed,
+        _bootstrap_for_manifest_author,
         capture_source_snapshot,
         freeze_seed_inputs,
         require_live_seed_inputs,
@@ -1144,12 +1145,92 @@ def _capture_stage_pairs(
     return tuple(
         (
             name,
-            1,
-            first[name].read_bytes(),
-            1,
-            second[name].read_bytes(),
+            *_capture_regular_stage_file(
+                first[name], artifact_kind, name
+            ),
+            *_capture_regular_stage_file(
+                second[name], artifact_kind, name
+            ),
         )
         for name in sorted(first)
+    )
+
+
+def _capture_regular_stage_file(
+    path: Path, artifact_kind: str, name: str
+) -> tuple[int, bytes]:
+    try:
+        path_status = path.lstat()
+    except OSError as error:
+        raise ContractError(
+            f"{artifact_kind} stage file is unavailable: {name}: {error}"
+        ) from error
+    if not stat.S_ISREG(path_status.st_mode):
+        raise ContractError(
+            f"{artifact_kind} stage file is not a regular file: {name}"
+        )
+
+    flags = os.O_RDONLY
+    flags |= getattr(os, "O_BINARY", 0)
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    descriptor = -1
+    try:
+        descriptor = os.open(path, flags)
+        opened_status = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(opened_status.st_mode)
+            or _stage_file_identity(opened_status)
+            != _stage_file_identity(path_status)
+        ):
+            raise ContractError(
+                f"{artifact_kind} stage file identity changed: {name}"
+            )
+        payload = bytearray()
+        while True:
+            block = os.read(descriptor, 1024 * 1024)
+            if not block:
+                break
+            payload.extend(block)
+        final_status = os.fstat(descriptor)
+    except ContractError:
+        raise
+    except OSError as error:
+        raise ContractError(
+            f"{artifact_kind} stage file could not be captured: "
+            f"{name}: {error}"
+        ) from error
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+
+    try:
+        live_status = path.lstat()
+    except OSError as error:
+        raise ContractError(
+            f"{artifact_kind} stage file changed during capture: "
+            f"{name}: {error}"
+        ) from error
+    if (
+        not stat.S_ISREG(live_status.st_mode)
+        or _stage_file_identity(opened_status)
+        != _stage_file_identity(final_status)
+        or _stage_file_identity(path_status)
+        != _stage_file_identity(live_status)
+    ):
+        raise ContractError(
+            f"{artifact_kind} stage file changed during capture: {name}"
+        )
+    return 1, bytes(payload)
+
+
+def _stage_file_identity(value: os.stat_result) -> tuple[int, ...]:
+    return (
+        value.st_dev,
+        value.st_ino,
+        stat.S_IFMT(value.st_mode),
+        value.st_size,
+        value.st_mtime_ns,
     )
 
 
@@ -1372,6 +1453,16 @@ def _valid_logical_path(value: object) -> bool:
     )
 
 
+def _tool_fixed_point_record() -> dict[str, object]:
+    return {
+        "all_equal": True,
+        "c_objects": len(BOOTSTRAP_OBJECT_NAMES) - 1,
+        "compared_generations": list(CONVERGED_GENERATIONS),
+        "startup_objects": 1,
+        "tool_images": len(TOOL_NAMES),
+    }
+
+
 def _validate_bootstrap_record(value: object) -> dict[str, object]:
     if not isinstance(value, dict) or set(value) != {
         "build_plan_sha256",
@@ -1479,13 +1570,7 @@ def verify_publication(output: Path) -> dict[str, object]:
     ):
         raise ContractError("published contract input inventory differs")
     fixed_point = report.get("tool_fixed_point")
-    if fixed_point != {
-        "all_equal": True,
-        "c_objects": 19,
-        "compared_generations": list(CONVERGED_GENERATIONS),
-        "startup_objects": 1,
-        "tool_images": len(TOOL_NAMES),
-    }:
+    if fixed_point != _tool_fixed_point_record():
         raise ContractError("published Toolchain fixed-point record differs")
 
     records = report.get("artifacts")
@@ -1846,8 +1931,10 @@ def build_contracts(
         bootstrap_output = workspace / "bootstrap"
         _announce("checked-seed bootstrap started")
         try:
-            bootstrap_report = bootstrap_from_seed(
-                manifest, root, bootstrap_output
+            bootstrap_report = _bootstrap_for_manifest_author(
+                manifest,
+                root,
+                bootstrap_output,
             )
         except BootstrapError as error:
             raise ContractError(
@@ -1858,11 +1945,14 @@ def build_contracts(
         bootstrap_inputs = bootstrap_report.get("source_inputs")
         if (
             not isinstance(bootstrap_inputs, dict)
+            or bootstrap_report.get("status")
+            != "pending-fixed-point-author"
             or bootstrap_report.get("seed_manifest_sha256")
             != _sha256(manifest)
+            or "comparisons" in bootstrap_report
         ):
             raise ContractError(
-                "checked bootstrap report lacks its verified input inventory"
+                "checked bootstrap report differs before author decision"
             )
         bootstrap_record: dict[str, object] = {
             "build_plan_sha256": bootstrap_report.get("build_plan_sha256"),
@@ -1952,7 +2042,6 @@ def build_contracts(
                 "linkage": "static",
                 "operating_system": "linux",
             },
-            "tool_fixed_point": bootstrap_report["comparisons"],
         }
         authored_report = _checked_manifest_author_bytes(
             private_root,
@@ -2005,6 +2094,7 @@ def build_contracts(
             bootstrap_stage_four_tools,
             "bootstrap tool",
         )
+        report["tool_fixed_point"] = _tool_fixed_point_record()
         if (
             object_comparisons != oracle_object_comparisons
             or comparisons != oracle_comparisons

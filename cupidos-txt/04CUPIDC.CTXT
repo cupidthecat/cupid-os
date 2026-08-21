@@ -312,7 +312,8 @@ checks executable pairs against their artifact facts, and derives the
 fixed-point summary from its exact inventories. No caller all_equal field is
 part of the protocol. Python repeats all 58 comparisons after author acceptance
 and remains responsible for filesystem traversal, live rechecks, rollback, and
-the publication transaction.
+the publication transaction. It captures each pair from a regular file through
+a descriptor whose identity is checked before and after the read.
 
 The same contract source handles CUPMAN2 verification in check mode. Its
 request carries the publication manifest, all 21 artifact observations, the
@@ -332,9 +333,10 @@ independent comparisons. It also checks the hosted runtime, live inputs, and
 the native Windows CUPMAN2 verifier. The source audit enforces the graph and
 ownership counts above. A valid schema-v3 publication still records exactly 21
 artifacts, 70 publication inputs, 50 bootstrap inputs, and 17 object
-comparisons, and CUPMAN2 must accept it. The direct module passes 40 tests in
-43.019 seconds, the publisher passes 60 in 7.144 seconds, and the pinned runner
-passes 24 in 28.302 seconds. The host bootstrap log records exact publication
+comparisons, and CUPMAN2 must accept it. Both checked Python launchers resolve
+`tools` from this checkout. The direct module passes 40 tests in 40.828 seconds,
+the publisher passes 62 in 7.266 seconds, and the pinned runner passes 25 in
+32.773 seconds. The host bootstrap log records exact publication
 and OS artifact identities because putting them in this image manual would
 alter an image input.
 

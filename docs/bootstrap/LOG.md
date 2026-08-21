@@ -28882,3 +28882,131 @@ and the unchanged 12,502-byte Markdown summary has SHA-256
 This changes the audit's host portability, not an OS artifact, checked seed,
 build owner, or guest ABI. No additional image build or guest smoke is needed
 for this detector repair. `TempleOS/` remains untouched reference material.
+
+## 2026-08-21: make the Cupid author the first publication equality judge
+
+The first `CUPMAN4` publisher test mocked `bootstrap_from_seed` and checked that
+the author ran before four visible Python oracle calls. Review found that the
+real bootstrap function still called `_compare_stages` internally. The test
+therefore proved the order of the mock boundary, not the order of the complete
+publication path.
+
+The first corrected test required the publisher to request an unfinalized
+bootstrap report. It failed because `bootstrap_from_seed` had no way to defer
+its comparison. The first repair exposed a public comparison switch and kept
+calling the report `pass`. Standards review rejected that draft because another
+caller could publish unverified stage outputs. The public bootstrap now always
+compares stage three and stage four. Only a private manifest-author path may
+return `pending-fixed-point-author`, and its output stays inside the publisher's
+temporary workspace. The publisher rejects any other status and rejects a
+report that already contains `comparisons`.
+
+The Cupid-built author consumes all 58 raw pairs first. Python then runs the
+four independent comparisons and adds the fixed-point summary only after they
+all pass. A focused negative test confirms that the public bootstrap no longer
+accepts the old comparison switch.
+
+A second review test supplied a symlink as one side of a stage pair. It failed
+because `Path.read_bytes` followed the link before writing file kind `1` into
+the request. Pair capture now starts with `lstat`, requires a regular file,
+opens a no-follow descriptor where supported, and compares descriptor and path
+identity before and after the read. The author still receives the same bounded
+kind and byte framing. Runtime tests replace the path before open, alter the
+descriptor identity during capture, and replace the path after close. Every
+failure is followed by a valid capture in the same process.
+
+The two focused regressions pass in 1.046 seconds. The complete publisher suite
+passes 62 tests in 6.518 seconds. The direct author and pinned runner group
+passes 64 tests in 70.093 seconds, with three expected POSIX-only skips on
+Windows. Python bytecode compilation also passes.
+
+The source audit now inspects the real syntax tree for the public finalizing
+bootstrap path, the private pending manifest-author path, the author call, all
+four later comparison calls, the fixed-point summary assignment, and
+descriptor-pinned capture. Its complete
+fail-closed mutation test passes in 94.871 seconds. Eight new mutations restore
+the public precomparison, expose an unfinalized public path, claim success for
+a pending report, accept the wrong pending status, compare unconditionally,
+publish the summary early, follow the path before opening it, or remove the
+no-follow flag.
+
+One complete `CUPMAN4` publication ran before these review fixes. It passed in
+4,437.131 seconds and wrote a 27,069-byte schema v3 manifest with SHA-256
+`47a1e271acd22089a51c2cb23695abd466e6628a5f0c32d44cb67fc886563d9c`.
+That checkpoint proves the raw-pair protocol, but it is historical evidence for
+the old publisher order. A source-current publication is still required before
+the corrected boundary can be called complete.
+
+The regenerated source audit keeps 739 inputs, 452 transforms, 255 feature
+requirements, 25 accounted unreachable files, and active-source digest
+`a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
+Both `make bootstrap-audit` and `make check-bootstrap-audit` pass.
+Its 2,700,638-byte JSON now has SHA-256
+`194b2a4c056f92a869cf63d7e3d477bd1a55273c424150576d7e9ec0dccb56b0`.
+The 12,502-byte Markdown summary remains byte-identical with SHA-256
+`015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
+
+## 2026-08-21: pin checked contract imports and complete CUPMAN4
+
+The first source-current `make -C toolchain all` rerun reached the intended
+author-first boundary. The checked bootstrap and both contract stages passed,
+the hosted runtime passed, and live inputs stayed frozen. The Cupid-built author
+and Python agreed on all 58 stage pairs, and the complete 21-artifact cohort was
+published.
+
+The enclosing target still failed after 3,976.96 seconds. Its final read-only
+`CUPMAN2` verifier started from `toolchain/`, found an unrelated installed
+package named `tools`, and stopped before importing this checkout's policy and
+bootstrap modules. The publication itself remained complete and passed the
+same verifier once the repository root was supplied explicitly.
+
+`artifact_size_contract.py` had the same direct-script ambiguity. Both checked
+contract launchers now derive the repository root from their own resolved path
+and put it first in Python's import search path. Their existing sibling-module
+fallback remains available for copied standalone layouts. A subprocess test for
+each launcher adds a shadow `tools` package whose initializer raises; both tests
+prove that the checkout wins even when the command starts from `toolchain/`.
+
+Focused checks pass on the corrected source:
+
+| Check | Result |
+| --- | --- |
+| Import-collision regressions | 2 tests in 0.327 second |
+| Artifact-size policy | 13 tests in 2.333 seconds |
+| Artifact-size runner | 16 tests in 1.102 seconds, with four expected Windows skips |
+| Direct manifest contract | 40 tests in 40.828 seconds |
+| Contract publisher | 62 tests in 7.266 seconds |
+| Pinned manifest verifier runner | 25 tests in 32.773 seconds, with three expected Windows skips |
+
+`make bootstrap-audit` and `make check-bootstrap-audit` both pass. The audit
+still records 739 active inputs, 452 transforms, 255 feature requirements, 25
+accounted unreachable files, and active-source digest
+`a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
+Its 2,700,638-byte JSON has SHA-256
+`194b2a4c056f92a869cf63d7e3d477bd1a55273c424150576d7e9ec0dccb56b0`.
+The 12,502-byte Markdown summary has SHA-256
+`015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
+
+The complete unmodified-environment rerun started at
+`2026-08-21T11:54:47.1387273-04:00` and passed in 3,989.13 seconds. The checked
+bootstrap and both contract generations completed, all 16 executables linked in
+each generation, the hosted runtime passed, and live inputs stayed frozen. The
+Cupid author and Python agreed on all 58 stage pairs before the cohort was
+published. The final verifier printed
+`Cupid Toolchain manifest: ok (21 artifacts)`, and the enclosing Make target
+exited zero.
+
+The resulting `cupid.toolchain-contracts.v3` manifest records 21 artifacts, 70
+publication inputs, the exact 50-file bootstrap source snapshot, 17 object
+comparisons, 19 C objects, one startup object, and five tool images with
+`all_equal=true`. It is 27,071 bytes with SHA-256
+`615cdfd4095d684f31684b9887ba9610c033513580e7332d2d153841947c9311`.
+The bootstrap source snapshot has SHA-256
+`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`,
+and the checked Linux seed manifest remains
+`51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
+
+This repair changes launcher resolution and the host trust boundary. It does
+not change an OS image, checked seed, guest ABI, build owner, or manifest schema.
+ADR 0311 records the import decision. `TempleOS/` remains untouched reference
+material.

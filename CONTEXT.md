@@ -414,24 +414,28 @@ owns pinned filesystem access, process launch, drift checks, private staging,
 and atomic publication. The author is always a static Linux ELF built and run
 by the converged stage-four Linux tools; Windows reaches it through WSL. Only
 the `CUPMAN2` verifier is host-selected and runs as a native PE on Windows.
-The direct manifest module passes 40 tests in 43.019 seconds, the publisher
-passes 60 in 7.144 seconds, and the pinned verifier runner executes 24 tests in
-28.302 seconds with three POSIX-only skips on Windows. ADR 0307 records the
-paired-evidence boundary. The last complete publication predates `CUPMAN4`.
-Its schema v3 `CUPMAN3` `make -C toolchain all` passed in 4,273.533 seconds.
-Every stage-three object
-and executable matched its
-stage-four counterpart, the hosted runtime passed, and the live inputs stayed
-frozen. The publisher wrote 21 artifacts and a 27,069-byte schema v3 manifest
+Both checked Python contract launchers resolve `tools` from this checkout
+before consulting installed packages. The direct manifest module passes 40
+tests in 40.828 seconds, the publisher passes 62 in 7.266 seconds, and the
+pinned verifier runner executes 25 tests in 32.773 seconds with three
+POSIX-only skips on Windows. ADR 0307 records the paired-evidence boundary, and
+ADR 0311 records checkout-local contract imports. The source-current schema v3
+`CUPMAN4` `make -C toolchain all` passed in 3,989.13 seconds. The Cupid author and
+Python agreed on all 58 stage pairs. Every stage-three object and executable
+matched its stage-four counterpart, the hosted runtime passed, and live inputs
+stayed frozen. The publisher wrote 21 artifacts and a 27,071-byte manifest
 with SHA-256
-`69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
-The native Windows `CUPMAN2` verifier printed
-`Cupid Toolchain manifest: ok (21 artifacts)`. The source-current
+`615cdfd4095d684f31684b9887ba9610c033513580e7332d2d153841947c9311`.
+Its final `CUPMAN2` verifier printed
+`Cupid Toolchain manifest: ok (21 artifacts)`. The first corrected attempt had
+already published a valid cohort when that final read-only verifier found an
+unrelated installed `tools` package. The checkout-local launcher rule fixed the
+host import boundary. The source-current
 `make bootstrap-audit` passed in about 115 seconds, and
 `make check-bootstrap-audit` passed in 122.30 seconds. Its active-source digest
 is `a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
 The 2,700,638-byte JSON has SHA-256
-`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
+`194b2a4c056f92a869cf63d7e3d477bd1a55273c424150576d7e9ec0dccb56b0`,
 and the 12,502-byte Markdown summary has SHA-256
 `015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 A pre-final-CTXT build reached the exact-size gate after 668.414 seconds. The

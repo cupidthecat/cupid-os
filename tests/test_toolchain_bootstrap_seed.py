@@ -66,6 +66,17 @@ SOURCE_HEAD_SNAPSHOT_SHA256 = (
 
 
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    def test_public_bootstrap_cannot_skip_the_fixed_point(self):
+        with self.assertRaisesRegex(
+            TypeError, "unexpected keyword argument 'compare_fixed_point'"
+        ):
+            bootstrap_from_seed(
+                SEED_MANIFEST,
+                REPO_ROOT,
+                REPO_ROOT / "unused-bootstrap-output",
+                **{"compare_fixed_point": False},
+            )
+
     def _assert_checked_seed_local_relative_target_policy(
         self,
         manifest: Path,

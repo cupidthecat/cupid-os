@@ -61,8 +61,9 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 The private CupidC callback work, SMP raw-map handoff, relocatable-object local
 target checks, and `CUPMAN4` paired-evidence author pass their focused gates.
 The fully poisoned OS build and integrated four-vCPU private guest frontier are
-also complete. The latest complete Toolchain publication still predates
-`CUPMAN4`.
+also complete. The source-current `CUPMAN4` publication and final `CUPMAN2`
+verification pass in 3,989.13 seconds after the publisher-order, pair-capture,
+and checkout-local import fixes.
 
 Private CupidC retains a file-scope function-pointer typedef signature in direct
 free-function parameters, Cupid class method parameters,
@@ -103,30 +104,35 @@ byte streams for every pair and hashes both streams. It derives the 17
 published object records from those bytes, checks each executable pair against
 its artifact fact, and derives the fixed-point summary from the exact pair
 inventories. The protocol has no caller `all_equal` field. Python performs the
-same four comparisons only
-after the author accepts the request. It still pins the filesystem, launches
-the author, stages privately, and swaps the complete directory. The direct
-module passes 40 tests in 43.019 seconds, the publisher passes 60 in 7.144
-seconds, and the pinned verifier runner executes 24 tests in 28.302 seconds
-with three POSIX-only skips on Windows. [ADR 0307](docs/adr/0307-author-toolchain-fixed-point-evidence-from-stage-pairs.md)
-records the paired-evidence boundary. The source graph has 739 active inputs,
+same four comparisons only after the author accepts the request. It still pins
+the filesystem, launches the author, stages privately, and swaps the complete
+directory. Both checked Python contract launchers resolve `tools` from this
+checkout before consulting installed packages. The direct module passes 40
+tests in 40.828 seconds, the publisher passes 62 in 7.266 seconds, and the
+pinned verifier runner executes 25 tests in 32.773 seconds with three
+POSIX-only skips on Windows. [ADR 0307](docs/adr/0307-author-toolchain-fixed-point-evidence-from-stage-pairs.md)
+records the paired-evidence boundary, and [ADR 0311](docs/adr/0311-pin-checked-contract-imports-to-the-checkout.md)
+records checkout-local contract imports. The source graph has 739 active inputs,
 452 transforms, 255 feature requirements, and 25 accounted unreachable files.
 Participation
 is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 6, and four
 Cupid-built semantic contracts. Python participates in all 452 transforms,
 but no transform is Python-only. Root `all` remains at 443 transforms, each
-with a Cupid participant. The last complete publication predates `CUPMAN4`.
-That schema v3 `CUPMAN3`
-`make -C toolchain all` passed in 4,273.533 seconds. Every stage-three object and
-executable matched its stage-four counterpart, the hosted runtime passed, and
-the live inputs stayed frozen. The publisher wrote 21 artifacts and a
-27,069-byte manifest with SHA-256
-`69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
+with a Cupid participant. The source-current schema v3 `CUPMAN4`
+`make -C toolchain all` passed in 3,989.13 seconds. The Cupid author and Python
+oracle agreed on all 58 stage pairs. Every stage-three object and executable
+matched its stage-four counterpart, the hosted runtime passed, and live inputs
+stayed frozen. The publisher wrote 21 artifacts and a 27,071-byte manifest with
+SHA-256
+`615cdfd4095d684f31684b9887ba9610c033513580e7332d2d153841947c9311`.
 It records 70 inputs, 50 bootstrap files, 17 object comparisons, and Linux seed
 manifest
 `51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
-The native Windows `CUPMAN2` verifier printed
-`Cupid Toolchain manifest: ok (21 artifacts)`. An earlier
+Its final `CUPMAN2` verifier printed
+`Cupid Toolchain manifest: ok (21 artifacts)`. The first corrected attempt
+reached a valid publication but failed its read-only final verifier because WSL
+found an unrelated installed `tools` package. The launcher pin closed that
+host-resolution gap before the complete rerun. An earlier
 `make bootstrap-audit` run failed after 65.183 seconds because its
 artifact-size recipe lock omitted the Windows seed verifier. The current Make
 recipe has one `$(ARTIFACT_SIZE_CONTRACT)` command, and that command carries
@@ -137,7 +143,7 @@ active sources, 452 transforms, 255 feature requirements, and 25 accounted
 unreachable files. Its active-source digest is
 `a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
 The 2,700,638-byte JSON has SHA-256
-`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
+`194b2a4c056f92a869cf63d7e3d477bd1a55273c424150576d7e9ec0dccb56b0`,
 and the 12,502-byte Markdown summary has SHA-256
 `015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 [ADR 0304](docs/adr/0304-author-toolchain-publication-manifests-with-cupidc.md)

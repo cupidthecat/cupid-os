@@ -5620,6 +5620,8 @@ def _bootstrap_from_frozen_seed(
     seed_inputs: SeedInputs,
     source_root: Path,
     output_root: Path,
+    *,
+    compare_fixed_point: bool,
 ) -> dict[str, object]:
     seed_tools = seed_inputs.tools
     manifest = seed_inputs.manifest
@@ -5702,8 +5704,10 @@ def _bootstrap_from_frozen_seed(
             str(_require_object(source, "build source")["name"])
             for source in raw_sources
         ]
-        comparisons = _compare_stages(
-            stage_three, stage_four, source_names
+        comparisons = (
+            _compare_stages(stage_three, stage_four, source_names)
+            if compare_fixed_point
+            else None
         )
         behavior_evidence: dict[str, object] = {}
         behavior = _run_behavior_checks(
@@ -5757,7 +5761,6 @@ def _bootstrap_from_frozen_seed(
             "behavior": behavior,
             "behavior_generations": ["stage-three", "stage-four"],
             "build_plan_sha256": manifest["build_plan_sha256"],
-            "comparisons": comparisons,
             "host_execution": {
                 "windows_cupidasm": windows_native_tools["cupidasm"][
                     "loader"
@@ -5803,10 +5806,16 @@ def _bootstrap_from_frozen_seed(
                     "tools": _artifact_inventory(stage_two.tools),
                 },
             },
-            "status": "pass",
+            "status": (
+                "pass"
+                if compare_fixed_point
+                else "pending-fixed-point-author"
+            ),
             "target": EXPECTED_TARGET,
             "windows_runtime": windows_runtime,
         }
+        if comparisons is not None:
+            report["comparisons"] = comparisons
         encoded_report = (
             json.dumps(
                 report, indent=2, sort_keys=True, ensure_ascii=True
@@ -6064,10 +6073,12 @@ def bootstrap_windows_from_seed(
         )
 
 
-def bootstrap_from_seed(
+def _bootstrap_from_seed_with_policy(
     manifest_path: Path,
     source_root: Path,
     output_root: Path,
+    *,
+    compare_fixed_point: bool,
 ) -> dict[str, object]:
     with tempfile.TemporaryDirectory(
         prefix="cupid-bootstrap-seed-inputs-"
@@ -6081,8 +6092,37 @@ def bootstrap_from_seed(
                 "Linux fixed-point bootstrap"
             )
         return _bootstrap_from_frozen_seed(
-            seed_inputs, source_root, output_root
+            seed_inputs,
+            source_root,
+            output_root,
+            compare_fixed_point=compare_fixed_point,
         )
+
+
+def bootstrap_from_seed(
+    manifest_path: Path,
+    source_root: Path,
+    output_root: Path,
+) -> dict[str, object]:
+    return _bootstrap_from_seed_with_policy(
+        manifest_path,
+        source_root,
+        output_root,
+        compare_fixed_point=True,
+    )
+
+
+def _bootstrap_for_manifest_author(
+    manifest_path: Path,
+    source_root: Path,
+    output_root: Path,
+) -> dict[str, object]:
+    return _bootstrap_from_seed_with_policy(
+        manifest_path,
+        source_root,
+        output_root,
+        compare_fixed_point=False,
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:

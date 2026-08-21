@@ -56,13 +56,17 @@ records, and checks executable pairs against artifact facts. It derives the
 fixed-point summary from the exact pair inventories, so the request has no
 caller all_equal field. Python repeats all 58 comparisons after author
 acceptance and still owns filesystem capture, drift checks, rollback, and
-atomic publication. CUPMAN2 remains the verifier.
+atomic publication. It captures each side from a regular file through a
+descriptor whose identity is checked before and after the read. CUPMAN2
+remains the verifier.
 
 A valid schema-v3 publication records exactly 21 artifacts, 70 publication
 inputs, 50 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
-it. The direct contract passes 40 tests in 43.019 seconds, the publisher passes
-60 in 7.144 seconds, and the pinned runner passes 24 in 28.302 seconds. The host
-bootstrap log records the exact publication identity and completion evidence.
+it. Both checked Python contract launchers put this checkout ahead of installed
+packages before importing `tools`. The direct contract passes 40 tests in
+40.828 seconds, the publisher passes 62 in 7.266 seconds, and the pinned runner
+passes 25 in 32.773 seconds. The host bootstrap log records the exact
+publication identity and completion evidence.
 
 The publication gate requires stage-three and stage-four identity, hosted
 runtime checks, live-input checks, and native Windows verification. Normal

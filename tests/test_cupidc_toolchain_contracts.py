@@ -1057,7 +1057,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 ),
                 mock.patch.object(
                     cupidc_toolchain_contracts,
-                    "bootstrap_from_seed",
+                    "_bootstrap_for_manifest_author",
                     side_effect=cupidc_toolchain_contracts.BootstrapError(
                         "injected stop"
                     ),
@@ -1121,18 +1121,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                         )
                 return {
                     "build_plan_sha256": "1" * 64,
-                    "comparisons": {
-                        "all_equal": True,
-                        "c_objects": 19,
-                        "compared_generations": [
-                            "stage-three",
-                            "stage-four",
-                        ],
-                        "startup_objects": 1,
-                        "tool_images": len(
-                            cupidc_toolchain_contracts.TOOL_NAMES
-                        ),
-                    },
+                    "status": "pending-fixed-point-author",
                     "seed_manifest_sha256": (
                         cupidc_toolchain_contracts._sha256(manifest)
                     ),
@@ -1237,14 +1226,22 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 )
                 decision_events.append("author")
                 author_generations.append(bootstrap_stage_four.name)
+                self.assertNotIn("tool_fixed_point", report)
                 if author_failure[0]:
                     raise cupidc_toolchain_contracts.ContractError(
                         "injected paired-stage mismatch"
                     )
                 if not author_output_valid[0]:
                     return b"not the independently checked manifest\n"
+                authored_report = {
+                    **report,
+                    "tool_fixed_point": (
+                        cupidc_toolchain_contracts._tool_fixed_point_record()
+                    ),
+                }
                 return (
-                    json.dumps(report, indent=2, sort_keys=True) + "\n"
+                    json.dumps(authored_report, indent=2, sort_keys=True)
+                    + "\n"
                 ).encode("ascii")
 
             with (
@@ -1264,7 +1261,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 ),
                 mock.patch.object(
                     cupidc_toolchain_contracts,
-                    "bootstrap_from_seed",
+                    "_bootstrap_for_manifest_author",
                     side_effect=bootstrap,
                 ),
                 mock.patch.object(
@@ -1375,6 +1372,130 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     ).read_bytes(),
                     f"stage-four:{tool_name}".encode("ascii"),
                 )
+
+    def test_manifest_author_pair_capture_rejects_symlinks(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-stage-link-"
+        ) as temporary:
+            root = Path(temporary)
+            target = root / "target.o"
+            target.write_bytes(b"object")
+            linked = root / "linked.o"
+            try:
+                linked.symlink_to(target)
+            except OSError:
+                self.skipTest("file symlinks are unavailable")
+
+            with self.assertRaisesRegex(
+                cupidc_toolchain_contracts.ContractError,
+                "contract object stage file is not a regular file",
+            ):
+                cupidc_toolchain_contracts._capture_stage_pairs(
+                    {"sample": linked},
+                    {"sample": target},
+                    "contract object",
+                )
+
+    def test_manifest_author_pair_capture_rejects_identity_races_and_recovers(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-stage-race-"
+        ) as temporary:
+            root = Path(temporary)
+            stage_file = root / "stage.o"
+
+            stage_file.write_bytes(b"before-open")
+            replacement = root / "open-replacement.o"
+            replacement.write_bytes(b"replacement-before-open")
+            real_open = os.open
+
+            def replace_before_open(path: Path, flags: int) -> int:
+                replacement.replace(stage_file)
+                return real_open(path, flags)
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts.os,
+                "open",
+                side_effect=replace_before_open,
+            ), self.assertRaisesRegex(
+                cupidc_toolchain_contracts.ContractError,
+                "stage file identity changed",
+            ):
+                cupidc_toolchain_contracts._capture_regular_stage_file(
+                    stage_file, "contract object", "sample"
+                )
+            self.assertEqual(
+                cupidc_toolchain_contracts._capture_regular_stage_file(
+                    stage_file, "contract object", "sample"
+                ),
+                (1, b"replacement-before-open"),
+            )
+
+            stage_file.write_bytes(b"during-read")
+            real_fstat = os.fstat
+            fstat_calls = 0
+
+            def change_final_descriptor_status(
+                descriptor: int,
+            ) -> os.stat_result | SimpleNamespace:
+                nonlocal fstat_calls
+                status = real_fstat(descriptor)
+                fstat_calls += 1
+                if fstat_calls != 2:
+                    return status
+                return SimpleNamespace(
+                    st_dev=status.st_dev,
+                    st_ino=status.st_ino,
+                    st_mode=status.st_mode,
+                    st_size=status.st_size + 1,
+                    st_mtime_ns=status.st_mtime_ns,
+                )
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts.os,
+                "fstat",
+                side_effect=change_final_descriptor_status,
+            ), self.assertRaisesRegex(
+                cupidc_toolchain_contracts.ContractError,
+                "stage file changed during capture",
+            ):
+                cupidc_toolchain_contracts._capture_regular_stage_file(
+                    stage_file, "contract object", "sample"
+                )
+            self.assertEqual(
+                cupidc_toolchain_contracts._capture_regular_stage_file(
+                    stage_file, "contract object", "sample"
+                ),
+                (1, b"during-read"),
+            )
+
+            stage_file.write_bytes(b"before-close")
+            replacement = root / "close-replacement.o"
+            replacement.write_bytes(b"replacement-after-close")
+            real_close = os.close
+
+            def replace_after_close(descriptor: int) -> None:
+                real_close(descriptor)
+                replacement.replace(stage_file)
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts.os,
+                "close",
+                side_effect=replace_after_close,
+            ), self.assertRaisesRegex(
+                cupidc_toolchain_contracts.ContractError,
+                "stage file changed during capture",
+            ):
+                cupidc_toolchain_contracts._capture_regular_stage_file(
+                    stage_file, "contract object", "sample"
+                )
+            self.assertEqual(
+                cupidc_toolchain_contracts._capture_regular_stage_file(
+                    stage_file, "contract object", "sample"
+                ),
+                (1, b"replacement-after-close"),
+            )
 
     def test_contract_object_comparison_checks_exact_stage_bytes(self):
         with tempfile.TemporaryDirectory(

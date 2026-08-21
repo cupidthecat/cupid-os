@@ -6051,6 +6051,66 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '    paths.add(root / "link.ld")\n',
                 r"fixed-point publication input closure differs",
             ),
+            "contract publisher restores the bootstrap precomparison": (
+                "contract_publisher",
+                "            bootstrap_report = "
+                "_bootstrap_for_manifest_author(\n",
+                "            bootstrap_report = bootstrap_from_seed(\n",
+                r"manifest author decision order differs",
+            ),
+            "public bootstrap defaults to an unfinalized report": (
+                "bootstrap",
+                "        compare_fixed_point=True,\n",
+                "        compare_fixed_point=False,\n",
+                r"fixed-point source freeze differs",
+            ),
+            "pending bootstrap claims final success": (
+                "bootstrap",
+                '                else "pending-fixed-point-author"\n',
+                '                else "pass"\n',
+                r"fixed-point source freeze differs",
+            ),
+            "publisher accepts a final bootstrap report": (
+                "contract_publisher",
+                '            != "pending-fixed-point-author"\n',
+                '            != "pass"\n',
+                r"manifest author decision order differs",
+            ),
+            "Linux bootstrap comparison becomes unconditional": (
+                "bootstrap",
+                "        comparisons = (\n"
+                "            _compare_stages("
+                "stage_three, stage_four, source_names)\n"
+                "            if compare_fixed_point\n"
+                "            else None\n"
+                "        )\n",
+                "        comparisons = _compare_stages(\n"
+                "            stage_three, stage_four, source_names\n"
+                "        )\n",
+                r"fixed-point source freeze differs",
+            ),
+            "fixed-point summary precedes the Cupid author": (
+                "contract_publisher",
+                "        authored_report = "
+                "_checked_manifest_author_bytes(\n",
+                "        report[\"tool_fixed_point\"] = "
+                "_tool_fixed_point_record()\n"
+                "        authored_report = "
+                "_checked_manifest_author_bytes(\n",
+                r"manifest author decision order differs",
+            ),
+            "stage evidence follows a path before opening it": (
+                "contract_publisher",
+                "        path_status = path.lstat()\n",
+                "        path_status = path.stat()\n",
+                r"manifest author decision order differs",
+            ),
+            "stage evidence loses no-follow open policy": (
+                "contract_publisher",
+                '    flags |= getattr(os, "O_NOFOLLOW", 0)\n',
+                '    flags |= getattr(os, "O_CLOEXEC", 0)\n',
+                r"manifest author decision order differs",
+            ),
             "PE32 Windows assembly stops comparing stages": (
                 "bootstrap",
                 "    windows_assembly_result = _run_stage_pair(\n",
@@ -6797,12 +6857,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "checked comparison stops one generation early": (
                 "bootstrap",
-                "        comparisons = _compare_stages(\n"
-                "            stage_three, stage_four, source_names\n"
-                "        )\n",
-                "        comparisons = _compare_stages(\n"
-                "            stage_two, stage_three, source_names\n"
-                "        )\n",
+                "            _compare_stages("
+                "stage_three, stage_four, source_names)\n",
+                "            _compare_stages("
+                "stage_two, stage_three, source_names)\n",
                 r"fixed-point source freeze differs",
             ),
             "checked behavior stops one generation early": (

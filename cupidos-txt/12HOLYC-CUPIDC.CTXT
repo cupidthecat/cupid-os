@@ -545,18 +545,23 @@ targets and all four trampoline targets. Separate Linux and Windows seed
 fixtures each exercise one valid and one invalid direct target.
 
 The private in-kernel callback parser and AOT writer remain separate from the
-standalone toolchain compiler seeds. Private CupidC supports file-scope callback
-typedefs on free-function parameters, Cupid class method parameters, and
-declaration-initialized automatic objects. Global, field, block-static, and
-later-assignment forms remain outside that typed path.
+standalone toolchain compiler seeds. Private CupidC retains file-scope callback
+typedef signatures on free-function parameters, Cupid class method parameters,
+declaration-initialized automatic objects, and direct file objects. A direct
+file object supports null initialization, checked plain assignment, indirect
+calls, and clearing. Fields, callback arrays, block-static objects, alias chains,
+recursive signatures, and `void *` forms remain outside that typed path.
 
 The Toolchain manifest has a Cupid-built author and verifier, while Python keeps
-filesystem capture and atomic publication. A valid schema-v3 publication binds
-exactly 21 artifacts, 70 publication inputs, 50 bootstrap inputs, and 17 object
-comparisons, and CUPMAN2 must accept it. The direct contract passes 29 tests in
-39.068 seconds, the publisher passes 59 in 3.518 seconds, and the pinned runner
-passes 24 in 27.752 seconds. The host bootstrap log records the exact
-publication identity and completion evidence.
+descriptor-pinned filesystem capture and atomic publication. The publisher uses
+a private pending bootstrap path and gives the author all 58 raw stage pairs
+before Python performs its independent comparisons. A valid schema-v3
+publication binds exactly 21 artifacts, 70 publication inputs, 50 bootstrap
+inputs, and 17 object comparisons. Both checked Python contract launchers put
+this checkout ahead of installed packages before importing `tools`. The direct
+contract passes 40 tests in 40.828 seconds, the publisher passes 62 in 7.266
+seconds, and the pinned runner passes 25 in 32.773 seconds. The host bootstrap
+log records the exact publication identity and completion evidence.
 
 Audit generation and checked reproduction pass. The audit records 739 active
 inputs, 452 transforms, 255 feature requirements,

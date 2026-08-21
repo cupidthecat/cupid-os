@@ -1,6 +1,8 @@
 import json
 import os
 import struct
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -265,6 +267,34 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
         self.assertEqual(
             seed, root / "bootstrap/seeds/i386-windows/manifest.json"
         )
+
+    def test_make_shaped_cli_ignores_a_conflicting_tools_package(self):
+        with tempfile.TemporaryDirectory() as directory:
+            shadow_root = Path(directory)
+            shadow_tools = shadow_root / "tools"
+            shadow_tools.mkdir()
+            (shadow_tools / "__init__.py").write_text(
+                'raise RuntimeError("shadow tools package imported")\n',
+                encoding="ascii",
+            )
+            environment = os.environ.copy()
+            environment["PYTHONPATH"] = str(shadow_root)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPO_ROOT / "tools/toolchain_manifest_contract.py"),
+                    "--help",
+                ],
+                cwd=REPO_ROOT / "toolchain",
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("verify", result.stdout)
+        self.assertNotIn("shadow tools package imported", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
     def test_same_metadata_trust_input_rewrite_is_rejected(self):
         reader = mock.Mock()

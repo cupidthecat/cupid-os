@@ -18,7 +18,7 @@ ordinary C translation unit remained in a supported root. Its active-source
 digest is
 `a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
 The 2,700,638-byte audit JSON has SHA-256
-`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
+`194b2a4c056f92a869cf63d7e3d477bd1a55273c424150576d7e9ec0dccb56b0`,
 and the 12,502-byte Markdown summary has SHA-256
 `015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 The final fully poisoned OS build and strong full private guest frontier pass.
@@ -154,21 +154,26 @@ keeps one CupidC, CupidASM, CupidLD, and semantic-contract participation without
 promoting a seed. ADR 0302 records verification, ADR 0304 records authoring,
 and ADR 0307 records raw stage-pair evidence.
 
-The standalone manifest contract passes all 40 tests in 43.019 seconds. The
-publisher passes all 60 in 7.144 seconds. The pinned verifier runner executes
-24 tests in 28.302 seconds, with three POSIX-only cases skipped on Windows.
+Both checked Python contract launchers resolve `tools` from this checkout before
+consulting installed packages. The standalone manifest contract passes all 40
+tests in 40.828 seconds. The publisher passes all 62 in 7.266 seconds. The
+pinned verifier runner executes 25 tests in 32.773 seconds, with three
+POSIX-only cases skipped on Windows. ADR 0311 records the import boundary.
 
-The latest complete schema v3 `make -C toolchain all` predates `CUPMAN4` and
-passed under `CUPMAN3` in 4,273.533 seconds. Every stage-three object and
-executable matched its stage-four
-counterpart. The hosted runtime passed, and the live inputs stayed frozen. The
-publisher wrote 21 artifacts and a 27,069-byte manifest with SHA-256
-`69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
+The source-current schema v3 `CUPMAN4` `make -C toolchain all` passed in
+3,989.13 seconds. The Cupid author and Python oracle agreed on all 58 stage pairs. Every
+stage-three object and executable matched its stage-four counterpart. The
+hosted runtime passed, and live inputs stayed frozen. The publisher wrote 21
+artifacts and a 27,071-byte manifest with SHA-256
+`615cdfd4095d684f31684b9887ba9610c033513580e7332d2d153841947c9311`.
 It records 70 inputs, 50 bootstrap files, 17 object comparisons, and Linux seed
 manifest
 `51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
-The native Windows `CUPMAN2` verifier printed
-`Cupid Toolchain manifest: ok (21 artifacts)`. The audit confirms the same
+Its final `CUPMAN2` verifier printed
+`Cupid Toolchain manifest: ok (21 artifacts)`. The first corrected attempt
+published a valid cohort but failed this last read-only step after WSL imported
+an unrelated installed `tools` package. The checkout-local launcher rule closed
+that host-resolution gap. The audit confirms the same
 70-input publication closure and records no Python-only transform.
 
 The first checked PE boundary built one deterministic imported i386 command

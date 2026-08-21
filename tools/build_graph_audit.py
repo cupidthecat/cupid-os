@@ -10661,8 +10661,10 @@ def _cupid_toolchain_fixed_point_contract(
         "            plan,\n"
         "            \"stage four\",\n"
         "        )",
-        "comparisons = _compare_stages(\n"
-        "            stage_three, stage_four, source_names\n"
+        "comparisons = (\n"
+        "            _compare_stages(stage_three, stage_four, source_names)\n"
+        "            if compare_fixed_point\n"
+        "            else None\n"
         "        )",
         "behavior_evidence: dict[str, object] = {}",
         "behavior = _run_behavior_checks(\n"
@@ -10677,6 +10679,11 @@ def _cupid_toolchain_fixed_point_contract(
         '"stage-four": {\n'
         '                    "objects": _artifact_inventory(stage_four.objects),\n'
         '                    "producer_generation": "stage-three",',
+        '"status": (\n'
+        '                "pass"\n'
+        '                if compare_fixed_point\n'
+        '                else "pending-fixed-point-author"\n'
+        '            ),',
         'windows_runtime = behavior_evidence.get("windows_runtime")',
         'windows_cupiddis = windows_runtime.get("cupiddis")',
         'windows_runtime_contract = windows_runtime.get("runtime_contract")',
@@ -10756,6 +10763,160 @@ def _cupid_toolchain_fixed_point_contract(
         for fragment in required_windows_bootstrap_fragments
         if windows_bootstrap_source.count(fragment) != 1
     )
+
+    def named_assignment_values(
+        function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+        name: str,
+    ) -> list[ast.expr]:
+        if function is None:
+            return []
+        values: list[ast.expr] = []
+        for node in ast.walk(function):
+            if (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == name
+            ):
+                values.append(node.value)
+            elif (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.target.id == name
+                and node.value is not None
+            ):
+                values.append(node.value)
+        return values
+
+    expected_linux_comparison = ast.parse(
+        "_compare_stages(stage_three, stage_four, source_names) "
+        "if compare_fixed_point else None",
+        mode="eval",
+    ).body
+    linux_comparison_values = named_assignment_values(
+        linux_bootstrap_function, "comparisons"
+    )
+    linux_keyword_defaults = (
+        {
+            argument.arg: default
+            for argument, default in zip(
+                linux_bootstrap_function.args.kwonlyargs,
+                linux_bootstrap_function.args.kw_defaults,
+            )
+        }
+        if linux_bootstrap_function is not None
+        else {}
+    )
+    if (
+        len(linux_comparison_values) != 1
+        or ast.dump(linux_comparison_values[0], include_attributes=False)
+        != ast.dump(expected_linux_comparison, include_attributes=False)
+        or "compare_fixed_point" not in linux_keyword_defaults
+        or linux_keyword_defaults["compare_fixed_point"] is not None
+    ):
+        missing_bootstrap_fragments.append(
+            "Linux driver: fixed-point comparison must remain an "
+            "explicit internal policy"
+        )
+
+    bootstrap_policy_functions = {
+        name: [
+            statement
+            for statement in bootstrap_tree.body
+            if isinstance(
+                statement, (ast.FunctionDef, ast.AsyncFunctionDef)
+            )
+            and statement.name == name
+        ]
+        for name in (
+            "_bootstrap_from_seed_with_policy",
+            "bootstrap_from_seed",
+            "_bootstrap_for_manifest_author",
+        )
+    }
+    if any(
+        len(functions) != 1
+        for functions in bootstrap_policy_functions.values()
+    ):
+        missing_bootstrap_fragments.append(
+            "bootstrap policy drivers must each be unique"
+        )
+    else:
+        seed_policy = bootstrap_policy_functions[
+            "_bootstrap_from_seed_with_policy"
+        ][0]
+        public_bootstrap = bootstrap_policy_functions[
+            "bootstrap_from_seed"
+        ][0]
+        author_bootstrap = bootstrap_policy_functions[
+            "_bootstrap_for_manifest_author"
+        ][0]
+        seed_policy_defaults = {
+            argument.arg: default
+            for argument, default in zip(
+                seed_policy.args.kwonlyargs,
+                seed_policy.args.kw_defaults,
+            )
+        }
+
+        def fixed_point_policy_call(
+            function: ast.FunctionDef | ast.AsyncFunctionDef,
+            callee: str,
+        ) -> tuple[bool, ast.expr | None]:
+            calls = [
+                node
+                for node in ast.walk(function)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == callee
+            ]
+            if len(calls) != 1:
+                return False, None
+            policy_keywords = [
+                keyword.value
+                for keyword in calls[0].keywords
+                if keyword.arg == "compare_fixed_point"
+            ]
+            return (
+                len(policy_keywords) == 1,
+                policy_keywords[0] if len(policy_keywords) == 1 else None,
+            )
+
+        forwards_policy, forwarded_value = fixed_point_policy_call(
+            seed_policy, "_bootstrap_from_frozen_seed"
+        )
+        public_policy, public_value = fixed_point_policy_call(
+            public_bootstrap, "_bootstrap_from_seed_with_policy"
+        )
+        author_policy, author_value = fixed_point_policy_call(
+            author_bootstrap, "_bootstrap_from_seed_with_policy"
+        )
+        public_argument_names = {
+            argument.arg
+            for argument in (
+                *public_bootstrap.args.posonlyargs,
+                *public_bootstrap.args.args,
+                *public_bootstrap.args.kwonlyargs,
+            )
+        }
+        if (
+            seed_policy_defaults.get("compare_fixed_point", False)
+            is not None
+            or not forwards_policy
+            or not isinstance(forwarded_value, ast.Name)
+            or forwarded_value.id != "compare_fixed_point"
+            or "compare_fixed_point" in public_argument_names
+            or not public_policy
+            or not isinstance(public_value, ast.Constant)
+            or public_value.value is not True
+            or not author_policy
+            or not isinstance(author_value, ast.Constant)
+            or author_value.value is not False
+        ):
+            missing_bootstrap_fragments.append(
+                "public bootstrap must finalize while the private author "
+                "bootstrap stays pending"
+            )
 
     def source_closure_call_count(
         function: ast.FunctionDef | ast.AsyncFunctionDef | None,
@@ -11140,6 +11301,284 @@ return tuple(
         if len(publisher_plan_source_values) == 1
         else None
     )
+
+    publisher_protocol_errors: list[str] = []
+    publisher_functions = {
+        name: [
+            statement
+            for statement in contract_publisher_tree.body
+            if isinstance(
+                statement, (ast.FunctionDef, ast.AsyncFunctionDef)
+            )
+            and statement.name == name
+        ]
+        for name in (
+            "_capture_stage_pairs",
+            "_capture_regular_stage_file",
+            "_stage_file_identity",
+            "build_contracts",
+        )
+    }
+    if any(len(functions) != 1 for functions in publisher_functions.values()):
+        publisher_protocol_errors.append(
+            "publisher protocol functions must each be unique"
+        )
+    else:
+        build_function = publisher_functions["build_contracts"][0]
+        build_parents = {
+            child: parent
+            for parent in ast.walk(build_function)
+            for child in ast.iter_child_nodes(parent)
+        }
+
+        def live_build_calls(name: str) -> list[ast.Call]:
+            return [
+                node
+                for node in ast.walk(build_function)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == name
+                and not _ast_node_is_statically_dead(
+                    node, build_function, build_parents
+                )
+            ]
+
+        bootstrap_calls = live_build_calls(
+            "_bootstrap_for_manifest_author"
+        )
+        public_bootstrap_calls = live_build_calls("bootstrap_from_seed")
+        if len(bootstrap_calls) != 1 or public_bootstrap_calls:
+            publisher_protocol_errors.append(
+                "publisher must use the private pending bootstrap"
+            )
+
+        author_calls = live_build_calls("_checked_manifest_author_bytes")
+        comparison_calls = live_build_calls("_compare_stage_files")
+        tool_fixed_point_assignments = [
+            node
+            for node in ast.walk(build_function)
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Subscript)
+            and isinstance(node.targets[0].value, ast.Name)
+            and node.targets[0].value.id == "report"
+            and isinstance(node.targets[0].slice, ast.Constant)
+            and node.targets[0].slice.value == "tool_fixed_point"
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "_tool_fixed_point_record"
+            and not _ast_node_is_statically_dead(
+                node, build_function, build_parents
+            )
+        ]
+        protocol_order_is_exact = (
+            len(author_calls) == 1
+            and len(comparison_calls) == 4
+            and len(tool_fixed_point_assignments) == 1
+            and author_calls[0].lineno
+            < min(call.lineno for call in comparison_calls)
+            and max(call.lineno for call in comparison_calls)
+            < tool_fixed_point_assignments[0].lineno
+        )
+        if not protocol_order_is_exact:
+            publisher_protocol_errors.append(
+                "Cupid author, four Python comparisons, and fixed-point "
+                "summary must remain in that order"
+            )
+
+        comparison_guards = []
+        for node in ast.walk(build_function):
+            if (
+                not isinstance(node, ast.Compare)
+                or not isinstance(node.left, ast.Constant)
+                or node.left.value != "comparisons"
+                or len(node.ops) != 1
+                or not isinstance(node.ops[0], ast.In)
+                or len(node.comparators) != 1
+                or not isinstance(node.comparators[0], ast.Name)
+                or node.comparators[0].id != "bootstrap_report"
+                or _ast_node_is_statically_dead(
+                    node, build_function, build_parents
+                )
+            ):
+                continue
+            parent = build_parents.get(node)
+            while parent is not None and not isinstance(parent, ast.If):
+                parent = build_parents.get(parent)
+            if parent is not None and any(
+                isinstance(descendant, ast.Raise)
+                for statement in parent.body
+                for descendant in ast.walk(statement)
+            ):
+                comparison_guards.append(node)
+        if (
+            len(comparison_guards) != 1
+            or len(author_calls) != 1
+            or comparison_guards[0].lineno >= author_calls[0].lineno
+        ):
+            publisher_protocol_errors.append(
+                "publisher must reject a precomputed bootstrap comparison"
+            )
+
+        pending_status_guards = []
+        for node in ast.walk(build_function):
+            if (
+                not isinstance(node, ast.Compare)
+                or not isinstance(node.left, ast.Call)
+                or not isinstance(node.left.func, ast.Attribute)
+                or not isinstance(node.left.func.value, ast.Name)
+                or node.left.func.value.id != "bootstrap_report"
+                or node.left.func.attr != "get"
+                or len(node.left.args) != 1
+                or not isinstance(node.left.args[0], ast.Constant)
+                or node.left.args[0].value != "status"
+                or len(node.ops) != 1
+                or not isinstance(node.ops[0], ast.NotEq)
+                or len(node.comparators) != 1
+                or not isinstance(node.comparators[0], ast.Constant)
+                or node.comparators[0].value
+                != "pending-fixed-point-author"
+                or _ast_node_is_statically_dead(
+                    node, build_function, build_parents
+                )
+            ):
+                continue
+            parent = build_parents.get(node)
+            while parent is not None and not isinstance(parent, ast.If):
+                parent = build_parents.get(parent)
+            if parent is not None and any(
+                isinstance(descendant, ast.Raise)
+                for statement in parent.body
+                for descendant in ast.walk(statement)
+            ):
+                pending_status_guards.append(node)
+        if (
+            len(pending_status_guards) != 1
+            or len(author_calls) != 1
+            or pending_status_guards[0].lineno >= author_calls[0].lineno
+        ):
+            publisher_protocol_errors.append(
+                "publisher must require the pending bootstrap status"
+            )
+
+        capture_pairs = publisher_functions["_capture_stage_pairs"][0]
+        capture_pair_parents = {
+            child: parent
+            for parent in ast.walk(capture_pairs)
+            for child in ast.iter_child_nodes(parent)
+        }
+        capture_pair_calls = [
+            node
+            for node in ast.walk(capture_pairs)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_capture_regular_stage_file"
+            and not _ast_node_is_statically_dead(
+                node, capture_pairs, capture_pair_parents
+            )
+        ]
+        capture_pair_reads_paths = any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "read_bytes"
+            for node in ast.walk(capture_pairs)
+        )
+        if len(capture_pair_calls) != 2 or capture_pair_reads_paths:
+            publisher_protocol_errors.append(
+                "each stage pair must use two checked regular-file captures"
+            )
+
+        capture_regular = publisher_functions[
+            "_capture_regular_stage_file"
+        ][0]
+        capture_parents = {
+            child: parent
+            for parent in ast.walk(capture_regular)
+            for child in ast.iter_child_nodes(parent)
+        }
+
+        def live_capture_call_count(base: str, name: str) -> int:
+            return sum(
+                1
+                for node in ast.walk(capture_regular)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == base
+                and node.func.attr == name
+                and not _ast_node_is_statically_dead(
+                    node, capture_regular, capture_parents
+                )
+            )
+
+        nofollow_calls = [
+            node
+            for node in ast.walk(capture_regular)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "getattr"
+            and len(node.args) == 3
+            and isinstance(node.args[0], ast.Name)
+            and node.args[0].id == "os"
+            and isinstance(node.args[1], ast.Constant)
+            and node.args[1].value == "O_NOFOLLOW"
+            and isinstance(node.args[2], ast.Constant)
+            and node.args[2].value == 0
+            and not _ast_node_is_statically_dead(
+                node, capture_regular, capture_parents
+            )
+        ]
+        identity_calls = [
+            node
+            for node in ast.walk(capture_regular)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_stage_file_identity"
+            and not _ast_node_is_statically_dead(
+                node, capture_regular, capture_parents
+            )
+        ]
+        regular_capture_is_pinned = (
+            live_capture_call_count("path", "lstat") == 2
+            and live_capture_call_count("stat", "S_ISREG") == 3
+            and live_capture_call_count("os", "open") == 1
+            and live_capture_call_count("os", "fstat") == 2
+            and live_capture_call_count("os", "read") == 1
+            and live_capture_call_count("os", "close") == 1
+            and len(nofollow_calls) == 1
+            and len(identity_calls) == 6
+        )
+        if not regular_capture_is_pinned:
+            publisher_protocol_errors.append(
+                "stage evidence must retain descriptor-pinned regular-file "
+                "identity checks"
+            )
+
+        identity_function = publisher_functions["_stage_file_identity"][0]
+        identity_source = (
+            ast.get_source_segment(
+                contract_publisher_source, identity_function
+            )
+            or ""
+        )
+        for field in (
+            "value.st_dev",
+            "value.st_ino",
+            "stat.S_IFMT(value.st_mode)",
+            "value.st_size",
+            "value.st_mtime_ns",
+        ):
+            if identity_source.count(field) != 1:
+                publisher_protocol_errors.append(
+                    f"stage-file identity omits {field}"
+                )
+
+    if publisher_protocol_errors:
+        raise AuditError(
+            "Cupid Toolchain manifest author decision order differs: "
+            f"{publisher_protocol_errors!r}"
+        )
+
     if (
         missing_bootstrap_fragments
         or not windows_source_inputs_are_exact
