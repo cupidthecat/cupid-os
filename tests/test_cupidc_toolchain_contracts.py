@@ -760,6 +760,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             )
             startup.parent.mkdir(parents=True)
             startup.write_text("ret\n", encoding="ascii")
+            stage_three = root / "stage-three"
+            stage_three.mkdir()
             stage_four = root / "stage-four"
             stage_four.mkdir()
             for name in ("ctool_host.o", "ctool.o", "runtime.o"):
@@ -871,6 +873,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             source.write_bytes(b"frozen author input\n")
             bootstrap_source = source_root / "toolchain/bootstrap.cc"
             bootstrap_source.write_bytes(b"frozen bootstrap input\n")
+            stage_three = root / "stage-three"
+            stage_three.mkdir()
             stage_four = root / "stage-four"
             stage_four.mkdir()
             workspace = root / "workspace"
@@ -916,16 +920,20 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 seed_path,
                 seed_manifest,
                 seed_observations,
-                object_observations,
-                fixed_point,
+                object_pairs,
+                executable_pairs,
+                bootstrap_object_pairs,
+                bootstrap_tool_pairs,
             ):
                 del (
                     artifact_observations,
                     seed_path,
                     seed_manifest,
                     seed_observations,
-                    object_observations,
-                    fixed_point,
+                    object_pairs,
+                    executable_pairs,
+                    bootstrap_object_pairs,
+                    bootstrap_tool_pairs,
                 )
                 captured["inputs"] = input_observations
                 captured["bootstrap"] = bootstrap_observations
@@ -952,6 +960,11 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 ),
                 mock.patch.object(
                     cupidc_toolchain_contracts,
+                    "_capture_stage_pairs",
+                    return_value=(),
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
                     "ToolRunner",
                 ) as runner_type,
                 mock.patch.object(
@@ -970,12 +983,16 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 result = (
                     cupidc_toolchain_contracts._checked_manifest_author_bytes(
                         source_root,
+                        stage_three,
                         stage_four,
                         workspace,
                         manifest,
                         manifest_relative,
                         report,
                         (),
+                        {},
+                        {},
+                        {},
                         {},
                     )
                 )
@@ -1068,6 +1085,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             output = root / "toolchain/build/cupidc-contracts"
             built_generations: list[str] = []
             runtime_generations: list[str] = []
+            decision_events: list[str] = []
 
             bootstrap_files = {
                 "toolchain/ctool.cc": {
@@ -1089,6 +1107,14 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 ):
                     stage = bootstrap_output / generation
                     stage.mkdir(parents=True)
+                    for object_name in (
+                        cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES
+                    ):
+                        (stage / f"{object_name}.o").write_bytes(
+                            f"{generation}:object:{object_name}".encode(
+                                "ascii"
+                            )
+                        )
                     for tool_name in cupidc_toolchain_contracts.TOOL_NAMES:
                         (stage / f"{tool_name}.elf").write_bytes(
                             f"{generation}:{tool_name}".encode("ascii")
@@ -1153,7 +1179,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 second: dict[str, Path],
                 artifact_kind: str,
             ) -> dict[str, str]:
-                del artifact_kind
+                decision_events.append(f"compare:{artifact_kind}")
                 self.assertEqual(set(first), set(second))
                 self.assertTrue(
                     all(
@@ -1181,26 +1207,40 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
 
             author_generations: list[str] = []
             author_output_valid = [True]
+            author_failure = [False]
 
             def author_bytes(
                 source_root: Path,
-                stage_four: Path,
+                bootstrap_stage_three: Path,
+                bootstrap_stage_four: Path,
                 workspace: Path,
                 seed_manifest: Path,
                 manifest_relative: str,
                 report: dict[str, object],
                 artifacts: list[Path],
-                object_paths: dict[str, Path],
+                stage_three_objects: dict[str, Path],
+                stage_four_objects: dict[str, Path],
+                stage_three_executables: dict[str, Path],
+                stage_four_executables: dict[str, Path],
             ) -> bytes:
                 del (
                     source_root,
+                    bootstrap_stage_three,
                     workspace,
                     seed_manifest,
                     manifest_relative,
                     artifacts,
-                    object_paths,
+                    stage_three_objects,
+                    stage_four_objects,
+                    stage_three_executables,
+                    stage_four_executables,
                 )
-                author_generations.append(stage_four.name)
+                decision_events.append("author")
+                author_generations.append(bootstrap_stage_four.name)
+                if author_failure[0]:
+                    raise cupidc_toolchain_contracts.ContractError(
+                        "injected paired-stage mismatch"
+                    )
                 if not author_output_valid[0]:
                     return b"not the independently checked manifest\n"
                 return (
@@ -1276,13 +1316,42 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     (output / "manifest.json").read_bytes(),
                     published_manifest,
                 )
+                author_output_valid[0] = True
+                author_failure[0] = True
+                event_count = len(decision_events)
+                with self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    "injected paired-stage mismatch",
+                ):
+                    cupidc_toolchain_contracts.build_contracts(
+                        root, manifest, output, workers=8
+                    )
+                self.assertEqual(
+                    decision_events[event_count:], ["author"]
+                )
+                self.assertEqual(
+                    (output / "manifest.json").read_bytes(),
+                    published_manifest,
+                )
 
             self.assertEqual(
                 built_generations,
-                ["stage-three", "stage-four"] * 2,
+                ["stage-three", "stage-four"] * 3,
             )
-            self.assertEqual(runtime_generations, ["stage-four"] * 2)
-            self.assertEqual(author_generations, ["stage-four"] * 2)
+            self.assertEqual(runtime_generations, ["stage-four"] * 3)
+            self.assertEqual(author_generations, ["stage-four"] * 3)
+            self.assertEqual(
+                decision_events,
+                [
+                    "author",
+                    "compare:contract object",
+                    "compare:contract executable",
+                    "compare:bootstrap object",
+                    "compare:bootstrap tool",
+                ]
+                * 2
+                + ["author"],
+            )
             self.assertEqual(
                 report["tool_fixed_point"]["compared_generations"],
                 ["stage-three", "stage-four"],
@@ -1334,6 +1403,35 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     {"core": second},
                     "contract object",
                 )
+
+    def test_manifest_author_captures_both_stage_streams_before_comparison(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-pair-capture-"
+        ) as temporary:
+            root = Path(temporary)
+            stage_three = root / "stage-three.o"
+            stage_four = root / "stage-four.o"
+            stage_three.write_bytes(b"stage three bytes")
+            stage_four.write_bytes(b"stage four bytes")
+
+            pairs = cupidc_toolchain_contracts._capture_stage_pairs(
+                {"core": stage_three},
+                {"core": stage_four},
+                "contract object",
+            )
+
+            self.assertEqual(
+                pairs,
+                ((
+                    "core",
+                    1,
+                    b"stage three bytes",
+                    1,
+                    b"stage four bytes",
+                ),),
+            )
 
     def test_publication_replaces_a_complete_cohort_together(self):
         with tempfile.TemporaryDirectory(

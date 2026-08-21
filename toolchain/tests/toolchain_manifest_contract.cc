@@ -7,7 +7,7 @@ int artifact_size_policy_contract_library_main(int argc, char **argv);
 static const unsigned char manifest_request_magic[8] = {
     'C', 'U', 'P', 'M', 'A', 'N', '2', 0};
 static const unsigned char manifest_author_request_magic[8] = {
-    'C', 'U', 'P', 'M', 'A', 'N', '3', 0};
+    'C', 'U', 'P', 'M', 'A', 'N', '4', 0};
 static const char manifest_schema[] = "cupid.toolchain-contracts.v3";
 static const char manifest_report_schema[] =
     "cupid.toolchain-manifest-verification.v1";
@@ -18,6 +18,12 @@ static const char manifest_report_schema[] =
 #define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 50u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
+#define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 19u
+#define MANIFEST_BOOTSTRAP_STARTUP_OBJECT_COUNT 1u
+#define MANIFEST_BOOTSTRAP_OBJECT_COUNT                                      \
+  (MANIFEST_BOOTSTRAP_C_OBJECT_COUNT +                                      \
+   MANIFEST_BOOTSTRAP_STARTUP_OBJECT_COUNT)
+#define MANIFEST_BOOTSTRAP_TOOL_COUNT 5u
 
 static const char manifest_expected_seed_path[] =
     "bootstrap/seeds/i386-linux/manifest.json";
@@ -264,6 +270,20 @@ static const char *const
         "elf32",         "x86",              "cupiddis",  "cupidasm",
         "cupidasm-demos", "cupidasm-kernel-elf", "cupidobj", "cupidld",
         "as_elf",        "runtime",
+};
+
+static const char *const
+    manifest_bootstrap_object_names[MANIFEST_BOOTSTRAP_OBJECT_COUNT] = {
+        "runtime",       "ctool",         "ctool_host",     "elf32",
+        "x86",           "cupidasm",      "cupidasm_main",  "cupiddis",
+        "cupiddis_main", "cupidobj",      "cupidobj_main",  "cupidld",
+        "cupidld_main",  "cupidc_pp",     "cupidc_type",    "cupidc_frontend",
+        "cupidc_ir",     "cupidc_emit",   "cupidc_main",    "start",
+};
+
+static const char *const
+    manifest_bootstrap_tool_names[MANIFEST_BOOTSTRAP_TOOL_COUNT] = {
+        "cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc",
 };
 
 static const unsigned int
@@ -2376,6 +2396,38 @@ static int manifest_author_read_seed(binary_reader_t *reader,
   return ok;
 }
 
+static int manifest_author_read_equal_pair(
+    binary_reader_t *reader, byte_slice_t *name,
+    byte_slice_t *stage_four_bytes, char stage_four_digest[65],
+    const char *message) {
+  byte_slice_t stage_three_bytes;
+  char stage_three_digest[65];
+  uint32_t stage_three_kind;
+  uint32_t stage_four_kind;
+  if (!binary_read_slice(reader, name) ||
+      !binary_read_u32(reader, &stage_three_kind) ||
+      !binary_read_slice(reader, &stage_three_bytes) ||
+      !binary_read_u32(reader, &stage_four_kind) ||
+      !binary_read_slice(reader, stage_four_bytes)) {
+    return 0;
+  }
+  if (stage_three_kind != 1u || stage_four_kind != 1u ||
+      stage_three_bytes.size == 0u ||
+      stage_three_bytes.size != stage_four_bytes->size ||
+      memcmp(stage_three_bytes.bytes, stage_four_bytes->bytes,
+             stage_three_bytes.size) != 0) {
+    return set_error(message);
+  }
+  manifest_digest_hex(stage_three_bytes.bytes, stage_three_bytes.size,
+                      stage_three_digest);
+  manifest_digest_hex(stage_four_bytes->bytes, stage_four_bytes->size,
+                      stage_four_digest);
+  if (memcmp(stage_three_digest, stage_four_digest, 64u) != 0) {
+    return set_error(message);
+  }
+  return 1;
+}
+
 static int manifest_author_read_object_comparisons(
     binary_reader_t *reader, manifest_state_t *state) {
   int seen[MANIFEST_OBJECT_COMPARISON_COUNT];
@@ -2388,53 +2440,101 @@ static int manifest_author_read_object_comparisons(
   }
   for (index = 0u; index < MANIFEST_OBJECT_COMPARISON_COUNT; index++) {
     byte_slice_t name;
+    byte_slice_t stage_four_bytes;
     byte_slice_t digest;
-    uint64_t size;
+    char stage_four_digest[65];
     int comparison_index;
-    if (!manifest_author_read_observation(
-            reader, &name, &size, &digest)) {
+    if (!manifest_author_read_equal_pair(
+            reader, &name, &stage_four_bytes, stage_four_digest,
+            "manifest author object comparison differs")) {
       return 0;
     }
     comparison_index = manifest_slice_literal_index(
         &name, manifest_object_comparison_names,
         MANIFEST_OBJECT_COMPARISON_COUNT);
-    if (comparison_index < 0 || seen[(size_t)comparison_index] != 0 ||
-        size == 0u) {
+    if (comparison_index < 0 || seen[(size_t)comparison_index] != 0) {
       return set_error("manifest author object comparison differs");
     }
+    digest.bytes = (const unsigned char *)stage_four_digest;
+    digest.size = 64u;
     if (!manifest_text_copy_slice(
             &state->object_comparisons[(size_t)comparison_index].sha256,
             &digest)) {
       return 0;
     }
-    state->object_comparisons[(size_t)comparison_index].size = size;
+    state->object_comparisons[(size_t)comparison_index].size =
+        (uint64_t)stage_four_bytes.size;
     seen[(size_t)comparison_index] = 1;
   }
   return 1;
 }
 
-static int manifest_author_read_fixed_point(binary_reader_t *reader) {
-  uint32_t all_equal;
-  uint32_t c_objects;
-  uint32_t generation_count;
-  uint32_t startup_objects;
-  uint32_t tool_images;
-  byte_slice_t stage_three;
-  byte_slice_t stage_four;
-  if (!binary_read_u32(reader, &all_equal) ||
-      !binary_read_u32(reader, &c_objects) ||
-      !binary_read_u32(reader, &generation_count) ||
-      !binary_read_slice(reader, &stage_three) ||
-      !binary_read_slice(reader, &stage_four) ||
-      !binary_read_u32(reader, &startup_objects) ||
-      !binary_read_u32(reader, &tool_images)) {
-    return 0;
+static int manifest_author_read_executable_comparisons(
+    binary_reader_t *reader, manifest_state_t *state) {
+  int seen[MANIFEST_COMPARISON_COUNT];
+  uint32_t count;
+  size_t index;
+  (void)memset(seen, 0, sizeof(seen));
+  if (!binary_read_u32(reader, &count) ||
+      count != MANIFEST_COMPARISON_COUNT) {
+    return set_error("manifest author executable comparison count differs");
   }
-  if (all_equal != 1u || c_objects != 19u || generation_count != 2u ||
-      !manifest_slice_equals_literal(&stage_three, "stage-three") ||
-      !manifest_slice_equals_literal(&stage_four, "stage-four") ||
-      startup_objects != 1u || tool_images != 5u) {
-    return set_error("manifest author fixed-point evidence differs");
+  for (index = 0u; index < MANIFEST_COMPARISON_COUNT; index++) {
+    const manifest_artifact_t *artifact;
+    byte_slice_t name;
+    byte_slice_t stage_four_bytes;
+    byte_slice_t digest;
+    char stage_four_digest[65];
+    int comparison_index;
+    if (!manifest_author_read_equal_pair(
+            reader, &name, &stage_four_bytes, stage_four_digest,
+            "manifest author executable comparison differs")) {
+      return 0;
+    }
+    comparison_index = manifest_slice_literal_index(
+        &name, manifest_comparison_names, MANIFEST_COMPARISON_COUNT);
+    if (comparison_index < 0 || seen[(size_t)comparison_index] != 0) {
+      return set_error("manifest author executable comparison differs");
+    }
+    artifact = manifest_find_artifact(
+        state, manifest_comparison_artifacts[(size_t)comparison_index]);
+    digest.bytes = (const unsigned char *)stage_four_digest;
+    digest.size = 64u;
+    if (artifact == (const manifest_artifact_t *)0 ||
+        artifact->size != (uint64_t)stage_four_bytes.size ||
+        !slice_equals_text(&digest, &artifact->sha256)) {
+      return set_error("manifest author executable evidence differs");
+    }
+    seen[(size_t)comparison_index] = 1;
+  }
+  return 1;
+}
+
+static int manifest_author_read_fixed_pairs(
+    binary_reader_t *reader, const char *const *names, size_t expected_count,
+    const char *message) {
+  int seen[MANIFEST_BOOTSTRAP_OBJECT_COUNT];
+  uint32_t count;
+  size_t index;
+  (void)memset(seen, 0, sizeof(seen));
+  if (!binary_read_u32(reader, &count) ||
+      (size_t)count != expected_count) {
+    return set_error(message);
+  }
+  for (index = 0u; index < expected_count; index++) {
+    byte_slice_t name;
+    byte_slice_t stage_four_bytes;
+    char stage_four_digest[65];
+    int pair_index;
+    if (!manifest_author_read_equal_pair(
+            reader, &name, &stage_four_bytes, stage_four_digest, message)) {
+      return 0;
+    }
+    pair_index = manifest_slice_literal_index(&name, names, expected_count);
+    if (pair_index < 0 || seen[(size_t)pair_index] != 0) {
+      return set_error(message);
+    }
+    seen[(size_t)pair_index] = 1;
   }
   return 1;
 }
@@ -2446,7 +2546,7 @@ static int manifest_validate_author_request(const file_image_t *request,
   if (reader.size < sizeof(manifest_author_request_magic) ||
       memcmp(reader.bytes, manifest_author_request_magic,
              sizeof(manifest_author_request_magic)) != 0) {
-    return set_error("request magic differs from CUPMAN3");
+    return set_error("request magic differs from CUPMAN4");
   }
   reader.position = sizeof(manifest_author_request_magic);
   if (!manifest_author_read_artifacts(&reader, state) ||
@@ -2454,7 +2554,15 @@ static int manifest_validate_author_request(const file_image_t *request,
       !manifest_author_read_bootstrap_inputs(&reader, state) ||
       !manifest_author_read_seed(&reader, state) ||
       !manifest_author_read_object_comparisons(&reader, state) ||
-      !manifest_author_read_fixed_point(&reader)) {
+      !manifest_author_read_executable_comparisons(&reader, state) ||
+      !manifest_author_read_fixed_pairs(
+          &reader, manifest_bootstrap_object_names,
+          MANIFEST_BOOTSTRAP_OBJECT_COUNT,
+          "manifest author bootstrap object comparison differs") ||
+      !manifest_author_read_fixed_pairs(
+          &reader, manifest_bootstrap_tool_names,
+          MANIFEST_BOOTSTRAP_TOOL_COUNT,
+          "manifest author bootstrap tool comparison differs")) {
     return 0;
   }
   if (reader.position != reader.size) {
@@ -2551,10 +2659,12 @@ static int manifest_write_author_report(manifest_state_t *state) {
       "    \"entry\": 134512640,\n    \"linkage\": \"static\",\n"
       "    \"operating_system\": \"linux\"\n  },\n"
       "  \"tool_fixed_point\": {\n    \"all_equal\": true,\n"
-      "    \"c_objects\": 19,\n    \"compared_generations\": [\n"
+      "    \"c_objects\": %u,\n    \"compared_generations\": [\n"
       "      \"stage-three\",\n      \"stage-four\"\n    ],\n"
-      "    \"startup_objects\": 1,\n    \"tool_images\": 5\n  }\n}\n",
-      manifest_schema);
+      "    \"startup_objects\": %u,\n    \"tool_images\": %u\n  }\n}\n",
+      manifest_schema, (unsigned int)MANIFEST_BOOTSTRAP_C_OBJECT_COUNT,
+      (unsigned int)MANIFEST_BOOTSTRAP_STARTUP_OBJECT_COUNT,
+      (unsigned int)MANIFEST_BOOTSTRAP_TOOL_COUNT);
   if (fflush(stdout) != 0 || ferror(stdout) != 0) {
     return set_error("manifest author output could not be written");
   }

@@ -14,7 +14,7 @@ from tools import cupidc_toolchain_contracts
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SOURCE = REPO_ROOT / "toolchain/tests/toolchain_manifest_contract.cc"
 MAGIC = b"CUPMAN2\0"
-AUTHOR_MAGIC = b"CUPMAN3\0"
+AUTHOR_MAGIC = b"CUPMAN4\0"
 CONTRACT_NAMES = (
     "core",
     "user-syscall-abi",
@@ -48,6 +48,35 @@ OBJECT_COMPARISON_NAMES = (
     *CONTRACT_NAMES,
     "as_elf",
     "runtime",
+)
+BOOTSTRAP_OBJECT_NAMES = (
+    "runtime",
+    "ctool",
+    "ctool_host",
+    "elf32",
+    "x86",
+    "cupidasm",
+    "cupidasm_main",
+    "cupiddis",
+    "cupiddis_main",
+    "cupidobj",
+    "cupidobj_main",
+    "cupidld",
+    "cupidld_main",
+    "cupidc_pp",
+    "cupidc_type",
+    "cupidc_frontend",
+    "cupidc_ir",
+    "cupidc_emit",
+    "cupidc_main",
+    "start",
+)
+BOOTSTRAP_TOOL_NAMES = (
+    "cupidasm",
+    "cupiddis",
+    "cupidld",
+    "cupidobj",
+    "cupidc",
 )
 BUILD_PLAN_SHA256 = (
     "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc"
@@ -430,7 +459,10 @@ def _author_request(
     seed_manifest_path=None,
     seed_manifest_bytes=None,
     seed_observations=None,
-    object_observations=None,
+    object_pairs=None,
+    executable_pairs=None,
+    bootstrap_object_pairs=None,
+    bootstrap_tool_pairs=None,
 ):
     if manifest is None or observations is None:
         fixture_manifest, fixture_observations = _fixture()
@@ -462,13 +494,18 @@ def _author_request(
             seed_manifest_bytes = fixture_seed
         if seed_observations is None:
             seed_observations = fixture_seed_observations
-    if object_observations is None:
-        object_observations = [
-            (name, 1, record["size"], record["sha256"])
-            for name, record in sorted(
-                manifest["object_comparisons"].items()
-            )
-        ]
+    if object_pairs is None:
+        object_pairs = _matching_object_pairs(manifest)
+    if executable_pairs is None:
+        executable_pairs = _matching_executable_pairs(manifest)
+    if bootstrap_object_pairs is None:
+        bootstrap_object_pairs = _matching_bootstrap_pairs(
+            BOOTSTRAP_OBJECT_NAMES, "bootstrap-object"
+        )
+    if bootstrap_tool_pairs is None:
+        bootstrap_tool_pairs = _matching_bootstrap_pairs(
+            BOOTSTRAP_TOOL_NAMES, "bootstrap-tool"
+        )
 
     payload = bytearray(AUTHOR_MAGIC)
     for observation_set in (
@@ -489,30 +526,59 @@ def _author_request(
         _append_bytes(payload, name.encode("ascii"))
         payload.extend(struct.pack("<IQ", kind, size))
         _append_bytes(payload, digest.encode("ascii"))
-    payload.extend(struct.pack("<I", len(object_observations)))
-    for name, kind, size, digest in object_observations:
-        _append_bytes(payload, name.encode("ascii"))
-        payload.extend(struct.pack("<IQ", kind, size))
-        _append_bytes(payload, digest.encode("ascii"))
-    fixed_point = manifest["tool_fixed_point"]
-    payload.extend(
-        struct.pack(
-            "<III",
-            int(fixed_point["all_equal"]),
-            fixed_point["c_objects"],
-            len(fixed_point["compared_generations"]),
-        )
-    )
-    for generation in fixed_point["compared_generations"]:
-        _append_bytes(payload, generation.encode("ascii"))
-    payload.extend(
-        struct.pack(
-            "<II",
-            fixed_point["startup_objects"],
-            fixed_point["tool_images"],
-        )
-    )
+    for pairs in (
+        object_pairs,
+        executable_pairs,
+        bootstrap_object_pairs,
+        bootstrap_tool_pairs,
+    ):
+        payload.extend(struct.pack("<I", len(pairs)))
+        for name, first_kind, first_bytes, second_kind, second_bytes in pairs:
+            _append_bytes(payload, name.encode("ascii"))
+            payload.extend(struct.pack("<I", first_kind))
+            _append_bytes(payload, first_bytes)
+            payload.extend(struct.pack("<I", second_kind))
+            _append_bytes(payload, second_bytes)
     return bytes(payload)
+
+
+def _matching_object_pairs(manifest):
+    object_pairs = []
+    for index, name in enumerate(OBJECT_COMPARISON_NAMES):
+        object_bytes = bytes([index + 1]) * (index + 1)
+        manifest["object_comparisons"][name] = {
+            "sha256": _digest(object_bytes),
+            "size": len(object_bytes),
+        }
+        object_pairs.append((name, 1, object_bytes, 1, object_bytes))
+    return object_pairs
+
+
+def _matching_executable_pairs(manifest):
+    pairs = []
+    for name in CONTRACT_NAMES:
+        executable_bytes = f"checked:{name}-contract.elf\n".encode("ascii")
+        manifest["comparisons"][name] = _digest(executable_bytes)
+        pairs.append(
+            (name, 1, executable_bytes, 1, executable_bytes)
+        )
+    runtime_bytes = b"checked:cupidc-runtime-contract.elf\n"
+    manifest["comparisons"]["runtime"] = _digest(runtime_bytes)
+    pairs.append(("runtime", 1, runtime_bytes, 1, runtime_bytes))
+    return pairs
+
+
+def _matching_bootstrap_pairs(names, prefix):
+    return [
+        (
+            name,
+            1,
+            f"{prefix}:{name}\n".encode("ascii"),
+            1,
+            f"{prefix}:{name}\n".encode("ascii"),
+        )
+        for name in names
+    ]
 
 
 class ToolchainManifestContractTests(unittest.TestCase):
@@ -606,6 +672,272 @@ class ToolchainManifestContractTests(unittest.TestCase):
         )
         self.assertEqual(result.stderr, "")
 
+    def test_author_hashes_matching_stage_object_pairs(self):
+        manifest, observations = _fixture()
+        object_pairs = _matching_object_pairs(manifest)
+
+        result = self.run_author_request(
+            _author_request(
+                manifest=manifest,
+                observations=observations,
+                object_pairs=object_pairs,
+            )
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        )
+        self.assertEqual(result.stderr, "")
+
+    def test_author_rejects_mismatched_stage_object_bytes(self):
+        manifest, observations = _fixture()
+        object_pairs = _matching_object_pairs(manifest)
+        name, first_kind, first_bytes, second_kind, second_bytes = (
+            object_pairs[0]
+        )
+        object_pairs[0] = (
+            name,
+            first_kind,
+            first_bytes,
+            second_kind,
+            bytes([second_bytes[0] + 1]),
+        )
+
+        self.assert_author_failure(
+            _author_request(
+                manifest=manifest,
+                observations=observations,
+                object_pairs=object_pairs,
+            )
+        )
+
+    def test_author_rejects_truncated_stage_object_bytes(self):
+        manifest, observations = _fixture()
+        object_pairs = _matching_object_pairs(manifest)
+        payload = _author_request(
+            manifest=manifest,
+            observations=observations,
+            object_pairs=object_pairs,
+        )
+        name, first_kind, first_bytes, second_kind, second_bytes = (
+            object_pairs[0]
+        )
+        record = bytearray()
+        _append_bytes(record, name.encode("ascii"))
+        record.extend(struct.pack("<I", first_kind))
+        _append_bytes(record, first_bytes)
+        record.extend(struct.pack("<I", second_kind))
+        _append_bytes(record, second_bytes)
+        record_offset = payload.index(bytes(record))
+        truncated = payload[: record_offset + len(record) - 1]
+
+        self.assert_author_failure(truncated)
+
+    def test_author_rejects_nonregular_stage_object_kind(self):
+        manifest, observations = _fixture()
+        object_pairs = _matching_object_pairs(manifest)
+        name, _first_kind, first_bytes, second_kind, second_bytes = (
+            object_pairs[0]
+        )
+        object_pairs[0] = (
+            name,
+            2,
+            first_bytes,
+            second_kind,
+            second_bytes,
+        )
+
+        self.assert_author_failure(
+            _author_request(
+                manifest=manifest,
+                observations=observations,
+                object_pairs=object_pairs,
+            )
+        )
+
+    def test_author_rejects_duplicate_stage_object_pair(self):
+        manifest, observations = _fixture()
+        object_pairs = _matching_object_pairs(manifest)
+        object_pairs[-1] = object_pairs[0]
+
+        self.assert_author_failure(
+            _author_request(
+                manifest=manifest,
+                observations=observations,
+                object_pairs=object_pairs,
+            )
+        )
+
+    def test_author_recovers_after_rejected_stage_object_pair(self):
+        manifest, observations = _fixture()
+        object_pairs = _matching_object_pairs(manifest)
+        rejected_pairs = list(object_pairs)
+        name, first_kind, first_bytes, second_kind, _second_bytes = (
+            rejected_pairs[0]
+        )
+        rejected_pairs[0] = (
+            name,
+            first_kind,
+            first_bytes,
+            second_kind,
+            b"different",
+        )
+        self.assert_author_failure(
+            _author_request(
+                manifest=manifest,
+                observations=observations,
+                object_pairs=rejected_pairs,
+            )
+        )
+
+        result = self.run_author_request(
+            _author_request(
+                manifest=manifest,
+                observations=observations,
+                object_pairs=object_pairs,
+            )
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        )
+        self.assertEqual(result.stderr, "")
+
+    def test_author_decides_all_fifty_eight_stage_pairs(self):
+        manifest, observations = _fixture()
+        object_pairs = _matching_object_pairs(manifest)
+        executable_pairs = _matching_executable_pairs(manifest)
+        bootstrap_object_pairs = _matching_bootstrap_pairs(
+            BOOTSTRAP_OBJECT_NAMES, "bootstrap-object"
+        )
+        bootstrap_tool_pairs = _matching_bootstrap_pairs(
+            BOOTSTRAP_TOOL_NAMES, "bootstrap-tool"
+        )
+
+        result = self.run_author_request(
+            _author_request(
+                manifest=manifest,
+                observations=observations,
+                object_pairs=object_pairs,
+                executable_pairs=executable_pairs,
+                bootstrap_object_pairs=bootstrap_object_pairs,
+                bootstrap_tool_pairs=bootstrap_tool_pairs,
+            )
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        )
+        self.assertEqual(
+            sum(
+                len(pairs)
+                for pairs in (
+                    object_pairs,
+                    executable_pairs,
+                    bootstrap_object_pairs,
+                    bootstrap_tool_pairs,
+                )
+            ),
+            58,
+        )
+
+    def test_author_rejects_mismatch_in_each_remaining_pair_lane(self):
+        for lane in (
+            "executable_pairs",
+            "bootstrap_object_pairs",
+            "bootstrap_tool_pairs",
+        ):
+            with self.subTest(lane=lane):
+                manifest, observations = _fixture()
+                pairs_by_lane = {
+                    "executable_pairs": _matching_executable_pairs(
+                        manifest
+                    ),
+                    "bootstrap_object_pairs": _matching_bootstrap_pairs(
+                        BOOTSTRAP_OBJECT_NAMES, "bootstrap-object"
+                    ),
+                    "bootstrap_tool_pairs": _matching_bootstrap_pairs(
+                        BOOTSTRAP_TOOL_NAMES, "bootstrap-tool"
+                    ),
+                }
+                changed = list(pairs_by_lane[lane])
+                (
+                    name,
+                    first_kind,
+                    first_bytes,
+                    second_kind,
+                    second_bytes,
+                ) = changed[0]
+                changed[0] = (
+                    name,
+                    first_kind,
+                    first_bytes,
+                    second_kind,
+                    second_bytes[:-1] + bytes([second_bytes[-1] ^ 1]),
+                )
+                pairs_by_lane[lane] = changed
+
+                self.assert_author_failure(
+                    _author_request(
+                        manifest=manifest,
+                        observations=observations,
+                        **pairs_by_lane,
+                    )
+                )
+
+    def test_author_rejects_matching_executable_pair_with_wrong_artifact_fact(
+        self,
+    ):
+        manifest, observations = _fixture()
+        executable_pairs = _matching_executable_pairs(manifest)
+        name, first_kind, _first_bytes, second_kind, _second_bytes = (
+            executable_pairs[0]
+        )
+        changed_bytes = b"equal but not the published artifact"
+        executable_pairs[0] = (
+            name,
+            first_kind,
+            changed_bytes,
+            second_kind,
+            changed_bytes,
+        )
+
+        self.assert_author_failure(
+            _author_request(
+                manifest=manifest,
+                observations=observations,
+                executable_pairs=executable_pairs,
+            )
+        )
+
+    def test_author_rejects_mismatched_stage_object_sizes(self):
+        manifest, observations = _fixture()
+        object_pairs = _matching_object_pairs(manifest)
+        name, first_kind, first_bytes, second_kind, second_bytes = (
+            object_pairs[0]
+        )
+        object_pairs[0] = (
+            name,
+            first_kind,
+            first_bytes,
+            second_kind,
+            second_bytes + b"x",
+        )
+
+        self.assert_author_failure(
+            _author_request(
+                manifest=manifest,
+                observations=observations,
+                object_pairs=object_pairs,
+            )
+        )
+
     @unittest.skipIf(
         os.name == "nt" and shutil.which("wsl") is None,
         "WSL is required to execute the checked Linux stage-four seed",
@@ -615,7 +947,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
             REPO_ROOT / "bootstrap/seeds/i386-linux/manifest.json"
         )
         with tempfile.TemporaryDirectory(
-            prefix=".cupman3-checked-stage-four-", dir=REPO_ROOT
+            prefix=".cupman4-checked-stage-four-", dir=REPO_ROOT
         ) as temporary:
             workspace = Path(temporary)
             stage_four = workspace / "stage-four"
@@ -702,12 +1034,14 @@ class ToolchainManifestContractTests(unittest.TestCase):
             )
         ]
         seed_bytes, seed_observations = _seed_fixture(manifest)
-        object_observations = [
-            (name, 1, record["size"], record["sha256"])
-            for name, record in sorted(
-                manifest["object_comparisons"].items()
-            )
-        ]
+        object_pairs = _matching_object_pairs(manifest)
+        executable_pairs = _matching_executable_pairs(manifest)
+        bootstrap_object_pairs = _matching_bootstrap_pairs(
+            BOOTSTRAP_OBJECT_NAMES, "bootstrap-object"
+        )
+        bootstrap_tool_pairs = _matching_bootstrap_pairs(
+            BOOTSTRAP_TOOL_NAMES, "bootstrap-tool"
+        )
 
         result = self.run_author_request(
             _author_request(
@@ -719,7 +1053,12 @@ class ToolchainManifestContractTests(unittest.TestCase):
                 ),
                 seed_manifest_bytes=seed_bytes,
                 seed_observations=list(reversed(seed_observations)),
-                object_observations=list(reversed(object_observations)),
+                object_pairs=list(reversed(object_pairs)),
+                executable_pairs=list(reversed(executable_pairs)),
+                bootstrap_object_pairs=list(
+                    reversed(bootstrap_object_pairs)
+                ),
+                bootstrap_tool_pairs=list(reversed(bootstrap_tool_pairs)),
             )
         )
 
@@ -748,13 +1087,14 @@ class ToolchainManifestContractTests(unittest.TestCase):
             manifest["bootstrap"]["seed_manifest"]["path"],
             seed_bytes,
             seed_observations,
-            [
-                (name, 1, record["size"], record["sha256"])
-                for name, record in sorted(
-                    manifest["object_comparisons"].items()
-                )
-            ],
-            manifest["tool_fixed_point"],
+            _matching_object_pairs(manifest),
+            _matching_executable_pairs(manifest),
+            _matching_bootstrap_pairs(
+                BOOTSTRAP_OBJECT_NAMES, "bootstrap-object"
+            ),
+            _matching_bootstrap_pairs(
+                BOOTSTRAP_TOOL_NAMES, "bootstrap-tool"
+            ),
         )
 
         result = self.run_author_request(request)
@@ -769,6 +1109,14 @@ class ToolchainManifestContractTests(unittest.TestCase):
         payload = _author_request()
         self.assert_author_failure(payload[:-1])
         self.assert_author_failure(payload + b"x")
+
+    def test_author_protocol_has_no_caller_all_equal_field(self):
+        payload = _author_request()
+
+        result = self.run_author_request(payload)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assert_author_failure(payload + struct.pack("<I", 1))
         self.assert_author_failure(b"CUPMAN2\0" + payload[8:])
 
     def test_author_rejects_substituted_and_duplicate_fact_paths(self):
@@ -896,23 +1244,18 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     )
                 )
 
-    def test_author_object_reader_rejects_missing_duplicate_and_zero_size(self):
+    def test_author_object_reader_rejects_missing_duplicate_and_empty_pairs(self):
         manifest, observations = _fixture()
-        objects = [
-            (name, 1, record["size"], record["sha256"])
-            for name, record in sorted(
-                manifest["object_comparisons"].items()
-            )
-        ]
+        objects = _matching_object_pairs(manifest)
         duplicated = list(objects)
         duplicated[-1] = duplicated[0]
-        zero_size = list(objects)
-        name, kind, _size, digest = zero_size[0]
-        zero_size[0] = (name, kind, 0, digest)
+        empty = list(objects)
+        name, first_kind, _first_bytes, second_kind, _second_bytes = empty[0]
+        empty[0] = (name, first_kind, b"", second_kind, b"")
         cases = {
             "missing": objects[:-1],
             "duplicate": duplicated,
-            "zero size": zero_size,
+            "empty": empty,
         }
 
         for name, changed in cases.items():
@@ -921,7 +1264,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     _author_request(
                         manifest=manifest,
                         observations=observations,
-                        object_observations=changed,
+                        object_pairs=changed,
                     )
                 )
 
@@ -931,19 +1274,14 @@ class ToolchainManifestContractTests(unittest.TestCase):
             (path, 1, record["size"] + 101, record["sha256"])
             for path, record in sorted(manifest["inputs"].items())
         ]
-        objects = [
-            (name, 1, record["size"] + 201, record["sha256"])
-            for name, record in sorted(
-                manifest["object_comparisons"].items()
-            )
-        ]
+        objects = _matching_object_pairs(manifest)
 
         baseline = self.run_author_request(
             _author_request(
                 manifest=manifest,
                 observations=observations,
                 input_observations=inputs,
-                object_observations=objects,
+                object_pairs=objects,
             )
         )
         self.assertEqual(baseline.returncode, 0, baseline.stderr)
@@ -956,52 +1294,60 @@ class ToolchainManifestContractTests(unittest.TestCase):
                 manifest=manifest,
                 observations=observations,
                 input_observations=changed_inputs,
-                object_observations=objects,
+                object_pairs=objects,
             )
         )
         self.assertEqual(changed_input.returncode, 0, changed_input.stderr)
         self.assertNotEqual(changed_input.stdout, baseline.stdout)
 
         changed_objects = list(objects)
-        name, kind, size, digest = changed_objects[0]
-        changed_objects[0] = (name, kind, size + 1, digest)
+        name, first_kind, first_bytes, second_kind, second_bytes = (
+            changed_objects[0]
+        )
+        changed_bytes = first_bytes + b"x"
+        changed_objects[0] = (
+            name,
+            first_kind,
+            changed_bytes,
+            second_kind,
+            changed_bytes,
+        )
         changed_object = self.run_author_request(
             _author_request(
                 manifest=manifest,
                 observations=observations,
                 input_observations=inputs,
-                object_observations=changed_objects,
+                object_pairs=changed_objects,
             )
         )
         self.assertEqual(changed_object.returncode, 0, changed_object.stderr)
         self.assertNotEqual(changed_object.stdout, baseline.stdout)
 
-    def test_author_fixed_point_reader_rejects_wrong_generations_and_counts(self):
-        cases = {
-            "not equal": ("all_equal", False),
-            "C object count": ("c_objects", 18),
-            "generation count": (
-                "compared_generations",
-                ["stage-four"],
-            ),
-            "generation name": (
-                "compared_generations",
-                ["stage-two", "stage-four"],
-            ),
-            "startup count": ("startup_objects", 2),
-            "tool count": ("tool_images", 4),
+    def test_author_derives_fixed_point_summary_from_pair_inventories(self):
+        manifest, observations = _fixture()
+        manifest["tool_fixed_point"] = {
+            "all_equal": False,
+            "c_objects": 18,
+            "compared_generations": ["stage-two"],
+            "startup_objects": 2,
+            "tool_images": 4,
         }
 
-        for name, (field, value) in cases.items():
-            with self.subTest(name=name):
-                manifest, observations = _fixture()
-                manifest["tool_fixed_point"][field] = value
-                self.assert_author_failure(
-                    _author_request(
-                        manifest=manifest,
-                        observations=observations,
-                    )
-                )
+        result = self.run_author_request(
+            _author_request(manifest=manifest, observations=observations)
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout)["tool_fixed_point"],
+            {
+                "all_equal": True,
+                "c_objects": 19,
+                "compared_generations": ["stage-three", "stage-four"],
+                "startup_objects": 1,
+                "tool_images": 5,
+            },
+        )
 
     def test_manifest_object_order_does_not_change_the_result(self):
         manifest, observations = _fixture()

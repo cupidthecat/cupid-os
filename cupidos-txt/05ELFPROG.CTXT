@@ -257,20 +257,24 @@ header closure. It uses the USER_I386 profile, then links with entry symbol
 _start at the fixed external base. Source, header, tool-image, or control-file
 drift stops publication.
 
-The Toolchain publication manifest now includes a Cupid-built author stage.
-Python freezes the facts for 21 artifacts, the 70-file publication inventory,
-and the 50-file bootstrap inventory, then frames a CUPMAN3 request. Stage-four
-checked Linux CupidC compiles the author, CupidASM builds its startup, and
-CupidLD links the static ELF. The author validates the request and emits the
-canonical manifest. Python independently renders the same JSON and requires
-byte-for-byte equality. Python still owns filesystem traversal, hashing, drift
-checks, and atomic publication. CUPMAN2 remains the publication verifier.
+The Toolchain publication manifest includes a Cupid-built author stage. Python
+freezes the publication facts, then frames a CUPMAN4 request with raw
+stage-three and stage-four bytes for 58 pairs: 17 contract objects, 16 contract
+executables, 19 bootstrap C objects, one startup object, and five tool images.
+Stage-four checked Linux CupidC compiles the author, CupidASM builds its
+startup, and CupidLD links the static ELF. The author requires regular,
+nonempty, byte-identical streams, hashes both sides, derives the 17 schema-v3
+object records, and checks executable pairs against their artifact facts. It
+derives the fixed-point summary from the exact pair inventories, so the request
+has no caller all_equal field. Python repeats all 58 comparisons after author
+acceptance and still owns filesystem traversal, drift checks, rollback, and
+atomic publication. CUPMAN2 remains the publication verifier.
 
 A valid schema-v3 publication binds exactly 21 artifacts, 70 publication
 inputs, 50 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
-the published cohort. Focused evidence passes 29 direct contract tests in
-39.068 seconds, 59 publisher tests in 3.518 seconds, and 24 pinned runner tests
-in 27.752 seconds. The host bootstrap log records the exact publication
+the published cohort. Focused evidence passes 40 direct contract tests in
+43.019 seconds, 60 publisher tests in 7.144 seconds, and 24 pinned runner tests
+in 28.302 seconds. The host bootstrap log records the exact publication
 identity and completion evidence.
 
 The publication gate requires stage-three and stage-four identity, hosted

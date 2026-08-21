@@ -755,29 +755,30 @@ The runner copies the verified cohort before execution and rejects later live
 replacement. The user ABI contract and Python oracle inspect one shared
 six-file snapshot, while the contract also rereads the live source tree. For
 publication, the checked stage-four tools build a strict-C11 manifest author
-from its 20 direct build inputs. Its framed `CUPMAN3` request carries
-observations for the 21 artifacts, 70 publication inputs, 50 bootstrap inputs,
-17 object comparisons, the Linux publication seed, and its five tool images.
-Each publication-input and object-comparison record carries its SHA-256 digest
-and exact byte size.
-The author emits canonical manifest bytes from observations rather than a
-draft manifest. Python retains no-follow capture, process launch,
-independent reconstruction of the bootstrap snapshot and JSON bytes, exact
-oracle comparison, and byte and membership drift checks. Only matching author
-output enters private staging, and a failed author or verification preserves
-the prior publication. A separate checked
+from its 20 direct build inputs. Its framed `CUPMAN4` request carries the
+publication facts and raw stage-three and stage-four bytes for 58 fixed-point
+pairs: 17 contract objects, 16 contract executables, 19 bootstrap C objects,
+one startup object, and five tool images. The author requires regular,
+nonempty, byte-identical streams and hashes both sides independently. It
+derives the 17 schema-v3 object records, checks executable pairs against their
+artifact facts, and derives the fixed-point summary from the exact pair
+inventories. The protocol has no caller `all_equal` field. Python repeats all
+58 comparisons after author acceptance and retains no-follow capture, process
+launch, drift checks, private staging, rollback, and atomic replacement. A
+failed author or verification preserves the prior publication. A separate checked
 `CUPMAN2` contract verifies the authored publication. ADR 0302 records the
-verifier boundary, and ADR 0304 records the author split.
+verifier boundary, ADR 0304 records the author split, and ADR 0307 records raw
+stage-pair evidence.
 
-The current schema v3 CUPMAN3 publication passed in 4,273.533 seconds. It
-published 21 artifacts from 70 publication inputs and the exact 50-file
-bootstrap inventory. Stage three and stage four matched across all recorded
-comparisons, including the 17 object comparisons. The hosted runtime contract
-and live-input checks passed, and the native Windows CUPMAN2 verifier returned
-success. The 27,069-byte manifest has SHA-256
+The complete Toolchain publication was not rerun for `CUPMAN4`. The latest
+complete result is the preceding `CUPMAN3` publication, which passed in
+4,273.533 seconds and wrote 21 artifacts from 70 publication inputs and the
+exact 50-file bootstrap inventory. Its 27,069-byte manifest has SHA-256
 `69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
-The direct contract suite passed 29 tests in 39.068 seconds, and the publisher
-suite passed 59 tests in 3.518 seconds. The settled audit is recorded in the
+The source-current direct contract suite passes 40 tests in 43.019 seconds,
+the publisher suite passes 60 tests in 7.144 seconds, and the pinned verifier
+runner passes 24 tests in 28.302 seconds with three POSIX-only Windows skips.
+The settled audit is recorded in the
 build-graph evidence below. The final poisoned build and private guest evidence
 appear in the current checked-seed proof.
 

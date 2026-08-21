@@ -28728,3 +28728,68 @@ This slice moves no build owner and adds no host dependency. ADR 0306 covers
 direct global callback objects and checked assignment. Fields, block-static
 objects, recursive signatures, direct aggregate results, and arbitrary computed
 callbacks remain open.
+
+## 2026-08-21: give the Cupid author raw fixed-point evidence
+
+The `CUPMAN3` author accepted digest and size claims for seventeen contract
+objects after Python had already compared the files. Python was also the only
+component that decided equality for the sixteen contract executables, nineteen
+bootstrap C objects, startup object, and five tool images. The published
+schema carried the claims, but the Cupid-built author did not see the bytes it
+was meant to judge.
+
+The first `CUPMAN4` contract test framed matching raw bytes for the seventeen
+object pairs. It failed with `request magic differs from CUPMAN3`. The minimal
+reader then accepted the exact object inventory, required regular and nonempty
+files, compared the streams, hashed both sides independently, and derived the
+published object record from stage four. Byte mismatch, targeted truncation,
+wrong kind, duplicate name, size mismatch, and valid-request recovery cases
+were added one at a time and passed.
+
+The first complete-pair test framed all 58 pairs and failed with
+`request byte string is truncated` because the author stopped after the object
+lane. Three more exact lanes added sixteen contract executables, twenty
+bootstrap objects, and five tool images. The bootstrap inventory has nineteen
+C objects and the startup object. Negative cases alter each new lane, and an
+executable case proves that equal bytes cannot disagree with the artifact
+digest or size fact.
+
+A later review found one remaining producer assertion after the pair lanes:
+Python still serialized `tool_fixed_point.all_equal` and the 19/1/5 counts.
+A request ending after the 58 pairs failed with
+`request is truncated while reading a 32-bit value`. Removing that block made
+the no-tail request pass. Appending the old `all_equal` word now fails as
+trailing input. The author derives the unchanged stage-three and stage-four
+generation names and 19 C object, one startup object, and five tool image
+counts from its fixed pair inventories. A separate test changes every
+caller-side summary value and confirms that the authored summary still has the
+contract constants.
+
+Schema `cupid.toolchain-contracts.v3` did not change. The author still emits 17
+object-comparison records and checks every contract executable pair against
+the corresponding artifact observation. Python runs its four independent
+stage comparison oracles only after author acceptance. It still owns pinned
+no-follow capture, safe request creation, process launch, live drift checks,
+private staging, rollback, and atomic publication. The static Linux author
+continues to run through WSL on Windows.
+
+Focused checks pass with the final protocol:
+
+| Check | Result |
+| --- | --- |
+| Direct manifest contract | 40 tests in 43.019 seconds |
+| Publisher | 60 tests in 7.144 seconds |
+| Pinned verifier runner | 24 tests in 28.302 seconds, with three POSIX-only skips on Windows |
+
+The direct suite includes a checked stage-four CupidC, CupidASM, and CupidLD
+build and run of the author. The complete `make -C toolchain all` publication
+was not rerun for this source checkpoint. The latest complete publication
+therefore remains the preceding `CUPMAN3` result: a 27,069-byte schema-v3
+manifest with SHA-256
+`69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
+
+The current request is about 67 MiB because it carries both generations of all
+58 files. The author timeout is 360 seconds, and the current reader holds the
+framed request while it validates slices. Python-free coordination, native
+Windows author execution, and a complete `CUPMAN4` publication remain open.
+`TempleOS/` was not read into the graph or changed.

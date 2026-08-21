@@ -91,7 +91,29 @@ CONTRACT_CONTROL_INPUTS = (
     "tools/user_syscall_abi.py",
 )
 MANIFEST_AUTHOR_SOURCE = "toolchain/tests/toolchain_manifest_contract.cc"
-MANIFEST_AUTHOR_MAGIC = b"CUPMAN3\0"
+MANIFEST_AUTHOR_MAGIC = b"CUPMAN4\0"
+BOOTSTRAP_OBJECT_NAMES = (
+    "runtime",
+    "ctool",
+    "ctool_host",
+    "elf32",
+    "x86",
+    "cupidasm",
+    "cupidasm_main",
+    "cupiddis",
+    "cupiddis_main",
+    "cupidobj",
+    "cupidobj_main",
+    "cupidld",
+    "cupidld_main",
+    "cupidc_pp",
+    "cupidc_type",
+    "cupidc_frontend",
+    "cupidc_ir",
+    "cupidc_emit",
+    "cupidc_main",
+    "start",
+)
 WINDOWS_RUNTIME_INPUTS = (
     "toolchain/hosted/i386-linux/include/windows.h",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
@@ -1003,6 +1025,42 @@ def _append_author_observations(
         _append_author_bytes(payload, encoded_digest)
 
 
+def _append_author_pairs(
+    payload: bytearray,
+    pairs: Sequence[tuple[str, int, bytes, int, bytes]],
+) -> None:
+    if len(pairs) > 0xFFFFFFFF:
+        raise ContractError(
+            "manifest author pair inventory exceeds its framing limit"
+        )
+    payload.extend(struct.pack("<I", len(pairs)))
+    for name, first_kind, first_bytes, second_kind, second_bytes in pairs:
+        if (
+            isinstance(first_kind, bool)
+            or not isinstance(first_kind, int)
+            or first_kind < 0
+            or first_kind > 0xFFFFFFFF
+            or isinstance(second_kind, bool)
+            or not isinstance(second_kind, int)
+            or second_kind < 0
+            or second_kind > 0xFFFFFFFF
+            or not isinstance(first_bytes, bytes)
+            or not isinstance(second_bytes, bytes)
+        ):
+            raise ContractError("manifest author pair evidence differs")
+        try:
+            encoded_name = name.encode("ascii")
+        except (AttributeError, UnicodeEncodeError) as error:
+            raise ContractError(
+                "manifest author pair name is not ASCII"
+            ) from error
+        _append_author_bytes(payload, encoded_name)
+        payload.extend(struct.pack("<I", first_kind))
+        _append_author_bytes(payload, first_bytes)
+        payload.extend(struct.pack("<I", second_kind))
+        _append_author_bytes(payload, second_bytes)
+
+
 def _manifest_author_request(
     artifact_observations: Sequence[tuple[str, int, int, str]],
     input_observations: Sequence[tuple[str, int, int, str]],
@@ -1011,8 +1069,10 @@ def _manifest_author_request(
     seed_path: str,
     seed_manifest: bytes,
     seed_observations: Sequence[tuple[str, int, int, str]],
-    object_observations: Sequence[tuple[str, int, int, str]],
-    fixed_point: dict[str, object],
+    object_pairs: Sequence[tuple[str, int, bytes, int, bytes]],
+    executable_pairs: Sequence[tuple[str, int, bytes, int, bytes]],
+    bootstrap_object_pairs: Sequence[tuple[str, int, bytes, int, bytes]],
+    bootstrap_tool_pairs: Sequence[tuple[str, int, bytes, int, bytes]],
 ) -> bytes:
     payload = bytearray(MANIFEST_AUTHOR_MAGIC)
     _append_author_observations(payload, artifact_observations)
@@ -1028,43 +1088,10 @@ def _manifest_author_request(
     _append_author_bytes(payload, encoded_seed_path)
     _append_author_bytes(payload, seed_manifest)
     _append_author_observations(payload, seed_observations)
-    _append_author_observations(payload, object_observations)
-
-    generations = fixed_point.get("compared_generations")
-    all_equal = fixed_point.get("all_equal")
-    c_objects = fixed_point.get("c_objects")
-    startup_objects = fixed_point.get("startup_objects")
-    tool_images = fixed_point.get("tool_images")
-    if (
-        not isinstance(all_equal, bool)
-        or isinstance(c_objects, bool)
-        or not isinstance(c_objects, int)
-        or not isinstance(generations, list)
-        or len(generations) > 0xFFFFFFFF
-        or isinstance(startup_objects, bool)
-        or not isinstance(startup_objects, int)
-        or isinstance(tool_images, bool)
-        or not isinstance(tool_images, int)
-        or any(
-            value < 0 or value > 0xFFFFFFFF
-            for value in (c_objects, startup_objects, tool_images)
-        )
-    ):
-        raise ContractError("manifest author fixed-point evidence differs")
-    payload.extend(
-        struct.pack(
-            "<III", int(all_equal), c_objects, len(generations)
-        )
-    )
-    for generation in generations:
-        try:
-            encoded_generation = generation.encode("ascii")
-        except (AttributeError, UnicodeEncodeError) as error:
-            raise ContractError(
-                "manifest author generation is not ASCII"
-            ) from error
-        _append_author_bytes(payload, encoded_generation)
-    payload.extend(struct.pack("<II", startup_objects, tool_images))
+    _append_author_pairs(payload, object_pairs)
+    _append_author_pairs(payload, executable_pairs)
+    _append_author_pairs(payload, bootstrap_object_pairs)
+    _append_author_pairs(payload, bootstrap_tool_pairs)
     return bytes(payload)
 
 
@@ -1105,15 +1132,50 @@ def _manifest_author_bootstrap_snapshot(
     return snapshot
 
 
+def _capture_stage_pairs(
+    first: dict[str, Path],
+    second: dict[str, Path],
+    artifact_kind: str,
+) -> tuple[tuple[str, int, bytes, int, bytes], ...]:
+    if set(first) != set(second):
+        raise ContractError(
+            f"{artifact_kind} stage inventories differ"
+        )
+    return tuple(
+        (
+            name,
+            1,
+            first[name].read_bytes(),
+            1,
+            second[name].read_bytes(),
+        )
+        for name in sorted(first)
+    )
+
+
+def _bootstrap_stage_paths(
+    stage: Path,
+) -> tuple[dict[str, Path], dict[str, Path]]:
+    objects = {
+        name: stage / f"{name}.o" for name in BOOTSTRAP_OBJECT_NAMES
+    }
+    tools = {name: stage / f"{name}.elf" for name in TOOL_NAMES}
+    return objects, tools
+
+
 def _checked_manifest_author_bytes(
     source_root: Path,
-    stage_four: Path,
+    bootstrap_stage_three: Path,
+    bootstrap_stage_four: Path,
     workspace: Path,
     manifest: Path,
     manifest_relative: str,
     report: dict[str, object],
     artifacts: Sequence[Path],
-    object_paths: dict[str, Path],
+    stage_three_objects: dict[str, Path],
+    stage_four_objects: dict[str, Path],
+    stage_three_executables: dict[str, Path],
+    stage_four_executables: dict[str, Path],
 ) -> bytes:
     try:
         seed = freeze_seed_inputs(
@@ -1130,7 +1192,6 @@ def _checked_manifest_author_bytes(
     seed_record = bootstrap.get("seed_manifest")
     source_inputs = bootstrap.get("source_inputs")
     inputs = report.get("inputs")
-    fixed_point = report.get("tool_fixed_point")
     if (
         not isinstance(seed_record, dict)
         or seed_record.get("path") != manifest_relative
@@ -1138,7 +1199,6 @@ def _checked_manifest_author_bytes(
         or not isinstance(source_inputs, dict)
         or not isinstance(source_inputs.get("files"), dict)
         or not isinstance(inputs, dict)
-        or not isinstance(fixed_point, dict)
     ):
         raise ContractError("manifest author evidence differs")
 
@@ -1189,14 +1249,31 @@ def _checked_manifest_author_bytes(
         )
         for name, contents in seed.artifact_bytes
     )
-    object_observations = tuple(
-        (
-            name,
-            1,
-            path.stat().st_size,
-            _sha256(path),
-        )
-        for name, path in sorted(object_paths.items())
+    bootstrap_stage_three_objects, bootstrap_stage_three_tools = (
+        _bootstrap_stage_paths(bootstrap_stage_three)
+    )
+    bootstrap_stage_four_objects, bootstrap_stage_four_tools = (
+        _bootstrap_stage_paths(bootstrap_stage_four)
+    )
+    object_pairs = _capture_stage_pairs(
+        stage_three_objects,
+        stage_four_objects,
+        "contract object",
+    )
+    executable_pairs = _capture_stage_pairs(
+        stage_three_executables,
+        stage_four_executables,
+        "contract executable",
+    )
+    bootstrap_object_pairs = _capture_stage_pairs(
+        bootstrap_stage_three_objects,
+        bootstrap_stage_four_objects,
+        "bootstrap object",
+    )
+    bootstrap_tool_pairs = _capture_stage_pairs(
+        bootstrap_stage_three_tools,
+        bootstrap_stage_four_tools,
+        "bootstrap tool",
     )
     request = _manifest_author_request(
         artifact_observations,
@@ -1206,20 +1283,22 @@ def _checked_manifest_author_bytes(
         manifest_relative,
         seed.manifest_bytes,
         seed_observations,
-        object_observations,
-        fixed_point,
+        object_pairs,
+        executable_pairs,
+        bootstrap_object_pairs,
+        bootstrap_tool_pairs,
     )
     request_path = workspace / "toolchain-manifest-author-request.bin"
     request_path.write_bytes(request)
     executable = _build_manifest_author(
         source_root,
-        stage_four,
+        bootstrap_stage_four,
         source_root / "manifest-author-build",
     )
     try:
         require_live_seed_inputs(seed)
         result = ToolRunner(source_root).run(
-            executable, ("author", request_path), 120
+            executable, ("author", request_path), 360
         )
         require_live_seed_inputs(seed)
         _require_inputs_unchanged(source_root, inputs)
@@ -1817,26 +1896,17 @@ def build_contracts(
             "stage four",
             workers,
         )
-        object_digests = _compare_stage_files(
-            stage_three_objects,
-            stage_four_objects,
-            "contract object",
-        )
         object_comparisons = {
             name: {
-                "sha256": digest,
-                "size": stage_four_objects[name].stat().st_size,
+                "sha256": _sha256(path),
+                "size": path.stat().st_size,
             }
-            for name, digest in object_digests.items()
+            for name, path in sorted(stage_four_objects.items())
         }
-        comparisons = _compare_stage_files(
-            stage_three_executables,
-            stage_four_executables,
-            "contract executable",
-        )
-        _announce(
-            "stage-three and stage-four objects and executables match"
-        )
+        comparisons = {
+            name: _sha256(path)
+            for name, path in sorted(stage_four_executables.items())
+        }
         _run_runtime_contract(
             private_root, stage_four_executables["runtime"], workspace
         )
@@ -1886,13 +1956,65 @@ def build_contracts(
         }
         authored_report = _checked_manifest_author_bytes(
             private_root,
+            bootstrap_output / CONVERGED_GENERATIONS[0],
             bootstrap_output / CONVERGED_GENERATIONS[1],
             workspace,
             manifest,
             manifest_relative,
             report,
             artifacts,
+            stage_three_objects,
             stage_four_objects,
+            stage_three_executables,
+            stage_four_executables,
+        )
+        object_digests = _compare_stage_files(
+            stage_three_objects,
+            stage_four_objects,
+            "contract object",
+        )
+        oracle_object_comparisons = {
+            name: {
+                "sha256": digest,
+                "size": stage_four_objects[name].stat().st_size,
+            }
+            for name, digest in object_digests.items()
+        }
+        oracle_comparisons = _compare_stage_files(
+            stage_three_executables,
+            stage_four_executables,
+            "contract executable",
+        )
+        bootstrap_stage_three_objects, bootstrap_stage_three_tools = (
+            _bootstrap_stage_paths(
+                bootstrap_output / CONVERGED_GENERATIONS[0]
+            )
+        )
+        bootstrap_stage_four_objects, bootstrap_stage_four_tools = (
+            _bootstrap_stage_paths(
+                bootstrap_output / CONVERGED_GENERATIONS[1]
+            )
+        )
+        _compare_stage_files(
+            bootstrap_stage_three_objects,
+            bootstrap_stage_four_objects,
+            "bootstrap object",
+        )
+        _compare_stage_files(
+            bootstrap_stage_three_tools,
+            bootstrap_stage_four_tools,
+            "bootstrap tool",
+        )
+        if (
+            object_comparisons != oracle_object_comparisons
+            or comparisons != oracle_comparisons
+        ):
+            raise ContractError(
+                "Toolchain manifest evidence differs from the "
+                "independent Python comparison"
+            )
+        _announce(
+            "Cupid author and Python oracle agree on all 58 stage pairs"
         )
         oracle_report = (
             json.dumps(report, indent=2, sort_keys=True) + "\n"

@@ -301,14 +301,18 @@ seed image after the private command returns. ADR 0246 records this invocation
 boundary.
 
 Before publication, Python frames the frozen artifact and provenance facts as a
-CUPMAN3 request. Stage-four checked Linux CupidC compiles the C author from its
+CUPMAN4 request. Stage-four checked Linux CupidC compiles the C author from its
 20 direct build inputs, CupidASM supplies startup, and CupidLD links its static
-ELF. Windows runs this Linux publication step through WSL. Every publication
-input and object comparison carries its SHA-256 digest and exact byte size.
-The author validates the request and writes the canonical manifest. Python
-builds the same manifest independently and requires exact byte equality before
-publication. The author split leaves Python responsible for filesystem
-traversal, hashing, live rechecks, and the publication transaction.
+ELF. Windows runs this Linux publication step through WSL. The request carries
+raw stage-three and stage-four bytes for 58 fixed-point pairs: 17 contract
+objects, 16 contract executables, 19 bootstrap C objects, one startup object,
+and five tool images. The author requires regular, nonempty, byte-identical
+streams and hashes both sides. It derives the 17 schema-v3 object records,
+checks executable pairs against their artifact facts, and derives the
+fixed-point summary from its exact inventories. No caller all_equal field is
+part of the protocol. Python repeats all 58 comparisons after author acceptance
+and remains responsible for filesystem traversal, live rechecks, rollback, and
+the publication transaction.
 
 The same contract source handles CUPMAN2 verification in check mode. Its
 request carries the publication manifest, all 21 artifact observations, the
@@ -323,14 +327,14 @@ and restore cannot redirect the pinned reads. The build audit records 126 direct
 inputs for this transform on Windows. Provenance-only sources do not inherit a
 compiler or assembler owner.
 
-The CUPMAN3 publication gate requires stage-three and stage-four identity across
-the complete tool set. It also checks the hosted runtime, live inputs, and the
-native Windows CUPMAN2 verifier. The source audit enforces the graph and
-ownership counts above. A valid schema-v3 publication records exactly 21
+The CUPMAN4 publication gate makes all 58 stage-pair decisions before Python's
+independent comparisons. It also checks the hosted runtime, live inputs, and
+the native Windows CUPMAN2 verifier. The source audit enforces the graph and
+ownership counts above. A valid schema-v3 publication still records exactly 21
 artifacts, 70 publication inputs, 50 bootstrap inputs, and 17 object
-comparisons, and CUPMAN2 must accept it. The direct module passes 29 tests in
-39.068 seconds, the publisher passes 59 in 3.518 seconds, and the pinned runner
-passes 24 in 27.752 seconds. The host bootstrap log records exact publication
+comparisons, and CUPMAN2 must accept it. The direct module passes 40 tests in
+43.019 seconds, the publisher passes 60 in 7.144 seconds, and the pinned runner
+passes 24 in 28.302 seconds. The host bootstrap log records exact publication
 and OS artifact identities because putting them in this image manual would
 alter an image input.
 

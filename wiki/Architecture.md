@@ -177,32 +177,31 @@ Cupid contract and Python oracle one shared six-file snapshot. Linux runs the
 published ELF contract. Windows freezes a separate 26-file closure, builds a
 private PE with checked CupidC, CupidASM, and CupidLD, and runs it directly.
 The Windows path rechecks its source and seed closures and never touches the
-Linux publication. For publication, the checked stage-four Linux tools build
-a static ELF manifest author from 20 direct build inputs. Windows runs this
-Linux publication step through WSL. Its framed `CUPMAN3` request binds
-the 21 artifacts, 70 publication inputs, 50 bootstrap inputs, Linux publication
-seed, five seed images, and 17 object comparisons. Each publication-input and
-object-comparison record carries a SHA-256 digest and exact byte size. The
-author emits canonical JSON bytes from observations rather than a draft
-manifest. Python retains
-no-follow capture, launch, independent bootstrap
-rehashing and JSON rendering, exact oracle comparison, and drift checks. The
-matched author output enters private staging, and the complete cohort must
-verify before an atomic directory replacement. A failure preserves the prior
+Linux publication. For publication, the checked stage-four Linux tools build a
+static ELF manifest author from 20 direct build inputs. Windows runs this Linux
+step through WSL. Its framed `CUPMAN4` request binds the publication facts and
+raw stage-three and stage-four bytes for 58 fixed-point pairs: 17 contract
+objects, 16 contract executables, 19 bootstrap C objects, one startup object,
+and five tool images. The author requires regular, nonempty, byte-identical
+streams and hashes both sides independently. It derives the 17 schema-v3
+object records, checks executable pairs against their artifact facts, and
+derives the fixed-point summary from the exact pair inventories. The request
+has no caller `all_equal` field. Python repeats all 58 comparisons after author
+acceptance and retains no-follow capture, launch, drift checks, private
+staging, rollback, and atomic replacement. A failure preserves the prior
 publication. The host-selected checked
 seed builds a separate `CUPMAN2` verifier as a static ELF on Linux or a native
-PE on Windows. ADR 0302 records the verifier boundary, and ADR 0304 records the
-author split.
+PE on Windows. ADR 0302 records the verifier boundary, ADR 0304 records the
+author split, and ADR 0307 records raw stage-pair evidence.
 
-The current schema v3 CUPMAN3 publication passed in 4,273.533 seconds. It
-published 21 artifacts from 70 publication inputs and the exact 50-file
-bootstrap inventory. Stage three and stage four matched across all recorded
-comparisons, including the 17 object comparisons. The hosted runtime contract
-and live-input checks passed, and the native Windows CUPMAN2 verifier returned
-success. The 27,069-byte manifest has SHA-256
+The complete Toolchain publication was not rerun for `CUPMAN4`. The latest
+complete result is the preceding `CUPMAN3` publication, which passed in
+4,273.533 seconds and wrote 21 artifacts from 70 publication inputs and the
+exact 50-file bootstrap inventory. Its 27,069-byte manifest has SHA-256
 `69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
-The direct contract suite passed 29 tests in 39.068 seconds. The publisher
-suite passed 59 tests in 3.518 seconds.
+The source-current direct contract suite passes 40 tests in 43.019 seconds.
+The publisher suite passes 60 tests in 7.144 seconds, and the pinned verifier
+runner passes 24 tests in 28.302 seconds with three POSIX-only Windows skips.
 
 Audit ownership for author generation stops at the 20 direct build inputs. The
 70 publication and 50 bootstrap inputs are observations and do not inherit

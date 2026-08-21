@@ -400,21 +400,26 @@ under root `all`. CupidC participates in 250, CupidObj in 192, CupidASM in nine,
 CupidLD in nine, and CupidDis in six. Four transforms run Cupid-built semantic
 contracts. Python participates in all 452 for coordination and safety, but no
 transform is Python-only. The Toolchain publisher now gives a checked strict
-C11 author 21 artifact facts, 70 publication inputs, 50 bootstrap inputs, and
-17 object comparisons through `CUPMAN3`. Schema
-`cupid.toolchain-contracts.v3` represents every publication input and object
-comparison as an exact `sha256` and `size` record. `CUPMAN2` rejects live input
-observation size drift, and Python checks the report with an independent
-oracle. The `CUPMAN3` author requires each object-comparison size to be nonzero
-and binds its record into canonical output. Those records remain producer
-evidence because the author does not independently read the object bytes. The
-author is always a static Linux ELF built and run by the converged stage-four
-Linux tools; Windows reaches it through WSL. Only the
-`CUPMAN2` verifier is host-selected and runs as a native PE on Windows.
-The direct manifest module passes 29 tests in 39.068 seconds, the publisher
-passes 59 in 3.518 seconds, and the pinned verifier runner executes 24 tests in
-27.752 seconds with three POSIX-only skips on Windows. The source-current
-`make -C toolchain all` passed in 4,273.533 seconds. Every stage-three object
+C11 author its artifact and source facts plus 58 raw stage pairs through
+`CUPMAN4`. The pairs cover 17 contract objects, 16 contract executables, 19
+bootstrap C objects, one startup object, and five tool images. The author
+requires both members to be regular, nonempty, and byte-identical, then hashes
+both streams. It derives the 17 object-comparison records from those bytes,
+checks the executable pairs against their artifact facts, and derives the
+fixed-point summary from its exact inventories. The protocol has no caller
+`all_equal` field. Schema
+`cupid.toolchain-contracts.v3` is unchanged. Python performs its independent
+four-inventory comparison after the Cupid author accepts the request. It still
+owns pinned filesystem access, process launch, drift checks, private staging,
+and atomic publication. The author is always a static Linux ELF built and run
+by the converged stage-four Linux tools; Windows reaches it through WSL. Only
+the `CUPMAN2` verifier is host-selected and runs as a native PE on Windows.
+The direct manifest module passes 40 tests in 43.019 seconds, the publisher
+passes 60 in 7.144 seconds, and the pinned verifier runner executes 24 tests in
+28.302 seconds with three POSIX-only skips on Windows. ADR 0307 records the
+paired-evidence boundary. The last complete publication predates `CUPMAN4`.
+Its schema v3 `CUPMAN3` `make -C toolchain all` passed in 4,273.533 seconds.
+Every stage-three object
 and executable matched its
 stage-four counterpart, the hosted runtime passed, and the live inputs stayed
 frozen. The publisher wrote 21 artifacts and a 27,069-byte schema v3 manifest
@@ -564,25 +569,26 @@ _Avoid_: checked seed, native contract suite, 19-source tool fixed point
 **Cupid Toolchain manifest contract**:
 The strict C11 program that verifies and authors the 21-artifact Toolchain
 publication. Verification consumes a pinned `CUPMAN2` snapshot. Author mode
-consumes a pinned `CUPMAN3` snapshot of independent artifact, 70-input,
-50-bootstrap-input, Linux-seed, seventeen-object-comparison, build-plan, and
-generation facts. Schema `cupid.toolchain-contracts.v3` stores each publication
-input and object comparison as a two-field `sha256` and `size` record.
-`CUPMAN2` rejects live input observation size drift, and Python checks the
-report with an independent oracle. The `CUPMAN3` author requires each
-object-comparison size to be nonzero and binds its record into canonical
-output. Those records remain producer evidence because the author does not
-independently read the object bytes. It rejects a missing, extra, duplicate,
-unsafe, malformed, truncated, trailing, or inconsistent fact before emitting
-canonical JSON. Python captures the
+consumes a pinned `CUPMAN4` snapshot. It carries the independent artifact,
+70-input, 50-bootstrap-input, Linux-seed, build-plan, and generation facts,
+plus four exact raw stage-pair inventories. Those inventories contain 17
+contract objects, 16 contract executables, 20 bootstrap objects, and five
+bootstrap tools. The author compares and hashes both byte streams in every
+pair. It derives the 17 object records from the compared bytes and checks the
+16 executable digests and sizes against the artifact observations. Schema
+`cupid.toolchain-contracts.v3` still stores each publication input and object
+comparison as a two-field `sha256` and `size` record. It rejects a missing,
+extra, duplicate, nonregular, empty, mismatched, malformed, truncated,
+trailing, or inconsistent fact before emitting canonical JSON. Python captures the
 no-follow filesystem view, requires agreement with an independent oracle, and
-repeats the live closure and drift checks. The author is always a static Linux
+performs all four stage comparisons again only after author acceptance. It
+also repeats the live closure and drift checks. The author is always a static Linux
 ELF built and run with converged stage-four Linux CupidC, CupidASM, and
 CupidLD. Windows runs it through WSL. Verification remains host-selected:
 Windows builds and runs a native `CUPMAN2` PE, while Linux uses a static ELF.
 The checked graph assigns both operations to CupidC, CupidASM, CupidLD, the
 semantic-contract class, and Host Python. ADR 0302 records verification, and
-ADR 0304 records authoring.
+ADR 0304 records authoring. ADR 0307 records paired fixed-point evidence.
 _Avoid_: Python-free filesystem boundary, manifest-derived author oracle,
 general JSON author
 
@@ -1346,7 +1352,7 @@ these images directly for output-bearing production work. The cohort is an
 execution seed, not a bootstrap seed: it does not carry a native Windows build
 plan. The native fixed-point command pairs it with the separately verified
 Linux plan seed. Static Linux Toolchain contract paths, including the
-`CUPMAN3` author, continue to use the checked Linux bootstrap lineage. Windows
+`CUPMAN4` author, continue to use the checked Linux bootstrap lineage. Windows
 runs the author through WSL. The `CUPMAN2` verifier follows the host and uses
 the PE cohort directly on Windows. Artifact-size policy keeps the Linux
 manifest as semantic provenance, while Windows uses the PE cohort to build and

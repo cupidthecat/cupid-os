@@ -90,28 +90,32 @@ and arbitrary computed callbacks remain open. The promoted standalone seeds do
 not contain this private parser or ELF writer. ADR 0306 records global storage,
 and ADR 0310 records automatic objects and method parameters.
 
-The Toolchain publisher builds its strict C11 `CUPMAN3` author as a static
+The Toolchain publisher builds its strict C11 `CUPMAN4` author as a static
 Linux ELF with the converged stage-four Linux CupidC, CupidASM, and CupidLD.
 Windows runs that author through WSL. Only `CUPMAN2` verification is
 host-selected and runs as a native PE on Windows. Schema
-`cupid.toolchain-contracts.v3` carries independent facts for 21 artifacts, 70
-publication inputs, 50 bootstrap inputs, and 17 object comparisons. Every
-publication input and object comparison is an exact `sha256` and `size`
-record. `CUPMAN2` rejects live input observation size drift, and Python checks
-the report with an independent oracle. The `CUPMAN3` author requires each
-object-comparison size to be nonzero and binds its record into canonical
-output. Those records remain producer evidence because the author does not
-independently read the object bytes. Python still pins the filesystem, launches
+`cupid.toolchain-contracts.v3` is unchanged. `CUPMAN4` carries the existing
+artifact and source facts plus 58 raw stage pairs: 17 contract objects, 16
+contract executables, 19 bootstrap C objects, one startup object, and five
+tool images. The Cupid-built author requires two regular, nonempty, identical
+byte streams for every pair and hashes both streams. It derives the 17
+published object records from those bytes, checks each executable pair against
+its artifact fact, and derives the fixed-point summary from the exact pair
+inventories. The protocol has no caller `all_equal` field. Python performs the
+same four comparisons only
+after the author accepts the request. It still pins the filesystem, launches
 the author, stages privately, and swaps the complete directory. The direct
-module passes 29 tests in 39.068 seconds, the publisher passes 59 in 3.518
-seconds, and the pinned verifier runner executes 24 tests in 27.752 seconds
-with three POSIX-only skips on Windows. The source graph has 739 active inputs,
+module passes 40 tests in 43.019 seconds, the publisher passes 60 in 7.144
+seconds, and the pinned verifier runner executes 24 tests in 28.302 seconds
+with three POSIX-only skips on Windows. [ADR 0307](docs/adr/0307-author-toolchain-fixed-point-evidence-from-stage-pairs.md)
+records the paired-evidence boundary. The source graph has 739 active inputs,
 452 transforms, 255 feature requirements, and 25 accounted unreachable files.
 Participation
 is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 6, and four
 Cupid-built semantic contracts. Python participates in all 452 transforms,
 but no transform is Python-only. Root `all` remains at 443 transforms, each
-with a Cupid participant. The source-current schema v3
+with a Cupid participant. The last complete publication predates `CUPMAN4`.
+That schema v3 `CUPMAN3`
 `make -C toolchain all` passed in 4,273.533 seconds. Every stage-three object and
 executable matched its stage-four counterpart, the hosted runtime passed, and
 the live inputs stayed frozen. The publisher wrote 21 artifacts and a
