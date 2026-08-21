@@ -261,6 +261,8 @@ FRONTIER_RUNTIME_COMMANDS = (
             r".*?\[feature14-callback-typedef\] PASS float4=4 calls=1"
             r".*?\[feature14-callback-global\] PASS float4=4 calls=1 "
             r"cleared=1"
+            r".*?\[feature14-callback-automatic\] PASS local=4 method=4 "
+            r"calls=2"
             r".*?\[feature14-minmax\] PASS nan=4 signed_zero=4"
             r".*?\[feature14-nan\] PASS float_left=[0-4] "
             r"float_right=[0-4] double_left=[0-4] double_right=[0-4]"
@@ -619,6 +621,7 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[feature14-callback] FAIL",
     "[feature14-callback-typedef] FAIL",
     "[feature14-callback-global] FAIL",
+    "[feature14-callback-automatic] FAIL",
     "[feature14-minmax] FAIL",
     "[feature14-nan] FAIL",
     "FAIL feature14_simd",

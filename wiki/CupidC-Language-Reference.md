@@ -49,29 +49,31 @@ records this array boundary.
 
 A direct file-scope function-pointer typedef also retains its result, fixed
 parameters, record identities, prototype state, and variadic boundary. A free
-function parameter declared with that alias carries the signature in JIT, AOT,
-and persistent REPL source, including a later REPL unit. Its indirect calls use
-the direct cdecl conversions and 4-, 8-, and 16-byte slots, with SIMD results
-returned through XMM0. A file object declared directly with the alias keeps the
-same signature. It can start as `NULL`, receive a compatible callback through
-plain assignment, call it indirectly, and be cleared. This covers Doom's
-`vpatchclipfunc_t` storage shape as well as the active ISO callback whose `uint8_t`
-entry length is converted to the declared `uint32_t` parameter. The private
-table holds sixteen typedefs, and a callback signature may have at most 32
-parameters. Each declaration may introduce only one function-pointer alias.
-Method parameters, callback alias chains, record fields, callback arrays,
-typedef-typed automatic and block-static objects, recursive
-callback signatures, and arbitrary computed callback expressions do not retain
-this metadata. Direct structure and array callback results are rejected;
-record-pointer results retain their record identity. A rejected source or REPL
-unit restores the typedef table with the prior symbols, patches, control state,
-code, and data.
+function or Cupid class method parameter declared with that alias carries the
+signature in JIT, AOT, and persistent REPL source, including a later REPL unit.
+A declaration-initialized automatic object carries it too, with an independent
+copy for each comma declarator. A file object declared directly with the alias
+keeps the same signature. It can start as `NULL`, receive a compatible callback
+through plain assignment, call it indirectly, and be cleared. Indirect calls
+use the direct cdecl conversions and 4-, 8-, and 16-byte slots, with SIMD
+results returned through XMM0. This covers Doom's `vpatchclipfunc_t` storage
+shape and the active ISO callback whose `uint8_t` entry length is converted to
+the declared `uint32_t` parameter. The private table holds sixteen typedefs,
+and a callback signature may have at most 32 parameters. Each declaration may
+introduce only one function-pointer alias. Callback alias chains, record fields,
+callback arrays, block-static objects, recursive callback signatures, and
+arbitrary computed callback expressions do not retain this metadata. Direct
+structure and array callback results are rejected; record-pointer results retain
+their record identity. A rejected source or REPL unit restores the typedef table
+with the prior symbols, patches, control state, code, and data.
 [ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
-records the parameter boundary.
+records the free-function parameter boundary.
 [ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
 records global callback storage and checked assignment. A direct function
-designator in static data remains rejected until initialized data has an
-address fixup.
+designator in static data remains rejected until initialized data has an address
+fixup.
+[ADR 0310](../docs/adr/0310-retain-automatic-callback-typedef-signatures-in-private-cupidc.md)
+records automatic objects and Cupid class method parameters.
 
 The preceding poisoned-host OS build checkpoint passed in 684.260 seconds and
 accepted all fourteen exact policy artifacts. A private four-vCPU `max`/e1000
@@ -252,16 +254,16 @@ rule is unchanged. A parsed variadic tail widens `float` to `double` and promote
 `char` to `int`. Its fixed prefix may contain vectors, but a SIMD tail value is
 rejected. Unprototyped and signature-erased function-pointer SIMD calls also
 fail explicitly. A named block-local function pointer with an explicit
-prototype is signature-bearing. A free-function parameter declared with a direct
-file-scope function-pointer typedef is signature-bearing too. A file object
-declared directly with that typedef also retains the signature. Its scalar,
-floating, pointer, or SIMD arguments use the declared fixed slots, its variadic
-tail receives default promotions, and its result keeps the declared type.
-Grouped zero and `((void *)0)` may initialize a callback file object. Checked
-plain assignment stores a compatible callback or clears it to null. Empty
-`()`, typedef-typed automatic and block-static objects, fields, callback
-arrays, alias chains, recursive callback signatures, and `void *`
-forms retain source-width slots. Direct structure and array callback results
+prototype is signature-bearing. A free-function or Cupid class method parameter
+declared with a direct file-scope function-pointer typedef is signature-bearing
+too. A declaration-initialized automatic object and a file object have the same
+rule. Their scalar, floating, pointer, or SIMD arguments use the declared fixed
+slots, their variadic tails receive default promotions, and their results keep
+the declared type. Grouped zero and `((void *)0)` may initialize a callback file
+object. Checked plain assignment stores a compatible callback or clears it to
+null. Empty `()`, fields, callback arrays, block-static objects, alias chains,
+recursive callback signatures, and `void *` forms retain source-width slots.
+Direct structure and array callback results
 are rejected; record-pointer results retain their record identity. Kernel
 bindings and other calls without fixed parameter metadata do the same.
 When a plain function designator initializes a named local, fills a typed

@@ -566,11 +566,13 @@ completion. The same logs pass all 62 crypto checks and reach the desktop and
 terminal.
 
 The four-vCPU e1000 gate also runs feature14_simd.cc. It requires direct-call,
-named-callback, typedef-parameter, and typedef-global callback evidence in that
-order, including `[feature14-callback-typedef] PASS float4=4 calls=1` followed
-by `[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. It then requires the
-overall feature14 PASS and CupidC JIT completion. The gate rejects known SMP,
-storage, crypto, exception, corruption, and illegal-instruction failures.
+named-callback, typedef-parameter, typedef-global, and automatic-callback
+evidence in that order. It requires
+`[feature14-callback-typedef] PASS float4=4 calls=1`,
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, and
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2` before the overall
+feature14 PASS and CupidC JIT completion. The gate rejects known SMP, storage,
+crypto, exception, corruption, and illegal-instruction failures.
 
 The normal LAPIC recipe compiles kernel/smp/lapic.cc with the checked CupidC
 seed. Its checked wrapper validates the ELF32 object and blocks host compiler

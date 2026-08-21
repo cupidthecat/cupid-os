@@ -28661,3 +28661,70 @@ tests. It does not change an object format, persisted artifact, guest ABI, or
 active kernel path, and no production executable was rebuilt. A runtime smoke
 becomes relevant when a later slice promotes the seeds or selects this policy
 inside the OS.
+
+## 2026-08-21: retain automatic callback typedef signatures in private CupidC
+
+ADR 0310 carries a file-scope callback typedef signature from the direct
+free-function parameter boundary into declaration-initialized automatic
+objects and Cupid class method parameters. The parser captures the typedef
+index before another type parse can replace it. It copies the bounded signature
+to every automatic declarator and uses the same parameter binder for methods.
+
+The automatic initializer uses the established callback probe, compatibility
+checks, provisional target handling, signature journal, and program snapshot.
+Integer constant zero stays a null callback, and an explicit `void *` cast
+still erases the signature for the value it covers. A rejected initializer or
+later definition restores code, data, patches, candidates, and signature state
+before another compile uses the same state.
+
+The first mixed-width local and method tests failed in JIT and AOT. All four
+executions returned 0 instead of 34 because the `double, int` signature had
+been erased. They returned 34 after the typedef index reached the local symbol.
+A comma-declarator test then exposed the old single-object parser path and
+failed at the comma. The completed path gives every declarator an independent
+frame slot and signature copy.
+
+`python -B -m unittest -q tests.test_private_cupidc_call_abi` passes all 248
+tests in 43.968 seconds. Added positive cases cover mixed-width scalar slots,
+exact 12-byte cleanup, SIMD arguments and XMM0 results, comma declarators, null
+initialization, explicit erasure, and later definitions in JIT and AOT. Added
+negative cases cover result, parameter, record identity, variadic, and arity
+mismatches. Each negative compiles and runs a valid source in the same state.
+The module also pins the active USB typedef and the UHCI and EHCI automatic
+callback declarations without claiming support for their later assignments.
+
+Review exposed one scope leak in the first shared-helper draft. A callback
+typedef alias chain has no retained signature, but the draft still sent its
+automatic initializer through the typed validator. The new JIT and AOT
+regression failed with
+`function-pointer initializer result does not match declaration`. The parser
+now enters the typed path only when copying the typedef signature succeeds.
+The alias chain again uses the legacy initializer and runs in both modes while
+remaining signature-erased.
+
+The feature-14 source now exercises one typedef-typed automatic callback and
+one Cupid class method callback parameter. The required marker is
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`.
+`python -B -m unittest -q tests.test_gui_terminal_smoke` passes all 125 tests in
+0.753 second. The contract rejects a missing marker and the matching failure
+marker. The last full guest checkpoint predates this marker, so it remains
+historical evidence rather than runtime proof for this slice.
+
+`make kernel/lang/cupidc_parse.o kernel/lang/cupidc_elf.o` passes in 68.8
+seconds with the promoted Windows checked seed. `cupidc_parse.o` is 461,624
+bytes with SHA-256
+`117a446f37ee9382b0fba48aa395359544711e3298e702cd4391bea090b08ce4`.
+`cupidc_elf.o` is 3,604 bytes with SHA-256
+`c2ad171aacd493a33a477e7a3196a5d28b04b0f74521cd8cbaec2598f391880c`.
+
+The global-object and automatic-object branches were then combined. The shared
+ABI and GUI command passes all 377 tests in 43.411 seconds. The checked self-host
+build also passes. Its combined `cupidc_parse.o` is 464,636 bytes with SHA-256
+`a68593438c9ea8e69dd356cfe883d1ff9616a7c3af2e5f24f59904735fe32cf2`.
+`cupidc_elf.o` remains 3,604 bytes with SHA-256
+`c2ad171aacd493a33a477e7a3196a5d28b04b0f74521cd8cbaec2598f391880c`.
+
+This slice moves no build owner and adds no host dependency. ADR 0306 covers
+direct global callback objects and checked assignment. Fields, block-static
+objects, recursive signatures, direct aggregate results, and arbitrary computed
+callbacks remain open.

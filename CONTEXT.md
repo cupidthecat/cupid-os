@@ -171,27 +171,25 @@ A named block-local function-pointer declaration retains its fixed
 parameter types, variadic state, and result type. Its indirect call uses the
 same conversion and 4-, 8-, or 16-byte slot path as a direct call, enforces
 fixed arity, and publishes floating or SIMD results through XMM0. A
-file-scope function-pointer typedef can
-retain the same signature in the existing sixteen-entry typedef table, with at
-most 32 fixed parameters per signature. One direct function-pointer
-typedef declaration publishes one alias. When a free-function parameter uses
-that alias directly, the parameter symbol carries
-its typedef index and indirect calls keep the fixed types, record-pointer
-identities, variadic boundary, and result channel. A file object declared
-directly with the alias now carries the same metadata. It may start as grouped
-zero or the active `((void *)0)` null spelling, accept a checked plain
-assignment, clear to null, and make a typed indirect call. A non-null assignment
-must match the retained result, record-pointer identities, fixed parameters,
+file-scope function-pointer typedef retains the same signature in the existing
+sixteen-entry typedef table, with at most 32 fixed parameters per signature.
+One direct typedef declaration publishes one alias. Direct free-function and
+Cupid class method parameters carry that signature. A declaration-initialized
+automatic object carries its own copy, including each object in a comma list.
+A file object declared directly with the alias also retains the signature. It
+may start as grouped zero or the active `((void *)0)` spelling, accept a checked
+plain assignment, clear to null, and make a typed indirect call. A non-null
+assignment must match the result, record-pointer identities, fixed parameters,
 and variadic boundary before the address is stored. Direct function-designator
 initialization in static data remains unsupported until the private writer has
-data-address fixups. Typedef-typed automatic and block-static objects, method
-parameters, fields, callback arrays, alias chains, and recursive signatures
-remain signature-erased. Direct structure and array results remain rejected.
-Program and REPL rollback restore the typedef count, side-table metadata,
-provisional signatures, code, and data. The promoted standalone CupidC seeds
-do not contain this private parser or ELF writer, so their reproof is not
-callback carriage evidence. ADR 0303 records typedef parameters, and ADR 0306
-records global callback storage and checked assignment.
+data-address fixups. Block-static objects, fields, callback arrays, alias
+chains, and recursive signatures remain signature-erased. Direct structure and
+array results remain rejected. Program and REPL rollback restore typedef and
+side-table metadata, provisional signatures, code, data, and patches. The
+promoted standalone CupidC seeds do not contain this private parser or ELF
+writer, so their reproof is not callback carriage evidence. ADR 0303 records
+free-function parameters, ADR 0306 records global storage and checked
+assignment, and ADR 0310 records automatic objects and method parameters.
 _Avoid_: reversing source evaluation, four bytes for every parameter, splitting a double into unrelated arguments
 
 **Represented bit-field assignment**:
@@ -902,9 +900,12 @@ Fixed SIMD parameters may precede a scalar variadic tail. SIMD values in the
 tail and unprototyped SIMD calls receive focused diagnostics. A named
 block-local function pointer with an explicit prototype carries a fixed
 SIMD argument or result through the ordinary call path. A typedef-backed
-ordinary function parameter now retains that metadata. Global objects, method
-parameters, fields, `void *`, and empty-`()` pointers still lack it and keep
-the focused rejection. A plain function initializer must match the local
+ordinary function or Cupid class method parameter retains that metadata. A
+declaration-initialized automatic object does too. A direct file object retains
+the signature across null initialization, checked assignment, indirect call,
+and clearing. Fields, callback arrays, block-static objects, alias chains,
+`void *`, and empty-`()` pointers still lack it and keep the focused rejection.
+A plain function initializer must match the local
 pointer's result, record identity, fixed parameters, and variadic boundary.
 Named local callback copies follow the same rule. Later target addresses are
 patched and a prescan-only signature is checked against its definition. A
@@ -924,7 +925,9 @@ crossing this ABI.
 ADR 0216 records the first fixed-array model, ADR 0257 records multidimensional
 row descent, ADR 0294 records whole-vector updates, and ADR 0299 records the
 fixed SIMD call boundary. ADR 0301 records the named local callback boundary,
-and ADR 0303 records typedef-backed ordinary callback parameters.
+ADR 0303 records typedef-backed ordinary callback parameters, ADR 0306 records
+global callback storage, and ADR 0310 records automatic objects and Cupid class
+method parameters.
 _Avoid_: untyped SIMD storage, escaped row pointers, reordered packed operands,
 an implied 16-byte private call-site alignment
 

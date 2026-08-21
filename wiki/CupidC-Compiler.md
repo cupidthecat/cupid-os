@@ -129,23 +129,26 @@ layout.
 
 A direct file-scope function-pointer typedef retains its result, record
 identities, fixed parameter list, prototype state, and variadic boundary. A
-free-function parameter declared with that alias carries the signature through
-JIT, AOT, and persistent REPL compilation, including use from a later REPL
-unit. A file object declared directly with the alias also keeps the signature.
+free-function parameter or Cupid class method parameter declared with that
+alias carries the signature through JIT, AOT, and persistent REPL compilation,
+including use from a later REPL unit. A declaration-initialized automatic
+object also keeps the signature, and each comma declarator receives its own
+copy. A file object declared directly with the alias also keeps the signature.
 It may start as `NULL`, receive a compatible callback through checked plain
-assignment, make a typed indirect call, and be cleared. Indirect calls through
-either storage path use the same cdecl conversion and layout as direct calls.
-The private typedef table holds sixteen entries,
-and each callback signature may contain at most 32 parameters. Each declaration
-may introduce only one function-pointer alias. A direct function designator in
-a global initializer is rejected until initialized data has address fixups.
-Alias chains, method parameters, record fields, typedef-typed automatic and
-block-static objects, callback arrays, recursive callback signatures, and
-arbitrary computed callback expressions remain outside this typed path. Direct structure and array callback
-results are rejected; record-pointer results retain their record identity. A
-rejected source or REPL unit restores the typedef table with the prior symbols,
-patches, control state, code, and data. ADR 0303 records typedef parameters,
-and ADR 0306 records global callback storage and checked assignment.
+assignment, make a typed indirect call, and be cleared. Indirect calls use the
+same cdecl conversion and layout path as direct calls. The private typedef table
+holds sixteen entries, and each callback signature may contain at most 32
+parameters. Each declaration may introduce only one function-pointer alias. A
+direct function designator in a global initializer is rejected until initialized
+data has address fixups. Alias chains, record fields, callback arrays,
+block-static objects, recursive callback signatures, and arbitrary computed
+callback expressions remain outside this typed path.
+Direct structure and array callback results are rejected; record-pointer
+results retain their record identity. A rejected source or REPL unit restores
+the typedef table with the prior symbols, patches, control state, code, and
+data. ADR 0303 records free-function parameters, ADR 0306 records global
+callback storage and checked assignment, and ADR 0310 records automatic objects
+and Cupid class method parameters.
 
 ### Unsigned 32-bit operations
 
@@ -265,14 +268,15 @@ variadic tail and unprototyped SIMD calls are rejected because no fixed type is
 available. A named block-local `T (*name)(parameters)` declaration retains its
 fixed types, variadic state, and result. Its indirect call uses the same cdecl
 conversions and 4-, 8-, or 16-byte slots as a direct call, including SIMD
-arguments and XMM0 results. A free-function parameter declared with a direct
-file-scope function-pointer typedef carries the same metadata and call path.
-A file object declared with that typedef carries the metadata too. Grouped
-zero or `((void *)0)` initializes its zero-filled storage. Compatible plain
-assignment stores a callback, null clears it, and a direct static function
+arguments and XMM0 results. A free-function or Cupid class method parameter
+declared with a direct file-scope function-pointer typedef carries the same
+metadata and call path. A declaration-initialized automatic object carries it
+too. A file object declared with that typedef carries the metadata as well.
+Grouped zero or `((void *)0)` initializes its zero-filled storage. Compatible
+plain assignment stores a callback, null clears it, and a direct static function
 initializer remains rejected until a data-address fixup exists. Empty `()`,
-typedef-typed automatic and block-static objects, fields, callback arrays,
-alias chains, recursive callback signatures, and `void *`
+fields, callback arrays, block-static objects, alias chains, recursive callback
+signatures, and `void *`
 pointers still erase it. Direct structure and array callback results are
 rejected; record-pointer results retain their record identity. Named SIMD
 intrinsics continue to lower inline. A plain function initializer or direct
@@ -290,11 +294,13 @@ state, prior function symbols, kernel bindings, and the reused `void(void)`
 `__start` thunk. The active ISO callback passes its `uint8_t` entry length to a
 declared `uint32_t` slot through this path. `feature13_double.cc` retains its
 ten mixed-scalar calls. `feature14_simd.cc` contains distinct direct, named
-local callback, typedef-parameter callback, and typedef-global callback
-markers. The global marker is
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. ADR 0301 records
-the named local callback foundation, ADR 0303 records typedef parameters, and
-ADR 0306 records global callback storage.
+local callback, typedef-parameter callback, typedef-global callback, automatic
+callback, and method callback markers. The global and automatic markers are
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1` and
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`. ADR 0301 records
+the named local callback foundation, ADR 0303 records typedef parameters, ADR
+0306 records global callback storage, and ADR 0310 records automatic objects
+and Cupid class method parameters.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations

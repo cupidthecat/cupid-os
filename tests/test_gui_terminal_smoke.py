@@ -171,6 +171,7 @@ def _frontier_command_outputs():
             "[feature14-callback] PASS float4=4 double2=2 calls=2\n"
             "[feature14-callback-typedef] PASS float4=4 calls=1\n"
             "[feature14-callback-global] PASS float4=4 calls=1 cleared=1\n"
+            "[feature14-callback-automatic] PASS local=4 method=4 calls=2\n"
             "[feature14-minmax] PASS nan=4 signed_zero=4\n"
             "[feature14-nan] PASS float_left=4 float_right=0 "
             "double_left=4 double_right=0\n"
@@ -2118,6 +2119,10 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback] PASS float4=4 double2=2 calls=2\n",
             "[feature14-callback-typedef] PASS float4=4 calls=1\n",
             "[feature14-callback-global] PASS float4=4 calls=1 cleared=1\n",
+            (
+                "[feature14-callback-automatic] PASS local=4 method=4 "
+                "calls=2\n"
+            ),
             "[feature14-minmax] PASS nan=4 signed_zero=4\n",
             (
                 "[feature14-nan] PASS float_left=4 float_right=0 "
@@ -2143,6 +2148,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback] FAIL",
             "[feature14-callback-typedef] FAIL",
             "[feature14-callback-global] FAIL",
+            "[feature14-callback-automatic] FAIL",
             "[feature14-minmax] FAIL",
             "[feature14-nan] FAIL",
             "FAIL feature14_simd",
@@ -2186,6 +2192,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "feature14_set_global_callback(feature14_merge_float4);",
             "result = feature14_global_callback(first, 7, second);",
             "feature14_set_global_callback(0);",
+            "class Feature14CallbackInvoker",
+            "feature14_float_callback_t callback = feature14_merge_float4;",
+            "method_result = invoker.Invoke(",
             "sizeof(feature14_global_matrix[feature14_sizeof_index()])",
             "_mm_min_ps(edge_float_first, edge_float_second)",
             "_mm_max_pd(edge_double_first, edge_double_second)",
@@ -2202,6 +2211,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback] PASS float4=4 double2=2 calls=2",
             "[feature14-callback-typedef] PASS float4=4 calls=1",
             "[feature14-callback-global] PASS float4=4 calls=1 cleared=1",
+            "[feature14-callback-automatic] PASS local=4 method=4 calls=2",
         ):
             self.assertIn(spelling, source)
 

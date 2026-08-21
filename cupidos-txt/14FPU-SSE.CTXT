@@ -343,10 +343,11 @@ without that metadata keep their source-width slots. A named block-local
 function pointer with an explicit prototype uses the same conversions and
 keeps its declared result. A file-scope function-pointer typedef retains the
 result, fixed parameters, record identities, prototype state, and variadic
-boundary. A free-function parameter declared through that typedef receives the
-signature for JIT and private AOT calls. Empty (), typedef-typed local,
-global, and field objects, bare nested callback signatures, method parameters,
-and void-pointer forms remain metadata-free. Plain function initializers must
+boundary. A free-function or Cupid class method parameter declared through that
+typedef receives the signature. A declaration-initialized automatic object
+receives its own copy. JIT and private AOT calls use that metadata. Empty (),
+global, field, and block-static objects, bare nested callback signatures, later
+assignments, and void-pointer forms remain metadata-free. Plain function initializers must
 match the retained signature; an explicit cast erases it. ADR 0301 records the
 earlier named-local
 callback rule. Named local copies share the check. Later targets receive
@@ -419,28 +420,31 @@ A fixed SIMD prefix may precede scalar variadic values. SIMD variadic tails,
 unprototyped SIMD calls, and signature-erased function-pointer calls are
 rejected. A named block-local function pointer with an explicit prototype can
 carry a fixed SIMD parameter or result through the same 16-byte slot and XMM0
-return path. A parameter of the free function helper declared with the
-feature14 float4 callback typedef keeps that same slot and result metadata.
+return path. A parameter of the free function helper or Cupid class method
+declared with the feature14 float4 callback typedef keeps that same slot and
+result metadata. A declaration-initialized automatic object keeps it too.
 A file object declared directly with that typedef also keeps the signature
 through null initialization, checked assignment, indirect call, and clearing.
-Typedef-typed automatic and block-static objects, fields, callback arrays,
-method parameters, and alias chains still erase the signature. A direct static
-function-address initializer still needs an initialized-data fixup.
+Fields, callback arrays, block-static objects, and alias chains still erase the
+signature. A direct static function-address initializer still needs an
+initialized-data fixup.
 Named SIMD intrinsics keep their inline lowering. A plain function initializer
 must match the retained
 signature; an explicit cast opts into erasure. Local callback copies share the
 check, and later target addresses are fixed up. A compatible conditional checks
 all named arms.
 
-Focused JIT and private AOT tests execute the named SIMD callbacks plus the
-typedef-parameter and typedef-global callbacks. The source expects
-`[feature14-callback-typedef] PASS float4=4 calls=1` followed by
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`.
+Focused JIT and private AOT tests execute named SIMD callbacks, the
+typedef-parameter callback, a typedef-global callback, an automatic callback,
+and a Cupid class method callback parameter. The source expects
+`[feature14-callback-typedef] PASS float4=4 calls=1`,
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, and
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2` in that order.
 These tests cover the 16-byte argument and XMM0 result. The four-vCPU e1000
-guest contract requires the direct-call, named-callback, typedef-parameter, and
-typedef-global callback
-markers in that order. It then requires `PASS feature14_simd` and CupidC JIT
-completion. These paths belong to the private in-kernel compiler. The
+guest contract requires the direct-call, named-callback, typedef-parameter,
+typedef-global, and automatic-callback markers in that order. It then requires
+`PASS feature14_simd` and CupidC JIT completion. These paths belong to the
+private in-kernel compiler. The
 standalone Linux and Windows toolchain seed reproofs do not prove them.
 
 >h3 Arithmetic

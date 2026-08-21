@@ -20,8 +20,8 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 - CupidC float/double scalars, typed pointers and multidimensional arrays,
   floating record fields, exact unary signs, comparisons, control-flow truth,
   scalar and whole-vector prefix/postfix updates, mixed-width scalar and fixed
-  SIMD cdecl calls, direct typedef-backed free-function callback parameters
-  and global callback objects, float4/double2
+  SIMD cdecl calls, typedef-backed free-function and method callback
+  parameters, global callback objects, automatic callback objects, float4/double2
   arithmetic, multidimensional fixed arrays, and SSE intrinsics
 - libm: 25 operations (sqrt, sin, cos, tan, atan, atan2, exp, exp2, log, log2, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter, fabs, floor, ceil, round, trunc, fmod + f-variants)
 - printf %f, %e, %g, %.Nf with x87-backed int/fractional split
@@ -59,45 +59,36 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 ## 2026-08-21 source-current checkpoint
 
 Four source slices are settled, and their focused checks are current. The
-schema v3 Toolchain publication, final post-CTXT audit, fully poisoned OS
-build, and preceding strong full private guest frontier are complete. The new
-global-callback marker still needs an integrated guest rerun.
+schema v3 Toolchain publication, final post-CTXT audit, fully poisoned OS build,
+and preceding strong full private guest frontier are complete. The new global
+and automatic callback markers still need an integrated guest rerun.
 
-Private CupidC now retains a file-scope function-pointer typedef signature when
-a free-function parameter uses that alias directly. One function-pointer
-typedef declaration publishes one alias. JIT and AOT indirect calls keep fixed
-argument conversions, record-pointer identity, arity, variadic state, and
-supported scalar or SIMD results. Direct structure and array results remain
-rejected. Program and REPL failures restore the typedef metadata with the rest
-of the compiler transaction. Code-only AOT output now emits one truthful
-program header while keeping code at file offset `0x80`. The focused ABI suite
-passes 231 tests in 37.585 seconds, and the GUI marker suite passes 125 tests
-in 1.000 second. The required marker is
-`[feature14-callback-typedef] PASS float4=4 calls=1`. The checked self-host
-object build passed in 70.9 seconds with the promoted Windows seed. At the
-preceding integrated checkpoint, the combined guest run passed in 64.601
-seconds and printed the typedef-callback marker in the required feature-14
-sequence. Typedef-typed local objects and method
-parameters remain outside this slice. The promoted standalone seeds do not
-contain this private parser or ELF writer. [ADR 0303](docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
-records the boundary.
+Private CupidC retains a file-scope function-pointer typedef signature in direct
+free-function parameters, Cupid class method parameters,
+declaration-initialized automatic objects, and file objects. Every automatic
+declarator gets an independent copy. A file object may start as `NULL`, receive
+a compatible callback through checked plain assignment, make a typed indirect
+call, and be cleared to null. JIT and AOT indirect calls keep fixed argument
+conversions, record-pointer identity, arity, variadic state, and supported
+scalar or SIMD results. Program and REPL failures restore the typedef metadata
+with the rest of the compiler transaction. Code-only AOT output still emits one
+program header with code at file offset `0x80`.
 
-Private CupidC also retains that typedef signature on a file object. The
-object may start as `NULL`, receive a compatible callback through plain
-assignment, make a typed indirect call, and be cleared to null. The assignment
-check covers the result, record-pointer identities, fixed parameters, and
-variadic boundary before the compiler emits the store. Static initialization
-with a direct function designator remains rejected until initialized data has
-function-address fixups. The focused ABI suite passes 235 tests in 35.950
-seconds. The 125-test marker contract passes in 2.771 seconds and now requires
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. A source-current
-guest run for the new marker remains outstanding. The checked self-host object
-build passes and produces a 462,552-byte `cupidc_parse.o` plus the unchanged
-3,604-byte `cupidc_elf.o`. Typedef-typed automatic and
-block-static objects, method parameters, fields, callback arrays, alias chains,
-and recursive signatures still lack retained metadata.
-[ADR 0306](docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
-records this boundary.
+The combined callback ABI and GUI suites pass all 377 tests in 43.411 seconds.
+The marker contract requires
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, followed by
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`. The checked
+self-host object build passes with the promoted Windows seed.
+`cupidc_parse.o` is 464,636 bytes with SHA-256
+`a68593438c9ea8e69dd356cfe883d1ff9616a7c3af2e5f24f59904735fe32cf2`.
+The unchanged 3,604-byte `cupidc_elf.o` has SHA-256
+`c2ad171aacd493a33a477e7a3196a5d28b04b0f74521cd8cbaec2598f391880c`.
+Static initialization with a direct function designator remains rejected until
+initialized data has function-address fixups. Fields, callback arrays,
+block-static objects, alias chains, recursive signatures, aggregate results,
+and arbitrary computed callbacks remain open. The promoted standalone seeds do
+not contain this private parser or ELF writer. ADR 0306 records global storage,
+and ADR 0310 records automatic objects and method parameters.
 
 The Toolchain publisher builds its strict C11 `CUPMAN3` author as a static
 Linux ELF with the converged stage-four Linux CupidC, CupidASM, and CupidLD.
@@ -421,13 +412,14 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - Private CupidC preserves unsigned 32-bit runtime types through objects, pointers, calls, enums, unary operations, conditionals, comparisons, division, remainder, right shift, `sizeof`, and scalar returns. `/=`, `%=`, and `>>=` use the same signedness rules while evaluating each destination once. It converts the complete `uint32_t` range exactly to `double` and correctly rounded `float`, including ordinary and method returns. Values in C's defined interval convert from `float` or `double` to an unsigned word through casts, initialization, assignment, arguments, and returns. Forty kernel bindings with `uint32_t`, `size_t`, or `swap_handle_t` results publish that unsigned type. The Browser stores array length in the same lane, accepts canonical indices through 4,294,967,294, and treats 4,294,967,295 as an ordinary property. ADR 0221 records the original type boundary, and ADR 0249 records the two completed operations. The feature-13 guest checks four conversion boundaries, signed and high-bit unsigned `%=` results, and one evaluation of a side-effecting destination. Its required boot marker is `[feature13-unsigned] PASS conversions=4 remainders=2 once=1`.
 - Private `float4` and `double2` values support matching packed arithmetic and fixed arrays with one, two, or three dimensions in global, local, block-static, and persistent REPL storage. Array rank stays independent of byte stride, including when an inner extent is one. Access keeps checked row strides until the final 16-byte vector leaf, uses unaligned-safe moves, supports plain and arithmetic compound assignment, and preserves lane values. Prefix and postfix `++` and `--` work on modifiable direct vectors and fully indexed leaves. Each evaluated index runs once. Const qualification is retained through typedef aliases. Const direct vectors and fixed-array leaves remain readable. Plain and arithmetic compound assignment, plus prefix and postfix `++` and `--`, are rejected before a store. Prefix returns the stored vector, while postfix returns the exact old 128-bit payload. Indexes inside row or vector `sizeof` do not run, and incomplete rows cannot escape as untyped pointers. Fixed-prototype direct functions and methods pass either vector by value in complete 16-byte cdecl slots and return it in XMM0. Those slots are packed at four-byte granularity and use `MOVUPS`; the private boundary does not promise 16-byte call-site alignment. SIMD variadic tails, unprototyped calls, and calls through signature-erased function pointers remain rejected. SIMD pointers, fields, lane updates, and computed vector updates remain explicit gaps. Direct arithmetic uses a stable machine operand order, and minimum and maximum intrinsics retain their defined NaN and signed-zero behavior. Feature 14 now also requires `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`. ADR 0257 records multidimensional row descent, ADR 0294 records whole-vector updates, and ADR 0299 records fixed SIMD calls.
 - The signature-erased function-pointer limit in the preceding SIMD summary
-  applies to typedef-typed automatic and block-static objects, method
-  parameters, fields, callback arrays, alias chains, empty `()`, and deliberate
-  `void *` erasure. A direct file-scope callback typedef retains its complete
-  signature on a free-function parameter or file object. The global path
-  accepts null initialization, checked plain assignment, indirect calls, and
-  null clearing. ADR 0303 records the parameter path, and ADR 0306 records the
-  global path and remaining limits.
+  applies to fields, block-static objects, callback arrays, alias chains, empty
+  `()`, and deliberate `void *` erasure. A direct file-scope callback typedef
+  retains its complete fixed signature on free-function parameters, Cupid class
+  method parameters, declaration-initialized automatic objects, and direct
+  global objects. The global path accepts null initialization, checked plain
+  assignment, indirect calls, and null clearing. ADR 0303 records free-function
+  parameters, ADR 0306 records global objects, and ADR 0310 records automatic
+  objects and method parameters.
 - The TCP/IP stack supports RTL8139 and E1000 devices, ARP, IPv4, ICMP, UDP, a client and server subset of RFC 793 TCP, DHCP with static fallback, DNS with a 16-entry TTL cache, and a 32-slot BSD socket table shared by the shell and CupidC. TCP uses per-socket stop-and-wait retransmission with exponential backoff, advertises the actual receive-buffer space, and collects abandoned half-open connections. IPv4 fragments outgoing packets and keeps four reassembly slots for datagrams up to about 64 KB.
 - The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 parsing with hostname, time, and best-effort chain checks against an embedded Mozilla CA bundle. The chain checker is still lenient when it cannot find a root or implement a signature algorithm. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
 - `bin/curl.cc` and `bin/wget.cc` are CupidC clients built on the socket and TLS bindings. `curl` supports GET, POST, `-o`, `-i`, `-s`, `-X`, `-d`, and `-H`, with HTTP-to-HTTP redirects capped at five hops. `wget` supports `-O` and `-q`, derives its output filename, and reports the response status and saved byte count.

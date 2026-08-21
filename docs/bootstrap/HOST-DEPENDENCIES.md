@@ -1094,37 +1094,35 @@ Block-scope external objects are part of the Cupid-built contract cohort. The fr
 
 Block typedefs are also part of the Cupid-built contract cohort. The frontend keeps each alias in the ordinary lexical namespace with a stable type, while Linear IR validates the declaration without emitting work. The ELF32 proof matches the same function with the underlying type spelled directly, byte for byte. Both checked compiler stages build the compiler and contracts. GCC or Clang builds only the optional native copies.
 
-Private CupidC now retains a callback signature when a free-function parameter
-uses a file-scope function-pointer typedef alias directly. Each such typedef
-declaration publishes one alias. The table holds at most 16 aliases, and each
-signature stores at most 32 fixed parameter types. The parser diagnoses a
-larger callback signature. Program and REPL failure paths restore the typedef
-table, parser cursors, arenas, symbols, sections, and control state together.
-Direct and indirect calls share the same
-argument checks, including record-pointer identity. Direct structure and array
-results remain rejected. Typedef-typed local objects and method parameters
-remain outside this parameter slice. A file object declared directly with the
-same alias also retains the signature. It may start as `NULL`, receive a
-compatible callback through checked plain assignment, call it indirectly, and
-be cleared. Static initialization with a function designator remains rejected
-until private initialized data has address fixups. Typedef-typed automatic and
-block-static objects, method parameters, fields, callback arrays, alias chains,
-and recursive signatures remain outside the retained path. A zero-data AOT executable reports one program
-header and keeps code at file offset `0x80`; data-bearing executables retain
-two headers. This slice adds no host tool or output owner. Its focused suites
-pass 235 callback tests in 35.950 seconds
-and 125 GUI marker tests in 2.771 seconds. The marker contract requires
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. A new integrated
-guest run remains open. The source-head checked self-host object build passes
-with the promoted Windows seed. It produces a 462,552-byte
-`cupidc_parse.o`, SHA-256
-`05abc78236517ccc9b3ddd861f85b7670fa104bbe9a14463a96ad5cebc56cb31`,
-and 3,604-byte `cupidc_elf.o`, SHA-256
-`c2ad171aacd493a33a477e7a3196a5d28b04b0f74521cd8cbaec2598f391880c`.
-The definitive OS image build and combined guest smoke recorded above predate
-the global-callback marker. The promoted standalone seeds do not contain this private
-parser or ELF writer. ADR 0303 records typedef parameters, and ADR 0306 records
-global callback storage. Neither changes a host tool or output owner.
+Private CupidC retains a callback signature when a free-function parameter,
+Cupid class method parameter, declaration-initialized automatic object, or file
+object uses a file-scope function-pointer typedef alias directly. Each automatic
+declarator gets its own signature copy. A file object may start as `NULL`,
+receive a compatible callback through checked plain assignment, call it
+indirectly, and be cleared. Each callback typedef declaration publishes one
+alias. The table holds at most 16 aliases, and each signature stores at most 32
+fixed parameter types. The parser diagnoses a larger callback signature.
+Program and REPL failure paths restore the typedef table, parser cursors,
+arenas, symbols, sections, and control state together. Direct and indirect calls
+share the same argument checks, including record-pointer identity. Direct
+structure and array results remain rejected. Fields, block-static objects,
+callback arrays, alias chains, recursive signatures, aggregate results, and
+empty identifier-list signatures remain outside the retained path. Static
+initialization with a function designator remains rejected until private
+initialized data has address fixups. A zero-data AOT executable reports one
+program header and keeps code at file offset `0x80`; data-bearing executables
+retain two headers. These paths add no host tool or output owner. The combined
+callback ABI and GUI suites pass all 377 tests in 43.411 seconds. The checked
+self-host build produces a 464,636-byte `cupidc_parse.o` with SHA-256
+`a68593438c9ea8e69dd356cfe883d1ff9616a7c3af2e5f24f59904735fe32cf2`.
+The marker contract requires
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1` and
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2` after the existing
+typedef callback marker. The definitive OS image build and combined guest smoke
+recorded above predate both new markers. The promoted standalone seeds do not
+contain this private parser or ELF writer. ADR 0303 records free-function
+parameters, ADR 0306 records global callback storage, and ADR 0310 records
+automatic objects and Cupid class method parameters.
 
 Block function declarations are part of the Cupid-built contract cohort. The frontend gives each lexical name its visible type and one canonical linked function. Linear IR validates both function types without allocating storage or emitting an instruction for the declaration. The ELF32 proof is byte-identical to equivalent file-scope declarations and contains one undefined function, two `R_386_PC32` call relocations, and one `R_386_32` address relocation. Both checked compiler stages build the compiler and contracts. GCC or Clang builds only the optional native copies.
 

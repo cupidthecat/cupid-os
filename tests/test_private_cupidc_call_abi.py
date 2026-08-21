@@ -1725,6 +1725,694 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 7, result.stdout + result.stderr)
 
+    def test_function_pointer_typedef_automatic_local_keeps_mixed_width_slots(self):
+        source = """
+            typedef int (*callback_t)(double first, int second);
+
+            int combine(double first, int second) {
+              return (int)first * 10 + second;
+            }
+
+            int main() {
+              callback_t callback = combine;
+              return callback(3, 4.75f);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 34, result.stdout + result.stderr
+                )
+
+    def test_each_function_pointer_typedef_automatic_declarator_keeps_its_signature(self):
+        source = """
+            typedef int (*callback_t)(double first, int second);
+
+            int combine(double first, int second) {
+              return (int)first * 10 + second;
+            }
+
+            int subtract(double first, int second) {
+              return (int)first * 10 - second;
+            }
+
+            int main() {
+              callback_t first = combine, second = subtract;
+              return first(3, 4.75f) + second(8, 2.25f);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 112, result.stdout + result.stderr
+                )
+
+    def test_function_pointer_typedef_method_parameter_keeps_mixed_width_slots(self):
+        source = """
+            typedef int (*callback_t)(double first, int second);
+
+            int combine(double first, int second) {
+              return (int)first * 10 + second;
+            }
+
+            class Invoker {
+              int Invoke(callback_t callback) {
+                return callback(3, 4.75f);
+              }
+            };
+
+            int main() {
+              Invoker invoker;
+              return invoker.Invoke(combine);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 34, result.stdout + result.stderr
+                )
+
+    def test_each_function_pointer_typedef_method_parameter_keeps_its_signature(self):
+        source = """
+            typedef int (*integer_cb)(int value);
+            typedef int (*mixed_cb)(double first, int second);
+
+            int identity(int value) {
+              return value;
+            }
+
+            int combine(double first, int second) {
+              return (int)first * 10 + second;
+            }
+
+            class Invoker {
+              int Invoke(integer_cb first, mixed_cb second) {
+                return first(3) + second(4, 5.75f);
+              }
+            };
+
+            int main() {
+              Invoker invoker;
+              return invoker.Invoke(identity, combine);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 48, result.stdout + result.stderr
+                )
+
+    def test_function_pointer_typedef_automatic_and_method_calls_clean_exact_slots(self):
+        cases = (
+            (
+                "automatic local",
+                """
+                typedef int (*callback_t)(double first, int second);
+                int combine(double first, int second) { return second; }
+                int main() {
+                  callback_t callback = combine;
+                  return callback(3, 4.75f);
+                }
+                """,
+            ),
+            (
+                "method parameter",
+                """
+                typedef int (*callback_t)(double first, int second);
+                int combine(double first, int second) { return second; }
+                class Invoker {
+                  int Invoke(callback_t callback) {
+                    return callback(3, 4.75f);
+                  }
+                };
+                int main() {
+                  Invoker invoker;
+                  return invoker.Invoke(combine);
+                }
+                """,
+            ),
+        )
+        for label, source in cases:
+            for aot in (False, True):
+                with self.subTest(case=label, aot=aot), tempfile.TemporaryDirectory(
+                    prefix="private-cupidc-callback-typedef-cleanup-",
+                    ignore_cleanup_errors=True,
+                ) as temporary:
+                    result, code_path, _data = self._compile(
+                        Path(temporary), source, aot=aot
+                    )
+                    self.assertEqual(
+                        result.returncode, 0, result.stdout + result.stderr
+                    )
+                    self.assertEqual(
+                        code_path.read_bytes().count(b"\xff\xd0\x83\xc4\x0c"),
+                        1,
+                    )
+
+    def test_function_pointer_typedef_automatic_local_keeps_simd_slots_and_result(self):
+        source = """
+            typedef float4 (*blend_cb)(float4 left, double marker,
+                                       float4 right);
+
+            float4 blend(float4 left, double marker, float4 right) {
+              if (marker != 9.0) return left;
+              return left + right;
+            }
+
+            int main() {
+              float4 left = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 right = {5.0f, 6.0f, 7.0f, 8.0f};
+              float4 result;
+              blend_cb callback = blend;
+              result = callback(left, 9, right);
+              if (result.x != 6.0f || result.y != 8.0f) return 1;
+              if (result.z != 10.0f || result.w != 12.0f) return 2;
+              return 0;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_function_pointer_typedef_method_parameter_keeps_simd_slots_and_result(self):
+        source = """
+            typedef float4 (*blend_cb)(float4 left, double marker,
+                                       float4 right);
+
+            float4 blend(float4 left, double marker, float4 right) {
+              if (marker != 9.0) return left;
+              return left + right;
+            }
+
+            class Invoker {
+              float4 Invoke(blend_cb callback, float4 left,
+                            double marker, float4 right) {
+                return callback(left, marker, right);
+              }
+            };
+
+            int main() {
+              Invoker invoker;
+              float4 left = {1.0f, 2.0f, 3.0f, 4.0f};
+              float4 right = {5.0f, 6.0f, 7.0f, 8.0f};
+              float4 result;
+              result = invoker.Invoke(blend, left, 9, right);
+              if (result.x != 6.0f || result.y != 8.0f) return 1;
+              if (result.z != 10.0f || result.w != 12.0f) return 2;
+              return 0;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_function_pointer_typedef_automatic_and_method_forms_keep_null_and_erasure(self):
+        cases = (
+            (
+                "automatic local",
+                """
+                typedef int (*callback_t)(int value);
+                double wrong(double value) { return value; }
+                int main() {
+                  callback_t empty = sizeof(int) - 4;
+                  callback_t erased = (void *)wrong;
+                  if (empty != 0) return 1;
+                  return erased != 0 ? 0 : 2;
+                }
+                """,
+            ),
+            (
+                "method parameter",
+                """
+                typedef int (*callback_t)(int value);
+                double wrong(double value) { return value; }
+                class Inspector {
+                  int Check(callback_t callback) {
+                    return callback == 0 ? 3 : 5;
+                  }
+                };
+                int main() {
+                  Inspector inspector;
+                  if (inspector.Check(sizeof(int) - 4) != 3) return 1;
+                  return inspector.Check((void *)wrong) == 5 ? 0 : 2;
+                }
+                """,
+            ),
+        )
+        for label, source in cases:
+            for aot in (False, True):
+                with self.subTest(case=label, aot=aot):
+                    result = self._compile_and_run(source, aot=aot)
+                    self.assertEqual(
+                        result.returncode, 0, result.stdout + result.stderr
+                    )
+
+    def test_function_pointer_typedef_automatic_and_method_forms_fix_later_targets(self):
+        cases = (
+            (
+                "automatic local",
+                """
+                typedef int (*callback_t)(double value);
+                int main() {
+                  callback_t callback = later;
+                  return callback(6);
+                }
+                int later(double value) { return (int)value; }
+                """,
+            ),
+            (
+                "method parameter",
+                """
+                typedef int (*callback_t)(double value);
+                class Invoker {
+                  int Invoke(callback_t callback) {
+                    return callback(6);
+                  }
+                };
+                int main() {
+                  Invoker invoker;
+                  return invoker.Invoke(later);
+                }
+                int later(double value) { return (int)value; }
+                """,
+            ),
+        )
+        for label, source in cases:
+            for aot in (False, True):
+                with self.subTest(case=label, aot=aot):
+                    result = self._compile_and_run(source, aot=aot)
+                    self.assertEqual(
+                        result.returncode, 6, result.stdout + result.stderr
+                    )
+
+    def test_function_pointer_typedef_automatic_initializer_mismatches_recover(self):
+        cases = (
+            (
+                "result",
+                """
+                typedef int (*callback_t)(int value);
+                double wrong(int value) { return value; }
+                int main() { callback_t callback = wrong; return 0; }
+                """,
+                "function-pointer initializer result does not match declaration",
+            ),
+            (
+                "parameter",
+                """
+                typedef int (*callback_t)(double value);
+                int wrong(int value) { return value; }
+                int main() { callback_t callback = wrong; return 0; }
+                """,
+                "function-pointer initializer parameters do not match declaration",
+            ),
+            (
+                "record identity",
+                """
+                struct One { int value; };
+                struct Two { int value; };
+                typedef int (*callback_t)(struct One *value);
+                int wrong(struct Two *value) { return value->value; }
+                int main() { callback_t callback = wrong; return 0; }
+                """,
+                "function-pointer initializer parameters do not match declaration",
+            ),
+            (
+                "variadic boundary",
+                """
+                typedef int (*callback_t)(double fixed, ...);
+                int wrong(double fixed) { return (int)fixed; }
+                int main() { callback_t callback = wrong; return 0; }
+                """,
+                "function-pointer initializer parameters do not match declaration",
+            ),
+        )
+        retry_source = """
+            typedef int (*callback_t)(int left, int right);
+            int add(int left, int right) { return left + right; }
+            int main() {
+              callback_t callback = add;
+              return callback(4, 5);
+            }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-callback-typedef-local-mismatch-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode, 9, runtime.stdout + runtime.stderr
+                )
+
+    def test_function_pointer_typedef_automatic_call_arity_recovers(self):
+        cases = (
+            (
+                "too few",
+                """
+                typedef int (*callback_t)(int left, int right);
+                int add(int left, int right) { return left + right; }
+                int main() {
+                  callback_t callback = add;
+                  return callback(1);
+                }
+                """,
+                "function-pointer call has too few arguments",
+            ),
+            (
+                "too many",
+                """
+                typedef int (*callback_t)(int value);
+                int identity(int value) { return value; }
+                int main() {
+                  callback_t callback = identity;
+                  return callback(1, 2);
+                }
+                """,
+                "function-pointer call has too many arguments",
+            ),
+        )
+        retry_source = """
+            typedef int (*callback_t)(int left, int right);
+            int add(int left, int right) { return left + right; }
+            int main() {
+              callback_t callback = add;
+              return callback(4, 5);
+            }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-callback-typedef-local-arity-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode, 9, runtime.stdout + runtime.stderr
+                )
+
+    def test_function_pointer_typedef_method_argument_mismatches_recover(self):
+        cases = (
+            (
+                "result",
+                """
+                typedef int (*callback_t)(int value);
+                double wrong(int value) { return value; }
+                class Invoker { int Invoke(callback_t callback) { return 0; } };
+                int main() { Invoker invoker; return invoker.Invoke(wrong); }
+                """,
+                "function-pointer argument result does not match parameter type",
+            ),
+            (
+                "parameter",
+                """
+                typedef int (*callback_t)(double value);
+                int wrong(int value) { return value; }
+                class Invoker { int Invoke(callback_t callback) { return 0; } };
+                int main() { Invoker invoker; return invoker.Invoke(wrong); }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "record identity",
+                """
+                struct One { int value; };
+                struct Two { int value; };
+                typedef int (*callback_t)(struct One *value);
+                int wrong(struct Two *value) { return value->value; }
+                class Invoker { int Invoke(callback_t callback) { return 0; } };
+                int main() { Invoker invoker; return invoker.Invoke(wrong); }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "variadic boundary",
+                """
+                typedef int (*callback_t)(double fixed, ...);
+                int wrong(double fixed) { return (int)fixed; }
+                class Invoker { int Invoke(callback_t callback) { return 0; } };
+                int main() { Invoker invoker; return invoker.Invoke(wrong); }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+        )
+        retry_source = """
+            typedef int (*callback_t)(int value);
+            int identity(int value) { return value; }
+            class Invoker {
+              int Invoke(callback_t callback) { return callback(9); }
+            };
+            int main() {
+              Invoker invoker;
+              return invoker.Invoke(identity);
+            }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-callback-typedef-method-mismatch-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode, 9, runtime.stdout + runtime.stderr
+                )
+
+    def test_function_pointer_typedef_method_call_arity_recovers(self):
+        cases = (
+            (
+                "too few",
+                """
+                typedef int (*callback_t)(int left, int right);
+                class Invoker {
+                  int Invoke(callback_t callback) { return callback(1); }
+                };
+                int main() { return 0; }
+                """,
+                "function-pointer call has too few arguments",
+            ),
+            (
+                "too many",
+                """
+                typedef int (*callback_t)(int value);
+                class Invoker {
+                  int Invoke(callback_t callback) { return callback(1, 2); }
+                };
+                int main() { return 0; }
+                """,
+                "function-pointer call has too many arguments",
+            ),
+        )
+        retry_source = """
+            typedef int (*callback_t)(int left, int right);
+            int add(int left, int right) { return left + right; }
+            class Invoker {
+              int Invoke(callback_t callback) { return callback(4, 5); }
+            };
+            int main() {
+              Invoker invoker;
+              return invoker.Invoke(add);
+            }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-callback-typedef-method-arity-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode, 9, runtime.stdout + runtime.stderr
+                )
+
+    def test_function_pointer_typedef_automatic_and_method_later_mismatches_recover(self):
+        cases = (
+            (
+                "automatic local",
+                """
+                typedef int (*callback_t)(double value);
+                int main() {
+                  callback_t callback = later;
+                  return callback(6);
+                }
+                int later(int value) { return value; }
+                """,
+            ),
+            (
+                "method parameter",
+                """
+                typedef int (*callback_t)(double value);
+                class Invoker {
+                  int Invoke(callback_t callback) { return callback(6); }
+                };
+                int main() {
+                  Invoker invoker;
+                  return invoker.Invoke(later);
+                }
+                int later(int value) { return value; }
+                """,
+            ),
+        )
+        retry_source = """
+            typedef int (*callback_t)(int value);
+            int later(int value) { return value; }
+            int main() {
+              callback_t callback = later;
+              return callback(9);
+            }
+        """
+        for label, failing_source in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-callback-typedef-later-mismatch-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(
+                    "function definition does not match prior "
+                    "function-pointer initializer",
+                    result.stderr,
+                )
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode, 9, runtime.stdout + runtime.stderr
+                )
+
+    def test_failed_method_does_not_leak_callback_typedef_metadata(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-callback-typedef-method-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                typedef int (*double_cb)(double value);
+                class Invoker {
+                  int Invoke(double_cb callback) {
+                    return callback(4) + missing_value;
+                  }
+                };
+                """,
+                """
+                typedef int (*integer_cb)(int value);
+                int identity(int value) { return value; }
+                class Invoker {
+                  int Invoke(integer_cb callback) { return callback(9); }
+                };
+                int main() {
+                  Invoker invoker;
+                  return invoker.Invoke(identity);
+                }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("undefined variable", result.stderr)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode, 9, runtime.stdout + runtime.stderr
+            )
+
+    def test_signature_erased_callback_alias_chain_keeps_legacy_initializer(self):
+        source = """
+        typedef double (*base_callback_t)(double);
+        typedef base_callback_t alias_callback_t;
+
+        double identity(double value) { return value; }
+
+        int main() {
+          alias_callback_t callback = identity;
+          return callback != 0;
+        }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 1, result.stdout + result.stderr
+                )
+
+    def test_active_usb_callbacks_use_typedef_automatic_locals(self):
+        header = (REPO_ROOT / "kernel" / "usb" / "usb_hc.h").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "typedef void (*usb_complete_cb_t)(int status, usb_transfer_t *);",
+            header,
+        )
+
+        for relative_path, poll_name in (
+            ("uhci.cc", "uhci_poll_interrupts"),
+            ("ehci.cc", "ehci_poll_interrupts"),
+        ):
+            with self.subTest(source=relative_path):
+                source = (
+                    REPO_ROOT / "kernel" / "usb" / relative_path
+                ).read_text(encoding="utf-8")
+                self.assertIn(f"void {poll_name}(void) {{", source)
+                self.assertIn("usb_complete_cb_t cb = NULL;", source)
+                self.assertIn("cb = slot->cb;", source)
+                self.assertIn("if (deliver) cb(0, &local);", source)
+
     def test_function_pointer_typedef_parameter_matches_active_iso_callback_widths(self):
         iso_source = (REPO_ROOT / "kernel" / "fs" / "iso9660.cc").read_text(
             encoding="utf-8"
@@ -5708,6 +6396,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "[feature14-call] PASS float4=4 double2=2 nested=2 calls=6",
             "[feature14-callback] PASS float4=4 double2=2 calls=2",
             "[feature14-callback-typedef] PASS float4=4 calls=1",
+            "[feature14-callback-automatic] PASS local=4 method=4 calls=2",
             "[feature14-minmax] PASS nan=4 signed_zero=4",
             "[feature14-nan] PASS float_left=",
             "PASS feature14_simd",

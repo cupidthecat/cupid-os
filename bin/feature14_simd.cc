@@ -22,6 +22,13 @@ typedef float4 (*feature14_float_callback_t)(float4 left, int marker,
                                              float4 right);
 feature14_float_callback_t feature14_global_callback = ((void *)0);
 
+class Feature14CallbackInvoker {
+    float4 Invoke(feature14_float_callback_t callback, float4 left,
+                  int marker, float4 right) {
+        return callback(left, marker, right);
+    }
+};
+
 int feature14_next_outer() {
     feature14_matrix_outer_calls += 1;
     return 1;
@@ -248,6 +255,26 @@ int feature14_test_callback_typedef_global() {
     if (feature14_float_call_count != 1) return 3;
     if (result.x != 6.0f || result.y != 8.0f ||
         result.z != 10.0f || result.w != 12.0f) return 4;
+    return 0;
+}
+
+int feature14_test_callback_automatic_and_method() {
+    float4 first = {1.0f, 2.0f, 3.0f, 4.0f};
+    float4 second = {5.0f, 6.0f, 7.0f, 8.0f};
+    float4 local_result;
+    float4 method_result;
+    feature14_float_callback_t callback = feature14_merge_float4;
+    Feature14CallbackInvoker invoker;
+
+    feature14_float_call_count = 0;
+    local_result = callback(first, 7, second);
+    method_result = invoker.Invoke(
+        feature14_merge_float4, first, 11, second);
+    if (feature14_float_call_count != 2) return 1;
+    if (local_result.x != 6.0f || local_result.y != 8.0f ||
+        local_result.z != 10.0f || local_result.w != 12.0f) return 2;
+    if (method_result.x != 6.0f || method_result.y != 8.0f ||
+        method_result.z != 10.0f || method_result.w != 12.0f) return 3;
     return 0;
 }
 
@@ -724,6 +751,16 @@ int main() {
     } else {
         serial_printf("[feature14-callback-global] FAIL check=%d\n",
                       callback_global_result);
+        ok = 0;
+    }
+
+    int callback_automatic_result =
+        feature14_test_callback_automatic_and_method();
+    if (callback_automatic_result == 0) {
+        serial_printf("[feature14-callback-automatic] PASS local=4 method=4 calls=2\n");
+    } else {
+        serial_printf("[feature14-callback-automatic] FAIL check=%d\n",
+                      callback_automatic_result);
         ok = 0;
     }
 

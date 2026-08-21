@@ -470,12 +470,13 @@ uses `MOVUPS` and may begin at a four-byte boundary. SIMD variadic tails,
 unprototyped calls, and signature-erased function-pointer calls are rejected.
 A named block-local function pointer with an explicit prototype retains a
 fixed SIMD parameter or result and uses the same 16-byte slot and XMM0 return
-path. A free-function parameter declared with a direct file-scope callback
-typedef uses that path too. A file object declared with that typedef also uses
-the 16-byte slot and XMM0 return path after checked assignment. Empty `()`,
-fields, callback arrays, callback alias chains, typedef-typed automatic and
-block-static objects, recursive callback signatures, and `void *` pointers do not
-retain the signature.
+path. A free-function or Cupid class method parameter declared with a direct
+file-scope callback typedef uses that path too. A declaration-initialized
+automatic object keeps the same metadata. A file object declared with that
+typedef also uses the 16-byte slot and XMM0 return path after checked assignment.
+Empty `()`, fields, callback arrays, block-static objects, alias chains,
+recursive callback signatures, and `void *` pointers do not retain the
+signature.
 Plain function initializers and direct callback arguments are checked before
 the call or store. Later definitions receive address fixups and must match a
 provisional signature. A compatible conditional checks all of its named arms.
@@ -490,8 +491,11 @@ feature14 and JIT completion markers. No reject marker appeared. Its
 `e39a1905002c2baa483c65eb6e763f4f62907c22f8954873dbb20f4ba5a53e93`.
 The source contract now adds
 `[feature14-callback-global] PASS float4=4 calls=1 cleared=1` after the
-typedef-parameter marker. Focused JIT and AOT tests pass that global SIMD path;
-a new full guest run remains open.
+typedef-parameter marker, followed by
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`. Focused JIT and
+AOT tests pass the global, automatic, and method SIMD paths. The full guest
+checkpoint above predates both new markers, so a new full guest run remains
+open.
 The associated poisoned-host OS build passed in 684.260 seconds with all
 fourteen exact policy artifacts accepted. The pre-documentation artifact gate
 later passed in 651.3 seconds and measured `kernel/kernel.bin` at 9,225,092

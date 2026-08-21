@@ -25,7 +25,8 @@ ADR 0272 records the seed roles, ADR 0295 records the native ABI gate, and ADR
 verification. ADR 0303 records callback typedef parameters, ADR 0304 records
 Toolchain manifest authoring, and ADR 0305 records local-target seed carriage
 and production adoption. ADR 0306 records callback typedef storage in private
-CupidC globals.
+CupidC globals. ADR 0310 records automatic callback objects and Cupid class
+method parameters.
 
 ## 2026-08-21 source-current checkpoint
 
@@ -38,40 +39,29 @@ the option to production object publication. ADR 0309 records that boundary.
 
 The preceding source slices and their focused checks are settled. The schema v3
 Toolchain publication, final post-CTXT audit, fully poisoned OS build, and
-preceding strong full private guest frontier are complete. The new
-global-callback marker still needs an integrated guest rerun.
-Private CupidC now carries a file-scope function-pointer typedef signature when
-a free-function parameter uses that alias directly.
-One function-pointer typedef declaration publishes one alias. JIT and AOT keep
-record-pointer identity and supported scalar or SIMD results; direct structure
-and array results remain rejected. Typedef-typed local objects and method
-parameters remain outside this slice. Its focused ABI module passes 231 tests
-in 37.585 seconds. The marker suite passes
-125 tests in 1.000 second and requires
-`[feature14-callback-typedef] PASS float4=4 calls=1`.
-The final checked self-host object build passed in 70.9 seconds with the
-promoted Windows seed. It produced 459,544-byte `cupidc_parse.o`, SHA-256
-`266eeb3e531d26770501e514fd51a64bd98022b738c2165aa3bb8b2fed38ac62`,
-and 3,604-byte `cupidc_elf.o`, SHA-256
-`c2ad171aacd493a33a477e7a3196a5d28b04b0f74521cd8cbaec2598f391880c`.
-The promoted standalone seeds do not contain this private parser or ELF writer.
+preceding strong full private guest frontier are complete. The global and
+automatic callback markers still need an integrated guest rerun.
 
-Source head also carries that signature on a file object declared directly
-with the typedef. The object may start as `NULL`, receive a compatible callback
-through checked plain assignment, make a typed indirect call, and be cleared.
+Private CupidC carries a file-scope function-pointer typedef signature on direct
+free-function parameters, Cupid class method parameters,
+declaration-initialized automatic objects, and file objects. Each automatic
+declarator gets its own copy. A file object may start as `NULL`, receive a
+compatible callback through checked plain assignment, make a typed indirect
+call, and be cleared. JIT and AOT keep record-pointer identity and supported
+scalar or SIMD results. Direct structure and array results remain rejected.
 Direct function-designator initialization remains rejected because initialized
-data has no function-address fixup. The ABI module now passes 235 tests in
-35.950 seconds. The marker contract passes 125 tests in 2.771 seconds and
-requires `[feature14-callback-global] PASS float4=4 calls=1 cleared=1` after
-the typedef-parameter marker. A source-current image build and guest run for
-this new marker remain open. The checked self-host object build passes and
-produces a 462,552-byte `cupidc_parse.o` with SHA-256
-`05abc78236517ccc9b3ddd861f85b7670fa104bbe9a14463a96ad5cebc56cb31`.
+data has no function-address fixup. Fields, callback arrays, block-static
+objects, alias chains, and recursive signatures remain outside this boundary.
+
+The combined callback ABI and GUI suites pass all 377 tests in 43.411 seconds.
+The checked self-host build passes with the promoted Windows seed. Its
+464,636-byte `cupidc_parse.o` has SHA-256
+`a68593438c9ea8e69dd356cfe883d1ff9616a7c3af2e5f24f59904735fe32cf2`.
 The unchanged 3,604-byte `cupidc_elf.o` has SHA-256
 `c2ad171aacd493a33a477e7a3196a5d28b04b0f74521cd8cbaec2598f391880c`.
-Typedef-typed automatic and block-static objects,
-method parameters, fields, callback arrays, alias chains, and recursive
-signatures remain outside this boundary. ADR 0306 records the decision.
+The promoted standalone seeds do not contain this private parser or ELF writer.
+ADR 0306 records global storage, and ADR 0310 records automatic objects and
+method parameters.
 
 The `CUPMAN3` Toolchain author consumes independent facts for 21 artifacts, 70
 publication inputs, 50 bootstrap inputs, and 17 object comparisons. Schema
@@ -531,11 +521,14 @@ census interpretation.
 A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
 Function-pointer calls, kernel bindings, and calls without fixed parameter
 metadata keep their source-width slots. A named block-local function-pointer
-declaration retains fixed parameter and result types.
+declaration retains fixed parameter and result types. A file-scope callback
+typedef carries the same information through direct free-function parameters,
+Cupid class method parameters, and declaration-initialized automatic objects.
 Its indirect call uses the same conversions and 4-, 8-, or 16-byte slot
 layout, enforces fixed arity, applies default promotions after a variadic
 prefix, and publishes floating or vector results through XMM0. Empty `()`,
-`void *`, typedef, global, parameter, and field forms remain metadata-free.
+`void *`, global, field, block-static, and later-assignment forms remain
+metadata-free.
 Character operands undergo integer
 promotion in ordinary integer arithmetic and use the integer SSE conversion
 path when paired with a floating operand or cast.
@@ -660,14 +653,15 @@ type metadata. A named block-local function pointer with an explicit prototype
 keeps its fixed types, variadic boundary, and result, so scalar and SIMD values
 use the same 4-, 8-, or 16-byte call path. A direct file-scope function-pointer
 typedef declaration publishes one alias. That alias keeps the same metadata
-when a free-function parameter uses it directly. The typedef table and the
-retained fixed-parameter slice are each limited to sixteen entries. A file
-object declared directly with that typedef also keeps the signature. It accepts
-null initialization, checked plain assignment, indirect calls, and null
-clearing. A plain function initializer or assignment must match that signature;
-an explicit `void *` cast erases the check. Empty `()`, typedef-typed automatic
-and block-static objects, method parameters, fields, callback arrays, alias
-chains, and `void *` pointers remain metadata-free. Direct structure and array results
+when a free-function parameter or Cupid class method parameter uses it directly,
+when it declares an automatic object with an initializer, or when a file object
+uses it directly. Each automatic declarator receives its own copy. A file
+object accepts null initialization, checked plain assignment, indirect calls,
+and null clearing. The typedef table holds sixteen aliases, and each retained
+signature holds at most 32 fixed parameters. A plain function initializer or
+typed global assignment must match that signature; an explicit `void *` cast
+erases the check. Empty `()`, fields, callback arrays, block-static objects,
+alias chains, and `void *` pointers remain metadata-free. Direct structure and array results
 remain rejected, while record-pointer identity is retained.
 Named local callback copies are checked too. A later target receives an
 absolute address fixup, and its real definition must match any provisional
@@ -688,17 +682,20 @@ Named `_mm_*` intrinsics retain their inline lowering. Const SIMD parameters
 remain readable but cannot be modified. ADR 0216 records the first fixed-array
 boundary, ADR 0257 records multidimensional row descent, ADR 0294 records
 whole-vector updates, ADR 0299 records the call boundary, ADR 0301 records
-named local callbacks, ADR 0303 records typedef-backed parameters, and ADR 0306
-records typedef-backed global storage and checked assignment. The
+named local callbacks, ADR 0303 records typedef-backed free-function
+parameters, ADR 0306 records typedef-backed global storage and checked
+assignment, and ADR 0310 records automatic objects and Cupid class method
+parameters. The
 active guest source requires
 `[feature14-update] PASS direct=6 leaves=3 once=6 payload=8` and
 `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`, followed by
 `[feature14-callback] PASS float4=4 double2=2 calls=2`, and
 `[feature14-callback-typedef] PASS float4=4 calls=1`, then
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1` before the overall
-feature-14 result. The 64.601-second combined guest run and 801.490-second full
-frontier are preceding checkpoint history. They predate the global-callback
-marker. A new integrated run remains open.
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, then
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2` before the
+overall feature-14 result. The 64.601-second combined guest run and the strong
+801.490-second frontier are preceding checkpoint history. They predate both new
+markers, so a new integrated run remains open.
 
 A private AOT executable with no data now reports one program header and emits
 only its code load segment. Code remains at file offset `0x80`. A nonempty-data

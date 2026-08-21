@@ -324,18 +324,19 @@ program headers, one for executable code and one for writable data.
 
 Private CupidC tests also compile and execute callback calls in both JIT and
 AOT modes. They cover named callback declarators and a file-scope,
-signature-bearing function-pointer typedef on a free-function parameter,
+signature-bearing function-pointer typedef on free-function parameters, Cupid
+class method parameters, and declaration-initialized automatic objects,
 including a float4 result in XMM0. A file object declared directly with the
 typedef keeps the same signature through null initialization, checked plain
 assignment, indirect call, and clearing. Static function-address initialization
-still needs an initialized-data fixup. Method parameters remain outside this
-typed callback path.
+still needs an initialized-data fixup.
 
 The four-vCPU e1000 feature14 guest contract requires direct-call,
-named-callback, typedef-parameter, and typedef-global callback evidence in that
-order. The last two steps must print
-`[feature14-callback-typedef] PASS float4=4 calls=1` and
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, followed by the
+named-callback, typedef-parameter, typedef-global, and automatic-callback
+evidence in that order. The retained paths must print
+`[feature14-callback-typedef] PASS float4=4 calls=1`,
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, and
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`, followed by the
 overall feature14 PASS and CupidC JIT completion. This private compiler boundary
 does not change the external ELF loader ABI or the fixed process arena.
 >endtree

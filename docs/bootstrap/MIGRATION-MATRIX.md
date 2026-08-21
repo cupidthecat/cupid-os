@@ -520,19 +520,22 @@ multidimensional row descent, ADR 0294 records whole-vector updates, ADR 0299
 records fixed SIMD calls, and ADR 0301 records named local callbacks.
 
 ADR 0303 extends that private boundary to a file-scope function-pointer typedef
-used directly by a free-function parameter. Each function-pointer typedef
-declaration publishes one alias. The existing typedef table holds sixteen
-aliases, and each retained signature holds at most 32 fixed parameter
-types plus record-pointer identities, variadic state, and a result type.
-Program and REPL failures restore the typedef count and metadata. JIT and AOT
-calls now cover the active ISO, FAT, and Doom callback declarations and fixed
-SIMD callback slots. Typedef-typed local objects, method parameters, global
-objects, fields, later pointer assignments, recursive signatures, and arbitrary
-computed callbacks remain open. Direct structure or array results remain
-rejected. A code-only AOT image now emits one program header while
-keeping code at offset `0x80`. The focused ABI suite passes 231 tests in 37.585
-seconds. The checked self-host object build passes in 70.9 seconds with the
-promoted Windows seed. The 684.260-second poisoned-host build and
+used directly by a free-function parameter. ADR 0310 carries the same retained
+signature into a direct Cupid class method parameter or a
+declaration-initialized automatic object. Every automatic declarator gets an
+independent copy. Each function-pointer typedef declaration publishes one
+alias. The existing typedef table holds sixteen aliases, and each retained
+signature holds at most 32 fixed parameter types plus record-pointer
+identities, variadic state, and a result type. Program and REPL failures restore
+the typedef count and metadata. JIT and AOT calls now cover the active ISO, FAT,
+and Doom callback declarations, fixed SIMD callback slots, automatic callbacks,
+and method callback parameters. Fields, callback arrays, block-static objects,
+alias chains, recursive signatures, and arbitrary computed callbacks remain
+open. Direct structure or array results remain rejected. A
+code-only AOT image still emits one program header with code at offset `0x80`.
+The focused ABI suite passes 248 tests in 43.968 seconds. The checked self-host
+object build passes in 68.8 seconds with the promoted Windows seed. The
+684.260-second poisoned-host build and
 64.601-second private smoke are preceding checkpoint history. The first
 post-documentation fully poisoned build reached only the expected size
 mismatches for the final ELF and raw kernel after 680.281 seconds. The final
@@ -547,8 +550,9 @@ The strong full private e1000 frontier passed in 801.490 seconds. Its
 The 640x480 framebuffer changed 96,925 pixels. AC97 and the PC speaker produced
 32,722,102 and 73,533 stereo 44,100 Hz frames with peaks of 25,600 and 8,415.
 The direct-call, named-callback, typedef-callback, overall feature-14, and JIT
-markers each appeared once and in order. The log contains no rejection
-markers, and the source image stayed unchanged.
+markers each appeared once and in order. That full guest checkpoint predates
+the global and automatic callback markers. The log contains no rejection markers, and the
+source image stayed unchanged.
 The promoted standalone CupidC seeds do not contain this private parser or ELF
 writer, so their reproof is not callback or AOT carriage evidence.
 
@@ -563,13 +567,13 @@ initialized data has no address fixup. The focused ABI suite passes 235 tests
 in 35.950 seconds. The 125-test marker contract passes in 2.771 seconds and
 requires `[feature14-callback-global] PASS float4=4 calls=1 cleared=1`.
 The preceding full guest frontier predates that marker, so integrated boot
-evidence remains open. The checked self-host object build passes with a
-462,552-byte `cupidc_parse.o`, SHA-256
-`05abc78236517ccc9b3ddd861f85b7670fa104bbe9a14463a96ad5cebc56cb31`.
-This moves no build owner and removes no host
-dependency. Typedef-typed automatic and block-static objects, method
-parameters, fields, callback arrays, alias chains, recursive signatures,
-aggregate results, and arbitrary computed callbacks remain open.
+evidence remains open. The combined callback ABI and GUI suites pass all 377
+tests in 43.411 seconds. The checked self-host build produces a 464,636-byte
+`cupidc_parse.o`, SHA-256
+`a68593438c9ea8e69dd356cfe883d1ff9616a7c3af2e5f24f59904735fe32cf2`.
+This moves no build owner and removes no host dependency. Fields, callback
+arrays, block-static objects, alias chains, recursive signatures, aggregate
+results, and arbitrary computed callbacks remain open.
 
 Private CupidC now converts decimal `float` and `double` tokens with a fixed
 1536-bit integer workspace. It rounds the exact decimal ratio once to the

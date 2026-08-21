@@ -1012,16 +1012,17 @@ also passed. The private run left the source image unchanged.
 
 ## Current production checkpoint
 
-The private CupidC source accepts direct file-scope function-pointer
-typedefs in free-function parameters. JIT, AOT, and persistent REPL compilation
-retain the callback result, fixed and variadic parameters, record identities,
-and prototype state. The call reuses direct cdecl coercion and 4-, 8-, and
-16-byte layout, including SIMD results through XMM0. A file object declared
-directly with the typedef keeps the same signature across null initialization,
-checked plain assignment, indirect call, and null clearing. A direct function
-designator in static data remains rejected until initialized data has an
-address fixup. Method parameters, record fields, callback arrays, alias chains,
-typedef-typed automatic and block-static objects, recursive
+The private CupidC source accepts direct file-scope function-pointer typedefs
+in free-function parameters, Cupid class method parameters, and
+declaration-initialized automatic objects. Each automatic declarator gets an
+independent signature copy. JIT, AOT, and persistent REPL compilation retain
+the callback result, fixed and variadic parameters, record identities, and
+prototype state. The call reuses direct cdecl coercion and 4-, 8-, and 16-byte
+layout, including SIMD results through XMM0. A file object declared directly
+with the typedef keeps the same signature across null initialization, checked
+plain assignment, indirect call, and null clearing. A direct function designator
+in static data remains rejected until initialized data has an address fixup.
+Record fields, callback arrays, block-static objects, alias chains, recursive
 callback signatures, aggregate results, and arbitrary computed callback
 expressions remain outside this typed path. The AOT writer uses one executable
 `PT_LOAD` for zero-data programs and adds the writable data segment only when
@@ -1513,11 +1514,13 @@ calls, and calls through signature-erased function pointers remain rejected.
 A named block-local function pointer with an explicit prototype keeps its
 fixed parameter types, variadic state, and result. Its indirect call reuses the
 same conversions and 4-, 8-, or 16-byte slots, including SIMD arguments and
-XMM0 results. A free-function parameter declared with a direct file-scope
-function-pointer typedef carries the same metadata and call path. Empty `()`,
-fields, callback arrays, callback alias chains, typedef-typed automatic and
-block-static objects, recursive callback signatures, and
-`void *` forms remain signature-erased. A plain function initializer or direct
+XMM0 results. A free-function or Cupid class method parameter declared with a
+direct file-scope function-pointer typedef carries the same metadata and call
+path. A declaration-initialized automatic object carries it too. Empty `()`,
+A file object declared directly with the typedef retains the metadata across
+null initialization, checked plain assignment, indirect call, and clearing.
+Empty `()`, fields, callback arrays, block-static objects, alias chains,
+recursive callback signatures, and `void *` forms remain signature-erased. A plain function initializer or direct
 callback argument must match the retained signature. Local copies share the
 check, later addresses are fixed up, and a provisional signature must match its
 definition. An explicit cast opts into erasure only for the value it covers.
@@ -1534,14 +1537,17 @@ The preceding private e1000 smoke checkpoint printed a separate
 `[feature14-callback-typedef] PASS float4=4 calls=1` marker for the
 typedef-parameter path after the direct and named callback markers.
 Source head then requires
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. The focused JIT
-and AOT contracts pass this typedef-global SIMD path. A new full guest run
-remains open because the preceding e1000 checkpoint predates the marker.
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, followed by
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`. The focused JIT
+and AOT contracts pass the typedef-global, automatic, and method SIMD paths. A
+new full guest run remains open because the preceding e1000 checkpoint predates
+both markers.
 ADR 0216 records the fixed-array boundary. ADR 0257 records multidimensional
 row descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD
 calls. ADR 0301 records named local callbacks, ADR 0303 records callback
 typedef parameters and the zero-data AOT layout, and ADR 0306 records global
-callback storage and checked assignment.
+callback storage and checked assignment. ADR 0310 records automatic
+callback objects and Cupid class method parameters.
 
 Private decimal literals now use a fixed 1536-bit integer workspace. CupidC
 forms the exact decimal ratio and rounds once to the selected binary32 or
@@ -1559,13 +1565,13 @@ forms can fill a pointer slot. Character arithmetic follows integer promotion
 and uses the scalar integer conversion path when mixed with floating values.
 A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
 A named block-local function pointer with an explicit prototype uses those
-same conversions and keeps its declared result. A free-function parameter declared
-with a direct file-scope function-pointer typedef does the same. A file object
-declared directly with the typedef keeps the signature across null
-initialization, checked assignment, indirect call, and clearing. Empty `()`,
-fields, callback arrays, typedef-typed automatic and block-static objects,
-callback alias chains, recursive callback signatures, and
-`void *` forms remain metadata-free. Kernel bindings and other calls without
+same conversions and keeps its declared result. A free-function or Cupid class
+method parameter declared with a direct file-scope function-pointer typedef
+does the same. A declaration-initialized automatic object does too. Empty `()`,
+A file object declared directly with the typedef keeps the signature across
+null initialization, checked assignment, indirect call, and clearing. Empty
+`()`, fields, callback arrays, block-static objects, alias chains, recursive
+callback signatures, and `void *` forms remain metadata-free. Kernel bindings and other calls without
 fixed parameter metadata retain source-width arguments. A plain function
 initializer or direct callback argument is checked before storage or call,
 while an explicit cast remains the deliberate erasure path. Later targets
@@ -1580,6 +1586,8 @@ only when every non-null object-pointer arm is cast.
 ADR 0210 records the first typed-array slice and the Browser path that requires
 it. ADR 0215 records the expanded private floating lvalue model, and ADR 0301
 records named local callbacks. ADR 0303 records callback typedef parameters.
+ADR 0306 records global callback storage and checked assignment. ADR 0310
+records automatic callback objects and Cupid class method parameters.
 
 Checked CupidASM assembles the ISO spanning fixture from
 `test_iso/big_pattern.asm`. Hostbuild freezes that source and the checked seed,

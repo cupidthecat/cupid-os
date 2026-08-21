@@ -962,30 +962,33 @@ carriage, and ADR 0305 records the current trust unit.
 | Encoder/decoder parity tests | Observed | One catalogue drives CupidASM and CupidDis plus both encoding directions. Checked manifests cover 189 active-ASM mode cases and 129 active-inline source-spelling/form rows; 159 additional focused/current-CupidC vectors exercise model boundaries. A fingerprint-bound contract now reaches all 604 catalogue rows. Its 1,202 encodable legal-mode witnesses pass the real encoder, both real decoders, and exact-form byte replay. It also locks 12 decode aliases, four invalid rows, two illegal-mode rejections, all declared row flags, and 2,641 proper prefixes under witness digest `8C570035`. A native CupidASM-to-CupidDis selector path checks exact bytes, strict known inspection, deterministic rendering, and canonical aliases. Active-source assembly still adds source-to-artifact parity over all 27 files, while focused negatives cover illegal prefixes, groups, registers, reserved PSRLW memory encoding, range failures, and transactional output. The exhaustive proof is by form and legal mode, not every operand-value combination. ADR 0298 records the boundary. |
 
 Private CupidC supersedes the function-pointer limits in the mixed cdecl and
-SIMD rows for three bounded uses. A named block-local
+SIMD rows for five bounded uses. A named block-local
 `T (*name)(parameters)` symbol retains its fixed signature. A file-scope
-function-pointer typedef also retains that signature when a free-function
-parameter or file object uses that alias directly. A typedef-backed file
-object may start as grouped zero or `((void *)0)`, receive a checked plain
-assignment, clear to null, and make a typed indirect call. The typedef table holds sixteen aliases,
-and each retained signature holds at most 32 fixed parameters. Indirect
-calls use the direct call's
-conversions and 4-, 8-, or 16-byte slots, including XMM0 SIMD results, and reject arity or type
-mismatches with same-state recovery. Record-pointer identity is retained;
-direct structure and array results reject. A direct function designator in a
-global initializer remains rejected until initialized data has address fixups.
-Empty `()`, typedef-typed automatic and block-static objects, method
-parameters, fields, callback arrays, alias chains, and recursive signatures
-remain signature-erased. Program and
+function-pointer typedef retains that signature when a free-function parameter,
+Cupid class method parameter, declaration-initialized automatic object, or file
+object uses the alias directly. Each automatic declarator receives a separate
+signature copy. A typedef-backed file object may start as grouped zero or
+`((void *)0)`, receive a checked plain assignment, clear to null, and make a
+typed indirect call. The typedef table holds sixteen aliases, and each retained
+signature holds at most 32 fixed parameters. Indirect calls use the direct
+call's conversions and 4-, 8-, or 16-byte slots, including XMM0 SIMD results,
+and reject arity or type mismatches with same-state recovery. Record-pointer
+identity is retained; direct structure and array results reject. Empty `()`,
+block-static objects, fields, callback arrays, alias chains, recursive
+signatures, and `void *` pointers remain signature-erased. A direct function
+designator in a global initializer remains rejected until initialized data has
+address fixups. Program and
 REPL rollback restore the typedef count and side tables with emission, patches,
 control state, definitions, prototypes, kernel bindings, and `__start` state.
-The 235-test ABI module passes in 35.950 seconds. A code-only AOT fixture emits
-one program header, keeps code at offset `0x80`, and returns 17. The 125 marker
-tests pass in 2.771 seconds and require both
-`[feature14-callback-typedef] PASS float4=4 calls=1` and
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`. The source-head
-checked self-host object build passes with the promoted Windows seed;
-`cupidc_parse.o` and `cupidc_elf.o` are 462,552 and 3,604 bytes. The
+The combined callback ABI and GUI suites pass all 377 tests in 43.411 seconds. A
+code-only AOT fixture emits one program header, keeps code at offset `0x80`, and
+returns 17. The checked self-host build produces a 464,636-byte
+`cupidc_parse.o` with SHA-256
+`a68593438c9ea8e69dd356cfe883d1ff9616a7c3af2e5f24f59904735fe32cf2`.
+The marker contract requires
+`[feature14-callback-typedef] PASS float4=4 calls=1`,
+`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, and
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2` in that order. The
 684.260-second poisoned-host build and 64.601-second private smoke are
 preceding checkpoint history. The definitive fully poisoned build passes in
 708.912 seconds, checks all fourteen artifact-size paths, preserves the FAT
@@ -1003,10 +1006,11 @@ each appear once and in order. Its 150,376-byte log has
 SHA-256
 `73f77abc06357bf5d7185b40825d9d197e9954014ccf09362e9a1d219cc30f02`,
 contains no rejection markers, and leaves the source image unchanged. That
-frontier predates the global-callback marker, so a new integrated run remains
-open. ADR 0301 records named local callbacks, ADR 0303 records typedef-backed
-parameters and the AOT header correction, and ADR 0306 records typedef-backed
-global storage and checked assignment.
+frontier predates the global and automatic callback markers, so a new integrated
+run remains open. ADR 0301 records named local callbacks, ADR 0303 records
+typedef-backed free-function parameters and the AOT header correction, ADR 0306
+records typedef-backed global storage and checked assignment, and ADR 0310
+records automatic objects and Cupid class method parameters.
 The promoted standalone seeds do not contain this private parser or ELF writer,
 so their reproof does not prove this capability.
 
