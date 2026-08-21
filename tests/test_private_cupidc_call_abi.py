@@ -2556,41 +2556,147 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 runtime.returncode, 9, runtime.stdout + runtime.stderr
             )
 
-    def test_function_pointer_typedef_global_function_initializer_needs_fixup(self):
+    def test_global_callback_initializes_from_defined_function_in_jit_and_aot(self):
+        source = """
+            typedef int (*callback_t)(int value);
+
+            int target(int value) { return value + 4; }
+            callback_t callback = ((target));
+
+            int main() { return callback(7); }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 11, result.stdout + result.stderr
+                )
+
+    def test_global_callback_initializes_from_later_function_in_jit_and_aot(self):
+        source = """
+            typedef int (*callback_t)(int value);
+
+            callback_t callback = target;
+            int target(int value) { return value + 5; }
+
+            int main() { return callback(8); }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 13, result.stdout + result.stderr
+                )
+
+    def test_global_callback_initializes_from_kernel_binding_in_jit_and_aot(self):
+        source = """
+            typedef void (*printer_t)(char *text);
+
+            void serial_printf(char *text);
+            printer_t callback = serial_printf;
+
+            int main() { return callback == serial_printf; }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 1, result.stdout + result.stderr
+                )
+
+    def test_global_callback_initializer_errors_recover_without_leaking_state(self):
+        cases = (
+            (
+                "parameter mismatch",
+                """
+                typedef int (*callback_t)(double value);
+                int wrong(int value) { return value; }
+                callback_t callback = wrong;
+                int main() { return callback(1); }
+                """,
+                "function-pointer initializer parameters do not match declaration",
+            ),
+            (
+                "unresolved function",
+                """
+                typedef int (*callback_t)(int value);
+                int missing(int value);
+                callback_t callback = missing;
+                int main() { return callback(1); }
+                """,
+                "Unresolved symbol: missing",
+            ),
+            (
+                "computed expression",
+                """
+                typedef int (*callback_t)(int value);
+                int left(int value) { return value; }
+                int right(int value) { return value + 1; }
+                int choose;
+                callback_t callback = choose ? left : right;
+                int main() { return callback(1); }
+                """,
+                "global function-pointer initializer requires a function or null",
+            ),
+        )
+        retry_source = """
+            typedef int (*callback_t)(int value);
+            callback_t callback = target;
+            int target(int value) { return value + 1; }
+            int main() { return callback(8); }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-callback-global-initializer-error-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode, 9, runtime.stdout + runtime.stderr
+                )
+
+    def test_global_callback_later_definition_mismatch_restores_data_fixup(self):
         with tempfile.TemporaryDirectory(
-            prefix="private-cupidc-callback-global-initializer-",
+            prefix="private-cupidc-callback-global-later-mismatch-",
             ignore_cleanup_errors=True,
         ) as temporary:
             root = Path(temporary)
             result, _code, _data = self._compile_after_failure(
                 root,
                 """
-                typedef int (*callback_t)(int value);
-                int target(int value) { return value; }
-                callback_t callback = target;
+                typedef int (*callback_t)(double value);
+                callback_t callback = later;
+                int later(int value) { return value; }
                 int main() { return callback(1); }
                 """,
                 """
                 typedef int (*callback_t)(int value);
-                callback_t callback = ((void *)0);
-                int target(int value) { return value; }
-
-                int main() {
-                  callback = target;
-                  return callback(6);
-                }
+                callback_t callback = later;
+                int later(int value) { return value; }
+                int main() { return callback(9); }
                 """,
                 same_state=True,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn(
-                "global function-pointer initializer must be null; "
-                "function addresses need data fixups",
+                "function definition does not match prior "
+                "function-pointer initializer",
                 result.stderr,
             )
             runtime = self._run_i386(root, int(result.stdout.strip()))
             self.assertEqual(
-                runtime.returncode, 6, runtime.stdout + runtime.stderr
+                runtime.returncode, 9, runtime.stdout + runtime.stderr
             )
 
     def test_function_pointer_typedef_global_keeps_simd_slots_and_result(self):

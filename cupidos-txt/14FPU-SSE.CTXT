@@ -438,7 +438,8 @@ Focused JIT and private AOT tests execute named SIMD callbacks, the
 typedef-parameter callback, a typedef-global callback, an automatic callback,
 and a Cupid class method callback parameter. The source expects
 `[feature14-callback-typedef] PASS float4=4 calls=1`,
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, and
+`[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
+`cleared=1 calls=2`, and
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2` in that order.
 These tests cover the 16-byte argument and XMM0 result. The four-vCPU e1000
 guest contract requires the direct-call, named-callback, typedef-parameter,

@@ -537,12 +537,12 @@ output. A forced build with an invalid host compiler proves that none of
 these recipes falls back to Clang or GCC.
 
 The promoted Linux and Windows seed manifests bind revision
-`ed6a91ba954881475ac5ab73d5168d292a584c90` and exact 50-input snapshot
-`a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817`.
+`30aaf1b7cd398e6b47a395661a33d20d00363158` and exact 50-input snapshot
+`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`.
 The 5,573-byte Linux manifest has SHA-256
-`51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
+`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
 The 2,118-byte Windows manifest has SHA-256
-`e7367e50f64fac29cb03f8ef530b350408bdc492b6d924f63809cf862b8dd1c7`
+`f537e1877f813d2a8f12f9fe2feeaddeff263cf768248def6aebfb009cee1c42`
 and names the Linux manifest as its parent.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
@@ -560,26 +560,26 @@ The pre-documentation artifact gate later passed in 651.3 seconds and accepted
 all fourteen exact paths.
 
 The integrated fully poisoned build first reached the exact-size gate with
-three rebuilt kernel outputs. The artifact group passed all 45 tests in 3.733
+three rebuilt kernel outputs. The artifact group passed all 46 tests in 4.160
 seconds, with four expected Windows skips. After the pass-one ELF, final ELF,
-and raw kernel policy rows were updated, the repeated build passed in about 763
+and raw kernel policy rows were updated, the repeated build passed in 874.531
 seconds with all fourteen artifacts accepted, existing FAT contents preserved,
 and `hello.iso` staged. The 4,096-byte SMP
 trampoline kept SHA-256
 `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
 
-The integrated strong full private frontier smoke passed in about 889 seconds
+The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
 fixture. The BSP and all three APs completed the SMP checks. The 640-by-480
-framebuffer changed 108,232 pixels. AC97 produced 35,625,459 stereo 44.1 kHz
-frames with a peak of 25,600, and the PC speaker produced 78,384 stereo 44.1
-kHz frames with a peak of 32,016. The expected direct-call, named-callback,
+framebuffer changed 89,630 pixels. AC97 produced 36,877,878 stereo 44.1 kHz
+frames with a peak of 25,600, and the PC speaker produced 76,251 stereo 44.1
+kHz frames with a peak of 29,912. The expected direct-call, named-callback,
 typedef-callback, global-callback, automatic-callback, and overall feature14
 PASS markers each appeared once and in order. The feature run then printed a
-clean JIT completion. The 148,491-byte log has SHA-256
-`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
+clean JIT completion. The 161,418-byte log has SHA-256
+`bc30f5083b96a36362bec5975c0a88437c4f23515de329328bb03d8f6c3e9326`.
 The source image was unchanged at SHA-256
-`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
+`31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
 
 The earlier `smp.c` compiler proof produced an 8,444-byte object with SHA-256
 `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.

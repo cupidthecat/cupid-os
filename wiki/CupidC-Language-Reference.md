@@ -69,11 +69,15 @@ with the prior symbols, patches, control state, code, and data.
 [ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records the free-function parameter boundary.
 [ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
-records global callback storage and checked assignment. A direct function
-designator in static data remains rejected until initialized data has an address
-fixup.
+records global callback storage and checked assignment.
 [ADR 0310](../docs/adr/0310-retain-automatic-callback-typedef-signatures-in-private-cupidc.md)
 records automatic objects and Cupid class method parameters.
+[ADR 0313](../docs/adr/0313-initialize-private-cupidc-global-callbacks-from-functions.md)
+records static initialization from a compatible defined or later-defined
+function. The private JIT and fixed-address AOT writers place that address in
+the global data slot before execution. Address-of and conditional callback
+expressions, raw callback declarators, fields, arrays, and block-static
+callbacks remain unsupported.
 
 The preceding poisoned-host OS build checkpoint passed in 684.260 seconds and
 accepted all fourteen exact policy artifacts. A private four-vCPU `max`/e1000
@@ -87,22 +91,22 @@ The pre-documentation artifact gate later passed in 651.3 seconds, accepted all
 fourteen exact paths, and measured `kernel/kernel.bin` at 9,225,092 bytes.
 
 The integrated fully poisoned build first reached the exact-size gate with
-three rebuilt kernel outputs. The artifact group passed all 45 tests in 3.733
+three rebuilt kernel outputs. The artifact group passed all 46 tests in 4.160
 seconds, with four expected Windows skips. After the pass-one ELF, final ELF,
-and raw kernel policy rows were updated, the repeated build passed in about 763
+and raw kernel policy rows were updated, the repeated build passed in 874.531
 seconds with all fourteen artifacts accepted, existing FAT contents preserved,
-and `hello.iso` staged. Its 9,246,248-byte raw kernel has SHA-256
-`4d71ec865fb3ef972842432e0cf4c76c6a10706399d95b481779d0744f23f256`.
+and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
+`4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
-The integrated strong full private frontier smoke passed in about 889 seconds
+The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
 fixture. The expected direct-call, named-callback, typedef-callback,
 global-callback, automatic-callback, and overall feature14 PASS markers each
 appeared once and in order. The feature run then printed a clean JIT completion.
-The 148,491-byte log has SHA-256
-`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
+The 161,418-byte log has SHA-256
+`bc30f5083b96a36362bec5975c0a88437c4f23515de329328bb03d8f6c3e9326`.
 The source image was unchanged at SHA-256
-`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
+`31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
 
 Field arrays require a positive count and a checked count-by-stride product.
 Each padding step, field addition, and final record alignment must fit the
@@ -259,9 +263,10 @@ declared with a direct file-scope function-pointer typedef is signature-bearing
 too. A declaration-initialized automatic object and a file object have the same
 rule. Their scalar, floating, pointer, or SIMD arguments use the declared fixed
 slots, their variadic tails receive default promotions, and their results keep
-the declared type. Grouped zero and `((void *)0)` may initialize a callback file
-object. Checked plain assignment stores a compatible callback or clears it to
-null. Empty `()`, fields, callback arrays, block-static objects, alias chains,
+the declared type. Grouped zero, `((void *)0)`, and a compatible defined or
+later-defined function designator may initialize a callback file object.
+Checked plain assignment stores a compatible callback or clears it to null.
+Empty `()`, fields, callback arrays, block-static objects, alias chains,
 recursive callback signatures, and `void *` forms retain source-width slots.
 Direct structure and array callback results
 are rejected; record-pointer results retain their record identity. Kernel

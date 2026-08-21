@@ -21,10 +21,10 @@ from typing import Sequence
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
 WINDOWS_SEED_SCHEMA = "cupid.execution-seed.v1"
-SEED_SOURCE_REVISION = "ed6a91ba954881475ac5ab73d5168d292a584c90"
+SEED_SOURCE_REVISION = "30aaf1b7cd398e6b47a395661a33d20d00363158"
 SEED_SOURCE_INPUT_COUNT = 50
 SEED_SOURCE_SNAPSHOT_SHA256 = (
-    "a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817"
+    "2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9"
 )
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
 TOOL_DISPLAY_NAMES = {
@@ -68,16 +68,16 @@ EXPECTED_WINDOWS_PRODUCER_LINEAGE = {
     ),
 }
 WINDOWS_SEED_SOURCE_REVISION = (
-    "ed6a91ba954881475ac5ab73d5168d292a584c90"
+    "30aaf1b7cd398e6b47a395661a33d20d00363158"
 )
 WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256 = (
-    "a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817"
+    "2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9"
 )
 WINDOWS_SEED_PARENT_MANIFEST_SHA256 = (
-    "51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65"
+    "afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c"
 )
 WINDOWS_SEED_PARENT_SOURCE_REVISION = (
-    "ed6a91ba954881475ac5ab73d5168d292a584c90"
+    "30aaf1b7cd398e6b47a395661a33d20d00363158"
 )
 WINDOWS_TOOL_IMPORTS = (
     (
@@ -2446,6 +2446,14 @@ def _run_native_windows_behavior_checks(
             "native Windows CupidDis relocation ownership differs"
         )
 
+    _check_relocatable_local_target_behavior(
+        runner,
+        stage_two,
+        stage_three,
+        behavior_root,
+        "native Windows ",
+    )
+
     asset = behavior_root / "asset.bin"
     asset.write_bytes(b"native-windows-fixed-point")
     stage_two_wrapped = behavior_root / "stage-three-wrapped.o"
@@ -2531,9 +2539,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(TOOL_NAMES) + 1,
+        "failure_cases": len(TOOL_NAMES) + 2,
         "help_cases": len(TOOL_NAMES),
-        "success_cases": len(TOOL_NAMES),
+        "success_cases": len(TOOL_NAMES) + 1,
     }
 
 
@@ -2818,6 +2826,151 @@ def _unowned_relocation_object_payload() -> bytes:
             *section,
         )
     return bytes(image)
+
+
+def _local_target_object_payload(displacement: int) -> bytes:
+    section_names = (
+        b"\0.text\0.rel.text\0.symtab\0.strtab\0.shstrtab\0"
+    )
+    symbol_names = b"\0external\0"
+    text = bytes.fromhex("e8 fc ff ff ff eb") + bytes(
+        (displacement & 0xFF,)
+    ) + bytes.fromhex("b8 00 00 00 00 c3")
+    text_offset = 64
+    relocation_offset = (text_offset + len(text) + 3) & ~3
+    symbol_offset = relocation_offset + 8
+    string_offset = symbol_offset + 32
+    names_offset = string_offset + len(symbol_names)
+    section_offset = (names_offset + len(section_names) + 3) & ~3
+    image = bytearray(section_offset + 6 * 40)
+    image[0:16] = b"\x7fELF\x01\x01\x01" + bytes(9)
+    struct.pack_into(
+        "<HHIIIIIHHHHHH",
+        image,
+        16,
+        1,
+        3,
+        1,
+        0,
+        0,
+        section_offset,
+        0,
+        52,
+        0,
+        0,
+        40,
+        6,
+        5,
+    )
+    image[text_offset : text_offset + len(text)] = text
+    struct.pack_into(
+        "<II", image, relocation_offset, 1, (1 << 8) | 2
+    )
+    struct.pack_into(
+        "<IIIBBH", image, symbol_offset + 16, 1, 0, 0, 0x10, 0, 0
+    )
+    image[string_offset : string_offset + len(symbol_names)] = symbol_names
+    image[names_offset : names_offset + len(section_names)] = section_names
+    sections = (
+        (0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+        (1, 1, 0x6, 0, text_offset, len(text), 0, 0, 16, 0),
+        (7, 9, 0, 0, relocation_offset, 8, 3, 1, 4, 8),
+        (17, 2, 0, 0, symbol_offset, 32, 4, 1, 4, 16),
+        (
+            25,
+            3,
+            0,
+            0,
+            string_offset,
+            len(symbol_names),
+            0,
+            0,
+            1,
+            0,
+        ),
+        (
+            33,
+            3,
+            0,
+            0,
+            names_offset,
+            len(section_names),
+            0,
+            0,
+            1,
+            0,
+        ),
+    )
+    for index, section in enumerate(sections):
+        struct.pack_into(
+            "<IIIIIIIIII",
+            image,
+            section_offset + index * 40,
+            *section,
+        )
+    return bytes(image)
+
+
+def _check_relocatable_local_target_behavior(
+    runner: ToolRunner,
+    stage_two: Stage,
+    stage_three: Stage,
+    behavior_root: Path,
+    label_prefix: str,
+) -> None:
+    local_target_object = behavior_root / "valid-local-target.o"
+    local_target_object.write_bytes(_local_target_object_payload(5))
+    local_target_arguments: list[str | Path] = [
+        "--require-known",
+        "--require-local-targets",
+        local_target_object,
+    ]
+    object_local_target_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        local_target_arguments,
+        local_target_arguments,
+    )
+    _expect_status(
+        object_local_target_result,
+        0,
+        f"{label_prefix}CupidDis relocatable local target",
+    )
+    if object_local_target_result.stdout or object_local_target_result.stderr:
+        raise BootstrapError(
+            f"{label_prefix}CupidDis relocatable local target output differs"
+        )
+
+    invalid_local_target_object = behavior_root / "invalid-local-target.o"
+    invalid_local_target_object.write_bytes(_local_target_object_payload(1))
+    invalid_object_local_target_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        [
+            "--require-known",
+            "--require-local-targets",
+            invalid_local_target_object,
+        ],
+    )
+    _expect_status(
+        invalid_object_local_target_result,
+        1,
+        f"{label_prefix}CupidDis invalid relocatable local target",
+    )
+    if (
+        invalid_object_local_target_result.stdout
+        or "1 of 1 direct relative targets invalid"
+        not in invalid_object_local_target_result.stderr
+        or "1 mid-instruction"
+        not in invalid_object_local_target_result.stderr
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidDis invalid relocatable target output differs"
+        )
 
 
 def _run_behavior_checks(
@@ -5371,6 +5524,14 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidDis relocation ownership differs")
 
+    _check_relocatable_local_target_behavior(
+        runner,
+        stage_two,
+        stage_three,
+        behavior_root,
+        "",
+    )
+
     truncated_code = behavior_root / "truncated-code.bin"
     truncated_code.write_bytes(bytes([0x0F]))
     strict_failure_result = _run_stage_pair(
@@ -5518,9 +5679,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 18,
+        "failure_cases": 19,
         "help_cases": 5,
-        "success_cases": 19,
+        "success_cases": 20,
     }
 
 

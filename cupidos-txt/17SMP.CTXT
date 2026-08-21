@@ -569,7 +569,8 @@ The four-vCPU e1000 gate also runs feature14_simd.cc. It requires direct-call,
 named-callback, typedef-parameter, typedef-global, and automatic-callback
 evidence in that order. It requires
 `[feature14-callback-typedef] PASS float4=4 calls=1`,
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, and
+`[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
+`cleared=1 calls=2`, and
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2` before the overall
 feature14 PASS and CupidC JIT completion. The gate rejects known SMP, storage,
 crypto, exception, corruption, and illegal-instruction failures.

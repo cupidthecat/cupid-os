@@ -247,9 +247,10 @@ pointers and indirect register or memory targets remain outside the rule. A
 displacement can still pass if it reaches a different valid
 instruction start in same-mode code, because raw decoding does not preserve
 source-label identity. ADR 0300 records this boundary.
-ADR 0305 records the promoted-seed carriage and production adoption.
+ADR 0305 records raw-image carriage. ADR 0312 records the current
+relocatable-object promotion and production adoption.
 
-Source-head CupidDis can apply the same explicit option to a static ELF32
+CupidDis can apply the same explicit option to a static ELF32
 relocatable object:
 
 ```text
@@ -264,11 +265,12 @@ relocation rule still checks its field. Failures distinguish a target outside
 the section from one in the middle of an instruction. Linked `ET_EXEC` input is
 rejected for this option.
 
-The active ISR and context-switch objects pass the source-head check. Eleven
+The active ISR and context-switch objects pass the checked-seed policy. Eleven
 ISR call relocations are excluded from the local count. A one-byte change to a
-context-switch branch produces one mid-instruction failure. The promoted
-seeds and production object transaction have not adopted this form. ADR 0309
-records the source boundary.
+context-switch branch produces one mid-instruction failure. Both promoted
+seeds carry this form, and production object publication selects it before
+replacing the prior object. ADR 0309 records the source boundary, and ADR 0312
+records carriage and adoption.
 
 ### Requiring complete code coverage
 
@@ -429,7 +431,7 @@ and passed a 1,061.3-second reproof with every initial seed comparison true.
 ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
 0272 records checked carriage and production selection, and ADRs 0278 and 0279
 record native reconstruction and convergence. ADRs 0280, 0281, and 0292
-record preceding Linux and Windows promotions. ADR 0305 records the current
+record preceding Linux and Windows promotions. ADR 0312 records the current
 promotion.
 
 ### Function Example
@@ -1461,7 +1463,7 @@ main:
 - Labels may be referenced before their definitions. CupidASM patches these forward references after parsing.
 - Mnemonics and register names are case-insensitive, so `MOV EAX, 1` is valid.
 
-## Current source-head proof
+## Current checked proof
 
 The earlier 2026-08-14 integration guarded both production ELF32 assembly objects with
 private validation and CupidDis inspection. Raw source now rejects duplicate
@@ -1485,23 +1487,23 @@ The source image was unchanged. Its 33,219-byte log has SHA-256
 The promoted Linux CupidASM image is 458,256 bytes with SHA-256
 `1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e`.
 Its 5,573-byte seed manifest has SHA-256
-`51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
+`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
 The promoted Windows CupidASM image is 438,784 bytes with SHA-256
 `c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6`.
 Its 2,118-byte manifest has SHA-256
-`e7367e50f64fac29cb03f8ef530b350408bdc492b6d924f63809cf862b8dd1c7`.
-Both bind revision `ed6a91ba954881475ac5ab73d5168d292a584c90` and exact
+`f537e1877f813d2a8f12f9fe2feeaddeff263cf768248def6aebfb009cee1c42`.
+Both bind revision `30aaf1b7cd398e6b47a395661a33d20d00363158` and exact
 50-input snapshot
-`a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817`.
+`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`.
 The Windows manifest names the Linux manifest as its parent. The 2026-08-14
 build and smoke evidence above predates this promotion; the later poisoned
 build and e1000 smoke followed it. The pre-documentation artifact gate then
 passed in 651.3 seconds and accepted all fourteen exact paths.
 
 The integrated fully poisoned build first reached the exact-size gate with
-three rebuilt kernel outputs. The artifact group passed all 45 tests in 3.733
+three rebuilt kernel outputs. The artifact group passed all 46 tests in 4.160
 seconds, with four expected Windows skips. After the pass-one ELF, final ELF,
-and raw kernel policy rows were updated, the repeated build passed in about 763
+and raw kernel policy rows were updated, the repeated build passed in 874.531
 seconds with all fourteen artifacts accepted, existing FAT contents preserved,
 and `hello.iso` staged. CupidASM's outputs
 remained the 2,560-byte boot image with SHA-256
@@ -1509,16 +1511,16 @@ remained the 2,560-byte boot image with SHA-256
 and the 4,096-byte SMP trampoline with SHA-256
 `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
 
-The integrated strong full private frontier smoke passed in about 889 seconds
+The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
-fixture. The 640-by-480 framebuffer changed 108,232 pixels. AC97 produced
-35,625,459 stereo 44.1 kHz frames with a peak of 25,600, and the PC speaker
-produced 78,384 stereo 44.1 kHz frames with a peak of 32,016. The expected
+fixture. The 640-by-480 framebuffer changed 89,630 pixels. AC97 produced
+36,877,878 stereo 44.1 kHz frames with a peak of 25,600, and the PC speaker
+produced 76,251 stereo 44.1 kHz frames with a peak of 29,912. The expected
 direct-call, named-callback, typedef-callback, global-callback,
 automatic-callback, and overall feature14 PASS markers each appeared once and
-in order. The feature run then printed a clean JIT completion. The 148,491-byte
+in order. The feature run then printed a clean JIT completion. The 161,418-byte
 log has SHA-256
-`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
+`bc30f5083b96a36362bec5975c0a88437c4f23515de329328bb03d8f6c3e9326`.
 The source image was unchanged at SHA-256
-`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
-ADR 0305 records the seed identities.
+`31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
+ADR 0312 records the seed identities.

@@ -342,7 +342,8 @@ The four-vCPU e1000 feature14 guest contract requires direct-call,
 named-callback, typedef-parameter, typedef-global, and automatic-callback
 evidence in that order. The retained paths must print
 `[feature14-callback-typedef] PASS float4=4 calls=1`,
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, and
+`[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
+`cleared=1 calls=2`, and
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2`, followed by the
 overall feature14 PASS and CupidC JIT completion. This private compiler boundary
 does not change the external ELF loader ABI or the fixed process arena.
@@ -373,12 +374,12 @@ Both cohorts carry the raw local-target policy used by the guarded bootloader
 and SMP transactions. Exact seed identities and dated proof evidence are kept
 in the host bootstrap log.
 
-Source-head CupidDis also checks unrelocated direct targets inside each
+CupidDis also checks unrelocated direct targets inside each
 executable section of a static ELF32 relocatable object. Relocated operand
 fields stay under the separate relocation-ownership rule. Targets outside
 their source section or inside an instruction fail. Linked ET_EXEC input is
-not covered. The promoted cohorts and production object transaction have not
-adopted this source-head form.
+not covered. The promoted cohorts carry this form, and production object
+publication selects it after structural validation and before replacement.
 >endtree
 
 >h2 See Also

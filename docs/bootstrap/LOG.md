@@ -29010,3 +29010,166 @@ This repair changes launcher resolution and the host trust boundary. It does
 not change an OS image, checked seed, guest ABI, build owner, or manifest schema.
 ADR 0311 records the import decision. `TempleOS/` remains untouched reference
 material.
+
+## 2026-08-21: promote relocatable local-target checks into production
+
+The checked Linux and Windows cohorts now carry CupidDis support for local
+control-flow validation inside static i386 ELF32 relocatable objects. Each
+fixed-point matrix gained a positive object with a relocated external call and
+a resolved local jump. Its negative partner changes only the jump so it lands
+inside the following instruction. The relocation keeps the external call out
+of the local-target count.
+
+Production CupidASM object publication now runs the checked disassembler with
+both `--require-known` and `--require-local-targets` after structural ELF
+validation. A failed check leaves any earlier output untouched. The nine-test
+hostbuild object module, both seed-carriage pairs, the artifact policy, the
+manifest contracts, and the graph behavior lock pass.
+
+The Linux and Windows candidate runs used an earlier 324-byte local-jump
+fixture without a relocation. They proved object-local target carriage, but
+not relocation exclusion. The fixture was then strengthened to a 416-byte
+object with `.rel.text` and an external `R_386_PC32` call before either
+promoted-seed reproof.
+
+The Linux candidate fixed point passed in 1,467.420 seconds, followed by a
+1,471.191-second reproof from the promoted seed. The final report has SHA-256
+`c591f7a622c57224b49ebfdb080bac4c107526cac4156eded5f0af2b63ee2354`
+and records nineteen C objects, one startup object, five tool images, and a
+5/20/19 behavior matrix. The Windows candidate passed in 1,246.924 seconds,
+followed by a 1,251.386-second promoted-seed reproof. Its final report has
+SHA-256
+`c9ff6b955a29f789a9ecbc8754bee0b872c982229287be8061400d83457c21e6`
+and records twenty C objects, two assembly objects, five tool images, and a
+5/6/7 matrix. Every compared value is equal in both final reports.
+
+The promoted Linux manifest has SHA-256
+`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
+Its 425,940-byte CupidDis has SHA-256
+`5b719da424294a91b019832e98047dd15c51e295bba8dfe1766fbde29f95626e`.
+The promoted Windows manifest has SHA-256
+`f537e1877f813d2a8f12f9fe2feeaddeff263cf768248def6aebfb009cee1c42`.
+Its 407,040-byte CupidDis has SHA-256
+`1ce02cadf6cc90bec0389ab9dc6c7b09ce6823a3bd23980fb78b46d3740c9b14`.
+All eight other tool images remain byte-identical to their prior cohorts. ADR
+0312 records the promotion and production adoption.
+
+The active-source suffix audit still finds seventeen tracked `.c` files and no
+active or Cupid-owned `.c` translation unit. They remain historical copies,
+host fixtures, dormant source, or explicit host oracles, so none qualifies for
+a `.cc` rename. `TempleOS/` remains read-only reference material.
+
+## 2026-08-21: initialize private CupidC global callbacks from functions
+
+Private CupidC now accepts a compatible function designator, including grouped
+forms, as the initializer for a typedef-backed file-scope callback. A defined
+function or kernel binding writes its address into initialized data at once. A
+function defined later records an absolute data patch, which the shared symbol
+resolver applies beside relative-call and absolute-code patches.
+
+The first JIT and AOT tests stopped at the old null-only rule. The first
+forward-target test then exposed the missing data patch. After the change,
+defined, later-defined, grouped, and kernel-bound callbacks work in both private
+execution modes. Signature mismatches, unresolved names, computed expressions,
+and contradictory later definitions fail without leaking data, symbols,
+patches, or provisional signatures into the next compile.
+
+All 256 callback ABI tests pass. The callback and GUI terminal modules pass all
+381 tests together in 40.333 seconds. The guest contract now requires
+`feature14_simd.cc` to call the callback installed by its file-scope
+initializer, assign and call it again, clear it, and report
+`initialized=1 assigned=1 cleared=1 calls=2`.
+
+A checked Windows seed build completed with every conventional host
+code-generator variable set to an invalid command. It produced a 467,688-byte
+`cupidc_parse.o`, SHA-256
+`009ddb57bd7cb5bd1312d429eae0000de2941284e061cb98ac9b7929fdf2240d`,
+and the unchanged 3,604-byte `cupidc_elf.o`, SHA-256
+`c2ad171aacd493a33a477e7a3196a5d28b04b0f74521cd8cbaec2598f391880c`.
+ADR 0313 records the fixed-address data-patch rule and its remaining limits.
+
+## 2026-08-21: close the integrated object-target and callback checkpoint
+
+The final verification round used the promoted local-target cohorts and the
+private callback initializer in the same source tree. Two safety gates stopped
+as intended before the clean reruns. The first poisoned OS build reached the
+artifact-size contract with three measured kernel changes. After those exact
+rows were reviewed and updated, the contract group passed all 46 tests in
+4.160 seconds with four expected Windows skips. An audit run also found a
+temporary copied `.cc` source while the fixed-point suite was active. It
+rejected that unowned input. The audit passed after the private test tree
+finished and removed its copy.
+
+The definitive `make -j4 all` ran with `CC`, `CXX`, `CPP`, `HOSTCC`,
+`HOSTCXX`, `ASM`, `AS`, `LD`, `AR`, `RANLIB`, `NM`, `NASM`, `OBJCOPY`, and
+`STRIP` set to invalid commands. It passed in 874.531 seconds, validated all
+fourteen exact artifact rows, preserved the existing FAT contents, and staged
+`test_iso/hello.iso`.
+
+| Final source-current output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,345,464 | `5dbd2c5acb7b1604cf6daf6f311e88015d0762125c60920da3737d7e10d76f06` |
+| `kernel/kernel.elf` | 9,472,440 | `5810ddcb963cfadb4fea3b1343bb38c17ce3f762a48f25615b3feb653f1638e3` |
+| `kernel/kernel.bin` | 9,251,100 | `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3` |
+| `cupidos.img` | 209,715,200 | `31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `7b12be6d0dd33f9016ecb4287f5c9414e1da79ffc61e7957aab60cea94850474` |
+
+The private e1000 frontier used four `max` vCPUs, SMP and frontier checks, the
+source-current image, and the USB fixture. It passed in 883.513 seconds. The
+640x480 framebuffer changed 89,630 pixels. AC97 produced 36,877,878 stereo
+44,100 Hz frames with a peak of 25,600, and the PC speaker produced 76,251
+frames with a peak of 29,912. The initialized, assigned, and cleared global
+callback marker appeared once before the automatic callback marker and the
+overall feature-14 PASS. The feature then reported a clean JIT completion. The
+161,418-byte log has SHA-256
+`bc30f5083b96a36362bec5975c0a88437c4f23515de329328bb03d8f6c3e9326`
+and no rejection marker. The private run left the source image unchanged.
+
+The complete promoted-seed bootstrap module passed all 89 tests in 3,145.502
+seconds. The corrected full build-graph module passed all 104 tests in 844.801
+seconds.
+The graph now records 739 inputs, 452 transforms, 255 feature requirements, and
+25 accounted unreachable files. Both `make bootstrap-audit` and
+`make check-bootstrap-audit` pass. The active-source digest is
+`177f15bddae7d6d1f3f51265b255712503a9aef88ad14ad529c23888f88211c9`.
+The 2,700,638-byte JSON report has SHA-256
+`bc9543bc83d558987c063e641db3bc56ad7a7c094bef6e2a09666847da9d770f`,
+and the 12,502-byte Markdown summary has SHA-256
+`1c636c076e74de8585601d1ba09284e50e3b2dd767a91f1961065fc0eec0bc59`.
+
+The source-current Toolchain publication started at
+`2026-08-21T14:59:01.938-04:00` and passed in 4,707.017 seconds. The checked
+bootstrap and both contract generations completed, the Cupid author and Python
+oracle agreed on all 58 stage pairs, the hosted runtime passed, and live inputs
+stayed frozen. The publisher wrote all 21 artifacts, then the final verifier
+printed `Cupid Toolchain manifest: ok (21 artifacts)`.
+
+The 27,071-byte `cupid.toolchain-contracts.v3` manifest has SHA-256
+`48393f4e4dbca62e0edc598992c72de99537a82716b8c2e909fa7ac1b3ccead3`.
+It binds 70 publication inputs, the exact 50-file source snapshot
+`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`,
+17 object comparisons, nineteen C objects, one startup object, five tool
+images, and Linux seed manifest
+`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
+Every fixed-point comparison is true.
+
+The first review distinguished the earlier 324-byte candidate fixture from the
+final 416-byte relocation fixture, found the stale assembly CTXT description,
+and found three places that still called ADR 0305 the current seed record. The
+review also found duplicate Linux and Windows fixture checks, which now share
+one helper. The final fixed-point, build, guest, audit, and publication runs all
+use the corrected source and documentation. The suffix audit still finds
+seventeen tracked `.c` files, none active or Cupid-owned. No source qualifies
+for a `.cc` rename at this checkpoint. `TempleOS/` remains untouched reference
+material.
+
+The closing review found that the audit validated 20 success and 19 failure
+cases but still serialized the previous 18/17 totals. The report now derives
+both fields from the validated matrix, its test locks 20/19, and both generated
+artifacts were refreshed. The same review found one old README paragraph that
+still called relocatable-object checks source-only and several summaries that
+called the intermediate 86-test suite final. Those descriptions now match the
+promoted production rule and the current 89-test result. The final Standards
+and Spec confirmation passes report no findings.

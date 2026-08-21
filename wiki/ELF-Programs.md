@@ -103,18 +103,18 @@ Those reports remain preliminary. Linux later passed a clean 1,294.3-second
 proof, promoted the stage-four seed, and passed a 1,473.9-second reproof from
 that seed. Native Windows then passed a clean 1,253.4-second proof and a
 1,061.3-second promoted-seed reproof. Both of those Windows runs matched 20 C
-objects, two assembly objects, and five PE32 tools and passed the 5/5/6
+objects, two assembly objects, and five PE32 tools and passed the 5/6/7
 behavior matrix. The
 old seed comparison was false for CupidASM, CupidC, and CupidDis and true for
 CupidLD and CupidObj. That promoted 2,118-byte manifest has SHA-256
 `ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e`.
 The current 2,118-byte Windows manifest has SHA-256
-`e7367e50f64fac29cb03f8ef530b350408bdc492b6d924f63809cf862b8dd1c7`.
-It binds revision `ed6a91ba954881475ac5ab73d5168d292a584c90`, exact 50-input
+`f537e1877f813d2a8f12f9fe2feeaddeff263cf768248def6aebfb009cee1c42`.
+It binds revision `30aaf1b7cd398e6b47a395661a33d20d00363158`, exact 50-input
 snapshot
-`a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817`,
+`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`,
 and Linux parent manifest
-`51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
+`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
 See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
@@ -735,6 +735,9 @@ records the callback and one-header AOT boundaries.
 records the global storage and assignment boundary.
 [ADR 0310](../docs/adr/0310-retain-automatic-callback-typedef-signatures-in-private-cupidc.md)
 records automatic objects and Cupid class method parameters.
+[ADR 0313](../docs/adr/0313-initialize-private-cupidc-global-callbacks-from-functions.md)
+records static callback initialization for private JIT and fixed-address AOT
+data.
 
 The preceding poisoned-host build checkpoint passed in 684.260 seconds with
 all fourteen exact policy artifacts accepted. It produced a 9,320,424-byte
@@ -753,26 +756,26 @@ The pre-documentation artifact gate later passed in 651.3 seconds, accepted all
 fourteen exact paths, and measured `kernel/kernel.bin` at 9,225,092 bytes.
 
 The integrated fully poisoned build first reached the exact-size gate with
-three rebuilt kernel outputs. The artifact group passed all 45 tests in 3.733
+three rebuilt kernel outputs. The artifact group passed all 46 tests in 4.160
 seconds, with four expected Windows skips. After those three policy rows were
-updated, the repeated build passed in about 763 seconds with all fourteen
+updated, the repeated build passed in 874.531 seconds with all fourteen
 artifacts accepted, existing FAT contents preserved, and `hello.iso` staged.
-The final pass-one ELF is 9,341,344 bytes with SHA-256
-`fd4cbac1fe8d1df276187cdc4bfc2815444de9ed7dae1748b7c68118518cc45e`;
-the final ELF is 9,468,320 bytes with SHA-256
-`3a13757bcaf6ffb7b7c2b54d00fb3cad5c4a5eea84e6647e6d6b238fddecc38e`;
-the raw kernel is 9,246,248 bytes with SHA-256
-`4d71ec865fb3ef972842432e0cf4c76c6a10706399d95b481779d0744f23f256`.
+The final pass-one ELF is 9,345,464 bytes with SHA-256
+`5dbd2c5acb7b1604cf6daf6f311e88015d0762125c60920da3737d7e10d76f06`;
+the final ELF is 9,472,440 bytes with SHA-256
+`5810ddcb963cfadb4fea3b1343bb38c17ce3f762a48f25615b3feb653f1638e3`;
+the raw kernel is 9,251,100 bytes with SHA-256
+`4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
-The integrated strong full private frontier smoke passed in about 889 seconds
+The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
 fixture. The expected direct-call, named-callback, typedef-callback,
 global-callback, automatic-callback, and overall feature14 PASS markers each
 appeared once and in order. The feature run then printed a clean JIT completion.
-The 148,491-byte log has SHA-256
-`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
+The 161,418-byte log has SHA-256
+`bc30f5083b96a36362bec5975c0a88437c4f23515de329328bb03d8f6c3e9326`.
 The source image was unchanged at SHA-256
-`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
+`31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
 
 ### ELF Header Validation
 

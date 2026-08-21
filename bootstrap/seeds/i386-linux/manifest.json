@@ -11,8 +11,8 @@
       "file": "cupiddis.elf",
       "name": "cupiddis",
       "producer": false,
-      "sha256": "e325206f591e79997f24b1cb8943c682b3362eb72d01dc9ca7dbd38c32531096",
-      "size": 421652
+      "sha256": "5b719da424294a91b019832e98047dd15c51e295bba8dfe1766fbde29f95626e",
+      "size": 425940
     },
     {
       "file": "cupidld.elf",
@@ -213,8 +213,8 @@
     },
     "seed_generation": "stage-four",
     "source_input_count": 50,
-    "source_revision": "ed6a91ba954881475ac5ab73d5168d292a584c90",
-    "source_snapshot_sha256": "a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817"
+    "source_revision": "30aaf1b7cd398e6b47a395661a33d20d00363158",
+    "source_snapshot_sha256": "2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9"
   },
   "schema": "cupid.bootstrap-seed.v1",
   "target": {

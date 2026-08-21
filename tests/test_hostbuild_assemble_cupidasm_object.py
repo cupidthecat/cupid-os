@@ -233,7 +233,11 @@ class HostbuildAssembleCupidAsmObjectTests(unittest.TestCase):
                     self.assertEqual(tool_name, "cupiddis")
                     self.assertEqual(
                         string_arguments,
-                        ("--require-known", ".cupid-output/isr.o"),
+                        (
+                            "--require-known",
+                            "--require-local-targets",
+                            ".cupid-output/isr.o",
+                        ),
                     )
                     self.assertEqual(
                         (private_root / string_arguments[-1]).read_bytes(),
@@ -325,6 +329,80 @@ class HostbuildAssembleCupidAsmObjectTests(unittest.TestCase):
             self.assertEqual(result.stdout, "")
             self.assertIn(
                 "1 of 1 executable relocations unmatched",
+                result.stderr,
+            )
+            self.assertEqual(output.read_bytes(), original)
+
+    def test_production_seed_rejects_a_local_target_outside_its_section(self):
+        seed_name = "i386-windows" if os.name == "nt" else "i386-linux"
+        seed = (
+            Path(__file__).resolve().parents[1]
+            / "bootstrap"
+            / "seeds"
+            / seed_name
+            / "manifest.json"
+        )
+        repository_root = Path(__file__).resolve().parents[1]
+        real_run_seed_tool = hostbuild.run_seed_tool
+        candidate = _relocatable_object(b"\xeb\x7f\xc3")
+
+        with tempfile.TemporaryDirectory(
+            prefix=".production-seed-local-target-",
+            dir=repository_root,
+        ) as temporary:
+            fixture_root = Path(temporary)
+            source = fixture_root / "outside-target.asm"
+            output = fixture_root / "outside-target.o"
+            source.write_text(
+                "bits 32\nsection .text\ndb 0xeb, 0x7f, 0xc3\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"last known good object")
+            original = output.read_bytes()
+
+            def run_checked(
+                seed_manifest,
+                working_directory,
+                tool_name,
+                arguments,
+                *,
+                timeout,
+                frozen_seed,
+            ):
+                if tool_name == "cupidasm":
+                    private_root = Path(working_directory)
+                    (private_root / str(arguments[3])).write_bytes(candidate)
+                    return subprocess.CompletedProcess(
+                        list(arguments), 0, "", ""
+                    )
+                return real_run_seed_tool(
+                    seed_manifest,
+                    working_directory,
+                    tool_name,
+                    arguments,
+                    timeout=timeout,
+                    frozen_seed=frozen_seed,
+                )
+
+            with mock.patch(
+                "tools.hostbuild.run_seed_tool",
+                side_effect=run_checked,
+            ):
+                result = hostbuild.assemble_cupidasm_object(
+                    seed,
+                    repository_root,
+                    source.relative_to(repository_root),
+                    output.relative_to(repository_root),
+                )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn(
+                "1 of 1 direct relative targets invalid",
+                result.stderr,
+            )
+            self.assertIn(
+                "1 outside section, 0 mid-instruction",
                 result.stderr,
             )
             self.assertEqual(output.read_bytes(), original)

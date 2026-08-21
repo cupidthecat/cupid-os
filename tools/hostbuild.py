@@ -5294,7 +5294,11 @@ def assemble_cupidasm_object(
             try:
                 disassembled = transaction.run_tool(
                     "cupiddis",
-                    ("--require-known", candidate_logical),
+                    (
+                        "--require-known",
+                        "--require-local-targets",
+                        candidate_logical,
+                    ),
                 )
             except BootstrapError as error:
                 raise CodeValidationError(

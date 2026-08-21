@@ -886,6 +886,19 @@ static void cc_error(cc_state_t *cc, const char *msg) {
   cc->error_msg[i] = '\0';
 }
 
+static int cc_patch_data32(cc_state_t *cc, uint32_t offset,
+                           uint32_t value) {
+  if (offset > cc->data_pos || cc->data_pos - offset < 4u) {
+    cc_error(cc, "data patch is outside initialized storage");
+    return 0;
+  }
+  cc->data[offset] = (uint8_t)(value & 0xFF);
+  cc->data[offset + 1] = (uint8_t)((value >> 8) & 0xFF);
+  cc->data[offset + 2] = (uint8_t)((value >> 16) & 0xFF);
+  cc->data[offset + 3] = (uint8_t)((value >> 24) & 0xFF);
+  return 1;
+}
+
 static int cc_coerce_unsigned_conversion(cc_state_t *cc,
                                          cc_type_t target_type,
                                          cc_type_t source_type) {
@@ -4174,8 +4187,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           uint32_t patch_pos = emit_call_rel_placeholder(cc);
           if (cc->patch_count < CC_MAX_PATCHES) {
             cc_patch_t *p = &cc->patches[cc->patch_count++];
-            p->code_offset = patch_pos;
-            p->is_absolute = 0;
+            p->buffer_offset = patch_pos;
+            p->kind = CC_PATCH_CODE_RELATIVE;
             int pi = 0;
             while (name[pi] && pi < CC_MAX_IDENT - 1) {
               p->name[pi] = name[pi];
@@ -4213,8 +4226,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       uint32_t patch_pos = emit_call_rel_placeholder(cc);
       if (cc->patch_count < CC_MAX_PATCHES) {
         cc_patch_t *p = &cc->patches[cc->patch_count++];
-        p->code_offset = patch_pos;
-        p->is_absolute = 0;
+        p->buffer_offset = patch_pos;
+        p->kind = CC_PATCH_CODE_RELATIVE;
         int pi = 0;
         while (name[pi] && pi < CC_MAX_IDENT - 1) {
           p->name[pi] = name[pi];
@@ -4385,8 +4398,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       {
         cc_patch_t *patch = &cc->patches[cc->patch_count++];
         int name_index = 0;
-        patch->code_offset = patch_pos;
-        patch->is_absolute = 1;
+        patch->buffer_offset = patch_pos;
+        patch->kind = CC_PATCH_CODE_ABSOLUTE;
         while (name[name_index] && name_index < CC_MAX_IDENT - 1) {
           patch->name[name_index] = name[name_index];
           name_index++;
@@ -5155,8 +5168,8 @@ static void cc_parse_primary(cc_state_t *cc) {
               uint32_t patch_pos = emit_call_rel_placeholder(cc);
               if (cc->patch_count < CC_MAX_PATCHES) {
                 cc_patch_t *p = &cc->patches[cc->patch_count++];
-                p->code_offset = patch_pos;
-                p->is_absolute = 0;
+                p->buffer_offset = patch_pos;
+                p->kind = CC_PATCH_CODE_RELATIVE;
                 int mi = 0;
                 while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
                   p->name[mi] = method_sym_name[mi];
@@ -5179,8 +5192,8 @@ static void cc_parse_primary(cc_state_t *cc) {
               uint32_t patch_pos = emit_call_rel_placeholder(cc);
               if (cc->patch_count < CC_MAX_PATCHES) {
                 cc_patch_t *p = &cc->patches[cc->patch_count++];
-                p->code_offset = patch_pos;
-                p->is_absolute = 0;
+                p->buffer_offset = patch_pos;
+                p->kind = CC_PATCH_CODE_RELATIVE;
                 int mi = 0;
                 while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
                   p->name[mi] = method_sym_name[mi];
@@ -9207,13 +9220,64 @@ static int cc_parse_global_function_pointer_null_inner(
   return 1;
 }
 
-static int cc_parse_global_function_pointer_null_initializer(
-    cc_state_t *cc) {
+static int cc_parse_global_function_pointer_initializer(
+    cc_state_t *cc, cc_symbol_t *pointer, uint32_t data_offset) {
+  cc_symbol_t *target = NULL;
+  cc_function_pointer_initializer_kind_t initializer_kind =
+      cc_probe_function_pointer_initializer(cc, &target);
+
+  if (initializer_kind == CC_FP_INITIALIZER_DESIGNATOR && target &&
+      (target->kind == SYM_FUNC || target->kind == SYM_KERNEL)) {
+    int grouping_depth = 0;
+
+    if (!cc_check_function_pointer_initializer(cc, pointer, target))
+      return 0;
+
+    while (cc_match(cc, CC_TOK_LPAREN))
+      grouping_depth++;
+    if (cc_next(cc).type != CC_TOK_IDENT) {
+      cc_error(cc, "expected function name in global initializer");
+      return 0;
+    }
+    while (grouping_depth > 0) {
+      cc_expect(cc, CC_TOK_RPAREN);
+      grouping_depth--;
+    }
+    if (cc->error)
+      return 0;
+    if (!cc_apply_function_pointer_initializer(cc, pointer, target))
+      return 0;
+
+    if (target->kind == SYM_KERNEL || target->is_defined) {
+      uint32_t target_address =
+          target->kind == SYM_KERNEL
+              ? target->address
+              : cc->code_base + (uint32_t)target->offset;
+      return cc_patch_data32(cc, data_offset, target_address);
+    }
+
+    if (cc->patch_count >= CC_MAX_PATCHES) {
+      cc_error(cc, "too many function address fixups");
+      return 0;
+    }
+    {
+      cc_patch_t *patch = &cc->patches[cc->patch_count++];
+      int name_index = 0;
+      patch->buffer_offset = data_offset;
+      patch->kind = CC_PATCH_DATA_ABSOLUTE;
+      while (target->name[name_index] && name_index < CC_MAX_IDENT - 1) {
+        patch->name[name_index] = target->name[name_index];
+        name_index++;
+      }
+      patch->name[name_index] = '\0';
+    }
+    return 1;
+  }
+
   if (cc_parse_global_function_pointer_null_inner(cc, 0))
     return 1;
-  cc_error(
-      cc,
-      "global function-pointer initializer must be null; function addresses need data fixups");
+  cc_error(cc,
+           "global function-pointer initializer requires a function or null");
   return 0;
 }
 
@@ -9634,8 +9698,8 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
                   uint32_t patch_pos = emit_call_rel_placeholder(cc);
                   if (cc->patch_count < CC_MAX_PATCHES) {
                     cc_patch_t *p = &cc->patches[cc->patch_count++];
-                    p->code_offset = patch_pos;
-                    p->is_absolute = 0;
+                    p->buffer_offset = patch_pos;
+                    p->kind = CC_PATCH_CODE_RELATIVE;
                     int mi = 0;
                     while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
                       p->name[mi] = method_sym_name[mi];
@@ -9658,8 +9722,8 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
                   uint32_t patch_pos = emit_call_rel_placeholder(cc);
                   if (cc->patch_count < CC_MAX_PATCHES) {
                     cc_patch_t *p = &cc->patches[cc->patch_count++];
-                    p->code_offset = patch_pos;
-                    p->is_absolute = 0;
+                    p->buffer_offset = patch_pos;
+                    p->kind = CC_PATCH_CODE_RELATIVE;
                     int mi = 0;
                     while (method_sym_name[mi] && mi < CC_MAX_IDENT - 1) {
                       p->name[mi] = method_sym_name[mi];
@@ -10402,12 +10466,18 @@ method_failure:
 
 static void cc_apply_function_patch(cc_state_t *cc, const cc_patch_t *patch,
                                     uint32_t target) {
-  if (patch->is_absolute) {
-    patch32(cc, patch->code_offset, target);
-  } else {
-    uint32_t from = cc->code_base + patch->code_offset + 4;
+  if (patch->kind == CC_PATCH_DATA_ABSOLUTE) {
+    (void)cc_patch_data32(cc, patch->buffer_offset, target);
+    return;
+  }
+  if (patch->kind == CC_PATCH_CODE_ABSOLUTE) {
+    patch32(cc, patch->buffer_offset, target);
+  } else if (patch->kind == CC_PATCH_CODE_RELATIVE) {
+    uint32_t from = cc->code_base + patch->buffer_offset + 4;
     int32_t relative = (int32_t)(target - from);
-    patch32(cc, patch->code_offset, (uint32_t)relative);
+    patch32(cc, patch->buffer_offset, (uint32_t)relative);
+  } else {
+    cc_error(cc, "function patch has an invalid kind");
   }
 }
 
@@ -11183,7 +11253,8 @@ void cc_parse_program(cc_state_t *cc) {
               uint32_t addr_off = gsym->address - cc->data_base;
               cc_token_t val;
               if (gtype == TYPE_FUNC_PTR) {
-                if (!cc_parse_global_function_pointer_null_initializer(cc))
+                if (!cc_parse_global_function_pointer_initializer(
+                        cc, gsym, addr_off))
                   break;
                 cc_expect(cc, CC_TOK_SEMICOLON);
                 continue;
@@ -11450,8 +11521,8 @@ static int cc_repl_try_zero_arg_call(cc_state_t *cc, int *is_expr) {
       uint32_t patch_pos = emit_call_rel_placeholder(cc);
       if (cc->patch_count < CC_MAX_PATCHES) {
         cc_patch_t *p = &cc->patches[cc->patch_count++];
-        p->code_offset = patch_pos;
-        p->is_absolute = 0;
+        p->buffer_offset = patch_pos;
+        p->kind = CC_PATCH_CODE_RELATIVE;
         int pi = 0;
         while (ident_tok.text[pi] && pi < CC_MAX_IDENT - 1) {
           p->name[pi] = ident_tok.text[pi];

@@ -401,7 +401,8 @@ The four-vCPU e1000 feature14 guest contract requires ordered direct-call,
 named-callback, typedef-parameter, typedef-global, and automatic-callback
 evidence. The retained paths must print
 `[feature14-callback-typedef] PASS float4=4 calls=1`,
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1`, and
+`[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
+`cleared=1 calls=2`, and
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2` in that order.
 The command must then print the overall feature14 PASS and finish with CupidC
 JIT completion.

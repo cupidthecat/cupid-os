@@ -5516,8 +5516,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 5)
-        self.assertEqual(contract["success_behavior_cases"], 18)
-        self.assertEqual(contract["failure_behavior_cases"], 17)
+        self.assertEqual(contract["success_behavior_cases"], 20)
+        self.assertEqual(contract["failure_behavior_cases"], 19)
         self.assertEqual(contract["contract_manifest_inputs"], 70)
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 70
@@ -6016,14 +6016,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 20,\n',
                 '        "success_cases": 19,\n',
-                '        "success_cases": 18,\n',
                 r"fixed-point behavior matrix differs",
             ),
-            "relocation ownership failure count becomes stale": (
+            "local-target failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 19,\n',
                 '        "failure_cases": 18,\n',
-                '        "failure_cases": 17,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "PE32 import source leaves the frozen closure": (
@@ -8085,7 +8085,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6228, 174),
+                "c.expression.sizeof": (6268, 174),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

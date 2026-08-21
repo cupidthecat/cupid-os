@@ -268,7 +268,7 @@ pointers and indirect transfers remain outside the policy. A bad
 displacement that reaches another valid same-mode instruction start cannot be
 distinguished without label metadata. ADR 0300 records the source rule.
 
-Source-head CupidDis also accepts the option for static ELF32 relocatable
+CupidDis also accepts the option for static ELF32 relocatable
 objects:
   cupiddis --require-known --require-local-targets program.o
 
@@ -280,11 +280,11 @@ still checks the field. Failures distinguish a target outside the section from
 one in the middle of an instruction. Linked ET_EXEC input is rejected for this
 option.
 
-The active ISR and context-switch objects pass this source-head check. Eleven
+The active ISR and context-switch objects pass this checked-seed policy. Eleven
 ISR call relocations stay outside the local count. Changing one context-switch
-branch byte produces one mid-instruction failure. The promoted seeds and
-production object transaction have not adopted this form. ADR 0309 records the
-source boundary.
+branch byte produces one mid-instruction failure. The promoted seeds carry this
+form, and production object publication selects it before replacement. ADR
+0309 records the source boundary, and ADR 0312 records carriage and adoption.
 
 Source-head and checked-seed CupidDis also check relocations that target executable sections
 in ELF32 relocatable objects. R_386_PC32 must begin at a decoded four-byte
@@ -388,7 +388,7 @@ Windows validates and runs the image, checks its exact stdout and empty stderr,
 and requires exit 37. The validator checks the fixed stack and heap fields,
 reconstructs the exact .idata layout, and
 the report retains both object and image pairs plus the observed Windows
-result. The promoted Linux seed carries the 5/18/17 behavior matrix and this
+result. The promoted Linux seed carries the 5/20/19 behavior matrix and this
 command.
 
 Checked-seed CupidLD uses an adjacent candidate created with exclusive-create
@@ -589,7 +589,7 @@ records the x87 form's seed carriage, and ADR 0228 records the first SHRD seed
 promotion. ADR 0243
 records the preceding seed, ADR 0252 records the x87 integer forms, ADR 0258
 records the preceding seed, and ADR 0259 records the parity predicates. ADRs
-0265, 0280, and 0292 record preceding promotions. ADR 0305 records the current
+0265, 0280, and 0292 record preceding promotions. ADR 0312 records the current
 promotion.
 
 Floating-point and SIMD coverage includes:
@@ -749,12 +749,13 @@ transactions.
 
 The Linux and Windows five-tool cohorts pass their fixed-point comparison and
 behavior gates. This establishes seed carriage for the shared assembler and
-disassembler rules. Source head also checks section-local targets in static
-relocatable objects, but that newer form is not in either seed or the
-production object transaction. Far pointers, indirect transfers, and linked
-ELF target proof remain outside the policy. The current publication and
-CUPMAN2 evidence are recorded in the overview above. Exact seed identities
-remain in the host bootstrap log.
+disassembler rules, including section-local targets in static relocatable
+objects. The guarded ISR and context-switch transactions select that object
+rule after structural ELF validation. Relocated external operands remain under
+the relocation-ownership check and are excluded from the local-target count.
+Far pointers, indirect transfers, and linked ELF target proof remain outside
+the policy. The current publication and CUPMAN2 evidence are recorded in the
+overview above. Exact seed identities remain in the host bootstrap log.
 >endtree
 
 >h2 See Also

@@ -139,16 +139,19 @@ assignment, make a typed indirect call, and be cleared. Indirect calls use the
 same cdecl conversion and layout path as direct calls. The private typedef table
 holds sixteen entries, and each callback signature may contain at most 32
 parameters. Each declaration may introduce only one function-pointer alias. A
-direct function designator in a global initializer is rejected until initialized
-data has address fixups. Alias chains, record fields, callback arrays,
-block-static objects, recursive callback signatures, and arbitrary computed
-callback expressions remain outside this typed path.
+typedef-backed global callback accepts a compatible defined or later-defined
+function designator. Private CupidC writes or patches the address in initialized
+data. Raw callback declarators, address-of and conditional initializers, alias
+chains, record fields, callback arrays, block-static objects, recursive callback
+signatures, and arbitrary computed callback expressions remain outside this
+typed path.
 Direct structure and array callback results are rejected; record-pointer
 results retain their record identity. A rejected source or REPL unit restores
 the typedef table with the prior symbols, patches, control state, code, and
 data. ADR 0303 records free-function parameters, ADR 0306 records global
-callback storage and checked assignment, and ADR 0310 records automatic objects
-and Cupid class method parameters.
+callback storage and checked assignment, ADR 0310 records automatic objects
+and Cupid class method parameters, and ADR 0313 records static callback
+initialization.
 
 ### Unsigned 32-bit operations
 
@@ -272,9 +275,10 @@ arguments and XMM0 results. A free-function or Cupid class method parameter
 declared with a direct file-scope function-pointer typedef carries the same
 metadata and call path. A declaration-initialized automatic object carries it
 too. A file object declared with that typedef carries the metadata as well.
-Grouped zero or `((void *)0)` initializes its zero-filled storage. Compatible
-plain assignment stores a callback, null clears it, and a direct static function
-initializer remains rejected until a data-address fixup exists. Empty `()`,
+Grouped zero or `((void *)0)` initializes its zero-filled storage. A compatible
+defined or later-defined function designator initializes the same slot through
+a direct write or data-address patch. Compatible plain assignment stores a
+callback, and null clears it. Empty `()`,
 fields, callback arrays, block-static objects, alias chains, recursive callback
 signatures, and `void *`
 pointers still erase it. Direct structure and array callback results are
@@ -296,11 +300,22 @@ declared `uint32_t` slot through this path. `feature13_double.cc` retains its
 ten mixed-scalar calls. `feature14_simd.cc` contains distinct direct, named
 local callback, typedef-parameter callback, typedef-global callback, automatic
 callback, and method callback markers. The global and automatic markers are
-`[feature14-callback-global] PASS float4=4 calls=1 cleared=1` and
+`[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
+`cleared=1 calls=2` and
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2`. ADR 0301 records
 the named local callback foundation, ADR 0303 records typedef parameters, ADR
-0306 records global callback storage, and ADR 0310 records automatic objects
-and Cupid class method parameters.
+0306 records global callback storage, ADR 0310 records automatic objects and
+Cupid class method parameters, and ADR 0313 records direct function
+initialization of global callback data.
+
+A typedef-backed global callback may begin with a compatible defined function
+or one defined later in the translation unit. Private CupidC writes a known
+address into initialized data immediately and records an absolute data patch
+for a later definition. JIT and fixed-address AOT therefore start with the same
+callback value. A failed initializer or conflicting later definition rolls the
+data patch and provisional signature back with the rest of the program.
+Address-of, conditional callback expressions, raw callback declarators,
+callback fields and arrays, and block-static callbacks remain unsupported.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations
@@ -770,11 +785,11 @@ failed author or verification preserves the prior publication. A separate checke
 verifier boundary, ADR 0304 records the author split, and ADR 0307 records raw
 stage-pair evidence.
 
-The source-current schema v3 `CUPMAN4` publication passed in 3,989.13 seconds and
+The source-current schema v3 `CUPMAN4` publication passed in 4,707.017 seconds and
 wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
 Its 27,071-byte manifest has SHA-256
-`615cdfd4095d684f31684b9887ba9610c033513580e7332d2d153841947c9311`.
+`48393f4e4dbca62e0edc598992c72de99537a82716b8c2e909fa7ac1b3ccead3`.
 Its final verifier reported
 `Cupid Toolchain manifest: ok (21 artifacts)`.
 Both checked Python contract launchers resolve `tools` from this checkout. The
@@ -985,14 +1000,14 @@ preceding Windows promotion, and ADR 0292 records that promotion.
 The current promoted Linux CupidC image is 2,687,436 bytes with SHA-256
 `273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094`.
 Its 5,573-byte manifest has SHA-256
-`51c8244aa51fce8ccaf7f2eb24df848f02d9269109599cdbdfb0f1f699b5ee65`.
+`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
 The current promoted Windows CupidC image is 2,613,760 bytes with SHA-256
 `c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002`.
 Its 2,118-byte manifest has SHA-256
-`e7367e50f64fac29cb03f8ef530b350408bdc492b6d924f63809cf862b8dd1c7`.
-Both manifests bind revision `ed6a91ba954881475ac5ab73d5168d292a584c90`
+`f537e1877f813d2a8f12f9fe2feeaddeff263cf768248def6aebfb009cee1c42`.
+Both manifests bind revision `30aaf1b7cd398e6b47a395661a33d20d00363158`
 and exact 50-input snapshot
-`a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817`.
+`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`.
 The Windows manifest names the Linux manifest as its parent.
 The normal kernel path runs strict checked-seed CupidDis and checked CupidObj
 flat extraction against one frozen cohort of all 429 audited root object
@@ -1157,7 +1172,7 @@ caller's control; the publisher has no destination lock or directory pin.
 The checked seed now carries CupidObj's bounded `iso-fixture` operation. Its
 hosted command reproduces the exact 61,440-byte repository image from the
 manifest and typed logical inventory. Both rebuilt stages exercise the command
-and its preserved-output failure in the 5/18/17 behavior matrix. ADR 0239
+and its preserved-output failure in the 5/20/19 behavior matrix. ADR 0239
 records the source capability, and ADR 0240 records the promotion. The normal
 ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records
@@ -1534,14 +1549,13 @@ cohort and a host-selected checked seed for the manifest verifier.
 The first attempt at the audit stopped after 65.183 seconds because the test
 still locked the old artifact-size recipe. The audit and its test now require
 one `$(ARTIFACT_SIZE_CONTRACT)` command that captures both seed roles.
-`make bootstrap-audit` passed in about 115 seconds, and
-`make check-bootstrap-audit` passed in 122.30 seconds. The active-source digest
+`make bootstrap-audit` and `make check-bootstrap-audit` both pass. The active-source digest
 is
-`a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
+`177f15bddae7d6d1f3f51265b255712503a9aef88ad14ad529c23888f88211c9`.
 The 2,700,638-byte JSON report has SHA-256
-`194b2a4c056f92a869cf63d7e3d477bd1a55273c424150576d7e9ec0dccb56b0`.
+`bc9543bc83d558987c063e641db3bc56ad7a7c094bef6e2a09666847da9d770f`.
 The 12,502-byte Markdown summary has SHA-256
-`015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
+`1c636c076e74de8585601d1ba09284e50e3b2dd767a91f1961065fc0eec0bc59`.
 
 The private in-kernel CupidC compiler
 still handles embedded runtime compilation. The checked user compiler creates
@@ -2962,23 +2976,23 @@ pinned contract runner passed 24 tests in 27.752 seconds, and the complete
 artifact group passed 45 tests in 2.557 seconds.
 
 The integrated fully poisoned `make -j4 all` first reached the exact-size gate
-with three rebuilt kernel outputs. The artifact group passed all 45 tests in
-3.733 seconds, with four expected Windows skips. After the pass-one ELF, final
+with three rebuilt kernel outputs. The artifact group passed all 46 tests in
+4.160 seconds, with four expected Windows skips. After the pass-one ELF, final
 ELF, and raw kernel policy rows were updated, the repeated build passed in
-about 763 seconds with all fourteen artifacts accepted, existing FAT contents
+874.531 seconds with all fourteen artifacts accepted, existing FAT contents
 preserved, and `hello.iso` staged.
 The exact output and policy identities are in
 [Toolchain Bootstrap](Toolchain-Bootstrap#current-production-checkpoint).
 
-The integrated strong full private frontier smoke passed in about 889 seconds
+The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
-fixture. The 640-by-480 framebuffer changed 108,232 pixels. AC97 produced
-35,625,459 stereo 44.1 kHz frames with a peak of 25,600, and the PC speaker
-produced 78,384 stereo 44.1 kHz frames with a peak of 32,016. The expected
+fixture. The 640-by-480 framebuffer changed 89,630 pixels. AC97 produced
+36,877,878 stereo 44.1 kHz frames with a peak of 25,600, and the PC speaker
+produced 76,251 stereo 44.1 kHz frames with a peak of 29,912. The expected
 direct-call, named-callback, typedef-callback, global-callback,
 automatic-callback, and overall feature14 PASS markers each appeared once and
-in order. The feature run then printed a clean JIT completion. The 148,491-byte
+in order. The feature run then printed a clean JIT completion. The 161,418-byte
 log has SHA-256
-`b31fcc79c861cbdead01967c1417409f7a8cdf46cc375300a17e64df4beca041`.
+`bc30f5083b96a36362bec5975c0a88437c4f23515de329328bb03d8f6c3e9326`.
 The source image was unchanged at SHA-256
-`973f6af3955523558cdd8baaaa711f3fdd9fd7bbbff1ef13fe8ca986c1013e89`.
+`31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.

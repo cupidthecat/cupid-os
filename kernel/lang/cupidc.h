@@ -281,10 +281,16 @@ typedef struct {
   int is_complete;    /* 1 after full definition parsed, 0 for forward tag */
 } cc_struct_def_t;
 
+typedef enum {
+  CC_PATCH_CODE_RELATIVE = 0,
+  CC_PATCH_CODE_ABSOLUTE,
+  CC_PATCH_DATA_ABSOLUTE
+} cc_patch_kind_t;
+
 typedef struct {
-  uint32_t code_offset;    /* where in code buffer to patch */
+  uint32_t buffer_offset;  /* offset in the buffer selected by kind */
   char name[CC_MAX_IDENT]; /* target symbol name */
-  int is_absolute;        /* function address, rather than relative call */
+  cc_patch_kind_t kind;
 } cc_patch_t;
 
 typedef struct {

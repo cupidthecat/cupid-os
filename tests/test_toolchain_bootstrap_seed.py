@@ -22,6 +22,7 @@ from tools.bootstrap_toolchain import (
     WSL_PRIVATE_RUN_SCRIPT,
     _compare_stages,
     _compare_windows_stages,
+    _local_target_object_payload,
     _profile_snapshot_payload,
     _unowned_relocation_object_payload,
     _windows_build_plan,
@@ -61,7 +62,7 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "a15970287b5f6d6ef5f4e0092d1b460e6b2af2624db4640d2ba5c435e43c1817"
+    "2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9"
 )
 
 
@@ -140,6 +141,61 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "0 mid-instruction",
                 rejected.stderr,
             )
+
+    def _assert_checked_seed_relocatable_local_target_policy(
+        self,
+        manifest: Path,
+        *,
+        native_windows: bool = False,
+    ) -> None:
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-object-local-targets-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            valid = root / "valid.o"
+            invalid = root / "invalid.o"
+            valid.write_bytes(_local_target_object_payload(5))
+            invalid.write_bytes(_local_target_object_payload(1))
+            arguments = (
+                "--require-known",
+                "--require-local-targets",
+            )
+            runner_guard = (
+                mock.patch(
+                    "tools.bootstrap_toolchain.shutil.which",
+                    side_effect=AssertionError(
+                        "native seed must not probe WSL"
+                    ),
+                )
+                if native_windows
+                else contextlib.nullcontext()
+            )
+            with runner_guard:
+                accepted = run_seed_tool(
+                    manifest,
+                    REPO_ROOT,
+                    "cupiddis",
+                    (*arguments, valid),
+                    timeout=60,
+                )
+                rejected = run_seed_tool(
+                    manifest,
+                    REPO_ROOT,
+                    "cupiddis",
+                    (*arguments, invalid),
+                    timeout=60,
+                )
+
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            self.assertEqual(accepted.stdout, "")
+            self.assertEqual(accepted.stderr, "")
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "1 of 1 direct relative targets invalid",
+                rejected.stderr,
+            )
+            self.assertIn("1 mid-instruction", rejected.stderr)
 
     @staticmethod
     def _committed_source_inventory(
@@ -1518,6 +1574,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     ):
         self._assert_checked_seed_local_relative_target_policy(SEED_MANIFEST)
 
+    def test_checked_i386_linux_seed_carries_relocatable_local_target_policy(
+        self,
+    ):
+        self._assert_checked_seed_relocatable_local_target_policy(
+            SEED_MANIFEST
+        )
+
     def test_checked_i386_linux_seed_snapshot_matches_its_named_commit(self):
         manifest = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
         provenance = manifest["provenance"]
@@ -1587,6 +1650,15 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self,
     ):
         self._assert_checked_seed_local_relative_target_policy(
+            WINDOWS_SEED_MANIFEST,
+            native_windows=True,
+        )
+
+    @unittest.skipUnless(os.name == "nt", "native Windows seed")
+    def test_checked_i386_windows_seed_carries_relocatable_local_target_policy(
+        self,
+    ):
+        self._assert_checked_seed_relocatable_local_target_policy(
             WINDOWS_SEED_MANIFEST,
             native_windows=True,
         )
@@ -1826,11 +1898,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "51c8244aa51fce8ccaf7f2eb24df848"
-                    "f02d9269109599cdbdfb0f1f699b5ee65"
+                    "afc56e3654ad7fe4447b31c87f1a010"
+                    "d9c13e89b824357db60b8a73648ad009c"
                 ),
                 "parent_seed_source_revision": (
-                    "ed6a91ba954881475ac5ab73d5168d292a584c90"
+                    "30aaf1b7cd398e6b47a395661a33d20d00363158"
                 ),
                 "producer_lineage": {
                     "assembly": (
@@ -1848,7 +1920,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
                 "source_input_count": 50,
                 "source_revision": (
-                    "ed6a91ba954881475ac5ab73d5168d292a584c90"
+                    "30aaf1b7cd398e6b47a395661a33d20d00363158"
                 ),
                 "source_snapshot_sha256": SOURCE_HEAD_SNAPSHOT_SHA256,
             }
@@ -2321,9 +2393,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 6,
+                    "failure_cases": 7,
                     "help_cases": 5,
-                    "success_cases": 5,
+                    "success_cases": 6,
                 },
             )
             self.assertEqual(
@@ -2881,9 +2953,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(
             ast.literal_eval(returns[0].value),
             {
-                "failure_cases": 18,
+                "failure_cases": 19,
                 "help_cases": 5,
-                "success_cases": 19,
+                "success_cases": 20,
             },
         )
 
@@ -6188,7 +6260,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "ed6a91ba954881475ac5ab73d5168d292a584c90",
+                "30aaf1b7cd398e6b47a395661a33d20d00363158",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -6227,9 +6299,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 18,
+                    "failure_cases": 19,
                     "help_cases": 5,
-                    "success_cases": 19,
+                    "success_cases": 20,
                 },
             )
             self.assertEqual(
@@ -6428,9 +6500,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "d29e4e82571c3fe7895bff215f0e32c25c9c98dce8893fa9a000968d979919d0"
+                        "1ce02cadf6cc90bec0389ab9dc6c7b09ce6823a3bd23980fb78b46d3740c9b14"
                     ),
-                    "size": 400896,
+                    "size": 407040,
                 },
             )
             self.assertEqual(
