@@ -1236,10 +1236,10 @@ roots and 443 under root `all`. Its tool participation totals are Python 452,
 CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis six. The
 user ABI, artifact-size, Toolchain manifest verification, and Toolchain
 manifest author operations account for four Cupid-built contracts. It retains
-the 5/19/18 Linux fixed-point matrix. The final post-CTXT audit generated in
-71.299 seconds, and deterministic check mode passed in 72.051 seconds. Its
+the 5/19/18 Linux fixed-point matrix. The source-current audit generated in
+about 115 seconds, and deterministic check mode passed in 122.30 seconds. Its
 active-source digest is
-`6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
+`a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
 
 The same poisoned-host root build produced a 2,560-byte `boot.bin` with
 SHA-256 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`,

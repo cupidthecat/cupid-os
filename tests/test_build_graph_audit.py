@@ -1,3 +1,4 @@
+import ast
 import importlib.util
 import json
 import re
@@ -111,6 +112,15 @@ def _load_audit_module():
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
+    def test_ast_shape_omits_empty_interpreter_specific_fields(self):
+        module = _load_audit_module()
+        function = ast.parse("def probe():\n    return 1\n").body[0]
+        shape = module._stable_ast_shape(function)
+
+        self.assertNotIn("decorator_list", shape)
+        self.assertNotIn("type_params", shape)
+        self.assertIn("Return(value=Constant(value=1))", shape)
+
     def test_make_readers_force_the_canonical_windows_graph(self):
         module = _load_audit_module()
         self.assertEqual(

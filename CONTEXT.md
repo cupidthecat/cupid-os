@@ -427,13 +427,13 @@ with SHA-256
 `69c5b8e62c1e61a8f1a2823d18edff794ae03239be71c881ddd8a190f1377c91`.
 The native Windows `CUPMAN2` verifier printed
 `Cupid Toolchain manifest: ok (21 artifacts)`. The source-current
-`make bootstrap-audit` passed in 71.299 seconds, and
-`make check-bootstrap-audit` passed in 72.051 seconds. Its active-source digest is
-`6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
-The 2,700,372-byte JSON has SHA-256
-`98adc224910ec61661878fde98ddb335073a0c8e95779b4765c34ebf39499bce`,
+`make bootstrap-audit` passed in about 115 seconds, and
+`make check-bootstrap-audit` passed in 122.30 seconds. Its active-source digest
+is `a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
+The 2,700,638-byte JSON has SHA-256
+`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
 and the 12,502-byte Markdown summary has SHA-256
-`094200553d690746387801ffd42ed970b1c0ba13a2ac24ad14ed9ed4ea73db70`.
+`015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 A pre-final-CTXT build reached the exact-size gate after 668.414 seconds. The
 later poisoned-host build passed in 684.260 seconds, and its private four-vCPU
 e1000 smoke passed in 64.601 seconds. Those records are preceding checkpoint

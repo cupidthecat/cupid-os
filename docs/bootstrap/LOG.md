@@ -28847,3 +28847,38 @@ can be renamed safely. The 17 tracked `.c` files are unreachable historical
 copies, host fixtures, dormant sources, or explicit host oracles. Issues #13,
 #25, #29, and #32 remain open because their wider ownership and self-hosting
 work is unfinished. `TempleOS/` remains read-only reference material.
+
+## 2026-08-21: make AST behavior locks independent of host Python
+
+The first source-current `make check-bootstrap-audit` stopped with
+`control_flow=False` in the fixed-point PE32 behavior contract. The staged
+validators, native Windows guards, workloads, and labels were all still
+present. A 2.2-second direct contract call reproduced the same failure twice
+under WSL Python 3.12.
+
+The stored block fingerprints came from Python 3.14. Its default `ast.dump`
+output omits empty fields, while Python 3.12 includes empty argument,
+decorator, type-parameter, and alternative lists. The detector therefore
+hashed the interpreter's presentation of the tree instead of only the source
+behavior. No publisher validation had been removed.
+
+The audit now serializes AST nodes itself and leaves out empty optional and
+list fields. The existing semantic shapes and expected fingerprints remain
+unchanged. A regression test locks that rule. The direct contract passes under
+both Python 3.12 and 3.14, and the complete fail-closed mutation test passes in
+104.799 seconds. That test still rejects every protected staged-byte,
+independent-parser, native-Windows, guard, and recovery mutation.
+
+`make bootstrap-audit` then passed in about 115 seconds. The deterministic
+`make check-bootstrap-audit` repeated the graph in 122.30 seconds. Counts stay
+at 739 inputs, 452 transforms, 255 requirements, and 25 accounted unreachable
+files. The active-source digest is
+`a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
+The 2,700,638-byte JSON has SHA-256
+`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
+and the unchanged 12,502-byte Markdown summary has SHA-256
+`015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
+
+This changes the audit's host portability, not an OS artifact, checked seed,
+build owner, or guest ABI. No additional image build or guest smoke is needed
+for this detector repair. `TempleOS/` remains untouched reference material.

@@ -100,14 +100,14 @@ The native Windows `CUPMAN2` verifier printed
 artifact-size recipe lock omitted the Windows seed verifier. The current graph
 locks one `$(ARTIFACT_SIZE_CONTRACT)` command with
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The final post-CTXT
-`make bootstrap-audit` passed in 71.299 seconds, and
-`make check-bootstrap-audit` passed in 72.051 seconds. The active-source
+`make bootstrap-audit` passed in about 115 seconds, and
+`make check-bootstrap-audit` passed in 122.30 seconds. The active-source
 digest is
-`6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
-The 2,700,372-byte JSON has SHA-256
-`98adc224910ec61661878fde98ddb335073a0c8e95779b4765c34ebf39499bce`,
+`a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
+The 2,700,638-byte JSON has SHA-256
+`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
 and the 12,502-byte Markdown summary has SHA-256
-`094200553d690746387801ffd42ed970b1c0ba13a2ac24ad14ed9ed4ea73db70`.
+`015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 
 A pre-final-CTXT build at the preceding integrated checkpoint reached the
 exact-size gate after 668.414 seconds. It
@@ -1214,9 +1214,9 @@ CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis six. The four
 Cupid-built contracts cover the user ABI, artifact-size policy, Toolchain
 manifest verification, and Toolchain manifest authoring. It retains the
 5/19/18 Linux fixed-point matrix and assigns strict validation plus flat
-extraction to `kernel.bin`, with all 431 code inputs represented. The final
-post-CTXT audit generated in 71.299 seconds, and deterministic check mode
-passed in 72.051 seconds.
+extraction to `kernel.bin`, with all 431 code inputs represented. The
+source-current audit generated in about 115 seconds, and deterministic check
+mode passed in 122.30 seconds.
 
 The current path performs strict inspection and flattening in one hostbuild
 transaction. Hostbuild freezes the selected seed manifest and all five
@@ -2362,13 +2362,13 @@ The 2,700,777-byte audit JSON has SHA-256
 and the 12,502-byte summary has SHA-256
 `56a05868915f15f3db58cd1d5d0a26cc60ebee1b3d625d1356e0dd0aa8059a41`.
 
-The final post-CTXT generation passed in 71.299 seconds, and deterministic
-check mode passed in 72.051 seconds. Its active-source digest is
-`6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
-The 2,700,372-byte audit JSON has SHA-256
-`98adc224910ec61661878fde98ddb335073a0c8e95779b4765c34ebf39499bce`,
+The source-current generation passed in about 115 seconds, and deterministic
+check mode passed in 122.30 seconds. Its active-source digest is
+`a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
+The 2,700,638-byte audit JSON has SHA-256
+`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
 and the 12,502-byte Markdown summary has SHA-256
-`094200553d690746387801ffd42ed970b1c0ba13a2ac24ad14ed9ed4ea73db70`.
+`015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 
 Across the three supported roots, CupidC participates in 250 transforms,
 CupidASM in nine, CupidLD in nine, and CupidObj in 192. Python participates in

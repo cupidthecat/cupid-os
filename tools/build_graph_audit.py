@@ -19,6 +19,24 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+def _stable_ast_shape(value: object) -> str:
+    """Return an AST shape that is stable across supported Python versions."""
+    if isinstance(value, ast.AST):
+        fields = []
+        for name, child in ast.iter_fields(value):
+            if child is None or child == []:
+                continue
+            fields.append(f"{name}={_stable_ast_shape(child)}")
+        return f"{value.__class__.__name__}({', '.join(fields)})"
+    if isinstance(value, list):
+        return f"[{', '.join(_stable_ast_shape(item) for item in value)}]"
+    return repr(value)
+
+
+def _stable_ast_fingerprint(node: ast.AST) -> str:
+    return hashlib.sha256(_stable_ast_shape(node).encode("utf-8")).hexdigest()
+
+
 SCHEMA = "cupid.build-graph-audit.v1"
 SOURCE_SUFFIX_OWNERSHIP_POLICY = (
     "docs/bootstrap/c-source-suffix-ownership.json"
@@ -9092,16 +9110,13 @@ def _cupid_toolchain_fixed_point_contract(
     ) and "for section in sections.values()" not in parser_source
 
     def expression_shape(source: str) -> str:
-        return ast.dump(
-            ast.parse(source, mode="eval").body,
-            include_attributes=False,
-        )
+        return _stable_ast_shape(ast.parse(source, mode="eval").body)
 
     def node_shape(node: ast.AST) -> str:
-        return ast.dump(node, include_attributes=False)
+        return _stable_ast_shape(node)
 
     def node_fingerprint(node: ast.AST) -> str:
-        return hashlib.sha256(node_shape(node).encode("utf-8")).hexdigest()
+        return _stable_ast_fingerprint(node)
 
     def named_top_level_guards(result_name: str) -> list[ast.If]:
         return [

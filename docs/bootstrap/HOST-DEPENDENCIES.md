@@ -8,17 +8,19 @@ The final post-CTXT checkpoint records 739 inputs and 452 transforms. An earlier
 audit run failed after 65.183 seconds because the artifact-size recipe lock
 omitted the Windows seed verifier. The current recipe uses one
 `$(ARTIFACT_SIZE_CONTRACT)` command with `--checked-manifest`.
-`make bootstrap-audit` passed in 71.299 seconds, and
-`make check-bootstrap-audit` passed in 72.051 seconds. That audit records 31
+`make bootstrap-audit` passed in about 115 seconds, and
+`make check-bootstrap-audit` passed in 122.30 seconds. Its AST behavior locks
+ignore empty interpreter-specific fields, so Python 3.12 and 3.14 check the
+same semantic shapes. The audit records 31
 assembly inputs, 297 headers, 411 Cupid C
 files, 255 feature requirements, and 25 accounted unreachable files. No
 ordinary C translation unit remained in a supported root. Its active-source
 digest is
-`6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
-The 2,700,372-byte audit JSON has SHA-256
-`98adc224910ec61661878fde98ddb335073a0c8e95779b4765c34ebf39499bce`,
+`a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
+The 2,700,638-byte audit JSON has SHA-256
+`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
 and the 12,502-byte Markdown summary has SHA-256
-`094200553d690746387801ffd42ed970b1c0ba13a2ac24ad14ed9ed4ea73db70`.
+`015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 The final fully poisoned OS build and strong full private guest frontier pass.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
@@ -1233,9 +1235,9 @@ roots and 443 under root `all`. Its tool participation totals are Python 452,
 CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis six. Four
 Cupid-built semantic contracts participate. It retains the 5/19/18 Linux
 fixed-point matrix and records strict validation plus flat extraction together
-on `kernel.bin`, with all 431 code inputs represented. The final post-CTXT
-audit generated in 71.299 seconds, and deterministic check mode passed in
-72.051 seconds.
+on `kernel.bin`, with all 431 code inputs represented. The source-current audit
+generated in about 115 seconds, and deterministic check mode passed in 122.30
+seconds.
 
 The poisoned-host normal `make -j2` passed in 1,057.969 seconds with `CC`,
 `CXX`, `CPP`, `HOSTCC`, `HOSTCXX`, `ASM`, `AS`, `LD`, `AR`, `NM`, and

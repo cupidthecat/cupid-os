@@ -1530,14 +1530,14 @@ cohort and a host-selected checked seed for the manifest verifier.
 The first attempt at the audit stopped after 65.183 seconds because the test
 still locked the old artifact-size recipe. The audit and its test now require
 one `$(ARTIFACT_SIZE_CONTRACT)` command that captures both seed roles.
-`make bootstrap-audit` passed in 71.299 seconds, and
-`make check-bootstrap-audit` passed in 72.051 seconds. The active-source digest
+`make bootstrap-audit` passed in about 115 seconds, and
+`make check-bootstrap-audit` passed in 122.30 seconds. The active-source digest
 is
-`6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
-The 2,700,372-byte JSON report has SHA-256
-`98adc224910ec61661878fde98ddb335073a0c8e95779b4765c34ebf39499bce`.
+`a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
+The 2,700,638-byte JSON report has SHA-256
+`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`.
 The 12,502-byte Markdown summary has SHA-256
-`094200553d690746387801ffd42ed970b1c0ba13a2ac24ad14ed9ed4ea73db70`.
+`015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 
 The private in-kernel CupidC compiler
 still handles embedded runtime compilation. The checked user compiler creates

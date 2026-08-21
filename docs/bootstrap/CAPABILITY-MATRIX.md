@@ -14,14 +14,14 @@ and an explicit i386 ILP32/cdecl/ELF32 contract. The language split is 31
 assembly files, 297 C headers, and 411 Cupid C files. No ordinary C
 translation unit remains in a supported root. Lexical counts are discovery
 evidence; semantic completion still requires focused compiler and assembler
-tests. `make bootstrap-audit` passed in 71.299 seconds, and
-`make check-bootstrap-audit` passed in 72.051 seconds. The final active-source
+tests. `make bootstrap-audit` passed in about 115 seconds, and
+`make check-bootstrap-audit` passed in 122.30 seconds. The current active-source
 digest is
-`6ebbbbf7e10e349ba703fc335e87ba5ba40f241d477155f879f2b86b879efd22`.
-The 2,700,372-byte JSON has SHA-256
-`98adc224910ec61661878fde98ddb335073a0c8e95779b4765c34ebf39499bce`,
+`a1e0c3d59e837106b2f6144a99cab695206ad040049bbeb6923d52c0d22d2c76`.
+The 2,700,638-byte JSON has SHA-256
+`8d59f11539f6afe6593bbf695a7337c018c024a257ed77c197252729b6a93310`,
 and the 12,502-byte Markdown summary has SHA-256
-`094200553d690746387801ffd42ed970b1c0ba13a2ac24ad14ed9ed4ea73db70`.
+`015f73e920f1a01bae32305ab6d99bfaa741e2252b86243cb1bc89182af92fa2`.
 
 The `c_source_ownership` audit contract enforces the source suffix at the
 checked graph boundary. An active tracked `.c` source may remain host-owned,
@@ -1094,8 +1094,8 @@ The current source graph records 452 transforms across the three supported
 roots and 443 under root `all`. Its tool participation totals are Python 452,
 CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis six. Four
 transforms run Cupid-built semantic contracts. It retains the 5/19/18 Linux
-fixed-point matrix. The final post-CTXT audit generated in 71.299 seconds, and
-deterministic check mode passed in 72.051 seconds.
+fixed-point matrix. The source-current audit generated in about 115 seconds,
+and deterministic check mode passed in 122.30 seconds.
 
 A poisoned-host normal `make -j2` passed in 1,057.969 seconds with all eleven
 host code-generation variables pointed at invalid commands. That historical
