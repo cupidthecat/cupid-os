@@ -31,11 +31,11 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1470 |
 | `cupid_c_browser_fragment` | 22 | 15958 |
-| `cupid_c_program` | 108 | 20196 |
+| `cupid_c_program` | 108 | 20264 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 7141 |
-| `cupidc` | 8 | 18376 |
-| `cupiddis` | 5 | 4064 |
+| `cupidc` | 8 | 18547 |
+| `cupiddis` | 5 | 4257 |
 | `doom_port` | 7 | 3986 |
 | `driver` | 22 | 3861 |
 | `generated_install_table` | 3 | 0 |
@@ -56,7 +56,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3527 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 25 | 166167 |
+| `toolchain_contract` | 25 | 166666 |
 | `toolchain_core` | 39 | 89332 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
@@ -99,24 +99,24 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 926 |
 | `asm.relocation` | 1 | 34 |
-| `c.control` | 12 | 86084 |
+| `c.control` | 12 | 86278 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3909 |
-| `c.expression` | 2 | 6270 |
+| `c.declarator` | 4 | 3913 |
+| `c.expression` | 2 | 6310 |
 | `c.extension` | 19 | 428 |
 | `c.initializer` | 1 | 691 |
-| `c.preprocessor` | 18 | 7115 |
-| `c.qualifier` | 2 | 16442 |
-| `c.storage` | 4 | 10546 |
-| `c.type` | 15 | 54571 |
-| `cupid_c.declaration` | 1 | 2 |
+| `c.preprocessor` | 18 | 7119 |
+| `c.qualifier` | 2 | 16478 |
+| `c.storage` | 4 | 10570 |
+| `c.type` | 15 | 54669 |
+| `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
 | `cupid_c.output` | 1 | 246 |
 | `cupid_c.storage` | 2 | 487 |
-| `cupid_c.type` | 12 | 245 |
+| `cupid_c.type` | 12 | 255 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
 
