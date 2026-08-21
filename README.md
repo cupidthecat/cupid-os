@@ -645,11 +645,16 @@ CupidObj, and CupidDis own every OS link, object or binary transformation, and
 kernel-symbol read. GCC, Clang, NASM, `objcopy`, and `nm` do not produce a
 normal image artifact.
 
-Python 3 and GNU Make orchestrate the build. QEMU is needed only to run the
-image or execute emulator tests. The normal Linux build requirements are:
+Python 3 and GNU Make orchestrate the normal image build. On Linux, install:
 
 ```bash
-sudo apt-get install python3 make qemu-system-x86
+sudo apt-get install python3 make
+```
+
+Install QEMU separately to boot the image or run emulator tests:
+
+```bash
+sudo apt-get install qemu-system-x86
 ```
 
 A host C toolchain is needed only for explicit native Toolchain commands and
@@ -659,11 +664,23 @@ comparison oracles. Install those optional tools separately:
 sudo apt-get install gcc gcc-multilib binutils nasm
 ```
 
-On Windows, install GNU Make, Python 3, WSL, and QEMU, then build from
-PowerShell or another native Windows shell:
+On Windows, install GNU Make and Python 3, then build from PowerShell or
+another native Windows shell:
 
 ```powershell
-choco install make python qemu
+choco install make python
+```
+
+Install QEMU to boot the image or run emulator tests:
+
+```powershell
+choco install qemu
+```
+
+Install WSL only for Linux fixed-point reconstruction and the static Linux
+Toolchain contract paths, including `CUPMAN3` authoring:
+
+```powershell
 wsl --install
 ```
 
@@ -871,7 +888,9 @@ request-boundary seed.
 first seed with the linked-symbol collision checks, and
 [ADR 0243](docs/adr/0243-promote-profile-manifest-toolchain-seed.md)
 records an earlier checked seed. [ADR 0280](docs/adr/0280-promote-the-clean-stage-four-linux-seed.md)
-records the current seed.
+and [ADR 0292](docs/adr/0292-promote-strict-relocation-production-seeds.md)
+record later preceding seeds. [ADR 0305](docs/adr/0305-promote-and-adopt-local-relative-target-checks.md)
+records the current Linux and Windows seeds.
 
 Checked-seed CupidObj now owns the normal `ksyms-source` generation step. It
 turns canonical CupidDis symbol text into the exact packed kernel-symbol `.cc`
@@ -2621,9 +2640,10 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 
 ## 2026-08-14 self-hosting checkpoint
 
-The [settled source checkpoint](#2026-08-20-settled-source-checkpoint) records
-the three current slices, completed Toolchain publication, and remaining final
-gates. Earlier build, artifact, and guest identities remain historical. The
+The [source-current checkpoint](#2026-08-21-source-current-checkpoint) records
+the completed source slices, schema v3 Toolchain publication, final post-CTXT
+audit, fully poisoned build, and strong private guest frontier. Earlier build,
+artifact, and guest identities remain historical. The
 source graph contains 739 language
 inputs, 452 transforms, and 255 feature requirements.
 The checked Linux and Windows seeds bind revision

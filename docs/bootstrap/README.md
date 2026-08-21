@@ -1803,8 +1803,8 @@ the pre-transfer files and the oracle exactly:
 The private five-tool bootstrap reached a fixed point with the 392,688-byte
 CupidObj image. ADR 0201 records the operation, ADR 0204 records production
 ownership, and ADR 0206 records the linked-symbol contract. ADR 0208 records
-the earlier x87 seed carriage, ADR 0243 records an earlier seed, and ADR 0280
-records the current seed.
+the earlier x87 seed carriage. ADRs 0243 and 0280 record preceding seeds, and
+ADR 0305 records the current seed.
 
 The active-source audit classifies all three recipes as
 `generate_install_source` with `cupid_object` and `host_python`. Its exact
@@ -2945,8 +2945,8 @@ boundary, ADR 0208 records its seed carriage, ADR 0226 records SHRD, and ADR
 0228 records SHRD's first seed carriage. ADR 0243 records the preceding seed,
 ADR 0252 records the x87 integer forms, ADR 0258 records the preceding seed,
 ADR 0259 records the parity predicates, ADR 0265 records their preceding
-checked-seed carriage, ADR 0280 records the preceding seed, and ADR 0292
-records the current seed.
+checked-seed carriage, ADRs 0280 and 0292 record later preceding seeds, and ADR
+0305 records the current seed.
 
 ADR 0196 supersedes that paragraph's hosted-contract ownership sentence. The
 normal Toolchain contracts are now built by the checked i386 CupidC and
