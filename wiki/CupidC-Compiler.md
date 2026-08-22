@@ -158,8 +158,8 @@ The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
 The full GUI module passes all 126 tests in 1.368 seconds. A focused four-vCPU
 QEMU boot observes the callback-field marker, `PASS feature14_simd`, and clean
-in-OS CupidC JIT completion. Its 31,169-byte log has SHA-256
-`2e017f66b3acce65a67e722a022054d469087d926382709b9042062e4cb6c265`.
+in-OS CupidC JIT completion. Its 33,347-byte log has SHA-256
+`14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
 The standalone CupidC seeds do not contain this private parser. No normal AOT
 source needs the syntax yet; the active use remains the in-OS feature-14 JIT
 smoke.
@@ -340,11 +340,13 @@ data patch and provisional signature back with the rest of the program.
 Conditional callback expressions, raw callback fields, callback arrays,
 block-static callbacks, direct postfix field calls, and raw method parameters
 remain unsupported. The raw
-signature pool accepts 32 distinct parameter signatures. A 33rd distinct
+signature pool accepts 32 distinct parameter signatures. Runtime initialization
+and assignment accept `&(function)` and nested grouping. A 33rd distinct
 signature receives `too many raw function-pointer signatures`, and a valid
 retry compiles and runs in the same state. The private callback ABI module
-passes all 272 tests in 52.354 seconds. ADR 0315 records the raw boundary, and
-ADR 0321 records the typedef-backed field boundary.
+passes all 273 tests in 48.557 seconds. ADR 0315 records the raw boundary, ADR
+0321 records the typedef-backed field boundary, and ADR 0324 records grouped
+runtime addresses.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations
@@ -1201,7 +1203,7 @@ caller's control; the publisher has no destination lock or directory pin.
 The checked seed now carries CupidObj's bounded `iso-fixture` operation. Its
 hosted command reproduces the exact 61,440-byte repository image from the
 manifest and typed logical inventory. Both rebuilt stages exercise the command
-and its preserved-output failure in the 5/21/20 behavior matrix. ADR 0239
+and its preserved-output failure in the 5/22/21 behavior matrix. ADR 0239
 records the source capability, and ADR 0240 records the promotion. The normal
 ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records
@@ -1583,19 +1585,19 @@ provenance, Linux parent link, exact five-tool inventory, and observed sizes
 and digests. The focused semantic-contract, checked-runner, and
 independent-policy modules contain 22, 16, and 13 tests, for 51 total. They
 pass with four existing platform-specific skips. The source-head artifact
-contract later passed twice against all fourteen exact artifacts. The pass-one
-ELF is 9,375,284 bytes with SHA-256
-`e327be0ef1dea805ba870ab78a729b4487b6d34a44a573fcb9ad8434be1eb5bb`.
-The final ELF is 9,502,260 bytes with SHA-256
-`cb72659d402882ee4e3ddc4bef545714e89b61297903134ef8a19c32e435247a`.
-The raw kernel is 9,280,616 bytes with SHA-256
-`152d639af328336dd887825fffcb0ea038fa970b3a2b0d971bddd7ec1f6db4b5`.
+contract passes against all fourteen exact artifacts. The pass-one ELF is
+9,379,380 bytes with SHA-256
+`c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1`.
+The final ELF is 9,506,356 bytes with SHA-256
+`2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f`.
+The raw kernel is 9,281,656 bytes with SHA-256
+`f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad`.
 The disk image is 209,715,200 bytes with SHA-256
-`2bdcfa1d9bf0334d287a1d982a2c0ef0ab8372bb9e07cd02e3e4f4e8a62825cf`.
+`35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0`.
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The Linux
-audit records 20 failure groups, five help groups, and 21 success groups. The
-Windows audit records eight failure groups, five help groups, and seven success
+audit records 21 failure groups, five help groups, and 22 success groups. The
+Windows audit records nine failure groups, five help groups, and eight success
 groups.
 
 The private in-kernel CupidC compiler

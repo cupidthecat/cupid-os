@@ -1219,7 +1219,7 @@ Checked-seed CupidObj also accepts `iso-fixture`. The core consumes an ASCII
 manifest and a typed list of logical directories and loaded files, then writes
 the complete deterministic ECMA-119 and Rock Ridge fixture. Its output matches
 the tracked 61,440-byte image exactly. The fixed-point gate exercises the
-command and its rollback path in the 5/21/20 behavior matrix. The normal
+command and its rollback path in the 5/22/21 behavior matrix. The normal
 recipe now runs that checked command first on frozen ordinal file snapshots.
 Python compares an independent render, rechecks live state, and publishes
 under a per-output lock. ADR 0239 records the source boundary, ADR 0240 records
@@ -1229,7 +1229,7 @@ Checked-seed CupidObj also accepts `profile-manifest`. The command reads one
 bounded CUPROF1 snapshot containing the two Doom profile memberships and the
 exact bytes of all 291 captured headers. It checks portable path identity,
 computes SHA-256 internally, sorts the logical sets, and writes the canonical
-69,366-byte JSON. The current promoted seed passes a 5/21/20
+69,366-byte JSON. The current promoted seed passes a 5/22/21
 behavior matrix with padding, repeated-block, unsafe-path, case-collision,
 rollback, and recovery coverage. The checked seed carries this command, and
 the normal recipe passes that seed manifest. The wrapper derives the
@@ -1260,7 +1260,7 @@ KiB strict-decode case completed within its 30-second limit. The Windows
 runtime printed the exact success marker and returned 37. ADR 0266 records
 indexed decoding, and ADR 0265
 records that transition and promotion. ADRs 0280, 0281, 0292, and 0312 record
-preceding seeds, and ADR 0318 records the current Linux and Windows seeds. The first
+preceding seeds, and ADR 0318 records the preceding linked-image seeds, and ADR 0323 records the current code-anchor seeds. The first
 separate gate covered 427 audited root objects and two kernel ELFs. Its
 9,028-byte, 429-path manifest had SHA-256
 48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e,
@@ -1783,12 +1783,14 @@ retain their parsed signatures. The file objects use the same initialized-data,
 assignment, call, and null rules. The parameters use the same cdecl slot and
 arity checks. The private pool accepts 32 distinct raw signatures and recovers
 after rejecting the next one. A direct function address uses the same signature
-check as a plain function designator. Conditional callback initializers, raw
+check as a plain function designator. Runtime initialization and assignment
+accept &(function) and nested grouping. Conditional callback initializers, raw
 callback fields, callback arrays, block-static callbacks, direct postfix field
 calls, and raw method parameters remain unsupported. ADR 0315 records the raw
-boundary, ADR 0319 records explicit function addresses, and ADR 0321 records
-typedef-backed record and class fields.
-The private callback ABI module passes all 272 tests in 52.354 seconds.
+boundary, ADR 0319 records explicit function addresses, ADR 0321 records
+typedef-backed record and class fields, and ADR 0324 records grouped runtime
+addresses.
+The private callback ABI module passes all 273 tests in 48.557 seconds.
 The checked Linux and Windows CupidC seeds do not contain this private parser.
 The active runtime proof remains the feature-14 JIT smoke; no normal AOT source
 requires the syntax yet.

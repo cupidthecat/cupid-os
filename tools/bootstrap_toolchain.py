@@ -291,6 +291,20 @@ class ToolRunner:
             return self._wsl_path(Path(argument))
         return argument
 
+    def display_argument(
+        self, executable: Path, argument: str | Path
+    ) -> str:
+        """Render an argument as the selected tool receives it."""
+        try:
+            signature = executable.read_bytes()[:4]
+        except OSError as error:
+            raise BootstrapError(
+                f"cannot read checked tool {executable}: {error}"
+            ) from error
+        if os.name == "nt" and signature == b"\x7fELF":
+            return self._wsl_argument(argument)
+        return str(argument)
+
     def run(
         self,
         executable: Path,
@@ -3227,11 +3241,17 @@ def _check_executable_code_anchor_behavior(
         1,
         f"{label_prefix}CupidDis invalid executable code anchor",
     )
+    invalid_display_path = runner.display_argument(
+        stage_two.tools["cupiddis"], invalid_executable
+    )
+    expected_invalid_stderr = (
+        f"cupiddis: {invalid_display_path}: code anchor check failed: "
+        "1 of 3 code anchors invalid (0 outside file-backed executable "
+        "code, 1 mid-instruction)\n"
+    )
     if (
         invalid_result.stdout
-        or "code anchor check failed" not in invalid_result.stderr
-        or "1 of 3 code anchors invalid" not in invalid_result.stderr
-        or "1 mid-instruction" not in invalid_result.stderr
+        or invalid_result.stderr != expected_invalid_stderr
     ):
         raise BootstrapError(
             f"{label_prefix}CupidDis invalid code anchor output differs"

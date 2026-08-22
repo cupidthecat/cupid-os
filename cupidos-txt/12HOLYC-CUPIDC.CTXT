@@ -372,8 +372,8 @@ assignment, indirect call, and clearing. A defined function address is written
 into initialized data, while a later definition receives an absolute data
 patch. A direct &function address uses the same signature check, data write or
 patch, automatic initialization, and checked assignment as the plain function
-designator. Parentheses may surround the address or its function name. JIT and
-private AOT calls use the retained signatures. A structure or class field
+designator. Runtime initialization and assignment accept &(function) and
+nested grouping. JIT and private AOT calls use the retained signatures. A structure or class field
 declared directly with the typedef keeps the signature for checked stores,
 copies into named callbacks, null checks, and clearing. Direct members, nested
 records, and indexed record arrays share that path. Empty (), raw callback
@@ -385,8 +385,9 @@ parsed signature without a typedef. The file object uses the same data write or
 patch, and the parameter uses the same cdecl slot and arity checks. The private
 pool accepts 32 distinct raw signatures and recovers after rejecting the next
 one. ADR 0315 records the raw forms, and ADR 0319 records direct explicit
-function addresses. ADR 0321 records typedef-backed record and class fields.
-The private callback ABI module passes all 272 tests in 52.354 seconds.
+function addresses. ADR 0321 records typedef-backed record and class fields,
+and ADR 0324 records grouped runtime addresses.
+The private callback ABI module passes all 273 tests in 48.557 seconds.
 Feature 13
 retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
 nested pass-by-value vector

@@ -45,10 +45,13 @@ typed automatic object, clear the field, and make the typed indirect call.
 Negative cases reject a mismatched result, mismatched record-pointer
 parameter, and compound field assignment. Every case retries in the same
 compiler state and executes a valid record-field copy. The complete private
-callback ABI module passes all 272 tests in 52.354 seconds. The GUI terminal
-smoke module passes all 126 tests in 1.368 seconds with the new guest marker
-contract present. These are host and JIT/AOT results. A real QEMU observation
-of the field marker is still pending.
+callback ABI module passes all 273 tests in 48.557 seconds. The GUI terminal
+smoke module passes all 126 tests in 1.368 seconds with the guest marker
+contract present. A focused four-vCPU QEMU boot prints
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`,
+then completes the feature-14 run and the in-OS CupidC JIT. Its 31,349-byte log
+has SHA-256
+`f381ca71fe6331e078e0f641c7f4509e1a945feee8b3d6f566b2a1442a98f5b2`.
 
 ## Rejected alternatives
 

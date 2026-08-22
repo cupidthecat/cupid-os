@@ -429,17 +429,22 @@ signature pool accepts 32 distinct entries and recovers after rejecting the
 next one. ADR 0315 records this boundary.
 A direct function address follows the same typed path as the plain function
 designator, and a typedef-backed record or class field retains its signature.
-ADR 0319 records explicit function addresses, while ADR 0321 records the field
-boundary.
+Runtime initialization and assignment accept `&(function)` and nested
+grouping. ADR 0319 records explicit function addresses, ADR 0321 records the
+field boundary, and ADR 0324 records grouped runtime addresses.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
 The full GUI module passes all 126 tests in 1.368 seconds. Its host contract
-requires the callback-field marker, but a real QEMU observation of that marker
-is still pending. The standalone CupidC seeds do not contain this private
-parser. No normal AOT input needs the syntax yet.
+requires the callback-field marker. A focused four-vCPU QEMU boot observes
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`,
+then `PASS feature14_simd` and clean in-OS CupidC JIT completion. Its
+33,347-byte log has SHA-256
+`14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
+The standalone CupidC seeds do not contain this private parser. No normal AOT
+input needs the syntax yet.
 
 Private decimal `float` and `double` literals use a fixed 1536-bit integer
 workspace. The converter forms the exact decimal ratio and rounds once to the

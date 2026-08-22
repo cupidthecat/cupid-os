@@ -248,8 +248,8 @@ displacement can still pass if it reaches a different valid
 instruction start in same-mode code, because raw decoding does not preserve
 source-label identity. ADR 0300 records this boundary.
 ADR 0305 records raw-image carriage. ADR 0312 records the relocatable-object
-promotion and production adoption. ADR 0318 records the current linked-image
-promotion.
+promotion and production adoption. ADR 0318 records the preceding linked-image
+promotion, and ADR 0323 records the current code-anchor promotion.
 
 CupidDis can apply the same explicit option to a static ELF32
 relocatable object:
@@ -459,8 +459,8 @@ and passed a 1,061.3-second reproof with every initial seed comparison true.
 ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
 0272 records checked carriage and production selection, and ADRs 0278 and 0279
 record native reconstruction and convergence. ADRs 0280, 0281, and 0292
-record preceding Linux and Windows promotions. ADR 0318 records the current
-promotion.
+record preceding Linux and Windows promotions. ADR 0318 records the preceding linked-image
+promotion, and ADR 0323 records the current code-anchor promotion.
 
 ### Function Example
 
@@ -588,7 +588,7 @@ SHRD's first seed carriage. ADR 0243 records the preceding seed, ADR 0252
 records the x87 integer forms, ADR 0258 records the preceding promotion, ADR
 0259 records the parity predicates, ADR 0265 records their preceding seed
 carriage, and ADRs 0280 and 0292 record preceding seeds. ADR 0305 records raw
-local-target carriage, and ADR 0312 records the preceding local-target seed, and ADR 0318 records the current seed.
+local-target carriage, and ADR 0312 records the preceding local-target seed, and ADR 0318 records the preceding linked-image seed, and ADR 0323 records the current code-anchor seed.
 
 `setp` and `setnp` accept one byte register or memory destination in either
 mode. They encode as `0F 9A /r` and `0F 9B /r`. Address-size overrides work

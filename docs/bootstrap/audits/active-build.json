@@ -46066,7 +46066,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 40565
+      "occurrences": 40566
     },
     {
       "category": "control",
@@ -46439,7 +46439,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 24948
+      "occurrences": 24949
     },
     {
       "category": "control",
@@ -46826,7 +46826,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2871
+      "occurrences": 2873
     },
     {
       "category": "declaration",
@@ -52250,7 +52250,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 23553
+      "occurrences": 23554
     },
     {
       "category": "type",
@@ -54711,7 +54711,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "5f46a0d769636d598c258ca0332fb6d993e7ca934c3bec72678835c4be6700ea",
+    "active_source_digest": "14eda56fed6848371d8d76e38025757575ed8c62fa081ee060f94224bfa8a12a",
     "control_files": [
       {
         "path": "Makefile",
@@ -54739,7 +54739,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "638e55c19b2fe0fbfeacdf16d540c04578e4bef1241e681bac7a5839b3bc5b9f"
+        "sha256": "185dba05e3dd3e1653f05caead3f0aef8b5ced80c91d069ea7cb820b860b221c"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -54764,7 +54764,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "764896f5f7df6a7dacf97c89908fe88b3b263ab40b1eafc7d0848a01ea6c8bff"
+      "sha256": "732ac31d881d8be49326fa24a1d31361129cb2741f335e63ebb13994a9ea9e8b"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -75513,12 +75513,12 @@
         "kernel/lang/cupidc.h"
       ],
       "language": "cupid_c",
-      "lines": 12465,
+      "lines": 12475,
       "origin": "tracked",
       "path": "kernel/lang/cupidc_parse.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ca913be6004c0574fd8cb330064638568772edf6d2ae54e582f9ada357e57aff"
+      "sha256": "ba5aa14a17c4407ba94337eec5f31a10634e7b14b6b2f201df8f81815574d912"
     },
     {
       "build_owners": [

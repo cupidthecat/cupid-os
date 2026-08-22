@@ -29840,3 +29840,136 @@ five tools.
 The final `make bootstrap-audit` and `make check-bootstrap-audit` runs passed.
 All 106 `tests.test_build_graph_audit` cases then passed in 951.841 seconds,
 including the mutations that remove linked-target or code-anchor validation.
+
+## 2026-08-22: accept grouped runtime function addresses
+
+The final review found that private CupidC accepted grouped function addresses
+in static callback data but still rejected the same spelling in a runtime
+expression. The first focused run reproduced the problem in JIT, AOT, and
+same-state recovery: each `&(target)` form stopped at `expected variable after
+&`.
+
+The runtime address parser now accepts one or more balanced parentheses around
+a direct identifier after `&`. Functions keep the existing callable signature
+and forward-address patch path. Direct object names use the same grouping rule,
+while member and indexed designators keep their existing ungrouped paths. The
+positive contract initializes a callback with `&(ready_target)`, reassigns it
+with `&((later_target))`, calls both functions in JIT and AOT, and also reads a
+local object through `&(marker)`. The negative contract rejects a grouped
+function with the wrong result type, restores the compiler state, then compiles
+and runs `&(right)` successfully. ADR 0324 records the boundary.
+
+The complete private callback ABI module passes all 273 tests in 48.557
+seconds. The documentation now uses that result and completed callback-field
+QEMU evidence instead of the earlier pending statement.
+
+The same review found current-state records that still described the
+pre-promotion CupidDis boundary. The host inventory, capability matrix, domain
+context, OS manuals, and wiki now agree that both promoted seeds carry the
+21/5/22 Linux and 9/5/8 Windows matrices and that the normal kernel publisher
+selects static code-anchor validation. The build-graph audit now calls its
+three related helpers linked-code policies instead of treating the code-anchor
+rule as a local-target check. Its focused fail-closed mutation test passes in
+147.863 seconds.
+
+CupidDis CLI contracts now compare the complete stable code-anchor diagnostic.
+The fixed-point bootstrap does the same after converting the input path at the
+active host boundary. The focused CLI contract passes in 4.232 seconds, and
+the three checked-seed carriage and source-shape tests pass in 1.662 seconds.
+
+The first complete `make -j4 all` compiled the active kernel and all 83 Doom
+roots, then passed the combined 431-input broad, linked-target, and code-anchor
+gate. It stopped only at the exact-size contract, which measured the three
+changed kernel artifacts. The policy was updated to those source-consistent
+sizes. The repeated build passed all fourteen exact artifact checks, preserved
+the existing FAT contents, staged the deterministic ISO, and published the
+image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,379,380 | `4ed00a6edd76387f2f78db649579725ae98bd8bbfc78ba9e03d3718112f8419c` |
+| `kernel/kernel.elf` | 9,506,356 | `9061668392ef3edb943b4db57bcac03bd65381eef4fcd24fda9da3cc6eb7c0f5` |
+| `kernel/kernel.bin` | 9,281,608 | `e26842d6efe8c33b8316032671e57edec0af64169010c43d02ae201cc024b728` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `4f0f7a0cdffd851ea4878ab79e4d9831a76f3c558e453de9e96b78bbc4d90621` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `d34f0041966935685f90d4da10af1d954e87998185bcd436416c5cbcb4eaa0b5` |
+
+A focused four-vCPU QEMU smoke then ran `/bin/feature14_simd.cc` against a
+private copy of that exact image. It observed the callback-field marker at
+serial line 609, `PASS feature14_simd` at line 612, and clean CupidC JIT
+completion at line 613. The 31,349-byte
+`build/bootstrap/feature14-grouped-address-qemu.log` has SHA-256
+`f381ca71fe6331e078e0f641c7f4509e1a945feee8b3d6f566b2a1442a98f5b2`.
+The source image remained unchanged.
+
+### Final review closure and source-head evidence
+
+The Standards review exposed one host-boundary mistake in the exact diagnostic
+check. The helper converted the invalid ELF path to WSL spelling whenever the
+runner supported WSL, even when the selected CupidDis image was a native PE
+executable. A new test first failed on that behavior. `ToolRunner` now chooses
+the displayed argument from the actual executable signature: ELF tools receive
+the WSL path on Windows, while PE tools retain the native path. The four focused
+code-anchor and native-PE diagnostic tests pass in 1.842 seconds. The Spec
+review and the final Standards re-review report no remaining finding.
+
+The settled host results are:
+
+- The private callback ABI module passes all 273 tests in 64.172 seconds.
+- The CupidDis CLI module passes 27 tests in 7.297 seconds, with one expected
+  platform-specific skip.
+- The GUI smoke and direct manifest modules pass all 166 tests in 70.019
+  seconds.
+- The complete source-head bootstrap-seed module passes all 99 tests in
+  3,377.405 seconds.
+
+The full `make -C toolchain all` transaction also passes. Stages three and four
+compile and link all 17 contract executables, the hosted runtime contract runs,
+and live inputs still match the frozen source. The Cupid-built manifest author
+and the independent Python oracle agree on all 58 stage pairs. The complete
+21-artifact cohort publishes atomically, and the final verifier reports
+`Cupid Toolchain manifest: ok (21 artifacts)`. The 27,071-byte manifest has
+SHA-256
+`d5bd5e3b65259d13725cb894adc2f7b83997b3aa68b8c2815e684813a9504f3a`.
+
+The first build after the closing documentation update passed the 431-input
+code gate, then stopped safely because `kernel/kernel.bin` measured 9,281,656
+bytes against the previous 9,281,608-byte exact row. Only that measured policy
+row changed. The next complete build compiled the active kernel and all 83 Doom
+roots, passed all fourteen exact artifact checks, preserved the existing FAT
+contents, staged the deterministic ISO, and published this cohort:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,379,380 | `c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1` |
+| `kernel/kernel.elf` | 9,506,356 | `2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f` |
+| `kernel/kernel.bin` | 9,281,656 | `f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0` |
+| `bootstrap/artifact-size-policy.json` | 2,962 | `51d6847a6348c6a26deea579988ed854a816c8f64ab3e3cd17121cfd72b20a09` |
+
+The final private-image QEMU run used four `max` i386 CPUs and executed
+`/bin/feature14_simd.cc`. CPUs 1 through 3 came online, giving four active CPUs.
+The callback-field marker appears at serial line 653, the overall feature pass
+at line 656, and clean CupidC JIT completion at line 657. The 33,347-byte
+`build/bootstrap/feature14-grouped-address-qemu-final.log` has SHA-256
+`14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
+The private run did not alter `cupidos.img`.
+
+`make bootstrap-audit` regenerated the checked records, and
+`make check-bootstrap-audit` reproduced them exactly. The final audit records
+739 active inputs, 452 transforms, 255 feature requirements, and 25 accounted
+unreachable source-like files. Its JSON is 2,700,842 bytes with SHA-256
+`aa9a75e8821556f50e64e63c39809f331d2e2a5cac8da2b3074431556ef9fcb2`.
+All 106 build-graph audit tests pass in 949.607 seconds, including mutations
+that remove linked-target or code-anchor validation.
+
+The suffix audit still finds 17 tracked, non-TempleOS `.c` files. They are
+dormant historical copies, test contracts, or host oracles; none is one of the
+240 normal image translations already owned as `.cc`. Renaming those files now
+would claim bootstrap ownership they do not have, so no suffix-only rename was
+made. `TempleOS/` remains untouched reference material.

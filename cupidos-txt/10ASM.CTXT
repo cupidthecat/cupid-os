@@ -414,7 +414,7 @@ Windows validates and runs the image, checks its exact stdout and empty stderr,
 and requires exit 37. The validator checks the fixed stack and heap fields,
 reconstructs the exact .idata layout, and
 the report retains both object and image pairs plus the observed Windows
-result. The promoted Linux seed carries the 5/21/20 behavior matrix and this
+result. The promoted Linux seed carries the 5/22/21 behavior matrix and this
 command.
 
 Checked-seed CupidLD uses an adjacent candidate created with exclusive-create
@@ -787,9 +787,10 @@ previous raw kernel. The current publication and CUPMAN2 evidence are recorded
 in the overview above.
 Exact seed identities remain in the host bootstrap log.
 
-Source head also carries the static ELF code-anchor rule for entry and defined
-function symbols. It is not a checked-seed or production rule yet. Minimal
-DWARF source information remains separate work.
+Both checked seeds carry the static ELF code-anchor rule for entry and defined
+function symbols. The normal kernel publisher applies it to the pass-one and
+final ELFs before CupidObj flattening. Minimal DWARF source information remains
+separate work.
 >endtree
 
 >h2 See Also

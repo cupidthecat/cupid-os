@@ -4811,7 +4811,11 @@ static void cc_parse_primary(cc_state_t *cc) {
   }
 
   case CC_TOK_AMP: {
-    /* Address-of: &var, &record.field, or &pointer->field. */
+    /* Address-of: grouped direct designators, &var, &record.field, or
+     * &pointer->field. */
+    int grouping_depth = 0;
+    while (cc_match(cc, CC_TOK_LPAREN))
+      grouping_depth++;
     cc_token_t id = cc_next(cc);
     if (id.type != CC_TOK_IDENT) {
       cc_error(cc, "expected variable after &");
@@ -4822,6 +4826,12 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_error(cc, "undefined variable for &");
       return;
     }
+    while (grouping_depth > 0) {
+      cc_expect(cc, CC_TOK_RPAREN);
+      grouping_depth--;
+    }
+    if (cc->error)
+      return;
     if (sym->kind == SYM_FUNC || sym->kind == SYM_KERNEL) {
       (void)cc_emit_function_address_value(cc, sym);
       cc_last_expr_struct_index = sym->struct_index;

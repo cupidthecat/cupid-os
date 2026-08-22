@@ -752,9 +752,13 @@ The four-vCPU raw callback QEMU smoke passes with
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
 The full GUI module passes all 126 tests in 1.368 seconds. Its host contract
-requires the callback-field marker, but a real QEMU observation of that marker
-is still pending. The standalone CupidC seeds do not contain this private
-parser. No normal AOT input needs the syntax yet.
+requires the callback-field marker. A focused four-vCPU QEMU boot observes
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`,
+then `PASS feature14_simd` and clean in-OS CupidC JIT completion. Its
+33,347-byte log has SHA-256
+`14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
+The standalone CupidC seeds do not contain this private parser. No normal AOT
+input needs the syntax yet.
 [ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records the callback and one-header AOT boundaries.
 [ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
@@ -765,7 +769,9 @@ records automatic objects and Cupid class method parameters.
 records static callback initialization for private JIT and fixed-address AOT
 data.
 [ADR 0319](../docs/adr/0319-retain-explicit-function-addresses-in-private-callbacks.md)
-records direct explicit function addresses.
+records direct explicit function addresses. Runtime initialization and
+assignment accept `&(function)` and nested grouping; ADR 0324 records that
+runtime boundary.
 [ADR 0321](../docs/adr/0321-retain-typedef-callback-signatures-on-private-record-fields.md)
 records typedef-backed record and class fields.
 
@@ -797,15 +803,14 @@ the final ELF is 9,472,440 bytes with SHA-256
 the raw kernel is 9,251,100 bytes with SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
-The source-head artifact contract later passed twice against all fourteen
-exact artifacts.
+The source-head artifact contract passes against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,375,284 | `e327be0ef1dea805ba870ab78a729b4487b6d34a44a573fcb9ad8434be1eb5bb` |
-| `kernel/kernel.elf` | 9,502,260 | `cb72659d402882ee4e3ddc4bef545714e89b61297903134ef8a19c32e435247a` |
-| `kernel/kernel.bin` | 9,280,616 | `152d639af328336dd887825fffcb0ea038fa970b3a2b0d971bddd7ec1f6db4b5` |
-| `cupidos.img` | 209,715,200 | `2bdcfa1d9bf0334d287a1d982a2c0ef0ab8372bb9e07cd02e3e4f4e8a62825cf` |
+| `kernel/kernel.elf.pass1` | 9,379,380 | `c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1` |
+| `kernel/kernel.elf` | 9,506,356 | `2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f` |
+| `kernel/kernel.bin` | 9,281,656 | `f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad` |
+| `cupidos.img` | 209,715,200 | `35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0` |
 
 Those output identities are source-head evidence. Both checked seeds now carry
 the same source snapshot, and the normal kernel transaction selects strict

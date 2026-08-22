@@ -237,19 +237,19 @@ manifest and the complete checked Windows seed cohort in one transaction. Its
 parent digest, and five regular-file size and digest observations. The contract
 validates the Windows target, provenance, exact inventory, and observed bytes.
 The focused modules contain 22, 16, and 13 tests, for 51 total. They pass with
-four existing platform-specific skips. The source-head artifact contract later
-passed twice against all fourteen exact artifacts.
+four existing platform-specific skips. The source-head artifact contract passes
+against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,375,284 | `e327be0ef1dea805ba870ab78a729b4487b6d34a44a573fcb9ad8434be1eb5bb` |
-| `kernel/kernel.elf` | 9,502,260 | `cb72659d402882ee4e3ddc4bef545714e89b61297903134ef8a19c32e435247a` |
-| `kernel/kernel.bin` | 9,280,616 | `152d639af328336dd887825fffcb0ea038fa970b3a2b0d971bddd7ec1f6db4b5` |
-| `cupidos.img` | 209,715,200 | `2bdcfa1d9bf0334d287a1d982a2c0ef0ab8372bb9e07cd02e3e4f4e8a62825cf` |
+| `kernel/kernel.elf.pass1` | 9,379,380 | `c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1` |
+| `kernel/kernel.elf` | 9,506,356 | `2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f` |
+| `kernel/kernel.bin` | 9,281,656 | `f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad` |
+| `cupidos.img` | 209,715,200 | `35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0` |
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
-generated audit records 20 failure groups, five help groups, and 21 success
-groups on Linux. It records eight failure groups, five help groups, and seven
+generated audit records 21 failure groups, five help groups, and 22 success
+groups on Linux. It records nine failure groups, five help groups, and eight
 success groups on Windows.
 
 The exact artifact-size policy covers fourteen paths: four OS artifacts, five
@@ -257,7 +257,8 @@ Linux seed executables, and five Windows seed executables. The wrapper passes
 the captured Linux manifest to the Cupid contract, validates the captured
 Windows manifest and five PE images, and rechecks both trust units before
 success. ADR 0305 established and first carried the fourteen-path closure.
-ADRs 0312 and 0318 carry it on their promoted seeds, with ADR 0318 current.
+ADRs 0312 and 0318 preserve earlier promotions, and ADR 0323 records the
+current seed pair.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260 seconds.
 All fourteen policy artifacts matched their exact sizes. The 2,960-byte policy
@@ -391,7 +392,8 @@ ADR 0312 checkpoint passed all 89 tests in 3,145.502 seconds. The complete
 source-head module later passed all 92 tests in 2,820.626 seconds. Both checked
 seeds now carry that snapshot, and the kernel publisher applies the linked
 local-target and code-anchor rules before flattening. ADR 0323 records the promotion and
-adoption.
+adoption. The current source-head module also covers grouped runtime addresses
+and native Windows diagnostic paths; all 99 tests pass in 3,377.405 seconds.
 
 The earlier dual-NIC four-vCPU evidence predates this seed promotion. Those
 checks passed through SMP, RDRAND, all 62 crypto checks, USB

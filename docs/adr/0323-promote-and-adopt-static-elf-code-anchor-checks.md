@@ -58,6 +58,11 @@ The promoted Windows image is 420,352 bytes with SHA-256
 Direct Linux and native Windows carriage tests accept a valid static image and
 reject an entry point in the middle of an instruction.
 
+The fixed-point behavior gate compares the complete stable failure diagnostic.
+Its expected input path follows the actual tool image: an ELF CupidDis on
+Windows receives a WSL path, while a PE CupidDis receives the native Windows
+path. A focused native-PE helper contract keeps that boundary distinct.
+
 ## Consequences
 
 The normal kernel publication path now rejects linked images whose entry point

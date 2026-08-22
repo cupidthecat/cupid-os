@@ -1148,10 +1148,10 @@ class CupidDisContractTests(unittest.TestCase):
                 result = run(path)
                 self.assertEqual(result.returncode, 1)
                 self.assertEqual(result.stdout, "")
-                self.assertIn(
-                    f"cupiddis: {path}: code anchor check failed: "
-                    f"{diagnostic}",
+                self.assertEqual(
                     result.stderr,
+                    f"cupiddis: {path}: code anchor check failed: "
+                    f"{diagnostic}\n",
                 )
 
         missing_known = subprocess.run(

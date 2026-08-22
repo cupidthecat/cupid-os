@@ -8745,30 +8745,30 @@ def _cupid_toolchain_fixed_point_contract(
             "_run_behavior_checks is not unique"
         )
     behavior_function = behavior_functions[0]
-    local_target_helper_names = (
+    linked_code_policy_helper_names = (
         "_check_relocatable_local_target_behavior",
         "_check_executable_local_target_behavior",
         "_check_executable_code_anchor_behavior",
     )
-    local_target_helper_functions = {
+    linked_code_policy_helper_functions = {
         name: [
             node
             for node in bootstrap_tree.body
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
             and node.name == name
         ]
-        for name in local_target_helper_names
+        for name in linked_code_policy_helper_names
     }
     if any(
         len(functions) != 1
-        for functions in local_target_helper_functions.values()
+        for functions in linked_code_policy_helper_functions.values()
     ):
         raise AuditError(
-            "Cupid Toolchain fixed-point local-target behavior helpers "
+            "Cupid Toolchain fixed-point linked-code policy helpers "
             "differ: all three helpers must be unique"
         )
 
-    def live_local_target_call_count(
+    def live_linked_code_policy_call_count(
         function: ast.FunctionDef | ast.AsyncFunctionDef,
         helper_name: str,
     ) -> int:
@@ -8787,11 +8787,11 @@ def _cupid_toolchain_fixed_point_contract(
         )
 
     if any(
-        live_local_target_call_count(behavior_function, helper_name) != 1
-        for helper_name in local_target_helper_names
+        live_linked_code_policy_call_count(behavior_function, helper_name) != 1
+        for helper_name in linked_code_policy_helper_names
     ):
         raise AuditError(
-            "Cupid Toolchain fixed-point local-target behavior calls "
+            "Cupid Toolchain fixed-point linked-code policy calls "
             "differ: _run_behavior_checks must call all three helpers once"
         )
     behavior_source = (
@@ -11427,11 +11427,14 @@ def _cupid_toolchain_fixed_point_contract(
     if len(behavior_functions) == 1:
         behavior_function = behavior_functions[0]
         if any(
-            live_local_target_call_count(behavior_function, helper_name) != 1
-            for helper_name in local_target_helper_names
+            live_linked_code_policy_call_count(
+                behavior_function, helper_name
+            )
+            != 1
+            for helper_name in linked_code_policy_helper_names
         ):
             raise AuditError(
-                "Cupid Toolchain fixed-point local-target behavior calls "
+                "Cupid Toolchain fixed-point linked-code policy calls "
                 "differ: _run_native_windows_behavior_checks must call all "
                 "three helpers once"
             )

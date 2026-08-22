@@ -6289,13 +6289,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap",
                 "def _check_executable_local_target_behavior(\n",
                 "def _removed_executable_local_target_behavior(\n",
-                r"local-target behavior helpers differ",
+                r"linked-code policy helpers differ",
             ),
             "code-anchor behavior helper disappears": (
                 "bootstrap",
                 "def _check_executable_code_anchor_behavior(\n",
                 "def _removed_executable_code_anchor_behavior(\n",
-                r"local-target behavior helpers differ",
+                r"linked-code policy helpers differ",
             ),
             "Linux linked-target behavior moves under a dead block": (
                 "bootstrap",
@@ -6314,7 +6314,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            behavior_root,\n"
                 '            "",\n'
                 "        )\n",
-                r"local-target behavior calls differ",
+                r"linked-code policy calls differ",
             ),
             "native Windows linked-target behavior moves under a dead block": (
                 "bootstrap",
@@ -6333,7 +6333,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            behavior_root,\n"
                 '            "native Windows ",\n'
                 "        )\n",
-                r"local-target behavior calls differ",
+                r"linked-code policy calls differ",
             ),
             "PE32 import source leaves the frozen closure": (
                 "bootstrap",

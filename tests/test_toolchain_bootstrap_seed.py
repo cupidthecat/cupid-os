@@ -26,6 +26,7 @@ from tools.bootstrap_toolchain import (
     _compare_windows_stages,
     _bootstrap_from_frozen_seed,
     _bootstrap_windows_from_frozen_seed,
+    _check_executable_code_anchor_behavior,
     _code_anchor_executable_payload,
     _local_target_executable_payload,
     _local_target_object_payload,
@@ -83,6 +84,43 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 REPO_ROOT / "unused-bootstrap-output",
                 **{"compare_fixed_point": False},
             )
+
+    def test_code_anchor_diagnostic_uses_native_path_for_pe_tools(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-native-code-anchors-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            stage_two_tool = root / "stage-two-cupiddis.exe"
+            stage_three_tool = root / "stage-three-cupiddis.exe"
+            stage_two_tool.write_bytes(b"MZ")
+            stage_three_tool.write_bytes(b"MZ")
+            stage_two = Stage(
+                objects={}, tools={"cupiddis": stage_two_tool}
+            )
+            stage_three = Stage(
+                objects={}, tools={"cupiddis": stage_three_tool}
+            )
+            invalid = root / "invalid-linked-code-anchors.elf"
+            expected_stderr = (
+                f"cupiddis: {invalid}: code anchor check failed: "
+                "1 of 3 code anchors invalid (0 outside file-backed "
+                "executable code, 1 mid-instruction)\n"
+            )
+            results = (
+                subprocess.CompletedProcess([], 0, "", ""),
+                subprocess.CompletedProcess([], 1, "", expected_stderr),
+            )
+            with mock.patch(
+                "tools.bootstrap_toolchain._run_stage_pair",
+                side_effect=results,
+            ):
+                _check_executable_code_anchor_behavior(
+                    ToolRunner(root),
+                    stage_two,
+                    stage_three,
+                    root,
+                    "native Windows ",
+                )
 
     def _assert_checked_seed_local_relative_target_policy(
         self,
@@ -309,11 +347,17 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(accepted.stderr, "")
             self.assertEqual(rejected.returncode, 1)
             self.assertEqual(rejected.stdout, "")
-            self.assertIn(
-                "1 of 3 code anchors invalid",
-                rejected.stderr,
+            rejected_path = (
+                str(invalid)
+                if native_windows or os.name != "nt"
+                else ToolRunner(REPO_ROOT)._wsl_path(invalid)
             )
-            self.assertIn("1 mid-instruction", rejected.stderr)
+            self.assertEqual(
+                rejected.stderr,
+                f"cupiddis: {rejected_path}: code anchor check failed: "
+                "1 of 3 code anchors invalid (0 outside file-backed "
+                "executable code, 1 mid-instruction)\n",
+            )
 
     @staticmethod
     def _committed_source_inventory(
@@ -3435,8 +3479,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(len(helpers), 1)
         rendered_helper = ast.unparse(helpers[0])
         self.assertIn("'--require-code-anchors'", rendered_helper)
-        self.assertIn("code anchor check failed", rendered_helper)
-        self.assertIn("1 of 3 code anchors invalid", rendered_helper)
+        self.assertIn("expected_invalid_stderr", rendered_helper)
+        self.assertIn(
+            "1 of 3 code anchors invalid (0 outside file-backed executable "
+            "code, 1 mid-instruction)",
+            rendered_helper,
+        )
 
         for function_name in (
             "_run_behavior_checks",

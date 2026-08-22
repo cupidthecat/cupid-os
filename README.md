@@ -73,7 +73,8 @@ clearing, and copies into named callback objects, including fields reached
 through indexed record arrays. A file object may start as `NULL`, a
 compatible function designator, or the direct address of that function. It may
 receive a compatible callback through checked plain assignment, make a typed
-indirect call, and be cleared to null. Defined
+indirect call, and be cleared to null. Runtime initialization and assignment
+accept grouped addresses such as `&(function)` and `&((function))`. Defined
 targets are written into initialized data immediately; later targets use a
 checked data-address patch. JIT and AOT indirect calls keep fixed argument
 conversions, record-pointer identity, arity, variadic state, and supported
@@ -81,7 +82,7 @@ scalar or SIMD results. Program and REPL failures restore the typedef metadata
 with the rest of the compiler transaction. Code-only AOT output still emits one
 program header with code at file offset `0x80`.
 
-The private callback ABI module passes all 272 tests in 52.354 seconds. Named
+The private callback ABI module passes all 273 tests in 48.557 seconds. Named
 raw callback file objects and direct free-function parameters retain their
 parsed signatures.
 The file objects support null, defined, and later-defined initialization,
@@ -93,7 +94,8 @@ do not contain this private parser or ELF writer. ADR 0306 records global
 storage, ADR 0310 records automatic objects and method parameters, ADR 0313
 records initialized-data function-address patches, ADR 0315 records raw
 file objects and free-function parameters, and ADR 0319 records direct explicit
-function addresses. ADR 0321 records typedef-backed callback fields.
+function addresses. ADR 0321 records typedef-backed callback fields, and ADR
+0324 records grouped runtime function addresses.
 
 The four-vCPU raw callback QEMU smoke passes at source head. It records
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
@@ -104,8 +106,8 @@ The full GUI test module passes all 126 tests in 1.368 seconds. A focused
 four-vCPU QEMU boot now reaches
 `[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`.
 It then prints `PASS feature14_simd` and completes the in-OS CupidC JIT run.
-The 31,169-byte log has SHA-256
-`2e017f66b3acce65a67e722a022054d469087d926382709b9042062e4cb6c265`.
+The 33,347-byte log has SHA-256
+`14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
 No normal AOT source needs the syntax yet; the active use remains the in-OS
 feature-14 JIT smoke.
 
@@ -171,8 +173,8 @@ and static relocatable objects. The bootloader and SMP publishers pass
 targets. Production CupidASM object publication passes
 `--require-known --require-local-targets` after structural validation. The
 Linux candidate proof matched 19 C objects, one startup object, and five tools
-cleanly, then passed 5/21/20 behavior. The Windows candidate proof matched 20 C
-objects, two assembly objects, and five tools cleanly, then passed 5/7/8
+cleanly, then passed 5/22/21 behavior. The Windows candidate proof matched 20 C
+objects, two assembly objects, and five tools cleanly, then passed 5/8/9
 behavior. The exact artifact-size policy now covers fourteen
 outputs: four OS outputs, five Linux seed images, and five Windows seed images.
 Make runs one `$(ARTIFACT_SIZE_CONTRACT)` command with `--checked-manifest`.
@@ -185,19 +187,18 @@ and five regular-file size and digest observations. The contract validates the
 Windows target, provenance, parent link, exact tool inventory, and observed
 bytes. The focused modules contain 22, 16, and 13 tests, for 51 total. They
 pass with four existing platform-specific skips. The source-head artifact
-contract then passed twice against all fourteen exact artifacts. The current
+contract passes against all fourteen exact artifacts. The current
 kernel outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,375,284 | `e327be0ef1dea805ba870ab78a729b4487b6d34a44a573fcb9ad8434be1eb5bb` |
-| `kernel/kernel.elf` | 9,502,260 | `cb72659d402882ee4e3ddc4bef545714e89b61297903134ef8a19c32e435247a` |
-| `kernel/kernel.bin` | 9,280,616 | `152d639af328336dd887825fffcb0ea038fa970b3a2b0d971bddd7ec1f6db4b5` |
-| `cupidos.img` | 209,715,200 | `2bdcfa1d9bf0334d287a1d982a2c0ef0ab8372bb9e07cd02e3e4f4e8a62825cf` |
+| `kernel/kernel.elf.pass1` | 9,379,380 | `c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1` |
+| `kernel/kernel.elf` | 9,506,356 | `2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f` |
+| `kernel/kernel.bin` | 9,281,656 | `f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad` |
+| `cupidos.img` | 209,715,200 | `35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0` |
 
-The preceding integrated fully poisoned `make -j4 all` passed in 874.531
-seconds, checked all fourteen artifacts, preserved the FAT contents, and staged
-`test_iso/hello.iso`.
+The final source-head `make -j4 all` checked all fourteen artifacts, preserved
+the FAT contents, and staged `test_iso/hello.iso`.
 The cross-platform seed fixtures combine a relocated external call with a
 resolved local branch, then corrupt the branch to land inside an instruction.
 Active-source tests prove all nine bootloader and four SMP targets. [ADR 0305](docs/adr/0305-promote-and-adopt-local-relative-target-checks.md)
@@ -259,7 +260,9 @@ The historical ADR 0312 checked-seed bootstrap module passed all 89 tests in
 promoted-seed carriage, relocatable local-target fixtures, publication freezes,
 and PE validation. The complete source-head bootstrap module later passed all
 92 tests in 2,820.626 seconds. That result preceded the current promotion;
-ADR 0318 records the candidate proofs and promoted-seed reproofs.
+ADR 0318 records the candidate proofs and promoted-seed reproofs. After the
+grouped-address and native Windows diagnostic cases were added, the current
+source-head module passed all 99 tests in 3,377.405 seconds.
 
 A pre-final-CTXT build at the preceding integrated checkpoint reached the
 exact-size gate after 668.414 seconds. It
@@ -511,8 +514,8 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   0303 records free-function parameters, ADR 0306 records global objects, ADR
   0310 records automatic objects and method parameters, and ADR 0313 records
   static callback initialization. ADR 0315 records the raw forms, ADR 0319
-  records direct explicit function addresses, and ADR 0321 records
-  typedef-backed callback fields.
+  records direct explicit function addresses, ADR 0321 records typedef-backed
+  callback fields, and ADR 0324 records grouped runtime function addresses.
 - The TCP/IP stack supports RTL8139 and E1000 devices, ARP, IPv4, ICMP, UDP, a client and server subset of RFC 793 TCP, DHCP with static fallback, DNS with a 16-entry TTL cache, and a 32-slot BSD socket table shared by the shell and CupidC. TCP uses per-socket stop-and-wait retransmission with exponential backoff, advertises the actual receive-buffer space, and collects abandoned half-open connections. IPv4 fragments outgoing packets and keeps four reassembly slots for datagrams up to about 64 KB.
 - The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 parsing with hostname, time, and best-effort chain checks against an embedded Mozilla CA bundle. The chain checker is still lenient when it cannot find a root or implement a signature algorithm. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
 - `bin/curl.cc` and `bin/wget.cc` are CupidC clients built on the socket and TLS bindings. `curl` supports GET, POST, `-o`, `-i`, `-s`, `-X`, `-d`, and `-H`, with HTTP-to-HTTP redirects capped at five hops. `wget` supports `-O` and `-q`, derives its output filename, and reports the response status and saved byte count.
@@ -2116,13 +2119,12 @@ each logical path again from the pinned repository root. This catches
 membership, leaf, parent, and byte replacement. The source-current semantic
 contract, checked runner, and independent policy modules contain 22, 16, and
 13 tests, for 51 total. They pass with four existing platform-specific skips.
-The source-head artifact contract later passed twice against all fourteen exact
-artifacts. The preceding artifact group ran 46 tests
-in 4.160 seconds, with four expected Windows skips, and its POSIX runner passed
-all 15 tests in 0.146 seconds. That integrated measurement build reached the
-exact-size gate with changed pass-one ELF, final ELF, and raw-kernel outputs.
-After those three policy rows were updated, the repeated poisoned build passed
-in 874.531 seconds and checked all fourteen artifacts.
+The source-head artifact contract passes against all fourteen exact artifacts.
+An earlier artifact group ran 46 tests in 4.160 seconds, with four expected
+Windows skips, and its POSIX runner passed all 15 tests in 0.146 seconds. That
+checkpoint reached the exact-size gate with changed pass-one ELF, final ELF,
+and raw-kernel outputs. After those three policy rows were updated, its repeat
+passed in 874.531 seconds and checked all fourteen artifacts.
 The verifier is a direct prerequisite of `cupidos.img`; a failure prevents the
 image recipe from publishing and preserves any existing image. An intentional
 byte-count change updates `bootstrap/artifact-size-policy.json` in the same

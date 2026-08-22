@@ -1746,6 +1746,33 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     result.returncode, 75, result.stdout + result.stderr
                 )
 
+    def test_grouped_runtime_function_addresses_run_in_jit_and_aot(self):
+        source = """
+            int ready_target(double value, int marker) {
+              return (int)(value * 10.0) + marker;
+            }
+
+            int later_target(double value, int marker) {
+              return (int)(value * 10.0) + marker;
+            }
+
+            int main() {
+              int marker = 7;
+              int *marker_address = &(marker);
+              int (*callback)(double, int) = &(ready_target);
+              if (*marker_address != 7) return 1;
+              int result = callback(3, 4.75f);
+              callback = &((later_target));
+              return result + callback(2, 5.5f);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 59, result.stdout + result.stderr
+                )
+
     def test_explicit_function_address_initializer_mismatch_recovers(self):
         with tempfile.TemporaryDirectory(
             prefix="private-cupidc-addressed-callback-recovery-",
@@ -1756,13 +1783,18 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 root,
                 """
                 double wrong(int value) { return value; }
-                static int (*callback)(int) = &wrong;
-                int main() { return callback(1); }
+                int invalid(void) {
+                  int (*callback)(int) = &((wrong));
+                  return callback(1);
+                }
+                int main() { return invalid(); }
                 """,
                 """
                 int right(double value) { return (int)value; }
-                static int (*callback)(double) = &right;
-                int main() { return callback(9); }
+                int main() {
+                  int (*callback)(double) = &(right);
+                  return callback(9);
+                }
                 """,
                 same_state=True,
             )
