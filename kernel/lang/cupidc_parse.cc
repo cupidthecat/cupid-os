@@ -4098,6 +4098,45 @@ static int cc_extract_simd_lane(cc_state_t *cc, cc_type_t vector_type) {
   return 1;
 }
 
+static int cc_emit_function_address_value(cc_state_t *cc,
+                                          cc_symbol_t *symbol) {
+  if (!symbol ||
+      (symbol->kind != SYM_FUNC && symbol->kind != SYM_KERNEL)) {
+    cc_error(cc, "function address requires a function");
+    return 0;
+  }
+
+  if (symbol->kind == SYM_KERNEL) {
+    emit_mov_eax_imm(cc, symbol->address);
+  } else if (symbol->is_defined) {
+    emit_mov_eax_imm(cc, cc->code_base + (uint32_t)symbol->offset);
+  } else {
+    uint32_t patch_pos;
+    int name_index = 0;
+    cc_patch_t *patch;
+
+    emit8(cc, 0xB8); /* mov eax, imm32 */
+    patch_pos = cc->code_pos;
+    emit32(cc, 0);
+    if (cc->patch_count >= CC_MAX_PATCHES) {
+      cc_error(cc, "too many forward function references");
+      return 0;
+    }
+    patch = &cc->patches[cc->patch_count++];
+    patch->buffer_offset = patch_pos;
+    patch->kind = CC_PATCH_CODE_ABSOLUTE;
+    while (symbol->name[name_index] && name_index < CC_MAX_IDENT - 1) {
+      patch->name[name_index] = symbol->name[name_index];
+      name_index++;
+    }
+    patch->name[name_index] = '\0';
+  }
+
+  cc_last_expr_type = TYPE_FUNC_PTR;
+  cc_set_expr_function_signature(symbol);
+  return !cc->error;
+}
+
 static void cc_parse_ident_expr(cc_state_t *cc) {
   char name[CC_MAX_IDENT];
   int i = 0;
@@ -4426,37 +4465,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       cc_last_expr_elem_size = 16;
     } else
       cc_last_expr_elem_size = 4;
-  } else if (sym->kind == SYM_FUNC) {
-    /* Load function address into eax */
-    if (sym->is_defined) {
-      emit_mov_eax_imm(cc, cc->code_base + (uint32_t)sym->offset);
-    } else {
-      uint32_t patch_pos;
-      emit8(cc, 0xB8); /* mov eax, imm32 */
-      patch_pos = cc->code_pos;
-      emit32(cc, 0);
-      if (cc->patch_count >= CC_MAX_PATCHES) {
-        cc_error(cc, "too many forward function references");
-        return;
-      }
-      {
-        cc_patch_t *patch = &cc->patches[cc->patch_count++];
-        int name_index = 0;
-        patch->buffer_offset = patch_pos;
-        patch->kind = CC_PATCH_CODE_ABSOLUTE;
-        while (name[name_index] && name_index < CC_MAX_IDENT - 1) {
-          patch->name[name_index] = name[name_index];
-          name_index++;
-        }
-        patch->name[name_index] = '\0';
-      }
-    }
-    cc_last_expr_type = TYPE_FUNC_PTR;
-    cc_set_expr_function_signature(sym);
-  } else if (sym->kind == SYM_KERNEL) {
-    emit_mov_eax_imm(cc, sym->address);
-    cc_last_expr_type = TYPE_FUNC_PTR;
-    cc_set_expr_function_signature(sym);
+  } else if (sym->kind == SYM_FUNC || sym->kind == SYM_KERNEL) {
+    (void)cc_emit_function_address_value(cc, sym);
   }
 }
 
@@ -4783,6 +4793,14 @@ static void cc_parse_primary(cc_state_t *cc) {
     if (!sym) {
       cc_error(cc, "undefined variable for &");
       return;
+    }
+    if (sym->kind == SYM_FUNC || sym->kind == SYM_KERNEL) {
+      (void)cc_emit_function_address_value(cc, sym);
+      cc_last_expr_struct_index = sym->struct_index;
+      cc_last_expr_direct_lvalue_sym = NULL;
+      cc_last_expr_indirect_lvalue = 0;
+      cc_last_expr_simd_lane = 0;
+      break;
     }
     if (sym->type == TYPE_FLOAT4 || sym->type == TYPE_DOUBLE2 ||
         (sym->is_array &&
@@ -8964,6 +8982,7 @@ cc_probe_function_pointer_initializer(cc_state_t *cc,
   cc_token_t token;
   cc_symbol_t *target = NULL;
   int grouping_depth = 0;
+  int explicit_address = 0;
 
   *out_target = NULL;
 
@@ -8971,6 +8990,15 @@ cc_probe_function_pointer_initializer(cc_state_t *cc,
   while (cc_lex_peek(cc).type == CC_TOK_LPAREN) {
     (void)cc_lex_next(cc);
     grouping_depth++;
+  }
+
+  if (cc_lex_peek(cc).type == CC_TOK_AMP) {
+    (void)cc_lex_next(cc);
+    explicit_address = 1;
+    while (cc_lex_peek(cc).type == CC_TOK_LPAREN) {
+      (void)cc_lex_next(cc);
+      grouping_depth++;
+    }
   }
 
   token = cc_lex_next(cc);
@@ -8984,7 +9012,8 @@ cc_probe_function_pointer_initializer(cc_state_t *cc,
   if (cc_lex_peek(cc).type != CC_TOK_SEMICOLON)
     goto done;
 
-  if (token.type == CC_TOK_NUMBER && token.int_value == 0) {
+  if (!explicit_address && token.type == CC_TOK_NUMBER &&
+      token.int_value == 0) {
     cc_restore_lexer(cc, &checkpoint);
     return CC_FP_INITIALIZER_ZERO;
   }
@@ -9429,6 +9458,10 @@ static int cc_parse_global_function_pointer_initializer(
 
     while (cc_match(cc, CC_TOK_LPAREN))
       grouping_depth++;
+    if (cc_match(cc, CC_TOK_AMP)) {
+      while (cc_match(cc, CC_TOK_LPAREN))
+        grouping_depth++;
+    }
     if (cc_next(cc).type != CC_TOK_IDENT) {
       cc_error(cc, "expected function name in global initializer");
       return 0;

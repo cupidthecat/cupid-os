@@ -183,11 +183,15 @@ a later target receives an absolute data patch during shared symbol resolution.
 The object may also accept a checked plain assignment, clear to null, and make a typed indirect call. A non-null
 assignment must match the result, record-pointer identities, fixed parameters,
 and variadic boundary before the address is stored. A named raw callback file
-object keeps the same signature and initialized-data behavior. A direct raw
+object keeps the same signature and initialized-data behavior. A plain function
+designator or its direct `&function` address may initialize a signature-bearing
+file or automatic callback. The explicit address keeps the same compatibility
+checks, grouped spelling, immediate data write, later data patch, and checked
+plain assignment as the designator. A direct raw
 callback parameter on a free function retains its result, fixed parameters,
 record identities, and variadic boundary through the existing cdecl call path.
 The private pool holds at most 32 raw parameter signatures and rolls back with
-the program. Address-of and conditional initializers, block-static objects,
+the program. Conditional initializers, block-static objects,
 fields, callback arrays, alias chains, raw method parameters, and recursive
 signatures remain outside this boundary.
 Direct structure and array results remain rejected. Program and REPL rollback
@@ -198,7 +202,8 @@ writer, so their reproof is not callback carriage evidence. ADR 0303 records
 free-function parameters, ADR 0306 records global storage and checked
 assignment, ADR 0310 records automatic objects and method parameters, and ADR
 0313 records initialized-data function-address patches. ADR 0315 records raw
-file objects and free-function parameters. Source-head guest runtime proves the
+file objects and free-function parameters. ADR 0319 records direct explicit
+function addresses. Source-head guest runtime proves the
 raw forms with initialized, parameter, clear, reassignment, and typed-call
 coverage. No normal AOT source requires the forms yet; the active use remains
 the in-OS feature-14 JIT smoke.
@@ -939,7 +944,7 @@ the signature across null or compatible function initialization, checked
 assignment, indirect call, and clearing. A later initialization target receives
 an absolute data patch. Fields, callback arrays, block-static objects, alias chains,
 `void *`, and empty-`()` pointers still lack it and keep the focused rejection.
-A plain function initializer must match the local
+A plain function initializer or direct `&function` address must match the local
 pointer's result, record identity, fixed parameters, and variadic boundary.
 Named local callback copies follow the same rule. Later target addresses are
 patched and a prescan-only signature is checked against its definition. A
@@ -961,7 +966,8 @@ row descent, ADR 0294 records whole-vector updates, and ADR 0299 records the
 fixed SIMD call boundary. ADR 0301 records the named local callback boundary,
 ADR 0303 records typedef-backed ordinary callback parameters, ADR 0306 records
 global callback storage, ADR 0310 records automatic objects and Cupid class
-method parameters, and ADR 0313 records static callback initialization.
+method parameters, ADR 0313 records static callback initialization, and ADR
+0319 records direct explicit function addresses.
 _Avoid_: untyped SIMD storage, escaped row pointers, reordered packed operands,
 an implied 16-byte private call-site alignment
 

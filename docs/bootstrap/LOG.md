@@ -29536,3 +29536,32 @@ SMP runtime check. `/bin/feature14_simd.cc` printed
 then completed its feature marker and JIT execution. The 32,981-byte log at
 `tests/feature14-callback-raw-qemu.log` has SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
+
+## 2026-08-22: retain explicit function addresses in private callbacks
+
+Private CupidC now gives `&function` the same typed callable value as a plain
+function designator. The shared emitter keeps defined, later-defined, and
+kernel function addresses on one code and patch path. File-scope callback
+initialization also accepts parentheses around the direct address or function
+name and reuses the existing initialized-data patch.
+
+The first focused test failed at the file initializer with `global
+function-pointer initializer requires a function or null`. Sending the spelling
+through the ordinary object address path was not viable because that path
+correctly rejected function objects. The final implementation recognizes the
+direct function address at both parser boundaries and preserves its callback
+signature.
+
+The positive contract covers raw file objects initialized from defined and
+later-defined functions, a raw automatic callback initialized and reassigned
+through explicit addresses, typed indirect calls, JIT, and fixed-address AOT.
+The negative contract rejects a result mismatch, restores the compiler state,
+and executes a valid retry. The complete private callback ABI module passes all
+270 tests in 44.462 seconds. The full GUI terminal smoke module passes all 126
+tests in 2.260 seconds. `git diff --check` also passes.
+
+No normal AOT source requires this spelling, so no checked seed, image artifact,
+or guest smoke changed. ADR 0319 records the boundary. Conditional callback
+initializers, callback fields and arrays, block-static callbacks, alias chains,
+computed callback values, raw Cupid class method parameters, and recursive
+callback signatures remain open.

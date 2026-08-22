@@ -1135,7 +1135,7 @@ Private CupidC retains a callback signature when a free-function parameter,
 Cupid class method parameter, declaration-initialized automatic object, or file
 object uses a file-scope function-pointer typedef alias directly. Each automatic
 declarator gets its own signature copy. A file object may start as `NULL` or a
-compatible plain function designator, receive a compatible callback through
+compatible plain function designator or its direct address, receive a compatible callback through
 checked plain assignment, call it indirectly, and be cleared. Each callback
 typedef declaration publishes one
 alias. The table holds at most 16 aliases, and each signature stores at most 32
@@ -1149,19 +1149,20 @@ and fixed-address AOT paths write or patch that address in initialized data
 before execution. A named raw callback file object and direct free-function
 parameter retain the parsed signature. The private pool accepts 32 raw
 parameter signatures and fails the next distinct signature without leaking
-state. Address-of and conditional initializers, fields, block-static objects,
+state. Conditional initializers, fields, block-static objects,
 callback arrays, alias chains, recursive signatures, aggregate results, raw
 method parameters, and empty identifier-list signatures remain outside the
 retained path. A zero-data AOT executable reports one
 program header and keeps code at file offset `0x80`; data-bearing executables
-retain two headers. These paths add no host tool or output owner. The private
-callback ABI module passes all 268 tests in 51.685 seconds. The four-vCPU raw
+retain two headers. These paths add no host tool or output owner. ADR 0319
+records direct explicit function addresses. The private callback ABI module
+passes all 270 tests in 44.462 seconds. The four-vCPU raw
 callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The 32,981-byte
 `tests/feature14-callback-raw-qemu.log` has SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.468 seconds. The standalone
+The full GUI module passes all 126 tests in 2.260 seconds. The standalone
 CupidC seeds do not contain this private parser. No normal AOT source requires
 the forms yet.
 The marker contract requires

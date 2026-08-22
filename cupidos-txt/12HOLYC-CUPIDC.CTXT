@@ -370,20 +370,25 @@ declarator. A file object declared directly with the typedef also keeps the
 signature across null or compatible function initialization, checked plain
 assignment, indirect call, and clearing. A defined function address is written
 into initialized data, while a later definition receives an absolute data
-patch. JIT and private AOT calls use the retained signatures. Empty (), fields,
+patch. A direct &function address uses the same signature check, data write or
+patch, automatic initialization, and checked assignment as the plain function
+designator. Parentheses may surround the address or its function name. JIT and
+private AOT calls use the retained signatures. Empty (), fields,
 block-static objects, callback arrays, bare nested callback signatures, alias
 chains, raw method parameters, and void-pointer forms remain signature-erased.
 A named raw callback file object and direct free-function parameter retain the
 parsed signature without a typedef. The file object uses the same data write or
 patch, and the parameter uses the same cdecl slot and arity checks. The private
 pool accepts 32 distinct raw signatures and recovers after rejecting the next
-one. The private callback ABI module passes all 268 tests in 51.685 seconds.
-ADR 0315 records this boundary. Feature 13
+one. ADR 0315 records the raw forms, and ADR 0319 records direct explicit
+function addresses. The private callback ABI module passes all 270 tests.
+Feature 13
 retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
 nested pass-by-value vector
 calls and named SIMD callback forms. ADR 0301 records the earlier named-local
 boundary.
-Plain function initializers must match the retained signature. An explicit
+Plain function initializers and direct &function addresses must match the
+retained signature. An explicit
 void-pointer cast remains the deliberate erasure path. Local callback copies
 are checked, later addresses are fixed up, and provisional signatures must
 match their definitions. Compatible conditional selection checks every named
@@ -564,8 +569,9 @@ The private in-kernel callback parser and AOT writer remain separate from the
 standalone toolchain compiler seeds. Private CupidC retains file-scope callback
 typedef signatures on free-function parameters, Cupid class method parameters,
 declaration-initialized automatic objects, and direct file objects. A direct
-file object supports null initialization, checked plain assignment, indirect
-calls, and clearing. Fields, callback arrays, block-static objects, alias chains,
+function address keeps the same callback signature and data patch as a plain
+function designator. A direct file object supports null initialization, checked
+plain assignment, indirect calls, and clearing. Fields, callback arrays, block-static objects, alias chains,
 recursive signatures, and `void *` forms remain outside that typed path.
 
 The Toolchain manifest has a Cupid-built author and verifier, while Python keeps

@@ -75,22 +75,26 @@ records automatic objects and Cupid class method parameters.
 [ADR 0313](../docs/adr/0313-initialize-private-cupidc-global-callbacks-from-functions.md)
 records static initialization from a compatible defined or later-defined
 function. The private JIT and fixed-address AOT writers place that address in
-the global data slot before execution. A named raw callback file object and a
-direct raw callback parameter on a free function retain the same parsed
+the global data slot before execution. A direct `&function` address uses the
+same signature check and address patch as the plain designator, including when
+parentheses surround the expression or function name. Automatic callback
+initialization and checked assignment keep the same callable metadata. A named
+raw callback file object and a direct raw callback parameter on a free function retain the same parsed
 signature without requiring a typedef. The file object uses the existing
 initialized-data, assignment, call, and null rules. The parameter uses the
 existing cdecl conversion and arity checks. The private pool accepts 32
 distinct raw parameter signatures and recovers after rejecting the next one.
 [ADR 0315](../docs/adr/0315-retain-raw-callback-signatures-in-private-cupidc.md)
-records this boundary. Address-of and conditional callback expressions,
-fields, arrays, block-static callbacks, and raw method parameters remain
-unsupported.
+records the raw boundary. [ADR 0319](../docs/adr/0319-retain-explicit-function-addresses-in-private-callbacks.md)
+records direct explicit function addresses. The private callback ABI module
+passes all 270 tests in 44.462 seconds. Conditional callback expressions,
+fields, arrays, block-static callbacks, and raw method parameters remain open.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
+The full GUI module passes all 126 tests in 2.260 seconds. This is source-head
 runtime evidence. The standalone CupidC seeds do not contain this private
 parser. The active proof remains the in-OS JIT smoke because no normal AOT
 input needs the syntax yet. ADR 0315 records the boundary.
@@ -289,16 +293,18 @@ declared with a direct file-scope function-pointer typedef is signature-bearing
 too. A declaration-initialized automatic object and a file object have the same
 rule. Their scalar, floating, pointer, or SIMD arguments use the declared fixed
 slots, their variadic tails receive default promotions, and their results keep
-the declared type. Grouped zero, `((void *)0)`, and a compatible defined or
-later-defined function designator may initialize a callback file object.
+the declared type. Grouped zero, `((void *)0)`, a compatible defined or
+later-defined function designator, and the direct address of that function may
+initialize a callback file object.
 Checked plain assignment stores a compatible callback or clears it to null.
 Empty `()`, fields, callback arrays, block-static objects, alias chains,
 recursive callback signatures, and `void *` forms retain source-width slots.
 Direct structure and array callback results
 are rejected; record-pointer results retain their record identity. Kernel
 bindings and other calls without fixed parameter metadata do the same.
-When a plain function designator initializes a named local, fills a typed
-callback parameter, or is assigned to a signature-bearing destination, its
+When a plain function designator or direct `&function` address initializes a
+named local, fills a typed callback parameter, or is assigned to a
+signature-bearing destination, its
 result, record identity, fixed parameters, and variadic
 boundary must match. The same check applies when copying another named local callback. A function
 defined later receives an address fixup, and a prescan-only signature must

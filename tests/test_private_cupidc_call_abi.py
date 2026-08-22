@@ -1717,6 +1717,69 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     result.stdout + result.stderr,
                 )
 
+    def test_raw_callback_initializers_accept_explicit_function_addresses(self):
+        source = """
+            int ready_target(double value, int marker) {
+              return (int)(value * 10.0) + marker;
+            }
+
+            int later_target(double value, int marker);
+            static int (*ready_callback)(double, int) = (&ready_target);
+            static int (*later_callback)(double, int) = &(later_target);
+
+            int later_target(double value, int marker) {
+              return (int)(value * 10.0) + marker;
+            }
+
+            int main() {
+              int (*local_callback)(double, int) = &ready_target;
+              local_callback = &later_target;
+              return local_callback(3, 4.75f) +
+                     ready_callback(2, 5.5f) +
+                     later_callback(1, 6.25f);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 75, result.stdout + result.stderr
+                )
+
+    def test_explicit_function_address_initializer_mismatch_recovers(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-addressed-callback-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                double wrong(int value) { return value; }
+                static int (*callback)(int) = &wrong;
+                int main() { return callback(1); }
+                """,
+                """
+                int right(double value) { return (int)value; }
+                static int (*callback)(double) = &right;
+                int main() { return callback(9); }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            self.assertIn(
+                "function-pointer initializer result does not match declaration",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                9,
+                runtime.stdout + runtime.stderr,
+            )
+
     def test_raw_callback_parameter_keeps_mixed_width_slots_in_jit_and_aot(self):
         source = """
             int inspect(const uint8_t *entry, double scale, int marker) {

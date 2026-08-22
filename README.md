@@ -67,9 +67,10 @@ verification pass in 3,952.17 seconds with the promoted local-target seed.
 Private CupidC retains a file-scope function-pointer typedef signature in direct
 free-function parameters, Cupid class method parameters,
 declaration-initialized automatic objects, and file objects. Every automatic
-declarator gets an independent copy. A file object may start as `NULL` or a
-compatible function designator, receive a compatible callback through checked
-plain assignment, make a typed indirect call, and be cleared to null. Defined
+declarator gets an independent copy. A file object may start as `NULL`, a
+compatible function designator, or the direct address of that function. It may
+receive a compatible callback through checked plain assignment, make a typed
+indirect call, and be cleared to null. Defined
 targets are written into initialized data immediately; later targets use a
 checked data-address patch. JIT and AOT indirect calls keep fixed argument
 conversions, record-pointer identity, arity, variadic state, and supported
@@ -77,7 +78,7 @@ scalar or SIMD results. Program and REPL failures restore the typedef metadata
 with the rest of the compiler transaction. Code-only AOT output still emits one
 program header with code at file offset `0x80`.
 
-The private callback ABI module passes all 268 tests in 51.685 seconds. Named
+The private callback ABI module passes all 270 tests in 44.462 seconds. Named
 raw callback file objects and direct free-function parameters retain their
 parsed signatures.
 The file objects support null, defined, and later-defined initialization,
@@ -87,15 +88,16 @@ fields, arrays, block-static objects, alias chains, computed expressions, and
 raw Cupid class method parameters remain open. The promoted standalone seeds
 do not contain this private parser or ELF writer. ADR 0306 records global
 storage, ADR 0310 records automatic objects and method parameters, ADR 0313
-records initialized-data function-address patches, and ADR 0315 records raw
-file objects and free-function parameters.
+records initialized-data function-address patches, ADR 0315 records raw
+file objects and free-function parameters, and ADR 0319 records direct explicit
+function addresses.
 
 The four-vCPU raw callback QEMU smoke passes at source head. It records
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The 32,981-byte
 `tests/feature14-callback-raw-qemu.log` has SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI test module passes all 126 tests in 1.468 seconds. No normal AOT
+The full GUI test module passes all 126 tests in 2.260 seconds. No normal AOT
 source needs the syntax yet; the active use remains the in-OS feature-14 JIT
 smoke.
 
@@ -464,12 +466,14 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   file-scope callback typedef
   retains its complete fixed signature on free-function parameters, Cupid class
   method parameters, declaration-initialized automatic objects, and direct
-  global objects. The global path accepts null or compatible function
-  initialization, checked plain assignment, indirect calls, and null clearing.
+  global objects. The global path accepts null, a compatible function
+  designator, or that function's direct address for initialization. It also
+  supports checked plain assignment, indirect calls, and null clearing.
   A later target is resolved through an initialized-data address patch. ADR
   0303 records free-function parameters, ADR 0306 records global objects, ADR
   0310 records automatic objects and method parameters, and ADR 0313 records
-  static callback initialization. ADR 0315 records the raw forms.
+  static callback initialization. ADR 0315 records the raw forms, and ADR 0319
+  records direct explicit function addresses.
 - The TCP/IP stack supports RTL8139 and E1000 devices, ARP, IPv4, ICMP, UDP, a client and server subset of RFC 793 TCP, DHCP with static fallback, DNS with a 16-entry TTL cache, and a 32-slot BSD socket table shared by the shell and CupidC. TCP uses per-socket stop-and-wait retransmission with exponential backoff, advertises the actual receive-buffer space, and collects abandoned half-open connections. IPv4 fragments outgoing packets and keeps four reassembly slots for datagrams up to about 64 KB.
 - The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 parsing with hostname, time, and best-effort chain checks against an embedded Mozilla CA bundle. The chain checker is still lenient when it cannot find a root or implement a signature algorithm. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
 - `bin/curl.cc` and `bin/wget.cc` are CupidC clients built on the socket and TLS bindings. `curl` supports GET, POST, `-o`, `-i`, `-s`, `-X`, `-d`, and `-H`, with HTTP-to-HTTP redirects capped at five hops. `wget` supports `-O` and `-q`, derives its output filename, and reports the response status and saved byte count.

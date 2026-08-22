@@ -563,7 +563,8 @@ signature holds at most 32 fixed parameter types plus record-pointer
 identities, variadic state, and a result type. Program and REPL failures restore
 the typedef count and metadata. JIT and AOT calls now cover the active ISO, FAT,
 and Doom callback declarations, fixed SIMD callback slots, automatic callbacks,
-and method callback parameters. Fields, callback arrays, block-static objects,
+and method callback parameters. A direct explicit function address keeps the
+same signature and patch behavior as a plain designator. Fields, callback arrays, block-static objects,
 alias chains, recursive signatures, and arbitrary computed callbacks remain
 open. A named raw callback file object and direct free-function parameter now
 retain the parsed result, parameters, record identities, prototype state, and
@@ -571,12 +572,13 @@ variadic boundary. The private pool accepts 32 distinct raw signatures and
 rejects the next one without leaking state. Direct structure or array results
 remain rejected. A
 code-only AOT image still emits one program header with code at offset `0x80`.
-The focused ABI suite passes 268 tests in 51.685 seconds. The four-vCPU raw
+ADR 0319 records the explicit address boundary. The focused ABI suite passes
+270 tests in 44.462 seconds. The four-vCPU raw
 callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 Its 32,981-byte log has SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.468 seconds. The standalone
+The full GUI module passes all 126 tests in 2.260 seconds. The standalone
 CupidC seeds do not contain this private parser. No normal AOT source requires
 the forms yet. The
 684.260-second poisoned-host build and 64.601-second private smoke are preceding
@@ -610,16 +612,18 @@ and permits null clearing. A compatible defined function designator writes its
 address into the global data slot. A later definition uses a checked absolute
 data patch in the shared symbol pass. Indirect JIT and AOT calls through the
 object use the same 4-, 8-, and 16-byte slots as the retained parameter path.
-The focused ABI suite passes 268 tests in 51.685 seconds. The earlier marker,
+The focused ABI suite passes 270 tests in 44.462 seconds. The earlier marker,
 integrated guest, and checked self-host results remain historical. The current
 raw callback QEMU and GUI results are source-head evidence only.
 The capability is confined to the private compiler. Supported build ownership
-and host requirements remain as listed elsewhere in this matrix. Address-of
-and conditional initializers, fields, callback arrays, block-static objects,
+and host requirements remain as listed elsewhere in this matrix. Direct
+explicit function addresses use the same typed initialization and patch path.
+Conditional initializers, fields, callback arrays, block-static objects,
 alias chains, recursive signatures, aggregate results, raw method parameters,
 and arbitrary computed callbacks remain open. ADR 0313 records the
-fixed-address initialized-data rule, and ADR 0315 records raw file objects and
-free-function parameters.
+fixed-address initialized-data rule, ADR 0315 records raw file objects and
+free-function parameters, and ADR 0319 records direct explicit function
+addresses.
 
 Private CupidC now converts decimal `float` and `double` tokens with a fixed
 1536-bit integer workspace. It rounds the exact decimal ratio once to the
