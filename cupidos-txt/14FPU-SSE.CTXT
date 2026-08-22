@@ -279,14 +279,15 @@ values, subnormals, infinities, and NaNs are true. Checked-seed hosted CupidC
 accepts prefix and postfix increment and decrement on modifiable non-atomic
 float and double lvalues. It evaluates the lvalue once, stores the result after
 adding or subtracting exact-width 1.0, and returns the original raw payload for
-a postfix form. Source-head hosted CupidC forms each decimal float or double
+a postfix form. Hosted CupidC forms each decimal float or double
 ratio in a private 1536-bit integer workspace, then rounds once at the selected
 IEEE width with ties going to even. Public frontend, Linear IR, and ELF32
 contracts cover both halfway parities, minimum subnormal and normal values,
 maximum finite values, infinity, signed underflow zero, extreme exponents, and
-the 95-character token boundary. The checked seed predates this source-head
-capability. The four arithmetic compound operators also accept an integer and
-a floating operand in either lvalue direction. They use the usual float,
+the 95-character token boundary. The current checked seeds carry this
+capability through ADR 0312. The four arithmetic compound operators also
+accept an integer and a floating operand in either lvalue direction. They use
+the usual float,
 double, or long double computation type, convert back to the declared left
 type, and evaluate the destination once. Atomic floating compound assignment,
 atomic floating updates, long double increment and decrement, hexadecimal
@@ -424,10 +425,11 @@ return path. A parameter of the free function helper or Cupid class method
 declared with the feature14 float4 callback typedef keeps that same slot and
 result metadata. A declaration-initialized automatic object keeps it too.
 A file object declared directly with that typedef also keeps the signature
-through null initialization, checked assignment, indirect call, and clearing.
+through null or compatible function initialization, checked assignment,
+indirect call, and clearing. A defined function address is written into
+initialized data, while a later definition receives an absolute data patch.
 Fields, callback arrays, block-static objects, and alias chains still erase the
-signature. A direct static function-address initializer still needs an
-initialized-data fixup.
+signature.
 Named SIMD intrinsics keep their inline lowering. A plain function initializer
 must match the retained
 signature; an explicit cast opts into erasure. Local callback copies share the

@@ -334,9 +334,10 @@ AOT modes. They cover named callback declarators and a file-scope,
 signature-bearing function-pointer typedef on free-function parameters, Cupid
 class method parameters, and declaration-initialized automatic objects,
 including a float4 result in XMM0. A file object declared directly with the
-typedef keeps the same signature through null initialization, checked plain
-assignment, indirect call, and clearing. Static function-address initialization
-still needs an initialized-data fixup.
+typedef keeps the same signature through null or compatible function
+initialization, checked plain assignment, indirect call, and clearing. A
+defined function address is written into initialized data. A later definition
+receives an absolute data patch before JIT or fixed-address AOT execution.
 
 The four-vCPU e1000 feature14 guest contract requires direct-call,
 named-callback, typedef-parameter, typedef-global, and automatic-callback

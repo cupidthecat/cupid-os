@@ -1026,9 +1026,10 @@ independent signature copy. JIT, AOT, and persistent REPL compilation retain
 the callback result, fixed and variadic parameters, record identities, and
 prototype state. The call reuses direct cdecl coercion and 4-, 8-, and 16-byte
 layout, including SIMD results through XMM0. A file object declared directly
-with the typedef keeps the same signature across null initialization, checked
-plain assignment, indirect call, and null clearing. A direct function designator
-in static data remains rejected until initialized data has an address fixup.
+with the typedef keeps the same signature across null or compatible function
+initialization, checked plain assignment, indirect call, and null clearing. A
+defined function address is written into initialized data. A later definition
+receives an absolute data patch before JIT or fixed-address AOT execution.
 Record fields, callback arrays, block-static objects, alias chains, recursive
 callback signatures, aggregate results, and arbitrary computed callback
 expressions remain outside this typed path. The AOT writer uses one executable
@@ -1037,9 +1038,9 @@ data is present; code begins at file offset `0x80` in both layouts. Focused
 private compiler contracts cover these source decisions. The exact
 artifact-size policy covers fourteen paths, including all five Windows seed
 executables. One wrapper captures the Linux policy manifest and the full
-Windows seed cohort before it runs the checked contract. The current schema v3
-CUPMAN3 publication and settled audit are recorded above. The definitive
-source-current build and private guest evidence are recorded below.
+Windows seed cohort before it runs the checked contract. The source-current
+schema v3 CUPMAN4 publication and final CUPMAN2 verification are recorded
+above. The definitive build and private guest evidence are recorded below.
 
 The current production checkpoint guards the normal boot edge with a
 CupidC-built artifact-size contract. All 443 root transforms have a Cupid
@@ -1261,20 +1262,20 @@ evaluate the destination once. The 74-function object proof contains 13,549
 text bytes with fingerprint `4FC4077B`, 75 symbols, and 135 relocations.
 Thirty-three execution cases cover endpoints, precision boundaries,
 operators, predicates, both conditional directions, mixed compound assignment
-results, and one-time destination evaluation. Hosted
-source-head CupidC and the checked Cupid-built driver emit byte-identical
-objects for the earlier forms. ADR 0289 records the wide input boundary, ADR
-0292 records its fixed-point promotion, and ADR 0296 records source-head mixed
-compound assignment. No active source needs the new expression shape, so no
-normal transform changes owner.
-Source-head hosted CupidC now forms decimal `float` and `double` tokens in a
+results, and one-time destination evaluation. Hosted CupidC and the checked
+Cupid-built driver emit byte-identical objects. ADR 0289 records the wide input
+boundary, ADR 0292 records its fixed-point promotion, and ADR 0296 records mixed
+compound assignment. The current checked seeds carry the extension through ADR
+0312. No active source needs the expression shape, so no normal transform
+changes owner.
+Hosted CupidC forms decimal `float` and `double` tokens in a
 private 1536-bit integer workspace and rounds once at binary32 or binary64
 width, with ties going to even. Public frontend, Linear IR, and ELF32 contracts
 cover halfway parity, subnormal and normal boundaries, maximum finite values,
 infinity, signed underflow zero, extreme exponents, deterministic object bytes,
-and same-job recovery. A complete token may contain 95 characters. The checked
-execution seed predates the change, so this proof does not move production
-ownership. ADR 0293 records the boundary.
+and same-job recovery. A complete token may contain 95 characters. The current
+checked seeds carry the capability through ADR 0312. ADR 0293 records the
+language boundary.
 Compiler head also converts static initializers between bounded finite `long
 double` and every
 represented value integer and an enum whose compatible integer type has the
@@ -1387,7 +1388,7 @@ fixtures, and one optional host oracle. Renaming a `bin/*.c` copy would activate
 it through wildcard discovery. Renaming a fixture would silently select C++
 semantics. The audit rejects an active tracked `.c` source owned by CupidC. A
 `.cc` suffix does not supply the opposite ownership claim. Checked compile
-and Toolchain contract edges prove 275 active sources. An exact policy names
+and Toolchain contract edges prove 277 active sources. An exact policy names
 the other 130 sources delivered as text by CupidObj, all seventeen residual
 `.c` paths, and the three unreachable `.cc` paths. A host or inactive source
 therefore cannot claim CupidC ownership through a suffix-only rename. The safe
@@ -1522,8 +1523,8 @@ fixed parameter types, variadic state, and result. Its indirect call reuses the
 same conversions and 4-, 8-, or 16-byte slots, including SIMD arguments and
 XMM0 results. A free-function or Cupid class method parameter declared with a
 direct file-scope function-pointer typedef carries the same metadata and call
-path. A declaration-initialized automatic object carries it too. Empty `()`,
-A file object declared directly with the typedef retains the metadata across
+path. A declaration-initialized automatic object carries it too. A file object
+declared directly with the typedef retains the metadata across
 null initialization, checked plain assignment, indirect call, and clearing.
 Empty `()`, fields, callback arrays, block-static objects, alias chains,
 recursive callback signatures, and `void *` forms remain signature-erased. A plain function initializer or direct
@@ -1575,8 +1576,8 @@ A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
 A named block-local function pointer with an explicit prototype uses those
 same conversions and keeps its declared result. A free-function or Cupid class
 method parameter declared with a direct file-scope function-pointer typedef
-does the same. A declaration-initialized automatic object does too. Empty `()`,
-A file object declared directly with the typedef keeps the signature across
+does the same. A declaration-initialized automatic object does too. A file
+object declared directly with the typedef keeps the signature across
 null initialization, checked assignment, indirect call, and clearing. Empty
 `()`, fields, callback arrays, block-static objects, alias chains, recursive
 callback signatures, and `void *` forms remain metadata-free. Kernel bindings and other calls without

@@ -1072,9 +1072,10 @@ section with import and IAT directories. Empty output categories are omitted
 from the section table. Writable executable input is outside the profile and
 fails transactionally. The static i386 Linux seed carries this profile and
 uses it to build the checked five-tool Windows execution seed. The Windows
-seed runs production commands but does not yet rebuild itself with native
-producers.
-_Avoid_: general PE linker, native Windows producer fixed point, dynamic relocation
+seed runs production commands directly. It carries no native build plan, so
+the native fixed-point driver pairs it with the separately verified Linux plan
+seed to rebuild stages two through four.
+_Avoid_: general PE linker, standalone Windows bootstrap seed, dynamic relocation
 
 **Cupid-built Windows runtime probe**:
 A freestanding i386 command compiled by checked-seed CupidC, assembled by

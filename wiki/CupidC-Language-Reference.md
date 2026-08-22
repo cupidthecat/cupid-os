@@ -424,11 +424,10 @@ records canonical x87 payloads and special-value conversion.
 ADR 0288 records runtime integer and long-double usual conversions. ADR 0289
 records wide integer conversion and usual arithmetic with `float` and
 `double`. [ADR 0293](../docs/adr/0293-round-hosted-decimal-literals-exactly.md)
-records exact source-head decimal `float` and `double` literals. The checked
-seed predates that source-head change.
+records exact decimal `float` and `double` literals.
 [ADR 0296](../docs/adr/0296-support-mixed-floating-compound-assignments.md)
-records mixed arithmetic compound assignment. The checked seed also predates
-that source-head change.
+records mixed arithmetic compound assignment. The current checked seeds carry
+both capabilities through ADR 0312.
 ADR 0258 records the preceding checked seed. ADR 0260 records static
 long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
 0265 records their checked-seed carriage, and ADR 0273 records private derived

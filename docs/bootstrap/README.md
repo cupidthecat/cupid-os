@@ -229,16 +229,16 @@ fixed point passed in 1,187.863 seconds, with a 1,188.356-second wrapper. The
 86-test suite then passed in 2,444.917 seconds. After the relocatable-object
 cases were added, the current module passed all 89 tests in 3,145.502 seconds.
 
-Source-head hosted CupidC now converts decimal `float` and `double` tokens
-with the same fixed 1536-bit integer-ratio model as private CupidC. It rounds
-once at the written width, including ties to even, subnormals, finite limits,
+Hosted CupidC converts decimal `float` and `double` tokens with the same fixed
+1536-bit integer-ratio model as private CupidC. It rounds once at the written
+width, including ties to even, subnormals, finite limits,
 overflow to infinity, underflow, and signed zero. The 95-character accepted
 boundary and the next-character failure both recover in one frontend job.
 Shared frontend, Linear IR, and object fixtures pin the exact target bits and
 little-endian constant bytes. The bounded decimal `long double` path and the
-hexadecimal-floating rejection do not change. This adds no host floating
-dependency and moves no production owner because the checked seed predates the
-change. ADR 0293 records the decision.
+hexadecimal-floating rejection do not change. The converter has no host
+floating dependency and does not move a production owner. ADR 0293 records the
+language decision, and ADR 0312 records current seed carriage.
 
 Source head now adds a native Windows fixed-point driver without changing
 those manifest roles. `bootstrap-windows` freezes the checked PE execution
@@ -314,8 +314,8 @@ replaces the corresponding input in the reconstructed behavior link.
 
 ADR 0278 records the two-manifest boundary, ADR 0279 records the additional
 generation, ADR 0280 records the Linux promotion, and ADR 0281 records the
-Windows promotion. ADR 0292 records the next promotion, and ADR 0305 records
-the current one.
+Windows promotion. ADR 0292 records the next promotion. ADR 0305 records raw
+local-target carriage, and ADR 0312 records the current promotion.
 
 The reproducible native operator path is:
 

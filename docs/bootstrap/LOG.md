@@ -29173,3 +29173,24 @@ still called relocatable-object checks source-only and several summaries that
 called the intermediate 86-test suite final. Those descriptions now match the
 promoted production rule and the current 89-test result. The final Standards
 and Spec confirmation passes report no findings.
+
+## 2026-08-21: reconcile current bootstrap documentation
+
+A documentation audit found current-state passages that survived the preceding
+review. They described relocatable local-target checks as source-only, treated
+global callback function initializers as unsupported, and said the checked
+seeds predated exact decimal literals and mixed floating compound assignment.
+Other passages named ADR 0305 as the current seed, reported 275 independently
+owned sources instead of 277, or called CUPMAN3 the current publication
+protocol.
+
+The reconciliation checked ADRs 0293, 0296, 0312, and 0313 against both checked
+seed manifests, the 5/20/19 and 5/6/7 fixed-point evidence, the current
+`CUPMAN4` publication, and the generated active-source audit. The user manuals,
+wiki, bootstrap matrices, context glossary, and root README now use the same
+current facts. The older 9,114,084-byte kernel remains as dated evidence rather
+than the current kernel identity. Explicitly historical log and baseline
+records remain unchanged.
+
+No implementation file or generated audit artifact changed in this
+reconciliation. `TempleOS/` remains untouched reference material.

@@ -367,11 +367,12 @@ state, and variadic boundary. A free-function or Cupid class method parameter
 declared through that typedef gets the same signature. A
 declaration-initialized automatic object gets an independent copy for every
 declarator. A file object declared directly with the typedef also keeps the
-signature across null initialization, checked plain assignment, indirect call,
-and clearing. JIT and private AOT calls use the retained signatures. Empty (),
-fields, block-static objects, callback arrays, bare nested callback signatures,
-alias chains, and void-pointer forms remain signature-erased. A direct function
-designator in static data still needs an address fixup. Feature 13
+signature across null or compatible function initialization, checked plain
+assignment, indirect call, and clearing. A defined function address is written
+into initialized data, while a later definition receives an absolute data
+patch. JIT and private AOT calls use the retained signatures. Empty (), fields,
+block-static objects, callback arrays, bare nested callback signatures, alias
+chains, and void-pointer forms remain signature-erased. Feature 13
 retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
 nested pass-by-value vector
 calls and named SIMD callback forms. ADR 0301 records the earlier named-local

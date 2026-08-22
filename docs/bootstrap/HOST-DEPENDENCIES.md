@@ -279,7 +279,8 @@ seed comparison was false for CupidASM, CupidC, and CupidDis and true for
 CupidLD and CupidObj. Its 1,061.3-second promoted-seed reproof matched all five
 initial seed images and passed 5/5/6 behavior. ADRs 0278 and 0279 record the
 native driver and convergence rule. ADR 0292 records those promotions. ADR
-0305 records the current reproofs above.
+0305 records the later raw local-target reproof. ADR 0312 records the current
+reproofs.
 
 The preliminary Linux behavior reconstruction found one cross-path
 difference. Its 387,584-byte Windows CupidDis had SHA-256
@@ -1617,16 +1618,16 @@ relocation rule.
 
 ## 2026-08-15 dependency check
 
-Source-head hosted CupidC now rounds decimal binary32 and binary64 literals
+Hosted CupidC rounds decimal binary32 and binary64 literals
 with fixed-width integer arithmetic. The frontend, Linear IR, and object tests
 need no `strtod`, host floating operation, compiler builtin, or math library.
-Source-head mixed integer and floating arithmetic compound assignments reuse
+Mixed integer and floating arithmetic compound assignments reuse
 the same target SSE and x87 paths, including `long double` and integer bit
-fields. They add no runtime helper or host floating work.
-The checked Linux and Windows seeds predate this change, so no production
-transform or normal OS artifact changes owner. Host C remains only in the
-existing optional native contract path, and Python still coordinates the
-bootstrap and audit transactions. ADRs 0293 and 0296 record these boundaries.
+fields. They require no runtime helper or host floating work. The current Linux
+and Windows seeds carry both capabilities through ADR 0312. Host C remains only
+in the existing optional native contract path, and Python still coordinates
+the bootstrap and audit transactions. ADRs 0293 and 0296 record the language
+boundaries.
 
 The shared x86 contract now reaches every one of the 604 catalogue rows in
 each legal mode. Its 1,202 encodable witnesses use the real Cupid encoder and

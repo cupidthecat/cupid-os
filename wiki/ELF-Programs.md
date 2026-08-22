@@ -717,11 +717,12 @@ function parameter names it. The parameter retains the callback result, fixed
 and variadic arguments, record identities, and prototype state, so indirect
 calls use the direct cdecl conversion and 4-, 8-, and 16-byte layout. SIMD
 results return through XMM0. A file object declared directly with that typedef
-retains the same signature. It may start as null, receive a checked plain
-assignment, make a typed indirect call, and be cleared. The static initializer
-cannot contain a direct function designator until initialized data supports
-address fixups. A Cupid class method parameter declared directly with a
-file-scope callback typedef keeps the signature as well. An automatic object
+retains the same signature. It may start as null or a compatible defined or
+later-defined function, receive a checked plain assignment, make a typed
+indirect call, and be cleared. Private JIT and fixed-address AOT write or patch
+the function address in initialized data before execution. A Cupid class
+method parameter declared directly with a file-scope callback typedef keeps
+the signature as well. An automatic object
 declared directly with that typedef keeps it when initialized in its
 declaration. Record fields, callback arrays, callback alias chains,
 block-static objects, recursive callback signatures, aggregate results, and

@@ -559,8 +559,8 @@ records its seed promotion, ADR 0226 records SHRD, and ADR 0228 records
 SHRD's first seed carriage. ADR 0243 records the preceding seed, ADR 0252
 records the x87 integer forms, ADR 0258 records the preceding promotion, ADR
 0259 records the parity predicates, ADR 0265 records their preceding seed
-carriage, and ADRs 0280 and 0292 record preceding seeds. ADR 0305 records the
-current seed.
+carriage, and ADRs 0280 and 0292 record preceding seeds. ADR 0305 records raw
+local-target carriage, and ADR 0312 records the current seed.
 
 `setp` and `setnp` accept one byte register or memory destination in either
 mode. They encode as `0F 9A /r` and `0F 9B /r`. Address-size overrides work

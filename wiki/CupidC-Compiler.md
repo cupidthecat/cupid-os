@@ -603,12 +603,12 @@ target paths. Unsigned four-byte input and output use exact splits across the
 sign boundary. The x87 transport model, SSE conversion
 oracle, and comparison execution oracle check rounding, operand order, signed
 zero, infinities, quiet and signaling NaNs, call alignment, and frame state.
-Source-head hosted CupidC forms each decimal `float` or `double` ratio in a
+Hosted CupidC forms each decimal `float` or `double` ratio in a
 private 1536-bit integer workspace and rounds once at the requested IEEE width.
 The public frontend, Linear IR, and ELF32 contracts cover both halfway
 parities, minimum subnormal and normal values, maximum finite values, infinity,
 signed underflow zero, extreme exponents, and the 95-character token boundary.
-The checked seed predates this source-head change.
+The current checked seeds carry this capability through ADR 0312.
 Non-atomic `long double` values now use twelve-byte target objects and x87
 80-bit memory loads and stores. Bounded finite normal decimal `L` tokens
 round an exact integer ratio to a 64-bit explicit significand with ties to
@@ -2729,8 +2729,9 @@ When the parser encounters a call to an undefined function, it emits a placehold
   objects. Callback alias chains, block-static objects, record fields, callback
   arrays, recursive callback signatures, aggregate results, and arbitrary
   computed callback expressions remain unrepresented. Static callback storage
-  accepts null initialization, but a direct function address still needs an
-  initialized-data fixup.
+  accepts null or a compatible defined or later-defined function designator.
+  Private JIT and fixed-address AOT write or patch the function address in
+  initialized data before execution.
 
 The private compiler implements a broader runtime floating and SIMD language.
 The hosted self-hosting path converts between `float` and `double`, evaluates

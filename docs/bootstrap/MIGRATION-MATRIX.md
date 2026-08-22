@@ -50,15 +50,15 @@ targets stay outside the policy. Both checked seeds carry the raw form, and
 the bootloader and SMP transactions select it before atomic publication. ADR
 0300 records the source rule, and ADR 0305 records carriage and adoption.
 
-Source-head CupidDis now applies the explicit policy to static ELF32
-relocatable objects too. It checks unrelocated direct targets against starts in
+CupidDis applies the explicit policy to static ELF32 relocatable objects too.
+It checks unrelocated direct targets against starts in
 their own executable section and leaves relocated operands to link-time
 resolution and relocation ownership. Both active CupidASM objects pass, while
 a changed context-switch displacement fails as a mid-instruction target.
-Linked `ET_EXEC` input is rejected. This is capability progress only: the
-checked seeds and production CupidASM object transactions still use strict
-decode plus relocation ownership without the new option. ADR 0309 records the
-boundary.
+Linked `ET_EXEC` input is rejected. Both checked seeds carry this form, and
+production CupidASM object transactions select it with strict decode and
+relocation ownership before publication. ADR 0309 records the source boundary,
+and ADR 0312 records carriage and adoption.
 
 The hosted CupidC driver now exposes the shared frontend's Cupid profile as
 `--cupid`. Both preprocessing and parsing receive the same language mode.
@@ -239,7 +239,7 @@ fixtures, and one optional host oracle. No active Cupid-built source needs a
 build inventory, while renaming a host fixture would silently select C++
 semantics. The build audit rejects an active tracked `.c` source if the graph
 assigns it to CupidC, and it does not treat `.cc` as proof of the reverse
-claim. Checked compile or Toolchain contract edges prove 275 active sources.
+claim. Checked compile or Toolchain contract edges prove 277 active sources.
 An exact policy records the other 130 source-text deliveries, all seventeen
 residual `.c` paths, and the three unreachable `.cc` paths. A `.cc` rename
 still follows a checked build and behavior proof. Active evidence is mandatory
@@ -898,9 +898,8 @@ conversion. ADR 0256 records canonical x87 payloads and special-value
 conversion. ADR 0260 records static long-double arithmetic.
 ADR 0288 records runtime integer and long-double usual conversions. ADR 0289
 records wide integer conversion and usual arithmetic with `float` and
-`double`. ADR 0293 records exact source-head decimal `float` and `double`
-literals. The checked execution seed predates that source-head change, so it
-does not move production ownership.
+`double`. ADR 0293 records exact decimal `float` and `double` literals. The
+current checked seeds carry that capability through ADR 0312.
 Matching or mixed-width floating conditional arms retain their established
 x87 path. The four arithmetic compound operators also accept an integer and a
 floating operand in either lvalue direction. They compute at the usual
@@ -988,7 +987,7 @@ The quotient/remainder object contains eleven functions and thirteen software lo
 
 The wide-mutation fixture publishes 15 functions and 225 IR instructions. Its 17-function object has 4,410 text bytes, fingerprint `4B337038`, 18 symbols including the null symbol, and no relocations. Execution checks cover every compound operator, signed and unsigned updates, postfix snapshot preservation, one-time indexed evaluation, volatile access, and cdecl state. The checked-seed X25519 object uses the same path for `fe_carry`; the focused proof and the remaining host-owned C transforms still depend on GCC or Clang.
 
-This work does not move production ownership. The shared frontend, Linear IR, and deterministic i386 emitter move `float` and `double` values through objects, assignment, calls, variadic reads, and returns. Explicit casts and assignment conversion accept every represented signed or unsigned integer through 64 bits as input to either width. Unary plus and minus and binary addition, subtraction, multiplication, and division accept matching or mixed floating widths. Runtime `+`, `-`, `*`, `/`, all six comparisons, and conditional selection also apply the usual arithmetic conversions to every represented value integer or compatible enum. Only the selected conditional arm converts. Inputs through four bytes use SSE. Wide inputs use x87 `FILD`, including the unsigned 2^64 correction, before a binary32 or binary64 store. The four arithmetic compound operators accept mixed integer and floating operands in either lvalue direction. They compute at the usual `float`, `double`, or `long double` type, convert the result back to the declared left type, and evaluate the destination once. Represented integer bit fields use the same conversion sequence. Every changed x87 result is stored immediately at its C width. A `float` rounds into a fresh four-byte slot, while a `double` receives a fresh private eight-byte snapshot. The unchanged `libm_tanh_impl` body pins nested `double` arithmetic, and the following `float` helper slice pins width conversion. The current proof emits a 74-function object with 13,549 text bytes, fingerprint `4FC4077B`, 75 symbols, and 135 relocations. Its decoder lock includes 42 binary32 loads, 44 binary64 loads, 35 signed 64-bit integer loads, 23 control-word saves, 24 restores, and 11 unsigned correction branches. Thirty-three execution cases cover signed and unsigned endpoints, precision boundaries, all four arithmetic operators, all six predicates, both conditional directions, every mixed compound operator in both lvalue directions, assignment-result values, and one-time destination evaluation. The model does not execute native x87 code. The source-head object is deterministic. Hosted CupidC and the checked Cupid-built driver still emit byte-identical objects for the earlier wide conversion forms carried through ADR 0292. The checked seed predates the mixed compound extension in ADR 0296. No active OS source needs the new expression shape, so no normal object, transform, dependency, or source suffix moves.
+This work does not move production ownership. The shared frontend, Linear IR, and deterministic i386 emitter move `float` and `double` values through objects, assignment, calls, variadic reads, and returns. Explicit casts and assignment conversion accept every represented signed or unsigned integer through 64 bits as input to either width. Unary plus and minus and binary addition, subtraction, multiplication, and division accept matching or mixed floating widths. Runtime `+`, `-`, `*`, `/`, all six comparisons, and conditional selection also apply the usual arithmetic conversions to every represented value integer or compatible enum. Only the selected conditional arm converts. Inputs through four bytes use SSE. Wide inputs use x87 `FILD`, including the unsigned 2^64 correction, before a binary32 or binary64 store. The four arithmetic compound operators accept mixed integer and floating operands in either lvalue direction. They compute at the usual `float`, `double`, or `long double` type, convert the result back to the declared left type, and evaluate the destination once. Represented integer bit fields use the same conversion sequence. Every changed x87 result is stored immediately at its C width. A `float` rounds into a fresh four-byte slot, while a `double` receives a fresh private eight-byte snapshot. The unchanged `libm_tanh_impl` body pins nested `double` arithmetic, and the following `float` helper slice pins width conversion. The current proof emits a 74-function object with 13,549 text bytes, fingerprint `4FC4077B`, 75 symbols, and 135 relocations. Its decoder lock includes 42 binary32 loads, 44 binary64 loads, 35 signed 64-bit integer loads, 23 control-word saves, 24 restores, and 11 unsigned correction branches. Thirty-three execution cases cover signed and unsigned endpoints, precision boundaries, all four arithmetic operators, all six predicates, both conditional directions, every mixed compound operator in both lvalue directions, assignment-result values, and one-time destination evaluation. The model does not execute native x87 code. The object is deterministic. The current checked seeds carry both the earlier wide conversion forms and the mixed compound extension in ADR 0296. No active OS source needs the new expression shape, so no normal object, transform, dependency, or source suffix moves.
 
 Represented bit-field assignment and mutation expand hosted CupidC capability without moving a production transform. Linear IR retains the selected graph member and evaluates the record address once. The emitter preserves neighboring bits, returns the stored lane for plain or compound assignment and prefix update, and returns the extracted old lane for postfix update. The focused mutation proof covers every compound operator, signed and unsigned width wrap, and volatile 32-bit direct stores. The plain-assignment proof still pins Doom's unchanged indexed color-array shape. No unchanged active expression currently uses bit-field mutation, so this issue #25 proof changes hosted capability without changing an ownership count. GCC or Clang builds the compiler contract; normal root objects use CupidC.
 
@@ -1140,8 +1139,8 @@ the three preceding x87 forms, ADR 0208 records forward-subtraction carriage,
 and ADR 0226 records SHRD. ADR 0228 records SHRD's first seed carriage, ADR
 0243 records an earlier seed, ADR 0252 records the x87 integer forms, ADR
 0258 records the preceding seed, ADR 0259 records the parity predicates, and
-ADRs 0265, 0280, and 0292 record the preceding seeds, and ADR 0305 records the
-current stage-four promotion.
+ADRs 0265, 0280, and 0292 record preceding seeds. ADR 0305 records raw
+local-target carriage, and ADR 0312 records the current stage-four promotion.
 ADR 0253 records
 the x87 integer forms' first CupidC runtime use.
 
@@ -1155,9 +1154,10 @@ hello, ls, and cat from a 23-input closure with SHA-256
 `f63919f4b4307278c825ebedf99391e3ec110646042ee397dac3a7ba330435d3`.
 
 ADR 0293 supersedes the binary32 and binary64 subnormal-literal limit in the
-older broad frontend, Linear IR, and object rows below. Source head now rounds
-accepted decimal `float` and `double` tokens exactly through subnormal,
-underflow, and overflow results. The checked seed still predates that change.
+older broad frontend, Linear IR, and object rows below. CupidC rounds accepted
+decimal `float` and `double` tokens exactly through subnormal, underflow, and
+overflow results. The current checked seeds carry the capability through ADR
+0312.
 
 | Source or artifact cohort | Owner/path when recorded | Fixed-point owner/path | Status and next proof |
 | --- | --- | --- | --- |
@@ -1349,9 +1349,8 @@ arithmetic. ADR 0287 records the first source-head integer and floating
 conditional boundary. ADR 0288 records runtime integer and long-double usual
 conversions. ADR 0289 removes the four-byte integer limit for `float` and
 `double` conversion and usual arithmetic. ADR 0296 records mixed arithmetic
-compound assignment in either lvalue direction. The checked seed predates
-ADRs 0293 and 0296, so these source-head capabilities do not move production
-ownership yet.
+compound assignment in either lvalue direction. The current checked seeds carry
+the ADR 0293 and ADR 0296 capabilities through ADR 0312.
 
 ADR 0263 adds hosted prefix and postfix update for modifiable non-atomic
 `float` and `double` lvalues. The shared frontend records the computation

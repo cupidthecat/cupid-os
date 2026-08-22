@@ -60,13 +60,13 @@ four-byte result splits at 2^31 before signed truncation. A mixed floating
 comparison uses `double`; only `!=` is true for an unordered NaN input. ADR
 0250 records the unsigned-output rule.
 
-Source-head hosted CupidC converts decimal `float` and `double` tokens with a
+Hosted CupidC converts decimal `float` and `double` tokens with a
 private 1536-bit integer workspace. It rounds the exact decimal ratio once at
 binary32 or binary64 width, with ties going to even. Public frontend, Linear
 IR, and ELF32 contracts cover both halfway parities, minimum subnormal and
 normal values, maximum finite values, infinity, signed underflow zero, and
-extreme exponents. A complete token may contain 95 characters. The checked
-seed predates this source-head capability.
+extreme exponents. A complete token may contain 95 characters. The current
+checked seeds carry this capability through ADR 0312.
 
 Non-atomic `long double` values now use twelve-byte target objects. Automatic
 values use frame snapshots. Static-duration scalars, fixed arrays, and

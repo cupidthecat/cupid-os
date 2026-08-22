@@ -765,14 +765,14 @@ conditional directions, mixed compound assignment results, and one-time
 destination evaluation. The hosted and Cupid-built compilers emit matching
 objects for the earlier wide source forms.
 
-The source-head public frontend publishes decimal float and double constants
+The public frontend publishes decimal float and double constants
 as exact IEEE binary32 or binary64 bits. A private 1536-bit integer workspace
 forms the decimal ratio and rounds it once, with ties going to even. The path
 covers subnormals, finite limits, infinity, signed underflow zero, extreme
 exponents, and complete tokens through 95 characters. Frontend, Linear IR, and
-ELF32 contracts pin the raw bits and deterministic object bytes. The checked
-seed predates this source-head capability, so production ownership does not
-move. Static-duration scalar and aggregate leaves use a
+ELF32 contracts pin the raw bits and deterministic object bytes. The current
+checked seeds carry the capability through ADR 0312. Static-duration scalar
+and aggregate leaves use a
 second integer-only IEEE evaluator for unary signs, addition, subtraction,
 multiplication, division, comparisons, casts, scalar truth, short-circuit
 logic, and conditional selection. Represented file and block enumerators and

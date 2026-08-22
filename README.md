@@ -2464,7 +2464,7 @@ The 187.054-second transaction result above is an earlier checkpoint. The next
 2026-08-13 poisoned-host checkpoint produced an 8,962,776-byte raw kernel with
 SHA-256
 `3170aa71eafa656b1f6e23c918f1f472860f513c9c5cd0376d7d4f5f8a7d891c`.
-The current 431-input production build produced a 9,114,084-byte raw kernel
+A later 431-input production build produced a 9,114,084-byte raw kernel
 with SHA-256
 `8b5d73e74538ce11c1fb074f88b3852d690038aa5cb3a8de3ce222e9df88cade`.
 
