@@ -19,6 +19,12 @@ fixed-point inventory records failure, help, and success counts of 21/5/22 for
 Linux and 9/5/8 for Windows. The promoted seeds keep their preceding
 20/5/21 and 8/5/7 behavior inventories.
 
+The public user Make entry point is explicit: `all` is the default on Windows
+and Linux, while `native-user-tools` remains an optional oracle target. The
+root Make database also omits the unused `FAT_OFFSET_BYTES` variable. Live
+image recipes pass `FAT_START_LBA` to the hostbuild interface. These Make
+contracts change no Cupid capability, ownership count, or output transform.
+
 The `c_source_ownership` audit contract enforces the source suffix at the
 checked graph boundary. An active tracked `.c` source may remain host-owned,
 but CupidC ownership requires `.cc` plus independent evidence. Checked compile

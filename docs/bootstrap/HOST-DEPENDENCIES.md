@@ -4,6 +4,9 @@ The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
+The user Makefile explicitly selects `all` as the default goal, including on
+Windows where the optional native-driver oracle is declared earlier in the
+file. Plain `make -C user` therefore enters the supported `user:all` graph.
 The final post-CTXT checkpoint records 739 inputs and 452 transforms. An earlier
 audit run failed after 65.183 seconds because the artifact-size recipe lock
 omitted the Windows seed verifier. The current recipe uses one
@@ -80,6 +83,11 @@ native convergence proof first passed on a frozen uncommitted snapshot. Those
 earlier proofs remain historical. The current Windows and Linux candidate
 proofs passed cleanly. Every initial comparison was true. Their behavior matrices are 5/7/8
 and 5/21/20. Python-free coordination remains open.
+
+The root Makefile forwards `FAT_START_LBA` to the disk-image helpers and has no
+consumer for a precomputed byte offset. Removing the unused parse-time Python
+calculation changes neither the 452 recorded transforms nor the host dependency
+set. Python remains required for the checked host-control work above.
 
 Source-head final report assembly uses the verified bytes in
 `SeedInputs.artifact_bytes` for its seed-to-stage-two comparison. It no longer

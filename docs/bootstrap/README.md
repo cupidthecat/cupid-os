@@ -1882,6 +1882,9 @@ contract path.
 
 Checked native CupidC and CupidLD perform the six output-bearing Windows user
 operations. The normal user build does not prepare host-built native drivers.
+`user/Makefile` names `all` as its default goal, so plain `make -C user`
+selects this supported graph on Windows and Linux. The conditional
+`native-user-tools` oracle remains available only when requested explicitly.
 Both wrappers freeze their source and control inputs and pass their existing
 five-tool capture to the same checked runner used by root commands. The runner
 rechecks the complete live cohort after CupidC or CupidLD returns. Each wrapper
@@ -1894,6 +1897,11 @@ The local `user/build/` directory is generated and ignored by Git. ADR 0127
 records the ABI correction and gate. ADR 0130 records the optional native
 Windows path. ADR 0188 records the checked-seed default, and ADR 0295 records
 the native Windows ABI contract.
+
+The root Makefile passes `FAT_START_LBA` directly to every disk-image helper.
+It does not calculate an unused byte offset by launching Python while Make is
+parsing. This removes no transform or host dependency; Python still owns the
+recorded orchestration, verification, and publication work.
 
 CupidObj generates those three installation-table sources through one typed
 public operation and the `install-source` CLI. The bin, docs, and demos modes

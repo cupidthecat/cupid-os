@@ -16,6 +16,7 @@
 #   3. Include "../cupid.h" and implement _start(cupid_syscall_table_t *sys)
 
 .SUFFIXES:
+.DEFAULT_GOAL := all
 
 ifeq ($(OS),Windows_NT)
 PYTHON ?= python

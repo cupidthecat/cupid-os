@@ -166,6 +166,9 @@ The user-space examples live under:
 Build them with:
   make -C user
 
+The Makefile names all as its default goal on Windows and Linux. Optional
+native-driver oracle targets run only when requested by name.
+
 The current user/Makefile writes outputs to:
   user/build/
 

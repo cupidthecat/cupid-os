@@ -29682,3 +29682,38 @@ reconstruction and the remaining Linux contract cohort. A complete
 
 No active `.c` file qualifies for a `.cc` rename. No checked seed or operating
 system artifact changes. `TempleOS/` remains untouched reference material.
+
+## 2026-08-22: make the supported user entry point explicit
+
+Plain `make -C user` selected the first declared target. On Windows that target
+was the optional `native-user-tools` oracle because its conditional rule appears
+before `all`. `user/Makefile` now declares `all` as the default goal, so the
+plain command enters the supported user graph on both host branches. The
+native-driver oracle still runs when requested by name.
+
+The root Makefile also calculated `FAT_OFFSET_BYTES` by launching Python while
+Make was parsing. A repository-wide search found no consumer for that variable.
+Every live disk-image recipe passes `FAT_START_LBA` directly to `hostbuild.py`,
+so the unused calculation is gone.
+
+The two public Make database tests were written first. They failed with
+`native-user-tools` as the Windows default and
+`FAT_OFFSET_BYTES := 10485760` in the root database. Both passed after the two
+Makefile edits. A focused build-graph group passed eight tests in 1.490 seconds.
+The complete `tests.test_build_graph_audit` module passed all 106 tests in
+953.643 seconds. Direct Windows and Linux user database checks both reported
+`.DEFAULT_GOAL := all`, and the root database reported no FAT offset assignment.
+`make bootstrap-audit` and `make check-bootstrap-audit` both pass.
+
+The regenerated audit also picks up the integrated source-head changes to
+CupidC, CupidDis, the Toolchain publisher, and their active tests. The
+supported graph remains at 739 active language inputs and 452 transforms: 443
+root, seven user, and two Toolchain. This cleanup changes no source owner,
+producer, host dependency, ABI, or output transform. No ADR is needed because
+it restores the documented `user:all` entry point and deletes dead setup rather
+than choosing a new architecture.
+
+The active ELF-program CTXT now explains the default goal. This bounded cleanup
+did not rebuild the OS image, so existing image artifacts do not contain that
+manual update yet. A fresh normal build will wrap the revised text through the
+existing CupidObj path.

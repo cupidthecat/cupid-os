@@ -893,7 +893,9 @@ checked bootstrap seed. The broader Linux fixed-point, Toolchain, and
 contract paths still use that seed through WSL on Windows. Artifact-size
 verification builds and runs a checked PE contract directly on Windows. The
 normal user build consumes the selected seed rather than preparing a compiler
-or linker.
+or linker. `user/Makefile` explicitly makes `all` the default, so plain
+`make -C user` selects this supported path on both host branches. The optional
+native-driver target must be requested by name.
 An optional Windows frontier runs private snapshots of the native hosted
 drivers and requires all six outputs to match the checked seed. The user build
 then checks the kernel and public syscall declarations as one i386 ABI before
@@ -2282,7 +2284,8 @@ mdir  -i cupidos.img@@10485760 ::/
 ```
 
 If you change `FAT_START_LBA` in the Makefile, recalculate: offset =
-`FAT_START_LBA * 512`.
+`FAT_START_LBA * 512`. The Make recipes pass the sector address directly to
+`hostbuild.py`; only tools such as `mtools` need the byte form.
 
 ### Debugging
 
@@ -2629,9 +2632,11 @@ hello, loop, fibonacci, factorial, bubblesort, stack, data, math, include_featur
 ## User programs (user/)
 
 The `user/` directory has three example ELF32 programs: `hello.cc`, `cat.cc`,
-and `ls.cc`. Its `cupid.h` header defines the syscall-table ABI. `make -C user`
-first compares that header with the kernel types, syscall table and
-initializer, VFS declarations, and socket constants. It then compiles the
+and `ls.cc`. Its `cupid.h` header defines the syscall-table ABI. The Makefile
+sets `all` as the default goal, so `make -C user` follows the supported build
+on Windows as well as Linux. It first compares that header with the kernel
+types, syscall table and initializer, VFS declarations, and socket constants.
+It then compiles the
 sources with CupidC and links them with CupidLD. Linux runs the checked
 bootstrap seed directly. Windows builds and runs the ABI contract as a private
 PE with checked CupidC, CupidASM, and CupidLD, then uses native checked CupidC

@@ -98,6 +98,9 @@ python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 cupid
 
 On Windows, use `python` instead of `python3`.
 
+The Make recipes give `hostbuild.py` the partition start as an LBA. They do
+not precompute a byte offset while parsing the Makefile.
+
 If you prefer `mtools`, install it and use the FAT byte offset:
 
 ```bash

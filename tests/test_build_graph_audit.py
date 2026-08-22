@@ -186,6 +186,55 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertIn("windows", reachable)
         self.assertNotIn("linux", reachable)
 
+    def test_plain_windows_user_make_selects_the_supported_all_goal(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        result = subprocess.run(
+            [
+                make,
+                "OS=Windows_NT",
+                "MAKE=:",
+                "--no-print-directory",
+                "-prRn",
+            ],
+            cwd=REPO_ROOT / "user",
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        match = re.search(
+            r"(?m)^\.DEFAULT_GOAL\s*:=\s*(\S+)\s*$",
+            result.stdout,
+        )
+        self.assertIsNotNone(match, "GNU Make omitted its selected default goal")
+        self.assertEqual(match.group(1), "all")
+
+    def test_root_make_database_omits_unused_fat_offset_variable(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        result = subprocess.run(
+            [
+                make,
+                "MAKE=:",
+                "--no-print-directory",
+                "-prRn",
+                "FORCE",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        assignments = re.findall(
+            r"(?m)^FAT_OFFSET_BYTES\s*[:+?]?=.*$",
+            result.stdout,
+        )
+        self.assertEqual(assignments, [])
+
     def test_native_user_tools_are_an_explicit_recursive_build(self):
         module = _load_audit_module()
         transform = {

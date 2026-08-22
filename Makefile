@@ -236,7 +236,6 @@ ARTIFACT_SIZE_CONTRACT := $(PYTHON) tools/artifact_size_contract.py verify --roo
 	--execution-manifest $(PRODUCTION_SEED_MANIFEST)
 HDD_MB ?= 200
 FAT_START_LBA ?= 20480
-FAT_OFFSET_BYTES := $(shell $(PYTHON) -c "print($(FAT_START_LBA) * 512)")
 WAD_SRCS := $(sort $(wildcard /usr/share/games/doom/freedoom*.wad))
 KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/irq.o kernel/cpu/pic.o \
             kernel/fs/fs.o drivers/keyboard.o drivers/timer.o kernel/cpu/math.o drivers/pit.o \

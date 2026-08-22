@@ -50,7 +50,10 @@ make test-user-native-windows-equivalence
 The normal Windows build runs checked native CupidC and CupidLD directly and
 does not prepare host-built native drivers. Its user ABI contract also runs
 directly as a checked PE. The separate comparison command builds private
-drivers with Clang and its native linker. Checked-seed CupidLD accepts
+drivers with Clang and its native linker. The user Makefile declares `all` as
+its default goal, so the plain command above selects the same supported target
+on Windows and Linux. Native drivers are built only when requested.
+Checked-seed CupidLD accepts
 `-m i386pe` for ordered static i386 ELF32 objects. It serializes one deterministic,
 fixed-layout PE32 console image at image base `0x00400000`, with `.text` at RVA
 `0x1000`, each nonempty later section category at the next `0x1000` boundary,
@@ -307,8 +310,8 @@ make -C user clean    # Clean build artifacts
 The first command runs the checked Linux seed directly on Linux. On Windows,
 checked native CupidC, CupidASM, and CupidLD build and run the ABI contract,
 then checked native CupidC and CupidLD build the six program artifacts. The
-command does not build the
-optional host-built native drivers.
+command does not build the optional host-built native drivers. `all` is an
+explicit default goal rather than a side effect of target order.
 
 To add a new program:
 

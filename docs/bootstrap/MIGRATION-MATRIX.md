@@ -13,6 +13,12 @@ froze. Drift detected by the post-run check rejects the result before
 publication. Make passes every wildcard-discovered output source through
 `$(sort ...)` before generation or link, giving Windows and Linux the same
 root order regardless of host locale.
+Plain `make -C user` selects the supported `all` goal on both host branches.
+The earlier conditional declaration of `native-user-tools` on Windows no
+longer makes that optional oracle the accidental default. The root Makefile
+also avoids an unused parse-time Python calculation and passes
+`FAT_START_LBA` directly to each disk helper. Neither cleanup changes a source
+owner, artifact producer, or recorded transform.
 Native hosted commands remain explicit oracle targets, but none is reachable
 from a supported root. The source-current three-root graph has 452 transforms,
 no recursive Make transform, 452 Python participants, 250 CupidC participants,
