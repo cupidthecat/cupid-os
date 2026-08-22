@@ -4,6 +4,10 @@
 
 Accepted on 2026-08-21.
 
+ADR 0318 supersedes this record only for checked-seed carriage and production
+adoption. The source-level policy and the evidence available when this decision
+was accepted remain unchanged here.
+
 ## Context
 
 ADR 0300 added local relative target checks for mapped raw images. ADR 0309

@@ -4642,6 +4642,7 @@ _CHECKED_SEED_RUNNER_FILES = (
     "tools/cupidc_kernel_compile.py",
     "tools/cupidc_production_compile.py",
     "tools/cupidld_user_link.py",
+    "tools/hostbuild.py",
 )
 
 
@@ -5311,6 +5312,281 @@ def _validate_checked_seed_wrapper(
         current = parents.get(current)
 
 
+def _validate_checked_code_publication(
+    tree: ast.Module,
+    relative: str,
+) -> None:
+    function = _checked_seed_function(tree, "validate_code", relative)
+    parents = {
+        child: parent
+        for parent in ast.walk(function)
+        for child in ast.iter_child_nodes(parent)
+    }
+    runner_calls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "run_seed_tool"
+    ]
+    assignments: dict[str, tuple[ast.Assign, ast.Call]] = {}
+    for call in runner_calls:
+        assignment = parents.get(call)
+        if not (
+            isinstance(assignment, ast.Assign)
+            and assignment.value is call
+            and len(assignment.targets) == 1
+            and isinstance(assignment.targets[0], ast.Name)
+        ):
+            continue
+        assignments[assignment.targets[0].id] = (assignment, call)
+    if len(runner_calls) != 3 or set(assignments) != {
+        "result",
+        "linked_validation",
+        "flattened",
+    }:
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "code publication does not have one broad disassembly, one linked "
+            "target validation, and one flattening call"
+        )
+
+    def positional(call: ast.Call) -> list[str]:
+        return [ast.unparse(argument) for argument in call.args]
+
+    broad_assignment, broad_call = assignments["result"]
+    linked_assignment, linked_call = assignments["linked_validation"]
+    flat_assignment, flat_call = assignments["flattened"]
+    if positional(broad_call) != [
+        "live_seed_manifest",
+        "private_root",
+        "'cupiddis'",
+        "('--require-known', *logical_paths)",
+    ]:
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "broad code validation arguments differ"
+        )
+    if positional(linked_call) != [
+        "live_seed_manifest",
+        "private_root",
+        "'cupiddis'",
+        "('--require-known', '--require-local-targets', "
+        "'kernel/kernel.elf.pass1', 'kernel/kernel.elf')",
+    ]:
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "linked kernel target validation arguments differ"
+        )
+    if positional(flat_call) != [
+        "live_seed_manifest",
+        "private_root",
+        "'cupidobj'",
+        "('flat', 'kernel/kernel.elf', '-o', candidate_output.logical)",
+    ]:
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "kernel flattening arguments differ"
+        )
+    linked_keywords = {
+        keyword.arg: ast.unparse(keyword.value)
+        for keyword in linked_call.keywords
+        if keyword.arg is not None
+    }
+    flat_keywords = {
+        keyword.arg: ast.unparse(keyword.value)
+        for keyword in flat_call.keywords
+        if keyword.arg is not None
+    }
+    if linked_keywords != {"timeout": "600", "frozen_seed": "frozen_seed"} or (
+        flat_keywords != {"timeout": "300", "frozen_seed": "frozen_seed"}
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "linked validation and flattening do not share the frozen seed"
+        )
+
+    broad_keywords = [
+        (keyword.arg, ast.unparse(keyword.value))
+        for keyword in broad_call.keywords
+    ]
+    if broad_keywords != [
+        ("timeout", "300"),
+        (
+            None,
+            "{'frozen_seed': frozen_seed} if frozen_seed is not None else {}",
+        ),
+    ]:
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "broad validation does not use the output transaction's frozen seed"
+        )
+
+    def require_unconditional_success_path(node: ast.AST) -> None:
+        child: ast.AST = node
+        current = parents.get(child)
+        while current is not None and current is not function:
+            if isinstance(
+                current,
+                (
+                    ast.If,
+                    ast.For,
+                    ast.AsyncFor,
+                    ast.While,
+                    ast.Match,
+                    ast.ExceptHandler,
+                    ast.Lambda,
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                ),
+            ):
+                raise AuditError(
+                    "checked-seed runner contract changed in tools/hostbuild.py: "
+                    "code validation or flattening is conditionally unreachable"
+                )
+            if isinstance(current, (ast.With, ast.AsyncWith)):
+                allowed_exit_stack = (
+                    isinstance(current, ast.With)
+                    and len(current.items) == 1
+                    and isinstance(current.items[0].context_expr, ast.Call)
+                    and isinstance(
+                        current.items[0].context_expr.func,
+                        ast.Name,
+                    )
+                    and current.items[0].context_expr.func.id == "ExitStack"
+                    and not current.items[0].context_expr.args
+                    and not current.items[0].context_expr.keywords
+                    and isinstance(current.items[0].optional_vars, ast.Name)
+                    and current.items[0].optional_vars.id == "stack"
+                )
+                if not allowed_exit_stack:
+                    raise AuditError(
+                        "checked-seed runner contract changed in "
+                        "tools/hostbuild.py: code validation or flattening "
+                        "moved under an unproved context manager"
+                    )
+            if isinstance(current, (ast.Try, ast.TryStar)):
+                handlers_reraise = current.handlers and all(
+                    len(handler.body) == 1
+                    and isinstance(handler.body[0], ast.Raise)
+                    for handler in current.handlers
+                )
+                if (
+                    child not in current.body
+                    or current.orelse
+                    or current.finalbody
+                    or not handlers_reraise
+                ):
+                    raise AuditError(
+                        "checked-seed runner contract changed in "
+                        "tools/hostbuild.py: code validation or flattening "
+                        "moved onto a suppressible path"
+                    )
+            child = current
+            current = parents.get(current)
+
+    for assignment in (broad_assignment, linked_assignment, flat_assignment):
+        require_unconditional_success_path(assignment)
+
+    result_guards = {
+        ast.unparse(node.test): node
+        for node in ast.walk(function)
+        if isinstance(node, ast.If)
+        and node.lineno > linked_assignment.lineno
+        and node.lineno < flat_assignment.lineno
+    }
+    if not {
+        "linked_validation.stdout",
+        "linked_validation.returncode != 0",
+    }.issubset(result_guards) or not (
+        broad_assignment.lineno
+        < linked_assignment.lineno
+        < flat_assignment.lineno
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "linked validation is not accepted before kernel flattening"
+        )
+
+    stdout_guard = result_guards["linked_validation.stdout"]
+    status_guard = result_guards["linked_validation.returncode != 0"]
+    require_unconditional_success_path(stdout_guard)
+    require_unconditional_success_path(status_guard)
+    if not (
+        len(stdout_guard.body) == 1
+        and isinstance(stdout_guard.body[0], ast.Raise)
+        and len(status_guard.body) == 1
+        and isinstance(status_guard.body[0], ast.Return)
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "linked validation output or status does not block flattening"
+        )
+
+    linked_try = parents.get(linked_assignment)
+    if not (
+        isinstance(linked_try, ast.Try)
+        and len(linked_try.handlers) == 1
+        and isinstance(linked_try.handlers[0].type, ast.Name)
+        and linked_try.handlers[0].type.id == "BootstrapError"
+        and len(linked_try.handlers[0].body) == 1
+        and isinstance(linked_try.handlers[0].body[0], ast.Raise)
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "linked validation runner failures do not block flattening"
+        )
+
+    drift_calls: dict[str, ast.Call] = {}
+    for node in ast.walk(function):
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id
+            in {
+                "_require_code_inputs_unchanged",
+                "_require_code_seed_inputs_unchanged",
+            }
+            and linked_assignment.lineno < node.lineno < flat_assignment.lineno
+        ):
+            continue
+        drift_calls[node.func.id] = node
+    if set(drift_calls) != {
+        "_require_code_inputs_unchanged",
+        "_require_code_seed_inputs_unchanged",
+    }:
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "linked validation drift guards are incomplete"
+        )
+    input_drift = drift_calls["_require_code_inputs_unchanged"]
+    seed_drift = drift_calls["_require_code_seed_inputs_unchanged"]
+    require_unconditional_success_path(input_drift)
+    require_unconditional_success_path(seed_drift)
+    if (
+        positional(input_drift)
+        != ["repository_root", "manifest_snapshot", "snapshots"]
+        or {
+            keyword.arg: ast.unparse(keyword.value)
+            for keyword in input_drift.keywords
+        }
+        != {
+            "activity": "'CupidDis local-target validation'",
+            "tool_stderr": "linked_stderr",
+        }
+        or positional(seed_drift) != ["repository_root", "seed_snapshots"]
+        or {
+            keyword.arg: ast.unparse(keyword.value)
+            for keyword in seed_drift.keywords
+        }
+        != {"tool_stderr": "linked_stderr"}
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "linked validation drift guards do not bind the frozen cohort"
+        )
+
+
 def _validate_checked_seed_runner_contract(root: Path) -> None:
     missing = [
         relative
@@ -5355,6 +5631,10 @@ def _validate_checked_seed_runner_contract(root: Path) -> None:
         "active_runner",
         "os.replace",
         True,
+    )
+    _validate_checked_code_publication(
+        trees["tools/hostbuild.py"],
+        "tools/hostbuild.py",
     )
 
 

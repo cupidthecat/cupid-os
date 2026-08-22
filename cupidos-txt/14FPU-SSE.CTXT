@@ -284,8 +284,9 @@ ratio in a private 1536-bit integer workspace, then rounds once at the selected
 IEEE width with ties going to even. Public frontend, Linear IR, and ELF32
 contracts cover both halfway parities, minimum subnormal and normal values,
 maximum finite values, infinity, signed underflow zero, extreme exponents, and
-the 95-character token boundary. The current checked seeds carry this
-capability through ADR 0312. The four arithmetic compound operators also
+the 95-character token boundary. ADR 0312 first carried this capability. ADR
+0318 carries it in the current checked seeds. The four arithmetic compound
+operators also
 accept an integer and a floating operand in either lvalue direction. They use
 the usual float,
 double, or long double computation type, convert back to the declared left

@@ -64,7 +64,7 @@ A valid schema-v3 publication records exactly 21 artifacts, 70 publication
 inputs, 50 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
 it. Both checked Python contract launchers put this checkout ahead of installed
 packages before importing `tools`. The direct contract passes 40 tests in
-40.828 seconds, the publisher passes 62 in 7.266 seconds, and the pinned runner
+43.226 seconds, the publisher passes 62 in 7.266 seconds, and the pinned runner
 passes 25 in 32.773 seconds. The host bootstrap log records the exact
 publication identity and completion evidence.
 
@@ -76,11 +76,11 @@ seed images. A CUPSIZE2 request lets the CupidC-built contract validate the
 Windows manifest target, provenance, Linux parent link, exact five-tool
 inventory, and observed sizes and digests. The focused semantic-contract,
 checked-runner, and independent-policy modules contain 22, 16, and 13 tests,
-for 51 total. They pass with four existing platform-specific skips. No
-complete Make result is recorded for this source increment. The host bootstrap log records
-the post-manual-freeze poisoned build and strong private four-vCPU e1000
-frontier. Exact OS identities and runtime measurements stay there because this
-manual is an image input.
+for 51 total. They pass with four existing platform-specific skips. The host
+bootstrap log records the complete source-consistent normal build, final
+checked publication, and private four-vCPU proof for this increment. Exact OS
+identities and runtime measurements stay there because this manual is an image
+input.
 
 CupidObj's 192 normal transforms include the disk-template, ISO, and guarded
 profile-manifest operations. Checked CupidObj authors the pristine FAT16
@@ -281,8 +281,7 @@ decode passes. An unrelocated direct relative target must stay in that section
 and land on an instruction start there. A relocation at the operand field
 leaves the destination for link time. The existing relocation-ownership rule
 still checks the field. Failures distinguish a target outside the section from
-one in the middle of an instruction. Checked-seed ET_EXEC still receives the
-focused rejection.
+one in the middle of an instruction.
 
 The active ISR and context-switch objects pass this checked-seed policy. Eleven
 ISR call relocations stay outside the local count. Changing one context-switch
@@ -290,15 +289,16 @@ branch byte produces one mid-instruction failure. The promoted seeds carry this
 form, and production object publication selects it before replacement. ADR
 0309 records the source boundary, and ADR 0312 records carriage and adoption.
 
-Source-head CupidDis also accepts the option for linked i386 ELF32 images. It
+Checked CupidDis also accepts the option for linked i386 ELF32 images. It
 scans nonoverlapping file-backed executable load regions twice and accepts a
 cross-region target only when it lands on an instruction start. The linked
 report separates targets outside loaded memory, in loaded memory without
 file-backed executable code, and inside an instruction. A PT_DYNAMIC or
 PT_INTERP header rejects the image as outside the static certification domain.
-Typed and CLI negative cases cover both forms. No production linked image
-transaction selects this form, and the checked seeds do not carry it. ADR 0314
-records the source boundary.
+Typed and CLI negative cases cover both forms. The normal kernel transaction
+applies the linked rule to its frozen pass-one and final ELFs before CupidObj
+flattening. ADR 0314 records the decoder boundary, and ADR 0318 records seed
+carriage and production adoption.
 
 Source-head and checked-seed CupidDis also check relocations that target executable sections
 in ELF32 relocatable objects. R_386_PC32 must begin at a decoded four-byte
@@ -402,7 +402,7 @@ Windows validates and runs the image, checks its exact stdout and empty stderr,
 and requires exit 37. The validator checks the fixed stack and heap fields,
 reconstructs the exact .idata layout, and
 the report retains both object and image pairs plus the observed Windows
-result. The promoted Linux seed carries the 5/20/19 behavior matrix and this
+result. The promoted Linux seed carries the 5/21/20 behavior matrix and this
 command.
 
 Checked-seed CupidLD uses an adjacent candidate created with exclusive-create
@@ -603,8 +603,8 @@ records the x87 form's seed carriage, and ADR 0228 records the first SHRD seed
 promotion. ADR 0243
 records the preceding seed, ADR 0252 records the x87 integer forms, ADR 0258
 records the preceding seed, and ADR 0259 records the parity predicates. ADRs
-0265, 0280, and 0292 record preceding promotions. ADR 0312 records the current
-promotion.
+0265, 0280, 0292, and 0312 record preceding promotions. ADR 0318 records the
+current promotion.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR
@@ -768,10 +768,11 @@ objects. The guarded ISR and context-switch transactions select that object
 rule after structural ELF validation. Relocated external operands remain under
 the relocation-ownership check and are excluded from the local-target count.
 Far pointers and indirect transfers remain outside the local-target count.
-Linked ELF target proof remains outside the current checked-seed policy.
-Source-head CupidDis supports static i386 ET_EXEC proof, but that form still
-awaits promotion and no production linked-image transaction selects it. The
-current publication and CUPMAN2 evidence are recorded in the overview above.
+Linked ELF target proof is part of the current checked-seed policy. The normal
+kernel transaction runs it over the frozen pass-one and final ELFs after the
+broad production scan and before CupidObj flattening. Any failure keeps the
+previous raw kernel. The current publication and CUPMAN2 evidence are recorded
+in the overview above.
 Exact seed identities remain in the host bootstrap log.
 >endtree
 

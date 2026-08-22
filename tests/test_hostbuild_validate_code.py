@@ -20,14 +20,22 @@ class HostbuildValidateCodeTests(unittest.TestCase):
         )
         (manifest.parent / "cupiddis.elf").write_bytes(b"checked seed tool")
 
-    def _write_publication_fixture(self, root: Path) -> tuple[Path, Path, Path, Path]:
+    def _write_publication_fixture(
+        self, root: Path
+    ) -> tuple[Path, Path, Path, Path]:
         seed_manifest = root / "seed.json"
         input_manifest = root / "inputs.txt"
+        kernel_pass1 = root / "kernel" / "kernel.elf.pass1"
         kernel_elf = root / "kernel" / "kernel.elf"
         output = root / "kernel" / "kernel.bin"
         kernel_elf.parent.mkdir()
         self._write_seed_capture_fixture(seed_manifest)
-        input_manifest.write_text("kernel/kernel.elf\n", encoding="utf-8", newline="\n")
+        input_manifest.write_text(
+            "kernel/kernel.elf.pass1\nkernel/kernel.elf\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        kernel_pass1.write_bytes(b"validated pass-one ELF")
         kernel_elf.write_bytes(b"validated ELF")
         output.write_bytes(b"last known good kernel")
         return seed_manifest, input_manifest, kernel_elf, output
@@ -71,13 +79,17 @@ class HostbuildValidateCodeTests(unittest.TestCase):
             root = Path(temporary)
             seed_manifest = root / "seed.json"
             input_manifest = root / "inputs.txt"
+            kernel_pass1 = root / "kernel" / "kernel.elf.pass1"
             kernel_elf = root / "kernel" / "kernel.elf"
             output = root / "kernel" / "kernel.bin"
             kernel_elf.parent.mkdir()
             self._write_seed_capture_fixture(seed_manifest)
             input_manifest.write_text(
-                "kernel/kernel.elf\n", encoding="utf-8", newline="\n"
+                "kernel/kernel.elf.pass1\nkernel/kernel.elf\n",
+                encoding="utf-8",
+                newline="\n",
             )
+            kernel_pass1.write_bytes(b"validated pass-one ELF")
             kernel_elf.write_bytes(b"validated ELF")
             output.write_bytes(b"last known good kernel")
             calls = []
@@ -91,17 +103,26 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                 timeout,
                 frozen_seed,
             ):
-                del seed_manifest_path, timeout
+                del seed_manifest_path
                 self.assertIs(frozen_seed, checked_seed)
                 private = Path(working_directory)
-                calls.append(tool_name)
+                calls.append(
+                    (
+                        tool_name,
+                        tuple(str(argument) for argument in arguments),
+                        timeout,
+                    )
+                )
                 self.assertEqual(
                     (private / "kernel" / "kernel.elf").read_bytes(),
                     b"validated ELF",
                 )
-                if tool_name == "cupiddis":
+                if (
+                    tool_name == "cupiddis"
+                    and "--require-local-targets" in arguments
+                ):
                     kernel_elf.write_bytes(b"unvalidated replacement")
-                else:
+                elif tool_name == "cupidobj":
                     self.assertEqual(
                         tuple(str(argument) for argument in arguments[:3]),
                         ("flat", "kernel/kernel.elf", "-o"),
@@ -129,13 +150,36 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                     output="kernel/kernel.bin",
                 )
 
-            self.assertEqual(calls, ["cupiddis", "cupidobj"])
+            self.assertEqual(
+                calls,
+                [
+                    (
+                        "cupiddis",
+                        (
+                            "--require-known",
+                            "kernel/kernel.elf.pass1",
+                            "kernel/kernel.elf",
+                        ),
+                        300,
+                    ),
+                    (
+                        "cupiddis",
+                        (
+                            "--require-known",
+                            "--require-local-targets",
+                            "kernel/kernel.elf.pass1",
+                            "kernel/kernel.elf",
+                        ),
+                        600,
+                    ),
+                ],
+            )
             self.assertEqual(status, 1)
             self.assertEqual(stdout, "")
             self.assertEqual(
                 stderr,
                 "[hostbuild] validate-code failed: code input changed while "
-                "checked tools ran: kernel/kernel.elf\n",
+                "CupidDis local-target validation ran: kernel/kernel.elf\n",
             )
             self.assertEqual(output.read_bytes(), b"last known good kernel")
 
@@ -164,7 +208,9 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                     (private / "kernel" / "kernel.elf").read_bytes(),
                     b"validated ELF",
                 )
-                calls.append(tool_name)
+                calls.append(
+                    (tool_name, tuple(str(argument) for argument in arguments))
+                )
                 if tool_name == "cupidobj":
                     candidate = private / str(arguments[3])
                     candidate.parent.mkdir(parents=True, exist_ok=True)
@@ -188,12 +234,164 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                     output="kernel/kernel.bin",
                 )
 
-            self.assertEqual(calls, ["cupiddis", "cupidobj"])
+            self.assertEqual(
+                calls,
+                [
+                    (
+                        "cupiddis",
+                        (
+                            "--require-known",
+                            "kernel/kernel.elf.pass1",
+                            "kernel/kernel.elf",
+                        ),
+                    ),
+                    (
+                        "cupiddis",
+                        (
+                            "--require-known",
+                            "--require-local-targets",
+                            "kernel/kernel.elf.pass1",
+                            "kernel/kernel.elf",
+                        ),
+                    ),
+                    (
+                        "cupidobj",
+                        (
+                            "flat",
+                            "kernel/kernel.elf",
+                            "-o",
+                            ".cupid-output/kernel.bin",
+                        ),
+                    ),
+                ],
+            )
             self.assertEqual(status, 0)
             self.assertEqual(stdout, "")
             self.assertEqual(stderr, "")
             self.assertEqual(output.read_bytes(), b"flat validated ELF")
             freeze.assert_called_once()
+
+    def test_validate_code_preserves_output_for_local_target_failures(self):
+        cases = (
+            ("status", 7, "", False),
+            ("stdout", 0, "unexpected listing\n", False),
+            ("runner", 0, "", True),
+        )
+        for name, status_code, tool_stdout, runner_failure in cases:
+            with (
+                self.subTest(name=name),
+                tempfile.TemporaryDirectory(
+                    prefix="hostbuild-validate-code-local-target-failure-"
+                ) as temporary,
+            ):
+                root = Path(temporary)
+                seed_manifest, _, _, output = self._write_publication_fixture(
+                    root
+                )
+                checked_seed = object()
+                calls = []
+
+                def run_checked(
+                    seed_manifest_path,
+                    working_directory,
+                    tool_name,
+                    arguments,
+                    *,
+                    timeout,
+                    frozen_seed,
+                ):
+                    del seed_manifest_path, working_directory, timeout
+                    self.assertIs(frozen_seed, checked_seed)
+                    calls.append((tool_name, tuple(arguments)))
+                    if len(calls) == 1:
+                        return subprocess.CompletedProcess(
+                            list(arguments), 0, "", "broad diagnostics\n"
+                        )
+                    self.assertEqual(tool_name, "cupiddis")
+                    self.assertIn("--require-local-targets", arguments)
+                    if runner_failure:
+                        raise BootstrapError("seed execution failed")
+                    return subprocess.CompletedProcess(
+                        list(arguments),
+                        status_code,
+                        tool_stdout,
+                        "local-target diagnostics\n",
+                    )
+
+                with (
+                    mock.patch(
+                        "tools.hostbuild.freeze_seed_inputs",
+                        return_value=checked_seed,
+                    ),
+                    mock.patch(
+                        "tools.hostbuild.run_seed_tool",
+                        side_effect=run_checked,
+                    ),
+                ):
+                    status, stdout, stderr = self._run_cli(
+                        root,
+                        seed_manifest,
+                        input_manifest="inputs.txt",
+                        output="kernel/kernel.bin",
+                    )
+
+                self.assertEqual(
+                    [call[0] for call in calls],
+                    ["cupiddis", "cupiddis"],
+                )
+                self.assertEqual(stdout, "")
+                self.assertNotEqual(status, 0)
+                self.assertEqual(output.read_bytes(), b"last known good kernel")
+                if runner_failure:
+                    self.assertIn(
+                        "checked CupidDis local-target validation could not run: "
+                        "seed execution failed",
+                        stderr,
+                    )
+                elif tool_stdout:
+                    self.assertIn(
+                        "checked CupidDis local-target validation wrote unexpected "
+                        "standard output",
+                        stderr,
+                    )
+                else:
+                    self.assertEqual(status, status_code)
+                    self.assertIn("broad diagnostics", stderr)
+                    self.assertIn("local-target diagnostics", stderr)
+
+    def test_validate_code_requires_both_linked_kernels_before_tools_run(self):
+        for missing in ("kernel/kernel.elf.pass1", "kernel/kernel.elf"):
+            with (
+                self.subTest(missing=missing),
+                tempfile.TemporaryDirectory(
+                    prefix="hostbuild-validate-code-missing-linked-kernel-"
+                ) as temporary,
+            ):
+                root = Path(temporary)
+                seed_manifest, input_manifest, _, output = (
+                    self._write_publication_fixture(root)
+                )
+                present = (
+                    "kernel/kernel.elf"
+                    if missing.endswith("pass1")
+                    else "kernel/kernel.elf.pass1"
+                )
+                input_manifest.write_text(
+                    present + "\n", encoding="utf-8", newline="\n"
+                )
+                with mock.patch("tools.hostbuild.run_seed_tool") as checked:
+                    status, stdout, stderr = self._run_cli(
+                        root,
+                        seed_manifest,
+                        input_manifest="inputs.txt",
+                        output="kernel/kernel.bin",
+                    )
+
+                self.assertEqual(status, 1)
+                self.assertEqual(stdout, "")
+                self.assertIn(missing, stderr)
+                self.assertEqual(output.read_bytes(), b"last known good kernel")
+                checked.assert_not_called()
 
     def test_validate_code_publishes_when_the_output_does_not_exist(self):
         with tempfile.TemporaryDirectory(
@@ -301,13 +499,17 @@ class HostbuildValidateCodeTests(unittest.TestCase):
             seed_manifest.parent.mkdir(parents=True)
             outside.mkdir()
             self._write_seed_capture_fixture(seed_manifest)
+            kernel_pass1 = root / "kernel" / "kernel.elf.pass1"
             kernel_elf = root / "kernel" / "kernel.elf"
             output = root / "kernel" / "kernel.bin"
             kernel_elf.parent.mkdir()
+            kernel_pass1.write_bytes(b"validated pass-one ELF")
             kernel_elf.write_bytes(b"validated ELF")
             output.write_bytes(b"last known good kernel")
             (root / "inputs.txt").write_text(
-                "kernel/kernel.elf\n", encoding="utf-8", newline="\n"
+                "kernel/kernel.elf.pass1\nkernel/kernel.elf\n",
+                encoding="utf-8",
+                newline="\n",
             )
             checked_seed = object()
 
@@ -420,6 +622,13 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                         candidate = Path(working_directory) / str(arguments[3])
                         candidate.parent.mkdir(parents=True, exist_ok=True)
                         candidate.write_bytes(b"candidate")
+                    if (
+                        tool_name == "cupiddis"
+                        and "--require-local-targets" in arguments
+                    ):
+                        return subprocess.CompletedProcess(
+                            list(arguments), 0, "", "linked context\n"
+                        )
                     if tool_name != failing_tool:
                         return subprocess.CompletedProcess(list(arguments), 0, "", "")
                     if runner_failure:
@@ -454,12 +663,16 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                 if failing_tool == "cupiddis":
                     self.assertEqual(calls, ["cupiddis"])
                 else:
-                    self.assertEqual(calls, ["cupiddis", "cupidobj"])
+                    self.assertEqual(
+                        calls,
+                        ["cupiddis", "cupiddis", "cupidobj"],
+                    )
                 if runner_failure:
                     self.assertIn(
                         "checked CupidObj could not run: seed execution failed",
                         stderr,
                     )
+                    self.assertIn("linked context", stderr)
                 elif tool_stdout:
                     self.assertIn(
                         f"checked {'CupidDis' if failing_tool == 'cupiddis' else 'CupidObj'} "
@@ -563,12 +776,14 @@ class HostbuildValidateCodeTests(unittest.TestCase):
             prefix="hostbuild-validate-code-output-parent-swap-"
         ) as temporary:
             root = Path(temporary)
-            seed_manifest, _, _, output = self._write_publication_fixture(root)
-            kernel = root / "kernel"
-            displaced = root / "validated-kernel"
-            replacement = root / "replacement-kernel"
+            seed_manifest, _, _, _ = self._write_publication_fixture(root)
+            publication = root / "published"
+            publication.mkdir()
+            output = publication / "kernel.bin"
+            output.write_bytes(b"last known good kernel")
+            displaced = root / "validated-publication"
+            replacement = root / "replacement-publication"
             replacement.mkdir()
-            (replacement / "kernel.elf").write_bytes(b"validated ELF")
             (replacement / "kernel.bin").write_bytes(b"outside output")
             checked_seed = object()
             replacement_was_blocked = False
@@ -589,8 +804,8 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                     candidate = Path(working_directory) / str(arguments[3])
                     candidate.write_bytes(b"flat validated ELF")
                     try:
-                        kernel.rename(displaced)
-                        replacement.rename(kernel)
+                        publication.rename(displaced)
+                        replacement.rename(publication)
                     except PermissionError:
                         replacement_was_blocked = True
                 return subprocess.CompletedProcess(list(arguments), 0, "", "")
@@ -609,7 +824,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                     root,
                     seed_manifest,
                     input_manifest="inputs.txt",
-                    output="kernel/kernel.bin",
+                    output="published/kernel.bin",
                 )
 
             self.assertEqual(stdout, "")
@@ -985,13 +1200,17 @@ class HostbuildValidateCodeTests(unittest.TestCase):
             self._write_seed_capture_fixture(replacement_manifest)
             (replacement / "cupiddis.elf").write_bytes(b"untrusted seed tool")
             input_manifest = root / "inputs.txt"
+            kernel_pass1 = root / "kernel" / "kernel.elf.pass1"
             kernel_elf = root / "kernel" / "kernel.elf"
             output = root / "kernel" / "kernel.bin"
             kernel_elf.parent.mkdir()
+            kernel_pass1.write_bytes(b"validated pass-one ELF")
             kernel_elf.write_bytes(b"validated ELF")
             output.write_bytes(b"last known good kernel")
             input_manifest.write_text(
-                "kernel/kernel.elf\n", encoding="utf-8", newline="\n"
+                "kernel/kernel.elf.pass1\nkernel/kernel.elf\n",
+                encoding="utf-8",
+                newline="\n",
             )
             displaced = root / "validated-seed"
             swapped = False

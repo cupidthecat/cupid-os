@@ -29314,7 +29314,7 @@ pass. The fixed-point inventory records failure, help, and success counts of
 20/5/21 for Linux and 8/5/7 for Windows.
 
 The source-head `CUPSIZE2` artifact contract passed twice against all fourteen
-exact artifacts. The current outputs are:
+exact artifacts. At that checkpoint, the outputs were:
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -29333,3 +29333,206 @@ The full GUI test module passed all 126 tests in 1.468 seconds.
 These are source-head results. Checked-seed promotion and production adoption
 remain pending. The earlier incomplete 90-test attempt and all dated integrated
 build evidence remain historical records.
+
+## 2026-08-22: promote and adopt linked-image local-target checks
+
+Clean Linux and native Windows candidates were built from revision
+`ad7305341003feaa7e630ab7fd45be0a214c4da7` and the 50-input snapshot
+`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
+The Linux candidate report has SHA-256
+`8838b39e5e2256e75e8b6cc9d3357fcc11cd74912e045971e38562ea5f764709`.
+It matched 19 C objects, startup, and five tools across stages three and four,
+then passed 21 success, 20 useful failure, and five help cases. The Windows
+candidate report has SHA-256
+`d165af3efd94dc5f314afdd18c1af7e8bb0713b9f6ca39cdec4062b23f8cbee5`.
+It matched 20 C objects, two assembly objects, and five tools, then passed seven
+success, eight useful failure, and five help cases. Every candidate tool also
+matched its checked input image. Candidate-built CupidDis accepted the real
+pass-one and final kernel ELFs with strict known-instruction and local-target
+validation on both hosts.
+
+The complete five-tool cohorts were promoted even though only CupidDis changed
+bytes. The current Linux tools are:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 458,256 | `1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e` |
+| CupidC | 2,687,436 | `273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094` |
+| CupidDis | 434,548 | `56a90efcc79aef65d9bdc684cc867a4793398282ee588630ef6f451e56ee456a` |
+| CupidLD | 312,792 | `a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295` |
+| CupidObj | 392,688 | `99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a` |
+
+Their 5,573-byte manifest has SHA-256
+`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
+The 39,329-byte promoted-seed reproof report has SHA-256
+`b04c13e5f1544f19c7508c1325f87dc727e4ad32887e2079c96a7e3c063a405a`.
+It repeated the complete candidate fixed point and behavior matrix with all
+five initial comparisons true.
+
+The current Windows tools are:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 438,784 | `c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6` |
+| CupidC | 2,613,760 | `c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002` |
+| CupidDis | 415,744 | `23da2e2f5f99c1667d2a3eb459b8d22d8a37af021e7da18b7513d3d8632cb81c` |
+| CupidLD | 296,448 | `9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02` |
+| CupidObj | 375,808 | `079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79` |
+
+Their 2,118-byte manifest has SHA-256
+`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`
+and names the Linux manifest as its parent. The 35,283-byte promoted-seed
+reproof report has SHA-256
+`8f33fd00e909ed076f1b3387b420af1489392b314ee407c50ec0166422e1c246`.
+It repeated the Windows candidate result with all five initial comparisons
+true.
+
+Output-bearing kernel publication now keeps the broad 431-input CupidDis scan,
+then applies strict local-target validation to the frozen pass-one and final
+ELFs before CupidObj flattens the final image. Any status, output, runner, seed,
+or input failure preserves the previous raw kernel. The production transaction
+module passes 33 tests with one existing platform skip. Direct checked-seed
+linked-image tests pass on Linux and native Windows. The generated active-build
+audit and its deterministic replay both pass and lock the call shape, order,
+guards, and successful-path reachability.
+
+The first normal image attempt linked both kernel ELFs but stopped safely at
+the linked-image gate when its combined call reached the old 300-second limit.
+The previous 9,270,116-byte raw kernel remained unchanged with SHA-256
+`9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532`.
+Separate native Windows seed runs passed strict local-target validation in
+177.774 seconds for the pass-one ELF and 180.771 seconds for the final ELF.
+Because the 358.545-second pair cannot fit one 300-second call, only that
+combined budget moved to 600 seconds. The broad scan and CupidObj flattening
+retain their 300-second limits. The audit and transaction test lock all three
+values.
+
+No active `.c` source qualifies for a `.cc` rename. The seventeen tracked `.c`
+files remain references, fixtures, or inactive inputs. `TempleOS/` remains
+untouched reference material. ADR 0318 records the promotion and adoption.
+
+## 2026-08-22: close the linked-image production proof
+
+The first post-promotion image build completed the full active graph, strict
+source compilation, both kernel links, the broad source scan, linked-image
+target validation, flat-image publication, and the fourteen-artifact gate. It
+also exposed a stale sentence in the embedded CupidC manual. After that text
+was corrected, the source-consistent rebuild repeated every compiler and
+linker step, including all 83 Doom translation roots. It completed broad,
+linked, and flat validation in 3,785.83 seconds, then stopped at the exact-size
+gate because the corrected manual made `kernel/kernel.bin` 28 bytes smaller.
+
+The policy row moved from 9,270,796 bytes to the measured 9,270,768 bytes. The
+checked `CUPSIZE2` contract and independent Python oracle then passed twice
+against all fourteen artifacts. The image publisher restaged the corrected
+kernel and `test_iso/hello.iso` while preserving the FAT data. That checkpoint
+produced:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,366,752 | `c0bcb7ba0ab3ecc9dfd6d1c734ad2f600532faea8b06f1625fa8166be5b94794` |
+| `kernel/kernel.elf` | 9,493,728 | `86054e8db9d6812220fd3554b77144fdb11bd12e39e735a25735e10ba956ed2a` |
+| `kernel/kernel.bin` | 9,270,768 | `f336558a68e68d511aa5867485c9ff80f8d4b9c02633f0c1ca5d4b78a6f91cf5` |
+| `cupidos.img` | 209,715,200 | `93bc92e37a1072663f39b6ae388b06c39b533350d1cadaa8068df382e74e2e13` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `000897f80481613802c8541124cd397de1d2b5f6e99eb9bcbfca3b3cb0d0bb70` |
+
+The first source-current `make -C toolchain all` attempt ran for 1,183.52
+seconds and reached the checked bootstrap publication boundary. A transient
+WSL/DrvFS permission error prevented the private `publication` directory from
+replacing `bootstrap`; the public cohort stayed intact. Retrying without a
+concurrent OS build passed in 3,952.17 seconds. Cupid and Python agreed on all
+58 fixed-point pairs, the hosted runtime passed, live inputs stayed frozen,
+and the final `CUPMAN2` verifier accepted all 21 artifacts. The publication
+records 70 inputs, 50 bootstrap files, 17 object comparisons, 16 executable
+comparisons, 19 bootstrap C objects, one startup object, and five tool images.
+Its 27,071-byte manifest has SHA-256
+`ea41237781ef0662502dde675b94d06c92ffadd2154a5a9da8b987c0a01e5947`.
+
+The first private QEMU smoke booted the corrected image with four vCPUs and
+passed the SMP runtime check. `/bin/feature14_simd.cc` printed
+`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`,
+then completed its feature marker and JIT execution. The 31,406-byte log at
+`tests/feature14-callback-raw-qemu.log` has SHA-256
+`f175bd45d85b112dac9c6dd03b17ef10c7aaf89e85aef2f1903ede34470fe8b4`.
+
+The final Windows transaction and artifact group passed 84 tests in 6.534
+seconds with five expected platform skips. The standalone manifest-contract
+module passed 40 tests in 43.226 seconds. Both checked seed verifiers pass, as
+do the Linux and native Windows linked-image seed checks. The generated
+active-source audit and its deterministic replay pass with 452 transforms,
+443 roots, four Cupid-built semantic contracts, and no Python-only transform.
+`py_compile` and `git diff --check` are clean.
+
+No active `.c` file qualifies for a `.cc` rename. The seventeen tracked `.c`
+files are still references, fixtures, or inactive inputs. `TempleOS/` remains
+untouched reference material.
+
+## 2026-08-22: first embedded-manual consistency republish
+
+A documentation review found four embedded manuals that still called
+the completed normal build unrecorded. Those manuals are active image inputs,
+so all four CupidObj wrappers were rebuilt before the pass-one and final
+kernels were relinked. Exact source-current artifact identities were removed
+from the embedded prose to avoid making the evidence invalidate itself.
+
+The production publication then repeated its broad 431-input scan, strict
+local-target validation of both linked kernels, CupidObj flattening, and final
+drift checks. It passed in 560.05 seconds with empty tool output. The updated
+9,271,332-byte policy row passed the checked `CUPSIZE2` contract and independent
+Python oracle twice. The image publisher preserved the FAT data while staging
+the checked kernel and `test_iso/hello.iso`.
+
+That consistency checkpoint produced:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,366,752 | `62bd9ecc9a4fb5d18fed97439e1789c67f243e9979827cac7007ee8b1e42e5b0` |
+| `kernel/kernel.elf` | 9,493,728 | `e27aa8720ea5e1816743fea9a6ff3cbc0fd53625d4c25fb43d22b6c04b4c6993` |
+| `kernel/kernel.bin` | 9,271,332 | `d82742849f7ed85d04607ddbc7a6013b5dd8747a2b3eb64eccf62a53fbb3cc5e` |
+| `cupidos.img` | 209,715,200 | `8ca846202ccc340bbbee4b877eb4ce3bd22cba79bf4cf320b923f708942efabf` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `b5809b360cbe4a16f5da329f0ffc7998f358c7ef5b8896ccb8c049d561739d2c` |
+
+The next private QEMU smoke booted this image with four vCPUs and passed the
+SMP runtime check. `/bin/feature14_simd.cc` printed
+`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`,
+then completed its feature marker and JIT execution. The 32,171-byte log at
+`tests/feature14-callback-raw-qemu.log` has SHA-256
+`1f7b6c2b4d2c8ceb9bf5bab1b10597759edbb61a3c520fa022870196f4a8e929`.
+
+## 2026-08-22: republish corrected seed provenance
+
+The final spec review found two active manuals that described capabilities on
+the current seeds as carried through ADR 0312. ADR 0312 first carried those
+capabilities, while ADR 0318 carries them on the current promotion. The two
+manuals were corrected, wrapped again with checked CupidObj, and included in
+fresh pass-one and final links.
+
+Production publication repeated the broad 431-input scan, strict linked-image
+local-target check, CupidObj flattening, and final drift checks. It passed in
+562.55 seconds with empty tool output. The two corrected sentences increased
+the raw kernel by 48 bytes to 9,271,380 bytes. That policy row passed the checked
+`CUPSIZE2` contract and independent Python oracle twice before the image was
+restaged with preserved FAT data.
+
+The final source-current files are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,366,752 | `106980d97475d36b7835395a5bbfb43eb1e71484cea631d80dfe47be1acc2ac3` |
+| `kernel/kernel.elf` | 9,493,728 | `b8e4a34844190b22faf5840a06d32ef961b6835c3af028cc78e34352ffc6bf6d` |
+| `kernel/kernel.bin` | 9,271,380 | `e1801128cceeb5a510671684cded5a0aef04220dfafe90fa686df963e7abf37f` |
+| `cupidos.img` | 209,715,200 | `e1ae54dced2431bee00dbf6fdc256fc908407bba16dac3967bb54a99ca436fdd` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `48419052148f3e711b84801338584b48f2ed969f5c267a6bbb2953e493cbf8f5` |
+
+The final private QEMU smoke booted this image with four vCPUs and passed the
+SMP runtime check. `/bin/feature14_simd.cc` printed
+`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`,
+then completed its feature marker and JIT execution. The 32,981-byte log at
+`tests/feature14-callback-raw-qemu.log` has SHA-256
+`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.

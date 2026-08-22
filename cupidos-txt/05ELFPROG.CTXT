@@ -278,7 +278,7 @@ remains the publication verifier.
 A valid schema-v3 publication binds exactly 21 artifacts, 70 publication
 inputs, 50 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
 the published cohort. Focused evidence passes 40 direct contract tests in
-40.828 seconds, 62 publisher tests in 7.266 seconds, and 25 pinned runner tests
+43.226 seconds, 62 publisher tests in 7.266 seconds, and 25 pinned runner tests
 in 32.773 seconds. Both checked Python launchers resolve `tools` from this
 checkout. The host bootstrap log records the exact publication
 identity and completion evidence.
@@ -292,10 +292,11 @@ the Windows manifest, Linux parent digest, and five regular-file size and
 digest observations. The contract validates the Windows target, provenance,
 exact inventory, and observed bytes. The focused semantic-contract,
 checked-runner, and independent-policy modules contain 22, 16, and 13 tests,
-for 51 total. They pass with four existing platform-specific skips. No
-complete Make result is recorded for this source increment. The host bootstrap log records the preceding
-poisoned build and strong private four-vCPU e1000 frontier. Exact OS identities
-and runtime measurements stay there because this manual is an image input.
+for 51 total. They pass with four existing platform-specific skips. The host
+bootstrap log records the complete source-consistent normal build, final
+checked publication, and private four-vCPU proof for this increment. Exact OS
+identities and runtime measurements stay there because this manual is an image
+input.
 
 Build and check all three examples:
   make test-user-cupidc-frontier
@@ -390,12 +391,14 @@ Both cohorts carry the raw local-target policy used by the guarded bootloader
 and SMP transactions. Exact seed identities and dated proof evidence are kept
 in the host bootstrap log.
 
-CupidDis also checks unrelocated direct targets inside each
-executable section of a static ELF32 relocatable object. Relocated operand
-fields stay under the separate relocation-ownership rule. Targets outside
-their source section or inside an instruction fail. Linked ET_EXEC input is
-not covered. The promoted cohorts carry this form, and production object
-publication selects it after structural validation and before replacement.
+CupidDis also checks unrelocated direct targets inside each executable section
+of a static ELF32 relocatable object. Relocated operand fields stay under the
+separate relocation-ownership rule. Targets outside their source section or
+inside an instruction fail. For static linked ET_EXEC input, direct targets may
+cross executable load regions but must land on file-backed instruction starts.
+The promoted cohorts carry both forms. Production object publication selects
+the relocatable rule before replacement, and kernel publication selects the
+linked rule for the pass-one and final ELFs before flattening.
 >endtree
 
 >h2 See Also

@@ -247,8 +247,9 @@ pointers and indirect register or memory targets remain outside the rule. A
 displacement can still pass if it reaches a different valid
 instruction start in same-mode code, because raw decoding does not preserve
 source-label identity. ADR 0300 records this boundary.
-ADR 0305 records raw-image carriage. ADR 0312 records the current
-relocatable-object promotion and production adoption.
+ADR 0305 records raw-image carriage. ADR 0312 records the relocatable-object
+promotion and production adoption. ADR 0318 records the current linked-image
+promotion.
 
 CupidDis can apply the same explicit option to a static ELF32
 relocatable object:
@@ -272,20 +273,20 @@ seeds carry this form, and production object publication selects it before
 replacing the prior object. ADR 0309 records the source boundary, and ADR 0312
 records carriage and adoption.
 
-Source-head CupidDis also accepts the option for linked i386 ELF32 input. It
+Checked CupidDis also accepts the option for linked i386 ELF32 input. It
 scans nonoverlapping file-backed executable load regions twice. A direct target
 may cross regions, but it must land on an instruction start. The report
 separates targets outside loaded memory, in loaded memory without file-backed
 executable code, and inside an instruction. A `PT_DYNAMIC` or `PT_INTERP`
-header rejects the image as outside the static certification domain. No
-production linked-image transaction selects this form, and the checked seeds
-do not carry it. ADR 0314 records the source boundary.
+header rejects the image as outside the static certification domain. ADR 0314
+records the source boundary.
 
 The generated active-source audit and its check both pass. The Linux audit
 records 20 failure groups, five help groups, and 21 success groups. The Windows
 audit records eight failure groups, five help groups, and seven success groups.
-This linked-image proof remains a source-head capability. Checked-seed
-promotion and production adoption remain pending.
+Both checked seeds now carry the linked-image rule. The normal kernel publisher
+uses it on the pass-one and final ELFs before flattening; ADR 0318 records that
+promotion and adoption.
 
 ### Requiring complete code coverage
 
@@ -446,7 +447,7 @@ and passed a 1,061.3-second reproof with every initial seed comparison true.
 ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
 0272 records checked carriage and production selection, and ADRs 0278 and 0279
 record native reconstruction and convergence. ADRs 0280, 0281, and 0292
-record preceding Linux and Windows promotions. ADR 0312 records the current
+record preceding Linux and Windows promotions. ADR 0318 records the current
 promotion.
 
 ### Function Example
@@ -575,7 +576,7 @@ SHRD's first seed carriage. ADR 0243 records the preceding seed, ADR 0252
 records the x87 integer forms, ADR 0258 records the preceding promotion, ADR
 0259 records the parity predicates, ADR 0265 records their preceding seed
 carriage, and ADRs 0280 and 0292 record preceding seeds. ADR 0305 records raw
-local-target carriage, and ADR 0312 records the current seed.
+local-target carriage, and ADR 0312 records the preceding local-target seed, and ADR 0318 records the current seed.
 
 `setp` and `setnp` accept one byte register or memory destination in either
 mode. They encode as `0F 9A /r` and `0F 9B /r`. Address-size overrides work
@@ -1502,14 +1503,14 @@ The source image was unchanged. Its 33,219-byte log has SHA-256
 The promoted Linux CupidASM image is 458,256 bytes with SHA-256
 `1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e`.
 Its 5,573-byte seed manifest has SHA-256
-`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
+`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
 The promoted Windows CupidASM image is 438,784 bytes with SHA-256
 `c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6`.
 Its 2,118-byte manifest has SHA-256
-`f537e1877f813d2a8f12f9fe2feeaddeff263cf768248def6aebfb009cee1c42`.
-Both bind revision `30aaf1b7cd398e6b47a395661a33d20d00363158` and exact
+`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`.
+Both bind revision `ad7305341003feaa7e630ab7fd45be0a214c4da7` and exact
 50-input snapshot
-`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`.
+`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
 The Windows manifest names the Linux manifest as its parent. The 2026-08-14
 build and smoke evidence above predates this promotion; the later poisoned
 build and e1000 smoke followed it. The pre-documentation artifact gate then
@@ -1538,4 +1539,4 @@ log has SHA-256
 `bc30f5083b96a36362bec5975c0a88437c4f23515de329328bb03d8f6c3e9326`.
 The source image was unchanged at SHA-256
 `31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
-ADR 0312 records the seed identities.
+ADR 0318 records the seed identities.

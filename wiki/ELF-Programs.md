@@ -103,18 +103,18 @@ Those reports remain preliminary. Linux later passed a clean 1,294.3-second
 proof, promoted the stage-four seed, and passed a 1,473.9-second reproof from
 that seed. Native Windows then passed a clean 1,253.4-second proof and a
 1,061.3-second promoted-seed reproof. Both of those Windows runs matched 20 C
-objects, two assembly objects, and five PE32 tools and passed the 5/6/7
+objects, two assembly objects, and five PE32 tools and passed the 5/5/6
 behavior matrix. The
 old seed comparison was false for CupidASM, CupidC, and CupidDis and true for
 CupidLD and CupidObj. That promoted 2,118-byte manifest has SHA-256
 `ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e`.
 The current 2,118-byte Windows manifest has SHA-256
-`f537e1877f813d2a8f12f9fe2feeaddeff263cf768248def6aebfb009cee1c42`.
-It binds revision `30aaf1b7cd398e6b47a395661a33d20d00363158`, exact 50-input
+`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`.
+It binds revision `ad7305341003feaa7e630ab7fd45be0a214c4da7`, exact 50-input
 snapshot
-`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`,
+`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`,
 and Linux parent manifest
-`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
+`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
 See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
@@ -125,10 +125,12 @@ profile, parity test, and audit guard now cover all five tool mains. ADR 0268 re
 ADR 0269 records CupidLD publication, ADR 0272 records Windows execution seed
 carriage and production selection, ADR 0278 records the native driver, and
 [ADR 0279](../docs/adr/0279-prove-post-change-fixed-points-through-convergence.md)
-records the convergence rule, and [ADR 0280](../docs/adr/0280-promote-the-clean-stage-four-linux-seed.md)
+records the convergence rule. [ADR 0280](../docs/adr/0280-promote-the-clean-stage-four-linux-seed.md)
 records the Linux promotion. [ADR 0281](../docs/adr/0281-promote-the-clean-stage-four-windows-seed.md)
 records the preceding Windows promotion. [ADR 0292](../docs/adr/0292-promote-strict-relocation-production-seeds.md)
-records the current Linux and Windows promotion.
+records the preceding strict-relocation promotion. [ADR
+0318](../docs/adr/0318-promote-and-adopt-linked-local-target-checks.md)
+records the current linked-image promotion and production adoption.
 
 The checked-seed CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,
@@ -741,10 +743,12 @@ boundary. ADR 0315 records the source rule.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-The log is `tests/feature14-callback-raw-qemu.log`, 32,803 bytes, with SHA-256
-`eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
+The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
+`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
 The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
-evidence. Checked-seed promotion and production adoption remain pending.
+runtime evidence. The standalone CupidC seeds do not contain this private
+parser. The active proof remains the in-OS JIT smoke because no normal AOT
+input needs the syntax yet. ADR 0315 records the boundary.
 [ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records the callback and one-header AOT boundaries.
 [ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
@@ -788,12 +792,15 @@ exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,366,752 | `263c124ab0e3c801196b5e24e86b362460eccd3b17366501fe41bdd3a907887c` |
-| `kernel/kernel.elf` | 9,493,728 | `00727f9d73cdf0be5dbd01f561a8a82aba0a99bc4e1c679756349aa934056de7` |
-| `kernel/kernel.bin` | 9,270,116 | `9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532` |
-| `cupidos.img` | 209,715,200 | `07bb498567798b72d5f9658f18c51aff8fc600ee419b9b95add26eb2bb298ac7` |
+| `kernel/kernel.elf.pass1` | 9,366,752 | `106980d97475d36b7835395a5bbfb43eb1e71484cea631d80dfe47be1acc2ac3` |
+| `kernel/kernel.elf` | 9,493,728 | `b8e4a34844190b22faf5840a06d32ef961b6835c3af028cc78e34352ffc6bf6d` |
+| `kernel/kernel.bin` | 9,271,380 | `e1801128cceeb5a510671684cded5a0aef04220dfafe90fa686df963e7abf37f` |
+| `cupidos.img` | 209,715,200 | `e1ae54dced2431bee00dbf6fdc256fc908407bba16dac3967bb54a99ca436fdd` |
 
-Checked-seed promotion and production adoption remain pending.
+Those output identities are source-head evidence. Both checked seeds now carry
+the same source snapshot, and the normal kernel transaction selects strict
+linked-image validation before flattening. ADR 0318 records the promotion and
+adoption.
 
 The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB

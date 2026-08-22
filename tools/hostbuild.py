@@ -5024,11 +5024,21 @@ def validate_code(
             seed_snapshots: list[_CodeValidationInput] = []
             candidate_output = None
             if pinned_output is not None:
-                if "kernel/kernel.elf" not in logical_paths:
-                    raise CodeValidationError(
-                        "code publication requires kernel/kernel.elf in "
-                        "the validated input cohort"
+                linked_kernel_inputs = (
+                    "kernel/kernel.elf.pass1",
+                    "kernel/kernel.elf",
                 )
+                missing_linked_inputs = [
+                    logical
+                    for logical in linked_kernel_inputs
+                    if logical not in logical_paths
+                ]
+                if missing_linked_inputs:
+                    raise CodeValidationError(
+                        "code publication requires the linked kernel inputs "
+                        "in the validated input cohort: "
+                        + ", ".join(missing_linked_inputs)
+                    )
                 initial_output = _code_output_entry(pinned_output)
                 protected_inputs = list(snapshots)
                 if manifest_snapshot is not None:
@@ -5098,6 +5108,52 @@ def validate_code(
             assert candidate_output is not None
             assert frozen_seed is not None
             try:
+                linked_validation = run_seed_tool(
+                    live_seed_manifest,
+                    private_root,
+                    "cupiddis",
+                    (
+                        "--require-known",
+                        "--require-local-targets",
+                        "kernel/kernel.elf.pass1",
+                        "kernel/kernel.elf",
+                    ),
+                    timeout=600,
+                    frozen_seed=frozen_seed,
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    "checked CupidDis local-target validation could not run: "
+                    f"{error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            linked_stderr = tool_stderr + (linked_validation.stderr or "")
+            _require_code_inputs_unchanged(
+                repository_root,
+                manifest_snapshot,
+                snapshots,
+                activity="CupidDis local-target validation",
+                tool_stderr=linked_stderr,
+            )
+            _require_code_seed_inputs_unchanged(
+                repository_root,
+                seed_snapshots,
+                tool_stderr=linked_stderr,
+            )
+            if linked_validation.stdout:
+                raise CodeValidationError(
+                    "checked CupidDis local-target validation wrote unexpected "
+                    "standard output",
+                    tool_stderr=linked_stderr,
+                )
+            if linked_validation.returncode != 0:
+                return subprocess.CompletedProcess(
+                    linked_validation.args,
+                    linked_validation.returncode,
+                    "",
+                    linked_stderr,
+                )
+            try:
                 flattened = run_seed_tool(
                     live_seed_manifest,
                     private_root,
@@ -5114,9 +5170,9 @@ def validate_code(
             except BootstrapError as error:
                 raise CodeValidationError(
                     f"checked CupidObj could not run: {error}",
-                    tool_stderr=tool_stderr,
+                    tool_stderr=linked_stderr,
                 ) from error
-            combined_stderr = tool_stderr + (flattened.stderr or "")
+            combined_stderr = linked_stderr + (flattened.stderr or "")
             _require_code_inputs_unchanged(
                 repository_root,
                 manifest_snapshot,

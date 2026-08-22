@@ -81,12 +81,12 @@ next one with `too many raw function-pointer signatures`, and then compiles and
 runs a valid retry in the same state. No new self-host object identity is
 recorded at this boundary.
 
-The four-vCPU raw callback QEMU smoke passes with
+At this decision boundary, the four-vCPU raw callback QEMU smoke passed with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-The 32,803-byte
+The then-current 32,803-byte
 `tests/feature14-callback-raw-qemu.log` has SHA-256
 `eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
-The full GUI test module passes all 126 tests in 1.468 seconds. This is
+The full GUI test module passed all 126 tests in 1.468 seconds. This is
 source-head guest evidence. Checked-seed promotion and production adoption
 remain pending.
 

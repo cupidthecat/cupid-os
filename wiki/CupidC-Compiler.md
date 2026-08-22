@@ -151,10 +151,11 @@ outside this typed path.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-The log is `tests/feature14-callback-raw-qemu.log`, 32,803 bytes, with SHA-256
-`eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
-The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
-evidence. Checked-seed promotion and production adoption remain pending.
+The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
+`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
+The full GUI module passes all 126 tests in 1.468 seconds. The standalone
+CupidC seeds do not contain this private parser. No normal AOT source needs the
+syntax yet; the active use remains the in-OS feature-14 JIT smoke.
 Direct structure and array callback results are rejected; record-pointer
 results retain their record identity. A rejected source or REPL unit restores
 the typedef table with the prior symbols, patches, control state, code, and
@@ -622,7 +623,7 @@ private 1536-bit integer workspace and rounds once at the requested IEEE width.
 The public frontend, Linear IR, and ELF32 contracts cover both halfway
 parities, minimum subnormal and normal values, maximum finite values, infinity,
 signed underflow zero, extreme exponents, and the 95-character token boundary.
-The current checked seeds carry this capability through ADR 0312.
+ADR 0312 first carried this capability; ADR 0318 carries it on the current checked seeds.
 Non-atomic `long double` values now use twelve-byte target objects and x87
 80-bit memory loads and stores. Bounded finite normal decimal `L` tokens
 round an exact integer ratio to a 64-bit explicit significand with ties to
@@ -799,15 +800,15 @@ failed author or verification preserves the prior publication. A separate checke
 verifier boundary, ADR 0304 records the author split, and ADR 0307 records raw
 stage-pair evidence.
 
-The source-current schema v3 `CUPMAN4` publication passed in 4,707.017 seconds and
+The source-current schema v3 `CUPMAN4` publication passed in 3,952.17 seconds and
 wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
 Its 27,071-byte manifest has SHA-256
-`48393f4e4dbca62e0edc598992c72de99537a82716b8c2e909fa7ac1b3ccead3`.
+`ea41237781ef0662502dde675b94d06c92ffadd2154a5a9da8b987c0a01e5947`.
 Its final verifier reported
 `Cupid Toolchain manifest: ok (21 artifacts)`.
 Both checked Python contract launchers resolve `tools` from this checkout. The
-direct contract suite passes 40 tests in 40.828 seconds, the publisher suite
+direct contract suite passes 40 tests in 43.226 seconds, the publisher suite
 passes 62 tests in 7.266 seconds, and the pinned verifier runner passes 25 tests
 in 32.773 seconds with three POSIX-only Windows skips. ADR 0311 records this
 host import boundary.
@@ -1014,14 +1015,14 @@ preceding Windows promotion, and ADR 0292 records that promotion.
 The current promoted Linux CupidC image is 2,687,436 bytes with SHA-256
 `273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094`.
 Its 5,573-byte manifest has SHA-256
-`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
+`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
 The current promoted Windows CupidC image is 2,613,760 bytes with SHA-256
 `c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002`.
 Its 2,118-byte manifest has SHA-256
-`f537e1877f813d2a8f12f9fe2feeaddeff263cf768248def6aebfb009cee1c42`.
-Both manifests bind revision `30aaf1b7cd398e6b47a395661a33d20d00363158`
+`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`.
+Both manifests bind revision `ad7305341003feaa7e630ab7fd45be0a214c4da7`
 and exact 50-input snapshot
-`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`.
+`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
 The Windows manifest names the Linux manifest as its parent.
 The normal kernel path runs strict checked-seed CupidDis and checked CupidObj
 flat extraction against one frozen cohort of all 429 audited root object
@@ -1186,7 +1187,7 @@ caller's control; the publisher has no destination lock or directory pin.
 The checked seed now carries CupidObj's bounded `iso-fixture` operation. Its
 hosted command reproduces the exact 61,440-byte repository image from the
 manifest and typed logical inventory. Both rebuilt stages exercise the command
-and its preserved-output failure in the 5/20/19 behavior matrix. ADR 0239
+and its preserved-output failure in the 5/21/20 behavior matrix. ADR 0239
 records the source capability, and ADR 0240 records the promotion. The normal
 ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records
@@ -1570,13 +1571,13 @@ independent-policy modules contain 22, 16, and 13 tests, for 51 total. They
 pass with four existing platform-specific skips. The source-head artifact
 contract later passed twice against all fourteen exact artifacts. The pass-one
 ELF is 9,366,752 bytes with SHA-256
-`263c124ab0e3c801196b5e24e86b362460eccd3b17366501fe41bdd3a907887c`.
+`106980d97475d36b7835395a5bbfb43eb1e71484cea631d80dfe47be1acc2ac3`.
 The final ELF is 9,493,728 bytes with SHA-256
-`00727f9d73cdf0be5dbd01f561a8a82aba0a99bc4e1c679756349aa934056de7`.
-The raw kernel is 9,270,116 bytes with SHA-256
-`9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532`.
+`b8e4a34844190b22faf5840a06d32ef961b6835c3af028cc78e34352ffc6bf6d`.
+The raw kernel is 9,271,380 bytes with SHA-256
+`e1801128cceeb5a510671684cded5a0aef04220dfafe90fa686df963e7abf37f`.
 The disk image is 209,715,200 bytes with SHA-256
-`07bb498567798b72d5f9658f18c51aff8fc600ee419b9b95add26eb2bb298ac7`.
+`e1ae54dced2431bee00dbf6fdc256fc908407bba16dac3967bb54a99ca436fdd`.
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The Linux
 audit records 20 failure groups, five help groups, and 21 success groups. The

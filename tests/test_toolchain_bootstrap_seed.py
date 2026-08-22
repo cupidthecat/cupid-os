@@ -202,6 +202,61 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertIn("1 mid-instruction", rejected.stderr)
 
+    def _assert_checked_seed_linked_local_target_policy(
+        self,
+        manifest: Path,
+        *,
+        native_windows: bool = False,
+    ) -> None:
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-linked-local-targets-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            valid = root / "valid.elf"
+            invalid = root / "invalid.elf"
+            valid.write_bytes(_local_target_executable_payload(5))
+            invalid.write_bytes(_local_target_executable_payload(1))
+            arguments = (
+                "--require-known",
+                "--require-local-targets",
+            )
+            runner_guard = (
+                mock.patch(
+                    "tools.bootstrap_toolchain.shutil.which",
+                    side_effect=AssertionError(
+                        "native seed must not probe WSL"
+                    ),
+                )
+                if native_windows
+                else contextlib.nullcontext()
+            )
+            with runner_guard:
+                accepted = run_seed_tool(
+                    manifest,
+                    REPO_ROOT,
+                    "cupiddis",
+                    (*arguments, valid),
+                    timeout=60,
+                )
+                rejected = run_seed_tool(
+                    manifest,
+                    REPO_ROOT,
+                    "cupiddis",
+                    (*arguments, invalid),
+                    timeout=60,
+                )
+
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            self.assertEqual(accepted.stdout, "")
+            self.assertEqual(accepted.stderr, "")
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "1 of 1 direct relative targets invalid",
+                rejected.stderr,
+            )
+            self.assertIn("1 mid-instruction", rejected.stderr)
+
     @staticmethod
     def _committed_source_inventory(
         revision: str,
@@ -1808,6 +1863,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             SEED_MANIFEST
         )
 
+    def test_checked_i386_linux_seed_carries_linked_local_target_policy(self):
+        self._assert_checked_seed_linked_local_target_policy(SEED_MANIFEST)
+
     def test_checked_i386_linux_seed_snapshot_matches_its_named_commit(self):
         manifest = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
         provenance = manifest["provenance"]
@@ -1886,6 +1944,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self,
     ):
         self._assert_checked_seed_relocatable_local_target_policy(
+            WINDOWS_SEED_MANIFEST,
+            native_windows=True,
+        )
+
+    @unittest.skipUnless(os.name == "nt", "native Windows seed")
+    def test_checked_i386_windows_seed_carries_linked_local_target_policy(self):
+        self._assert_checked_seed_linked_local_target_policy(
             WINDOWS_SEED_MANIFEST,
             native_windows=True,
         )
@@ -2125,11 +2190,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "afc56e3654ad7fe4447b31c87f1a010"
-                    "d9c13e89b824357db60b8a73648ad009c"
+                    "02ee58c6be6b6f9d2f2e4ab0a07e09f"
+                    "e180d39a18559e5ac3b5faf50078c9d20"
                 ),
                 "parent_seed_source_revision": (
-                    "30aaf1b7cd398e6b47a395661a33d20d00363158"
+                    "ad7305341003feaa7e630ab7fd45be0a214c4da7"
                 ),
                 "producer_lineage": {
                     "assembly": (
@@ -2147,7 +2212,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
                 "source_input_count": 50,
                 "source_revision": (
-                    "30aaf1b7cd398e6b47a395661a33d20d00363158"
+                    "ad7305341003feaa7e630ab7fd45be0a214c4da7"
                 ),
                 "source_snapshot_sha256": (
                     WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256
@@ -2641,7 +2706,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "cupidasm": True,
                     "cupidc": True,
-                    "cupiddis": False,
+                    "cupiddis": True,
                     "cupidld": True,
                     "cupidobj": True,
                 },
@@ -6502,7 +6567,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "30aaf1b7cd398e6b47a395661a33d20d00363158",
+                "ad7305341003feaa7e630ab7fd45be0a214c4da7",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -6905,7 +6970,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "cupidasm": True,
                     "cupidc": True,
-                    "cupiddis": False,
+                    "cupiddis": True,
                     "cupidld": True,
                     "cupidobj": True,
                 },

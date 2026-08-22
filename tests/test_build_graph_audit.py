@@ -4946,6 +4946,197 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "    except BaseException:\n"
                 "        pass",
             ),
+            (
+                "linked kernel target validation removed",
+                "tools/hostbuild.py",
+                '                        "--require-local-targets",\n'
+                '                        "kernel/kernel.elf.pass1",',
+                '                        "--require-local-targets-removed",\n'
+                '                        "kernel/kernel.elf.pass1",',
+            ),
+            (
+                "linked kernel target validation left in dead code",
+                "tools/hostbuild.py",
+                "            try:\n"
+                "                linked_validation = run_seed_tool(",
+                "            try:\n"
+                "                if False:\n"
+                    "                    linked_validation = run_seed_tool(",
+            ),
+            (
+                "linked kernel target validation duplicated",
+                "tools/hostbuild.py",
+                "            try:\n"
+                "                linked_validation = run_seed_tool(",
+                "            try:\n"
+                "                linked_validation = run_seed_tool(\n"
+                "                    live_seed_manifest,\n"
+                "                    private_root,\n"
+                "                    \"cupiddis\",\n"
+                "                    (\n"
+                "                        \"--require-known\",\n"
+                "                        \"--require-local-targets\",\n"
+                "                        \"kernel/kernel.elf.pass1\",\n"
+                "                        \"kernel/kernel.elf\",\n"
+                "                    ),\n"
+                "                    timeout=600,\n"
+                "                    frozen_seed=frozen_seed,\n"
+                "                )\n"
+                "                linked_validation = run_seed_tool(",
+            ),
+            (
+                "linked kernel status failure does not stop flattening",
+                "tools/hostbuild.py",
+                "            if linked_validation.returncode != 0:\n"
+                "                return subprocess.CompletedProcess(",
+                "            if linked_validation.returncode != 0:\n"
+                "                subprocess.CompletedProcess(",
+            ),
+            (
+                "linked kernel status guard left under a dead ancestor",
+                "tools/hostbuild.py",
+                "            if linked_validation.returncode != 0:\n"
+                "                return subprocess.CompletedProcess(\n"
+                "                    linked_validation.args,\n"
+                "                    linked_validation.returncode,\n"
+                "                    \"\",\n"
+                "                    linked_stderr,\n"
+                "                )",
+                "            if False:\n"
+                "                if linked_validation.returncode != 0:\n"
+                "                    return subprocess.CompletedProcess(\n"
+                "                        linked_validation.args,\n"
+                "                        linked_validation.returncode,\n"
+                "                        \"\",\n"
+                "                        linked_stderr,\n"
+                "                    )",
+            ),
+            (
+                "linked kernel runner failure does not stop flattening",
+                "tools/hostbuild.py",
+                "            except BootstrapError as error:\n"
+                "                raise CodeValidationError(\n"
+                "                    \"checked CupidDis local-target validation ",
+                "            except BootstrapError as error:\n"
+                "                if False:\n"
+                "                    raise CodeValidationError(\n"
+                "                    \"checked CupidDis local-target validation ",
+            ),
+            (
+                "linked kernel stdout failure does not stop flattening",
+                "tools/hostbuild.py",
+                "            if linked_validation.stdout:\n"
+                "                raise CodeValidationError(",
+                "            if linked_validation.stdout:\n"
+                "                if False:\n"
+                "                    raise CodeValidationError(",
+            ),
+            (
+                "linked kernel stdout guard left under a swallowing handler",
+                "tools/hostbuild.py",
+                "            if linked_validation.stdout:\n"
+                "                raise CodeValidationError(\n"
+                "                    \"checked CupidDis local-target "
+                "validation wrote unexpected \"\n"
+                "                    \"standard output\",\n"
+                "                    tool_stderr=linked_stderr,\n"
+                "                )",
+                "            try:\n"
+                "                if linked_validation.stdout:\n"
+                "                    raise CodeValidationError(\n"
+                "                        \"checked CupidDis local-target "
+                "validation wrote unexpected \"\n"
+                "                        \"standard output\",\n"
+                "                        tool_stderr=linked_stderr,\n"
+                "                    )\n"
+                "            except CodeValidationError:\n"
+                "                pass",
+            ),
+            (
+                "linked kernel stdout guard left under a swallowing exception group",
+                "tools/hostbuild.py",
+                "            if linked_validation.stdout:\n"
+                "                raise CodeValidationError(\n"
+                "                    \"checked CupidDis local-target "
+                "validation wrote unexpected \"\n"
+                "                    \"standard output\",\n"
+                "                    tool_stderr=linked_stderr,\n"
+                "                )",
+                "            try:\n"
+                "                if linked_validation.stdout:\n"
+                "                    raise CodeValidationError(\n"
+                "                        \"checked CupidDis local-target "
+                "validation wrote unexpected \"\n"
+                "                        \"standard output\",\n"
+                "                        tool_stderr=linked_stderr,\n"
+                "                    )\n"
+                "            except* CodeValidationError:\n"
+                "                pass",
+            ),
+            (
+                "linked kernel stdout guard left under a suppressing context",
+                "tools/hostbuild.py",
+                "            if linked_validation.stdout:\n"
+                "                raise CodeValidationError(\n"
+                "                    \"checked CupidDis local-target "
+                "validation wrote unexpected \"\n"
+                "                    \"standard output\",\n"
+                "                    tool_stderr=linked_stderr,\n"
+                "                )",
+                "            with contextlib.suppress(CodeValidationError):\n"
+                "                if linked_validation.stdout:\n"
+                "                    raise CodeValidationError(\n"
+                "                        \"checked CupidDis local-target "
+                "validation wrote unexpected \"\n"
+                "                        \"standard output\",\n"
+                "                        tool_stderr=linked_stderr,\n"
+                "                    )",
+            ),
+            (
+                "broad kernel validation drops the frozen seed",
+                "tools/hostbuild.py",
+                "                    **({\"frozen_seed\": frozen_seed} "
+                "if frozen_seed is not None else {}),",
+                "                    **{},",
+            ),
+            (
+                "linked kernel validation loses its two-image budget",
+                "tools/hostbuild.py",
+                "                    timeout=600,\n"
+                "                    frozen_seed=frozen_seed,",
+                "                    timeout=300,\n"
+                "                    frozen_seed=frozen_seed,",
+            ),
+            (
+                "linked kernel input drift guard removed",
+                "tools/hostbuild.py",
+                "            _require_code_inputs_unchanged(\n"
+                "                repository_root,\n"
+                "                manifest_snapshot,\n"
+                "                snapshots,\n"
+                "                activity=\"CupidDis local-target validation\",",
+                "            _require_code_inputs_unchanged_removed(\n"
+                "                repository_root,\n"
+                "                manifest_snapshot,\n"
+                "                snapshots,\n"
+                "                activity=\"CupidDis local-target validation\",",
+            ),
+            (
+                "linked kernel seed drift guard removed",
+                "tools/hostbuild.py",
+                "            _require_code_seed_inputs_unchanged(\n"
+                "                repository_root,\n"
+                "                seed_snapshots,\n"
+                "                tool_stderr=linked_stderr,\n"
+                "            )\n"
+                "            if linked_validation.stdout:",
+                "            _require_code_seed_inputs_unchanged_removed(\n"
+                "                repository_root,\n"
+                "                seed_snapshots,\n"
+                "                tool_stderr=linked_stderr,\n"
+                "            )\n"
+                "            if linked_validation.stdout:",
+            ),
         )
         for name, relative, old, new in mutations:
             with self.subTest(name=name), tempfile.TemporaryDirectory() as td:

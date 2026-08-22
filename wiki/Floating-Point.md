@@ -65,8 +65,8 @@ private 1536-bit integer workspace. It rounds the exact decimal ratio once at
 binary32 or binary64 width, with ties going to even. Public frontend, Linear
 IR, and ELF32 contracts cover both halfway parities, minimum subnormal and
 normal values, maximum finite values, infinity, signed underflow zero, and
-extreme exponents. A complete token may contain 95 characters. The current
-checked seeds carry this capability through ADR 0312.
+extreme exponents. A complete token may contain 95 characters. ADR 0312 first
+carried this capability; ADR 0318 carries it in the current checked seeds.
 
 Non-atomic `long double` values now use twelve-byte target objects. Automatic
 values use frame snapshots. Static-duration scalars, fixed arrays, and
@@ -427,10 +427,12 @@ next one. ADR 0315 records this boundary.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-The log is `tests/feature14-callback-raw-qemu.log`, 32,803 bytes, with SHA-256
-`eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
+The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
+`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
 The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
-evidence. Checked-seed promotion and production adoption remain pending.
+runtime evidence. The standalone CupidC seeds do not contain this private
+parser. The active proof remains the in-OS JIT smoke because no normal AOT
+input needs the syntax yet. ADR 0315 records the boundary.
 
 Private decimal `float` and `double` literals use a fixed 1536-bit integer
 workspace. The converter forms the exact decimal ratio and rounds once to the

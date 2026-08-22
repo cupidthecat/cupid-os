@@ -30,23 +30,25 @@ method parameters. ADR 0313 records static callback initialization. ADR 0307
 records raw stage-pair evidence. ADR 0314 records linked-image local-target
 validation, ADR 0315 records raw callback declarations, and ADR 0316 records
 Windows seed validation in `CUPSIZE2`. ADR 0317 records retained seed bytes as
-the final report comparison authority.
+the final report comparison authority. ADR 0318 records the current seed
+promotion and linked-kernel adoption.
 
-## 2026-08-21 source-current checkpoint
+## 2026-08-22 source-current checkpoint
 
 Checked CupidDis now validates unrelocated direct relative targets in static
 ELF32 relocatable objects. It gives each executable `PROGBITS` section its own
 instruction-start map, excludes relocated operand fields, and reports
 outside-section or mid-instruction failures. Production CupidASM object
-publication selects the rule after structural validation. Linked `ET_EXEC`
-input remains outside the checked-seed rule. Source-head CupidDis scans
+publication selects the rule after structural validation. Checked CupidDis
+also scans linked `ET_EXEC` images across
 nonoverlapping file-backed executable load regions and classifies targets
 outside loaded memory, in loaded memory without file-backed executable code,
 or inside an instruction. A `PT_DYNAMIC` or `PT_INTERP` header rejects the
-image as outside the static certification domain. No production linked-image
-transaction selects this form. ADR 0309 records the relocatable decoder boundary, ADR 0312 records its
-seed promotion and production adoption, and ADR 0314 records the source-only
-linked-image boundary.
+image as outside the static certification domain. The normal kernel
+transaction applies that rule to its frozen pass-one and final ELFs after the
+broad 431-input scan and before CupidObj flattening. ADR 0309 records the
+relocatable decoder boundary, ADR 0312 records its first carriage, ADR 0314
+records the linked-image rule, and ADR 0318 records carriage and adoption.
 
 The preceding fully poisoned OS build and integrated guest frontier remain
 historical evidence. At source head, the artifact contract passed twice against
@@ -54,10 +56,10 @@ all fourteen exact artifacts. The current outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,366,752 | `263c124ab0e3c801196b5e24e86b362460eccd3b17366501fe41bdd3a907887c` |
-| `kernel/kernel.elf` | 9,493,728 | `00727f9d73cdf0be5dbd01f561a8a82aba0a99bc4e1c679756349aa934056de7` |
-| `kernel/kernel.bin` | 9,270,116 | `9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532` |
-| `cupidos.img` | 209,715,200 | `07bb498567798b72d5f9658f18c51aff8fc600ee419b9b95add26eb2bb298ac7` |
+| `kernel/kernel.elf.pass1` | 9,366,752 | `106980d97475d36b7835395a5bbfb43eb1e71484cea631d80dfe47be1acc2ac3` |
+| `kernel/kernel.elf` | 9,493,728 | `b8e4a34844190b22faf5840a06d32ef961b6835c3af028cc78e34352ffc6bf6d` |
+| `kernel/kernel.bin` | 9,271,380 | `e1801128cceeb5a510671684cded5a0aef04220dfafe90fa686df963e7abf37f` |
+| `cupidos.img` | 209,715,200 | `e1ae54dced2431bee00dbf6fdc256fc908407bba16dac3967bb54a99ca436fdd` |
 
 Source-head bootstrap reporting now compares stage two with the verified bytes
 in `SeedInputs.artifact_bytes`. It no longer reopens ephemeral
@@ -68,7 +70,9 @@ cases pass in 2.792 seconds. A later complete source-head run passed all 92
 bootstrap tests in 2,820.626 seconds.
 The current 50-input source-head digest is
 `73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
-No seed or manifest is promoted by this repair. ADR 0317 records the boundary.
+Those source-head results preceded the current promotion. Both checked seeds
+now bind that snapshot, and ADR 0318 records their reproof and production
+adoption.
 
 Private CupidC carries a file-scope function-pointer typedef signature on direct
 free-function parameters, Cupid class method parameters,
@@ -87,12 +91,12 @@ raw Cupid class method parameters remain outside this boundary.
 The private callback ABI module passes all 268 tests in 51.685 seconds. The
 four-vCPU raw callback QEMU smoke also passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-The 32,803-byte
+The 32,981-byte
 `tests/feature14-callback-raw-qemu.log` has SHA-256
-`eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
-The full GUI module passes all 126 tests in 1.468 seconds. Checked-seed
-promotion and production adoption remain pending.
-The promoted standalone seeds do not contain this private parser or ELF writer.
+`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
+The full GUI module passes all 126 tests in 1.468 seconds. The standalone
+CupidC seeds do not contain this private parser. The active runtime proof
+remains the in-OS JIT smoke; no normal AOT source requires the syntax yet.
 ADR 0306 records global storage, ADR 0310 records automatic objects and method
 parameters, ADR 0313 records initialized-data function-address patches, and
 ADR 0315 records the raw forms.
@@ -111,7 +115,7 @@ and retains pinned filesystem capture, drift checks, staging, rollback, and
 atomic publication. The author is a static Linux ELF built and run by the
 converged stage-four Linux tools. Windows uses WSL for this mode. Both checked
 Python contract launchers resolve `tools` from this checkout before consulting
-installed packages. The direct module passes 40 tests in 40.828 seconds, the
+installed packages. The direct module passes 40 tests in 43.226 seconds, the
 publisher passes 62 tests in 7.266 seconds, and the pinned verifier runner
 executes 25 tests in 32.773 seconds with three POSIX-only skips on Windows. The
 direct suite includes a checked stage-four build and run of the author. The
@@ -121,14 +125,14 @@ active inputs, 452 transforms,
 is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 6, and four
 Cupid-built contracts. Python participates in every transform, but none is
 Python-only. The source-current schema v3 `CUPMAN4` `make -C toolchain all`
-passed in 4,707.017 seconds. The Cupid author and Python oracle agreed on all 58 stage
+passed in 3,952.17 seconds. The Cupid author and Python oracle agreed on all 58 stage
 pairs. Every stage-three object and executable matched its stage-four
 counterpart. The hosted runtime passed, and live inputs stayed frozen. The
 publisher wrote 21 artifacts and a 27,071-byte manifest with SHA-256
-`48393f4e4dbca62e0edc598992c72de99537a82716b8c2e909fa7ac1b3ccead3`.
+`ea41237781ef0662502dde675b94d06c92ffadd2154a5a9da8b987c0a01e5947`.
 It records 70 inputs, 50 bootstrap files, 17 object comparisons, and Linux seed
 manifest
-`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
+`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
 Its final `CUPMAN2` verifier printed
 `Cupid Toolchain manifest: ok (21 artifacts)`. The first corrected attempt
 published a valid cohort but failed this last read-only verifier because WSL
@@ -218,20 +222,20 @@ SHA-256
 `31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
 
 The promoted Linux seed binds revision
-`30aaf1b7cd398e6b47a395661a33d20d00363158`, the 50-input snapshot
-`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`,
+`ad7305341003feaa7e630ab7fd45be0a214c4da7`, the 50-input snapshot
+`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`,
 and build plan
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 The Linux manifest is 5,573 bytes with SHA-256
-`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
-Its candidate proof passed in 1,467.420 seconds with all initial comparisons
-true, 19 C objects, startup, five tools, and 5/20/19 behavior. The Windows manifest
+`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
+Its candidate proof passed cleanly with all initial comparisons
+true, 19 C objects, startup, five tools, and 5/21/20 behavior. The Windows manifest
 is 2,118 bytes with SHA-256
-`f537e1877f813d2a8f12f9fe2feeaddeff263cf768248def6aebfb009cee1c42`
+`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`
 and binds the same revision and snapshot. It names the Linux manifest as its
-parent instead of repeating the build plan. Its candidate proof passed in
-1,246.924 seconds with all comparisons true, 20 C objects, two assembly
-objects, five tools, and 5/6/7 behavior. Both production raw-image transactions
+parent instead of repeating the build plan. Its candidate proof passed cleanly
+with all comparisons true, 20 C objects, two assembly
+objects, five tools, and 5/7/8 behavior. Both production raw-image transactions
 select `--require-local-targets`. Production CupidASM object publication also
 selects the object form after structural validation. The artifact-size policy
 covers fourteen
@@ -254,7 +258,9 @@ fixed point passed in 1,187.863 seconds, with a 1,188.356-second wrapper. The
 86-test suite then passed in 2,444.917 seconds. After the relocatable-object
 cases were added, the historical ADR 0312 checked-seed module passed all 89
 tests in 3,145.502 seconds. The complete source-head module later passed all 92
-tests in 2,820.626 seconds. Checked-seed promotion remains pending.
+tests in 2,820.626 seconds. The current complete promotion carries the
+standalone toolchain changes from that snapshot in both checked seeds. Private
+in-kernel compiler changes remain outside the seed compiler.
 
 Hosted CupidC converts decimal `float` and `double` tokens with the same fixed
 1536-bit integer-ratio model as private CupidC. It rounds once at the written
@@ -265,7 +271,8 @@ Shared frontend, Linear IR, and object fixtures pin the exact target bits and
 little-endian constant bytes. The bounded decimal `long double` path and the
 hexadecimal-floating rejection do not change. The converter has no host
 floating dependency and does not move a production owner. ADR 0293 records the
-language decision, and ADR 0312 records current seed carriage.
+language decision, ADR 0312 records its first carriage, and ADR 0318 records
+the current seed identity.
 
 Source head now adds a native Windows fixed-point driver without changing
 those manifest roles. `bootstrap-windows` freezes the checked PE execution
@@ -309,16 +316,16 @@ The current promoted Windows cohort is:
 | --- | ---: | --- |
 | CupidASM | 438,784 | `c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6` |
 | CupidC | 2,613,760 | `c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002` |
-| CupidDis | 407,040 | `1ce02cadf6cc90bec0389ab9dc6c7b09ce6823a3bd23980fb78b46d3740c9b14` |
+| CupidDis | 415,744 | `23da2e2f5f99c1667d2a3eb459b8d22d8a37af021e7da18b7513d3d8632cb81c` |
 | CupidLD | 296,448 | `9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02` |
 | CupidObj | 375,808 | `079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79` |
 
 Its 2,118-byte manifest has SHA-256
-`f537e1877f813d2a8f12f9fe2feeaddeff263cf768248def6aebfb009cee1c42`.
-It binds revision `30aaf1b7cd398e6b47a395661a33d20d00363158`, the
+`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`.
+It binds revision `ad7305341003feaa7e630ab7fd45be0a214c4da7`, the
 shared 50-input snapshot, and the native
 stage-three producers. Its parent is Linux manifest
-`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`
+`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`
 from the same source revision.
 
 The preliminary Linux report also rebuilds the native Windows behavior cohort.
@@ -342,7 +349,7 @@ replaces the corresponding input in the reconstructed behavior link.
 ADR 0278 records the two-manifest boundary, ADR 0279 records the additional
 generation, ADR 0280 records the Linux promotion, and ADR 0281 records the
 Windows promotion. ADR 0292 records the next promotion. ADR 0305 records raw
-local-target carriage, and ADR 0312 records the current promotion.
+local-target carriage, and ADR 0318 records the current promotion.
 
 The reproducible native operator path is:
 
@@ -415,15 +422,14 @@ own instruction identity. Unrelocated constant direct targets must stay in
 the section and land on a decoded start. A relocation at the operand field
 excludes the target from this count; the existing relocation-ownership check
 still validates the field. The typed report appends an outside-section count.
-The hosted CLI rejects an outside-section or mid-instruction target. The
-checked-seed CLI rejects `ET_EXEC` with a focused inspection diagnostic. Both
+The hosted CLI rejects an outside-section or mid-instruction target. Both
 active CupidASM objects pass source-head validation, including eleven excluded ISR call
 relocations. Changing one context-switch displacement produces the expected
 mid-instruction failure. Both promoted seeds carry this object form, and
 production hostbuild selects it before publication. [ADR 0309](../adr/0309-validate-local-relative-targets-in-relocatable-objects.md)
 records the source boundary. ADR 0312 records carriage and production adoption.
 
-Source-head CupidDis accepts the same option for linked i386 ELF32 input. It
+Checked CupidDis accepts the same option for linked i386 ELF32 input. It
 scans each file-backed executable load region twice and allows a direct target
 to cross regions when it lands on an instruction start. The linked report
 separates targets outside loaded memory, inside loaded memory without
@@ -431,12 +437,12 @@ file-backed executable code, and inside an instruction. Overlapping executable
 file ranges fail before a report is published. A `PT_DYNAMIC` or `PT_INTERP`
 header rejects the image as outside the static certification domain. Typed and
 CLI negative cases cover both forms. Far and indirect transfers stay outside
-the count. No production linked-image transaction selects this form, and the
-checked seeds do not carry it. ADR 0314 records the source boundary.
+the count. The normal kernel transaction runs this rule over its frozen
+pass-one and final ELFs before CupidObj flattening. ADR 0314 records the
+decoder boundary, and ADR 0318 records carriage and production adoption.
 The generated audit reports failure, help, and success counts of 20/5/21 for
 Linux and 8/5/7 for Windows. Generation and checked comparison both pass.
-These are source-head audit results, not checked-seed promotion or production
-adoption.
+The candidate and promoted-seed proofs cover these exact inventories.
 
 Source-head and checked-seed raw CupidASM have one origin and one section identity. An `equ`
 preamble defines an absolute symbol without claiming implicit `.text`. The
@@ -1210,9 +1216,9 @@ After those three policy rows were updated, the repeated poisoned build passed
 in 874.531 seconds. It checked all fourteen paths, preserved the FAT
 contents, and staged `test_iso/hello.iso`.
 The 684.260-second build remains preceding checkpoint history. ADR 0267 records
-the size policy, ADR 0297 records its contract transfer, and ADR 0305 records
-the first raw-policy expansion. ADR 0312 records the current fourteen-path
-expansion.
+the size policy, ADR 0297 records its contract transfer, and ADR 0305
+established and first carried the fourteen-path closure. ADRs 0312 and 0318
+carry it on their promoted seeds, with ADR 0318 current.
 
 The proposed 20 percent Cupid-to-oracle quality comparison remains open
 because no approved same-revision oracle exists. Older Windows and Linux host
@@ -1245,13 +1251,13 @@ The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text b
 The `ctool_host.cc` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
 The current checked artifacts are CupidASM at 458,256 bytes, CupidDis at
-425,940 bytes, CupidLD at 312,792 bytes, CupidObj at 392,688 bytes, and
+434,548 bytes, CupidLD at 312,792 bytes, CupidObj at 392,688 bytes, and
 CupidC at 2,687,436 bytes. Verification checks every hash, size, static ELF
 property, target ABI, producer lineage, source revision, and build-plan field
 before execution. CupidASM has SHA-256
 `1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e`,
 CupidDis has SHA-256
-`5b719da424294a91b019832e98047dd15c51e295bba8dfe1766fbde29f95626e`,
+`56a90efcc79aef65d9bdc684cc867a4793398282ee588630ef6f451e56ee456a`,
 and CupidLD has SHA-256
 `a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295`.
 CupidObj has SHA-256
@@ -1259,19 +1265,19 @@ CupidObj has SHA-256
 and CupidC has SHA-256
 `273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094`.
 The 5,573-byte manifest has SHA-256
-`afc56e3654ad7fe4447b31c87f1a010d9c13e89b824357db60b8a73648ad009c`.
+`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
 The 19-source plan uses `.cc` throughout and has SHA-256
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 Native GCC and Clang recipes select C with `-x c`.
 
-The candidate proof passed in 1,467.420 seconds from revision
-`30aaf1b7cd398e6b47a395661a33d20d00363158`. Stages three and four match all
+The candidate proof passed from revision
+`ad7305341003feaa7e630ab7fd45be0a214c4da7`. Stages three and four match all
 19 C objects, startup, and five tool images. Both stages agree on five help
-paths, twenty successful operations, and nineteen useful failures. The
+paths, twenty-one successful operations, and twenty useful failures. The
 50-input source snapshot has SHA-256
-`2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9`.
-All five initial seed comparisons are true. ADRs 0265, 0280, and 0292 preserve
-preceding promotions; ADR 0312 records the current promotion.
+`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
+All five initial seed comparisons are true after promotion. ADRs 0265, 0280,
+0292, and 0312 preserve preceding promotions; ADR 0318 records the current one.
 The first production gate applied strict inspection to all 427 audited root
 object outputs plus the pass-one and final kernel ELFs. A
 9,028-byte graph-ordered manifest carries those 429 unique paths with SHA-256
@@ -1282,7 +1288,7 @@ roots and 443 under root `all`. Tool participation is Python 452, CupidC 250,
 CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis six. The four
 Cupid-built contracts cover the user ABI, artifact-size policy, Toolchain
 manifest verification, and Toolchain manifest authoring. It retains the
-5/20/19 Linux fixed-point matrix and assigns strict validation plus flat
+5/21/20 Linux fixed-point matrix and assigns strict validation plus flat
 extraction to `kernel.bin`, with all 431 code inputs represented. The
 source-current audit generated in about 115 seconds, and deterministic check
 mode passed in 122.30 seconds.
@@ -1506,7 +1512,7 @@ emits the MBR through the empty FAT16 root directory. The kernel starts at LBA
 10,697,216 bytes, which fits the existing command limit without materializing
 the complete 200 MiB disk. Exact compact and active layouts, repeating FAT-size
 recovery, invalid geometry, overlap, output limits, rollback, and same-job
-reuse are covered. The current fixed-point behavior matrix is 5/20/19.
+reuse are covered. The current fixed-point behavior matrix is 5/21/20.
 
 The normal Make image recipe now passes the checked seed manifest to
 `hostbuild.py image`. Checked CupidObj runs first against frozen bootloader and
@@ -1597,7 +1603,7 @@ returns 37 before the ten-second timeout. The report retains those observed
 streams and return code, the exact imports, and hashes for both object and
 image pairs.
 
-The checked Linux seed now carries the complete 5/20/19 matrix. This first
+The checked Linux seed now carries the complete 5/21/20 matrix. This first
 PE32 probe was not a normal-build output and did not change the ownership
 census. The later five-tool PE generation is the checked Windows execution
 seed for output-bearing production work. ADR 0247 records the original format
@@ -1805,7 +1811,7 @@ publishes nothing. A real CupidASM object passes through CupidDis and then
 CupidObj in the hosted contract. The ADR 0223 fixed-point proof covered
 fifteen successful operations, thirteen failures, five help paths, exact
 Python-oracle output, line-specific rejection, and preserved destinations.
-The current 5/20/19 matrix retains those cases and adds later PE, x87, and
+The current 5/21/20 matrix retains those cases and adds later PE, x87, and
 strict-decode throughput coverage. The normal two-pass link now uses this
 command while retaining
 Python for orchestration and independent parity checks. ADR 0222 records the
@@ -1875,7 +1881,7 @@ The private five-tool bootstrap reached a fixed point with the 392,688-byte
 CupidObj image. ADR 0201 records the operation, ADR 0204 records production
 ownership, and ADR 0206 records the linked-symbol contract. ADR 0208 records
 the earlier x87 seed carriage. ADRs 0243 and 0280 record preceding seeds, and
-ADR 0312 records the current seed.
+ADR 0312 records the preceding local-target seed, and ADR 0318 records the current seed.
 
 The active-source audit classifies all three recipes as
 `generate_install_source` with `cupid_object` and `host_python`. Its exact
@@ -2254,7 +2260,7 @@ headers, 665 profile memberships, and 956 encoded path records. CupidObj sorts
 the logical names, computes every SHA-256 field from the captured bytes, and
 matches the Python oracle. Its poisoned-host promotion proof matched all 19 C
 objects, startup, and five tools between stage two and stage three. The
-promoted seed now passes a 5/20/19 behavior matrix. The normal target passes
+promoted seed now passes a 5/21/20 behavior matrix. The normal target passes
 the checked seed manifest. The wrapper derives the `CUPROF1` snapshot and
 independent Python oracle from one stable capture, then runs CupidObj from the
 exact frozen seed.
@@ -2382,15 +2388,15 @@ repeats all 58 comparisons independently after the author accepts the request.
 Schema `cupid.toolchain-contracts.v3` does not change. Only
 actual contract build inputs receive compiler or assembler ownership; provenance-only
 observations do not. The source-current schema v3 `CUPMAN4` publication passed
-in 4,707.017 seconds and wrote 21 artifacts and a 27,071-byte manifest with
+in 3,952.17 seconds and wrote 21 artifacts and a 27,071-byte manifest with
 SHA-256
-`48393f4e4dbca62e0edc598992c72de99537a82716b8c2e909fa7ac1b3ccead3`.
+`ea41237781ef0662502dde675b94d06c92ffadd2154a5a9da8b987c0a01e5947`.
 The Cupid author and Python oracle agreed on all 58 stage pairs. Every
 stage-three object and executable matched its stage-four counterpart. The
 hosted runtime passed, live inputs stayed frozen, and its final verifier printed
 `Cupid Toolchain manifest: ok (21 artifacts)`. Both checked Python launchers
 resolve `tools` from this checkout. The direct manifest module passes 40 tests
-in 40.828 seconds, the publisher passes 62 in 7.266 seconds, and the pinned
+in 43.226 seconds, the publisher passes 62 in 7.266 seconds, and the pinned
 verifier runner executes 25 tests in 32.773 seconds with three
 POSIX-only skips on Windows.
 The publisher gives `x86_contract.cc` its sibling `/toolchain/tests`
@@ -2963,12 +2969,16 @@ and lists 431 unique graph-ordered relative paths: all 429 audited root object
 outputs plus the pass-one and final kernel ELFs. Make retains those paths as
 direct prerequisites. The first separate validation command used the earlier
 429-path manifest, froze and rehashed every selected input, and passed
-in 185.526 seconds with exit 0 and empty streams. The current hostbuild
-transaction also freezes all five selected seed artifacts and the existing
-`kernel.bin` boundary, then runs checked CupidDis and checked CupidObj against
-one private cohort. It rechecks live trust inputs and the output before
-parent-relative atomic publication. Every failure preserves the prior kernel.
-The transaction passed in 187.054 seconds with exit 0. Expanding the inputs
+in 185.526 seconds with exit 0 and empty streams. The first reviewed hostbuild
+transaction at that boundary also froze all five selected seed artifacts and
+the existing `kernel.bin` boundary, then ran checked CupidDis and checked
+CupidObj against one private cohort. It rechecked live trust inputs and the
+output before parent-relative atomic publication. Every failure preserved the
+prior kernel. That transaction passed in 187.054 seconds with exit 0, before
+strict linked-image local-target validation joined the production path. The
+current transaction keeps those freeze and publication guards and runs the
+broad, linked, and flat checked sequence. Its source-consistent evidence is in
+the current evidence table above and the bootstrap log. Expanding the inputs
 directly exceeded the Windows 8,191-character command limit and truncated
 after 396 paths. The
 manifest reduces the evaluated command to 163 characters. Fourteen focused
@@ -3014,7 +3024,7 @@ boundary, ADR 0208 records its seed carriage, ADR 0226 records SHRD, and ADR
 ADR 0252 records the x87 integer forms, ADR 0258 records the preceding seed,
 ADR 0259 records the parity predicates, ADR 0265 records their preceding
 checked-seed carriage, ADRs 0280 and 0292 record later preceding seeds, ADR
-0305 records the raw local-target seed, and ADR 0312 records the current seed.
+0305 records the raw local-target seed, and ADR 0312 records the preceding local-target seed, and ADR 0318 records the current seed.
 
 ADR 0196 supersedes that paragraph's hosted-contract ownership sentence. The
 normal Toolchain contracts are now built by the checked i386 CupidC and
@@ -3029,7 +3039,7 @@ records, fixed metadata, the forward continuation, and the deliberate lack of
 `ST` fields. The command rejects manifest disagreement, unsafe or colliding
 logical paths, bad parent graphs, invalid source views, depth and storage
 limits, and preserves prior output on failure. The checked five-tool seed now
-carries the command and repeats it in the 5/20/19 fixed-point behavior matrix.
+carries the command and repeats it in the 5/21/20 fixed-point behavior matrix.
 The normal publisher now runs CupidObj first against private ordinal file
 snapshots and compares the result with an independent Python render. Python
 retains native-path safety, drift checks, the per-output lock, and atomic

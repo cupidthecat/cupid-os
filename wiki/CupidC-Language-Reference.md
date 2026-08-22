@@ -88,10 +88,12 @@ unsupported.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-The log is `tests/feature14-callback-raw-qemu.log`, 32,803 bytes, with SHA-256
-`eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
+The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
+`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
 The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
-evidence. Checked-seed promotion and production adoption remain pending.
+runtime evidence. The standalone CupidC seeds do not contain this private
+parser. The active proof remains the in-OS JIT smoke because no normal AOT
+input needs the syntax yet. ADR 0315 records the boundary.
 
 The preceding poisoned-host OS build checkpoint passed in 684.260 seconds and
 accepted all fourteen exact policy artifacts. A private four-vCPU `max`/e1000
@@ -113,11 +115,14 @@ and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
 The source-head artifact contract later passed twice against all fourteen
-exact artifacts. The raw kernel is 9,270,116 bytes with SHA-256
-`9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532`.
+exact artifacts. The raw kernel is 9,271,380 bytes with SHA-256
+`e1801128cceeb5a510671684cded5a0aef04220dfafe90fa686df963e7abf37f`.
 The 209,715,200-byte disk image has SHA-256
-`07bb498567798b72d5f9658f18c51aff8fc600ee419b9b95add26eb2bb298ac7`.
-Checked-seed promotion and production adoption remain pending.
+`e1ae54dced2431bee00dbf6fdc256fc908407bba16dac3967bb54a99ca436fdd`.
+Those output identities are source-head evidence. Both checked seeds now carry
+the same source snapshot, and the normal kernel transaction selects strict
+linked-image validation before flattening. ADR 0318 records the promotion and
+adoption.
 
 The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
@@ -447,8 +452,8 @@ records wide integer conversion and usual arithmetic with `float` and
 `double`. [ADR 0293](../docs/adr/0293-round-hosted-decimal-literals-exactly.md)
 records exact decimal `float` and `double` literals.
 [ADR 0296](../docs/adr/0296-support-mixed-floating-compound-assignments.md)
-records mixed arithmetic compound assignment. The current checked seeds carry
-both capabilities through ADR 0312.
+records mixed arithmetic compound assignment. ADR 0312 first carried both
+capabilities; ADR 0318 carries them in the current checked seeds.
 ADR 0258 records the preceding checked seed. ADR 0260 records static
 long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
 0265 records their checked-seed carriage, and ADR 0273 records private derived
