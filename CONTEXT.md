@@ -450,8 +450,10 @@ already published a valid cohort when that final read-only verifier found an
 unrelated installed `tools` package. The checkout-local launcher rule fixed the
 host import boundary. The source-current `make bootstrap-audit` and
 `make check-bootstrap-audit` both pass. The generated fixed-point inventory
-records failure, help, and success counts of 20/5/21 for Linux and 8/5/7 for
-Windows.
+records failure, help, and success counts of 21/5/22 for Linux and 9/5/8 for
+Windows. The extra cases prove source-head static ELF code anchors. The
+promoted seeds keep their 20/5/21 and 8/5/7 inventories until the next
+promotion.
 A pre-final-CTXT build reached the exact-size gate after 668.414 seconds. The
 later poisoned-host build passed in 684.260 seconds, and its private four-vCPU
 e1000 smoke passed in 64.601 seconds. Those records are preceding checkpoint
@@ -1223,6 +1225,18 @@ adoption. ADR 0314 records the linked-image rule, and ADR 0318 records its
 carriage and production adoption.
 _Avoid_: source-label proof, automatic code discovery, overlapping executable
 load regions
+
+**Static ELF code anchor**:
+The `e_entry` address or one defined `STT_FUNC` symbol in an i386 ELF32
+`ET_EXEC` image. CupidDis's explicit source-head policy requires each anchor
+to equal a decoded instruction start in file-backed executable code. Function
+aliases count separately. Undefined functions, absolute functions, and other
+symbol types do not count. The report separates anchors outside file-backed
+executable code from anchors in the middle of an instruction. The policy
+shares one instruction-start map with linked local-target validation when both
+are selected. It remains outside production until the checked seeds carry it.
+ADR 0320 records the boundary.
+_Avoid_: debug-line entry, inferred instruction start, production checked-seed policy
 
 **Relocatable entry symbol**:
 The caller-priority code label selected by CupidASM for an ELF32 relocatable

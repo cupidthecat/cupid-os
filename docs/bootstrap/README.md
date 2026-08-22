@@ -147,7 +147,7 @@ locks one `$(ARTIFACT_SIZE_CONTRACT)` command with
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The final post-CTXT
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-20/5/21 for Linux and 8/5/7 for Windows.
+21/5/22 for Linux and 9/5/8 for Windows.
 
 A pre-final-CTXT build at the preceding integrated checkpoint reached the
 exact-size gate after 668.414 seconds. It
@@ -444,8 +444,29 @@ the count. The normal kernel transaction runs this rule over its frozen
 pass-one and final ELFs before CupidObj flattening. ADR 0314 records the
 decoder boundary, and ADR 0318 records carriage and production adoption.
 The generated audit reports failure, help, and success counts of 20/5/21 for
-Linux and 8/5/7 for Windows. Generation and checked comparison both pass.
-The candidate and promoted-seed proofs cover these exact inventories.
+Linux and 8/5/7 for Windows. Those counts describe the promoted seed proof.
+
+Source-head CupidDis now has an explicit static executable code-anchor policy.
+`--require-code-anchors` requires `--require-known` and counts `e_entry` plus
+every defined `STT_FUNC` symbol. Each anchor must equal a decoded instruction
+start in file-backed executable code. Function aliases remain separate report
+entries. Undefined and absolute functions, along with non-function symbols,
+stay outside the count. Failures distinguish an address outside file-backed
+executable code from one in the middle of an instruction.
+
+The typed contract and CLI cover valid aliases, both invalid classes, raw and
+relocatable rejection, missing disassembly state, dynamic or interpreted
+images, overlapping executable loads, bounded map exhaustion, and recovery in
+the same job. The Linux and Windows fixed-point drivers each add a valid and an
+invalid executable behavior case. The source-current audit therefore records
+21/5/22 failure/help/success cases for Linux and 9/5/8 for Windows, and names
+`cupiddis.elf32_code_anchors` as a source-head capability.
+
+The checked seeds do not carry this option yet. Production keeps
+`--require-known --require-local-targets` for the pass-one and final kernel
+ELFs until a complete seed promotion proves the new behavior. Minimal DWARF
+source information remains a separate missing format slice. [ADR 0320](../adr/0320-validate-static-elf32-code-anchors.md)
+records the decision.
 
 Source-head and checked-seed raw CupidASM have one origin and one section identity. An `equ`
 preamble defines an absolute symbol without claiming implicit `.text`. The
@@ -2445,7 +2466,7 @@ and the 12,502-byte summary has SHA-256
 
 The source-current generation and deterministic check mode both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-20/5/21 for Linux and 8/5/7 for Windows.
+21/5/22 for Linux and 9/5/8 for Windows.
 
 Across the three supported roots, CupidC participates in 250 transforms,
 CupidASM in nine, CupidLD in nine, and CupidObj in 192. Python participates in

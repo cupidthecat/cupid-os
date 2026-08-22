@@ -28,7 +28,12 @@ typedef enum {
  * enforces this policy rejects a report when the input-specific invalid target
  * counters below are nonzero. */
 #define CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS 0x00000001u
-#define CTOOL_DIS_POLICY_ALL CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS
+/* Static linked ELF32 callers can also ask CupidDis to classify the entry
+ * point and each defined function symbol against decoded instruction starts.
+ * Invalid anchors are reported through the typed counters below. */
+#define CTOOL_DIS_POLICY_CODE_ANCHORS 0x00000002u
+#define CTOOL_DIS_POLICY_ALL                                               \
+  (CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS | CTOOL_DIS_POLICY_CODE_ANCHORS)
 
 typedef enum {
   CTOOL_DIS_TEXT_CUPID = 0,
@@ -82,6 +87,9 @@ typedef struct {
   ctool_u64 direct_relative_wrong_mode_count;
   ctool_u64 direct_relative_mid_instruction_count;
   ctool_u64 direct_relative_outside_section_count;
+  ctool_u64 code_anchor_count;
+  ctool_u64 code_anchor_outside_executable_count;
+  ctool_u64 code_anchor_mid_instruction_count;
 } ctool_dis_decode_summary_t;
 
 typedef struct {

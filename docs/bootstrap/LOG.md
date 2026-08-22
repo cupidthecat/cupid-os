@@ -29565,3 +29565,36 @@ or guest smoke changed. ADR 0319 records the boundary. Conditional callback
 initializers, callback fields and arrays, block-static callbacks, alias chains,
 computed callback values, raw Cupid class method parameters, and recursive
 callback signatures remain open.
+
+## 2026-08-22: validate static ELF code anchors
+
+Source-head CupidDis now has an explicit policy for executable entry and
+function placement. `--require-code-anchors` requires `--require-known` and
+accepts only static i386 ELF32 `ET_EXEC` input. It counts `e_entry` and each
+defined `STT_FUNC`, then requires every counted address to equal a decoded
+instruction start in file-backed executable code. Function aliases remain
+separate anchors. Undefined and absolute functions, along with other symbol
+types, are excluded.
+
+The typed report separates anchors outside file-backed executable code from
+anchors in the middle of an instruction. When the caller also selects linked
+local-target validation, both policies reuse one instruction-start map. Raw
+input, relocatable objects, overlapping executable loads, dynamic images, and
+interpreted images fail before a successful report is published.
+
+The first public typed and CLI tests failed because the policy bit, report
+counters, option, and checks did not exist. After implementation, the complete
+CupidDis module passed 27 tests with one platform skip. Three focused bootstrap
+tests passed, the fail-closed build-graph mutation test passed, the strict
+native CupidDis build passed with warnings treated as errors, and
+`make bootstrap-audit` completed successfully. The generated source-head
+matrix now records 21 failure, five help, and 22 success cases on Linux, plus
+nine failure, five help, and eight success cases on Windows.
+
+The checked seeds still carry the preceding matrices and do not recognize the
+new option. The normal kernel publisher therefore retains
+`--require-known --require-local-targets` for its two linked ELFs. Seed
+promotion and production adoption remain the next ownership step. Minimal
+DWARF source information is still missing and belongs in a separate format
+slice. No host dependency, transform owner, active source suffix, or artifact
+size changes here. `TempleOS/` remains untouched. ADR 0320 records the decision.

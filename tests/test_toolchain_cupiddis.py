@@ -62,6 +62,113 @@ def elf32_executable(segments):
     return bytes(image)
 
 
+def elf32_symbolized_executable(*, entry=0x00100000, alias=0x00100000):
+    text = bytes.fromhex("b8 78 56 34 12 c3")
+    strings = b"\0entry\0alias\0ignored\0\0"
+    section_strings = b"\0.text\0.symtab\0.strtab\0.shstrtab\0\0"
+    section_headers = 212
+    image = bytearray(section_headers + 5 * 40)
+    image[:7] = b"\x7fELF\x01\x01\x01"
+    struct.pack_into(
+        "<HHIIIIIHHHHHH",
+        image,
+        16,
+        2,
+        3,
+        1,
+        entry,
+        52,
+        section_headers,
+        0,
+        52,
+        32,
+        1,
+        40,
+        5,
+        4,
+    )
+    struct.pack_into(
+        "<IIIIIIII",
+        image,
+        52,
+        1,
+        84,
+        0x00100000,
+        0x00100000,
+        len(text),
+        8,
+        5,
+        4,
+    )
+    image[84:90] = text
+    image[90 : 90 + len(strings)] = strings
+    struct.pack_into("<IIIBBH", image, 128, 1, 0x00100000, len(text), 0x12, 0, 1)
+    struct.pack_into("<IIIBBH", image, 144, 7, alias, 0, 0x12, 0, 1)
+    struct.pack_into("<IIIBBH", image, 160, 13, 0x00100001, 1, 0x11, 0, 1)
+    image[176 : 176 + len(section_strings)] = section_strings
+    struct.pack_into(
+        "<IIIIIIIIII",
+        image,
+        section_headers + 40,
+        1,
+        1,
+        6,
+        0x00100000,
+        84,
+        len(text),
+        0,
+        0,
+        4,
+        0,
+    )
+    struct.pack_into(
+        "<IIIIIIIIII",
+        image,
+        section_headers + 80,
+        7,
+        2,
+        0,
+        0,
+        112,
+        64,
+        3,
+        1,
+        4,
+        16,
+    )
+    struct.pack_into(
+        "<IIIIIIIIII",
+        image,
+        section_headers + 120,
+        15,
+        3,
+        0,
+        0,
+        90,
+        len(strings),
+        0,
+        0,
+        1,
+        0,
+    )
+    struct.pack_into(
+        "<IIIIIIIIII",
+        image,
+        section_headers + 160,
+        23,
+        3,
+        0,
+        0,
+        176,
+        len(section_strings),
+        0,
+        0,
+        1,
+        0,
+    )
+    return bytes(image)
+
+
 def configured_symbol_reader_command():
     configured = bootstrap_baseline.optional_oracle_commands()[
         "symbol_reader"
@@ -447,6 +554,33 @@ class CupidDisContractTests(unittest.TestCase):
             fixture_path = Path(cls._fixture_directory.name) / name
             fixture_path.write_bytes(elf32_executable(segments))
             setattr(cls, attribute, fixture_path)
+        anchor_fixtures = (
+            ("valid_code_anchors_path", "valid-code-anchors.elf", {}),
+            (
+                "middle_entry_anchor_path",
+                "middle-entry-anchor.elf",
+                {"entry": 0x00100001},
+            ),
+            (
+                "middle_function_anchor_path",
+                "middle-function-anchor.elf",
+                {"alias": 0x00100001},
+            ),
+            (
+                "outside_entry_anchor_path",
+                "outside-entry-anchor.elf",
+                {"entry": 0x00200000},
+            ),
+            (
+                "memory_only_entry_anchor_path",
+                "memory-only-entry-anchor.elf",
+                {"entry": 0x00100006},
+            ),
+        )
+        for attribute, name, arguments in anchor_fixtures:
+            fixture_path = Path(cls._fixture_directory.name) / name
+            fixture_path.write_bytes(elf32_symbolized_executable(**arguments))
+            setattr(cls, attribute, fixture_path)
         unsupported_exec_programs = (
             ("dynamic_exec_target_path", "dynamic-exec-target.elf", 2),
             ("interpreter_exec_target_path", "interpreter-exec-target.elf", 3),
@@ -489,6 +623,9 @@ class CupidDisContractTests(unittest.TestCase):
 
     def test_typed_local_relative_target_policy(self):
         self.run_contract("targets")
+
+    def test_typed_static_executable_code_anchor_policy(self):
+        self.run_contract("anchors")
 
     def test_relocatable_object_report_and_relocation_overlay(self):
         self.run_contract("object")
@@ -960,6 +1097,113 @@ class CupidDisContractTests(unittest.TestCase):
                 self.assertNotIn("usage: cupiddis", result.stderr)
                 self.assertIn(
                     "executable local target checks require a static image "
+                    "without PT_DYNAMIC or PT_INTERP",
+                    result.stderr,
+                )
+
+    def test_cli_requires_static_executable_code_anchors(self):
+        def run(path, *extra):
+            return subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--require-known",
+                    "--require-code-anchors",
+                    *extra,
+                    str(path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+        valid = run(self.valid_code_anchors_path)
+        self.assertEqual(valid.returncode, 0, valid.stderr)
+        self.assertEqual(valid.stdout, "")
+        self.assertEqual(valid.stderr, "")
+
+        failures = (
+            (
+                self.middle_entry_anchor_path,
+                "1 of 3 code anchors invalid (0 outside file-backed "
+                "executable code, 1 mid-instruction)",
+            ),
+            (
+                self.middle_function_anchor_path,
+                "1 of 3 code anchors invalid (0 outside file-backed "
+                "executable code, 1 mid-instruction)",
+            ),
+            (
+                self.outside_entry_anchor_path,
+                "1 of 3 code anchors invalid (1 outside file-backed "
+                "executable code, 0 mid-instruction)",
+            ),
+            (
+                self.memory_only_entry_anchor_path,
+                "1 of 3 code anchors invalid (1 outside file-backed "
+                "executable code, 0 mid-instruction)",
+            ),
+        )
+        for path, diagnostic in failures:
+            with self.subTest(path=path.name):
+                result = run(path)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(
+                    f"cupiddis: {path}: code anchor check failed: "
+                    f"{diagnostic}",
+                    result.stderr,
+                )
+
+        missing_known = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-code-anchors",
+                str(self.valid_code_anchors_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(missing_known.returncode, 2)
+        self.assertIn("usage: cupiddis", missing_known.stderr)
+
+        raw = run(
+            self.clean_code_path,
+            "--raw",
+            "--mode=32",
+            "--base=0",
+        )
+        self.assertEqual(raw.returncode, 2)
+        self.assertIn("usage: cupiddis", raw.stderr)
+
+        relocatable = run(self.object_path)
+        self.assertEqual(relocatable.returncode, 1)
+        self.assertEqual(relocatable.stdout, "")
+        self.assertIn(
+            "code anchor checks require static ELF32 ET_EXEC input",
+            relocatable.stderr,
+        )
+
+        overlap = run(self.overlapping_exec_target_path)
+        self.assertEqual(overlap.returncode, 1)
+        self.assertEqual(overlap.stdout, "")
+        self.assertIn(
+            "executable code anchor checks require non-overlapping "
+            "executable load regions",
+            overlap.stderr,
+        )
+
+        for path in (
+            self.dynamic_exec_target_path,
+            self.interpreter_exec_target_path,
+        ):
+            with self.subTest(path=path.name):
+                result = run(path)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertNotIn("usage: cupiddis", result.stderr)
+                self.assertIn(
+                    "executable code anchor checks require a static image "
                     "without PT_DYNAMIC or PT_INTERP",
                     result.stderr,
                 )

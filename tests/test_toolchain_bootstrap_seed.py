@@ -26,6 +26,7 @@ from tools.bootstrap_toolchain import (
     _compare_windows_stages,
     _bootstrap_from_frozen_seed,
     _bootstrap_windows_from_frozen_seed,
+    _code_anchor_executable_payload,
     _local_target_executable_payload,
     _local_target_object_payload,
     _profile_snapshot_payload,
@@ -67,7 +68,7 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43"
+    "4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19"
 )
 
 
@@ -2687,9 +2688,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 8,
+                    "failure_cases": 9,
                     "help_cases": 5,
-                    "success_cases": 7,
+                    "success_cases": 8,
                 },
             )
             self.assertEqual(
@@ -3247,9 +3248,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(
             ast.literal_eval(returns[0].value),
             {
-                "failure_cases": 20,
+                "failure_cases": 21,
                 "help_cases": 5,
-                "success_cases": 21,
+                "success_cases": 22,
             },
         )
 
@@ -3338,6 +3339,56 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(struct.unpack_from("<I", valid, 76)[0], 5)
         self.assertEqual(valid[84:], bytes.fromhex("eb 05 b8 00 00 00 00 c3"))
         self.assertEqual(invalid[84:], bytes.fromhex("eb 01 b8 00 00 00 00 c3"))
+
+    def test_fixed_point_code_anchor_fixture_is_a_sectioned_i386_exec(self):
+        valid = _code_anchor_executable_payload()
+        invalid = _code_anchor_executable_payload(entry=0x00400001)
+
+        self.assertEqual(valid[:7], b"\x7fELF\x01\x01\x01")
+        self.assertEqual(struct.unpack_from("<H", valid, 16)[0], 2)
+        self.assertEqual(struct.unpack_from("<H", valid, 18)[0], 3)
+        self.assertEqual(struct.unpack_from("<I", valid, 24)[0], 0x00400000)
+        self.assertEqual(struct.unpack_from("<I", invalid, 24)[0], 0x00400001)
+        self.assertEqual(struct.unpack_from("<I", valid, 32)[0], 212)
+        self.assertEqual(struct.unpack_from("<H", valid, 48)[0], 5)
+        self.assertEqual(valid[84:90], bytes.fromhex("b8 78 56 34 12 c3"))
+        self.assertEqual(struct.unpack_from("<I", valid, 132)[0], 0x00400000)
+        self.assertEqual(struct.unpack_from("<I", valid, 148)[0], 0x00400000)
+        self.assertEqual(valid[140], 0x12)
+        self.assertEqual(valid[156], 0x12)
+
+    def test_fixed_point_matrices_call_code_anchor_behavior_once(self):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+        helpers = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_check_executable_code_anchor_behavior"
+        ]
+        self.assertEqual(len(helpers), 1)
+        rendered_helper = ast.unparse(helpers[0])
+        self.assertIn("'--require-code-anchors'", rendered_helper)
+        self.assertIn("code anchor check failed", rendered_helper)
+        self.assertIn("1 of 3 code anchors invalid", rendered_helper)
+
+        for function_name in (
+            "_run_behavior_checks",
+            "_run_native_windows_behavior_checks",
+        ):
+            function = next(
+                node
+                for node in tree.body
+                if isinstance(node, ast.FunctionDef)
+                and node.name == function_name
+            )
+            calls = [
+                node
+                for node in ast.walk(function)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "_check_executable_code_anchor_behavior"
+            ]
+            self.assertEqual(len(calls), 1, function_name)
 
     def test_linux_fixed_point_rebuilds_windows_cupiddis_main(self):
         tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
@@ -6606,9 +6657,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 20,
+                    "failure_cases": 21,
                     "help_cases": 5,
-                    "success_cases": 21,
+                    "success_cases": 22,
                 },
             )
             self.assertEqual(

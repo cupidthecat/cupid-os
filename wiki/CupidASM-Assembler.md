@@ -282,11 +282,23 @@ header rejects the image as outside the static certification domain. ADR 0314
 records the source boundary.
 
 The generated active-source audit and its check both pass. The Linux audit
-records 20 failure groups, five help groups, and 21 success groups. The Windows
-audit records eight failure groups, five help groups, and seven success groups.
+records 21 failure groups, five help groups, and 22 success groups. The Windows
+audit records nine failure groups, five help groups, and eight success groups.
 Both checked seeds now carry the linked-image rule. The normal kernel publisher
 uses it on the pass-one and final ELFs before flattening; ADR 0318 records that
 promotion and adoption.
+
+Source-head CupidDis has a separate static executable code-anchor option:
+
+```text
+cupiddis --require-known --require-code-anchors program.elf
+```
+
+It checks the ELF entry and every defined function symbol against file-backed
+decoded instruction starts. Function aliases are separate anchors. Undefined,
+absolute, and non-function symbols stay outside the count. The checked seeds
+do not carry this option yet, so the production kernel call remains unchanged
+until promotion. ADR 0320 records the source rule.
 
 ### Requiring complete code coverage
 

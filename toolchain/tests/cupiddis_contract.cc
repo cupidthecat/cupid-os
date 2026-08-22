@@ -277,10 +277,15 @@ static int summaries_equal(const ctool_dis_decode_summary_t *left,
                      right->direct_relative_outside_section_count &&
                  left->direct_relative_data_count ==
                      right->direct_relative_data_count &&
-                 left->direct_relative_wrong_mode_count ==
-                     right->direct_relative_wrong_mode_count &&
-                 left->direct_relative_mid_instruction_count ==
-                     right->direct_relative_mid_instruction_count
+                  left->direct_relative_wrong_mode_count ==
+                      right->direct_relative_wrong_mode_count &&
+                  left->direct_relative_mid_instruction_count ==
+                      right->direct_relative_mid_instruction_count &&
+                  left->code_anchor_count == right->code_anchor_count &&
+                  left->code_anchor_outside_executable_count ==
+                      right->code_anchor_outside_executable_count &&
+                  left->code_anchor_mid_instruction_count ==
+                      right->code_anchor_mid_instruction_count
              ? 1
              : 0;
 }
@@ -2338,6 +2343,363 @@ static ctool_u32 build_exec_fixture(
   return image_size;
 }
 
+static ctool_u32 build_exec_anchor_fixture(ctool_u8 *image,
+                                            ctool_u32 capacity) {
+  static const ctool_u8 text[] = {
+      0xb8u, 0x78u, 0x56u, 0x34u, 0x12u, 0xc3u};
+  static const char strtab[] = "\0entry\0alias\0ignored\0";
+  static const char shstrtab[] =
+      "\0.text\0.symtab\0.strtab\0.shstrtab\0";
+  const ctool_u32 section_headers = 212u;
+  const ctool_u32 image_size = section_headers + 5u * 40u;
+  ctool_u32 header;
+  if (image == (ctool_u8 *)0 || capacity < image_size) {
+    return 0u;
+  }
+  (void)memset(image, 0, image_size);
+  image[0] = 0x7fu;
+  image[1] = (ctool_u8)'E';
+  image[2] = (ctool_u8)'L';
+  image[3] = (ctool_u8)'F';
+  image[4] = 1u;
+  image[5] = 1u;
+  image[6] = 1u;
+  put_le16(image, 16u, (ctool_u16)CTOOL_ELF32_ET_EXEC);
+  put_le16(image, 18u, 3u);
+  put_le32(image, 20u, 1u);
+  put_le32(image, 24u, 0x00100000u);
+  put_le32(image, 28u, 52u);
+  put_le32(image, 32u, section_headers);
+  put_le16(image, 40u, 52u);
+  put_le16(image, 42u, 32u);
+  put_le16(image, 44u, 1u);
+  put_le16(image, 46u, 40u);
+  put_le16(image, 48u, 5u);
+  put_le16(image, 50u, 4u);
+
+  put_le32(image, 52u, CTOOL_ELF32_PT_LOAD);
+  put_le32(image, 56u, 84u);
+  put_le32(image, 60u, 0x00100000u);
+  put_le32(image, 64u, 0x00100000u);
+  put_le32(image, 68u, (ctool_u32)sizeof(text));
+  put_le32(image, 72u, 8u);
+  put_le32(image, 76u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X);
+  put_le32(image, 80u, 4u);
+  (void)memcpy(image + 84u, text, sizeof(text));
+  (void)memcpy(image + 90u, strtab, sizeof(strtab));
+
+  put_le32(image, 128u, 1u);
+  put_le32(image, 132u, 0x00100000u);
+  put_le32(image, 136u, (ctool_u32)sizeof(text));
+  image[140u] = 0x12u;
+  put_le16(image, 142u, 1u);
+  put_le32(image, 144u, 7u);
+  put_le32(image, 148u, 0x00100000u);
+  image[156u] = 0x12u;
+  put_le16(image, 158u, 1u);
+  put_le32(image, 160u, 13u);
+  put_le32(image, 164u, 0x00100001u);
+  put_le32(image, 168u, 1u);
+  image[172u] = 0x11u;
+  put_le16(image, 174u, 1u);
+  (void)memcpy(image + 176u, shstrtab, sizeof(shstrtab));
+
+  header = section_headers + 40u;
+  put_le32(image, header, 1u);
+  put_le32(image, header + 4u, CTOOL_ELF32_SHT_PROGBITS);
+  put_le32(image, header + 8u,
+           CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR);
+  put_le32(image, header + 12u, 0x00100000u);
+  put_le32(image, header + 16u, 84u);
+  put_le32(image, header + 20u, (ctool_u32)sizeof(text));
+  put_le32(image, header + 32u, 4u);
+
+  header = section_headers + 80u;
+  put_le32(image, header, 7u);
+  put_le32(image, header + 4u, 2u);
+  put_le32(image, header + 16u, 112u);
+  put_le32(image, header + 20u, 64u);
+  put_le32(image, header + 24u, 3u);
+  put_le32(image, header + 28u, 1u);
+  put_le32(image, header + 32u, 4u);
+  put_le32(image, header + 36u, 16u);
+
+  header = section_headers + 120u;
+  put_le32(image, header, 15u);
+  put_le32(image, header + 4u, 3u);
+  put_le32(image, header + 16u, 90u);
+  put_le32(image, header + 20u, (ctool_u32)sizeof(strtab));
+  put_le32(image, header + 32u, 1u);
+
+  header = section_headers + 160u;
+  put_le32(image, header, 23u);
+  put_le32(image, header + 4u, 3u);
+  put_le32(image, header + 16u, 176u);
+  put_le32(image, header + 20u, (ctool_u32)sizeof(shstrtab));
+  put_le32(image, header + 32u, 1u);
+  return image_size;
+}
+
+static int run_anchors(void) {
+  ctool_u8 image[512];
+  ctool_u32 image_size =
+      build_exec_anchor_fixture(image, (ctool_u32)sizeof(image));
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job;
+  ctool_source_t source;
+  ctool_dis_request_t request;
+  ctool_dis_report_t report;
+  ctool_dis_report_t indexed_report;
+  const ctool_x86_decoder_t *decoder;
+  ctool_status_t status;
+  if (image_size == 0u || !open_job(&adapter, &job)) {
+    return 1;
+  }
+  source.path.text = ctool_string("/code-anchors.elf");
+  source.contents = ctool_bytes(image, image_size);
+  (void)memset(&request, 0, sizeof(request));
+  request.input = CTOOL_DIS_INPUT_ELF32;
+  request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+  request.policies = CTOOL_DIS_POLICY_CODE_ANCHORS;
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_OK, "valid executable code anchors") ||
+      report.policies != CTOOL_DIS_POLICY_CODE_ANCHORS ||
+      report.decode_summary.code_anchor_count != 3u ||
+      report.decode_summary.code_anchor_outside_executable_count != 0u ||
+      report.decode_summary.code_anchor_mid_instruction_count != 0u ||
+      report.decode_summary.known_count != 2u ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decoder_prepare(job, &decoder);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_inspect_indexed(job, decoder, &source, &request,
+                                       &indexed_report);
+  }
+  if (!check_status(status, CTOOL_OK, "indexed executable code anchors") ||
+      !summaries_equal(&report.decode_summary,
+                       &indexed_report.decode_summary)) {
+    ctool_job_close(job);
+    return 1;
+  }
+  request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
+                     CTOOL_DIS_POLICY_CODE_ANCHORS;
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_OK, "combined executable code policies") ||
+      report.decode_summary.code_anchor_count != 3u ||
+      report.decode_summary.direct_relative_target_count != 0u) {
+    ctool_job_close(job);
+    return 1;
+  }
+  request.policies = CTOOL_DIS_POLICY_CODE_ANCHORS;
+
+  put_le16(image, 158u, 0u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_OK, "undefined function is not an anchor") ||
+      report.decode_summary.code_anchor_count != 2u) {
+    ctool_job_close(job);
+    return 1;
+  }
+  put_le16(image, 158u, 0xfff1u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_OK, "absolute function is not an anchor") ||
+      report.decode_summary.code_anchor_count != 2u) {
+    ctool_job_close(job);
+    return 1;
+  }
+  put_le16(image, 158u, 1u);
+
+  put_le32(image, 24u, 0x00100001u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_OK, "mid-instruction entry anchor") ||
+      report.decode_summary.code_anchor_count != 3u ||
+      report.decode_summary.code_anchor_outside_executable_count != 0u ||
+      report.decode_summary.code_anchor_mid_instruction_count != 1u) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  put_le32(image, 24u, 0x00100000u);
+  put_le32(image, 148u, 0x00100001u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_OK, "mid-instruction function anchor") ||
+      report.decode_summary.code_anchor_count != 3u ||
+      report.decode_summary.code_anchor_outside_executable_count != 0u ||
+      report.decode_summary.code_anchor_mid_instruction_count != 1u) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  put_le32(image, 148u, 0x00100000u);
+  put_le32(image, 24u, 0x00200000u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_OK, "outside executable entry anchor") ||
+      report.decode_summary.code_anchor_count != 3u ||
+      report.decode_summary.code_anchor_outside_executable_count != 1u ||
+      report.decode_summary.code_anchor_mid_instruction_count != 0u) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  put_le32(image, 24u, 0x00100006u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_OK, "memory-only entry anchor") ||
+      report.decode_summary.code_anchor_count != 3u ||
+      report.decode_summary.code_anchor_outside_executable_count != 1u ||
+      report.decode_summary.code_anchor_mid_instruction_count != 0u) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  put_le32(image, 24u, 0x00100000u);
+  request.views = CTOOL_DIS_VIEW_HEADER;
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "code anchor view requirement") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 1u ||
+      !check_diagnostic(job, 0u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+                        "ELF code anchor checks require the disassembly view",
+                        "code anchor view diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+  put_le32(image, 52u, CTOOL_ELF32_PT_INTERP);
+  (void)memset(&report, 0xa5, sizeof(report));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "dynamic code anchor policy") ||
+      !is_zeroed(&report, sizeof(report)) ||
+      ctool_job_diagnostic_count(job) != 2u ||
+      !check_diagnostic(
+          job, 1u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+          "executable code anchor checks require a static image without "
+          "PT_DYNAMIC or PT_INTERP",
+          "dynamic code anchor diagnostic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_job_close(job);
+  {
+    static const ctool_u8 text[] = {0xc3u};
+    ctool_buffer_t *object = (ctool_buffer_t *)0;
+    ctool_dis_request_t invalid_request =
+        raw_request(CTOOL_X86_MODE_32, 0u);
+    if (!open_job(&adapter, &job)) {
+      return 1;
+    }
+    source.path.text = ctool_string("/raw-code-anchor.bin");
+    source.contents = ctool_bytes(text, (ctool_u32)sizeof(text));
+    invalid_request.policies = CTOOL_DIS_POLICY_CODE_ANCHORS;
+    (void)memset(&report, 0xa5, sizeof(report));
+    status = ctool_dis_inspect(job, &source, &invalid_request, &report);
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "raw code anchor policy") ||
+        !is_zeroed(&report, sizeof(report)) ||
+        ctool_job_diagnostic_count(job) != 1u ||
+        !check_diagnostic(
+            job, 0u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+            "code anchor checks require static ELF32 ET_EXEC input",
+            "raw code anchor diagnostic")) {
+      ctool_job_close(job);
+      return 1;
+    }
+    if (!build_local_target_object(
+            job, text, (ctool_u32)sizeof(text), &object)) {
+      ctool_job_close(job);
+      return 1;
+    }
+    source.path.text = ctool_string("/relocatable-code-anchor.o");
+    source.contents = ctool_buffer_view(object);
+    (void)memset(&invalid_request, 0, sizeof(invalid_request));
+    invalid_request.input = CTOOL_DIS_INPUT_ELF32;
+    invalid_request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+    invalid_request.policies = CTOOL_DIS_POLICY_CODE_ANCHORS;
+    (void)memset(&report, 0xa5, sizeof(report));
+    status = ctool_dis_inspect(job, &source, &invalid_request, &report);
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "relocatable code anchor policy") ||
+        !is_zeroed(&report, sizeof(report)) ||
+        ctool_job_diagnostic_count(job) != 2u ||
+        !check_diagnostic(
+            job, 1u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+            "code anchor checks require static ELF32 ET_EXEC input",
+            "relocatable code anchor diagnostic")) {
+      ctool_buffer_close(object);
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_buffer_close(object);
+    ctool_job_close(job);
+  }
+  {
+    ctool_u8 large_code[8192];
+    ctool_u8 large_image[8276];
+    exec_fixture_segment_t large_segment;
+    ctool_u32 large_image_size;
+    ctool_host_adapter_t limited_adapter;
+    ctool_job_config_t config;
+    ctool_limits_t limits = ctool_default_limits();
+    ctool_dis_request_t limited_request;
+    ctool_dis_report_t limited_report;
+    ctool_status_t limited_status =
+        ctool_host_adapter_init(&limited_adapter, ".");
+    (void)memset(large_code, 0x90, sizeof(large_code));
+    large_segment.address = 0x00400000u;
+    large_segment.flags = CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X;
+    large_segment.contents = large_code;
+    large_segment.file_size = (ctool_u32)sizeof(large_code);
+    large_segment.memory_size = (ctool_u32)sizeof(large_code);
+    large_image_size = build_exec_fixture(
+        large_image, (ctool_u32)sizeof(large_image), &large_segment, 1u);
+    job = (ctool_job_t *)0;
+    limits.arena_block_bytes = 512u;
+    limits.arena_bytes = 1023u;
+    config = ctool_host_job_config(&limited_adapter, limits);
+    if (limited_status == CTOOL_OK) {
+      limited_status = ctool_job_open(&config, &job);
+    }
+    if (!check_status(limited_status, CTOOL_OK,
+                      "limited executable code anchor job") ||
+        large_image_size == 0u) {
+      return 1;
+    }
+    source.path.text = ctool_string("/code-anchor-limit.elf");
+    source.contents = ctool_bytes(large_image, large_image_size);
+    (void)memset(&limited_request, 0, sizeof(limited_request));
+    limited_request.input = CTOOL_DIS_INPUT_ELF32;
+    limited_request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+    limited_request.policies = CTOOL_DIS_POLICY_CODE_ANCHORS;
+    (void)memset(&limited_report, 0xa5, sizeof(limited_report));
+    limited_status = ctool_dis_inspect(
+        job, &source, &limited_request, &limited_report);
+    if (!check_status(limited_status, CTOOL_ERR_LIMIT,
+                      "executable code anchor instruction map limit") ||
+        !is_zeroed(&limited_report, sizeof(limited_report)) ||
+        ctool_job_diagnostic_count(job) != 0u) {
+      ctool_job_close(job);
+      return 1;
+    }
+    limited_request.policies = 0u;
+    limited_status = ctool_dis_inspect(
+        job, &source, &limited_request, &limited_report);
+    if (!check_status(limited_status, CTOOL_OK,
+                      "executable code anchor allocation recovery") ||
+        limited_report.decode_summary.known_count != 8192u ||
+        limited_report.decode_summary.code_anchor_count != 0u) {
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_job_close(job);
+  }
+  (void)puts("anchors: ok");
+  return 0;
+}
+
 static int check_exec_target_case(
     ctool_job_t *job, const char *path,
     const exec_fixture_segment_t *segments, ctool_u32 segment_count,
@@ -2916,6 +3278,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "exec") == 0) {
     return run_exec();
+  }
+  if (strcmp(argv[1], "anchors") == 0) {
+    return run_anchors();
   }
   if (strcmp(argv[1], "nm") == 0) {
     return run_nm();

@@ -60,6 +60,13 @@ the prior image on failure. ADR 0305 records the raw-image promotion, and ADR
 0312 records the preceding seed and relocatable-object adoption. ADR 0318
 records the current seed and linked-image adoption.
 
+Source-head CupidDis can also validate static ELF code anchors. Its explicit
+policy checks the kernel entry and every defined function symbol against
+decoded starts in file-backed executable load regions. It reports an address
+outside code separately from an address in the middle of an instruction. The
+normal two-ELF kernel transaction does not select this policy yet because the
+checked seeds must be promoted first. ADR 0320 records that boundary.
+
 ---
 
 ## Memory Layout

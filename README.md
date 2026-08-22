@@ -148,7 +148,7 @@ recipe has one `$(ARTIFACT_SIZE_CONTRACT)` command, and that command carries
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The source-current
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-20/5/21 for Linux and 8/5/7 for Windows. The audit still records 739 active
+21/5/22 for Linux and 9/5/8 for Windows. The audit still records 739 active
 sources, 452 transforms, 255 feature requirements, and 25 accounted unreachable
 files.
 [ADR 0304](docs/adr/0304-author-toolchain-publication-manifests-with-cupidc.md)
@@ -226,9 +226,21 @@ decode pass, then applies the linked rule to the pass-one and final ELFs before
 CupidObj flattens the final image.
 [ADR 0314](docs/adr/0314-validate-local-targets-in-linked-elf32-images.md)
 records the source boundary. The generated audit reports failure, help, and
-success counts of 20/5/21 for Linux and 8/5/7 for Windows. Generation and
+success counts of 21/5/22 for Linux and 9/5/8 for Windows. Generation and
 checked comparison both pass. Candidate and promoted-seed fixed-point proofs
-cover the complete five-tool cohorts.
+cover the preceding complete five-tool cohorts.
+
+Source-head CupidDis adds `--require-code-anchors` for static i386 ELF32
+executables. With `--require-known`, it checks the ELF entry and every defined
+function symbol against decoded starts in file-backed executable code.
+Function aliases count separately, while undefined, absolute, and non-function
+symbols do not count. Failures distinguish an address outside that code from
+one in the middle of an instruction. The option composes with linked
+local-target validation and reuses its instruction-start map. The fixed-point
+drivers now cover one valid and one invalid executable on Linux and Windows.
+The checked seeds and normal kernel publisher do not select this source-head
+option yet; promotion must come first. [ADR 0320](docs/adr/0320-validate-static-elf32-code-anchors.md)
+records the boundary.
 
 The historical ADR 0312 checked-seed bootstrap module passed all 89 tests in
 3,145.502 seconds. It covered the Linux and Windows fixed-point matrices,

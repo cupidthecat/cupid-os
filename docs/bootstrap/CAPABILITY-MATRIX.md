@@ -15,8 +15,9 @@ assembly files, 297 C headers, and 411 Cupid C files. No ordinary C
 translation unit remains in a supported root. Lexical counts are discovery
 evidence; semantic completion still requires focused compiler and assembler
 tests. `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The current active-source
-fixed-point inventory records failure, help, and success counts of 20/5/21 for
-Linux and 8/5/7 for Windows.
+fixed-point inventory records failure, help, and success counts of 21/5/22 for
+Linux and 9/5/8 for Windows. The promoted seeds keep their preceding
+20/5/21 and 8/5/7 behavior inventories.
 
 The `c_source_ownership` audit contract enforces the source suffix at the
 checked graph boundary. An active tracked `.c` source may remain host-owned,
@@ -951,7 +952,7 @@ carriage, and ADR 0312 records the preceding trust unit, and ADR 0318 records th
 | Capability | Status | Baseline evidence and gap |
 | --- | --- | --- |
 | In-OS instruction decoding | Observed/Partial | The kernel `dis`, `exec -d`, and CupidC JIT adapters call the same typed 16/32-bit x86 decoder and streaming formatter as hosted CupidDis; the duplicate kernel opcode tables are gone. The DEBUG boot self-test enters through both the preserved raw/JIT `dis_disassemble` adapter and a temporary-file VFS `dis_elf` command path. Raw inspection accepts one mode, a borrowed ordered range map, or the hosted `cupid.raw-map.v1` file produced by CupidASM. Data ranges render as bounded `db` rows without entering the decoder. Contracts cover all three kinds, boundary labels, deterministic output, malformed and stale maps, zeroed failure reports, and recovery. The active SMP integration keeps its checked caller-owned map. The normal bootloader edge uses the source-derived map and strict transaction with the promoted Windows seed. The rest of the bounded ADR 0005 instruction domain remains open. |
-| ELF32 executable inspection | Observed/Partial | The shared reader exposes checked static i386 `ET_EXEC` header and program-header views, including sectionless CupidC/CupidASM executables and sectioned CupidLD output. CupidDis selects executable `PT_LOAD` contents, preserves absolute symbols when sections exist, reports `PT_GNU_STACK`, and reports merge/string flags on inputs that truthfully retain them. CupidLD treats those flags as input link semantics and clears them on final allocated output sections because its combined executable-section model has no single truthful entry size. Dynamic symbol tables/relocations are diagnosed as unsupported until the typed model represents multiple symbol-table domains. |
+| ELF32 executable inspection | Observed/Partial | The shared reader exposes checked static i386 `ET_EXEC` header and program-header views, including sectionless CupidC/CupidASM executables and sectioned CupidLD output. CupidDis selects executable `PT_LOAD` contents, preserves absolute symbols when sections exist, reports `PT_GNU_STACK`, and reports merge/string flags on inputs that truthfully retain them. Source-head CupidDis can explicitly validate `e_entry` and every defined `STT_FUNC` against decoded starts in file-backed executable code. It counts aliases separately and separates anchors outside code from anchors in the middle of an instruction. This code-anchor policy is not in the checked seeds or normal publisher yet. CupidLD treats merge/string flags as input link semantics and clears them on final allocated output sections because its combined executable-section model has no single truthful entry size. Dynamic symbol tables/relocations are diagnosed as unsupported until the typed model represents multiple symbol-table domains. ADR 0320 records the source-head anchor boundary. |
 | ELF32 `ET_REL`, sections, symbols, and relocations | Observed | Hosted and in-process CupidDis reports serialized headers, sections, local/global/weak/undefined, TLS, and unnamed section symbols, and serialized-order relocations from the shared reader. It disassembles every executable `PROGBITS` section and overlays matching `R_386_32` and `R_386_PC32` fields without assigning relocation ownership to raw bytes. CupidDis also counts code relocations that have no matching decoded four-byte field; the absolute and relative kinds must agree. The explicit local-target policy checks unrelocated direct targets. Each executable section owns its two-pass start map, and relocated operand fields stay outside the local count. View-gated sorted indexes keep label traversal linear, make relocation lookup logarithmic, and never span caller callbacks. Positive, wrong-site, wrong-kind, malformed, ordering, overflow, report-shape, exact-diagnostic, sink-failure, section-local target, constrained-storage, and recovery contracts cover the typed seam. Both checked production seeds carry relocation ownership and the relocatable local-target form. Guarded CupidASM object publication selects both rules on Windows and Linux before replacing an existing output. Dynamic relocation domains and data embedded in executable sections still need a typed model. |
 | DWARF v4 source information | Missing | No line/debug information parser or source annotation is present. |
 | Host-runnable object inspector | Observed/Partial | `make -C toolchain all` publishes the stage-four static i386 Linux CupidDis from the checked fixed point. Static ELF input defaults to all implemented views; explicit header, section, symbol, relocation, disassembly, and address-sorted GNU-`nm`-compatible modes are available. The normal root build runs the platform's checked execution seed for kernel symbol generation: native PE32 on Windows and static ELF on Linux. Host `nm` remains an optional oracle. The current pass-one output supplies a 114,851-byte logical blob through canonical CupidDis text. CupidDis reads the same shared symbols from the final kernel without address drift. Checked CupidObj generates the packed translation, and the checked CupidC wrapper compiles it. The four-vCPU GUI and in-OS CupidC smokes pass with both supported NICs. Raw input requires an explicit base and initial mode. Repeated `--range-at OFFSET:16|32|data` options classify later ranges in the same flat image, while `--mode-at OFFSET:16|32` remains a code-only alias. Buffered stdout failures are detected at flush and produce a processing failure. The stage-three and stage-four static inspector images match byte for byte and agree on raw decode, symbol listing, missing input, and malformed ELF behavior under WSL. The normal contracts also use checked CupidC and CupidLD; only host-built driver binaries and oracle contracts use a host compiler. Dynamic ELF and DWARF views remain open. |
@@ -1072,6 +1073,18 @@ seed carriage and production adoption. The generated audit reports failure,
 help, and success counts of 20/5/21 for Linux and 8/5/7 for Windows. Generation
 and checked comparison both pass. Candidate and promoted-seed proofs cover the
 same behavior inventory.
+
+Source-head CupidDis adds `--require-code-anchors` for static i386 ELF32
+executables. With `--require-known`, it checks `e_entry` and every defined
+`STT_FUNC` against the same decoded instruction starts used by the linked
+local-target policy. Aliases count separately. Undefined and absolute
+functions, along with non-function symbols, remain outside the count. The
+report distinguishes anchors outside file-backed executable code from anchors
+in the middle of an instruction. Typed, CLI, and fixed-point cases cover valid
+aliases, both failure classes, excluded symbols, static-image requirements,
+bounded storage, and recovery. The source-head behavior inventories are
+21/5/22 on Linux and 9/5/8 on Windows. Production adoption waits for a checked
+seed promotion. ADR 0320 records the decision.
 
 Checked-seed CupidDis attaches typed known, unknown, invalid, and truncated
 instruction counts to an inspection report. Its `--require-known FILE

@@ -2470,6 +2470,13 @@ def _run_native_windows_behavior_checks(
         behavior_root,
         "native Windows ",
     )
+    _check_executable_code_anchor_behavior(
+        runner,
+        stage_two,
+        stage_three,
+        behavior_root,
+        "native Windows ",
+    )
 
     asset = behavior_root / "asset.bin"
     asset.write_bytes(b"native-windows-fixed-point")
@@ -2556,9 +2563,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(TOOL_NAMES) + 3,
+        "failure_cases": len(TOOL_NAMES) + 4,
         "help_cases": len(TOOL_NAMES),
-        "success_cases": len(TOOL_NAMES) + 2,
+        "success_cases": len(TOOL_NAMES) + 3,
     }
 
 
@@ -2970,6 +2977,73 @@ def _local_target_executable_payload(displacement: int) -> bytes:
     return bytes(image)
 
 
+def _code_anchor_executable_payload(
+    *, entry: int = 0x00400000, alias: int = 0x00400000
+) -> bytes:
+    text = bytes.fromhex("b8 78 56 34 12 c3")
+    symbol_names = b"\0entry\0alias\0ignored\0\0"
+    section_names = b"\0.text\0.symtab\0.strtab\0.shstrtab\0\0"
+    section_headers = 212
+    image = bytearray(section_headers + 5 * 40)
+    image[:7] = b"\x7fELF\x01\x01\x01"
+    struct.pack_into(
+        "<HHIIIIIHHHHHH",
+        image,
+        16,
+        2,
+        3,
+        1,
+        entry,
+        52,
+        section_headers,
+        0,
+        52,
+        32,
+        1,
+        40,
+        5,
+        4,
+    )
+    struct.pack_into(
+        "<IIIIIIII",
+        image,
+        52,
+        1,
+        84,
+        0x00400000,
+        0x00400000,
+        len(text),
+        8,
+        5,
+        4,
+    )
+    image[84:90] = text
+    image[90 : 90 + len(symbol_names)] = symbol_names
+    struct.pack_into(
+        "<IIIBBH", image, 128, 1, 0x00400000, len(text), 0x12, 0, 1
+    )
+    struct.pack_into("<IIIBBH", image, 144, 7, alias, 0, 0x12, 0, 1)
+    struct.pack_into(
+        "<IIIBBH", image, 160, 13, 0x00400001, 1, 0x11, 0, 1
+    )
+    image[176 : 176 + len(section_names)] = section_names
+    sections = (
+        (0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+        (1, 1, 6, 0x00400000, 84, len(text), 0, 0, 4, 0),
+        (7, 2, 0, 0, 112, 64, 3, 1, 4, 16),
+        (15, 3, 0, 0, 90, len(symbol_names), 0, 0, 1, 0),
+        (23, 3, 0, 0, 176, len(section_names), 0, 0, 1, 0),
+    )
+    for index, section in enumerate(sections):
+        struct.pack_into(
+            "<IIIIIIIIII",
+            image,
+            section_headers + index * 40,
+            *section,
+        )
+    return bytes(image)
+
+
 def _check_relocatable_local_target_behavior(
     runner: ToolRunner,
     stage_two: Stage,
@@ -3098,6 +3172,69 @@ def _check_executable_local_target_behavior(
     ):
         raise BootstrapError(
             f"{label_prefix}CupidDis invalid linked target output differs"
+        )
+
+
+def _check_executable_code_anchor_behavior(
+    runner: ToolRunner,
+    stage_two: Stage,
+    stage_three: Stage,
+    behavior_root: Path,
+    label_prefix: str,
+) -> None:
+    valid_executable = behavior_root / "valid-linked-code-anchors.elf"
+    valid_executable.write_bytes(_code_anchor_executable_payload())
+    arguments: list[str | Path] = [
+        "--require-known",
+        "--require-code-anchors",
+        valid_executable,
+    ]
+    valid_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        arguments,
+        arguments,
+    )
+    _expect_status(
+        valid_result,
+        0,
+        f"{label_prefix}CupidDis executable code anchors",
+    )
+    if valid_result.stdout or valid_result.stderr:
+        raise BootstrapError(
+            f"{label_prefix}CupidDis executable code anchor output differs"
+        )
+
+    invalid_executable = behavior_root / "invalid-linked-code-anchors.elf"
+    invalid_executable.write_bytes(
+        _code_anchor_executable_payload(entry=0x00400001)
+    )
+    invalid_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        [
+            "--require-known",
+            "--require-code-anchors",
+            invalid_executable,
+        ],
+    )
+    _expect_status(
+        invalid_result,
+        1,
+        f"{label_prefix}CupidDis invalid executable code anchor",
+    )
+    if (
+        invalid_result.stdout
+        or "code anchor check failed" not in invalid_result.stderr
+        or "1 of 3 code anchors invalid" not in invalid_result.stderr
+        or "1 mid-instruction" not in invalid_result.stderr
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidDis invalid code anchor output differs"
         )
 
 
@@ -5666,6 +5803,13 @@ def _run_behavior_checks(
         behavior_root,
         "",
     )
+    _check_executable_code_anchor_behavior(
+        runner,
+        stage_two,
+        stage_three,
+        behavior_root,
+        "",
+    )
 
     truncated_code = behavior_root / "truncated-code.bin"
     truncated_code.write_bytes(bytes([0x0F]))
@@ -5814,9 +5958,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 20,
+        "failure_cases": 21,
         "help_cases": 5,
-        "success_cases": 21,
+        "success_cases": 22,
     }
 
 

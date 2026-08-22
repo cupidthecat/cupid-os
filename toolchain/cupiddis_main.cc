@@ -17,6 +17,7 @@ typedef struct {
   ctool_bool have_views;
   ctool_bool require_known;
   ctool_bool require_local_targets;
+  ctool_bool require_code_anchors;
   ctool_x86_mode_t mode;
   ctool_u32 base_address;
   ctool_u32 views;
@@ -38,6 +39,7 @@ static void cupiddis_usage(FILE *stream) {
       "usage: cupiddis [--headers] [--sections] [--symbols] "
       "[--relocations] [--disassemble] [--all] [--nm] FILE\n"
       "       cupiddis --require-known [--require-local-targets] "
+      "[--require-code-anchors] "
       "[--headers] [--sections] "
       "[--symbols] [--relocations] [--disassemble] [--all] "
       "FILE [FILE...]\n"
@@ -548,6 +550,10 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
       cli->require_local_targets = CTOOL_TRUE;
       continue;
     }
+    if (strcmp(argument, "--require-code-anchors") == 0) {
+      cli->require_code_anchors = CTOOL_TRUE;
+      continue;
+    }
     if (strcmp(argument, "--headers") == 0) {
       cli->views |= CTOOL_DIS_VIEW_HEADER;
       cli->have_views = CTOOL_TRUE;
@@ -643,6 +649,10 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
   }
   if (cli->require_local_targets == CTOOL_TRUE &&
       cli->require_known == CTOOL_FALSE) {
+    return 0;
+  }
+  if (cli->require_code_anchors == CTOOL_TRUE &&
+      (cli->require_known == CTOOL_FALSE || cli->raw == CTOOL_TRUE)) {
     return 0;
   }
   if (cli->raw == CTOOL_TRUE) {
@@ -776,10 +786,13 @@ static void cupiddis_make_request(const cupiddis_cli_t *cli,
   request->input = cli->raw == CTOOL_TRUE ? CTOOL_DIS_INPUT_RAW
                                           : CTOOL_DIS_INPUT_ELF32;
   request->views = cli->views;
-  request->policies =
-      cli->require_local_targets == CTOOL_TRUE
-          ? CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS
-          : 0u;
+  request->policies = 0u;
+  if (cli->require_local_targets == CTOOL_TRUE) {
+    request->policies |= CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+  }
+  if (cli->require_code_anchors == CTOOL_TRUE) {
+    request->policies |= CTOOL_DIS_POLICY_CODE_ANCHORS;
+  }
   request->raw_mode = cli->mapped_ranges == CTOOL_FALSE
                           ? cli->mode
                           : CTOOL_DIS_RAW_RANGE_MAP;
@@ -966,6 +979,25 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
             (unsigned long long)
                 report.decode_summary.direct_relative_mid_instruction_count);
       }
+      failed = 1;
+    }
+  }
+  if (cli->require_code_anchors == CTOOL_TRUE) {
+    ctool_u64 invalid_anchors =
+        report.decode_summary.code_anchor_outside_executable_count +
+        report.decode_summary.code_anchor_mid_instruction_count;
+    if (invalid_anchors != 0u) {
+      (void)fprintf(
+          stderr,
+          "cupiddis: %s: code anchor check failed: %llu of %llu code "
+          "anchors invalid (%llu outside file-backed executable code, "
+          "%llu mid-instruction)\n",
+          input, (unsigned long long)invalid_anchors,
+          (unsigned long long)report.decode_summary.code_anchor_count,
+          (unsigned long long)
+              report.decode_summary.code_anchor_outside_executable_count,
+          (unsigned long long)
+              report.decode_summary.code_anchor_mid_instruction_count);
       failed = 1;
     }
   }

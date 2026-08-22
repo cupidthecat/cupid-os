@@ -15,11 +15,21 @@ assembly inputs, 297 headers, 411 Cupid C
 files, 255 feature requirements, and 25 accounted unreachable files. No
 ordinary C translation unit remained in a supported root. Its active-source
 audit now records failure, help, and success counts of 20/5/21 for Linux and
-8/5/7 for Windows. Generation and checked comparison both pass.
+8/5/7 for Windows in the promoted seeds. Source head adds one code-anchor
+success and failure on Linux and one failure on Windows, producing 21/5/22 and
+9/5/8. Generation and checked comparison both pass.
 The final fully poisoned OS build and strong full private guest frontier pass.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
+
+Source-head CupidDis now validates the ELF entry and defined function symbols
+in static i386 executables when an artifact owner selects
+`--require-code-anchors` with `--require-known`. This is an inspector policy,
+not a new host transform. It removes no dependency and adds no production
+owner. The normal kernel transaction cannot select it until the Linux and
+Windows checked seeds are promoted. Minimal DWARF source information remains
+missing and does not block this placement check. ADR 0320 records the boundary.
 
 Active dglibc now consumes the checked seed's `returns_twice` support. This
 changes no build owner or host dependency. Native Clang still builds the

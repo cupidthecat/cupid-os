@@ -1000,10 +1000,20 @@ before CupidObj flattening. ADR 0314 records the decoder boundary, and ADR 0318
 records seed carriage and production adoption.
 
 The generated active-source audit and its check both pass. The Linux audit
-records 20 failure groups, five help groups, and 21 success groups. The Windows
-audit records eight failure groups, five help groups, and seven success groups.
-Candidate and promoted-seed fixed-point proofs cover this linked-image
+records 21 failure groups, five help groups, and 22 success groups. The Windows
+audit records nine failure groups, five help groups, and eight success groups.
+Candidate and promoted-seed fixed-point proofs cover the preceding linked-image
 behavior on Linux and Windows.
+
+Source-head CupidDis adds `--require-code-anchors` for static linked images.
+Together with `--require-known`, it requires the ELF entry and every defined
+function symbol to name a decoded instruction start in file-backed executable
+code. Function aliases count separately. Undefined and absolute functions and
+other symbol types do not count. The report distinguishes anchors outside code
+from anchors in the middle of an instruction. The local-target and code-anchor
+policies share one instruction-start map when selected together. The checked
+seeds and normal publisher do not select this option yet. ADR 0320 records the
+source boundary.
 
 The poisoned-host normal `make -j2` then passed in 1,057.969 seconds. All
 eleven host code-generation variables named invalid commands, and that
