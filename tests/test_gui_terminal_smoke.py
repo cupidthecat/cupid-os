@@ -175,6 +175,8 @@ def _frontier_command_outputs():
             "[feature14-callback-raw] PASS initialized=1 parameter=1 "
             "cleared=1 reassigned=1 calls=3\n"
             "[feature14-callback-automatic] PASS local=4 method=4 calls=2\n"
+            "[feature14-callback-field] PASS stored=1 copied=1 cleared=1 "
+            "float4=4 calls=1\n"
             "[feature14-minmax] PASS nan=4 signed_zero=4\n"
             "[feature14-nan] PASS float_left=4 float_right=0 "
             "double_left=4 double_right=0\n"
@@ -2133,6 +2135,10 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "[feature14-callback-automatic] PASS local=4 method=4 "
                 "calls=2\n"
             ),
+            (
+                "[feature14-callback-field] PASS stored=1 copied=1 "
+                "cleared=1 float4=4 calls=1\n"
+            ),
             "[feature14-minmax] PASS nan=4 signed_zero=4\n",
             (
                 "[feature14-nan] PASS float_left=4 float_right=0 "
@@ -2160,6 +2166,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback-global] FAIL",
             "[feature14-callback-raw] FAIL",
             "[feature14-callback-automatic] FAIL",
+            "[feature14-callback-field] FAIL",
             "[feature14-minmax] FAIL",
             "[feature14-nan] FAIL",
             "FAIL feature14_simd",
@@ -2237,6 +2244,8 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback-raw] PASS initialized=1 parameter=1 "
             "cleared=1 reassigned=1 calls=3",
             "[feature14-callback-automatic] PASS local=4 method=4 calls=2",
+            "[feature14-callback-field] PASS stored=1 copied=1 cleared=1 "
+            "float4=4 calls=1",
         ):
             self.assertIn(spelling, source)
 

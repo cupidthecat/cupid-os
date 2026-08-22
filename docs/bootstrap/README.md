@@ -32,7 +32,8 @@ validation, ADR 0315 records raw callback declarations, and ADR 0316 records
 Windows seed validation in `CUPSIZE2`. ADR 0317 records retained seed bytes as
 the final report comparison authority. ADR 0318 records the current seed
 promotion and linked-kernel adoption. ADR 0319 records direct explicit function
-addresses in private callback values.
+addresses in private callback values. ADR 0321 records typedef-backed callback
+fields.
 
 ## 2026-08-22 source-current checkpoint
 
@@ -78,7 +79,10 @@ adoption.
 Private CupidC carries a file-scope function-pointer typedef signature on direct
 free-function parameters, Cupid class method parameters,
 declaration-initialized automatic objects, and file objects. Each automatic
-declarator gets its own copy. A file object may start as `NULL`, a compatible
+declarator gets its own copy. A structure or class field declared with the
+typedef retains the same signature through checked stores, null clearing, and
+copies into named callback objects. Nested record and indexed record-array
+paths keep it. A file object may start as `NULL`, a compatible
 function designator, or the direct address of that function. It may receive a
 compatible callback through checked plain assignment, make a typed indirect
 call, and be cleared. A defined function
@@ -90,19 +94,23 @@ free-function parameter now retain the same parsed signature. Raw callback
 fields, arrays, block-static objects, alias chains, computed expressions, and
 raw Cupid class method parameters remain outside this boundary.
 
-The private callback ABI module passes all 270 tests in 44.462 seconds. The
+The private callback ABI module passes all 272 tests in 52.354 seconds. The
 four-vCPU raw callback QEMU smoke also passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The 32,981-byte
 `tests/feature14-callback-raw-qemu.log` has SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 2.260 seconds. The standalone
+The full GUI module passes all 126 tests in 1.368 seconds. The guest contract
+now requires
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`.
+Host tests prove that marker contract; a real QEMU run for the field marker is
+pending. The standalone
 CupidC seeds do not contain this private parser. The active runtime proof
 remains the in-OS JIT smoke; no normal AOT source requires the syntax yet.
 ADR 0306 records global storage, ADR 0310 records automatic objects and method
 parameters, ADR 0313 records initialized-data function-address patches, ADR
-0315 records the raw forms, and ADR 0319 records direct explicit function
-addresses.
+0315 records the raw forms, ADR 0319 records direct explicit function
+addresses, and ADR 0321 records typedef-backed callback fields.
 
 The `CUPMAN4` Toolchain author consumes the publication facts plus raw
 stage-three and stage-four bytes for 58 fixed-point pairs: 17 contract objects,
@@ -616,10 +624,12 @@ typedef-backed global objects initialized from null or a compatible function.
 Its indirect call uses the same conversions and 4-, 8-, or 16-byte slot
 layout, enforces fixed arity, applies default promotions after a variadic
 prefix, and publishes floating or vector results through XMM0. Empty `()`,
-`void *`, record and class fields, callback arrays, block-static objects,
+`void *`, raw callback fields, callback arrays, block-static objects,
 callback alias chains, recursive signatures, conditional
 initializers, arbitrary computed expressions, raw method parameters, and
-later assignment to automatic callback objects remain outside this path. A
+postfix calls on callback fields remain outside this path. A structure or
+class field declared directly with the callback typedef keeps its signature
+for checked stores, null clearing, and copies into named callback objects. A
 later global target is resolved through an absolute initialized-data patch.
 Named raw callback file objects and direct free-function parameters retain
 their parsed signatures. The private pool holds at most 32 raw parameter
@@ -756,10 +766,12 @@ and null clearing. The typedef table holds sixteen aliases, and each retained
 signature holds at most 32 fixed parameters. A plain function initializer,
 its direct `&function` address, or a typed global assignment must match that
 signature; an explicit `void *` cast
-erases the check. Empty `()`, fields, callback arrays, block-static objects,
+erases the check. Empty `()`, raw callback fields, callback arrays, block-static objects,
 alias chains, and `void *` pointers remain metadata-free. Direct structure and array results
 remain rejected, while record-pointer identity is retained.
-Named local callback copies are checked too. A later target receives an
+Named local callback copies are checked too. A structure or class field
+declared directly with the callback typedef keeps the same signature for
+checked stores and copies. A later target receives an
 absolute address fixup, and its real definition must match any provisional
 signature inferred from the initializer. Compatible conditional selection
 keeps every candidate and checks each arm. A represented integer constant
@@ -782,7 +794,8 @@ named local callbacks, ADR 0303 records typedef-backed free-function
 parameters, ADR 0306 records typedef-backed global storage and checked
 assignment, ADR 0310 records automatic objects and Cupid class method
 parameters, ADR 0313 records static callback initialization, and ADR 0319
-records direct explicit function addresses. The
+records direct explicit function addresses. ADR 0321 records typedef-backed
+callback fields. The
 active guest source requires
 `[feature14-update] PASS direct=6 leaves=3 once=6 payload=8` and
 `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`, followed by
@@ -790,9 +803,12 @@ active guest source requires
 `[feature14-callback-typedef] PASS float4=4 calls=1`, then
 `[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
 `cleared=1 calls=2`, then
-`[feature14-callback-automatic] PASS local=4 method=4 calls=2` before the
-overall feature-14 result. The integrated private frontier observes every
-marker once and in order before the clean JIT completion. It passes in about
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`, then
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`
+before the overall feature-14 result. Host tests prove the field marker and
+failure contract. Real QEMU evidence for that marker is pending. The
+integrated private frontier observes the earlier markers once and in order
+before the clean JIT completion. It passes in about
 889 seconds from the source-current image.
 
 A private AOT executable with no data now reports one program header and emits

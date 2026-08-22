@@ -726,9 +726,12 @@ the function address in initialized data before execution. A Cupid class
 method parameter declared directly with a file-scope callback typedef keeps
 the signature as well. An automatic object
 declared directly with that typedef keeps it when initialized in its
-declaration. Record fields, callback arrays, callback alias chains,
-block-static objects, recursive callback signatures, aggregate results, and
-arbitrary computed callback expressions remain signature-erased or
+declaration. A structure or class field declared directly with the typedef
+keeps the signature for checked stores, named copies, null checks, and clearing.
+Direct members, nested records, and indexed record arrays share that path. Raw
+callback fields, callback arrays, callback alias chains, block-static objects,
+recursive callback signatures, direct postfix field calls, aggregate results,
+and arbitrary computed callback expressions remain signature-erased or
 unsupported. AOT still compiles one translation
 unit into a fixed-address executable and does not emit a relocatable object for
 a later link.
@@ -745,10 +748,10 @@ The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
-runtime evidence. The standalone CupidC seeds do not contain this private
-parser. The active proof remains the in-OS JIT smoke because no normal AOT
-input needs the syntax yet. ADR 0315 records the boundary.
+The full GUI module passes all 126 tests in 1.368 seconds. Its host contract
+requires the callback-field marker, but a real QEMU observation of that marker
+is still pending. The standalone CupidC seeds do not contain this private
+parser. No normal AOT input needs the syntax yet.
 [ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records the callback and one-header AOT boundaries.
 [ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
@@ -758,6 +761,10 @@ records automatic objects and Cupid class method parameters.
 [ADR 0313](../docs/adr/0313-initialize-private-cupidc-global-callbacks-from-functions.md)
 records static callback initialization for private JIT and fixed-address AOT
 data.
+[ADR 0319](../docs/adr/0319-retain-explicit-function-addresses-in-private-callbacks.md)
+records direct explicit function addresses.
+[ADR 0321](../docs/adr/0321-retain-typedef-callback-signatures-on-private-record-fields.md)
+records typedef-backed record and class fields.
 
 The preceding poisoned-host build checkpoint passed in 684.260 seconds with
 all fourteen exact policy artifacts accepted. It produced a 9,320,424-byte

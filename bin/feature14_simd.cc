@@ -30,6 +30,14 @@ typedef float4 (*feature14_float_callback_t)(float4 left, int marker,
                                              float4 right);
 feature14_float_callback_t feature14_global_callback = feature14_merge_float4;
 
+typedef struct {
+    feature14_float_callback_t callback;
+} feature14_callback_slot_t;
+
+typedef struct {
+    feature14_callback_slot_t slots[2];
+} feature14_callback_controller_t;
+
 class Feature14CallbackInvoker {
     float4 Invoke(feature14_float_callback_t callback, float4 left,
                   int marker, float4 right) {
@@ -314,6 +322,25 @@ int feature14_test_callback_automatic_and_method() {
         local_result.z != 10.0f || local_result.w != 12.0f) return 2;
     if (method_result.x != 6.0f || method_result.y != 8.0f ||
         method_result.z != 10.0f || method_result.w != 12.0f) return 3;
+    return 0;
+}
+
+int feature14_test_callback_field() {
+    float4 first = {1.0f, 2.0f, 3.0f, 4.0f};
+    float4 second = {5.0f, 6.0f, 7.0f, 8.0f};
+    float4 result;
+    feature14_callback_controller_t controller;
+    feature14_float_callback_t callback = 0;
+
+    feature14_float_call_count = 0;
+    controller.slots[1].callback = feature14_merge_float4;
+    callback = controller.slots[1].callback;
+    controller.slots[1].callback = 0;
+    if (controller.slots[1].callback != 0) return 1;
+    result = callback(first, 7, second);
+    if (feature14_float_call_count != 1) return 2;
+    if (result.x != 6.0f || result.y != 8.0f ||
+        result.z != 10.0f || result.w != 12.0f) return 3;
     return 0;
 }
 
@@ -809,6 +836,15 @@ int main() {
     } else {
         serial_printf("[feature14-callback-automatic] FAIL check=%d\n",
                       callback_automatic_result);
+        ok = 0;
+    }
+
+    int callback_field_result = feature14_test_callback_field();
+    if (callback_field_result == 0) {
+        serial_printf("[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1\n");
+    } else {
+        serial_printf("[feature14-callback-field] FAIL check=%d\n",
+                      callback_field_result);
         ok = 0;
     }
 

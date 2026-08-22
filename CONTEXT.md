@@ -191,9 +191,14 @@ plain assignment as the designator. A direct raw
 callback parameter on a free function retains its result, fixed parameters,
 record identities, and variadic boundary through the existing cdecl call path.
 The private pool holds at most 32 raw parameter signatures and rolls back with
-the program. Conditional initializers, block-static objects,
-fields, callback arrays, alias chains, raw method parameters, and recursive
-signatures remain outside this boundary.
+the program. A structure or class field declared directly with a callback
+typedef retains that typedef's signature. Checked plain assignment stores a
+compatible function or callback value, null clears the field, and a member
+read keeps the signature when it is copied into a named callback object.
+Nested record and indexed record-array traversal keep the same rule.
+Conditional initializers, block-static objects, raw callback fields, callback
+arrays, alias chains, raw method parameters, postfix calls on field
+expressions, and recursive signatures remain outside this boundary.
 Direct structure and array results remain rejected. Program and REPL rollback
 restore typedef and side-table metadata, provisional signatures, code, data,
 and every patch kind. The
@@ -944,8 +949,12 @@ ordinary function or Cupid class method parameter retains that metadata. A
 declaration-initialized automatic object does too. A direct file object retains
 the signature across null or compatible function initialization, checked
 assignment, indirect call, and clearing. A later initialization target receives
-an absolute data patch. Fields, callback arrays, block-static objects, alias chains,
-`void *`, and empty-`()` pointers still lack it and keep the focused rejection.
+an absolute data patch. A structure or class field declared directly with the
+typedef keeps the signature through checked stores, named copies, null checks,
+and clearing. Direct members, nested records, and indexed record arrays share
+that path. Raw callback fields, callback arrays, block-static objects, alias
+chains, `void *`, and empty-`()` pointers still lack it and keep the focused
+rejection. Direct postfix calls through a field remain unsupported.
 A plain function initializer or direct `&function` address must match the local
 pointer's result, record identity, fixed parameters, and variadic boundary.
 Named local callback copies follow the same rule. Later target addresses are
@@ -969,7 +978,8 @@ fixed SIMD call boundary. ADR 0301 records the named local callback boundary,
 ADR 0303 records typedef-backed ordinary callback parameters, ADR 0306 records
 global callback storage, ADR 0310 records automatic objects and Cupid class
 method parameters, ADR 0313 records static callback initialization, and ADR
-0319 records direct explicit function addresses.
+0319 records direct explicit function addresses. ADR 0321 records
+typedef-backed callback fields.
 _Avoid_: untyped SIMD storage, escaped row pointers, reordered packed operands,
 an implied 16-byte private call-site alignment
 

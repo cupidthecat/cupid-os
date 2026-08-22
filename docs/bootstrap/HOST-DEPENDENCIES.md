@@ -551,9 +551,11 @@ calls, kernel bindings, and calls without parameter metadata keep their
 source-width slots. A named block-local function-pointer declaration keeps
 its fixed parameter types, variadic state, and result type. Its indirect call
 uses the same conversion and 4-, 8-, or 16-byte slot path as a direct call.
-Empty `()`, record and class fields, callback arrays, block-static objects,
+Empty `()`, raw callback fields, callback arrays, block-static objects,
 callback alias chains, recursive signatures, and `void *` forms remain
-metadata-free. Later assignment to an automatic callback object is also open.
+metadata-free. A structure or class field declared directly with a callback
+typedef keeps that signature for checked stores, null clearing, and copies into
+named callback objects.
 Plain function initializers are checked against the retained signature,
 including record-pointer parameters, while an explicit cast opts into erasure.
 Later function addresses and provisional signatures are resolved inside
@@ -566,7 +568,9 @@ bindings, and the reused `__start` thunk. A focused host-built runtime remains
 an optional ABI oracle.
 Checked-seed CupidC builds the production parser object. The four-CPU guest
 frontier executes ten mixed-width feature13 calls, six direct SIMD calls, and
-two named SIMD callback calls. The poisoned production build passes with the
+two named SIMD callback calls. The feature-14 guest source also checks one
+typedef-backed callback field store, copy, clear, and typed SIMD call. The
+poisoned production build passes with the
 same dependency set. No host compiler, assembler, linker, or packaging
 dependency was added or retired.
 
@@ -1159,30 +1163,38 @@ and fixed-address AOT paths write or patch that address in initialized data
 before execution. A named raw callback file object and direct free-function
 parameter retain the parsed signature. The private pool accepts 32 raw
 parameter signatures and fails the next distinct signature without leaking
-state. Conditional initializers, fields, block-static objects,
+state. A structure or class field declared directly with a callback typedef
+retains the signature through checked plain stores, null clearing, and copies
+into named callback objects. Conditional initializers, raw callback fields,
+block-static objects,
 callback arrays, alias chains, recursive signatures, aggregate results, raw
 method parameters, and empty identifier-list signatures remain outside the
 retained path. A zero-data AOT executable reports one
 program header and keeps code at file offset `0x80`; data-bearing executables
 retain two headers. These paths add no host tool or output owner. ADR 0319
-records direct explicit function addresses. The private callback ABI module
-passes all 270 tests in 44.462 seconds. The four-vCPU raw
+records direct explicit function addresses, and ADR 0321 records
+typedef-backed callback fields. The private callback ABI module
+passes all 272 tests in 52.354 seconds. The four-vCPU raw
 callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The 32,981-byte
 `tests/feature14-callback-raw-qemu.log` has SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 2.260 seconds. The standalone
+The full GUI module passes all 126 tests in 1.368 seconds. The standalone
 CupidC seeds do not contain this private parser. No normal AOT source requires
 the forms yet.
 The marker contract requires
 `[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
 `cleared=1 calls=2` and
-`[feature14-callback-automatic] PASS local=4 method=4 calls=2` after the existing
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`, followed by
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`,
+after the existing
 typedef callback marker. The preceding OS image build and combined guest smoke
-recorded above predate both new markers. The later integrated four-vCPU guest
-frontier printed both markers once in order and completed the feature run
-cleanly. Its source image remained unchanged at SHA-256
+recorded above predate the field marker. Host tests prove the field marker's
+ordering and failure contract, but a real QEMU run for that marker is pending.
+The later integrated four-vCPU guest frontier printed the earlier global and
+automatic markers once in order and completed the feature run cleanly. Its
+source image remained unchanged at SHA-256
 `31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
 The promoted standalone seeds do not contain this private parser or ELF writer.
 ADR 0303 records free-function parameters, ADR 0306 records global callback

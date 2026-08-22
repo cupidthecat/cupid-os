@@ -1768,8 +1768,12 @@ through checked plain assignment, call it indirectly, and be cleared. Indirect
 calls in the JIT and private AOT paths use the direct call's
 conversions and four-, eight-, or sixteen-byte slots, including SIMD arguments
 and XMM0 results.
-Empty (), fields, block-static objects, callback arrays, bare nested callback
-signatures, alias chains, and void-pointer forms keep source-width slots. A
+A structure or class field declared directly with the typedef keeps the
+signature for checked stores, copies into named callbacks, null checks, and
+clearing. Direct members, nested records, and indexed record arrays share that
+path. Empty (), raw callback fields, block-static objects, callback arrays, bare
+nested callback signatures, alias chains, and void-pointer forms keep
+source-width slots. A
 typedef-backed global callback may begin with a compatible defined or
 later-defined function. A known address is written into initialized data, and a
 later definition receives an absolute data patch during symbol resolution.
@@ -1777,10 +1781,13 @@ Named raw callback file objects and direct free-function parameters also
 retain their parsed signatures. The file objects use the same initialized-data,
 assignment, call, and null rules. The parameters use the same cdecl slot and
 arity checks. The private pool accepts 32 distinct raw signatures and recovers
-after rejecting the next one. Address-of and conditional callback initializers,
-fields, arrays, block-static callbacks, and raw method parameters remain
-unsupported. ADR 0315 records the raw boundary.
-The private callback ABI module passes all 268 tests in 51.685 seconds.
+after rejecting the next one. A direct function address uses the same signature
+check as a plain function designator. Conditional callback initializers, raw
+callback fields, callback arrays, block-static callbacks, direct postfix field
+calls, and raw method parameters remain unsupported. ADR 0315 records the raw
+boundary, ADR 0319 records explicit function addresses, and ADR 0321 records
+typedef-backed record and class fields.
+The private callback ABI module passes all 272 tests in 52.354 seconds.
 The checked Linux and Windows CupidC seeds do not contain this private parser.
 The active runtime proof remains the feature-14 JIT smoke; no normal AOT source
 requires the syntax yet.
@@ -1885,19 +1892,21 @@ feature14_simd checks packed operators, one-dimensional arrays, matrices,
 cubes, NaN handling, fixed float4 and double2 calls, and SSE intrinsics. Its
 call marker covers six nested pass-by-value calls and XMM0 returns. The source
 also defines a file-scope float4 callback typedef and uses it on a free-function
-parameter, a file object, a declaration-initialized automatic object, and a
-Cupid class method parameter. Focused JIT and private AOT tests execute each
-callback form.
+parameter, a file object, a declaration-initialized automatic object, a Cupid
+class method parameter, and a record field. Focused JIT and private AOT tests
+execute each callback form.
 
 The four-vCPU e1000 guest contract requires ordered direct-call,
-named-callback, typedef-parameter, typedef-global, and automatic-callback
-evidence. The retained paths must print
+named-callback, typedef-parameter, typedef-global, automatic-callback, and
+callback-field evidence. The retained paths must print
 `[feature14-callback-typedef] PASS float4=4 calls=1`,
 `[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
-`cleared=1 calls=2`, and
-`[feature14-callback-automatic] PASS local=4 method=4 calls=2` in that order.
-The command must then print `PASS feature14_simd` and finish with CupidC JIT
-completion.
+`cleared=1 calls=2`,
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`, and
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`
+in that order. The host contract proves the source and required marker. A real
+QEMU observation of the field marker is still pending. The command must then
+print `PASS feature14_simd` and finish with CupidC JIT completion.
 kernel/fs/iso9660.cc provides the active scalar case through susp_entry_cb. The
 Browser's binary64 token and AST tables use the fixed double-array path.
 See also: 14FPU-SSE.CTXT for full FPU/SSE reference.

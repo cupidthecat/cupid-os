@@ -1067,9 +1067,13 @@ with the typedef keeps the same signature across null or compatible function
 initialization, checked plain assignment, indirect call, and null clearing. A
 defined function address is written into initialized data. A later definition
 receives an absolute data patch before JIT or fixed-address AOT execution.
-Record fields, callback arrays, block-static objects, alias chains, recursive
-callback signatures, aggregate results, and arbitrary computed callback
-expressions remain outside this typed path. The AOT writer uses one executable
+A structure or class field declared directly with the typedef keeps the
+signature for checked stores, copies into named callbacks, null checks, and
+clearing. Direct, nested, and indexed record-array member paths share that
+behavior. Raw callback fields, callback arrays, block-static objects, alias
+chains, recursive callback signatures, direct postfix field calls, aggregate
+results, and arbitrary computed callback expressions remain outside this typed
+path. The AOT writer uses one executable
 `PT_LOAD` for zero-data programs and adds the writable data segment only when
 data is present; code begins at file offset `0x80` in both layouts. Focused
 private compiler contracts cover these source decisions. The exact
@@ -1575,11 +1579,15 @@ direct file-scope function-pointer typedef carries the same metadata and call
 path. A declaration-initialized automatic object carries it too. A file object
 declared directly with the typedef retains the metadata across
 null initialization, checked plain assignment, indirect call, and clearing.
-Empty `()`, fields, callback arrays, block-static objects, alias chains,
-recursive callback signatures, and `void *` forms remain signature-erased. A plain function initializer or direct
-callback argument must match the retained signature. Local copies share the
-check, later addresses are fixed up, and a provisional signature must match its
-definition. An explicit cast opts into erasure only for the value it covers.
+A structure or class field declared directly with the typedef retains the same
+metadata for checked stores, named copies, null checks, and clearing. Direct,
+nested, and indexed record-array member paths share that behavior. Empty `()`,
+raw callback fields, callback arrays, block-static objects, alias chains,
+recursive callback signatures, and `void *` forms remain signature-erased. A
+plain function initializer or direct callback argument must match the retained
+signature. Local copies share the check, later addresses are fixed up, and a
+provisional signature must match its definition. An explicit cast opts into
+erasure only for the value it covers.
 Compatible conditional selection checks every named arm. A represented integer
 constant expression that evaluates to zero is a null pointer; runtime zeros are
 not. Null arms are neutral for erasure, while every non-null object arm must be
@@ -1592,15 +1600,18 @@ the parsed signature. The file object uses the existing null, function-address,
 assignment, call, and clear rules. The parameter uses the existing cdecl slot
 and arity checks. The private pool accepts 32 distinct raw signatures, rejects
 the next one, and restores the pool before a valid retry. ADR 0315 records this
-source boundary.
+source boundary. The full private callback ABI module passes all 272 tests in
+52.354 seconds. ADR 0321 records the typedef-backed field boundary.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.468 seconds. The standalone
-CupidC seeds do not contain this private parser. No normal AOT source needs the
-syntax yet; the active use remains the in-OS feature-14 JIT smoke.
+The full GUI module passes all 126 tests in 1.368 seconds. Its host contract
+requires the callback-field marker described below, but a real QEMU observation
+of that marker is still pending. The standalone CupidC seeds do not contain
+this private parser. No normal AOT source needs the syntax yet; the active use
+remains the in-OS feature-14 JIT smoke.
 The feature-14 guest publishes
 `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6` followed by
 `[feature14-callback] PASS float4=4 double2=2 calls=2`.
@@ -1610,17 +1621,20 @@ typedef-parameter path after the direct and named callback markers.
 Source head then requires
 `[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
 `cleared=1 calls=2`, followed by
-`[feature14-callback-automatic] PASS local=4 method=4 calls=2`. The focused JIT
-and AOT contracts pass the typedef-global, automatic, and method SIMD paths.
-The integrated e1000 frontier observes both markers in order before the overall
-feature PASS and clean JIT completion.
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2` and
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`.
+The focused JIT and AOT contracts pass the typedef-global, automatic, method,
+and field paths. Host tests prove the source and marker contract for the field
+path. The integrated e1000 frontier predates the field marker, so real QEMU
+evidence for it is still pending.
 ADR 0216 records the fixed-array boundary. ADR 0257 records multidimensional
 row descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD
 calls. ADR 0301 records named local callbacks, ADR 0303 records callback
 typedef parameters and the zero-data AOT layout, and ADR 0306 records global
 callback storage and checked assignment. ADR 0310 records automatic
 callback objects and Cupid class method parameters. ADR 0313 records static
-callback initialization.
+callback initialization. ADR 0319 records direct explicit function addresses.
+ADR 0321 records typedef-backed record and class fields.
 
 Private decimal literals now use a fixed 1536-bit integer workspace. CupidC
 forms the exact decimal ratio and rounds once to the selected binary32 or
@@ -1643,9 +1657,13 @@ method parameter declared with a direct file-scope function-pointer typedef
 does the same. A declaration-initialized automatic object does too. A file
 object declared directly with the typedef keeps the signature across
 null initialization, checked assignment, indirect call, and clearing. Empty
-`()`, fields, callback arrays, block-static objects, alias chains, recursive
-callback signatures, and `void *` forms remain metadata-free. Kernel bindings and other calls without
-fixed parameter metadata retain source-width arguments. A plain function
+`()` and raw callback fields remain metadata-free, as do callback arrays,
+block-static objects, alias chains, recursive callback signatures, and `void *`
+forms. A structure or class field declared directly with the typedef retains
+the signature for checked stores, named copies, null checks, and clearing,
+including nested and indexed record-array member paths. Direct postfix field
+calls remain unsupported. Kernel bindings and other calls without fixed
+parameter metadata retain source-width arguments. A plain function
 initializer or direct callback argument is checked before storage or call,
 while an explicit cast remains the deliberate erasure path. Later targets
 receive absolute fixups; their definitions must match any signature inferred
@@ -1661,7 +1679,8 @@ it. ADR 0215 records the expanded private floating lvalue model, and ADR 0301
 records named local callbacks. ADR 0303 records callback typedef parameters.
 ADR 0306 records global callback storage and checked assignment. ADR 0310
 records automatic callback objects and Cupid class method parameters. ADR 0313
-records static callback initialization.
+records static callback initialization. ADR 0319 records direct explicit
+function addresses. ADR 0321 records typedef-backed record and class fields.
 
 Checked CupidASM assembles the ISO spanning fixture from
 `test_iso/big_pattern.asm`. Hostbuild freezes that source and the checked seed,

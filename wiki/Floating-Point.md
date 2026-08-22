@@ -400,9 +400,12 @@ declared directly with the typedef also retains the signature across null
 initialization, checked plain assignment, indirect call, and null clearing.
 Cupid class method parameters and declaration-initialized automatic objects
 declared directly with the same file-scope typedef retain the signature too.
-Empty `()`, fields, callback arrays, callback alias chains, block-static
-objects, recursive callback signatures, and `void *` forms remain
-metadata-free. Later assignment to an automatic callback object is also open.
+A structure or class field declared directly with the typedef keeps the
+signature for checked stores, named copies, null checks, and clearing. Direct
+members, nested records, and indexed record arrays share that path. Empty `()`,
+raw callback fields, callback arrays, callback alias chains, block-static
+objects, recursive callback signatures, direct postfix field calls, and
+`void *` forms remain metadata-free.
 Kernel bindings and other calls without fixed metadata keep their source-width
 slots. A plain function initializer or direct callback argument must match the
 retained signature, including record-pointer parameters. Local callback copies
@@ -424,15 +427,19 @@ named raw callback file object and direct free-function parameter retain the
 same floating and integer slot metadata without a typedef. The private raw
 signature pool accepts 32 distinct entries and recovers after rejecting the
 next one. ADR 0315 records this boundary.
+A direct function address follows the same typed path as the plain function
+designator, and a typedef-backed record or class field retains its signature.
+ADR 0319 records explicit function addresses, while ADR 0321 records the field
+boundary.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
-runtime evidence. The standalone CupidC seeds do not contain this private
-parser. The active proof remains the in-OS JIT smoke because no normal AOT
-input needs the syntax yet. ADR 0315 records the boundary.
+The full GUI module passes all 126 tests in 1.368 seconds. Its host contract
+requires the callback-field marker, but a real QEMU observation of that marker
+is still pending. The standalone CupidC seeds do not contain this private
+parser. No normal AOT input needs the syntax yet.
 
 Private decimal `float` and `double` literals use a fixed 1536-bit integer
 workspace. The converter forms the exact decimal ratio and rounds once to the
@@ -492,9 +499,11 @@ path. A free-function or Cupid class method parameter declared with a direct
 file-scope callback typedef uses that path too. A declaration-initialized
 automatic object keeps the same metadata. A file object declared with that
 typedef also uses the 16-byte slot and XMM0 return path after checked assignment.
-Empty `()`, fields, callback arrays, block-static objects, alias chains,
-recursive callback signatures, and `void *` pointers do not retain the
-signature.
+A structure or class field declared directly with the typedef keeps the
+signature for checked stores, named copies, null checks, and clearing. Empty
+`()`, raw callback fields, callback arrays, block-static objects, alias chains,
+recursive callback signatures, direct postfix field calls, and `void *`
+pointers do not retain the signature.
 Plain function initializers and direct callback arguments are checked before
 the call or store. Later definitions receive address fixups and must match a
 provisional signature. A compatible conditional checks all of its named arms.

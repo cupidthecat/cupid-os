@@ -29598,3 +29598,43 @@ promotion and production adoption remain the next ownership step. Minimal
 DWARF source information is still missing and belongs in a separate format
 slice. No host dependency, transform owner, active source suffix, or artifact
 size changes here. `TempleOS/` remains untouched. ADR 0320 records the decision.
+
+## 2026-08-22: retain typedef callback signatures on private record fields
+
+ADR 0321 carries a direct file-scope callback typedef into structure and class
+fields. The field keeps one compact signature handle beside its existing type
+and offset. Member reads publish that handle when the value is copied into a
+named callback object. Member lvalue traversal returns the same handle through
+nested records and indexed record arrays, so plain stores use the established
+result, parameter, record-identity, and variadic checks before writing the
+four-byte address.
+
+The first USB-shaped test failed at `cb = slot->cb` with
+`function-pointer assignment requires a function, zero, or explicit pointer
+cast`. The field store and compound-store negatives also compiled when they
+should have failed. This confirmed that the existing field path kept the
+four-byte value but discarded its callable type.
+
+The final public-seam fixture follows the active controller shape. It stores a
+callback parameter in `controller->interrupt_slots[index].cb`, copies the
+field into a typed automatic object, clears the field, and makes the indirect
+call. JIT and fixed-address AOT both return the expected value. Negative cases
+reject a mismatched result, mismatched record-pointer parameter, incompatible
+field copy, and compound field assignment. Each failure restores the compiler
+state before a valid retry executes.
+
+The complete private callback ABI module passes all 272 tests in 52.354
+seconds. The feature-14 guest source now covers a typedef-backed field with a
+16-byte `float4` callback argument and XMM0 result. Its host smoke contract
+requires
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`.
+The full GUI terminal smoke module passes all 126 tests in 1.368 seconds. These
+are host and JIT/AOT proofs. A real QEMU run for the new field marker is
+pending, so this entry does not claim guest boot evidence.
+
+Raw callback field declarators, callback arrays, block-static callbacks,
+postfix calls on field expressions, alias chains, conditional field values,
+raw Cupid class method parameters, recursive signatures, and aggregate
+callback results remain open. The standalone compiler seeds do not contain
+this private parser. No checked seed, object format, build owner, or host
+dependency changed.

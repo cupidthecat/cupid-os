@@ -1369,6 +1369,7 @@ static cc_symbol_t *cc_last_expr_function_signature_sym;
 static cc_symbol_t *
     cc_last_expr_function_signature_candidates[CC_MAX_PARAMS];
 static int cc_last_expr_function_signature_count;
+static int cc_last_expr_function_signature_handle = -1;
 static int cc_last_expr_function_signature_erased;
 static int cc_last_expr_is_null_pointer_constant;
 static int cc_last_expr_is_integer_constant_expression;
@@ -1409,6 +1410,7 @@ static int cc_grouped_simd_row_depth;
 static void cc_clear_expr_function_signatures(void) {
   cc_last_expr_function_signature_sym = NULL;
   cc_last_expr_function_signature_count = 0;
+  cc_last_expr_function_signature_handle = -1;
 }
 
 static void cc_clear_expr_callable_provenance(void) {
@@ -1451,6 +1453,27 @@ static int cc_append_expr_function_signature(cc_symbol_t *symbol) {
 static void cc_set_expr_function_signature(cc_symbol_t *symbol) {
   cc_clear_expr_function_signatures();
   (void)cc_append_expr_function_signature(symbol);
+}
+
+static void cc_set_expr_function_signature_handle(int signature_handle) {
+  cc_clear_expr_function_signatures();
+  cc_last_expr_function_signature_handle = signature_handle;
+}
+
+static int cc_last_type_function_pointer_signature_handle(
+    cc_state_t *cc, cc_type_t type) {
+  if (type != TYPE_FUNC_PTR || cc_last_type_typedef_index < 0 ||
+      cc_last_type_typedef_index >= cc->typedef_count ||
+      !cc->typedef_function_pointer_signature_valid[
+          cc_last_type_typedef_index])
+    return -1;
+  return cc_last_type_typedef_index;
+}
+
+static void cc_retain_scalar_field_function_pointer_signature(
+    cc_field_t *field, int signature_handle) {
+  field->function_pointer_signature_handle =
+      field->array_count == 0 ? signature_handle : -1;
 }
 
 static int cc_has_incomplete_simd_row(void) {
@@ -2025,6 +2048,8 @@ static int cc_parse_struct_body(cc_state_t *cc, int struct_index) {
     cc_type_t field_type = cc_parse_type(cc);
     int field_struct_index = cc_last_type_struct_index;
     int field_array_count = cc_last_type_array_count;
+    int field_function_pointer_signature_handle =
+        cc_last_type_function_pointer_signature_handle(cc, field_type);
     cc_token_t field_name = cc_next(cc);
     if (field_name.type != CC_TOK_IDENT) {
       cc_error(cc, "expected field name");
@@ -2041,7 +2066,6 @@ static int cc_parse_struct_body(cc_state_t *cc, int struct_index) {
     field->type = field_type;
     field->struct_index = field_struct_index;
     field->array_count = field_array_count;
-
     if (cc_peek(cc).type == CC_TOK_LBRACK) {
       if (field_array_count > 0) {
         cc_error(cc,
@@ -2062,6 +2086,8 @@ static int cc_parse_struct_body(cc_state_t *cc, int struct_index) {
       if (!cc_expect(cc, CC_TOK_RBRACK))
         return 0;
     }
+    cc_retain_scalar_field_function_pointer_signature(
+        field, field_function_pointer_signature_handle);
     if (field_type == TYPE_STRUCT &&
         !cc_struct_is_complete(cc, field_struct_index)) {
       cc_error(cc, "field has incomplete struct type");
@@ -3411,6 +3437,8 @@ static int cc_function_pointer_signatures_match(
     const cc_symbol_t *left, const cc_symbol_t *right);
 static int cc_validate_function_pointer_assignment_value(
     cc_state_t *cc, const cc_symbol_t *pointer);
+static int cc_validate_function_pointer_assignment_value_handle(
+    cc_state_t *cc, int function_pointer_signature_handle);
 static int cc_apply_function_pointer_initializer_candidates(
     cc_state_t *cc, const cc_symbol_t *pointer,
     cc_symbol_t *const *targets, int target_count);
@@ -5348,6 +5376,10 @@ static void cc_parse_primary(cc_state_t *cc) {
       } else {
         if (!cc_emit_indirect_scalar_load(cc, field->type))
           return;
+        if (field->type == TYPE_FUNC_PTR &&
+            field->function_pointer_signature_handle >= 0)
+          cc_set_expr_function_signature_handle(
+              field->function_pointer_signature_handle);
         if (field->type == TYPE_FLOAT || field->type == TYPE_DOUBLE)
           cc_last_expr_indirect_lvalue = 1;
       }
@@ -6212,7 +6244,8 @@ static int cc_emit_indirect_scalar_store(cc_state_t *cc,
 static int cc_finish_indirect_assignment(cc_state_t *cc,
                                          cc_type_t object_type,
                                          cc_token_type_t op,
-                                         const char *fp_operator_error) {
+                                         const char *fp_operator_error,
+                                         int function_pointer_signature_handle) {
   int is_fp = object_type == TYPE_FLOAT || object_type == TYPE_DOUBLE;
 
   if (is_fp) {
@@ -6282,6 +6315,16 @@ static int cc_finish_indirect_assignment(cc_state_t *cc,
   if (!cc_coerce_unsigned_assignment(cc, object_type,
                                      cc_last_expr_type, op))
     return 0;
+  if (object_type == TYPE_FUNC_PTR &&
+      function_pointer_signature_handle >= 0) {
+    if (op != CC_TOK_EQ) {
+      cc_error(cc, "function-pointer assignment requires plain =");
+      return 0;
+    }
+    if (!cc_validate_function_pointer_assignment_value_handle(
+            cc, function_pointer_signature_handle))
+      return 0;
+  }
   if (op != CC_TOK_EQ) {
     cc_type_t operation_type = cc_integer_operation_type(
         cc, op, object_type, cc_last_expr_type);
@@ -6547,7 +6590,7 @@ static void cc_parse_deref_assignment(cc_state_t *cc) {
   emit_push_eax(cc);
   (void)cc_finish_indirect_assignment(
       cc, object_type, op.type,
-      "bitwise or shift compound assignment requires an integer lvalue");
+      "bitwise or shift compound assignment requires an integer lvalue", -1);
 }
 
 static void cc_emit_scale_eax_by_stride(cc_state_t *cc, int32_t stride) {
@@ -6575,9 +6618,11 @@ static void cc_emit_scale_eax_by_stride(cc_state_t *cc, int32_t stride) {
  * leave EAX at the selected scalar or aggregate slot. Array fields require
  * one index, after which traversal may continue through a record element. */
 static int cc_parse_member_lvalue_chain(cc_state_t *cc, int struct_index,
-                                        cc_type_t *leaf_type) {
+                                        cc_type_t *leaf_type,
+                                        int *leaf_function_pointer_signature_handle) {
   cc_type_t current_type = TYPE_STRUCT;
   int current_struct_index = struct_index;
+  int current_function_pointer_signature_handle = -1;
 
   while (cc_peek(cc).type == CC_TOK_DOT ||
          cc_peek(cc).type == CC_TOK_ARROW) {
@@ -6602,6 +6647,8 @@ static int cc_parse_member_lvalue_chain(cc_state_t *cc, int struct_index,
 
     current_type = field->type;
     current_struct_index = field->struct_index;
+    current_function_pointer_signature_handle =
+        field->function_pointer_signature_handle;
     if (field->array_count > 0) {
       int32_t stride =
           cc_type_size(cc, current_type, current_struct_index);
@@ -6654,6 +6701,9 @@ static int cc_parse_member_lvalue_chain(cc_state_t *cc, int struct_index,
   }
 
   *leaf_type = current_type;
+  if (leaf_function_pointer_signature_handle)
+    *leaf_function_pointer_signature_handle =
+        current_function_pointer_signature_handle;
   return 1;
 }
 
@@ -6670,6 +6720,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
 
   /* Get element size for scaling */
   int elem_size;
+  int function_pointer_signature_handle = -1;
   cc_type_t elem_type = sym->is_array
                             ? sym->array_elem_type
                             : cc_pointed_object_type(sym->type);
@@ -6744,7 +6795,9 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
       (cc_peek(cc).type == CC_TOK_DOT ||
        cc_peek(cc).type == CC_TOK_ARROW)) {
     int si = sym->struct_index;
-    if (!cc_parse_member_lvalue_chain(cc, si, &elem_type))
+    if (!cc_parse_member_lvalue_chain(
+            cc, si, &elem_type,
+            &function_pointer_signature_handle))
       return;
     is_char = elem_type == TYPE_CHAR;
     is_fp = elem_type == TYPE_FLOAT || elem_type == TYPE_DOUBLE;
@@ -6977,7 +7030,16 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   if (is_fp) {
     (void)cc_finish_indirect_assignment(
         cc, elem_type, assign_op.type,
-        "bitwise/shift compound assignment not valid on FP arrays");
+        "bitwise/shift compound assignment not valid on FP arrays", -1);
+    return;
+  }
+
+  if (elem_type == TYPE_FUNC_PTR &&
+      function_pointer_signature_handle >= 0) {
+    (void)cc_finish_indirect_assignment(
+        cc, elem_type, assign_op.type,
+        "bitwise or shift compound assignment requires an integer lvalue",
+        function_pointer_signature_handle);
     return;
   }
 
@@ -9396,8 +9458,27 @@ static int cc_validate_function_pointer_assignment_value(
       (cc_is_object_pointer_type(cc_last_expr_type) ||
        cc_last_expr_type == TYPE_FUNC_PTR))
     return 1;
-  if (cc_last_expr_type != TYPE_FUNC_PTR ||
-      cc_last_expr_function_signature_count <= 0) {
+  if (cc_last_expr_type != TYPE_FUNC_PTR) {
+    cc_error(
+        cc,
+        "function-pointer assignment requires a function, zero, or explicit pointer cast");
+    return 0;
+  }
+  if (cc_last_expr_function_signature_handle >= 0) {
+    cc_symbol_t source;
+    memset(&source, 0, sizeof(source));
+    source.type = TYPE_FUNC_PTR;
+    if (!cc_copy_function_pointer_signature_handle(
+            cc, cc_last_expr_function_signature_handle, &source)) {
+      cc_error(cc, "invalid function-pointer field signature");
+      return 0;
+    }
+    return cc_check_function_pointer_value_compatibility(
+        cc, pointer, &source,
+        "function-pointer assignment result does not match destination",
+        "function-pointer assignment parameters do not match destination");
+  }
+  if (cc_last_expr_function_signature_count <= 0) {
     cc_error(
         cc,
         "function-pointer assignment requires a function, zero, or explicit pointer cast");
@@ -9414,6 +9495,20 @@ static int cc_validate_function_pointer_assignment_value(
       return 0;
   }
   return 1;
+}
+
+static int cc_validate_function_pointer_assignment_value_handle(
+    cc_state_t *cc, int function_pointer_signature_handle) {
+  cc_symbol_t destination;
+
+  memset(&destination, 0, sizeof(destination));
+  destination.type = TYPE_FUNC_PTR;
+  if (!cc_copy_function_pointer_signature_handle(
+          cc, function_pointer_signature_handle, &destination)) {
+    cc_error(cc, "invalid function-pointer field signature");
+    return 0;
+  }
+  return cc_validate_function_pointer_assignment_value(cc, &destination);
 }
 
 static int cc_parse_global_function_pointer_null_inner(
@@ -9948,7 +10043,10 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
       /* Traverse member and indexed-record chains once, retaining the final
        * slot address for the assignment below. */
       cc_type_t ftype = TYPE_INT;
-      if (!cc_parse_member_lvalue_chain(cc, si, &ftype))
+      int function_pointer_signature_handle = -1;
+      if (!cc_parse_member_lvalue_chain(
+              cc, si, &ftype,
+              &function_pointer_signature_handle))
         break;
 
       /* Expect assignment operator */
@@ -9980,7 +10078,8 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
       emit_push_eax(cc); /* save field address */
       (void)cc_finish_indirect_assignment(
           cc, ftype, assign_op.type,
-          "bitwise or shift compound assignment requires an integer lvalue");
+          "bitwise or shift compound assignment requires an integer lvalue",
+          function_pointer_signature_handle);
       cc_expect(cc, CC_TOK_SEMICOLON);
     }
     /* Array subscript assignment */
@@ -10924,6 +11023,8 @@ void cc_parse_program(cc_state_t *cc) {
             cc_type_t ftype = cc_parse_type(cc);
             int fsi = cc_last_type_struct_index;
             int ftype_array_count = cc_last_type_array_count;
+            int function_pointer_signature_handle =
+                cc_last_type_function_pointer_signature_handle(cc, ftype);
             if (cc->error)
               break;
             cc_token_t fname = cc_next(cc);
@@ -10942,7 +11043,6 @@ void cc_parse_program(cc_state_t *cc) {
             f->type = ftype;
             f->struct_index = fsi;
             f->array_count = ftype_array_count;
-
             if (cc_peek(cc).type == CC_TOK_LBRACK) {
               if (ftype_array_count > 0) {
                 cc_error(
@@ -10963,6 +11063,8 @@ void cc_parse_program(cc_state_t *cc) {
               f->array_count = array_count;
               cc_expect(cc, CC_TOK_RBRACK);
             }
+            cc_retain_scalar_field_function_pointer_signature(
+                f, function_pointer_signature_handle);
 
             if (f->array_count > 0 &&
                 (ftype == TYPE_FLOAT4 || ftype == TYPE_DOUBLE2)) {
@@ -11083,6 +11185,8 @@ void cc_parse_program(cc_state_t *cc) {
           cc_type_t ftype = cc_parse_type(cc);
           int fsi = cc_last_type_struct_index;
           int ftype_array_count = cc_last_type_array_count;
+          int function_pointer_signature_handle =
+              cc_last_type_function_pointer_signature_handle(cc, ftype);
           if (cc->error)
             break;
           cc_token_t fname = cc_next(cc);
@@ -11100,7 +11204,6 @@ void cc_parse_program(cc_state_t *cc) {
           f->type = ftype;
           f->struct_index = fsi;
           f->array_count = ftype_array_count;
-
           /* Check for array field: name[N] */
           if (cc_peek(cc).type == CC_TOK_LBRACK) {
             if (ftype_array_count > 0) {
@@ -11122,6 +11225,8 @@ void cc_parse_program(cc_state_t *cc) {
             f->array_count = array_count;
             cc_expect(cc, CC_TOK_RBRACK);
           }
+          cc_retain_scalar_field_function_pointer_signature(
+              f, function_pointer_signature_handle);
 
           if (f->array_count > 0 &&
               (ftype == TYPE_FLOAT4 || ftype == TYPE_DOUBLE2)) {
@@ -11900,6 +12005,8 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         cc_type_t ftype = cc_parse_type(cc);
         int fsi = cc_last_type_struct_index;
         int ftype_array_count = cc_last_type_array_count;
+        int function_pointer_signature_handle =
+            cc_last_type_function_pointer_signature_handle(cc, ftype);
         cc_token_t fname = cc_next(cc);
         if (fname.type != CC_TOK_IDENT) {
           cc_error(cc, "expected field name");
@@ -11935,6 +12042,8 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
           f->array_count = array_count;
           cc_expect(cc, CC_TOK_RBRACK);
         }
+        cc_retain_scalar_field_function_pointer_signature(
+            f, function_pointer_signature_handle);
         if (ftype == TYPE_STRUCT && !cc_struct_is_complete(cc, fsi)) {
           cc_error(cc, "field has incomplete struct type");
           return;

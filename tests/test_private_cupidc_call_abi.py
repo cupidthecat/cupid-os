@@ -2984,9 +2984,199 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     REPO_ROOT / "kernel" / "usb" / relative_path
                 ).read_text(encoding="utf-8")
                 self.assertIn(f"void {poll_name}(void) {{", source)
+                self.assertIn("usb_complete_cb_t         cb;", source)
+                self.assertIn("c->interrupt_slots[i].cb = NULL;", source)
+                self.assertIn("slot->cb = cb;", source)
                 self.assertIn("usb_complete_cb_t cb = NULL;", source)
                 self.assertIn("cb = slot->cb;", source)
                 self.assertIn("if (deliver) cb(0, &local);", source)
+
+    def test_typedef_callback_field_store_copy_and_call_run_in_jit_and_aot(self):
+        source = """
+            struct usb_transfer { int marker; };
+            typedef struct usb_transfer usb_transfer_t;
+            typedef void (*usb_complete_cb_t)(int status, usb_transfer_t *);
+
+            typedef struct {
+              usb_complete_cb_t cb;
+            } interrupt_slot_t;
+
+            typedef struct {
+              interrupt_slot_t interrupt_slots[2];
+            } controller_t;
+
+            class completion_box_t {
+              usb_complete_cb_t cb;
+            };
+
+            int observed;
+
+            void complete(int status, usb_transfer_t *transfer) {
+              observed = status + transfer->marker;
+            }
+
+            int deliver(controller_t *controller, int index,
+                        usb_complete_cb_t supplied,
+                        usb_transfer_t *transfer) {
+              usb_complete_cb_t cb = 0;
+              controller->interrupt_slots[index].cb = supplied;
+              cb = controller->interrupt_slots[index].cb;
+              controller->interrupt_slots[index].cb = 0;
+              if (controller->interrupt_slots[index].cb != 0) return 1;
+              cb(7, transfer);
+              return observed;
+            }
+
+            int prepare_box(completion_box_t *box,
+                            usb_complete_cb_t supplied) {
+              usb_complete_cb_t copied = 0;
+              box->cb = supplied;
+              copied = box->cb;
+              box->cb = 0;
+              return copied != 0 && box->cb == 0;
+            }
+
+            int main() {
+              controller_t controller;
+              completion_box_t box;
+              usb_transfer_t transfer;
+              transfer.marker = 9;
+              if (!prepare_box(&box, complete)) return 2;
+              return deliver(&controller, 1, complete, &transfer);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 16, result.stdout + result.stderr
+                )
+
+    def test_typedef_callback_field_mismatches_recover_same_state(self):
+        cases = (
+            (
+                "field-result",
+                """
+                typedef int (*callback_t)(int value);
+                struct Holder { callback_t cb; };
+
+                double wrong(int value) { return value; }
+                int main() {
+                  struct Holder holder;
+                  holder.cb = wrong;
+                  return 0;
+                }
+                """,
+                "function-pointer assignment result does not match destination",
+            ),
+            (
+                "field-store",
+                """
+                struct Expected { int value; };
+                struct Wrong { int value; };
+                typedef int (*callback_t)(struct Expected *);
+                struct Holder { callback_t cb; };
+
+                int wrong(struct Wrong *value) { return value->value; }
+                int main() {
+                  struct Holder holder;
+                  holder.cb = wrong;
+                  return 0;
+                }
+                """,
+                "function-pointer assignment parameters do not match destination",
+            ),
+            (
+                "field-copy",
+                """
+                struct Expected { int value; };
+                struct Wrong { int value; };
+                typedef int (*expected_callback_t)(struct Expected *);
+                typedef int (*wrong_callback_t)(struct Wrong *);
+                struct Holder { expected_callback_t cb; };
+
+                int right(struct Expected *value) { return value->value; }
+                int main() {
+                  struct Holder holder;
+                  wrong_callback_t callback = 0;
+                  holder.cb = right;
+                  callback = holder.cb;
+                  return 0;
+                }
+                """,
+                "function-pointer assignment parameters do not match destination",
+            ),
+            (
+                "compound-store",
+                """
+                struct Entry { int value; };
+                typedef int (*callback_t)(struct Entry *);
+                struct Holder { callback_t cb; };
+
+                int right(struct Entry *value) { return value->value; }
+                int main() {
+                  struct Holder holder;
+                  holder.cb += right;
+                  return 0;
+                }
+                """,
+                "function-pointer assignment requires plain =",
+            ),
+            (
+                "callback-array-remains-erased",
+                """
+                typedef int (*callback_t)(int value);
+                struct Holder { callback_t callbacks[2]; };
+
+                int right(int value) { return value; }
+                int main() {
+                  struct Holder holder;
+                  callback_t callback = 0;
+                  holder.callbacks[0] = right;
+                  callback = holder.callbacks[0];
+                  return 0;
+                }
+                """,
+                "function-pointer assignment requires a function, zero, or "
+                "explicit pointer cast",
+            ),
+        )
+        retry_source = """
+            struct Entry { int value; };
+            typedef int (*callback_t)(struct Entry *);
+            struct Holder { callback_t cb; };
+
+            int right(struct Entry *value) { return value->value; }
+            int main() {
+              struct Holder holder;
+              struct Entry entry;
+              callback_t callback = 0;
+              entry.value = 9;
+              holder.cb = right;
+              callback = holder.cb;
+              return callback(&entry);
+            }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-callback-field-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode, 9, runtime.stdout + runtime.stderr
+                )
 
     def test_function_pointer_typedef_parameter_matches_active_iso_callback_widths(self):
         iso_source = (REPO_ROOT / "kernel" / "fs" / "iso9660.cc").read_text(
@@ -7078,6 +7268,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "[feature14-callback] PASS float4=4 double2=2 calls=2",
             "[feature14-callback-typedef] PASS float4=4 calls=1",
             "[feature14-callback-automatic] PASS local=4 method=4 calls=2",
+            "[feature14-callback-field] PASS stored=1 copied=1 cleared=1 "
+            "float4=4 calls=1",
             "[feature14-minmax] PASS nan=4 signed_zero=4",
             "[feature14-nan] PASS float_left=",
             "PASS feature14_simd",

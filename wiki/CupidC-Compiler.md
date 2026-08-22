@@ -144,25 +144,31 @@ function designator. Private CupidC writes or patches the address in initialized
 data. A named raw callback file object and direct free-function parameter also
 retain the parsed signature. The file object uses the same initialized-data,
 assignment, call, and null rules. The parameter uses the same cdecl conversion
-and arity checks. Address-of and conditional initializers, alias chains, record
-fields, callback arrays, block-static objects, recursive callback signatures,
-raw method parameters, and arbitrary computed callback expressions remain
-outside this typed path.
+and arity checks. A structure or class field declared directly with a callback
+typedef keeps the signature for checked stores, named copies, null checks, and
+clearing. Nested record members and indexed record-array members use the same
+path. Conditional initializers, alias chains, raw callback fields, callback
+arrays, block-static objects, recursive callback signatures, raw method
+parameters, direct postfix field calls, and arbitrary computed callback
+expressions remain outside this typed path.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.468 seconds. The standalone
-CupidC seeds do not contain this private parser. No normal AOT source needs the
-syntax yet; the active use remains the in-OS feature-14 JIT smoke.
+The full GUI module passes all 126 tests in 1.368 seconds. Its host contract
+requires the new callback-field marker, but a real QEMU observation of that
+marker is still pending. The standalone CupidC seeds do not contain this
+private parser. No normal AOT source needs the syntax yet; the active use
+remains the in-OS feature-14 JIT smoke.
 Direct structure and array callback results are rejected; record-pointer
 results retain their record identity. A rejected source or REPL unit restores
 the typedef table with the prior symbols, patches, control state, code, and
 data. ADR 0303 records free-function parameters, ADR 0306 records global
 callback storage and checked assignment, ADR 0310 records automatic objects
-and Cupid class method parameters, and ADR 0313 records static callback
-initialization.
+and Cupid class method parameters, ADR 0313 records static callback
+initialization, ADR 0319 records direct explicit function addresses, and ADR
+0321 records typedef-backed record and class fields.
 
 ### Unsigned 32-bit operations
 
@@ -289,10 +295,12 @@ too. A file object declared with that typedef carries the metadata as well.
 Grouped zero or `((void *)0)` initializes its zero-filled storage. A compatible
 defined or later-defined function designator initializes the same slot through
 a direct write or data-address patch. Compatible plain assignment stores a
-callback, and null clears it. Empty `()`,
-fields, callback arrays, block-static objects, alias chains, recursive callback
-signatures, and `void *`
-pointers still erase it. Direct structure and array callback results are
+callback, and null clears it. A structure or class field declared directly with
+the typedef keeps the signature through checked stores, copies into named
+callbacks, null checks, and clearing. Direct, nested, and indexed record-array
+member paths share that behavior. Empty `()`, raw callback fields, callback
+arrays, block-static objects, alias chains, recursive callback signatures, and
+`void *` pointers still erase it. Direct structure and array callback results are
 rejected; record-pointer results retain their record identity. Named SIMD
 intrinsics continue to lower inline. A plain function initializer or direct
 callback argument must match the retained result, record identity, fixed
@@ -310,14 +318,16 @@ state, prior function symbols, kernel bindings, and the reused `void(void)`
 declared `uint32_t` slot through this path. `feature13_double.cc` retains its
 ten mixed-scalar calls. `feature14_simd.cc` contains distinct direct, named
 local callback, typedef-parameter callback, typedef-global callback, automatic
-callback, and method callback markers. The global and automatic markers are
+callback, method callback, and typedef-field callback markers. The global and
+automatic markers are
 `[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
 `cleared=1 calls=2` and
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2`. ADR 0301 records
 the named local callback foundation, ADR 0303 records typedef parameters, ADR
 0306 records global callback storage, ADR 0310 records automatic objects and
-Cupid class method parameters, and ADR 0313 records direct function
-initialization of global callback data.
+Cupid class method parameters, ADR 0313 records direct function initialization
+of global callback data, ADR 0319 records direct explicit function addresses,
+and ADR 0321 records typedef-backed record and class fields.
 
 A typedef-backed global callback may begin with a compatible defined function
 or one defined later in the translation unit. Private CupidC writes a known
@@ -325,12 +335,14 @@ address into initialized data immediately and records an absolute data patch
 for a later definition. JIT and fixed-address AOT therefore start with the same
 callback value. A failed initializer or conflicting later definition rolls the
 data patch and provisional signature back with the rest of the program.
-Address-of and conditional callback expressions, callback fields and arrays,
-block-static callbacks, and raw method parameters remain unsupported. The raw
+Conditional callback expressions, raw callback fields, callback arrays,
+block-static callbacks, direct postfix field calls, and raw method parameters
+remain unsupported. The raw
 signature pool accepts 32 distinct parameter signatures. A 33rd distinct
 signature receives `too many raw function-pointer signatures`, and a valid
 retry compiles and runs in the same state. The private callback ABI module
-passes all 268 tests in 51.685 seconds. ADR 0315 records this boundary.
+passes all 272 tests in 52.354 seconds. ADR 0315 records the raw boundary, and
+ADR 0321 records the typedef-backed field boundary.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations
@@ -2753,10 +2765,14 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - Callback signature metadata covers named block-local declarators and direct
   file-scope function-pointer typedefs used by free-function parameters, Cupid
   class method parameters, declaration-initialized automatic objects, and file
-  objects. Callback alias chains, block-static objects, record fields, callback
-  arrays, recursive callback signatures, aggregate results, and arbitrary
-  computed callback expressions remain unrepresented. Static callback storage
-  accepts null or a compatible defined or later-defined function designator.
+  objects. Structure and class fields declared directly with one of those
+  typedefs retain the signature for checked stores, named copies, null checks,
+  and clearing, including nested and indexed record-array member paths.
+  Callback alias chains, block-static objects, raw callback fields, callback
+  arrays, recursive callback signatures, aggregate results, direct postfix
+  field calls, and arbitrary computed callback expressions remain
+  unrepresented. Static callback storage accepts null or a compatible defined
+  or later-defined function designator.
   Private JIT and fixed-address AOT write or patch the function address in
   initialized data before execution.
 

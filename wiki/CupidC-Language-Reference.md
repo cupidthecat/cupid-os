@@ -60,11 +60,15 @@ results returned through XMM0. This covers Doom's `vpatchclipfunc_t` storage
 shape and the active ISO callback whose `uint8_t` entry length is converted to
 the declared `uint32_t` parameter. The private table holds sixteen typedefs,
 and a callback signature may have at most 32 parameters. Each declaration may
-introduce only one function-pointer alias. Callback alias chains, record fields,
-callback arrays, block-static objects, recursive callback signatures, and
-arbitrary computed callback expressions do not retain this metadata. Direct
-structure and array callback results are rejected; record-pointer results retain
-their record identity. A rejected source or REPL unit restores the typedef table
+introduce only one function-pointer alias. A structure or class field declared
+directly with one of these typedefs retains the signature. Checked stores,
+copies into named callbacks, null checks, and null clearing work through direct
+members, nested records, and indexed record arrays. Callback alias chains, raw
+callback fields, callback arrays, block-static objects, recursive callback
+signatures, and arbitrary computed callback expressions do not retain this
+metadata. Direct structure and array callback results are rejected;
+record-pointer results retain their record identity. A rejected source or REPL
+unit restores the typedef table
 with the prior symbols, patches, control state, code, and data.
 [ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records the free-function parameter boundary.
@@ -86,18 +90,22 @@ existing cdecl conversion and arity checks. The private pool accepts 32
 distinct raw parameter signatures and recovers after rejecting the next one.
 [ADR 0315](../docs/adr/0315-retain-raw-callback-signatures-in-private-cupidc.md)
 records the raw boundary. [ADR 0319](../docs/adr/0319-retain-explicit-function-addresses-in-private-callbacks.md)
-records direct explicit function addresses. The private callback ABI module
-passes all 270 tests in 44.462 seconds. Conditional callback expressions,
-fields, arrays, block-static callbacks, and raw method parameters remain open.
+records direct explicit function addresses.
+[ADR 0321](../docs/adr/0321-retain-typedef-callback-signatures-on-private-record-fields.md)
+records typedef-backed record and class fields. The private callback ABI module
+passes all 272 tests in 52.354 seconds. Conditional callback expressions, raw
+callback fields, callback arrays, block-static callbacks, direct postfix field
+calls, and raw method parameters remain open.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 2.260 seconds. This is source-head
-runtime evidence. The standalone CupidC seeds do not contain this private
-parser. The active proof remains the in-OS JIT smoke because no normal AOT
-input needs the syntax yet. ADR 0315 records the boundary.
+The full GUI module passes all 126 tests in 1.368 seconds. Its host contract now
+requires `[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`.
+That test proves the source and marker contract, not a QEMU boot. A real guest
+observation of the field marker is still pending. The standalone CupidC seeds
+do not contain this private parser. No normal AOT input needs the syntax yet.
 
 The preceding poisoned-host OS build checkpoint passed in 684.260 seconds and
 accepted all fourteen exact policy artifacts. A private four-vCPU `max`/e1000
@@ -297,8 +305,13 @@ the declared type. Grouped zero, `((void *)0)`, a compatible defined or
 later-defined function designator, and the direct address of that function may
 initialize a callback file object.
 Checked plain assignment stores a compatible callback or clears it to null.
-Empty `()`, fields, callback arrays, block-static objects, alias chains,
+A structure or class field declared directly with the typedef keeps the same
+signature for checked stores, named copies, null checks, and clearing. Nested
+record members and indexed record-array members use the same path. Empty `()`,
+raw callback fields, callback arrays, block-static objects, alias chains,
 recursive callback signatures, and `void *` forms retain source-width slots.
+Calling a callback field directly with postfix `()` remains unsupported; copy
+it into a named typed callback before calling it.
 Direct structure and array callback results
 are rejected; record-pointer results retain their record identity. Kernel
 bindings and other calls without fixed parameter metadata do the same.

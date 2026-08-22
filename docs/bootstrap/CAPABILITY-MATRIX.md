@@ -976,7 +976,7 @@ identity is retained; direct structure and array results reject. A
 typedef-backed global callback may begin with a compatible defined or
 later-defined function designator. The private JIT and fixed-address AOT paths
 write or patch the initialized four-byte data slot before execution. Empty
-`()`, block-static objects, fields, callback arrays, alias chains, recursive
+`()`, block-static objects, raw callback fields, callback arrays, alias chains, recursive
 signatures, conditional initializers, raw method parameters,
 and `void *` pointers remain outside this retained path. A named raw callback
 file object and direct free-function parameter retain the parsed result,
@@ -985,21 +985,30 @@ private pool holds at most 32 raw parameter signatures. Program and
 REPL rollback restore the typedef count and side tables with emission, every
 patch kind,
 control state, definitions, prototypes, kernel bindings, and `__start` state.
-ADR 0319 records direct explicit function addresses. The private callback ABI
-module passes all 270 tests in 44.462 seconds. A
+ADR 0319 records direct explicit function addresses. A structure or class
+field declared directly with a callback typedef retains that signature for
+checked plain stores, null clearing, and copies into named callback objects.
+Nested record and indexed record-array paths keep the field metadata. Raw
+callback fields, callback arrays, block-static objects, postfix calls on field
+expressions, alias chains, conditional field values, raw method parameters,
+and recursive signatures remain open. ADR 0321 records this field boundary.
+The private callback ABI module passes all 272 tests in 52.354 seconds. A
 code-only AOT fixture emits one program header, keeps code at offset `0x80`, and
 returns 17. The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 Its 32,981-byte log has SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 2.260 seconds. The standalone
+The full GUI module passes all 126 tests in 1.368 seconds. The standalone
 CupidC seeds do not contain this private parser. No normal AOT source requires
 the forms yet.
 The marker contract requires
 `[feature14-callback-typedef] PASS float4=4 calls=1`,
 `[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
 `cleared=1 calls=2`, and
-`[feature14-callback-automatic] PASS local=4 method=4 calls=2` in that order. The
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`, and
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`
+in that order. Host tests prove the field marker contract; a real QEMU run for
+that marker is pending. The
 684.260-second poisoned-host build and 64.601-second private smoke are
 preceding checkpoint history. The integrated build first reached the exact-size
 gate with a 9,345,464-byte pass-one ELF, a 9,472,440-byte final ELF, and a

@@ -373,15 +373,20 @@ into initialized data, while a later definition receives an absolute data
 patch. A direct &function address uses the same signature check, data write or
 patch, automatic initialization, and checked assignment as the plain function
 designator. Parentheses may surround the address or its function name. JIT and
-private AOT calls use the retained signatures. Empty (), fields,
-block-static objects, callback arrays, bare nested callback signatures, alias
-chains, raw method parameters, and void-pointer forms remain signature-erased.
+private AOT calls use the retained signatures. A structure or class field
+declared directly with the typedef keeps the signature for checked stores,
+copies into named callbacks, null checks, and clearing. Direct members, nested
+records, and indexed record arrays share that path. Empty (), raw callback
+fields, block-static objects, callback arrays, bare nested callback signatures,
+alias chains, raw method parameters, and void-pointer forms remain
+signature-erased. Direct postfix field calls remain unsupported.
 A named raw callback file object and direct free-function parameter retain the
 parsed signature without a typedef. The file object uses the same data write or
 patch, and the parameter uses the same cdecl slot and arity checks. The private
 pool accepts 32 distinct raw signatures and recovers after rejecting the next
 one. ADR 0315 records the raw forms, and ADR 0319 records direct explicit
-function addresses. The private callback ABI module passes all 270 tests.
+function addresses. ADR 0321 records typedef-backed record and class fields.
+The private callback ABI module passes all 272 tests in 52.354 seconds.
 Feature 13
 retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
 nested pass-by-value vector
@@ -403,21 +408,23 @@ kernel bindings, and a reused __start. The implicit thunk is typed void(void).
 kernel/fs/iso9660.cc supplies the active scalar case with susp_entry_cb, whose
 three fixed parameters are preserved when susp_walk calls it. The feature14
 source adds a float4 callback typedef and uses it on a free-function parameter,
-a file object, a declaration-initialized automatic object, and a Cupid class
-method parameter. Focused JIT and private AOT tests execute these forms,
-including the 16-byte float4 slot and XMM0 result. They also cover arity,
+a file object, a declaration-initialized automatic object, a Cupid class method
+parameter, and a record field. Focused JIT and private AOT tests execute these
+forms, including the 16-byte float4 slot and XMM0 result. They also cover arity,
 variadic promotion, record identity, incompatible signatures, null constant
 expressions, explicit erasure, forward definitions, and same-state recovery.
 
 The four-vCPU e1000 feature14 guest contract requires ordered direct-call,
-named-callback, typedef-parameter, typedef-global, and automatic-callback
-evidence. The retained paths must print
+named-callback, typedef-parameter, typedef-global, automatic-callback, and
+callback-field evidence. The retained paths must print
 `[feature14-callback-typedef] PASS float4=4 calls=1`,
 `[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
-`cleared=1 calls=2`, and
-`[feature14-callback-automatic] PASS local=4 method=4 calls=2` in that order.
-The command must then print the overall feature14 PASS and finish with CupidC
-JIT completion.
+`cleared=1 calls=2`,
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`, and
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`
+in that order. The host contract proves the source and required marker. A real
+QEMU observation of the field marker is still pending. The command must then
+print the overall feature14 PASS and finish with CupidC JIT completion.
 
 Function-pointer typedef declarations remain file-scope, allow one alias per
 declaration, and share a sixteen-entry table. Direct record and array results
@@ -571,8 +578,11 @@ typedef signatures on free-function parameters, Cupid class method parameters,
 declaration-initialized automatic objects, and direct file objects. A direct
 function address keeps the same callback signature and data patch as a plain
 function designator. A direct file object supports null initialization, checked
-plain assignment, indirect calls, and clearing. Fields, callback arrays, block-static objects, alias chains,
-recursive signatures, and `void *` forms remain outside that typed path.
+plain assignment, indirect calls, and clearing. Structure and class fields
+declared directly with a callback typedef retain the signature for checked
+stores, named copies, null checks, and clearing. Raw callback fields, callback
+arrays, block-static objects, alias chains, recursive signatures, direct postfix
+field calls, and `void *` forms remain outside that typed path.
 
 The Toolchain manifest has a Cupid-built author and verifier, while Python keeps
 descriptor-pinned filesystem capture and atomic publication. The publisher uses
