@@ -5115,6 +5115,7 @@ def validate_code(
                     (
                         "--require-known",
                         "--require-local-targets",
+                        "--require-code-anchors",
                         "kernel/kernel.elf.pass1",
                         "kernel/kernel.elf",
                     ),
@@ -5123,7 +5124,7 @@ def validate_code(
                 )
             except BootstrapError as error:
                 raise CodeValidationError(
-                    "checked CupidDis local-target validation could not run: "
+                    "checked CupidDis linked-code validation could not run: "
                     f"{error}",
                     tool_stderr=tool_stderr,
                 ) from error
@@ -5132,7 +5133,7 @@ def validate_code(
                 repository_root,
                 manifest_snapshot,
                 snapshots,
-                activity="CupidDis local-target validation",
+                activity="CupidDis linked-code validation",
                 tool_stderr=linked_stderr,
             )
             _require_code_seed_inputs_unchanged(
@@ -5142,7 +5143,7 @@ def validate_code(
             )
             if linked_validation.stdout:
                 raise CodeValidationError(
-                    "checked CupidDis local-target validation wrote unexpected "
+                    "checked CupidDis linked-code validation wrote unexpected "
                     "standard output",
                     tool_stderr=linked_stderr,
                 )

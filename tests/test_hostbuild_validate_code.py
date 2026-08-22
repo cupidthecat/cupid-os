@@ -167,6 +167,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                         (
                             "--require-known",
                             "--require-local-targets",
+                            "--require-code-anchors",
                             "kernel/kernel.elf.pass1",
                             "kernel/kernel.elf",
                         ),
@@ -179,7 +180,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
             self.assertEqual(
                 stderr,
                 "[hostbuild] validate-code failed: code input changed while "
-                "CupidDis local-target validation ran: kernel/kernel.elf\n",
+                "CupidDis linked-code validation ran: kernel/kernel.elf\n",
             )
             self.assertEqual(output.read_bytes(), b"last known good kernel")
 
@@ -250,6 +251,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                         (
                             "--require-known",
                             "--require-local-targets",
+                            "--require-code-anchors",
                             "kernel/kernel.elf.pass1",
                             "kernel/kernel.elf",
                         ),
@@ -271,7 +273,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
             self.assertEqual(output.read_bytes(), b"flat validated ELF")
             freeze.assert_called_once()
 
-    def test_validate_code_preserves_output_for_local_target_failures(self):
+    def test_validate_code_preserves_output_for_linked_code_failures(self):
         cases = (
             ("status", 7, "", False),
             ("stdout", 0, "unexpected listing\n", False),
@@ -309,6 +311,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                         )
                     self.assertEqual(tool_name, "cupiddis")
                     self.assertIn("--require-local-targets", arguments)
+                    self.assertIn("--require-code-anchors", arguments)
                     if runner_failure:
                         raise BootstrapError("seed execution failed")
                     return subprocess.CompletedProcess(
@@ -344,13 +347,13 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                 self.assertEqual(output.read_bytes(), b"last known good kernel")
                 if runner_failure:
                     self.assertIn(
-                        "checked CupidDis local-target validation could not run: "
+                        "checked CupidDis linked-code validation could not run: "
                         "seed execution failed",
                         stderr,
                     )
                 elif tool_stdout:
                     self.assertIn(
-                        "checked CupidDis local-target validation wrote unexpected "
+                        "checked CupidDis linked-code validation wrote unexpected "
                         "standard output",
                         stderr,
                     )
@@ -626,6 +629,7 @@ class HostbuildValidateCodeTests(unittest.TestCase):
                         tool_name == "cupiddis"
                         and "--require-local-targets" in arguments
                     ):
+                        self.assertIn("--require-code-anchors", arguments)
                         return subprocess.CompletedProcess(
                             list(arguments), 0, "", "linked context\n"
                         )

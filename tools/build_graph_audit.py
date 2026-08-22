@@ -5372,11 +5372,12 @@ def _validate_checked_code_publication(
         "private_root",
         "'cupiddis'",
         "('--require-known', '--require-local-targets', "
+        "'--require-code-anchors', "
         "'kernel/kernel.elf.pass1', 'kernel/kernel.elf')",
     ]:
         raise AuditError(
             "checked-seed runner contract changed in tools/hostbuild.py: "
-            "linked kernel target validation arguments differ"
+            "linked kernel code validation arguments differ"
         )
     if positional(flat_call) != [
         "live_seed_manifest",
@@ -5571,7 +5572,7 @@ def _validate_checked_code_publication(
             for keyword in input_drift.keywords
         }
         != {
-            "activity": "'CupidDis local-target validation'",
+            "activity": "'CupidDis linked-code validation'",
             "tool_stderr": "linked_stderr",
         }
         or positional(seed_drift) != ["repository_root", "seed_snapshots"]

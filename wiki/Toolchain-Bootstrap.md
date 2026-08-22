@@ -125,11 +125,11 @@ records the runtime probe rename, ADR 0196 records the complete transfer, ADR
 records the manifest author, ADR 0307 records raw stage-pair evidence, and ADR
 0322 records native Windows author execution.
 
-The source-current schema v3 `CUPMAN4` publication passed in 3,952.17 seconds and
+The final source-current schema v3 `CUPMAN4` publication passed and
 wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
 Its 27,071-byte manifest has SHA-256
-`ea41237781ef0662502dde675b94d06c92ffadd2154a5a9da8b987c0a01e5947`.
+`02408d9d541de1454e2f0888cff501bc755964448d0f177a4162bcebdcaf178b`.
 Its final verifier reported
 `Cupid Toolchain manifest: ok (21 artifacts)`.
 Both checked Python contract launchers resolve `tools` from this checkout. The
@@ -380,20 +380,20 @@ The current promoted Windows execution seed is:
 | --- | ---: | --- |
 | CupidASM | 438,784 | `c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6` |
 | CupidC | 2,613,760 | `c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002` |
-| CupidDis | 415,744 | `23da2e2f5f99c1667d2a3eb459b8d22d8a37af021e7da18b7513d3d8632cb81c` |
+| CupidDis | 420,352 | `18167d5ae7b86ad0edd332da2eaef292c718572c5c8eba5847e57f142cdd8e45` |
 | CupidLD | 296,448 | `9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02` |
 | CupidObj | 375,808 | `079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79` |
 
 Its 2,118-byte manifest has SHA-256
-`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`.
-It binds revision `ad7305341003feaa7e630ab7fd45be0a214c4da7`, the exact
+`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`.
+It binds revision `b3f0910f84ba182d0882fc67b5983b49e9627482`, the exact
 50-input snapshot
-`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`,
+`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`,
 and Linux parent manifest
-`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
+`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
 The candidate proof passed cleanly. It matched 20 C objects, two
 assembly objects, and five tools with every initial seed comparison true, then
-passed the 5/7/8 behavior matrix. ADR 0318 records this
+passed the 5/8/9 behavior matrix. ADR 0323 records this
 promotion and reproof.
 [ADR
 0268](../docs/adr/0268-run-cupid-built-cupiddis-on-windows.md) records the
@@ -407,8 +407,8 @@ stack policy, and [ADR
 0278](../docs/adr/0278-add-a-native-windows-fixed-point-driver.md) records the
 native driver. [ADR 0292](../docs/adr/0292-promote-strict-relocation-production-seeds.md)
 records the preceding strict-relocation promotion. [ADR
-0318](../docs/adr/0318-promote-and-adopt-linked-local-target-checks.md)
-records the current linked-image promotion and production adoption.
+0323](../docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
+records the current promotion and production adoption.
 
 The checked-seed CLI stages both ELF and PE images in an adjacent candidate
 created with exclusive-create semantics. It writes and closes the candidate,
@@ -505,18 +505,18 @@ The current promoted Linux seed is:
 | --- | ---: | --- |
 | CupidASM | 458,256 | `1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e` |
 | CupidC | 2,687,436 | `273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094` |
-| CupidDis | 434,548 | `56a90efcc79aef65d9bdc684cc867a4793398282ee588630ef6f451e56ee456a` |
+| CupidDis | 442,780 | `1f4fade7dad85077b320d8ef51347eaaf2bef6510659e08be0980cabe5368569` |
 | CupidLD | 312,792 | `a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295` |
 | CupidObj | 392,688 | `99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a` |
 
 Its 5,573-byte manifest has SHA-256
-`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
-It binds revision `ad7305341003feaa7e630ab7fd45be0a214c4da7` and the exact
+`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
+It binds revision `b3f0910f84ba182d0882fc67b5983b49e9627482` and the exact
 50-input snapshot
-`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
+`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`.
 The candidate proof passed cleanly. It matched 19 C objects,
 startup, and five tools with every initial seed comparison true. Both compared
-stages passed five help, 21 success, and 20 useful failure cases. ADR 0318
+stages passed five help, 22 success, and 21 useful failure cases. ADR 0323
 records this promotion and reproof.
 
 The first full run of the intermediate 86-test seed suite completed
@@ -532,7 +532,7 @@ fixed-point test passed in 1,187.863 seconds. That suite passed all 86 tests in
 checkpoint passed all 89 tests in 3,145.502 seconds. The complete source-head
 module later passed all 92 tests in 2,820.626 seconds. Both checked seeds now
 carry that snapshot. The normal kernel publisher applies strict linked-image
-target validation before flattening; ADR 0318 records the promotion and
+target and code-anchor validation before flattening; ADR 0323 records the promotion and
 adoption.
 
 The refreshed seed represents operand-free GNU assembly statements inside
@@ -1008,15 +1008,16 @@ audit records nine failure groups, five help groups, and eight success groups.
 Candidate and promoted-seed fixed-point proofs cover the preceding linked-image
 behavior on Linux and Windows.
 
-Source-head CupidDis adds `--require-code-anchors` for static linked images.
+Checked CupidDis provides `--require-code-anchors` for static linked images.
 Together with `--require-known`, it requires the ELF entry and every defined
 function symbol to name a decoded instruction start in file-backed executable
 code. Function aliases count separately. Undefined and absolute functions and
 other symbol types do not count. The report distinguishes anchors outside code
 from anchors in the middle of an instruction. The local-target and code-anchor
 policies share one instruction-start map when selected together. The checked
-seeds and normal publisher do not select this option yet. ADR 0320 records the
-source boundary.
+seeds carry the option, and the normal publisher selects it for both kernel
+ELFs. ADR 0320 records the source boundary, and ADR 0323 records its promotion
+and adoption.
 
 The poisoned-host normal `make -j2` then passed in 1,057.969 seconds. All
 eleven host code-generation variables named invalid commands, and that
@@ -1096,10 +1097,10 @@ contract later passed twice against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,366,752 | `106980d97475d36b7835395a5bbfb43eb1e71484cea631d80dfe47be1acc2ac3` |
-| `kernel/kernel.elf` | 9,493,728 | `b8e4a34844190b22faf5840a06d32ef961b6835c3af028cc78e34352ffc6bf6d` |
-| `kernel/kernel.bin` | 9,271,380 | `e1801128cceeb5a510671684cded5a0aef04220dfafe90fa686df963e7abf37f` |
-| `cupidos.img` | 209,715,200 | `e1ae54dced2431bee00dbf6fdc256fc908407bba16dac3967bb54a99ca436fdd` |
+| `kernel/kernel.elf.pass1` | 9,375,284 | `e327be0ef1dea805ba870ab78a729b4487b6d34a44a573fcb9ad8434be1eb5bb` |
+| `kernel/kernel.elf` | 9,502,260 | `cb72659d402882ee4e3ddc4bef545714e89b61297903134ef8a19c32e435247a` |
+| `kernel/kernel.bin` | 9,280,616 | `152d639af328336dd887825fffcb0ea038fa970b3a2b0d971bddd7ec1f6db4b5` |
+| `cupidos.img` | 209,715,200 | `2bdcfa1d9bf0334d287a1d982a2c0ef0ab8372bb9e07cd02e3e4f4e8a62825cf` |
 
 The first nine-artifact checkpoint on this path guarded the normal boot edge
 with a CupidC-built artifact-size contract. All 443 root transforms had a
@@ -1628,8 +1629,10 @@ Source head then requires
 `[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`.
 The focused JIT and AOT contracts pass the typedef-global, automatic, method,
 and field paths. Host tests prove the source and marker contract for the field
-path. The integrated e1000 frontier predates the field marker, so real QEMU
-evidence for it is still pending.
+path. A focused four-vCPU QEMU boot observes the field marker,
+`PASS feature14_simd`, and clean in-OS CupidC JIT completion. Its 31,169-byte
+log has SHA-256
+`2e017f66b3acce65a67e722a022054d469087d926382709b9042062e4cb6c265`.
 ADR 0216 records the fixed-array boundary. ADR 0257 records multidimensional
 row descent. ADR 0294 records whole-vector updates. ADR 0299 records fixed SIMD
 calls. ADR 0301 records named local callbacks, ADR 0303 records callback

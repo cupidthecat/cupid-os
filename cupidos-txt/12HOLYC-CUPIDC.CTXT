@@ -422,9 +422,9 @@ callback-field evidence. The retained paths must print
 `cleared=1 calls=2`,
 `[feature14-callback-automatic] PASS local=4 method=4 calls=2`, and
 `[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`
-in that order. The host contract proves the source and required marker. A real
-QEMU observation of the field marker is still pending. The command must then
-print the overall feature14 PASS and finish with CupidC JIT completion.
+in that order. The host contract proves the source and required marker. A
+focused four-vCPU QEMU boot also observes the field marker. The command then
+prints the overall feature14 PASS and finishes with CupidC JIT completion.
 
 Function-pointer typedef declarations remain file-scope, allow one alias per
 declaration, and share a sixteen-entry table. Direct record and array results
@@ -569,7 +569,10 @@ The promoted Linux and Windows cohorts are complete five-tool trust units.
 Their CupidDis images carry local-target validation for raw images,
 relocatable objects, and static linked executables. Active-source tests cover
 all nine bootloader targets and all four trampoline targets. Production also
-checks active CupidASM objects and both kernel ELFs before publication.
+checks active CupidASM objects and both kernel ELFs before publication. The
+promoted images also validate static ELF entry points and defined function
+symbols against decoded instruction starts. Production selects that rule for
+both kernel ELFs before flattening.
 Separate Linux and Windows seed fixtures exercise positive and negative cases.
 
 The private in-kernel callback parser and AOT writer remain separate from the

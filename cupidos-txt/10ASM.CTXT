@@ -301,16 +301,16 @@ applies the linked rule to its frozen pass-one and final ELFs before CupidObj
 flattening. ADR 0314 records the decoder boundary, and ADR 0318 records seed
 carriage and production adoption.
 
-Source-head CupidDis can also validate static ELF32 code anchors:
+Checked CupidDis can also validate static ELF32 code anchors:
   cupiddis --require-known --require-code-anchors program.elf
 
 The rule counts e_entry and every defined STT_FUNC symbol. Each address must
 equal a decoded instruction start in file-backed executable code. Function
 aliases count separately. Undefined and absolute functions and other symbol
 types are excluded. Failures distinguish anchors outside file-backed code from
-anchors in the middle of an instruction. The checked seeds do not carry this
-option yet, so production keeps the existing linked local-target command until
-promotion. ADR 0320 records the source boundary.
+anchors in the middle of an instruction. Both promoted seeds carry the option,
+and production combines it with linked local-target validation. ADR 0320
+records the source boundary, and ADR 0323 records promotion and adoption.
 
 Source-head and checked-seed CupidDis also check relocations that target executable sections
 in ELF32 relocatable objects. R_386_PC32 must begin at a decoded four-byte

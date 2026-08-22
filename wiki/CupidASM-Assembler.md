@@ -285,10 +285,9 @@ The generated active-source audit and its check both pass. The Linux audit
 records 21 failure groups, five help groups, and 22 success groups. The Windows
 audit records nine failure groups, five help groups, and eight success groups.
 Both checked seeds now carry the linked-image rule. The normal kernel publisher
-uses it on the pass-one and final ELFs before flattening; ADR 0318 records that
-promotion and adoption.
+uses it on the pass-one and final ELFs before flattening.
 
-Source-head CupidDis has a separate static executable code-anchor option:
+Checked CupidDis also has a static executable code-anchor option:
 
 ```text
 cupiddis --require-known --require-code-anchors program.elf
@@ -296,9 +295,10 @@ cupiddis --require-known --require-code-anchors program.elf
 
 It checks the ELF entry and every defined function symbol against file-backed
 decoded instruction starts. Function aliases are separate anchors. Undefined,
-absolute, and non-function symbols stay outside the count. The checked seeds
-do not carry this option yet, so the production kernel call remains unchanged
-until promotion. ADR 0320 records the source rule.
+absolute, and non-function symbols stay outside the count. Both promoted seeds
+carry the option, and the production kernel call combines it with the linked
+local-target rule. ADR 0320 records the source rule, and ADR 0323 records its
+promotion and adoption.
 
 ### Requiring complete code coverage
 
@@ -1515,14 +1515,14 @@ The source image was unchanged. Its 33,219-byte log has SHA-256
 The promoted Linux CupidASM image is 458,256 bytes with SHA-256
 `1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e`.
 Its 5,573-byte seed manifest has SHA-256
-`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
+`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
 The promoted Windows CupidASM image is 438,784 bytes with SHA-256
 `c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6`.
 Its 2,118-byte manifest has SHA-256
-`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`.
-Both bind revision `ad7305341003feaa7e630ab7fd45be0a214c4da7` and exact
+`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`.
+Both bind revision `b3f0910f84ba182d0882fc67b5983b49e9627482` and exact
 50-input snapshot
-`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
+`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`.
 The Windows manifest names the Linux manifest as its parent. The 2026-08-14
 build and smoke evidence above predates this promotion; the later poisoned
 build and e1000 smoke followed it. The pre-documentation artifact gate then

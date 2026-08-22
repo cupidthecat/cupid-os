@@ -404,13 +404,13 @@ The promoted cohorts carry both forms. Production object publication selects
 the relocatable rule before replacement, and kernel publication selects the
 linked rule for the pass-one and final ELFs before flattening.
 
-Source-head CupidDis has a separate static executable code-anchor rule. With
+Checked CupidDis has a static executable code-anchor rule. With
 --require-known and --require-code-anchors, it checks e_entry and every defined
 STT_FUNC symbol against decoded instruction starts in file-backed executable
 code. Function aliases count separately. Undefined and absolute functions and
-other symbol types do not count. The checked seeds do not carry this option
-yet, so the normal kernel publisher keeps its current linked local-target rule
-until seed promotion.
+other symbol types do not count. Both promoted seeds carry this option. The
+normal kernel publisher combines it with linked local-target validation for
+the pass-one and final ELFs before flattening.
 >endtree
 
 >h2 See Also

@@ -258,6 +258,63 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertIn("1 mid-instruction", rejected.stderr)
 
+    def _assert_checked_seed_code_anchor_policy(
+        self,
+        manifest: Path,
+        *,
+        native_windows: bool = False,
+    ) -> None:
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-code-anchors-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            valid = root / "valid.elf"
+            invalid = root / "invalid.elf"
+            valid.write_bytes(_code_anchor_executable_payload())
+            invalid.write_bytes(
+                _code_anchor_executable_payload(entry=0x00400001)
+            )
+            arguments = (
+                "--require-known",
+                "--require-code-anchors",
+            )
+            runner_guard = (
+                mock.patch(
+                    "tools.bootstrap_toolchain.shutil.which",
+                    side_effect=AssertionError(
+                        "native seed must not probe WSL"
+                    ),
+                )
+                if native_windows
+                else contextlib.nullcontext()
+            )
+            with runner_guard:
+                accepted = run_seed_tool(
+                    manifest,
+                    REPO_ROOT,
+                    "cupiddis",
+                    (*arguments, valid),
+                    timeout=60,
+                )
+                rejected = run_seed_tool(
+                    manifest,
+                    REPO_ROOT,
+                    "cupiddis",
+                    (*arguments, invalid),
+                    timeout=60,
+                )
+
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            self.assertEqual(accepted.stdout, "")
+            self.assertEqual(accepted.stderr, "")
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "1 of 3 code anchors invalid",
+                rejected.stderr,
+            )
+            self.assertIn("1 mid-instruction", rejected.stderr)
+
     @staticmethod
     def _committed_source_inventory(
         revision: str,
@@ -1867,6 +1924,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_checked_i386_linux_seed_carries_linked_local_target_policy(self):
         self._assert_checked_seed_linked_local_target_policy(SEED_MANIFEST)
 
+    def test_checked_i386_linux_seed_carries_code_anchor_policy(self):
+        self._assert_checked_seed_code_anchor_policy(SEED_MANIFEST)
+
     def test_checked_i386_linux_seed_snapshot_matches_its_named_commit(self):
         manifest = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
         provenance = manifest["provenance"]
@@ -1952,6 +2012,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "native Windows seed")
     def test_checked_i386_windows_seed_carries_linked_local_target_policy(self):
         self._assert_checked_seed_linked_local_target_policy(
+            WINDOWS_SEED_MANIFEST,
+            native_windows=True,
+        )
+
+    @unittest.skipUnless(os.name == "nt", "native Windows seed")
+    def test_checked_i386_windows_seed_carries_code_anchor_policy(self):
+        self._assert_checked_seed_code_anchor_policy(
             WINDOWS_SEED_MANIFEST,
             native_windows=True,
         )
@@ -2191,11 +2258,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "02ee58c6be6b6f9d2f2e4ab0a07e09f"
-                    "e180d39a18559e5ac3b5faf50078c9d20"
+                    "9c782ad63968d4942db6bae6debf6de5"
+                    "1910f733c8618caf1f4ab70458128540"
                 ),
                 "parent_seed_source_revision": (
-                    "ad7305341003feaa7e630ab7fd45be0a214c4da7"
+                    "b3f0910f84ba182d0882fc67b5983b49e9627482"
                 ),
                 "producer_lineage": {
                     "assembly": (
@@ -2213,7 +2280,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
                 "source_input_count": 50,
                 "source_revision": (
-                    "ad7305341003feaa7e630ab7fd45be0a214c4da7"
+                    "b3f0910f84ba182d0882fc67b5983b49e9627482"
                 ),
                 "source_snapshot_sha256": (
                     WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256
@@ -6618,7 +6685,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "ad7305341003feaa7e630ab7fd45be0a214c4da7",
+                "b3f0910f84ba182d0882fc67b5983b49e9627482",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -6858,9 +6925,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "23da2e2f5f99c1667d2a3eb459b8d22d8a37af021e7da18b7513d3d8632cb81c"
+                        "18167d5ae7b86ad0edd332da2eaef292c718572c5c8eba5847e57f142cdd8e45"
                     ),
-                    "size": 415744,
+                    "size": 420352,
                 },
             )
             self.assertEqual(

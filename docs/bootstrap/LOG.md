@@ -29717,3 +29717,126 @@ The active ELF-program CTXT now explains the default goal. This bounded cleanup
 did not rebuild the OS image, so existing image artifacts do not contain that
 manual update yet. A fresh normal build will wrap the revised text through the
 existing CupidObj path.
+
+## 2026-08-22: promote static ELF code-anchor checks
+
+Clean Linux and native Windows candidate builds carried the static ELF
+code-anchor policy through a complete Toolchain fixed point. The Linux proof
+matched all 19 C objects, startup, and five tools between stages three and
+four. It passed five help, 22 success, and 21 useful failure cases. The Windows
+proof matched 20 C objects, two assembly objects, and five tools, then passed
+the 5/8/9 behavior matrix. Both proofs bind revision
+`b3f0910f84ba182d0882fc67b5983b49e9627482` and the 50-input snapshot
+`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`.
+
+The promoted Linux CupidDis is 442,780 bytes with SHA-256
+`1f4fade7dad85077b320d8ef51347eaaf2bef6510659e08be0980cabe5368569`.
+Its 5,573-byte manifest has SHA-256
+`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
+The promoted Windows CupidDis is 420,352 bytes with SHA-256
+`18167d5ae7b86ad0edd332da2eaef292c718572c5c8eba5847e57f142cdd8e45`.
+Its 2,118-byte manifest has SHA-256
+`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`
+and names the Linux manifest as its parent. The other four tools on each host
+remain byte-identical to the preceding seed.
+
+Seed verification passes for both manifests. Direct carriage tests run the
+promoted Linux ELF and Windows PE against valid and invalid static code
+anchors. The focused three-test group passed in 10.858 seconds. The complete
+hostbuild validation module passed 33 tests with one expected platform skip in
+2.789 seconds. The direct Toolchain manifest contract passed all 40 tests in
+51.379 seconds.
+
+The normal kernel transaction now selects
+`--require-known --require-local-targets --require-code-anchors` for both the
+pass-one and final ELFs. One shared instruction-start map serves the two linked
+policies. A failure preserves the previous raw kernel and stops before
+CupidObj flattening. The build-graph audit locks the exact command and rejects
+the removal of either semantic option. ADR 0323 records the promotion and
+production boundary.
+
+Both promoted-seed reproofs pass with every initial image equal to stage two.
+Linux again matches 19 C objects, startup, and five tools between stages three
+and four, then passes the 5/22/21 matrix. Its 42,575-byte report has SHA-256
+`9d2c49cde3b7a68228cf0af13ff3d69c0d5cda0d97ee49a7629d9d1d44c838f2`.
+Windows again matches 20 C objects, two assembly objects, and five tools, then
+passes the 5/8/9 matrix. Its 35,283-byte report has SHA-256
+`259841236e2e242577e3cd982e4f1f52d2b0fd8de5b20f16ea8fbee52f1971a0`.
+Both reports bind the promoted manifest and exact 50-input snapshot.
+
+A complete normal image build and the feature-14 QEMU callback-field smoke
+remain as evidence gates for this checkpoint. The documentation states that
+limit instead of treating fixed-point evidence as runtime evidence.
+`TempleOS/` remains untouched reference material.
+
+The first production rebuild passed the combined broad, linked-target, and
+code-anchor gate. The exact-size contract then stopped as designed because the
+source-current callback fixture and embedded manuals changed all three kernel
+outputs. The measured pass-one ELF is 9,375,284 bytes with SHA-256
+`fc12f0f89aa7011dcafd138e2fa70047917d2b9fb50a7e383ef12589803efd6d`.
+The final ELF is 9,502,260 bytes with SHA-256
+`887e0217a4aaf08d039e87702ae65d839c102ac348dbb16c44730e011fc610b7`.
+The validated flat kernel is 9,280,620 bytes with SHA-256
+`98ffecc28b1ae6277433faea8bbfb0b6ef4724c2167ea758a65d73b4e25eefaa`.
+These source-consistent measurements replace the three previous exact policy
+rows.
+
+The repeated `make -j4 all` passed the shared 431-input broad, linked-target,
+and code-anchor check. The fourteen-artifact size contract passed, and the
+image builder staged the deterministic 61,440-byte ISO. The resulting
+209,715,200-byte `cupidos.img` had SHA-256
+`41a5ed28fac7169edb7bfe064f70cb8f412c4c1a92f1f36789e38208ac46567d`
+before the guest-evidence wording was added to the embedded manuals.
+
+A focused private-image QEMU run used four `max` i386 CPUs and executed
+`/bin/feature14_simd.cc`. It printed
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`,
+then `PASS feature14_simd` and `[cupidc] JIT execution complete`. The
+32,924-byte serial log has SHA-256
+`271a6d9d0ad4b50dceaac54d558287b6d4537ee39840e809ce8a9c4d0a202d51`.
+The private run did not change the source image. The manuals now record this
+guest evidence, so the production image must be rebuilt and remeasured once
+more before publication.
+
+The final source-head `make -j4 all` completed after that manual update. The
+431-input broad, linked-target, and code-anchor check passed again, followed by
+the fourteen-artifact contract. The current outputs are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,375,284 | `e327be0ef1dea805ba870ab78a729b4487b6d34a44a573fcb9ad8434be1eb5bb` |
+| `kernel/kernel.elf` | 9,502,260 | `cb72659d402882ee4e3ddc4bef545714e89b61297903134ef8a19c32e435247a` |
+| `kernel/kernel.bin` | 9,280,616 | `152d639af328336dd887825fffcb0ea038fa970b3a2b0d971bddd7ec1f6db4b5` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `2bdcfa1d9bf0334d287a1d982a2c0ef0ab8372bb9e07cd02e3e4f4e8a62825cf` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `03a1925fd78029998414904b6fdb32fce2a246ed3736a5b84802b3224b59ed1a` |
+
+The focused four-vCPU QEMU run then passed again from a private copy of that
+exact image. Its 31,169-byte serial log has SHA-256
+`2e017f66b3acce65a67e722a022054d469087d926382709b9042062e4cb6c265`.
+It contains the callback-field marker, the overall feature-14 pass, and clean
+CupidC JIT completion. The source image remained unchanged.
+
+The final schema-v3 `make -C toolchain all` publication also passed. The
+checked bootstrap completed stages three and four, the hosted runtime contract
+ran successfully, and live inputs still matched their frozen copies. The
+Cupid-built `CUPMAN4` author and the independent Python oracle agreed on all
+58 stage pairs: 17 contract objects, 16 contract executables, 19 bootstrap C
+objects, one startup object, and five tool images. The publisher installed all
+21 artifacts only after those comparisons succeeded. The final `CUPMAN2`
+verifier printed `Cupid Toolchain manifest: ok (21 artifacts)`.
+
+The resulting 27,071-byte `toolchain/build/cupidc-contracts/manifest.json`
+has SHA-256
+`02408d9d541de1454e2f0888cff501bc755964448d0f177a4162bcebdcaf178b`.
+It records 70 publication inputs, the exact 50-file bootstrap closure, Linux
+seed manifest
+`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`,
+and a true stage-three/stage-four fixed point for 19 C objects, startup, and all
+five tools.
+
+The final `make bootstrap-audit` and `make check-bootstrap-audit` runs passed.
+All 106 `tests.test_build_graph_audit` cases then passed in 951.841 seconds,
+including the mutations that remove linked-target or code-anchor validation.

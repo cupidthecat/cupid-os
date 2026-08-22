@@ -101,11 +101,14 @@ The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.368 seconds. Its host contract now
-requires `[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`.
-That test proves the source and marker contract, not a QEMU boot. A real guest
-observation of the field marker is still pending. The standalone CupidC seeds
-do not contain this private parser. No normal AOT input needs the syntax yet.
+The full GUI module passes all 126 tests in 1.368 seconds. A focused four-vCPU
+QEMU boot observes
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`,
+then `PASS feature14_simd` and clean in-OS CupidC JIT completion. Its
+31,169-byte log has SHA-256
+`2e017f66b3acce65a67e722a022054d469087d926382709b9042062e4cb6c265`.
+The standalone CupidC seeds do not contain this private parser. No normal AOT
+input needs the syntax yet.
 
 The preceding poisoned-host OS build checkpoint passed in 684.260 seconds and
 accepted all fourteen exact policy artifacts. A private four-vCPU `max`/e1000
@@ -127,10 +130,10 @@ and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
 The source-head artifact contract later passed twice against all fourteen
-exact artifacts. The raw kernel is 9,271,380 bytes with SHA-256
-`e1801128cceeb5a510671684cded5a0aef04220dfafe90fa686df963e7abf37f`.
+exact artifacts. The raw kernel is 9,280,616 bytes with SHA-256
+`152d639af328336dd887825fffcb0ea038fa970b3a2b0d971bddd7ec1f6db4b5`.
 The 209,715,200-byte disk image has SHA-256
-`e1ae54dced2431bee00dbf6fdc256fc908407bba16dac3967bb54a99ca436fdd`.
+`2bdcfa1d9bf0334d287a1d982a2c0ef0ab8372bb9e07cd02e3e4f4e8a62825cf`.
 Those output identities are source-head evidence. Both checked seeds now carry
 the same source snapshot, and the normal kernel transaction selects strict
 linked-image validation before flattening. ADR 0318 records the promotion and

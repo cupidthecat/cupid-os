@@ -4996,15 +4996,23 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "        pass",
             ),
             (
-                "linked kernel target validation removed",
+                "linked kernel local-target validation removed",
                 "tools/hostbuild.py",
                 '                        "--require-local-targets",\n'
-                '                        "kernel/kernel.elf.pass1",',
+                '                        "--require-code-anchors",',
                 '                        "--require-local-targets-removed",\n'
+                '                        "--require-code-anchors",',
+            ),
+            (
+                "linked kernel code-anchor validation removed",
+                "tools/hostbuild.py",
+                '                        "--require-code-anchors",\n'
+                '                        "kernel/kernel.elf.pass1",',
+                '                        "--require-code-anchors-removed",\n'
                 '                        "kernel/kernel.elf.pass1",',
             ),
             (
-                "linked kernel target validation left in dead code",
+                "linked kernel code validation left in dead code",
                 "tools/hostbuild.py",
                 "            try:\n"
                 "                linked_validation = run_seed_tool(",
@@ -5013,7 +5021,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "                    linked_validation = run_seed_tool(",
             ),
             (
-                "linked kernel target validation duplicated",
+                "linked kernel code validation duplicated",
                 "tools/hostbuild.py",
                 "            try:\n"
                 "                linked_validation = run_seed_tool(",
@@ -5025,6 +5033,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                    (\n"
                 "                        \"--require-known\",\n"
                 "                        \"--require-local-targets\",\n"
+                "                        \"--require-code-anchors\",\n"
                 "                        \"kernel/kernel.elf.pass1\",\n"
                 "                        \"kernel/kernel.elf\",\n"
                 "                    ),\n"
@@ -5065,11 +5074,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/hostbuild.py",
                 "            except BootstrapError as error:\n"
                 "                raise CodeValidationError(\n"
-                "                    \"checked CupidDis local-target validation ",
+                "                    \"checked CupidDis linked-code validation ",
                 "            except BootstrapError as error:\n"
                 "                if False:\n"
                 "                    raise CodeValidationError(\n"
-                "                    \"checked CupidDis local-target validation ",
+                "                    \"checked CupidDis linked-code validation ",
             ),
             (
                 "linked kernel stdout failure does not stop flattening",
@@ -5085,7 +5094,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/hostbuild.py",
                 "            if linked_validation.stdout:\n"
                 "                raise CodeValidationError(\n"
-                "                    \"checked CupidDis local-target "
+                "                    \"checked CupidDis linked-code "
                 "validation wrote unexpected \"\n"
                 "                    \"standard output\",\n"
                 "                    tool_stderr=linked_stderr,\n"
@@ -5093,7 +5102,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            try:\n"
                 "                if linked_validation.stdout:\n"
                 "                    raise CodeValidationError(\n"
-                "                        \"checked CupidDis local-target "
+                "                        \"checked CupidDis linked-code "
                 "validation wrote unexpected \"\n"
                 "                        \"standard output\",\n"
                 "                        tool_stderr=linked_stderr,\n"
@@ -5106,7 +5115,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/hostbuild.py",
                 "            if linked_validation.stdout:\n"
                 "                raise CodeValidationError(\n"
-                "                    \"checked CupidDis local-target "
+                "                    \"checked CupidDis linked-code "
                 "validation wrote unexpected \"\n"
                 "                    \"standard output\",\n"
                 "                    tool_stderr=linked_stderr,\n"
@@ -5114,7 +5123,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            try:\n"
                 "                if linked_validation.stdout:\n"
                 "                    raise CodeValidationError(\n"
-                "                        \"checked CupidDis local-target "
+                "                        \"checked CupidDis linked-code "
                 "validation wrote unexpected \"\n"
                 "                        \"standard output\",\n"
                 "                        tool_stderr=linked_stderr,\n"
@@ -5127,7 +5136,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/hostbuild.py",
                 "            if linked_validation.stdout:\n"
                 "                raise CodeValidationError(\n"
-                "                    \"checked CupidDis local-target "
+                "                    \"checked CupidDis linked-code "
                 "validation wrote unexpected \"\n"
                 "                    \"standard output\",\n"
                 "                    tool_stderr=linked_stderr,\n"
@@ -5135,7 +5144,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            with contextlib.suppress(CodeValidationError):\n"
                 "                if linked_validation.stdout:\n"
                 "                    raise CodeValidationError(\n"
-                "                        \"checked CupidDis local-target "
+                "                        \"checked CupidDis linked-code "
                 "validation wrote unexpected \"\n"
                 "                        \"standard output\",\n"
                 "                        tool_stderr=linked_stderr,\n"
@@ -5163,12 +5172,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                repository_root,\n"
                 "                manifest_snapshot,\n"
                 "                snapshots,\n"
-                "                activity=\"CupidDis local-target validation\",",
+                "                activity=\"CupidDis linked-code validation\",",
                 "            _require_code_inputs_unchanged_removed(\n"
                 "                repository_root,\n"
                 "                manifest_snapshot,\n"
                 "                snapshots,\n"
-                "                activity=\"CupidDis local-target validation\",",
+                "                activity=\"CupidDis linked-code validation\",",
             ),
             (
                 "linked kernel seed drift guard removed",

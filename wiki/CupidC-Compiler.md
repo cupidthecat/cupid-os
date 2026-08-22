@@ -156,11 +156,13 @@ The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
 `502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.368 seconds. Its host contract
-requires the new callback-field marker, but a real QEMU observation of that
-marker is still pending. The standalone CupidC seeds do not contain this
-private parser. No normal AOT source needs the syntax yet; the active use
-remains the in-OS feature-14 JIT smoke.
+The full GUI module passes all 126 tests in 1.368 seconds. A focused four-vCPU
+QEMU boot observes the callback-field marker, `PASS feature14_simd`, and clean
+in-OS CupidC JIT completion. Its 31,169-byte log has SHA-256
+`2e017f66b3acce65a67e722a022054d469087d926382709b9042062e4cb6c265`.
+The standalone CupidC seeds do not contain this private parser. No normal AOT
+source needs the syntax yet; the active use remains the in-OS feature-14 JIT
+smoke.
 Direct structure and array callback results are rejected; record-pointer
 results retain their record identity. A rejected source or REPL unit restores
 the typedef table with the prior symbols, patches, control state, code, and
@@ -812,11 +814,11 @@ failed author or verification preserves the prior publication. A separate checke
 verifier boundary, ADR 0304 records the author split, and ADR 0307 records raw
 stage-pair evidence.
 
-The source-current schema v3 `CUPMAN4` publication passed in 3,952.17 seconds and
+The final source-current schema v3 `CUPMAN4` publication passed and
 wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
 Its 27,071-byte manifest has SHA-256
-`ea41237781ef0662502dde675b94d06c92ffadd2154a5a9da8b987c0a01e5947`.
+`02408d9d541de1454e2f0888cff501bc755964448d0f177a4162bcebdcaf178b`.
 Its final verifier reported
 `Cupid Toolchain manifest: ok (21 artifacts)`.
 Both checked Python contract launchers resolve `tools` from this checkout. The
@@ -1027,14 +1029,14 @@ preceding Windows promotion, and ADR 0292 records that promotion.
 The current promoted Linux CupidC image is 2,687,436 bytes with SHA-256
 `273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094`.
 Its 5,573-byte manifest has SHA-256
-`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
+`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
 The current promoted Windows CupidC image is 2,613,760 bytes with SHA-256
 `c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002`.
 Its 2,118-byte manifest has SHA-256
-`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`.
-Both manifests bind revision `ad7305341003feaa7e630ab7fd45be0a214c4da7`
+`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`.
+Both manifests bind revision `b3f0910f84ba182d0882fc67b5983b49e9627482`
 and exact 50-input snapshot
-`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
+`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`.
 The Windows manifest names the Linux manifest as its parent.
 The normal kernel path runs strict checked-seed CupidDis and checked CupidObj
 flat extraction against one frozen cohort of all 429 audited root object
@@ -1582,14 +1584,14 @@ and digests. The focused semantic-contract, checked-runner, and
 independent-policy modules contain 22, 16, and 13 tests, for 51 total. They
 pass with four existing platform-specific skips. The source-head artifact
 contract later passed twice against all fourteen exact artifacts. The pass-one
-ELF is 9,366,752 bytes with SHA-256
-`106980d97475d36b7835395a5bbfb43eb1e71484cea631d80dfe47be1acc2ac3`.
-The final ELF is 9,493,728 bytes with SHA-256
-`b8e4a34844190b22faf5840a06d32ef961b6835c3af028cc78e34352ffc6bf6d`.
-The raw kernel is 9,271,380 bytes with SHA-256
-`e1801128cceeb5a510671684cded5a0aef04220dfafe90fa686df963e7abf37f`.
+ELF is 9,375,284 bytes with SHA-256
+`e327be0ef1dea805ba870ab78a729b4487b6d34a44a573fcb9ad8434be1eb5bb`.
+The final ELF is 9,502,260 bytes with SHA-256
+`cb72659d402882ee4e3ddc4bef545714e89b61297903134ef8a19c32e435247a`.
+The raw kernel is 9,280,616 bytes with SHA-256
+`152d639af328336dd887825fffcb0ea038fa970b3a2b0d971bddd7ec1f6db4b5`.
 The disk image is 209,715,200 bytes with SHA-256
-`e1ae54dced2431bee00dbf6fdc256fc908407bba16dac3967bb54a99ca436fdd`.
+`2bdcfa1d9bf0334d287a1d982a2c0ef0ab8372bb9e07cd02e3e4f4e8a62825cf`.
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The Linux
 audit records 20 failure groups, five help groups, and 21 success groups. The

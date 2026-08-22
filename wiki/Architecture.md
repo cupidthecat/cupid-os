@@ -57,15 +57,16 @@ memory targets, and ELF input are outside this rule. A displacement that lands
 on a different valid instruction start in same-mode code can still pass because
 the check does not retain source-label identity. Either transaction preserves
 the prior image on failure. ADR 0305 records the raw-image promotion, and ADR
-0312 records the preceding seed and relocatable-object adoption. ADR 0318
+0312 records the preceding seed and relocatable-object adoption. ADR 0323
 records the current seed and linked-image adoption.
 
-Source-head CupidDis can also validate static ELF code anchors. Its explicit
+Checked CupidDis can also validate static ELF code anchors. Its explicit
 policy checks the kernel entry and every defined function symbol against
 decoded starts in file-backed executable load regions. It reports an address
 outside code separately from an address in the middle of an instruction. The
-normal two-ELF kernel transaction does not select this policy yet because the
-checked seeds must be promoted first. ADR 0320 records that boundary.
+normal two-ELF kernel transaction selects this policy together with linked
+local-target validation. ADR 0320 records the rule, and ADR 0323 records its
+promotion and adoption.
 
 ---
 
@@ -204,11 +205,11 @@ PE on Windows. ADR 0302 records the verifier boundary, ADR 0304 records the
 author split, ADR 0307 records raw stage-pair evidence, and ADR 0322 records
 native Windows author execution.
 
-The source-current schema v3 `CUPMAN4` publication passed in 3,952.17 seconds and
+The final source-current schema v3 `CUPMAN4` publication passed and
 wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
 Its 27,071-byte manifest has SHA-256
-`ea41237781ef0662502dde675b94d06c92ffadd2154a5a9da8b987c0a01e5947`.
+`02408d9d541de1454e2f0888cff501bc755964448d0f177a4162bcebdcaf178b`.
 Its final verifier reported
 `Cupid Toolchain manifest: ok (21 artifacts)`.
 Both checked Python contract launchers resolve `tools` from this checkout. The
@@ -241,10 +242,10 @@ passed twice against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,366,752 | `106980d97475d36b7835395a5bbfb43eb1e71484cea631d80dfe47be1acc2ac3` |
-| `kernel/kernel.elf` | 9,493,728 | `b8e4a34844190b22faf5840a06d32ef961b6835c3af028cc78e34352ffc6bf6d` |
-| `kernel/kernel.bin` | 9,271,380 | `e1801128cceeb5a510671684cded5a0aef04220dfafe90fa686df963e7abf37f` |
-| `cupidos.img` | 209,715,200 | `e1ae54dced2431bee00dbf6fdc256fc908407bba16dac3967bb54a99ca436fdd` |
+| `kernel/kernel.elf.pass1` | 9,375,284 | `e327be0ef1dea805ba870ab78a729b4487b6d34a44a573fcb9ad8434be1eb5bb` |
+| `kernel/kernel.elf` | 9,502,260 | `cb72659d402882ee4e3ddc4bef545714e89b61297903134ef8a19c32e435247a` |
+| `kernel/kernel.bin` | 9,280,616 | `152d639af328336dd887825fffcb0ea038fa970b3a2b0d971bddd7ec1f6db4b5` |
+| `cupidos.img` | 209,715,200 | `2bdcfa1d9bf0334d287a1d982a2c0ef0ab8372bb9e07cd02e3e4f4e8a62825cf` |
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated audit records 20 failure groups, five help groups, and 21 success
@@ -369,13 +370,13 @@ Both reproofs reject executable relocations without decoded field owners. ADRs
 strict-relocation promotion.
 
 The current promoted Linux and Windows seeds both bind revision
-`ad7305341003feaa7e630ab7fd45be0a214c4da7` and exact 50-input snapshot
-`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
+`b3f0910f84ba182d0882fc67b5983b49e9627482` and exact 50-input snapshot
+`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`.
 The 5,573-byte Linux manifest has SHA-256
-`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
+`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
 The 2,118-byte Windows manifest has SHA-256
-`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`
-and names that Linux manifest as its parent. ADR 0318 records these identities.
+`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`
+and names that Linux manifest as its parent. ADR 0323 records these identities.
 
 The first complete run of the intermediate 86-test seed suite took 2,394.660 seconds and reported
 failures from stale test data. The tiny source roots were
@@ -389,7 +390,7 @@ in 2,444.917 seconds. After the relocatable-object cases were added, the
 ADR 0312 checkpoint passed all 89 tests in 3,145.502 seconds. The complete
 source-head module later passed all 92 tests in 2,820.626 seconds. Both checked
 seeds now carry that snapshot, and the kernel publisher applies the linked
-local-target rule before flattening. ADR 0318 records the promotion and
+local-target and code-anchor rules before flattening. ADR 0323 records the promotion and
 adoption.
 
 The earlier dual-NIC four-vCPU evidence predates this seed promotion. Those

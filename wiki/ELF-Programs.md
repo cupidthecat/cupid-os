@@ -112,12 +112,12 @@ old seed comparison was false for CupidASM, CupidC, and CupidDis and true for
 CupidLD and CupidObj. That promoted 2,118-byte manifest has SHA-256
 `ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e`.
 The current 2,118-byte Windows manifest has SHA-256
-`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`.
-It binds revision `ad7305341003feaa7e630ab7fd45be0a214c4da7`, exact 50-input
+`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`.
+It binds revision `b3f0910f84ba182d0882fc67b5983b49e9627482`, exact 50-input
 snapshot
-`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`,
+`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`,
 and Linux parent manifest
-`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
+`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
 See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
@@ -132,8 +132,8 @@ records the convergence rule. [ADR 0280](../docs/adr/0280-promote-the-clean-stag
 records the Linux promotion. [ADR 0281](../docs/adr/0281-promote-the-clean-stage-four-windows-seed.md)
 records the preceding Windows promotion. [ADR 0292](../docs/adr/0292-promote-strict-relocation-production-seeds.md)
 records the preceding strict-relocation promotion. [ADR
-0318](../docs/adr/0318-promote-and-adopt-linked-local-target-checks.md)
-records the current linked-image promotion and production adoption.
+0323](../docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
+records the current promotion and production adoption.
 
 The checked-seed CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,
@@ -802,10 +802,10 @@ exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,366,752 | `106980d97475d36b7835395a5bbfb43eb1e71484cea631d80dfe47be1acc2ac3` |
-| `kernel/kernel.elf` | 9,493,728 | `b8e4a34844190b22faf5840a06d32ef961b6835c3af028cc78e34352ffc6bf6d` |
-| `kernel/kernel.bin` | 9,271,380 | `e1801128cceeb5a510671684cded5a0aef04220dfafe90fa686df963e7abf37f` |
-| `cupidos.img` | 209,715,200 | `e1ae54dced2431bee00dbf6fdc256fc908407bba16dac3967bb54a99ca436fdd` |
+| `kernel/kernel.elf.pass1` | 9,375,284 | `e327be0ef1dea805ba870ab78a729b4487b6d34a44a573fcb9ad8434be1eb5bb` |
+| `kernel/kernel.elf` | 9,502,260 | `cb72659d402882ee4e3ddc4bef545714e89b61297903134ef8a19c32e435247a` |
+| `kernel/kernel.bin` | 9,280,616 | `152d639af328336dd887825fffcb0ea038fa970b3a2b0d971bddd7ec1f6db4b5` |
+| `cupidos.img` | 209,715,200 | `2bdcfa1d9bf0334d287a1d982a2c0ef0ab8372bb9e07cd02e3e4f4e8a62825cf` |
 
 Those output identities are source-head evidence. Both checked seeds now carry
 the same source snapshot, and the normal kernel transaction selects strict

@@ -537,12 +537,12 @@ output. A forced build with an invalid host compiler proves that none of
 these recipes falls back to Clang or GCC.
 
 The promoted Linux and Windows seed manifests bind revision
-`ad7305341003feaa7e630ab7fd45be0a214c4da7` and exact 50-input snapshot
-`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
+`b3f0910f84ba182d0882fc67b5983b49e9627482` and exact 50-input snapshot
+`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`.
 The 5,573-byte Linux manifest has SHA-256
-`02ee58c6be6b6f9d2f2e4ab0a07e09fe180d39a18559e5ac3b5faf50078c9d20`.
+`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
 The 2,118-byte Windows manifest has SHA-256
-`4d0f4f21ee307a5758b64a2fea163319f79f58287da68bb5bdc78b333cf0aad8`
+`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`
 and names the Linux manifest as its parent.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
