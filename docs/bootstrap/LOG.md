@@ -29973,3 +29973,24 @@ dormant historical copies, test contracts, or host oracles; none is one of the
 240 normal image translations already owned as `.cc`. Renaming those files now
 would claim bootstrap ownership they do not have, so no suffix-only rename was
 made. `TempleOS/` remains untouched reference material.
+## 2026-08-22: Keep the Doom Make fixture on the production seed
+
+The renamed-source negative test builds a private repository copy and enters
+the normal Doom Make rule. On Windows, Make selects the checked i386 Windows
+execution seed. The fixture copied only the Linux seed, so it stopped at a
+missing Windows manifest before it could test the renamed-source guard.
+
+The fixture now copies the same platform-selected manifest and five tools as
+the normal build. Windows uses the `.exe` cohort, while Linux uses the `.elf`
+cohort. The test still reaches the intended audit failure and leaves the
+production recipes unchanged.
+
+| Verification | Result |
+| --- | --- |
+| `python -B -m unittest -q tests.test_doom_cupidc_production` | PASS, 41 tests with one platform skip |
+| Repaired test with Linux seed selection | PASS, one test |
+
+This repair changes no source owner, generated artifact, or tool capability.
+[Issue #29](https://github.com/cupidthecat/cupid-os/issues/29) remains open for
+IWAD-backed gameplay, input, Doom audio, menu save and load, persistence, and
+the accepted quality comparison.

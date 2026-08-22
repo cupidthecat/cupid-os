@@ -2111,18 +2111,22 @@ class DoomCupidCProductionTests(unittest.TestCase):
             "kernel_cupidc_frontier.py",
         ):
             shutil.copyfile(REPO_ROOT / "tools" / name, tools / name)
-        seed_root = root / "bootstrap" / "seeds" / "i386-linux"
-        seed_root.mkdir(parents=True)
-        checked_seed_root = (
-            REPO_ROOT / "bootstrap" / "seeds" / "i386-linux"
+        seed_platform = (
+            "i386-windows"
+            if os.environ.get("OS") == "Windows_NT"
+            else "i386-linux"
         )
+        seed_suffix = ".exe" if seed_platform == "i386-windows" else ".elf"
+        seed_root = root / "bootstrap" / "seeds" / seed_platform
+        seed_root.mkdir(parents=True)
+        checked_seed_root = REPO_ROOT / "bootstrap" / "seeds" / seed_platform
         for name in (
             "manifest.json",
-            "cupidasm.elf",
-            "cupidc.elf",
-            "cupiddis.elf",
-            "cupidld.elf",
-            "cupidobj.elf",
+            f"cupidasm{seed_suffix}",
+            f"cupidc{seed_suffix}",
+            f"cupiddis{seed_suffix}",
+            f"cupidld{seed_suffix}",
+            f"cupidobj{seed_suffix}",
         ):
             shutil.copyfile(checked_seed_root / name, seed_root / name)
 
