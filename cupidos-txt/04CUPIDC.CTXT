@@ -302,8 +302,9 @@ boundary.
 
 Before publication, Python frames the frozen artifact and provenance facts as a
 CUPMAN4 request. Stage-four checked Linux CupidC compiles the C author from its
-20 direct build inputs, CupidASM supplies startup, and CupidLD links its static
-ELF. Windows runs this Linux publication step through WSL. The request carries
+direct build inputs, CupidASM supplies host startup, and CupidLD links a static
+ELF on Linux or a validated PE on Windows. The PE uses the checked Windows
+runtime and exact imports, and it runs without WSL. The request carries
 raw stage-three and stage-four bytes for 58 fixed-point pairs: 17 contract
 objects, 16 contract executables, 19 bootstrap C objects, one startup object,
 and five tool images. The author requires regular, nonempty, byte-identical
@@ -334,8 +335,8 @@ the native Windows CUPMAN2 verifier. The source audit enforces the graph and
 ownership counts above. A valid schema-v3 publication still records exactly 21
 artifacts, 70 publication inputs, 50 bootstrap inputs, and 17 object
 comparisons, and CUPMAN2 must accept it. Both checked Python launchers resolve
-`tools` from this checkout. The direct module passes 40 tests in 43.226 seconds,
-the publisher passes 62 in 7.266 seconds, and the pinned runner passes 25 in
+`tools` from this checkout. The direct module passes 40 tests in 54.623 seconds,
+the publisher passes 64 in 12.144 seconds, and the pinned runner passes 25 in
 32.773 seconds. The host bootstrap log records exact publication
 and OS artifact identities because putting them in this image manual would
 alter an image input.

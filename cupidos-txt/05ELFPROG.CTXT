@@ -264,9 +264,10 @@ The Toolchain publication manifest includes a Cupid-built author stage. Python
 freezes the publication facts, then frames a CUPMAN4 request with raw
 stage-three and stage-four bytes for 58 pairs: 17 contract objects, 16 contract
 executables, 19 bootstrap C objects, one startup object, and five tool images.
-Stage-four checked Linux CupidC compiles the author, CupidASM builds its
-startup, and CupidLD links the static ELF. The author requires regular,
-nonempty, byte-identical streams, hashes both sides, derives the 17 schema-v3
+Stage-four checked Linux CupidC compiles the author, CupidASM builds its host
+startup, and CupidLD links a static ELF on Linux or a validated PE on Windows.
+The native PE uses the checked Windows runtime and exact imports. The author
+requires regular, nonempty, byte-identical streams, hashes both sides, derives the 17 schema-v3
 object records, and checks executable pairs against their artifact facts. It
 derives the fixed-point summary from the exact pair inventories, so the request
 has no caller all_equal field. Python repeats all 58 comparisons after author

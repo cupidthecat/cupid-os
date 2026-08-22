@@ -585,13 +585,16 @@ arrays, block-static objects, alias chains, recursive signatures, direct postfix
 field calls, and `void *` forms remain outside that typed path.
 
 The Toolchain manifest has a Cupid-built author and verifier, while Python keeps
-descriptor-pinned filesystem capture and atomic publication. The publisher uses
+descriptor-pinned filesystem capture and atomic publication. Linux runs the
+author as a static ELF. Windows runs a validated native PE built by the same
+Linux stage-four CupidC, CupidASM, and CupidLD producers with the checked
+Windows runtime, startup, and exact imports. The publisher uses
 a private pending bootstrap path and gives the author all 58 raw stage pairs
 before Python performs its independent comparisons. A valid schema-v3
 publication binds exactly 21 artifacts, 70 publication inputs, 50 bootstrap
 inputs, and 17 object comparisons. Both checked Python contract launchers put
 this checkout ahead of installed packages before importing `tools`. The direct
-contract passes 40 tests in 43.226 seconds, the publisher passes 62 in 7.266
+contract passes 40 tests in 54.623 seconds, the publisher passes 64 in 12.144
 seconds, and the pinned runner passes 25 in 32.773 seconds. The host bootstrap
 log records the exact publication identity and completion evidence.
 

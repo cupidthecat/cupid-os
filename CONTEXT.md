@@ -434,15 +434,18 @@ fixed-point summary from its exact inventories. The protocol has no caller
 `cupid.toolchain-contracts.v3` is unchanged. Python performs its independent
 four-inventory comparison after the Cupid author accepts the request. It still
 owns pinned filesystem access, process launch, drift checks, private staging,
-and atomic publication. The author is always a static Linux ELF built and run
-by the converged stage-four Linux tools; Windows reaches it through WSL. Only
-the `CUPMAN2` verifier is host-selected and runs as a native PE on Windows.
+and atomic publication. The converged stage-four Linux tools remain the author
+producers. Linux runs their static ELF, while Windows runs a validated native
+PE built from the same author source, checked Windows runtime, startup, and
+exact imports. The executable container changes by host, but the Linux
+publication provenance does not. The `CUPMAN2` verifier is also host-selected.
 Both checked Python contract launchers resolve `tools` from this checkout
 before consulting installed packages. The direct manifest module passes 40
-tests in 43.226 seconds, the publisher passes 62 in 7.266 seconds, and the
+tests in 54.623 seconds, the publisher passes 64 in 12.144 seconds, and the
 pinned verifier runner executes 25 tests in 32.773 seconds with three
 POSIX-only skips on Windows. ADR 0307 records the paired-evidence boundary, and
-ADR 0311 records checkout-local contract imports. The source-current schema v3
+ADR 0311 records checkout-local contract imports, and ADR 0322 records native
+Windows author execution. The source-current schema v3
 `CUPMAN4` `make -C toolchain all` passed in 3,952.17 seconds. The Cupid author and
 Python agreed on all 58 stage pairs. Every stage-three object and executable
 matched its stage-four counterpart, the hosted runtime passed, and live inputs
@@ -616,13 +619,16 @@ extra, duplicate, nonregular, empty, mismatched, malformed, truncated,
 trailing, or inconsistent fact before emitting canonical JSON. Python captures the
 no-follow filesystem view, requires agreement with an independent oracle, and
 performs all four stage comparisons again only after author acceptance. It
-also repeats the live closure and drift checks. The author is always a static Linux
-ELF built and run with converged stage-four Linux CupidC, CupidASM, and
-CupidLD. Windows runs it through WSL. Verification remains host-selected:
-Windows builds and runs a native `CUPMAN2` PE, while Linux uses a static ELF.
+also repeats the live closure and drift checks. Converged stage-four Linux
+CupidC, CupidASM, and CupidLD remain the author producers. Linux runs a static
+ELF, while Windows runs a validated PE built from the same source with the
+checked Windows runtime, startup, and exact imports. Verification remains
+host-selected: Windows builds and runs a native `CUPMAN2` PE, while Linux uses
+a static ELF.
 The checked graph assigns both operations to CupidC, CupidASM, CupidLD, the
-semantic-contract class, and Host Python. ADR 0302 records verification, and
-ADR 0304 records authoring. ADR 0307 records paired fixed-point evidence.
+semantic-contract class, and Host Python. ADR 0302 records verification, ADR
+0304 records authoring, ADR 0307 records paired fixed-point evidence, and ADR
+0322 records native Windows author execution.
 _Avoid_: Python-free filesystem boundary, manifest-derived author oracle,
 general JSON author
 
@@ -1432,12 +1438,12 @@ Windows runs
 these images directly for output-bearing production work. The cohort is an
 execution seed, not a bootstrap seed: it does not carry a native Windows build
 plan. The native fixed-point command pairs it with the separately verified
-Linux plan seed. Static Linux Toolchain contract paths, including the
-`CUPMAN4` author, continue to use the checked Linux bootstrap lineage. Windows
-runs the author through WSL. The `CUPMAN2` verifier follows the host and uses
-the PE cohort directly on Windows. Artifact-size policy keeps the Linux
-manifest as semantic provenance, while Windows uses the PE cohort to build and
-run the private policy contract directly. The Windows user syscall ABI gate
+Linux plan seed. Static Linux Toolchain contract paths continue to use the
+checked Linux bootstrap lineage. The `CUPMAN4` author keeps that producer
+lineage but runs as a native PE on Windows. The `CUPMAN2` verifier follows the
+host and uses the PE cohort directly on Windows. Artifact-size policy keeps the
+Linux manifest as semantic provenance, while Windows uses the PE cohort to
+build and run the private policy contract directly. The Windows user syscall ABI gate
 uses the PE cohort in the same temporary role. ADR 0272 records the seed boundary, ADR
 0295 records the native ABI gate, ADR 0297 records the size-policy gate, and
 ADRs 0278 and 0279 record native reconstruction and convergence. ADRs 0281

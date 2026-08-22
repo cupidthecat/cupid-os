@@ -807,6 +807,10 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
 
             with mock.patch.object(
                 cupidc_toolchain_contracts,
+                "_is_windows_host",
+                return_value=False,
+            ), mock.patch.object(
+                cupidc_toolchain_contracts,
                 "_compile_source",
                 side_effect=compile_source,
             ), mock.patch.object(
@@ -861,6 +865,303 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 source_root
                 / "manifest-author-build/toolchain-manifest-author.elf",
             )
+
+    def test_windows_manifest_author_builds_a_validated_native_pe(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-manifest-author-windows-build-"
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            startup = (
+                source_root
+                / "toolchain/hosted/i386-windows/tool_start.asm"
+            )
+            startup.parent.mkdir(parents=True)
+            startup.write_text("ret\n", encoding="ascii")
+            runtime = (
+                source_root / "toolchain/hosted/i386-windows/runtime.cc"
+            )
+            runtime.write_text("int runtime;\n", encoding="ascii")
+            stage_four = root / "stage-four"
+            stage_four.mkdir()
+            compile_calls: list[
+                tuple[Path, str, Path, tuple[str, ...], bool | None]
+            ] = []
+            tool_calls: list[
+                tuple[Path, tuple[str | Path, ...], str, int]
+            ] = []
+
+            def compile_source(
+                runner,
+                compiler: Path,
+                checked_root: Path,
+                logical_source: str,
+                output: Path,
+                label: str,
+                timeout: int,
+                *,
+                definitions: tuple[str, ...] = (),
+                gnu_extensions: bool | None = None,
+            ) -> None:
+                del runner, label, timeout
+                self.assertEqual(checked_root, source_root)
+                compile_calls.append(
+                    (
+                        compiler,
+                        logical_source,
+                        output,
+                        definitions,
+                        gnu_extensions,
+                    )
+                )
+                output.write_bytes(_test_relocatable_elf32())
+
+            def run_clean(
+                runner,
+                executable: Path,
+                arguments: tuple[str | Path, ...],
+                label: str,
+                timeout: int,
+            ) -> None:
+                del runner
+                arguments = tuple(arguments)
+                tool_calls.append((executable, arguments, label, timeout))
+                output = arguments[arguments.index("-o") + 1]
+                self.assertIsInstance(output, Path)
+                output.write_bytes(
+                    _test_relocatable_elf32()
+                    if "-f" in arguments
+                    else b"MZchecked author"
+                )
+
+            with (
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_is_windows_host",
+                    return_value=True,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_compile_source",
+                    side_effect=compile_source,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_run_clean",
+                    side_effect=run_clean,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_validate_i386_relocatable",
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_validate_static_i386_pe32",
+                ) as validate_pe,
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_validate_static_i386_elf",
+                ) as validate_elf,
+            ):
+                executable = (
+                    cupidc_toolchain_contracts._build_manifest_author(
+                        source_root,
+                        stage_four,
+                        source_root / "manifest-author-build",
+                    )
+                )
+
+            self.assertEqual(
+                [
+                    (compiler, source, definitions, gnu_extensions)
+                    for (
+                        compiler,
+                        source,
+                        _output,
+                        definitions,
+                        gnu_extensions,
+                    ) in compile_calls
+                ],
+                [
+                    (
+                        stage_four / "cupidc.elf",
+                        "toolchain/tests/toolchain_manifest_contract.cc",
+                        (),
+                        None,
+                    ),
+                    (
+                        stage_four / "cupidc.elf",
+                        "toolchain/hosted/i386-windows/runtime.cc",
+                        ("_WIN32=1",),
+                        True,
+                    ),
+                ],
+            )
+            self.assertEqual(
+                [call[0] for call in tool_calls],
+                [
+                    stage_four / "cupidasm.elf",
+                    stage_four / "cupidld.elf",
+                ],
+            )
+            self.assertEqual(
+                tool_calls[0][1][:3], ("-f", "elf32", startup)
+            )
+            link_arguments = tool_calls[1][1]
+            self.assertEqual(
+                link_arguments[:6],
+                (
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                ),
+            )
+            expected_import_arguments = tuple(
+                argument
+                for library, procedures in (
+                    cupidc_toolchain_contracts.WINDOWS_TOOL_IMPORTS
+                )
+                for procedure in procedures
+                for argument in (
+                    "--import",
+                    f"__imp_{procedure}={library}:{procedure}",
+                )
+            )
+            self.assertEqual(
+                link_arguments[6 : 6 + len(expected_import_arguments)],
+                expected_import_arguments,
+            )
+            self.assertEqual(
+                link_arguments[-3:],
+                (
+                    source_root
+                    / "manifest-author-build/toolchain-manifest-author-start.o",
+                    source_root
+                    / "manifest-author-build/toolchain-manifest-author.o",
+                    source_root
+                    / "manifest-author-build/toolchain-manifest-author-runtime.o",
+                ),
+            )
+            self.assertEqual(
+                executable,
+                source_root
+                / "manifest-author-build/toolchain-manifest-author.exe",
+            )
+            validate_pe.assert_called_once_with(
+                executable,
+                int(
+                    cupidc_toolchain_contracts.EXPECTED_WINDOWS_TARGET[
+                        "entry"
+                    ]
+                ),
+                cupidc_toolchain_contracts.WINDOWS_TOOL_IMPORTS,
+            )
+            validate_elf.assert_not_called()
+
+    def test_windows_manifest_author_rejects_invalid_pe_before_execution(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-manifest-author-windows-validation-"
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            startup = (
+                source_root
+                / "toolchain/hosted/i386-windows/tool_start.asm"
+            )
+            startup.parent.mkdir(parents=True)
+            startup.write_text("ret\n", encoding="ascii")
+            runtime = (
+                source_root / "toolchain/hosted/i386-windows/runtime.cc"
+            )
+            runtime.write_text("int runtime;\n", encoding="ascii")
+            stage_four = root / "stage-four"
+            stage_four.mkdir()
+
+            def compile_source(
+                runner,
+                compiler: Path,
+                checked_root: Path,
+                logical_source: str,
+                output: Path,
+                label: str,
+                timeout: int,
+                **configuration,
+            ) -> None:
+                del (
+                    runner,
+                    compiler,
+                    checked_root,
+                    logical_source,
+                    label,
+                    timeout,
+                    configuration,
+                )
+                output.write_bytes(_test_relocatable_elf32())
+
+            def run_clean(
+                runner,
+                executable: Path,
+                arguments: tuple[str | Path, ...],
+                label: str,
+                timeout: int,
+            ) -> None:
+                del runner, executable, label, timeout
+                arguments = tuple(arguments)
+                output = arguments[arguments.index("-o") + 1]
+                self.assertIsInstance(output, Path)
+                output.write_bytes(
+                    _test_relocatable_elf32()
+                    if "-f" in arguments
+                    else b"MZinvalid author"
+                )
+
+            with (
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_is_windows_host",
+                    return_value=True,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_compile_source",
+                    side_effect=compile_source,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_run_clean",
+                    side_effect=run_clean,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_validate_i386_relocatable",
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_validate_static_i386_pe32",
+                    side_effect=cupidc_toolchain_contracts.BootstrapError(
+                        "injected invalid PE"
+                    ),
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts.ToolRunner,
+                    "run",
+                ) as run_tool,
+                self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    "invalid Windows Toolchain manifest author",
+                ),
+            ):
+                cupidc_toolchain_contracts._build_manifest_author(
+                    source_root,
+                    stage_four,
+                    source_root / "manifest-author-build",
+                )
+            run_tool.assert_not_called()
 
     def test_manifest_author_rehashes_and_rechecks_the_frozen_source(self):
         with tempfile.TemporaryDirectory(
@@ -1313,6 +1614,14 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     (output / "manifest.json").read_bytes(),
                     published_manifest,
                 )
+                self.assertEqual(
+                    list(
+                        output.parent.glob(
+                            f".{output.name}-build-*"
+                        )
+                    ),
+                    [],
+                )
                 author_output_valid[0] = True
                 author_failure[0] = True
                 event_count = len(decision_events)
@@ -1330,24 +1639,48 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     (output / "manifest.json").read_bytes(),
                     published_manifest,
                 )
+                self.assertEqual(
+                    list(
+                        output.parent.glob(
+                            f".{output.name}-build-*"
+                        )
+                    ),
+                    [],
+                )
+                author_failure[0] = False
+                recovered_report = (
+                    cupidc_toolchain_contracts.build_contracts(
+                        root, manifest, output, workers=8
+                    )
+                )
+                self.assertEqual(recovered_report, report)
+                self.assertEqual(
+                    list(
+                        output.parent.glob(
+                            f".{output.name}-build-*"
+                        )
+                    ),
+                    [],
+                )
 
             self.assertEqual(
                 built_generations,
-                ["stage-three", "stage-four"] * 3,
+                ["stage-three", "stage-four"] * 4,
             )
-            self.assertEqual(runtime_generations, ["stage-four"] * 3)
-            self.assertEqual(author_generations, ["stage-four"] * 3)
+            self.assertEqual(runtime_generations, ["stage-four"] * 4)
+            self.assertEqual(author_generations, ["stage-four"] * 4)
+            successful_decision = [
+                "author",
+                "compare:contract object",
+                "compare:contract executable",
+                "compare:bootstrap object",
+                "compare:bootstrap tool",
+            ]
             self.assertEqual(
                 decision_events,
-                [
-                    "author",
-                    "compare:contract object",
-                    "compare:contract executable",
-                    "compare:bootstrap object",
-                    "compare:bootstrap tool",
-                ]
-                * 2
-                + ["author"],
+                successful_decision * 2
+                + ["author"]
+                + successful_decision,
             )
             self.assertEqual(
                 report["tool_fixed_point"]["compared_generations"],

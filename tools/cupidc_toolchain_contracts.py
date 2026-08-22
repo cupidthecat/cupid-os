@@ -703,21 +703,34 @@ def _compile_source(
     output: Path,
     label: str,
     timeout: int,
+    *,
+    definitions: Sequence[str] = (),
+    gnu_extensions: bool | None = None,
 ) -> None:
     logical_output = "/" + output.relative_to(source_root).as_posix()
-    _run_clean(
-        runner,
-        compiler,
+    arguments: list[str | Path] = ["--root", source_root]
+    for definition in definitions:
+        arguments.extend(("-D", definition))
+    use_gnu_extensions = (
+        logical_source in GNU_CONTRACT_SOURCES
+        if gnu_extensions is None
+        else gnu_extensions
+    )
+    if use_gnu_extensions:
+        arguments.append("--gnu")
+    arguments.extend(
         (
-            "--root",
-            source_root,
-            *(("--gnu",) if logical_source in GNU_CONTRACT_SOURCES else ()),
             "-c",
             "/" + logical_source,
             *_compile_include_arguments(logical_source),
             "-o",
             logical_output,
-        ),
+        )
+    )
+    _run_clean(
+        runner,
+        compiler,
+        arguments,
         label,
         timeout,
     )
@@ -893,6 +906,18 @@ def _compare_stage_files(
     return comparisons
 
 
+def _windows_tool_import_arguments() -> tuple[str, ...]:
+    return tuple(
+        argument
+        for library, procedures in WINDOWS_TOOL_IMPORTS
+        for procedure in procedures
+        for argument in (
+            "--import",
+            f"__imp_{procedure}={library}:{procedure}",
+        )
+    )
+
+
 def _build_manifest_author(
     source_root: Path,
     stage_four: Path,
@@ -911,14 +936,34 @@ def _build_manifest_author(
         ORDINARY_COMPILE_TIMEOUT,
     )
 
+    windows = _is_windows_host()
+    if windows:
+        runtime_object = output / "toolchain-manifest-author-runtime.o"
+        _compile_source(
+            runner,
+            stage_four / "cupidc.elf",
+            source_root,
+            "toolchain/hosted/i386-windows/runtime.cc",
+            runtime_object,
+            "stage four CupidC for the Windows manifest author runtime",
+            ORDINARY_COMPILE_TIMEOUT,
+            definitions=("_WIN32=1",),
+            gnu_extensions=True,
+        )
+
     startup_object = output / "toolchain-manifest-author-start.o"
+    startup_source = source_root / (
+        "toolchain/hosted/i386-windows/tool_start.asm"
+        if windows
+        else "toolchain/hosted/i386-linux/start.asm"
+    )
     _run_clean(
         runner,
         stage_four / "cupidasm.elf",
         (
             "-f",
             "elf32",
-            source_root / "toolchain/hosted/i386-linux/start.asm",
+            startup_source,
             "-o",
             startup_object,
         ),
@@ -926,6 +971,46 @@ def _build_manifest_author(
         120,
     )
     _validate_i386_relocatable(startup_object)
+
+    if windows:
+        executable = output / "toolchain-manifest-author.exe"
+        link_arguments: list[str | Path] = [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00401000",
+            "--entry",
+            "_start",
+        ]
+        link_arguments.extend(_windows_tool_import_arguments())
+        link_arguments.extend(
+            (
+                "-o",
+                executable,
+                startup_object,
+                contract_object,
+                runtime_object,
+            )
+        )
+        _run_clean(
+            runner,
+            stage_four / "cupidld.elf",
+            link_arguments,
+            "stage four CupidLD for the Windows Toolchain manifest author",
+            360,
+        )
+        try:
+            _validate_static_i386_pe32(
+                executable,
+                int(EXPECTED_WINDOWS_TARGET["entry"]),
+                WINDOWS_TOOL_IMPORTS,
+            )
+        except (BootstrapError, OSError) as error:
+            raise ContractError(
+                "stage four CupidLD produced an invalid Windows "
+                "Toolchain manifest author"
+            ) from error
+        return executable
 
     shared_objects = tuple(
         stage_four / name
@@ -2424,14 +2509,7 @@ def _build_native_windows_user_abi_contract(
         "--entry",
         "_start",
     ]
-    for library, procedures in WINDOWS_TOOL_IMPORTS:
-        for procedure in procedures:
-            link_arguments.extend(
-                (
-                    "--import",
-                    f"__imp_{procedure}={library}:{procedure}",
-                )
-            )
+    link_arguments.extend(_windows_tool_import_arguments())
     link_arguments.extend(("-o", executable))
     link_arguments.extend(
         objects[name] for name in NATIVE_WINDOWS_USER_ABI_LINK_ORDER

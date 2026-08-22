@@ -104,9 +104,10 @@ Arbitrary directories, source trees, files, and symbolic links remain
 untouched. It publishes all sixteen contract executables, five refreshed
 tools, and a manifest together. A separate Toolchain contract source implements
 the author and verifier modes. The checked stage-four Linux CupidC, CupidASM,
-and CupidLD build a static ELF author from 20 direct build inputs. Windows runs
-this publication step through WSL. Its framed `CUPMAN4` request carries the
-publication facts and raw stage-three and stage-four bytes for 58 fixed-point
+and CupidLD build the author from its direct inputs. Linux runs a static ELF.
+Windows runs a validated native PE made from the same author source, checked
+Windows runtime, startup, and exact imports. Its framed `CUPMAN4` request carries
+the publication facts and raw stage-three and stage-four bytes for 58 fixed-point
 pairs: 17 contract objects, 16 contract executables, 19 bootstrap C objects,
 one startup object, and five tool images. The author requires regular,
 nonempty, byte-identical streams and hashes both sides independently. It
@@ -121,7 +122,8 @@ host-selected checked seed then builds the
 `CUPMAN2` verifier as a static ELF on Linux or a native PE on Windows. ADR 0195
 records the runtime probe rename, ADR 0196 records the complete transfer, ADR
 0264 records the ABI checker transfer, ADR 0302 records the verifier, ADR 0304
-records the manifest author, and ADR 0307 records raw stage-pair evidence.
+records the manifest author, ADR 0307 records raw stage-pair evidence, and ADR
+0322 records native Windows author execution.
 
 The source-current schema v3 `CUPMAN4` publication passed in 3,952.17 seconds and
 wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
@@ -131,8 +133,8 @@ Its 27,071-byte manifest has SHA-256
 Its final verifier reported
 `Cupid Toolchain manifest: ok (21 artifacts)`.
 Both checked Python contract launchers resolve `tools` from this checkout. The
-direct contract suite passes 40 tests in 43.226 seconds, the publisher suite
-passes 62 tests in 7.266 seconds, and the pinned verifier runner passes 25 tests
+direct contract suite passes 40 tests in 54.623 seconds, the publisher suite
+passes 64 tests in 12.144 seconds, and the pinned verifier runner passes 25 tests
 in 32.773 seconds with three POSIX-only Windows skips. ADR 0311 records this
 host import boundary.
 The final poisoned build and private guest results are in the latest complete
@@ -263,8 +265,9 @@ images remained unchanged at SHA-256
 
 Host Python still coordinates each fixed point. Windows rebuilds native tools
 from the checked PE execution seed and the verified Linux plan seed without
-WSL. The complete Linux Toolchain contract cohort still runs through WSL on
-Windows. Output-bearing production calls and the user ABI contract use the
+WSL. Most of the Linux Toolchain contract cohort still runs through WSL on
+Windows, but the final `CUPMAN4` author runs as a native PE. Output-bearing
+production calls and the user ABI contract use the
 checked PE32 cohort directly. Linux and native Windows now use clean promoted
 stage-four seeds.
 Python-free coordination remains open.

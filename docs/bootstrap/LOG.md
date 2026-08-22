@@ -29638,3 +29638,47 @@ raw Cupid class method parameters, recursive signatures, and aggregate
 callback results remain open. The standalone compiler seeds do not contain
 this private parser. No checked seed, object format, build owner, or host
 dependency changed.
+
+## 2026-08-22: run the CUPMAN4 author natively on Windows
+
+The Toolchain publisher now emits the `CUPMAN4` author in the executable format
+used by its host. Linux keeps the static i386 ELF. On Windows, converged
+stage-four Linux CupidC compiles the unchanged author and the checked Windows
+runtime, CupidASM assembles `tool_start.asm`, and CupidLD links a native i386
+PE32 image with the exact declared `KERNEL32.dll` imports. The publisher checks
+the PE machine, class, entry, layout, relocation state, and import inventory
+before the author can reach the process launcher.
+
+The first focused test failed because the author build produced only the Linux
+contract object and selected Linux startup. After the host-selected build was
+added, the four focused build and transaction tests passed in 1.501 seconds.
+They cover the unchanged Linux path, the exact Windows compiler and linker
+plan, validation before execution, preservation and cleanup after author or
+oracle failure, and a clean recovery.
+
+The complete publisher module passes all 64 tests in 12.144 seconds. The direct
+manifest module passes all 40 tests in 54.623 seconds. Its real Windows
+integration test freezes the promoted Linux stage-four seed, uses those Linux
+Cupid tools as the producers, builds a native PE author, blocks WSL path
+translation during author execution, and receives the exact independent
+Python-oracle manifest bytes. The focused real case passes in 52.208 seconds.
+The two Make closure checks pass in 1.259 seconds and keep the same publication
+seed, contract build inputs, and host-selected execution inputs.
+
+The request remains `CUPMAN4`, with the same schema and the same 58 raw pairs:
+17 contract objects, 16 contract executables, 19 bootstrap C objects, one
+startup object, and five tool images. The Cupid author still decides every
+pair before Python repeats all four inventories. Python still owns pinned
+filesystem capture, source and seed drift checks, process launch, private
+staging, rollback, and atomic directory publication. Failure leaves the prior
+cohort intact and removes the private transaction workspace.
+
+This is an execution-boundary change, not a second implementation of the
+manifest decision. The Linux stage-four producer lineage and Linux publication
+seed remain authoritative. Windows still uses WSL for Linux fixed-point
+reconstruction and the remaining Linux contract cohort. A complete
+`make -C toolchain all` run remains the publication-wide evidence gate. ADR
+0322 records the boundary.
+
+No active `.c` file qualifies for a `.cc` rename. No checked seed or operating
+system artifact changes. `TempleOS/` remains untouched reference material.

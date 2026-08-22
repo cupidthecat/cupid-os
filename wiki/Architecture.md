@@ -185,10 +185,11 @@ Cupid contract and Python oracle one shared six-file snapshot. Linux runs the
 published ELF contract. Windows freezes a separate 26-file closure, builds a
 private PE with checked CupidC, CupidASM, and CupidLD, and runs it directly.
 The Windows path rechecks its source and seed closures and never touches the
-Linux publication. For publication, the checked stage-four Linux tools build a
-static ELF manifest author from 20 direct build inputs. Windows runs this Linux
-step through WSL. Its framed `CUPMAN4` request binds the publication facts and
-raw stage-three and stage-four bytes for 58 fixed-point pairs: 17 contract
+Linux publication. For publication, the checked stage-four Linux tools build
+the manifest author from its direct inputs. Linux runs a static ELF. Windows
+runs a validated native PE built from the same author source, checked Windows
+runtime, startup, and exact imports. Its framed `CUPMAN4` request binds the
+publication facts and raw stage-three and stage-four bytes for 58 fixed-point pairs: 17 contract
 objects, 16 contract executables, 19 bootstrap C objects, one startup object,
 and five tool images. The author requires regular, nonempty, byte-identical
 streams and hashes both sides independently. It derives the 17 schema-v3
@@ -200,7 +201,8 @@ staging, rollback, and atomic replacement. A failure preserves the prior
 publication. The host-selected checked
 seed builds a separate `CUPMAN2` verifier as a static ELF on Linux or a native
 PE on Windows. ADR 0302 records the verifier boundary, ADR 0304 records the
-author split, and ADR 0307 records raw stage-pair evidence.
+author split, ADR 0307 records raw stage-pair evidence, and ADR 0322 records
+native Windows author execution.
 
 The source-current schema v3 `CUPMAN4` publication passed in 3,952.17 seconds and
 wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
@@ -210,8 +212,8 @@ Its 27,071-byte manifest has SHA-256
 Its final verifier reported
 `Cupid Toolchain manifest: ok (21 artifacts)`.
 Both checked Python contract launchers resolve `tools` from this checkout. The
-direct contract suite passes 40 tests in 43.226 seconds. The publisher suite
-passes 62 tests in 7.266 seconds, and the pinned verifier runner passes 25 tests
+direct contract suite passes 40 tests in 54.623 seconds. The publisher suite
+passes 64 tests in 12.144 seconds, and the pinned verifier runner passes 25 tests
 in 32.773 seconds with three POSIX-only Windows skips. ADR 0311 records this
 host import boundary.
 
@@ -338,10 +340,10 @@ image and its IAT slots. CupidLD added four publication imports to the shared
 twelve. Windows ran help plus a useful success and failure path for each tool.
 CupidDis also checked quoted raw-input parity with the Linux tool. These five
 images formed the preceding checked Windows execution seed used by
-output-bearing production recipes. The complete Toolchain contract cohort
-still runs the Linux seed through WSL. The user ABI, artifact-size, and
-Toolchain manifest gates build and run temporary PEs from the Windows seed
-without WSL. The manifest verifier also checks the Linux publication seed.
+output-bearing production recipes. Most of the Toolchain contract cohort still
+runs the Linux seed through WSL. The user ABI, artifact-size, and Toolchain
+manifest gates build and run temporary PEs without WSL. The manifest verifier
+and author still bind the Linux publication seed.
 Source head freezes the
 PE execution seed and the Linux plan
 manifest separately, then reconstructs native Windows stages two through four.

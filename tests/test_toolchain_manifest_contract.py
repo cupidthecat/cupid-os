@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tools import cupidc_toolchain_contracts
 
@@ -1001,6 +1002,17 @@ class ToolchainManifestContractTests(unittest.TestCase):
                 stage_four,
                 workspace / "author-build",
             )
+            if os.name == "nt":
+                self.assertEqual(executable.suffix, ".exe")
+                cupidc_toolchain_contracts._validate_static_i386_pe32(
+                    executable,
+                    int(
+                        cupidc_toolchain_contracts.EXPECTED_WINDOWS_TARGET[
+                            "entry"
+                        ]
+                    ),
+                    cupidc_toolchain_contracts.WINDOWS_TOOL_IMPORTS,
+                )
             manifest, observations = _fixture()
             request = workspace / "request.bin"
             request.write_bytes(
@@ -1009,9 +1021,31 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     observations=observations,
                 )
             )
-            result = runner.run(executable, ("author", request), 120)
+            native_commands: list[tuple[str, ...]] = []
+            real_subprocess_run = subprocess.run
+
+            def run_without_wsl(command, *arguments, **keywords):
+                executable_name = Path(str(command[0])).name.lower()
+                if executable_name in {"wsl", "wsl.exe"}:
+                    raise AssertionError(
+                        "the native PE author crossed the WSL boundary"
+                    )
+                native_commands.append(tuple(str(item) for item in command))
+                return real_subprocess_run(command, *arguments, **keywords)
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts.subprocess,
+                "run",
+                side_effect=run_without_wsl,
+            ):
+                result = runner.run(executable, ("author", request), 120)
             cupidc_toolchain_contracts.require_live_seed_inputs(seed)
 
+            self.assertEqual(len(native_commands), 1)
+            self.assertEqual(
+                Path(native_commands[0][0]).suffix,
+                ".exe" if os.name == "nt" else ".elf",
+            )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stderr, "")
             self.assertEqual(

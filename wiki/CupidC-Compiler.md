@@ -820,8 +820,8 @@ Its 27,071-byte manifest has SHA-256
 Its final verifier reported
 `Cupid Toolchain manifest: ok (21 artifacts)`.
 Both checked Python contract launchers resolve `tools` from this checkout. The
-direct contract suite passes 40 tests in 43.226 seconds, the publisher suite
-passes 62 tests in 7.266 seconds, and the pinned verifier runner passes 25 tests
+direct contract suite passes 40 tests in 54.623 seconds, the publisher suite
+passes 64 tests in 12.144 seconds, and the pinned verifier runner passes 25 tests
 in 32.773 seconds with three POSIX-only Windows skips. ADR 0311 records this
 host import boundary.
 The settled audit is recorded in the

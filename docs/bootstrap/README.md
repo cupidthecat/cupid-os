@@ -12,13 +12,14 @@ seed promoted from matching stage-four outputs. Windows selects it for
 output-bearing production commands, so those CupidC, CupidASM, CupidDis,
 CupidLD, and CupidObj calls no longer cross WSL. Linux fixed-point
 reconstruction and the static Linux Toolchain contract paths still use the
-Linux seed. Those paths include the `CUPMAN4` author. The
+Linux seed. The
 artifact-size gate keeps the Linux manifest as policy provenance but builds and
 runs its checked contract from the host-selected execution seed. Windows runs
 that contract, the user syscall ABI contract, and the Toolchain manifest
-verifier as temporary native PE images. The `CUPMAN4` author is different: it
-is always a static Linux ELF built and run by converged stage-four Linux tools,
-so Windows reaches it through WSL. Both manifest modes bind the Linux
+verifier as temporary native PE images. The `CUPMAN4` author now follows the
+same host execution rule. The converged stage-four Linux tools remain its
+producers, but Windows receives a validated native PE built from the same
+source and exact checked imports. Both manifest modes bind the Linux
 publication seed.
 ADR 0272 records the seed roles, ADR 0295 records the native ABI gate, and ADR
 0297 records the artifact-size contract. ADR 0302 records Toolchain manifest
@@ -33,7 +34,7 @@ Windows seed validation in `CUPSIZE2`. ADR 0317 records retained seed bytes as
 the final report comparison authority. ADR 0318 records the current seed
 promotion and linked-kernel adoption. ADR 0319 records direct explicit function
 addresses in private callback values. ADR 0321 records typedef-backed callback
-fields.
+fields. ADR 0322 records native Windows `CUPMAN4` author execution.
 
 ## 2026-08-22 source-current checkpoint
 
@@ -123,11 +124,12 @@ inventories. The protocol has no caller `all_equal` field. Schema
 `cupid.toolchain-contracts.v3` remains unchanged.
 Python makes the same 58 comparisons independently after the author succeeds
 and retains pinned filesystem capture, drift checks, staging, rollback, and
-atomic publication. The author is a static Linux ELF built and run by the
-converged stage-four Linux tools. Windows uses WSL for this mode. Both checked
+atomic publication. The converged stage-four Linux tools build the author for
+the current host. Linux runs a static ELF. Windows runs a validated native PE
+with the checked Windows startup, runtime, and exact imports. Both checked
 Python contract launchers resolve `tools` from this checkout before consulting
-installed packages. The direct module passes 40 tests in 43.226 seconds, the
-publisher passes 62 tests in 7.266 seconds, and the pinned verifier runner
+installed packages. The direct module passes 40 tests in 54.623 seconds, the
+publisher passes 64 tests in 12.144 seconds, and the pinned verifier runner
 executes 25 tests in 32.773 seconds with three POSIX-only skips on Windows. The
 direct suite includes a checked stage-four build and run of the author. The
 source graph retains 739
@@ -2416,8 +2418,8 @@ native PE and does not use the Linux contract publication.
 `toolchain:all` builds both manifest modes from their checked closures. Verify
 mode consumes `CUPMAN2` and follows the host-selected execution cohort, so it
 runs as a native PE on Windows. Author mode consumes independent `CUPMAN4`
-facts and is always a static Linux ELF built and run by the converged
-stage-four Linux tools. Windows reaches the author through WSL. Together the
+facts. The converged stage-four Linux tools build a static ELF on Linux or a
+validated PE on Windows. Together the
 modes bind all 21 artifacts, 70 publication inputs, 50 bootstrap inputs, the
 Linux publication seed, and 58 raw stage pairs. The pairs cover 17 contract
 objects, 16 contract executables, 19 bootstrap C objects, one startup object,
@@ -2438,7 +2440,7 @@ stage-three object and executable matched its stage-four counterpart. The
 hosted runtime passed, live inputs stayed frozen, and its final verifier printed
 `Cupid Toolchain manifest: ok (21 artifacts)`. Both checked Python launchers
 resolve `tools` from this checkout. The direct manifest module passes 40 tests
-in 43.226 seconds, the publisher passes 62 in 7.266 seconds, and the pinned
+in 54.623 seconds, the publisher passes 64 in 12.144 seconds, and the pinned
 verifier runner executes 25 tests in 32.773 seconds with three
 POSIX-only skips on Windows.
 The publisher gives `x86_contract.cc` its sibling `/toolchain/tests`

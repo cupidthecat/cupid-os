@@ -108,10 +108,12 @@ pending. No normal AOT
 source needs the syntax yet; the active use remains the in-OS feature-14 JIT
 smoke.
 
-The Toolchain publisher builds its strict C11 `CUPMAN4` author as a static
-Linux ELF with the converged stage-four Linux CupidC, CupidASM, and CupidLD.
-Windows runs that author through WSL. Only `CUPMAN2` verification is
-host-selected and runs as a native PE on Windows. Schema
+The Toolchain publisher builds its strict C11 `CUPMAN4` author with the
+converged stage-four Linux CupidC, CupidASM, and CupidLD. Linux receives a
+static ELF. Windows receives a validated native PE built from the same author
+source with the checked Windows startup, runtime, and exact `KERNEL32.dll`
+imports. The author no longer crosses WSL when it runs on Windows. Its producer
+lineage and Linux publication provenance do not change. Schema
 `cupid.toolchain-contracts.v3` is unchanged. `CUPMAN4` carries the existing
 artifact and source facts plus 58 raw stage pairs: 17 contract objects, 16
 contract executables, 19 bootstrap C objects, one startup object, and five
@@ -124,11 +126,12 @@ same four comparisons only after the author accepts the request. It still pins
 the filesystem, launches the author, stages privately, and swaps the complete
 directory. Both checked Python contract launchers resolve `tools` from this
 checkout before consulting installed packages. The direct module passes 40
-tests in 43.226 seconds, the publisher passes 62 in 7.266 seconds, and the
+tests in 54.623 seconds, the publisher passes 64 in 12.144 seconds, and the
 pinned verifier runner executes 25 tests in 32.773 seconds with three
 POSIX-only skips on Windows. [ADR 0307](docs/adr/0307-author-toolchain-fixed-point-evidence-from-stage-pairs.md)
-records the paired-evidence boundary, and [ADR 0311](docs/adr/0311-pin-checked-contract-imports-to-the-checkout.md)
-records checkout-local contract imports. The source graph has 739 active inputs,
+records the paired-evidence boundary, [ADR 0311](docs/adr/0311-pin-checked-contract-imports-to-the-checkout.md)
+records checkout-local contract imports, and [ADR 0322](docs/adr/0322-run-the-toolchain-manifest-author-natively-on-windows.md)
+records native Windows author execution. The source graph has 739 active inputs,
 452 transforms, 255 feature requirements, and 25 accounted unreachable files.
 Participation
 is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 6, and four
@@ -750,8 +753,9 @@ Install QEMU to boot the image or run emulator tests:
 choco install qemu
 ```
 
-Install WSL only for Linux fixed-point reconstruction and the static Linux
-Toolchain contract paths, including `CUPMAN4` authoring:
+Install WSL only for Linux fixed-point reconstruction and the remaining static
+Linux Toolchain contract paths. The Windows `CUPMAN4` author itself runs as a
+native PE:
 
 ```powershell
 wsl --install
