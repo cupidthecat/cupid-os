@@ -50,7 +50,15 @@ typedef struct {
 typedef struct {
   uint64_t sizes[SEED_ARTIFACT_COUNT];
   int seen[SEED_ARTIFACT_COUNT];
+  text_t source_revision;
+  text_t source_snapshot_sha256;
 } seed_manifest_t;
+
+typedef struct {
+  uint64_t sizes[SEED_ARTIFACT_COUNT];
+  text_t digests[SEED_ARTIFACT_COUNT];
+  int seen[SEED_ARTIFACT_COUNT];
+} windows_manifest_t;
 
 typedef struct {
   byte_slice_t path;
@@ -58,16 +66,29 @@ typedef struct {
   uint64_t size;
 } observation_t;
 
+typedef struct {
+  byte_slice_t path;
+  uint32_t kind;
+  uint64_t size;
+  byte_slice_t digest;
+} windows_observation_t;
+
 static const unsigned char request_magic[8] = {
-    'C', 'U', 'P', 'S', 'I', 'Z', 'E', '1'};
+    'C', 'U', 'P', 'S', 'I', 'Z', 'E', '2'};
 static const char policy_schema[] = "cupid.artifact-size-policy.v1";
 static const char seed_schema[] = "cupid.bootstrap-seed.v1";
+static const char windows_seed_schema[] = "cupid.execution-seed.v1";
 static const char report_schema[] = "cupid.artifact-size-verification.v1";
 static const char *const seed_names[SEED_ARTIFACT_COUNT] = {
     "cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj"};
 static const char *const seed_files[SEED_ARTIFACT_COUNT] = {
     "cupidasm.elf", "cupidc.elf", "cupiddis.elf", "cupidld.elf",
     "cupidobj.elf"};
+static const char *const windows_seed_files[SEED_ARTIFACT_COUNT] = {
+    "cupidasm.exe", "cupidc.exe", "cupiddis.exe", "cupidld.exe",
+    "cupidobj.exe"};
+static const int windows_seed_producers[SEED_ARTIFACT_COUNT] = {1, 1, 0, 1,
+                                                                0};
 static const char *const seed_owners[SEED_ARTIFACT_COUNT] = {
     "CupidASM", "CupidC", "CupidDis", "CupidLD", "CupidObj"};
 static const char *const fixed_paths[FIXED_ARTIFACT_COUNT] = {
@@ -110,6 +131,35 @@ static int text_equals_literal(const text_t *text, const char *literal) {
 static int slice_equals_text(const byte_slice_t *slice, const text_t *text) {
   return slice->size == text->size &&
          memcmp(slice->bytes, text->bytes, text->size) == 0;
+}
+
+static int slice_equals_literal(const byte_slice_t *slice,
+                                const char *literal) {
+  size_t length = strlen(literal);
+  return slice->size == length &&
+         memcmp(slice->bytes, literal, length) == 0;
+}
+
+static int text_equals_text(const text_t *left, const text_t *right) {
+  return left->size == right->size &&
+         memcmp(left->bytes, right->bytes, left->size) == 0;
+}
+
+static int lower_hex_valid(const unsigned char *bytes, size_t size,
+                           size_t expected_size) {
+  size_t index;
+  if (size != expected_size) {
+    return 0;
+  }
+  for (index = 0u; index < size; index++) {
+    if (!((bytes[index] >= (unsigned char)'0' &&
+           bytes[index] <= (unsigned char)'9') ||
+          (bytes[index] >= (unsigned char)'a' &&
+           bytes[index] <= (unsigned char)'f'))) {
+      return 0;
+    }
+  }
+  return 1;
 }
 
 static int text_compare(const text_t *left, const text_t *right) {
@@ -410,6 +460,19 @@ static int json_match_literal(json_reader_t *reader, const char *literal) {
   }
   reader->position += length;
   return 1;
+}
+
+static int json_parse_boolean(json_reader_t *reader, int *result) {
+  json_skip_space(reader);
+  if (json_match_literal(reader, "true")) {
+    *result = 1;
+    return 1;
+  }
+  if (json_match_literal(reader, "false")) {
+    *result = 0;
+    return 1;
+  }
+  return set_error("a JSON boolean is required");
 }
 
 static int json_skip_number(json_reader_t *reader) {
@@ -778,6 +841,70 @@ static int parse_manifest_artifacts(json_reader_t *reader,
   return 1;
 }
 
+static int parse_seed_provenance(json_reader_t *reader,
+                                 seed_manifest_t *manifest) {
+  unsigned int fields = 0u;
+  if (!json_take(reader, (unsigned char)'{')) {
+    return 0;
+  }
+  for (;;) {
+    text_t key = {(unsigned char *)0, 0u};
+    int ok = json_parse_string(reader, &key) &&
+             json_take(reader, (unsigned char)':');
+    if (!ok) {
+      text_release(&key);
+      return 0;
+    }
+    if (text_equals_literal(&key, "source_revision")) {
+      if ((fields & 1u) != 0u) {
+        text_release(&key);
+        return set_error("seed manifest source revision is duplicated");
+      }
+      fields |= 1u;
+      ok = json_parse_string(reader, &manifest->source_revision);
+      if (ok && !lower_hex_valid(manifest->source_revision.bytes,
+                                 manifest->source_revision.size, 40u)) {
+        ok = set_error("seed manifest source revision is invalid");
+      }
+    } else if (text_equals_literal(&key, "source_snapshot_sha256")) {
+      if ((fields & 2u) != 0u) {
+        text_release(&key);
+        return set_error("seed manifest source snapshot is duplicated");
+      }
+      fields |= 2u;
+      ok = json_parse_string(reader, &manifest->source_snapshot_sha256);
+      if (ok && !lower_hex_valid(manifest->source_snapshot_sha256.bytes,
+                                 manifest->source_snapshot_sha256.size, 64u)) {
+        ok = set_error("seed manifest source snapshot is invalid");
+      }
+    } else {
+      ok = json_skip_value(reader, 2u);
+    }
+    text_release(&key);
+    if (!ok) {
+      return 0;
+    }
+    json_skip_space(reader);
+    if (reader->position < reader->size &&
+        reader->bytes[reader->position] == (unsigned char)'}') {
+      reader->position++;
+      break;
+    }
+    if (!json_take(reader, (unsigned char)',')) {
+      return 0;
+    }
+  }
+  if (fields != 3u) {
+    return set_error("seed manifest provenance fields are missing");
+  }
+  return 1;
+}
+
+static void seed_manifest_release(seed_manifest_t *manifest) {
+  text_release(&manifest->source_revision);
+  text_release(&manifest->source_snapshot_sha256);
+}
+
 static int parse_seed_manifest(byte_slice_t source,
                                seed_manifest_t *manifest) {
   json_reader_t reader = {source.bytes, source.size, 0u};
@@ -818,6 +945,13 @@ static int parse_seed_manifest(byte_slice_t source,
       }
       fields |= 2u;
       ok = parse_manifest_artifacts(&reader, manifest);
+    } else if (text_equals_literal(&key, "provenance")) {
+      if ((fields & 4u) != 0u) {
+        text_release(&key);
+        return set_error("seed manifest provenance is duplicated");
+      }
+      fields |= 4u;
+      ok = parse_seed_provenance(&reader, manifest);
     } else {
       ok = json_skip_value(&reader, 1u);
     }
@@ -835,8 +969,458 @@ static int parse_seed_manifest(byte_slice_t source,
       return 0;
     }
   }
-  if (fields != 3u) {
+  if (fields != 7u) {
     return set_error("seed manifest fields are missing");
+  }
+  return json_finish(&reader);
+}
+
+static int parse_windows_manifest_artifact(json_reader_t *reader,
+                                           windows_manifest_t *manifest) {
+  text_t name = {(unsigned char *)0, 0u};
+  text_t file = {(unsigned char *)0, 0u};
+  text_t digest = {(unsigned char *)0, 0u};
+  uint64_t size = 0u;
+  unsigned int fields = 0u;
+  int producer = 0;
+  int seed_index;
+  int ok = 1;
+  if (!json_take(reader, (unsigned char)'{')) {
+    return 0;
+  }
+  for (;;) {
+    text_t key = {(unsigned char *)0, 0u};
+    ok = json_parse_string(reader, &key) &&
+         json_take(reader, (unsigned char)':');
+    if (!ok) {
+      text_release(&key);
+      break;
+    }
+    if (text_equals_literal(&key, "name") && (fields & 1u) == 0u) {
+      fields |= 1u;
+      ok = json_parse_string(reader, &name);
+    } else if (text_equals_literal(&key, "file") && (fields & 2u) == 0u) {
+      fields |= 2u;
+      ok = json_parse_string(reader, &file);
+    } else if (text_equals_literal(&key, "size") && (fields & 4u) == 0u) {
+      fields |= 4u;
+      ok = json_parse_positive_u64(reader, &size);
+    } else if (text_equals_literal(&key, "sha256") &&
+               (fields & 8u) == 0u) {
+      fields |= 8u;
+      ok = json_parse_string(reader, &digest);
+      if (ok && !lower_hex_valid(digest.bytes, digest.size, 64u)) {
+        ok = set_error("Windows seed artifact digest is invalid");
+      }
+    } else if (text_equals_literal(&key, "producer") &&
+               (fields & 16u) == 0u) {
+      fields |= 16u;
+      ok = json_parse_boolean(reader, &producer);
+    } else {
+      ok = set_error("Windows seed artifact fields differ");
+    }
+    text_release(&key);
+    if (!ok) {
+      break;
+    }
+    json_skip_space(reader);
+    if (reader->position < reader->size &&
+        reader->bytes[reader->position] == (unsigned char)'}') {
+      reader->position++;
+      break;
+    }
+    if (!json_take(reader, (unsigned char)',')) {
+      ok = 0;
+      break;
+    }
+  }
+  if (ok && fields != 31u) {
+    ok = set_error("Windows seed artifact fields are missing");
+  }
+  seed_index = ok ? seed_index_for_name(&name) : -1;
+  if (ok && seed_index < 0) {
+    ok = set_error("Windows seed manifest has an unknown tool artifact");
+  }
+  if (ok && manifest->seen[(size_t)seed_index] != 0) {
+    ok = set_error("Windows seed manifest tool artifact is duplicated");
+  }
+  if (ok && !text_equals_literal(
+                &file, windows_seed_files[(size_t)seed_index])) {
+    ok = set_error("Windows seed manifest artifact filename differs");
+  }
+  if (ok && producer != windows_seed_producers[(size_t)seed_index]) {
+    ok = set_error("Windows seed manifest artifact producer differs");
+  }
+  if (ok) {
+    manifest->seen[(size_t)seed_index] = 1;
+    manifest->sizes[(size_t)seed_index] = size;
+    manifest->digests[(size_t)seed_index] = digest;
+    digest.bytes = (unsigned char *)0;
+    digest.size = 0u;
+  }
+  text_release(&name);
+  text_release(&file);
+  text_release(&digest);
+  return ok;
+}
+
+static int parse_windows_manifest_artifacts(json_reader_t *reader,
+                                            windows_manifest_t *manifest) {
+  size_t count = 0u;
+  if (!json_take(reader, (unsigned char)'[')) {
+    return 0;
+  }
+  json_skip_space(reader);
+  if (reader->position < reader->size &&
+      reader->bytes[reader->position] == (unsigned char)']') {
+    reader->position++;
+    return set_error("Windows seed manifest artifacts are missing");
+  }
+  for (;;) {
+    if (count >= SEED_ARTIFACT_COUNT) {
+      return set_error("Windows seed manifest has too many artifacts");
+    }
+    if (!parse_windows_manifest_artifact(reader, manifest)) {
+      return 0;
+    }
+    count++;
+    json_skip_space(reader);
+    if (reader->position < reader->size &&
+        reader->bytes[reader->position] == (unsigned char)']') {
+      reader->position++;
+      break;
+    }
+    if (!json_take(reader, (unsigned char)',')) {
+      return 0;
+    }
+  }
+  if (count != SEED_ARTIFACT_COUNT) {
+    return set_error("Windows seed manifest does not contain five artifacts");
+  }
+  return 1;
+}
+
+static int parse_expected_text(json_reader_t *reader, const char *expected,
+                               const char *error) {
+  text_t value = {(unsigned char *)0, 0u};
+  int ok = json_parse_string(reader, &value);
+  if (ok && !text_equals_literal(&value, expected)) {
+    ok = set_error(error);
+  }
+  text_release(&value);
+  return ok;
+}
+
+static int parse_windows_target(json_reader_t *reader) {
+  unsigned int fields = 0u;
+  if (!json_take(reader, (unsigned char)'{')) {
+    return 0;
+  }
+  for (;;) {
+    text_t key = {(unsigned char *)0, 0u};
+    int ok = json_parse_string(reader, &key) &&
+             json_take(reader, (unsigned char)':');
+    if (!ok) {
+      text_release(&key);
+      return 0;
+    }
+    if (text_equals_literal(&key, "abi") && (fields & 1u) == 0u) {
+      fields |= 1u;
+      ok = parse_expected_text(reader, "windows-stdcall-imports",
+                               "Windows seed manifest target differs");
+    } else if (text_equals_literal(&key, "architecture") &&
+               (fields & 2u) == 0u) {
+      fields |= 2u;
+      ok = parse_expected_text(reader, "i386",
+                               "Windows seed manifest target differs");
+    } else if (text_equals_literal(&key, "byte_order") &&
+               (fields & 4u) == 0u) {
+      fields |= 4u;
+      ok = parse_expected_text(reader, "little",
+                               "Windows seed manifest target differs");
+    } else if (text_equals_literal(&key, "entry") &&
+               (fields & 8u) == 0u) {
+      uint64_t value = 0u;
+      fields |= 8u;
+      ok = json_parse_positive_u64(reader, &value);
+      if (ok && value != 4198400u) {
+        ok = set_error("Windows seed manifest target differs");
+      }
+    } else if (text_equals_literal(&key, "linkage") &&
+               (fields & 16u) == 0u) {
+      fields |= 16u;
+      ok = parse_expected_text(reader, "kernel32-imports",
+                               "Windows seed manifest target differs");
+    } else if (text_equals_literal(&key, "operating_system") &&
+               (fields & 32u) == 0u) {
+      fields |= 32u;
+      ok = parse_expected_text(reader, "windows",
+                               "Windows seed manifest target differs");
+    } else if (text_equals_literal(&key, "pe_class") &&
+               (fields & 64u) == 0u) {
+      uint64_t value = 0u;
+      fields |= 64u;
+      ok = json_parse_positive_u64(reader, &value);
+      if (ok && value != 32u) {
+        ok = set_error("Windows seed manifest target differs");
+      }
+    } else {
+      ok = set_error("Windows seed manifest target fields differ");
+    }
+    text_release(&key);
+    if (!ok) {
+      return 0;
+    }
+    json_skip_space(reader);
+    if (reader->position < reader->size &&
+        reader->bytes[reader->position] == (unsigned char)'}') {
+      reader->position++;
+      break;
+    }
+    if (!json_take(reader, (unsigned char)',')) {
+      return 0;
+    }
+  }
+  if (fields != 127u) {
+    return set_error("Windows seed manifest target fields are missing");
+  }
+  return 1;
+}
+
+static int parse_windows_producer_lineage(json_reader_t *reader) {
+  unsigned int fields = 0u;
+  if (!json_take(reader, (unsigned char)'{')) {
+    return 0;
+  }
+  for (;;) {
+    text_t key = {(unsigned char *)0, 0u};
+    int ok = json_parse_string(reader, &key) &&
+             json_take(reader, (unsigned char)':');
+    if (!ok) {
+      text_release(&key);
+      return 0;
+    }
+    if (text_equals_literal(&key, "assembly") && (fields & 1u) == 0u) {
+      fields |= 1u;
+      ok = parse_expected_text(
+          reader,
+          "native stage-three CupidASM from the checked i386 Windows bootstrap",
+          "Windows seed manifest producer lineage differs");
+    } else if (text_equals_literal(&key, "c") && (fields & 2u) == 0u) {
+      fields |= 2u;
+      ok = parse_expected_text(
+          reader,
+          "native stage-three CupidC from the checked i386 Windows bootstrap",
+          "Windows seed manifest producer lineage differs");
+    } else if (text_equals_literal(&key, "link") && (fields & 4u) == 0u) {
+      fields |= 4u;
+      ok = parse_expected_text(
+          reader,
+          "native stage-three CupidLD from the checked i386 Windows bootstrap",
+          "Windows seed manifest producer lineage differs");
+    } else {
+      ok = set_error("Windows seed manifest producer lineage fields differ");
+    }
+    text_release(&key);
+    if (!ok) {
+      return 0;
+    }
+    json_skip_space(reader);
+    if (reader->position < reader->size &&
+        reader->bytes[reader->position] == (unsigned char)'}') {
+      reader->position++;
+      break;
+    }
+    if (!json_take(reader, (unsigned char)',')) {
+      return 0;
+    }
+  }
+  if (fields != 7u) {
+    return set_error("Windows seed manifest producer lineage fields are missing");
+  }
+  return 1;
+}
+
+static int parse_windows_provenance(json_reader_t *reader,
+                                    const seed_manifest_t *seed_manifest,
+                                    const byte_slice_t *seed_manifest_digest) {
+  text_t parent_digest = {(unsigned char *)0, 0u};
+  text_t parent_revision = {(unsigned char *)0, 0u};
+  text_t source_revision = {(unsigned char *)0, 0u};
+  text_t source_snapshot = {(unsigned char *)0, 0u};
+  unsigned int fields = 0u;
+  int ok = 1;
+  if (!json_take(reader, (unsigned char)'{')) {
+    return 0;
+  }
+  for (;;) {
+    text_t key = {(unsigned char *)0, 0u};
+    ok = json_parse_string(reader, &key) &&
+         json_take(reader, (unsigned char)':');
+    if (!ok) {
+      text_release(&key);
+      break;
+    }
+    if (text_equals_literal(&key, "artifact_generation") &&
+        (fields & 1u) == 0u) {
+      fields |= 1u;
+      ok = parse_expected_text(reader, "paired-stage-four-native-windows",
+                               "Windows seed manifest provenance differs");
+    } else if (text_equals_literal(&key, "fixed_point_command") &&
+               (fields & 2u) == 0u) {
+      fields |= 2u;
+      ok = parse_expected_text(reader, "make bootstrap-windows-from-seed",
+                               "Windows seed manifest provenance differs");
+    } else if (text_equals_literal(&key, "fixed_point_result") &&
+               (fields & 4u) == 0u) {
+      fields |= 4u;
+      ok = parse_expected_text(reader, "pass",
+                               "Windows seed manifest provenance differs");
+    } else if (text_equals_literal(&key, "parent_seed_manifest_sha256") &&
+               (fields & 8u) == 0u) {
+      fields |= 8u;
+      ok = json_parse_string(reader, &parent_digest);
+      if (ok && !lower_hex_valid(parent_digest.bytes, parent_digest.size, 64u)) {
+        ok = set_error("Windows seed parent manifest digest is invalid");
+      }
+    } else if (text_equals_literal(&key, "parent_seed_source_revision") &&
+               (fields & 16u) == 0u) {
+      fields |= 16u;
+      ok = json_parse_string(reader, &parent_revision);
+      if (ok && !lower_hex_valid(parent_revision.bytes,
+                                 parent_revision.size, 40u)) {
+        ok = set_error("Windows seed parent source revision is invalid");
+      }
+    } else if (text_equals_literal(&key, "producer_lineage") &&
+               (fields & 32u) == 0u) {
+      fields |= 32u;
+      ok = parse_windows_producer_lineage(reader);
+    } else if (text_equals_literal(&key, "source_input_count") &&
+               (fields & 64u) == 0u) {
+      uint64_t value = 0u;
+      fields |= 64u;
+      ok = json_parse_positive_u64(reader, &value);
+      if (ok && value != 50u) {
+        ok = set_error("Windows seed manifest source input count differs");
+      }
+    } else if (text_equals_literal(&key, "source_revision") &&
+               (fields & 128u) == 0u) {
+      fields |= 128u;
+      ok = json_parse_string(reader, &source_revision);
+      if (ok && !lower_hex_valid(source_revision.bytes,
+                                 source_revision.size, 40u)) {
+        ok = set_error("Windows seed source revision is invalid");
+      }
+    } else if (text_equals_literal(&key, "source_snapshot_sha256") &&
+               (fields & 256u) == 0u) {
+      fields |= 256u;
+      ok = json_parse_string(reader, &source_snapshot);
+      if (ok && !lower_hex_valid(source_snapshot.bytes,
+                                 source_snapshot.size, 64u)) {
+        ok = set_error("Windows seed source snapshot is invalid");
+      }
+    } else {
+      ok = set_error("Windows seed manifest provenance fields differ");
+    }
+    text_release(&key);
+    if (!ok) {
+      break;
+    }
+    json_skip_space(reader);
+    if (reader->position < reader->size &&
+        reader->bytes[reader->position] == (unsigned char)'}') {
+      reader->position++;
+      break;
+    }
+    if (!json_take(reader, (unsigned char)',')) {
+      ok = 0;
+      break;
+    }
+  }
+  if (ok && fields != 511u) {
+    ok = set_error("Windows seed manifest provenance fields are missing");
+  }
+  if (ok && !slice_equals_text(seed_manifest_digest, &parent_digest)) {
+    ok = set_error("Windows seed parent manifest differs");
+  }
+  if (ok && (!text_equals_text(&parent_revision,
+                               &seed_manifest->source_revision) ||
+             !text_equals_text(&source_revision,
+                               &seed_manifest->source_revision))) {
+    ok = set_error("Windows seed source revision differs");
+  }
+  if (ok && !text_equals_text(&source_snapshot,
+                              &seed_manifest->source_snapshot_sha256)) {
+    ok = set_error("Windows seed source snapshot differs");
+  }
+  text_release(&parent_digest);
+  text_release(&parent_revision);
+  text_release(&source_revision);
+  text_release(&source_snapshot);
+  return ok;
+}
+
+static void windows_manifest_release(windows_manifest_t *manifest) {
+  size_t index;
+  for (index = 0u; index < SEED_ARTIFACT_COUNT; index++) {
+    text_release(&manifest->digests[index]);
+  }
+}
+
+static int parse_windows_manifest(byte_slice_t source,
+                                  const seed_manifest_t *seed_manifest,
+                                  const byte_slice_t *seed_manifest_digest,
+                                  windows_manifest_t *manifest) {
+  json_reader_t reader = {source.bytes, source.size, 0u};
+  unsigned int fields = 0u;
+  (void)memset(manifest, 0, sizeof(*manifest));
+  if (!json_take(&reader, (unsigned char)'{')) {
+    return set_error("Windows seed manifest is not a JSON object");
+  }
+  for (;;) {
+    text_t key = {(unsigned char *)0, 0u};
+    int ok = json_parse_string(&reader, &key) &&
+             json_take(&reader, (unsigned char)':');
+    if (!ok) {
+      text_release(&key);
+      return 0;
+    }
+    if (text_equals_literal(&key, "schema") && (fields & 1u) == 0u) {
+      fields |= 1u;
+      ok = parse_expected_text(&reader, windows_seed_schema,
+                               "Windows seed manifest schema differs");
+    } else if (text_equals_literal(&key, "artifacts") &&
+               (fields & 2u) == 0u) {
+      fields |= 2u;
+      ok = parse_windows_manifest_artifacts(&reader, manifest);
+    } else if (text_equals_literal(&key, "provenance") &&
+               (fields & 4u) == 0u) {
+      fields |= 4u;
+      ok = parse_windows_provenance(&reader, seed_manifest,
+                                    seed_manifest_digest);
+    } else if (text_equals_literal(&key, "target") &&
+               (fields & 8u) == 0u) {
+      fields |= 8u;
+      ok = parse_windows_target(&reader);
+    } else {
+      ok = set_error("Windows seed manifest fields differ");
+    }
+    text_release(&key);
+    if (!ok) {
+      return 0;
+    }
+    json_skip_space(&reader);
+    if (reader.position < reader.size &&
+        reader.bytes[reader.position] == (unsigned char)'}') {
+      reader.position++;
+      break;
+    }
+    if (!json_take(&reader, (unsigned char)',')) {
+      return 0;
+    }
+  }
+  if (fields != 15u) {
+    return set_error("Windows seed manifest fields are missing");
   }
   return json_finish(&reader);
 }
@@ -1078,6 +1662,7 @@ static int text_matches_seed_path(const text_t *path,
 }
 
 static int validate_policy(policy_t *policy, const seed_manifest_t *manifest,
+                           const windows_manifest_t *windows_manifest,
                            const byte_slice_t *manifest_path,
                            uint64_t *total) {
   int matched[ARTIFACT_COUNT];
@@ -1127,6 +1712,11 @@ static int validate_policy(policy_t *policy, const seed_manifest_t *manifest,
     if ((size_t)expected_index >= FIXED_ARTIFACT_COUNT &&
         entry->exact_bytes != seed_size) {
       return set_error("policy seed size differs from the selected manifest");
+    }
+    if (expected_index >= 1 && expected_index <= 5 &&
+        entry->exact_bytes !=
+            windows_manifest->sizes[(size_t)expected_index - 1u]) {
+      return set_error("policy Windows seed size differs from the manifest");
     }
     if (sum > maximum - entry->exact_bytes) {
       return set_error("policy exact byte total exceeds the unsigned range");
@@ -1225,31 +1815,122 @@ static int validate_observations(const observation_t *observations,
   return 1;
 }
 
+static int validate_windows_observations(
+    const windows_observation_t *observations,
+    const windows_manifest_t *manifest) {
+  int matched[SEED_ARTIFACT_COUNT];
+  size_t observation_index;
+  (void)memset(matched, 0, sizeof(matched));
+  for (observation_index = 0u; observation_index < SEED_ARTIFACT_COUNT;
+       observation_index++) {
+    const windows_observation_t *observation =
+        &observations[observation_index];
+    size_t seed_index;
+    int found = -1;
+    if (observation->kind != 1u) {
+      return set_error("Windows seed observation is not a regular file");
+    }
+    for (seed_index = 0u; seed_index < SEED_ARTIFACT_COUNT; seed_index++) {
+      if (slice_equals_literal(&observation->path,
+                               fixed_paths[seed_index + 1u])) {
+        found = (int)seed_index;
+        break;
+      }
+    }
+    if (found < 0) {
+      return set_error("Windows seed observation has an unknown path");
+    }
+    if (matched[(size_t)found] != 0) {
+      return set_error("Windows seed observation path is duplicated");
+    }
+    matched[(size_t)found] = 1;
+    if (observation->size != manifest->sizes[(size_t)found]) {
+      return set_error("Windows seed artifact size differs from observation");
+    }
+    if (!slice_equals_text(&observation->digest,
+                           &manifest->digests[(size_t)found])) {
+      return set_error("Windows seed artifact digest differs from observation");
+    }
+  }
+  for (observation_index = 0u; observation_index < SEED_ARTIFACT_COUNT;
+       observation_index++) {
+    if (matched[observation_index] == 0) {
+      return set_error("Windows seed observation is missing");
+    }
+  }
+  return 1;
+}
+
 static int validate_request(const file_image_t *request, uint64_t *total) {
   binary_reader_t reader = {request->bytes, request->size, 0u};
   byte_slice_t policy_source;
   byte_slice_t manifest_path;
   byte_slice_t manifest_source;
+  byte_slice_t manifest_digest;
+  byte_slice_t windows_manifest_path;
+  byte_slice_t windows_manifest_source;
+  windows_observation_t windows_observations[SEED_ARTIFACT_COUNT];
   observation_t observations[ARTIFACT_COUNT];
   seed_manifest_t manifest;
+  windows_manifest_t windows_manifest;
   policy_t policy;
+  uint32_t windows_observation_count;
   uint32_t observation_count;
   size_t index;
   int ok = 0;
   (void)memset(&policy, 0, sizeof(policy));
+  (void)memset(&manifest, 0, sizeof(manifest));
+  (void)memset(&windows_manifest, 0, sizeof(windows_manifest));
   if (reader.size < sizeof(request_magic) ||
       memcmp(reader.bytes, request_magic, sizeof(request_magic)) != 0) {
-    return set_error("request magic differs from CUPSIZE1");
+    return set_error("request magic differs from CUPSIZE2");
   }
   reader.position = sizeof(request_magic);
   if (!binary_read_slice(&reader, &policy_source) ||
       !binary_read_slice(&reader, &manifest_path) ||
       !binary_read_slice(&reader, &manifest_source) ||
-      !binary_read_u32(&reader, &observation_count)) {
+      !binary_read_slice(&reader, &manifest_digest) ||
+      !binary_read_slice(&reader, &windows_manifest_path) ||
+      !binary_read_slice(&reader, &windows_manifest_source) ||
+      !binary_read_u32(&reader, &windows_observation_count)) {
     return 0;
   }
   if (!logical_path_valid(manifest_path.bytes, manifest_path.size)) {
     return set_error("seed manifest logical path is unsafe");
+  }
+  if (!lower_hex_valid(manifest_digest.bytes, manifest_digest.size, 64u)) {
+    return set_error("seed manifest digest observation is invalid");
+  }
+  if (!logical_path_valid(windows_manifest_path.bytes,
+                          windows_manifest_path.size)) {
+    return set_error("Windows seed manifest logical path is unsafe");
+  }
+  if (!slice_equals_literal(
+          &windows_manifest_path,
+          "bootstrap/seeds/i386-windows/manifest.json")) {
+    return set_error("Windows seed manifest logical path differs");
+  }
+  if (windows_observation_count != SEED_ARTIFACT_COUNT) {
+    return set_error("request does not contain five Windows seed observations");
+  }
+  for (index = 0u; index < SEED_ARTIFACT_COUNT; index++) {
+    if (!binary_read_slice(&reader, &windows_observations[index].path) ||
+        !binary_read_u32(&reader, &windows_observations[index].kind) ||
+        !binary_read_u64(&reader, &windows_observations[index].size) ||
+        !binary_read_slice(&reader, &windows_observations[index].digest)) {
+      return 0;
+    }
+    if (!logical_path_valid(windows_observations[index].path.bytes,
+                            windows_observations[index].path.size)) {
+      return set_error("Windows seed observation path is unsafe");
+    }
+    if (!lower_hex_valid(windows_observations[index].digest.bytes,
+                         windows_observations[index].digest.size, 64u)) {
+      return set_error("Windows seed observation digest is invalid");
+    }
+  }
+  if (!binary_read_u32(&reader, &observation_count)) {
+    return 0;
   }
   if (observation_count != ARTIFACT_COUNT) {
     return set_error("request does not contain fourteen artifact observations");
@@ -1269,15 +1950,24 @@ static int validate_request(const file_image_t *request, uint64_t *total) {
     return set_error("request has trailing input");
   }
   if (!parse_seed_manifest(manifest_source, &manifest) ||
+      !parse_windows_manifest(windows_manifest_source, &manifest,
+                              &manifest_digest, &windows_manifest) ||
       !parse_policy(policy_source, &policy)) {
     policy_release(&policy);
+    windows_manifest_release(&windows_manifest);
+    seed_manifest_release(&manifest);
     return 0;
   }
-  if (validate_policy(&policy, &manifest, &manifest_path, total) &&
+  if (validate_policy(&policy, &manifest, &windows_manifest, &manifest_path,
+                      total) &&
+      validate_windows_observations(windows_observations,
+                                    &windows_manifest) &&
       validate_observations(observations, &policy)) {
     ok = 1;
   }
   policy_release(&policy);
+  windows_manifest_release(&windows_manifest);
+  seed_manifest_release(&manifest);
   return ok;
 }
 

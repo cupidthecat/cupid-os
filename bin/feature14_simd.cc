@@ -17,6 +17,14 @@ int feature14_matrix_inner_calls;
 int feature14_matrix_sizeof_calls;
 int feature14_float_call_count;
 int feature14_double_call_count;
+int feature14_raw_call_count;
+
+int feature14_raw_target(int value) {
+    feature14_raw_call_count += 1;
+    return value + 7;
+}
+
+int (*feature14_raw_callback)(int) = feature14_raw_target;
 
 typedef float4 (*feature14_float_callback_t)(float4 left, int marker,
                                              float4 right);
@@ -159,6 +167,10 @@ void feature14_set_global_callback(feature14_float_callback_t callback) {
     feature14_global_callback = callback;
 }
 
+int feature14_invoke_raw_callback(int (*callback)(int), int value) {
+    return callback(value);
+}
+
 float4 feature14_nested_float4(float4 first, float4 second, float4 third) {
     feature14_float_call_count += 1;
     return feature14_merge_float4(
@@ -261,6 +273,27 @@ int feature14_test_callback_typedef_global() {
     if (assigned_result.x != 6.0f || assigned_result.y != 8.0f ||
         assigned_result.z != 10.0f || assigned_result.w != 12.0f)
         return 5;
+    return 0;
+}
+
+int feature14_test_callback_raw() {
+    int initialized_result;
+    int parameter_result;
+    int reassigned_result;
+
+    feature14_raw_call_count = 0;
+    if (feature14_raw_callback == 0) return 1;
+    initialized_result = feature14_raw_callback(1);
+    parameter_result = feature14_invoke_raw_callback(
+        feature14_raw_target, 2);
+    feature14_raw_callback = 0;
+    if (feature14_raw_callback != 0) return 2;
+    feature14_raw_callback = feature14_raw_target;
+    reassigned_result = feature14_raw_callback(3);
+    if (initialized_result != 8) return 3;
+    if (parameter_result != 9) return 4;
+    if (reassigned_result != 10) return 5;
+    if (feature14_raw_call_count != 3) return 6;
     return 0;
 }
 
@@ -757,6 +790,15 @@ int main() {
     } else {
         serial_printf("[feature14-callback-global] FAIL check=%d\n",
                       callback_global_result);
+        ok = 0;
+    }
+
+    int callback_raw_result = feature14_test_callback_raw();
+    if (callback_raw_result == 0) {
+        serial_printf("[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3\n");
+    } else {
+        serial_printf("[feature14-callback-raw] FAIL check=%d\n",
+                      callback_raw_result);
         ok = 0;
     }
 

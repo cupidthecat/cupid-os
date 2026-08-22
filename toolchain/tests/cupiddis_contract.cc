@@ -665,6 +665,21 @@ static int run_targets(void) {
       ctool_job_close(job);
       return 1;
     }
+    {
+      ctool_dis_report_t invalid_report = report;
+      invalid_report.elf32.file_type = CTOOL_ELF32_ET_EXEC;
+      (void)memset(&capture, 0, sizeof(capture));
+      status = ctool_dis_render(job, &invalid_report,
+                                CTOOL_DIS_TEXT_CUPID,
+                                capture_sink(&capture));
+      if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                        "forged executable local target report") ||
+          capture.size != 0u) {
+        ctool_buffer_close(object_bytes);
+        ctool_job_close(job);
+        return 1;
+      }
+    }
     ctool_buffer_close(object_bytes);
   }
   {
@@ -2257,7 +2272,169 @@ static int run_object(void) {
   return 0;
 }
 
+typedef struct {
+  ctool_u32 address;
+  ctool_u32 flags;
+  const ctool_u8 *contents;
+  ctool_u32 file_size;
+  ctool_u32 memory_size;
+} exec_fixture_segment_t;
+
+static ctool_u32 build_exec_fixture(
+    ctool_u8 *image, ctool_u32 capacity,
+    const exec_fixture_segment_t *segments, ctool_u32 segment_count) {
+  ctool_u32 header_size = 52u;
+  ctool_u32 program_header_size = 32u;
+  ctool_u32 payload_offset;
+  ctool_u32 image_size;
+  ctool_u32 index;
+  if (image == (ctool_u8 *)0 || segments == (const exec_fixture_segment_t *)0 ||
+      segment_count == 0u || capacity < header_size ||
+      segment_count >
+          (capacity - header_size) / program_header_size) {
+    return 0u;
+  }
+  payload_offset = header_size + segment_count * program_header_size;
+  image_size = payload_offset;
+  for (index = 0u; index < segment_count; index++) {
+    if (segments[index].file_size > segments[index].memory_size ||
+        segments[index].file_size > capacity - image_size) {
+      return 0u;
+    }
+    image_size += segments[index].file_size;
+  }
+  (void)memset(image, 0, image_size);
+  image[0] = 0x7fu;
+  image[1] = (ctool_u8)'E';
+  image[2] = (ctool_u8)'L';
+  image[3] = (ctool_u8)'F';
+  image[4] = 1u;
+  image[5] = 1u;
+  image[6] = 1u;
+  put_le16(image, 16u, (ctool_u16)CTOOL_ELF32_ET_EXEC);
+  put_le16(image, 18u, 3u);
+  put_le32(image, 20u, 1u);
+  put_le32(image, 24u, segments[0].address);
+  put_le32(image, 28u, header_size);
+  put_le16(image, 40u, (ctool_u16)header_size);
+  put_le16(image, 42u, (ctool_u16)program_header_size);
+  put_le16(image, 44u, (ctool_u16)segment_count);
+  for (index = 0u; index < segment_count; index++) {
+    ctool_u32 header = header_size + index * program_header_size;
+    put_le32(image, header, CTOOL_ELF32_PT_LOAD);
+    put_le32(image, header + 4u, payload_offset);
+    put_le32(image, header + 8u, segments[index].address);
+    put_le32(image, header + 12u, segments[index].address);
+    put_le32(image, header + 16u, segments[index].file_size);
+    put_le32(image, header + 20u, segments[index].memory_size);
+    put_le32(image, header + 24u, segments[index].flags);
+    put_le32(image, header + 28u, 1u);
+    if (segments[index].file_size != 0u) {
+      (void)memcpy(image + payload_offset, segments[index].contents,
+                   segments[index].file_size);
+    }
+    payload_offset += segments[index].file_size;
+  }
+  return image_size;
+}
+
+static int check_exec_target_case(
+    ctool_job_t *job, const char *path,
+    const exec_fixture_segment_t *segments, ctool_u32 segment_count,
+    ctool_u64 total, ctool_u64 outside_load, ctool_u64 non_executable,
+    ctool_u64 mid_instruction) {
+  ctool_u8 image[512];
+  ctool_u32 image_size = build_exec_fixture(
+      image, (ctool_u32)sizeof(image), segments, segment_count);
+  ctool_source_t source;
+  ctool_dis_request_t request;
+  ctool_dis_report_t report;
+  ctool_status_t status;
+  if (image_size == 0u) {
+    (void)fprintf(stderr, "%s: executable fixture could not be built\n", path);
+    return 0;
+  }
+  source.path.text = ctool_string(path);
+  source.contents = ctool_bytes(image, image_size);
+  (void)memset(&request, 0, sizeof(request));
+  request.input = CTOOL_DIS_INPUT_ELF32;
+  request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+  request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  return check_status(status, CTOOL_OK, path) &&
+                 report.elf32.file_type == CTOOL_ELF32_ET_EXEC &&
+                 target_summary_matches(&report.decode_summary, total,
+                                        outside_load, 0u, non_executable, 0u,
+                                        mid_instruction, path)
+             ? 1
+             : 0;
+}
+
 static int run_exec(void) {
+  static const ctool_u8 valid_first[] = {
+      0xebu, 0x01u, 0x90u, 0xc3u, 0xe9u,
+      0xf7u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 valid_second[] = {0xc3u};
+  static const exec_fixture_segment_t valid_segments[] = {
+      {0x00400000u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X,
+       valid_first, (ctool_u32)sizeof(valid_first),
+       (ctool_u32)sizeof(valid_first)},
+      {0x00400100u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X,
+       valid_second, (ctool_u32)sizeof(valid_second),
+       (ctool_u32)sizeof(valid_second)}};
+  static const ctool_u8 outside_code[] = {
+      0xe9u, 0xfbu, 0x02u, 0x00u, 0x00u, 0xc3u};
+  static const exec_fixture_segment_t outside_segments[] = {
+      {0x00400000u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X,
+       outside_code, (ctool_u32)sizeof(outside_code),
+       (ctool_u32)sizeof(outside_code)}};
+  static const ctool_u8 data_target_code[] = {
+      0xe9u, 0xfbu, 0x01u, 0x00u, 0x00u, 0xc3u};
+  static const ctool_u8 loaded_data[] = {0u};
+  static const exec_fixture_segment_t data_target_segments[] = {
+      {0x00400000u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X,
+       data_target_code, (ctool_u32)sizeof(data_target_code),
+       (ctool_u32)sizeof(data_target_code)},
+      {0x00400200u, CTOOL_ELF32_PF_R, loaded_data,
+       (ctool_u32)sizeof(loaded_data), (ctool_u32)sizeof(loaded_data)}};
+  static const ctool_u8 executable_bss_target_code[] = {
+      0xe9u, 0xfbu, 0x00u, 0x00u, 0x00u, 0xc3u};
+  static const exec_fixture_segment_t executable_bss_target_segments[] = {
+      {0x00400000u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X,
+       executable_bss_target_code,
+       (ctool_u32)sizeof(executable_bss_target_code), 0x101u}};
+  static const ctool_u8 middle_code[] = {0xebu, 0xffu, 0xc3u};
+  static const exec_fixture_segment_t middle_segments[] = {
+      {0x00400000u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X,
+       middle_code, (ctool_u32)sizeof(middle_code),
+       (ctool_u32)sizeof(middle_code)}};
+  static const ctool_u8 far_indirect_code[] = {
+      0xeau, 0x00u, 0x01u, 0x40u, 0x00u, 0x08u, 0x00u,
+      0xffu, 0xd0u, 0xc3u};
+  static const exec_fixture_segment_t far_indirect_segments[] = {
+      {0x00400000u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X,
+       far_indirect_code, (ctool_u32)sizeof(far_indirect_code),
+       (ctool_u32)sizeof(far_indirect_code)}};
+  static const ctool_u8 overlap_first[] = {0x90u, 0xc3u};
+  static const ctool_u8 overlap_second[] = {0xc3u};
+  static const exec_fixture_segment_t overlap_segments[] = {
+      {0x00400000u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X,
+       overlap_first, (ctool_u32)sizeof(overlap_first),
+       (ctool_u32)sizeof(overlap_first)},
+      {0x00400001u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X,
+       overlap_second, (ctool_u32)sizeof(overlap_second),
+       (ctool_u32)sizeof(overlap_second)}};
+  static const ctool_u8 unsupported_program_code[] = {0xc3u};
+  static const ctool_u8 unsupported_program_data[] = {
+      '/', 'l', 'd', '.', 's', 'o', 0u};
+  static const exec_fixture_segment_t unsupported_program_segments[] = {
+      {0x00400000u, CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X,
+       unsupported_program_code,
+       (ctool_u32)sizeof(unsupported_program_code),
+       (ctool_u32)sizeof(unsupported_program_code)},
+      {0x00400100u, CTOOL_ELF32_PF_R, unsupported_program_data,
+       (ctool_u32)sizeof(unsupported_program_data),
+       (ctool_u32)sizeof(unsupported_program_data)}};
   ctool_u8 image[122];
   ctool_host_adapter_t adapter;
   ctool_job_t *job;
@@ -2310,14 +2487,21 @@ static int run_exec(void) {
   request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
   (void)memset(&report, 0xa5, sizeof(report));
   status = ctool_dis_inspect(job, &source, &request, &report);
-  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+  if (!check_status(status, CTOOL_OK,
                     "executable local target policy") ||
-      !is_zeroed(&report, sizeof(report)) ||
-      ctool_job_diagnostic_count(job) != 1u ||
-      !check_diagnostic(
-          job, 0u, CTOOL_DIS_DIAG_INVALID_REQUEST,
-          "local target checks require static relocatable ELF32 input",
-          "executable local target diagnostic")) {
+      report.elf32.file_type != CTOOL_ELF32_ET_EXEC ||
+      !target_summary_matches(&report.decode_summary, 0u, 0u, 0u, 0u, 0u,
+                              0u, "executable local target policy") ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    ctool_job_close(job);
+    return 1;
+  }
+  (void)memset(&capture, 0, sizeof(capture));
+  status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                            capture_sink(&capture));
+  if (!check_status(status, CTOOL_OK,
+                    "executable local target report validation") ||
+      capture.size == 0u) {
     ctool_job_close(job);
     return 1;
   }
@@ -2346,7 +2530,108 @@ static int run_exec(void) {
     ctool_job_close(job);
     return 1;
   }
+  if (!check_exec_target_case(
+          job, "/valid-exec-target.elf", valid_segments,
+          (ctool_u32)(sizeof(valid_segments) / sizeof(valid_segments[0])),
+          2u, 0u, 0u, 0u) ||
+      !check_exec_target_case(
+          job, "/outside-exec-target.elf", outside_segments,
+          (ctool_u32)(sizeof(outside_segments) /
+                      sizeof(outside_segments[0])),
+          1u, 1u, 0u, 0u) ||
+      !check_exec_target_case(
+          job, "/data-exec-target.elf", data_target_segments,
+          (ctool_u32)(sizeof(data_target_segments) /
+                      sizeof(data_target_segments[0])),
+          1u, 0u, 1u, 0u) ||
+      !check_exec_target_case(
+          job, "/executable-bss-target.elf", executable_bss_target_segments,
+          (ctool_u32)(sizeof(executable_bss_target_segments) /
+                      sizeof(executable_bss_target_segments[0])),
+          1u, 0u, 1u, 0u) ||
+      !check_exec_target_case(
+          job, "/middle-exec-target.elf", middle_segments,
+          (ctool_u32)(sizeof(middle_segments) /
+                      sizeof(middle_segments[0])),
+          1u, 0u, 0u, 1u) ||
+      !check_exec_target_case(
+          job, "/far-indirect-exec-target.elf", far_indirect_segments,
+          (ctool_u32)(sizeof(far_indirect_segments) /
+                      sizeof(far_indirect_segments[0])),
+          0u, 0u, 0u, 0u)) {
+    ctool_job_close(job);
+    return 1;
+  }
+  {
+    ctool_u8 overlap_image[256];
+    ctool_u32 overlap_size = build_exec_fixture(
+        overlap_image, (ctool_u32)sizeof(overlap_image), overlap_segments,
+        (ctool_u32)(sizeof(overlap_segments) / sizeof(overlap_segments[0])));
+    source.path.text = ctool_string("/overlapping-exec-target.elf");
+    source.contents = ctool_bytes(overlap_image, overlap_size);
+    request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    (void)memset(&report, 0xa5, sizeof(report));
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "overlapping executable local target regions") ||
+        !is_zeroed(&report, sizeof(report)) || overlap_size == 0u ||
+        ctool_job_diagnostic_count(job) != 1u ||
+        !check_diagnostic(
+            job, 0u, CTOOL_DIS_DIAG_INVALID_REQUEST,
+            "executable local target checks require non-overlapping "
+            "executable load regions",
+            "overlapping executable local target diagnostic")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  {
+    static const ctool_u32 unsupported_types[] = {
+        CTOOL_ELF32_PT_DYNAMIC, CTOOL_ELF32_PT_INTERP};
+    ctool_u32 unsupported_index;
+    for (unsupported_index = 0u;
+         unsupported_index <
+         (ctool_u32)(sizeof(unsupported_types) /
+                     sizeof(unsupported_types[0]));
+         unsupported_index++) {
+      ctool_u8 unsupported_image[256];
+      ctool_u32 unsupported_size = build_exec_fixture(
+          unsupported_image, (ctool_u32)sizeof(unsupported_image),
+          unsupported_program_segments,
+          (ctool_u32)(sizeof(unsupported_program_segments) /
+                      sizeof(unsupported_program_segments[0])));
+      put_le32(unsupported_image, 84u,
+               unsupported_types[unsupported_index]);
+      source.path.text = ctool_string(
+          unsupported_types[unsupported_index] == CTOOL_ELF32_PT_DYNAMIC
+              ? "/dynamic-exec-target.elf"
+              : "/interpreter-exec-target.elf");
+      source.contents = ctool_bytes(unsupported_image, unsupported_size);
+      request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+      request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+      (void)memset(&report, 0xa5, sizeof(report));
+      status = ctool_dis_inspect(job, &source, &request, &report);
+      if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                        "dynamic executable local target policy") ||
+          unsupported_size == 0u ||
+          !is_zeroed(&report, sizeof(report)) ||
+          ctool_job_diagnostic_count(job) != unsupported_index + 2u ||
+          !check_diagnostic(
+              job, unsupported_index + 1u,
+              CTOOL_DIS_DIAG_INVALID_REQUEST,
+              "executable local target checks require a static image "
+              "without PT_DYNAMIC or PT_INTERP",
+              "dynamic executable local target diagnostic")) {
+        ctool_job_close(job);
+        return 1;
+      }
+    }
+  }
+  source.path.text = ctool_string("/program.elf");
+  source.contents = ctool_bytes(image, (ctool_u32)sizeof(image));
   request.views = CTOOL_DIS_VIEW_SYMBOLS;
+  request.policies = 0u;
   (void)memset(&capture, 0, sizeof(capture));
   status = ctool_dis_inspect(job, &source, &request, &report);
   if (status == CTOOL_OK) {
@@ -2360,6 +2645,67 @@ static int run_exec(void) {
     return 1;
   }
   ctool_job_close(job);
+  {
+    ctool_u8 large_code[8192];
+    ctool_u8 large_image[8276];
+    exec_fixture_segment_t large_segment;
+    ctool_u32 large_image_size;
+    ctool_host_adapter_t limited_adapter;
+    ctool_job_config_t config;
+    ctool_limits_t limits = ctool_default_limits();
+    ctool_source_t limited_source;
+    ctool_dis_request_t limited_request;
+    ctool_dis_report_t limited_report;
+    ctool_status_t limited_status =
+        ctool_host_adapter_init(&limited_adapter, ".");
+    (void)memset(large_code, 0x90, sizeof(large_code));
+    large_segment.address = 0x00400000u;
+    large_segment.flags = CTOOL_ELF32_PF_R | CTOOL_ELF32_PF_X;
+    large_segment.contents = large_code;
+    large_segment.file_size = (ctool_u32)sizeof(large_code);
+    large_segment.memory_size = (ctool_u32)sizeof(large_code);
+    large_image_size = build_exec_fixture(
+        large_image, (ctool_u32)sizeof(large_image), &large_segment, 1u);
+    job = (ctool_job_t *)0;
+    limits.arena_block_bytes = 512u;
+    limits.arena_bytes = 1023u;
+    config = ctool_host_job_config(&limited_adapter, limits);
+    if (limited_status == CTOOL_OK) {
+      limited_status = ctool_job_open(&config, &job);
+    }
+    if (!check_status(limited_status, CTOOL_OK,
+                      "limited executable local target job") ||
+        large_image_size == 0u) {
+      return 1;
+    }
+    limited_source.path.text = ctool_string("/local-target-limit.elf");
+    limited_source.contents = ctool_bytes(large_image, large_image_size);
+    (void)memset(&limited_request, 0, sizeof(limited_request));
+    limited_request.input = CTOOL_DIS_INPUT_ELF32;
+    limited_request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+    limited_request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    (void)memset(&limited_report, 0xa5, sizeof(limited_report));
+    limited_status = ctool_dis_inspect(
+        job, &limited_source, &limited_request, &limited_report);
+    if (!check_status(limited_status, CTOOL_ERR_LIMIT,
+                      "executable local target instruction map limit") ||
+        !is_zeroed(&limited_report, sizeof(limited_report)) ||
+        ctool_job_diagnostic_count(job) != 0u) {
+      ctool_job_close(job);
+      return 1;
+    }
+    limited_request.policies = 0u;
+    limited_status = ctool_dis_inspect(
+        job, &limited_source, &limited_request, &limited_report);
+    if (!check_status(limited_status, CTOOL_OK,
+                      "executable local target allocation recovery") ||
+        limited_report.decode_summary.known_count != 8192u ||
+        limited_report.decode_summary.direct_relative_target_count != 0u) {
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_job_close(job);
+  }
   (void)puts("exec: ok");
   return 0;
 }

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import stat
@@ -53,7 +54,7 @@ except ModuleNotFoundError:
 
 
 REPORT_SCHEMA = "cupid.artifact-size-verification.v1"
-REQUEST_MAGIC = b"CUPSIZE1"
+REQUEST_MAGIC = b"CUPSIZE2"
 REGULAR_FILE = 1
 LINUX_ENTRY = 0x08048000
 WINDOWS_ENTRY = int(EXPECTED_WINDOWS_TARGET["entry"])
@@ -110,14 +111,34 @@ def _encode_request(
     policy_bytes: bytes,
     manifest_logical: str,
     manifest_bytes: bytes,
+    manifest_digest: str,
+    windows_manifest_logical: str,
+    windows_manifest_bytes: bytes,
+    windows_observations: Sequence[tuple[str, int, int, str]],
     observations: Sequence[tuple[str, int, int]],
 ) -> bytes:
+    if len(windows_observations) > 0xFFFFFFFF:
+        raise ArtifactSizeContractError(
+            "Windows seed observation count is too large"
+        )
     if len(observations) > 0xFFFFFFFF:
         raise ArtifactSizeContractError("contract observation count is too large")
     output = bytearray(REQUEST_MAGIC)
     output.extend(_pack_bytes(policy_bytes))
     output.extend(_pack_bytes(manifest_logical.encode("utf-8")))
     output.extend(_pack_bytes(manifest_bytes))
+    output.extend(_pack_bytes(manifest_digest.encode("ascii")))
+    output.extend(_pack_bytes(windows_manifest_logical.encode("utf-8")))
+    output.extend(_pack_bytes(windows_manifest_bytes))
+    output.extend(struct.pack("<I", len(windows_observations)))
+    for logical, kind, size, digest in windows_observations:
+        if kind < 0 or kind > 0xFFFFFFFF or size < 0 or size > 0xFFFFFFFFFFFFFFFF:
+            raise ArtifactSizeContractError(
+                "Windows seed observation is out of range"
+            )
+        output.extend(_pack_bytes(logical.encode("utf-8")))
+        output.extend(struct.pack("<IQ", kind, size))
+        output.extend(_pack_bytes(digest.encode("ascii")))
     output.extend(struct.pack("<I", len(observations)))
     for logical, kind, size in observations:
         if kind < 0 or kind > 0xFFFFFFFF or size < 0 or size > 0xFFFFFFFFFFFFFFFF:
@@ -186,6 +207,7 @@ def _capture_verification_request(
     reader: artifact_size_policy._PinnedRepository,
     logical_policy: str,
     logical_manifest: str,
+    checked_seed: Sequence[tuple[str, bytes]],
 ) -> tuple[bytes, dict[str, object]]:
     policy_bytes = artifact_size_policy._required_capture(
         reader, logical_policy, "policy file"
@@ -226,10 +248,35 @@ def _capture_verification_request(
         raise artifact_size_policy.SizePolicyError(
             "\n- " + "\n- ".join(failures)
         )
+    expected_windows_paths = (
+        WINDOWS_CHECKED_MANIFEST,
+        *tuple(
+            f"bootstrap/seeds/i386-windows/{name}"
+            for name in WINDOWS_CHECKED_FILES
+        ),
+    )
+    if tuple(logical for logical, _payload in checked_seed) != expected_windows_paths:
+        raise ArtifactSizeContractError(
+            "checked Windows seed capture inventory differs"
+        )
+    windows_manifest_logical, windows_manifest_bytes = checked_seed[0]
+    windows_observations = tuple(
+        (
+            logical,
+            REGULAR_FILE,
+            len(payload),
+            hashlib.sha256(payload).hexdigest(),
+        )
+        for logical, payload in checked_seed[1:]
+    )
     request = _encode_request(
         policy_bytes,
         logical_manifest,
         manifest_bytes,
+        hashlib.sha256(manifest_bytes).hexdigest(),
+        windows_manifest_logical,
+        windows_manifest_bytes,
+        windows_observations,
         observations,
     )
     return request, _expected_report(entries)
@@ -720,11 +767,11 @@ def verify_with_contract(
                 raise ArtifactSizeContractError(
                     "repository root changed before it could be pinned"
                 )
-            request, oracle_report = _capture_verification_request(
-                reader, logical_policy, logical_manifest
-            )
             checked_seed = _capture_checked_seed(
                 reader, logical_checked_manifest
+            )
+            request, oracle_report = _capture_verification_request(
+                reader, logical_policy, logical_manifest, checked_seed
             )
             build_inputs = _capture_build_inputs(reader)
             execution_seed = _select_execution_seed(

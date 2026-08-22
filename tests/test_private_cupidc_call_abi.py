@@ -433,15 +433,20 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                         checkpoint.sym_committed = cc->sym_count;
                         cc_repl_checkpoint_structs(&checkpoint);
                         checkpoint.typedef_committed = cc->typedef_count;
+                        checkpoint.raw_function_pointer_signature_committed =
+                            cc->raw_function_pointer_signature_count;
                         checkpoint.patch_committed = cc->patch_count;
                       } else if (repl_rollback_mode && unit_index == 1) {
-                        if (!cc->error)
+                        if (!cc->error &&
+                            cc->patch_count <= checkpoint.patch_committed)
                           return 73;
                         cc->code_pos = checkpoint.code_committed;
                         cc->data_pos = checkpoint.data_committed;
                         cc->sym_count = checkpoint.sym_committed;
                         cc_repl_restore_structs(&checkpoint);
                         cc->typedef_count = checkpoint.typedef_committed;
+                        cc->raw_function_pointer_signature_count =
+                            checkpoint.raw_function_pointer_signature_committed;
                         cc->patch_count = checkpoint.patch_committed;
                         cc->has_entry = 0;
                         cc->entry_offset = 0;
@@ -1651,6 +1656,513 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 result = self._compile_and_run(source, aot=aot)
                 self.assertEqual(
                     result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_raw_global_callbacks_match_active_spelling_in_jit_and_aot(self):
+        panic_source = (
+            REPO_ROOT / "kernel" / "core" / "panic.cc"
+        ).read_text(encoding="utf-8")
+        panic_header = (
+            REPO_ROOT / "kernel" / "core" / "panic.h"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "static void (*panic_print)(const char*) = print;",
+            panic_source,
+        )
+        self.assertIn(
+            "void panic_set_output(void (*print_fn)(const char*), "
+            "void (*putchar_fn)(char));",
+            panic_header,
+        )
+
+        source = """
+            int ready_target(double value, int marker) {
+              return (int)(value * 10.0) + marker;
+            }
+
+            int observed_character;
+            void observe(const char *text) {
+              observed_character = *text;
+            }
+
+            static int (*empty_callback)(double, int) = 0;
+            static int (*ready_callback)(double, int) = ready_target;
+            static int (*later_callback)(double, int) = later_target;
+            static void (*panic_style_output)(const char*) = observe;
+
+            int later_target(double value, int marker) {
+              return (int)(value * 10.0) + marker;
+            }
+
+            int main() {
+              int result;
+              if (empty_callback != 0) return 1;
+              empty_callback = ready_target;
+              result = empty_callback(3, 4.75f);
+              empty_callback = 0;
+              if (empty_callback != 0) return 2;
+              panic_style_output("A");
+              if (observed_character != 65) return 3;
+              result += ready_callback(2, 5.5f);
+              result += later_callback(1, 6.25f);
+              return result;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    75,
+                    result.stdout + result.stderr,
+                )
+
+    def test_raw_callback_parameter_keeps_mixed_width_slots_in_jit_and_aot(self):
+        source = """
+            int inspect(const uint8_t *entry, double scale, int marker) {
+              if (entry == 0 || *entry != 7) return 1;
+              return (int)(scale * 10.0) + marker;
+            }
+
+            int invoke(int (*callback)(const uint8_t *, double, int),
+                       const uint8_t *entry) {
+              return callback(entry, 4, 5.75f);
+            }
+
+            int main() {
+              uint8_t entry = 7;
+              return invoke(inspect, &entry);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    45,
+                    result.stdout + result.stderr,
+                )
+
+    def test_raw_callback_parameter_keeps_variadic_promotions_in_jit_and_aot(self):
+        source = """
+            int inspect(double fixed, ...) {
+              return (int)fixed;
+            }
+
+            int invoke(int (*callback)(double, ...)) {
+              return callback(6, 2.5f);
+            }
+
+            int main() {
+              return invoke(inspect);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    6,
+                    result.stdout + result.stderr,
+                )
+
+    def test_raw_callback_parameter_keeps_record_identity_in_jit_and_aot(self):
+        source = """
+            struct Entry { int value; };
+
+            int inspect(struct Entry *entry) {
+              return entry->value;
+            }
+
+            int invoke(int (*callback)(struct Entry *),
+                       struct Entry *entry) {
+              return callback(entry);
+            }
+
+            int main() {
+              struct Entry entry;
+              entry.value = 13;
+              return invoke(inspect, &entry);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    13,
+                    result.stdout + result.stderr,
+                )
+
+    def test_raw_callback_parameter_prototype_matches_definition(self):
+        source = """
+            int invoke(int (*callback)(double, int));
+
+            int target(double value, int marker) {
+              return (int)(value * 10.0) + marker;
+            }
+
+            int invoke(int (*callback)(double, int)) {
+              return callback(3, 4.75f);
+            }
+
+            int main() {
+              return invoke(target);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    34,
+                    result.stdout + result.stderr,
+                )
+
+    def test_raw_callback_parameter_prototype_mismatch_recovers_same_state(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-raw-callback-prototype-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                int invoke(int (*callback)(int));
+                int invoke(int (*callback)(double)) {
+                  return callback(9);
+                }
+                int main() { return 0; }
+                """,
+                """
+                int identity(int value) { return value; }
+                int invoke(int (*callback)(int));
+                int invoke(int (*callback)(int)) {
+                  return callback(9);
+                }
+                int main() { return invoke(identity); }
+                """,
+                same_state=True,
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            self.assertIn(
+                "function declaration does not match prior declaration",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                9,
+                runtime.stdout + runtime.stderr,
+            )
+    def test_raw_callback_parameter_mismatches_recover_same_state(self):
+        cases = (
+            (
+                "result",
+                """
+                double wrong(int value) { return value; }
+                int invoke(int (*callback)(int)) { return 0; }
+                int main() { return invoke(wrong); }
+                """,
+                "function-pointer argument result does not match parameter type",
+            ),
+            (
+                "parameters",
+                """
+                int wrong(int value) { return value; }
+                int invoke(int (*callback)(double)) { return 0; }
+                int main() { return invoke(wrong); }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "record identity",
+                """
+                struct One { int value; };
+                struct Two { int value; };
+                int wrong(struct Two *value) { return value->value; }
+                int invoke(int (*callback)(struct One *)) { return 0; }
+                int main() { return invoke(wrong); }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "variadic boundary",
+                """
+                int wrong(double fixed) { return (int)fixed; }
+                int invoke(int (*callback)(double, ...)) { return 0; }
+                int main() { return invoke(wrong); }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "too few arguments",
+                """
+                int invoke(int (*callback)(int, int)) {
+                  return callback(1);
+                }
+                int main() { return 0; }
+                """,
+                "function-pointer call has too few arguments",
+            ),
+            (
+                "too many arguments",
+                """
+                int invoke(int (*callback)(int)) {
+                  return callback(1, 2);
+                }
+                int main() { return 0; }
+                """,
+                "function-pointer call has too many arguments",
+            ),
+        )
+        retry_source = """
+            int add(int left, int right) { return left + right; }
+            int invoke(int (*callback)(int, int)) {
+              return callback(4, 5);
+            }
+            int main() { return invoke(add); }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-raw-callback-parameter-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode,
+                    9,
+                    runtime.stdout + runtime.stderr,
+                )
+
+    def test_raw_callback_signature_capacity_recovers_same_state(self):
+        declarations = []
+        for arity in range(33):
+            parameters = "void" if arity == 0 else ", ".join(
+                "int" for _ in range(arity)
+            )
+            declarations.append(
+                f"int hold{arity}(int (*callback)({parameters})) {{ "
+                "return callback != 0; }"
+            )
+        failing_source = "\n".join(declarations) + "\nint main() { return 0; }"
+        retry_source = """
+            int identity(int value) { return value; }
+            int invoke(int (*callback)(int)) { return callback(9); }
+            int main() { return invoke(identity); }
+        """
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-raw-callback-capacity-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                failing_source,
+                retry_source,
+                same_state=True,
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            self.assertIn(
+                "too many raw function-pointer signatures",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                9,
+                runtime.stdout + runtime.stderr,
+            )
+
+    def test_repl_rolls_back_a_failed_raw_callback_signature(self):
+        capacity_declarations = []
+        for arity in range(32):
+            parameters = "void" if arity == 0 else ", ".join(
+                "int" for _ in range(arity)
+            )
+            capacity_declarations.append(
+                f"int hold{arity}(int (*callback)({parameters})) {{ "
+                "return callback != 0; }"
+            )
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-raw-callback-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code_path, _data_path = (
+                self._compile_repl_after_struct_failure(
+                    root,
+                    (
+                        "int baseline;",
+                        "int poisoned(int (*callback)(double)) { "
+                        "return missing_value; }",
+                        "\n".join(capacity_declarations),
+                        "int identity(int value) { return value; } "
+                        "int invoke(int (*callback)(int)) { "
+                        "return callback(9); } "
+                        "int main() { return invoke(identity); }",
+                    ),
+                )
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                9,
+                runtime.stdout + runtime.stderr,
+            )
+            runtime_source = (KERNEL_LANG / "cupidc.cc").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                "repl_state.cc->raw_function_pointer_signature_count =",
+                runtime_source,
+            )
+            self.assertIn(
+                "repl_state.raw_function_pointer_signature_committed",
+                runtime_source,
+            )
+
+    def test_repl_rolls_back_raw_signature_after_unresolved_patch(self):
+        capacity_declarations = []
+        for arity in range(32):
+            parameters = "void" if arity == 0 else ", ".join(
+                "int" for _ in range(arity)
+            )
+            capacity_declarations.append(
+                f"int hold{arity}(int (*callback)({parameters})) {{ "
+                "return callback != 0; }"
+            )
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-raw-callback-patch-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code_path, _data_path = (
+                self._compile_repl_after_struct_failure(
+                    root,
+                    (
+                        "int missing(void);",
+                        "{ int (*poisoned)(double) = 0; missing(); }",
+                        "\n".join(capacity_declarations),
+                        "int identity(int value) { return value; } "
+                        "int invoke(int (*callback)(int)) { "
+                        "return callback(9); } "
+                        "int main() { return invoke(identity); }",
+                    ),
+                )
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                9,
+                runtime.stdout + runtime.stderr,
+            )
+
+    def test_repl_keeps_raw_callback_globals_for_later_units(self):
+        result = self._compile_repl_and_run(
+            (
+                """
+                int ready_target(double value, int marker) {
+                  return (int)(value * 10.0) + marker;
+                }
+                """,
+                "static int (*empty_callback)(double, int) = 0;",
+                "static int (*ready_callback)(double, int) = ready_target;",
+                "int later_target(double value, int marker);",
+                "static int (*later_callback)(double, int) = later_target;",
+                """
+                int later_target(double value, int marker) {
+                  return (int)(value * 10.0) + marker;
+                }
+                """,
+                """
+                int main() {
+                  int result;
+                  if (empty_callback != 0) return 1;
+                  empty_callback = ready_target;
+                  result = empty_callback(3, 4.75f);
+                  empty_callback = 0;
+                  if (empty_callback != 0) return 2;
+                  result += ready_callback(2, 5.5f);
+                  result += later_callback(1, 6.25f);
+                  return result;
+                }
+                """,
+            )
+        )
+        self.assertEqual(result.returncode, 75, result.stdout + result.stderr)
+
+    def test_raw_global_callback_mismatches_recover_same_state(self):
+        cases = (
+            (
+                "result",
+                """
+                double wrong(int value) { return value; }
+                static int (*callback)(int) = wrong;
+                int main() { return callback(1); }
+                """,
+                "function-pointer initializer result does not match declaration",
+            ),
+            (
+                "parameters",
+                """
+                int wrong(int value) { return value; }
+                static int (*callback)(double) = wrong;
+                int main() { return callback(1); }
+                """,
+                "function-pointer initializer parameters do not match declaration",
+            ),
+        )
+        retry_source = """
+            int right(double value) { return (int)value; }
+            static int (*callback)(double) = right;
+            int main() { return callback(9); }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-raw-callback-global-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode,
+                    9,
+                    runtime.stdout + runtime.stderr,
                 )
 
     def test_named_function_pointer_record_pointer_result_keeps_identity(self):

@@ -262,8 +262,8 @@ decode passes. An unrelocated direct relative target must stay inside that
 section and land on an instruction start there. A relocation at the operand
 field leaves the destination for link time, while the existing executable
 relocation rule still checks its field. Failures distinguish a target outside
-the section from one in the middle of an instruction. Linked `ET_EXEC` input is
-rejected for this option.
+the section from one in the middle of an instruction. Checked-seed `ET_EXEC`
+still receives the focused rejection.
 
 The active ISR and context-switch objects pass the checked-seed policy. Eleven
 ISR call relocations are excluded from the local count. A one-byte change to a
@@ -271,6 +271,21 @@ context-switch branch produces one mid-instruction failure. Both promoted
 seeds carry this form, and production object publication selects it before
 replacing the prior object. ADR 0309 records the source boundary, and ADR 0312
 records carriage and adoption.
+
+Source-head CupidDis also accepts the option for linked i386 ELF32 input. It
+scans nonoverlapping file-backed executable load regions twice. A direct target
+may cross regions, but it must land on an instruction start. The report
+separates targets outside loaded memory, in loaded memory without file-backed
+executable code, and inside an instruction. A `PT_DYNAMIC` or `PT_INTERP`
+header rejects the image as outside the static certification domain. No
+production linked-image transaction selects this form, and the checked seeds
+do not carry it. ADR 0314 records the source boundary.
+
+The generated active-source audit and its check both pass. The Linux audit
+records 20 failure groups, five help groups, and 21 success groups. The Windows
+audit records eight failure groups, five help groups, and seven success groups.
+This linked-image proof remains a source-head capability. Checked-seed
+promotion and production adoption remain pending.
 
 ### Requiring complete code coverage
 

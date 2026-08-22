@@ -372,7 +372,13 @@ assignment, indirect call, and clearing. A defined function address is written
 into initialized data, while a later definition receives an absolute data
 patch. JIT and private AOT calls use the retained signatures. Empty (), fields,
 block-static objects, callback arrays, bare nested callback signatures, alias
-chains, and void-pointer forms remain signature-erased. Feature 13
+chains, raw method parameters, and void-pointer forms remain signature-erased.
+A named raw callback file object and direct free-function parameter retain the
+parsed signature without a typedef. The file object uses the same data write or
+patch, and the parameter uses the same cdecl slot and arity checks. The private
+pool accepts 32 distinct raw signatures and recovers after rejecting the next
+one. The private callback ABI module passes all 268 tests in 51.685 seconds.
+ADR 0315 records this boundary. Feature 13
 retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
 nested pass-by-value vector
 calls and named SIMD callback forms. ADR 0301 records the earlier named-local
@@ -537,8 +543,13 @@ Useful commands:
 >tree open Current Bootstrap Boundary
 Normal `all` uses poisoned-host Cupid tooling. Its exact artifact-size policy
 covers fourteen paths: four OS artifacts, five Linux seed images, and five
-Windows seed images. Both seed manifests must verify before the policy contract
-runs. The complete gate and its 45-test policy group pass.
+Windows seed images. CUPSIZE2 gives the CupidC-built policy contract the
+Windows manifest, Linux parent digest, and five regular-file size and digest
+observations. The contract validates the Windows target, provenance, exact
+inventory, and observed bytes. The focused semantic-contract, checked-runner,
+and independent-policy modules contain 22, 16, and 13 tests, for 51 total.
+They pass with four existing platform-specific skips. No complete Make result
+is recorded for this source increment.
 
 The promoted Linux and Windows cohorts are complete five-tool trust units.
 Their CupidDis images carry the raw local-target validation used by the guarded

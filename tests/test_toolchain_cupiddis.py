@@ -17,6 +17,51 @@ from hostbuild import _symbols_from_nm
 import bootstrap_baseline
 
 
+def elf32_executable(segments):
+    header_size = 52
+    program_header_size = 32
+    payload_offset = header_size + program_header_size * len(segments)
+    image = bytearray(payload_offset + sum(len(data) for _, _, data, _ in segments))
+    image[:7] = b"\x7fELF\x01\x01\x01"
+    entry = segments[0][0] if segments else 0
+    struct.pack_into(
+        "<HHIIIIIHHHHHH",
+        image,
+        16,
+        2,
+        3,
+        1,
+        entry,
+        header_size,
+        0,
+        0,
+        header_size,
+        program_header_size,
+        len(segments),
+        0,
+        0,
+        0,
+    )
+    cursor = payload_offset
+    for index, (address, flags, data, memory_size) in enumerate(segments):
+        struct.pack_into(
+            "<IIIIIIII",
+            image,
+            header_size + index * program_header_size,
+            1,
+            cursor,
+            address,
+            address,
+            len(data),
+            memory_size,
+            flags,
+            1,
+        )
+        image[cursor : cursor + len(data)] = data
+        cursor += len(data)
+    return bytes(image)
+
+
 def configured_symbol_reader_command():
     configured = bootstrap_baseline.optional_oracle_commands()[
         "symbol_reader"
@@ -331,6 +376,94 @@ class CupidDisContractTests(unittest.TestCase):
                          0x00400000, 6, 6, 5, 4)
         executable[84:] = bytes([0xB8, 0x78, 0x56, 0x34, 0x12, 0xC3])
         cls.exec_path.write_bytes(executable)
+        exec_target_fixtures = (
+            (
+                "valid_exec_target_path",
+                "valid-exec-target.elf",
+                (
+                    (
+                        0x00400000,
+                        5,
+                        bytes.fromhex("eb 01 90 c3 e9 f7 00 00 00"),
+                        9,
+                    ),
+                    (0x00400100, 5, bytes.fromhex("c3"), 1),
+                ),
+            ),
+            (
+                "outside_exec_target_path",
+                "outside-exec-target.elf",
+                ((0x00400000, 5, bytes.fromhex("e9 fb 02 00 00 c3"), 6),),
+            ),
+            (
+                "data_exec_target_path",
+                "data-exec-target.elf",
+                (
+                    (0x00400000, 5, bytes.fromhex("e9 fb 01 00 00 c3"), 6),
+                    (0x00400200, 4, bytes.fromhex("00"), 1),
+                ),
+            ),
+            (
+                "executable_bss_exec_target_path",
+                "executable-bss-exec-target.elf",
+                (
+                    (
+                        0x00400000,
+                        5,
+                        bytes.fromhex("e9 fb 00 00 00 c3"),
+                        0x101,
+                    ),
+                ),
+            ),
+            (
+                "middle_exec_target_path",
+                "middle-exec-target.elf",
+                ((0x00400000, 5, bytes.fromhex("eb ff c3"), 3),),
+            ),
+            (
+                "far_indirect_exec_target_path",
+                "far-indirect-exec-target.elf",
+                (
+                    (
+                        0x00400000,
+                        5,
+                        bytes.fromhex(
+                            "ea 00 01 40 00 08 00 ff d0 c3"
+                        ),
+                        10,
+                    ),
+                ),
+            ),
+            (
+                "overlapping_exec_target_path",
+                "overlapping-exec-target.elf",
+                (
+                    (0x00400000, 5, bytes.fromhex("90 c3"), 2),
+                    (0x00400001, 5, bytes.fromhex("c3"), 1),
+                ),
+            ),
+        )
+        for attribute, name, segments in exec_target_fixtures:
+            fixture_path = Path(cls._fixture_directory.name) / name
+            fixture_path.write_bytes(elf32_executable(segments))
+            setattr(cls, attribute, fixture_path)
+        unsupported_exec_programs = (
+            ("dynamic_exec_target_path", "dynamic-exec-target.elf", 2),
+            ("interpreter_exec_target_path", "interpreter-exec-target.elf", 3),
+        )
+        for attribute, name, program_type in unsupported_exec_programs:
+            executable = bytearray(
+                elf32_executable(
+                    (
+                        (0x00400000, 5, bytes.fromhex("c3"), 1),
+                        (0x00400100, 4, b"/ld.so\0", 7),
+                    )
+                )
+            )
+            struct.pack_into("<I", executable, 84, program_type)
+            fixture_path = Path(cls._fixture_directory.name) / name
+            fixture_path.write_bytes(executable)
+            setattr(cls, attribute, fixture_path)
         cls.symbol_reader_command = configured_symbol_reader_command()
 
     @classmethod
@@ -567,7 +700,7 @@ class CupidDisContractTests(unittest.TestCase):
             "ctool_dis_inspect_indexed(job, decoder,", helper
         )
 
-    def test_cli_requires_local_relative_targets_on_raw_and_object_code(self):
+    def test_cli_requires_local_targets_on_raw_object_and_executable_code(self):
         def run(path, *options):
             return subprocess.run(
                 [
@@ -718,23 +851,118 @@ class CupidDisContractTests(unittest.TestCase):
                     result.stderr,
                 )
 
-        elf_policy = subprocess.run(
+        for path in (
+            self.valid_exec_target_path,
+            self.far_indirect_exec_target_path,
+        ):
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-local-targets",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+
+        exec_failures = (
+            (
+                self.outside_exec_target_path,
+                "1 outside loaded image, 0 in loaded bytes without "
+                "file-backed executable code, "
+                "0 mid-instruction",
+            ),
+            (
+                self.data_exec_target_path,
+                "0 outside loaded image, 1 in loaded bytes without "
+                "file-backed executable code, "
+                "0 mid-instruction",
+            ),
+            (
+                self.executable_bss_exec_target_path,
+                "0 outside loaded image, 1 in loaded bytes without "
+                "file-backed executable code, "
+                "0 mid-instruction",
+            ),
+            (
+                self.middle_exec_target_path,
+                "0 outside loaded image, 0 in loaded bytes without "
+                "file-backed executable code, "
+                "1 mid-instruction",
+            ),
+        )
+        for path, reason in exec_failures:
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-local-targets",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(
+                    f"{path}: local target check failed: "
+                    "1 of 1 direct relative targets invalid",
+                    result.stderr,
+                )
+                self.assertIn(reason, result.stderr)
+
+        overlap = subprocess.run(
             [
                 str(self.cli_path),
                 "--require-known",
                 "--require-local-targets",
-                str(self.exec_path),
+                str(self.overlapping_exec_target_path),
             ],
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,
         )
-        self.assertEqual(elf_policy.returncode, 1)
-        self.assertNotIn("usage: cupiddis", elf_policy.stderr)
+        self.assertEqual(overlap.returncode, 1)
+        self.assertEqual(overlap.stdout, "")
+        self.assertNotIn("usage: cupiddis", overlap.stderr)
         self.assertIn(
-            "local target checks require static relocatable ELF32 input",
-            elf_policy.stderr,
+            "executable local target checks require non-overlapping "
+            "executable load regions",
+            overlap.stderr,
         )
+
+        for path in (
+            self.dynamic_exec_target_path,
+            self.interpreter_exec_target_path,
+        ):
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-local-targets",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertNotIn("usage: cupiddis", result.stderr)
+                self.assertIn(
+                    "executable local target checks require a static image "
+                    "without PT_DYNAMIC or PT_INTERP",
+                    result.stderr,
+                )
 
     def test_cli_explicit_view_and_nm_modes_are_deterministic(self):
         sections = subprocess.run(

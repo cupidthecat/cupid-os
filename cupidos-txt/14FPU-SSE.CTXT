@@ -430,6 +430,10 @@ indirect call, and clearing. A defined function address is written into
 initialized data, while a later definition receives an absolute data patch.
 Fields, callback arrays, block-static objects, and alias chains still erase the
 signature.
+Named raw callback file objects and direct free-function parameters retain the
+same mixed-width slot metadata without a typedef. The private pool accepts 32
+distinct raw signatures and recovers after rejecting the next one. ADR 0315
+records this boundary.
 Named SIMD intrinsics keep their inline lowering. A plain function initializer
 must match the retained
 signature; an explicit cast opts into erasure. Local callback copies share the

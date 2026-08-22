@@ -5516,8 +5516,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 5)
-        self.assertEqual(contract["success_behavior_cases"], 20)
-        self.assertEqual(contract["failure_behavior_cases"], 19)
+        self.assertEqual(contract["success_behavior_cases"], 21)
+        self.assertEqual(contract["failure_behavior_cases"], 20)
+        self.assertEqual(contract["windows_help_cases"], 5)
+        self.assertEqual(contract["windows_success_behavior_cases"], 7)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 8)
         self.assertEqual(contract["contract_manifest_inputs"], 70)
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 70
@@ -6016,15 +6019,65 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 21,\n',
                 '        "success_cases": 20,\n',
-                '        "success_cases": 19,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 20,\n',
                 '        "failure_cases": 19,\n',
-                '        "failure_cases": 18,\n',
                 r"fixed-point behavior matrix differs",
+            ),
+            "native Windows linked-target count becomes stale": (
+                "bootstrap",
+                '        "failure_cases": len(TOOL_NAMES) + 3,\n',
+                '        "failure_cases": len(TOOL_NAMES) + 2,\n',
+                r"native Windows fixed-point behavior differs",
+            ),
+            "linked-target behavior helper disappears": (
+                "bootstrap",
+                "def _check_executable_local_target_behavior(\n",
+                "def _removed_executable_local_target_behavior(\n",
+                r"local-target behavior helpers differ",
+            ),
+            "Linux linked-target behavior moves under a dead block": (
+                "bootstrap",
+                "    _check_executable_local_target_behavior(\n"
+                "        runner,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                "        behavior_root,\n"
+                '        "",\n'
+                "    )\n",
+                "    if False:\n"
+                "        _check_executable_local_target_behavior(\n"
+                "            runner,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                "            behavior_root,\n"
+                '            "",\n'
+                "        )\n",
+                r"local-target behavior calls differ",
+            ),
+            "native Windows linked-target behavior moves under a dead block": (
+                "bootstrap",
+                "    _check_executable_local_target_behavior(\n"
+                "        runner,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                "        behavior_root,\n"
+                '        "native Windows ",\n'
+                "    )\n",
+                "    if False:\n"
+                "        _check_executable_local_target_behavior(\n"
+                "            runner,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                "            behavior_root,\n"
+                '            "native Windows ",\n'
+                "        )\n",
+                r"local-target behavior calls differ",
             ),
             "PE32 import source leaves the frozen closure": (
                 "bootstrap",
@@ -8085,7 +8138,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6268, 174),
+                "c.expression.sizeof": (6339, 174),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

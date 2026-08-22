@@ -908,6 +908,11 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
           report.decode_summary.direct_relative_data_count +
           report.decode_summary.direct_relative_wrong_mode_count +
           report.decode_summary.direct_relative_mid_instruction_count;
+    } else if (report.elf32.file_type == CTOOL_ELF32_ET_EXEC) {
+      invalid_targets =
+          report.decode_summary.direct_relative_outside_image_count +
+          report.decode_summary.direct_relative_data_count +
+          report.decode_summary.direct_relative_mid_instruction_count;
     } else {
       invalid_targets =
           report.decode_summary.direct_relative_outside_section_count +
@@ -929,6 +934,22 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
                 report.decode_summary.direct_relative_data_count,
             (unsigned long long)
                 report.decode_summary.direct_relative_wrong_mode_count,
+            (unsigned long long)
+                report.decode_summary.direct_relative_mid_instruction_count);
+      } else if (report.elf32.file_type == CTOOL_ELF32_ET_EXEC) {
+        (void)fprintf(
+            stderr,
+            "cupiddis: %s: local target check failed: %llu of %llu direct "
+            "relative targets invalid (%llu outside loaded image, %llu in "
+            "loaded bytes without file-backed executable code, %llu "
+            "mid-instruction)\n",
+            input, (unsigned long long)invalid_targets,
+            (unsigned long long)
+                report.decode_summary.direct_relative_target_count,
+            (unsigned long long)
+                report.decode_summary.direct_relative_outside_image_count,
+            (unsigned long long)
+                report.decode_summary.direct_relative_data_count,
             (unsigned long long)
                 report.decode_summary.direct_relative_mid_instruction_count);
       } else {

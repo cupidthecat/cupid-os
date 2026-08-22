@@ -16,12 +16,17 @@ from unittest import mock
 from tools import hostbuild
 from tools.bootstrap_toolchain import (
     BootstrapError,
+    SeedInputs,
     Stage,
     TOOL_NAMES,
     ToolRunner,
+    WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256,
     WSL_PRIVATE_RUN_SCRIPT,
     _compare_stages,
     _compare_windows_stages,
+    _bootstrap_from_frozen_seed,
+    _bootstrap_windows_from_frozen_seed,
+    _local_target_executable_payload,
     _local_target_object_payload,
     _profile_snapshot_payload,
     _unowned_relocation_object_payload,
@@ -62,7 +67,7 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "2b56c849dd203b386c93fab3a07def099c49c9a6464e342ee55e9641281788f9"
+    "73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43"
 )
 
 
@@ -1317,6 +1322,228 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ):
                 _compare_stages(stage_three, stage_four, ["source"])
 
+    def test_linux_report_compares_stage_two_with_retained_seed_bytes(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-bootstrap-retained-seed-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            (source_root / "toolchain").mkdir(parents=True)
+            removed_seed = root / "removed-seed"
+            removed_seed.mkdir()
+            seed_tools = {
+                name: removed_seed / f"{name}.elf" for name in TOOL_NAMES
+            }
+            for path in seed_tools.values():
+                path.write_bytes(b"retained seed image")
+            seed_inputs = SeedInputs(
+                manifest={
+                    "build_plan": {"sources": []},
+                    "build_plan_sha256": "0" * 64,
+                },
+                manifest_bytes=b"{}",
+                manifest_sha256="1" * 64,
+                live_manifest_path=root / "manifest.json",
+                artifact_bytes=tuple(
+                    (name, b"retained seed image") for name in TOOL_NAMES
+                ),
+                tools=seed_tools,
+            )
+            shutil.rmtree(removed_seed)
+
+            def freeze_sources(_root, _plan, destination):
+                destination.mkdir()
+                return mock.Mock(root=destination, inventory={})
+
+            def build_stage(
+                _runner,
+                _source_root,
+                stage_directory,
+                _producers,
+                _plan,
+                _stage_name,
+            ):
+                stage_directory.mkdir()
+                tools = {}
+                for name in TOOL_NAMES:
+                    tool = stage_directory / f"{name}.elf"
+                    tool.write_bytes(b"retained seed image")
+                    tools[name] = tool
+                return Stage(objects={}, tools=tools)
+
+            def run_behavior(
+                _runner,
+                private_source_root,
+                _behavior_root,
+                _stage_three,
+                _stage_four,
+                evidence,
+            ):
+                (private_source_root / "behavior").mkdir()
+                evidence["windows_runtime"] = {
+                    "artifacts": {},
+                    "cupiddis": {"loader": {}},
+                    "loader": {},
+                    "native_tools": {
+                        name: {"loader": {}}
+                        for name in (
+                            "cupidasm",
+                            "cupidc",
+                            "cupidld",
+                            "cupidobj",
+                        )
+                    },
+                    "runtime_contract": {"loader": {}},
+                }
+                return {"success_cases": 0}
+
+            with (
+                mock.patch(
+                    "tools.bootstrap_toolchain.freeze_source_inputs",
+                    side_effect=freeze_sources,
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain.require_source_closures"
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain.require_live_seed_inputs"
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain._build_stage",
+                    side_effect=build_stage,
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain._compare_stages",
+                    return_value={"all_equal": True},
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain._run_behavior_checks",
+                    side_effect=run_behavior,
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain.publish_bootstrap_outputs"
+                ),
+            ):
+                report = _bootstrap_from_frozen_seed(
+                    seed_inputs,
+                    source_root,
+                    source_root / "published",
+                    compare_fixed_point=True,
+                )
+
+            self.assertEqual(
+                report["initial_seed_matches_stage_two"],
+                {name: True for name in TOOL_NAMES},
+            )
+
+    def test_windows_report_compares_stage_two_with_retained_seed_bytes(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-windows-retained-seed-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            (source_root / "toolchain").mkdir(parents=True)
+            removed_seed = root / "removed-seed"
+            removed_seed.mkdir()
+            seed_tools = {
+                name: removed_seed / f"{name}.exe" for name in TOOL_NAMES
+            }
+            for path in seed_tools.values():
+                path.write_bytes(b"retained Windows seed image")
+            seed_inputs = SeedInputs(
+                manifest={},
+                manifest_bytes=b"{}",
+                manifest_sha256="1" * 64,
+                live_manifest_path=root / "windows-manifest.json",
+                artifact_bytes=tuple(
+                    (name, b"retained Windows seed image")
+                    for name in TOOL_NAMES
+                ),
+                tools=seed_tools,
+            )
+            plan_inputs = SeedInputs(
+                manifest={"build_plan": {}},
+                manifest_bytes=b"{}",
+                manifest_sha256="2" * 64,
+                live_manifest_path=root / "linux-manifest.json",
+                artifact_bytes=(),
+                tools={},
+            )
+            shutil.rmtree(removed_seed)
+
+            def freeze_sources(_root, _plan, destination):
+                destination.mkdir()
+                return mock.Mock(root=destination, inventory={})
+
+            def build_stage(
+                _runner,
+                _source_root,
+                stage_directory,
+                _producers,
+                _plan,
+                _stage_name,
+            ):
+                stage_directory.mkdir()
+                tools = {}
+                for name in TOOL_NAMES:
+                    tool = stage_directory / f"{name}.exe"
+                    tool.write_bytes(b"retained Windows seed image")
+                    tools[name] = tool
+                return Stage(objects={}, tools=tools)
+
+            def run_behavior(
+                _runner,
+                private_source_root,
+                _stage_three,
+                _stage_four,
+                _native_plan,
+            ):
+                (private_source_root / "behavior").mkdir()
+                return {"success_cases": 0}
+
+            with (
+                mock.patch(
+                    "tools.bootstrap_toolchain._windows_build_plan",
+                    return_value={"assembly_sources": [], "sources": []},
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain.freeze_source_inputs",
+                    side_effect=freeze_sources,
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain.require_source_closures"
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain.require_live_seed_inputs"
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain._build_windows_stage",
+                    side_effect=build_stage,
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain._compare_windows_stages",
+                    return_value={"all_equal": True},
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain._run_native_windows_behavior_checks",
+                    side_effect=run_behavior,
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain.publish_bootstrap_outputs"
+                ),
+            ):
+                report = _bootstrap_windows_from_frozen_seed(
+                    seed_inputs,
+                    plan_inputs,
+                    source_root,
+                    source_root / "published",
+                )
+
+            self.assertEqual(
+                report["initial_seed_matches_stage_two"],
+                {name: True for name in TOOL_NAMES},
+            )
+
     def test_windows_fixed_point_rejects_a_stage_four_tool_mismatch(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupid-windows-stage-mismatch-",
@@ -1922,7 +2149,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "source_revision": (
                     "30aaf1b7cd398e6b47a395661a33d20d00363158"
                 ),
-                "source_snapshot_sha256": SOURCE_HEAD_SNAPSHOT_SHA256,
+                "source_snapshot_sha256": (
+                    WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256
+                ),
             }
             manifest_path.write_text(
                 json.dumps(manifest, indent=2, sort_keys=True) + "\n",
@@ -2393,9 +2622,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 7,
+                    "failure_cases": 8,
                     "help_cases": 5,
-                    "success_cases": 6,
+                    "success_cases": 7,
                 },
             )
             self.assertEqual(
@@ -2412,7 +2641,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "cupidasm": True,
                     "cupidc": True,
-                    "cupiddis": True,
+                    "cupiddis": False,
                     "cupidld": True,
                     "cupidobj": True,
                 },
@@ -2953,9 +3182,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(
             ast.literal_eval(returns[0].value),
             {
-                "failure_cases": 19,
+                "failure_cases": 20,
                 "help_cases": 5,
-                "success_cases": 20,
+                "success_cases": 21,
             },
         )
 
@@ -3031,6 +3260,19 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         payload = _unowned_relocation_object_payload()
         validate_i386_relocatable_bytes(payload)
         self.assertEqual(payload[64:70], bytes.fromhex("b8 00 00 00 00 c3"))
+
+    def test_fixed_point_linked_local_target_fixture_is_a_static_i386_exec(self):
+        valid = _local_target_executable_payload(5)
+        invalid = _local_target_executable_payload(1)
+
+        self.assertEqual(valid[:7], b"\x7fELF\x01\x01\x01")
+        self.assertEqual(struct.unpack_from("<H", valid, 16)[0], 2)
+        self.assertEqual(struct.unpack_from("<H", valid, 18)[0], 3)
+        self.assertEqual(struct.unpack_from("<I", valid, 24)[0], 0x00400000)
+        self.assertEqual(struct.unpack_from("<I", valid, 52)[0], 1)
+        self.assertEqual(struct.unpack_from("<I", valid, 76)[0], 5)
+        self.assertEqual(valid[84:], bytes.fromhex("eb 05 b8 00 00 00 00 c3"))
+        self.assertEqual(invalid[84:], bytes.fromhex("eb 01 b8 00 00 00 00 c3"))
 
     def test_linux_fixed_point_rebuilds_windows_cupiddis_main(self):
         tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
@@ -6299,9 +6541,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 19,
+                    "failure_cases": 20,
                     "help_cases": 5,
-                    "success_cases": 20,
+                    "success_cases": 21,
                 },
             )
             self.assertEqual(
@@ -6500,9 +6742,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "1ce02cadf6cc90bec0389ab9dc6c7b09ce6823a3bd23980fb78b46d3740c9b14"
+                        "23da2e2f5f99c1667d2a3eb459b8d22d8a37af021e7da18b7513d3d8632cb81c"
                     ),
-                    "size": 407040,
+                    "size": 415744,
                 },
             )
             self.assertEqual(
@@ -6663,7 +6905,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "cupidasm": True,
                     "cupidc": True,
-                    "cupiddis": True,
+                    "cupiddis": False,
                     "cupidld": True,
                     "cupidobj": True,
                 },

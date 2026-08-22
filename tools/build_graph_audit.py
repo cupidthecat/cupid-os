@@ -8449,9 +8449,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 19,
+        "failure_cases": 20,
         "help_cases": 5,
-        "success_cases": 20,
+        "success_cases": 21,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -8464,6 +8464,54 @@ def _cupid_toolchain_fixed_point_contract(
             "_run_behavior_checks is not unique"
         )
     behavior_function = behavior_functions[0]
+    local_target_helper_names = (
+        "_check_relocatable_local_target_behavior",
+        "_check_executable_local_target_behavior",
+    )
+    local_target_helper_functions = {
+        name: [
+            node
+            for node in bootstrap_tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == name
+        ]
+        for name in local_target_helper_names
+    }
+    if any(
+        len(functions) != 1
+        for functions in local_target_helper_functions.values()
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point local-target behavior helpers "
+            "differ: both helpers must be unique"
+        )
+
+    def live_local_target_call_count(
+        function: ast.FunctionDef | ast.AsyncFunctionDef,
+        helper_name: str,
+    ) -> int:
+        parents = {
+            child: parent
+            for parent in ast.walk(function)
+            for child in ast.iter_child_nodes(parent)
+        }
+        return sum(
+            1
+            for node in ast.walk(function)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == helper_name
+            and not _ast_node_is_statically_dead(node, function, parents)
+        )
+
+    if any(
+        live_local_target_call_count(behavior_function, helper_name) != 1
+        for helper_name in local_target_helper_names
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point local-target behavior calls "
+            "differ: _run_behavior_checks must call both helpers once"
+        )
     behavior_source = (
         ast.get_source_segment(bootstrap_source, behavior_function) or ""
     )
@@ -11096,6 +11144,42 @@ def _cupid_toolchain_fixed_point_contract(
     ]
     if len(behavior_functions) == 1:
         behavior_function = behavior_functions[0]
+        if any(
+            live_local_target_call_count(behavior_function, helper_name) != 1
+            for helper_name in local_target_helper_names
+        ):
+            raise AuditError(
+                "Cupid Toolchain fixed-point local-target behavior calls "
+                "differ: _run_native_windows_behavior_checks must call both "
+                "helpers once"
+            )
+        expected_native_windows_behavior = ast.parse(
+            "{"
+            "'failure_cases': len(TOOL_NAMES) + 3, "
+            "'help_cases': len(TOOL_NAMES), "
+            "'success_cases': len(TOOL_NAMES) + 2"
+            "}",
+            mode="eval",
+        ).body
+        native_windows_behavior_returns = [
+            statement.value
+            for statement in behavior_function.body
+            if isinstance(statement, ast.Return)
+            and statement.value is not None
+        ]
+        if (
+            len(native_windows_behavior_returns) != 1
+            or ast.dump(
+                native_windows_behavior_returns[0], include_attributes=False
+            )
+            != ast.dump(
+                expected_native_windows_behavior, include_attributes=False
+            )
+        ):
+            missing_native_windows_fragments.append(
+                "_run_native_windows_behavior_checks: return 8 failure, "
+                "5 help, and 7 success cases"
+            )
         behavior_parents = {
             child: parent
             for parent in ast.walk(behavior_function)
@@ -11671,6 +11755,9 @@ return tuple(
         "help_cases": len(expected_toolchain_links),
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
+        "windows_help_cases": 5,
+        "windows_success_behavior_cases": 7,
+        "windows_failure_behavior_cases": 8,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupidld.pe32_fixed_image",

@@ -509,7 +509,7 @@ static ctool_status_t dis_scan_elf_local_target_section(
   return CTOOL_OK;
 }
 
-static ctool_status_t dis_prepare_elf_local_target_summary(
+static ctool_status_t dis_prepare_rel_local_target_summary(
     ctool_job_t *job, const ctool_x86_decoder_t *decoder,
     ctool_dis_report_t *report) {
   ctool_arena_t *arena = ctool_job_arena(job);
@@ -549,6 +549,223 @@ static ctool_status_t dis_prepare_elf_local_target_summary(
     }
   }
   return CTOOL_OK;
+}
+
+static ctool_bool
+dis_exec_program_has_code(const ctool_elf32_program_header_t *program) {
+  return program->type == CTOOL_ELF32_PT_LOAD &&
+                 (program->flags & CTOOL_ELF32_PF_X) != 0u &&
+                 program->contents.size != 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool
+dis_exec_programs_are_static(const ctool_elf32_object_t *object) {
+  ctool_u32 index;
+  for (index = 0u; index < object->program_header_count; index++) {
+    ctool_u32 type = object->program_headers[index].type;
+    if (type == CTOOL_ELF32_PT_DYNAMIC ||
+        type == CTOOL_ELF32_PT_INTERP) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_bool dis_exec_code_regions_overlap(
+    const ctool_elf32_program_header_t *left,
+    const ctool_elf32_program_header_t *right) {
+  ctool_u64 left_start = (ctool_u64)left->virtual_address;
+  ctool_u64 right_start = (ctool_u64)right->virtual_address;
+  ctool_u64 left_end = left_start + (ctool_u64)left->contents.size;
+  ctool_u64 right_end = right_start + (ctool_u64)right->contents.size;
+  return left_start < right_end && right_start < left_end
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t dis_exec_code_map_size(
+    ctool_job_t *job, ctool_dis_report_t *report,
+    ctool_u32 *code_size_out) {
+  ctool_u32 code_size = 0u;
+  ctool_u32 index;
+  for (index = 0u; index < report->elf32.program_header_count; index++) {
+    const ctool_elf32_program_header_t *program =
+        &report->elf32.program_headers[index];
+    ctool_u32 other;
+    if (dis_exec_program_has_code(program) == CTOOL_FALSE) {
+      continue;
+    }
+    if (program->contents.size > DIS_U32_MAX - code_size) {
+      return dis_bad_request(
+          job, report->source,
+          "executable local target code map exceeds supported size");
+    }
+    for (other = 0u; other < index; other++) {
+      const ctool_elf32_program_header_t *earlier =
+          &report->elf32.program_headers[other];
+      if (dis_exec_program_has_code(earlier) == CTOOL_TRUE &&
+          dis_exec_code_regions_overlap(earlier, program) == CTOOL_TRUE) {
+        return dis_bad_request(
+            job, report->source,
+            "executable local target checks require non-overlapping "
+            "executable load regions");
+      }
+    }
+    code_size += program->contents.size;
+  }
+  *code_size_out = code_size;
+  return CTOOL_OK;
+}
+
+static ctool_bool dis_exec_code_map_offset(
+    const ctool_dis_report_t *report, ctool_u32 address,
+    ctool_u32 *map_offset_out) {
+  ctool_u32 map_base = 0u;
+  ctool_u32 index;
+  for (index = 0u; index < report->elf32.program_header_count; index++) {
+    const ctool_elf32_program_header_t *program =
+        &report->elf32.program_headers[index];
+    if (dis_exec_program_has_code(program) == CTOOL_FALSE) {
+      continue;
+    }
+    if (address >= program->virtual_address &&
+        address - program->virtual_address < program->contents.size) {
+      *map_offset_out =
+          map_base + (address - program->virtual_address);
+      return CTOOL_TRUE;
+    }
+    map_base += program->contents.size;
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_bool dis_exec_address_is_loaded(
+    const ctool_dis_report_t *report, ctool_u32 address) {
+  ctool_u32 index;
+  for (index = 0u; index < report->elf32.program_header_count; index++) {
+    const ctool_elf32_program_header_t *program =
+        &report->elf32.program_headers[index];
+    if (program->type == CTOOL_ELF32_PT_LOAD &&
+        address >= program->virtual_address &&
+        address - program->virtual_address < program->memory_size) {
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_status_t dis_scan_exec_local_target_program(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_dis_report_t *report,
+    const ctool_elf32_program_header_t *program, ctool_u32 map_base,
+    ctool_u8 *instruction_starts, ctool_bool mark_starts) {
+  ctool_u32 offset = 0u;
+  while (offset < program->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_status_t status =
+        decoder == (const ctool_x86_decoder_t *)0
+            ? ctool_x86_decode(job, CTOOL_X86_MODE_32, program->contents,
+                               offset, &decoded)
+            : ctool_x86_decode_indexed(job, decoder, CTOOL_X86_MODE_32,
+                                       program->contents, offset, &decoded);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (decoded.kind == CTOOL_X86_DECODE_KNOWN) {
+      if (mark_starts == CTOOL_TRUE) {
+        dis_instruction_start_set(instruction_starts, map_base + offset);
+      } else {
+        ctool_u32 operand_index;
+        for (operand_index = 0u;
+             operand_index < (ctool_u32)decoded.instruction.operand_count;
+             operand_index++) {
+          const ctool_x86_operand_t *operand =
+              &decoded.instruction.operands[operand_index];
+          ctool_u32 target;
+          ctool_u32 target_map_offset;
+          if (operand->kind != CTOOL_X86_OPERAND_RELATIVE ||
+              operand->as.value.kind != CTOOL_X86_VALUE_CONSTANT) {
+            continue;
+          }
+          report->decode_summary.direct_relative_target_count++;
+          target = dis_relative_target(program->virtual_address + offset,
+                                       &decoded, operand);
+          if (dis_exec_code_map_offset(report, target, &target_map_offset) ==
+              CTOOL_FALSE) {
+            if (dis_exec_address_is_loaded(report, target) == CTOOL_TRUE) {
+              report->decode_summary.direct_relative_data_count++;
+            } else {
+              report->decode_summary.direct_relative_outside_image_count++;
+            }
+          } else if (dis_instruction_start_get(
+                         instruction_starts, target_map_offset) ==
+                     CTOOL_FALSE) {
+            report->decode_summary.direct_relative_mid_instruction_count++;
+          }
+        }
+      }
+    } else if (decoded.kind == CTOOL_X86_DECODE_TRUNCATED) {
+      decoded.consumed = decoded.encoding.size;
+    }
+    if (decoded.consumed == 0u ||
+        decoded.consumed > program->contents.size - offset) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    offset += (ctool_u32)decoded.consumed;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t dis_prepare_exec_local_target_summary(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_dis_report_t *report) {
+  ctool_arena_t *arena = ctool_job_arena(job);
+  ctool_arena_mark_t mark = ctool_arena_mark(arena);
+  ctool_u32 code_size = 0u;
+  ctool_u32 bitset_size;
+  ctool_u8 *instruction_starts = (ctool_u8 *)0;
+  ctool_u32 pass;
+  ctool_status_t status =
+      dis_exec_code_map_size(job, report, &code_size);
+  ctool_status_t rewind_status;
+  bitset_size = code_size / 8u;
+  if (code_size % 8u != 0u) {
+    bitset_size++;
+  }
+  if (status == CTOOL_OK && bitset_size != 0u) {
+    status = ctool_arena_alloc_zero(
+        arena, bitset_size, (ctool_u32)sizeof(ctool_u8),
+        (ctool_u32)sizeof(ctool_u8), (void **)&instruction_starts);
+  }
+  for (pass = 0u; status == CTOOL_OK && pass < 2u; pass++) {
+    ctool_u32 index;
+    ctool_u32 map_base = 0u;
+    for (index = 0u;
+         status == CTOOL_OK && index < report->elf32.program_header_count;
+         index++) {
+      const ctool_elf32_program_header_t *program =
+          &report->elf32.program_headers[index];
+      if (dis_exec_program_has_code(program) == CTOOL_FALSE) {
+        continue;
+      }
+      status = dis_scan_exec_local_target_program(
+          job, decoder, report, program, map_base, instruction_starts,
+          pass == 0u ? CTOOL_TRUE : CTOOL_FALSE);
+      map_base += program->contents.size;
+    }
+  }
+  rewind_status = ctool_arena_rewind(arena, mark);
+  return status == CTOOL_OK ? rewind_status : status;
+}
+
+static ctool_status_t dis_prepare_elf_local_target_summary(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_dis_report_t *report) {
+  return report->elf32.file_type == CTOOL_ELF32_ET_EXEC
+             ? dis_prepare_exec_local_target_summary(job, decoder, report)
+             : dis_prepare_rel_local_target_summary(job, decoder, report);
 }
 
 static ctool_status_t
@@ -859,12 +1076,14 @@ static ctool_status_t dis_inspect(
   }
   if ((request->policies &
        CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u &&
-      report_out->elf32.file_type != CTOOL_ELF32_ET_REL) {
+      report_out->elf32.file_type == CTOOL_ELF32_ET_EXEC &&
+      dis_exec_programs_are_static(&report_out->elf32) == CTOOL_FALSE) {
     (void)ctool_arena_rewind(arena, mark);
     dis_zero_report(report_out);
     return dis_bad_request(
         job, source,
-        "local target checks require static relocatable ELF32 input");
+        "executable local target checks require a static image without "
+        "PT_DYNAMIC or PT_INTERP");
   }
   if ((request->views & CTOOL_DIS_VIEW_DISASSEMBLY) != 0u) {
     for (index = 0u; index < report_out->elf32.section_count; index++) {
@@ -2601,11 +2820,14 @@ static ctool_bool dis_report_shape_valid(const ctool_dis_report_t *report) {
   }
   if (report->input != CTOOL_DIS_INPUT_ELF32 ||
       (report->policies != 0u &&
-       (report->elf32.file_type != CTOOL_ELF32_ET_REL ||
-        (report->views & CTOOL_DIS_VIEW_DISASSEMBLY) == 0u)) ||
+       (report->views & CTOOL_DIS_VIEW_DISASSEMBLY) == 0u) ||
       report->mode != CTOOL_X86_MODE_32 ||
       (report->elf32.file_type != CTOOL_ELF32_ET_REL &&
        report->elf32.file_type != CTOOL_ELF32_ET_EXEC) ||
+      report->source->contents.size < 18u ||
+      report->source->contents.data[16] !=
+          (ctool_u8)report->elf32.file_type ||
+      report->source->contents.data[17] != 0u ||
       report->elf32.image.data != report->source->contents.data ||
       report->elf32.image.size != report->source->contents.size ||
       (report->elf32.program_header_count != 0u &&

@@ -68,7 +68,10 @@ Those five PE32 images form the checked Windows execution seed used by
 output-bearing production recipes. Fixed-point reconstruction, Toolchain
 contracts still run the Linux seed through WSL. Artifact-size policy reads the
 Linux manifest as provenance, while its checked contract runs as a temporary
-PE on Windows. The user ABI gate also builds and runs a temporary PE from the
+PE on Windows. CUPSIZE2 also gives that contract the Windows manifest, Linux
+parent digest, and five regular-file size and digest observations. The
+contract validates the Windows target, provenance, inventory, and observed
+bytes. The user ABI gate also builds and runs a temporary PE from the
 Windows seed. The
 native driver freezes the PE32 execution seed with a
 separate verified Linux plan. The seed builds stage two, stage two builds stage
@@ -284,10 +287,15 @@ The publication gate requires stage-three and stage-four identity, hosted
 runtime checks, live-input checks, and native Windows verification. The normal
 `all` path uses Cupid tooling with the host code-generation variables poisoned.
 Its exact policy covers fourteen paths: four OS artifacts, five Linux seed
-images, and five Windows seed images. The complete gate and its 45-test policy
-group pass. The host bootstrap log records the post-manual-freeze poisoned
-build and strong private four-vCPU e1000 frontier. Exact OS identities and
-runtime measurements stay there because this manual is an image input.
+images, and five Windows seed images. CUPSIZE2 gives the CupidC-built contract
+the Windows manifest, Linux parent digest, and five regular-file size and
+digest observations. The contract validates the Windows target, provenance,
+exact inventory, and observed bytes. The focused semantic-contract,
+checked-runner, and independent-policy modules contain 22, 16, and 13 tests,
+for 51 total. They pass with four existing platform-specific skips. No
+complete Make result is recorded for this source increment. The host bootstrap log records the preceding
+poisoned build and strong private four-vCPU e1000 frontier. Exact OS identities
+and runtime measurements stay there because this manual is an image input.
 
 Build and check all three examples:
   make test-user-cupidc-frontier
@@ -338,6 +346,13 @@ typedef keeps the same signature through null or compatible function
 initialization, checked plain assignment, indirect call, and clearing. A
 defined function address is written into initialized data. A later definition
 receives an absolute data patch before JIT or fixed-address AOT execution.
+
+A named raw callback file object and direct free-function parameter retain the
+same parsed signature without a typedef. The file object uses the same data
+write or patch. The parameter uses the same cdecl slot and arity checks. The
+private pool accepts 32 distinct raw signatures and recovers after rejecting
+the next one. The private callback ABI module passes all 268 tests in 51.685
+seconds. ADR 0315 records this boundary.
 
 The four-vCPU e1000 feature14 guest contract requires direct-call,
 named-callback, typedef-parameter, typedef-global, and automatic-callback

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import struct
@@ -56,6 +57,24 @@ EXPECTED_BUILD_INPUTS = (
 
 class ArtifactSizeContractRunnerTests(unittest.TestCase):
     def setUp(self):
+        def capture_checked_seed(reader, _logical_manifest):
+            logical_paths = (
+                artifact_size_contract.WINDOWS_CHECKED_MANIFEST,
+                *(
+                    "bootstrap/seeds/i386-windows/" + name
+                    for name in artifact_size_contract.WINDOWS_CHECKED_FILES
+                ),
+            )
+            return tuple(
+                (
+                    logical,
+                    artifact_size_contract.artifact_size_policy._required_capture(
+                        reader, logical, "checked seed input"
+                    ),
+                )
+                for logical in logical_paths
+            )
+
         def capture_manifest(reader, logical_manifest):
             payload = artifact_size_contract.artifact_size_policy._required_capture(
                 reader, logical_manifest, "checked seed manifest"
@@ -65,7 +84,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
         patcher = mock.patch.object(
             artifact_size_contract,
             "_capture_checked_seed",
-            side_effect=capture_manifest,
+            side_effect=capture_checked_seed,
         )
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -183,7 +202,81 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                         }
                         for name in SEED_NAMES
                     ],
+                    "provenance": {
+                        "source_revision": "1" * 40,
+                        "source_snapshot_sha256": "2" * 64,
+                    },
                     "schema": "cupid.bootstrap-seed.v1",
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        linux_manifest_digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+        windows_manifest = root / artifact_size_contract.WINDOWS_CHECKED_MANIFEST
+        windows_manifest.write_text(
+            json.dumps(
+                {
+                    "artifacts": [
+                        {
+                            "file": f"{name}.exe",
+                            "name": name,
+                            "producer": name
+                            in {"cupidasm", "cupidc", "cupidld"},
+                            "sha256": hashlib.sha256(
+                                (b"x" * sizes[
+                                    "bootstrap/seeds/i386-windows/"
+                                    f"{name}.exe"
+                                ])
+                            ).hexdigest(),
+                            "size": sizes[
+                                "bootstrap/seeds/i386-windows/"
+                                f"{name}.exe"
+                            ],
+                        }
+                        for name in SEED_NAMES
+                    ],
+                    "provenance": {
+                        "artifact_generation": (
+                            "paired-stage-four-native-windows"
+                        ),
+                        "fixed_point_command": (
+                            "make bootstrap-windows-from-seed"
+                        ),
+                        "fixed_point_result": "pass",
+                        "parent_seed_manifest_sha256": linux_manifest_digest,
+                        "parent_seed_source_revision": "1" * 40,
+                        "producer_lineage": {
+                            "assembly": (
+                                "native stage-three CupidASM from the checked "
+                                "i386 Windows bootstrap"
+                            ),
+                            "c": (
+                                "native stage-three CupidC from the checked "
+                                "i386 Windows bootstrap"
+                            ),
+                            "link": (
+                                "native stage-three CupidLD from the checked "
+                                "i386 Windows bootstrap"
+                            ),
+                        },
+                        "source_input_count": 50,
+                        "source_revision": "1" * 40,
+                        "source_snapshot_sha256": "2" * 64,
+                    },
+                    "schema": "cupid.execution-seed.v1",
+                    "target": {
+                        "abi": "windows-stdcall-imports",
+                        "architecture": "i386",
+                        "byte_order": "little",
+                        "entry": 4198400,
+                        "linkage": "kernel32-imports",
+                        "operating_system": "windows",
+                        "pe_class": 32,
+                    },
                 },
                 indent=2,
                 sort_keys=True,
@@ -228,7 +321,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
         return policy, manifest, sizes
 
     def decode_request(self, request: bytes):
-        self.assertEqual(request[:8], b"CUPSIZE1")
+        self.assertEqual(request[:8], b"CUPSIZE2")
         offset = 8
 
         def take_u32():
@@ -253,13 +346,35 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
         policy = take_bytes()
         manifest_path = take_bytes().decode("ascii")
         manifest = take_bytes()
+        linux_manifest_digest = take_bytes().decode("ascii")
+        windows_manifest_path = take_bytes().decode("ascii")
+        windows_manifest = take_bytes()
+        windows_observations = []
+        for _ in range(take_u32()):
+            windows_observations.append(
+                (
+                    take_bytes().decode("ascii"),
+                    take_u32(),
+                    take_u64(),
+                    take_bytes().decode("ascii"),
+                )
+            )
         observations = []
         for _ in range(take_u32()):
             observations.append(
                 (take_bytes().decode("ascii"), take_u32(), take_u64())
             )
         self.assertEqual(offset, len(request))
-        return policy, manifest_path, manifest, observations
+        return (
+            policy,
+            manifest_path,
+            manifest,
+            linux_manifest_digest,
+            windows_manifest_path,
+            windows_manifest,
+            windows_observations,
+            observations,
+        )
 
     def test_verify_with_contract_binds_raw_inputs_and_exact_observations(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -292,15 +407,49 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                     timeout=37,
                 )
 
-            raw_policy, manifest_path, raw_manifest, observations = (
-                self.decode_request(captured["request"])
-            )
+            (
+                raw_policy,
+                manifest_path,
+                raw_manifest,
+                linux_manifest_digest,
+                windows_manifest_path,
+                raw_windows_manifest,
+                windows_observations,
+                observations,
+            ) = self.decode_request(captured["request"])
             self.assertEqual(raw_policy, policy.read_bytes())
             self.assertEqual(
                 manifest_path,
                 "bootstrap/seeds/i386-linux/manifest.json",
             )
             self.assertEqual(raw_manifest, manifest.read_bytes())
+            self.assertEqual(
+                linux_manifest_digest,
+                hashlib.sha256(manifest.read_bytes()).hexdigest(),
+            )
+            windows_manifest = (
+                root / artifact_size_contract.WINDOWS_CHECKED_MANIFEST
+            )
+            self.assertEqual(
+                windows_manifest_path,
+                artifact_size_contract.WINDOWS_CHECKED_MANIFEST,
+            )
+            self.assertEqual(raw_windows_manifest, windows_manifest.read_bytes())
+            self.assertEqual(
+                windows_observations,
+                [
+                    (
+                        f"bootstrap/seeds/i386-windows/{name}",
+                        1,
+                        sizes[f"bootstrap/seeds/i386-windows/{name}"],
+                        hashlib.sha256(
+                            b"x"
+                            * sizes[f"bootstrap/seeds/i386-windows/{name}"]
+                        ).hexdigest(),
+                    )
+                    for name in artifact_size_contract.WINDOWS_CHECKED_FILES
+                ],
+            )
             self.assertEqual(
                 observations,
                 [(path, 1, sizes[path]) for path in sorted(sizes)],
@@ -310,13 +459,28 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                 tuple(logical for logical, _payload in captured["build_inputs"]),
                 artifact_size_contract.BUILD_INPUTS,
             )
-            self.assertEqual(
-                captured["execution_seed"],
-                ((
-                    "bootstrap/seeds/i386-linux/manifest.json",
-                    manifest.read_bytes(),
-                ),),
-            )
+            if os.name == "nt":
+                self.assertEqual(
+                    tuple(
+                        logical
+                        for logical, _payload in captured["execution_seed"]
+                    ),
+                    (
+                        artifact_size_contract.WINDOWS_CHECKED_MANIFEST,
+                        *(
+                            "bootstrap/seeds/i386-windows/" + name
+                            for name in artifact_size_contract.WINDOWS_CHECKED_FILES
+                        ),
+                    ),
+                )
+            else:
+                self.assertEqual(
+                    captured["execution_seed"],
+                    ((
+                        "bootstrap/seeds/i386-linux/manifest.json",
+                        manifest.read_bytes(),
+                    ),),
+                )
             self.assertEqual(report["artifact_count"], 14)
 
     def test_verify_with_contract_rejects_a_report_that_differs_from_oracle(self):
@@ -381,18 +545,33 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             policy, manifest, sizes = self.write_fixture(root)
-            original = manifest.read_bytes()
+            checked_manifest = (
+                root / artifact_size_contract.WINDOWS_CHECKED_MANIFEST
+            )
+            original = checked_manifest.read_bytes()
 
-            def capture_checked_seed(reader, logical_manifest):
-                payload = artifact_size_contract.artifact_size_policy._required_capture(
-                    reader, logical_manifest, "checked seed manifest"
+            def capture_checked_seed(reader, _logical_manifest):
+                logical_paths = (
+                    artifact_size_contract.WINDOWS_CHECKED_MANIFEST,
+                    *(
+                        "bootstrap/seeds/i386-windows/" + name
+                        for name in artifact_size_contract.WINDOWS_CHECKED_FILES
+                    ),
                 )
-                return ((logical_manifest, payload),)
+                return tuple(
+                    (
+                        logical,
+                        artifact_size_contract.artifact_size_policy._required_capture(
+                            reader, logical, "checked seed input"
+                        ),
+                    )
+                    for logical in logical_paths
+                )
 
             def change_checked_manifest(
                 _request, _timeout, _build_inputs, _execution_seed
             ):
-                manifest.write_bytes(b" " * len(original))
+                checked_manifest.write_bytes(b" " * len(original))
                 return {
                     "artifact_count": 14,
                     "schema": "cupid.artifact-size-verification.v1",

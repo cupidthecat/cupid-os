@@ -172,6 +172,8 @@ def _frontier_command_outputs():
             "[feature14-callback-typedef] PASS float4=4 calls=1\n"
             "[feature14-callback-global] PASS float4=4 initialized=1 "
             "assigned=1 cleared=1 calls=2\n"
+            "[feature14-callback-raw] PASS initialized=1 parameter=1 "
+            "cleared=1 reassigned=1 calls=3\n"
             "[feature14-callback-automatic] PASS local=4 method=4 calls=2\n"
             "[feature14-minmax] PASS nan=4 signed_zero=4\n"
             "[feature14-nan] PASS float_left=4 float_right=0 "
@@ -2124,6 +2126,10 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "assigned=1 cleared=1 calls=2\n"
             ),
             (
+                "[feature14-callback-raw] PASS initialized=1 parameter=1 "
+                "cleared=1 reassigned=1 calls=3\n"
+            ),
+            (
                 "[feature14-callback-automatic] PASS local=4 method=4 "
                 "calls=2\n"
             ),
@@ -2152,6 +2158,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback] FAIL",
             "[feature14-callback-typedef] FAIL",
             "[feature14-callback-global] FAIL",
+            "[feature14-callback-raw] FAIL",
             "[feature14-callback-automatic] FAIL",
             "[feature14-minmax] FAIL",
             "[feature14-nan] FAIL",
@@ -2190,6 +2197,15 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "typedef float4 (*feature14_float_callback_t)(float4 left, int marker,",
             "feature14_float_callback_t feature14_global_callback = "
             "feature14_merge_float4",
+            "int (*feature14_raw_callback)(int) = feature14_raw_target;",
+            "int feature14_invoke_raw_callback(int (*callback)(int), int value)",
+            "initialized_result = feature14_raw_callback(1);",
+            "parameter_result = feature14_invoke_raw_callback(",
+            "feature14_raw_target, 2);",
+            "feature14_raw_callback = 0;",
+            "if (feature14_raw_callback != 0) return 2;",
+            "feature14_raw_callback = feature14_raw_target;",
+            "reassigned_result = feature14_raw_callback(3);",
             "float4 feature14_invoke_float_callback(",
             "feature14_float_callback_t callback, float4 left, int marker,",
             "result = feature14_invoke_float_callback(",
@@ -2218,9 +2234,24 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback-typedef] PASS float4=4 calls=1",
             "[feature14-callback-global] PASS float4=4 initialized=1 "
             "assigned=1 cleared=1 calls=2",
+            "[feature14-callback-raw] PASS initialized=1 parameter=1 "
+            "cleared=1 reassigned=1 calls=3",
             "[feature14-callback-automatic] PASS local=4 method=4 calls=2",
         ):
             self.assertIn(spelling, source)
+
+    def test_feature14_raw_callback_failure_cannot_hide_behind_pass_evidence(self):
+        sample = _frontier_command_output("/bin/feature14_simd.cc")
+        poisoned = sample.replace(
+            "[feature14-callback-raw] PASS",
+            "[feature14-callback-raw] FAIL\n[feature14-callback-raw] PASS",
+            1,
+        )
+
+        self.assertEqual(
+            gui_terminal_smoke.frontier_failure_marker(poisoned),
+            "[feature14-callback-raw] FAIL",
+        )
 
     def test_feature13_requires_all_scalar_comparison_evidence(self):
         command = _frontier_command("/bin/feature13_double.cc")

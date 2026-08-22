@@ -21,11 +21,12 @@ typedef enum {
 #define CTOOL_DIS_VIEW_DISASSEMBLY 0x00000010u
 #define CTOOL_DIS_VIEW_ALL 0x0000001fu
 
-/* Raw callers and static ET_REL callers can ask CupidDis to classify constant
- * direct relative targets.  An ET_REL request must include the disassembly
- * view.  Inspection still succeeds for structurally valid code, so a caller
- * that enforces this policy rejects a report when the input-specific invalid
- * target counters below are nonzero.  Linked ET_EXEC input is not covered. */
+/* Raw, relocatable ELF32, and linked ELF32 callers can ask CupidDis to
+ * classify constant direct relative targets.  An ELF request must include
+ * the disassembly view.
+ * Inspection still succeeds for structurally valid code, so a caller that
+ * enforces this policy rejects a report when the input-specific invalid target
+ * counters below are nonzero. */
 #define CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS 0x00000001u
 #define CTOOL_DIS_POLICY_ALL CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS
 
@@ -63,10 +64,11 @@ typedef struct {
  * counted.  Relocation counts cover relocations whose targets are executable
  * ET_REL sections.  An unmatched relocation does not name a compatible
  * four-byte field in a decoded instruction.  Direct-relative target counts
- * are populated only when the matching raw or static ET_REL policy is
- * selected.  Outside-image counts belong to raw input; outside-section counts
- * belong to ET_REL.  Far pointers and register or memory targets are outside
- * that policy. */
+ * are populated only when the matching policy is selected.  Outside-image and
+ * data counts belong to raw or linked ET_EXEC input; for ET_EXEC they mean an
+ * address outside every load region or inside loaded bytes without file-backed
+ * executable code.  Outside-section counts belong to ET_REL.  Far pointers
+ * and register or memory targets are outside that policy. */
 typedef struct {
   ctool_u64 known_count;
   ctool_u64 unknown_count;

@@ -419,7 +419,18 @@ compatible defined or later-defined function. Private CupidC writes or patches
 the address in initialized data. ADR 0301 records the named local callback
 foundation, ADR 0303 records typedef parameters, ADR 0306 records global
 callback storage, ADR 0310 records automatic objects and Cupid class method
-parameters, and ADR 0313 records initialized-data function-address patches.
+parameters, and ADR 0313 records initialized-data function-address patches. A
+named raw callback file object and direct free-function parameter retain the
+same floating and integer slot metadata without a typedef. The private raw
+signature pool accepts 32 distinct entries and recovers after rejecting the
+next one. ADR 0315 records this boundary.
+
+The four-vCPU raw callback QEMU smoke passes with
+`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
+The log is `tests/feature14-callback-raw-qemu.log`, 32,803 bytes, with SHA-256
+`eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
+The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
+evidence. Checked-seed promotion and production adoption remain pending.
 
 Private decimal `float` and `double` literals use a fixed 1536-bit integer
 workspace. The converter forms the exact decimal ratio and rounds once to the

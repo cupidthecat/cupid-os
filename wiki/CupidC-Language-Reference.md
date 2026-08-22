@@ -75,9 +75,23 @@ records automatic objects and Cupid class method parameters.
 [ADR 0313](../docs/adr/0313-initialize-private-cupidc-global-callbacks-from-functions.md)
 records static initialization from a compatible defined or later-defined
 function. The private JIT and fixed-address AOT writers place that address in
-the global data slot before execution. Address-of and conditional callback
-expressions, raw callback declarators, fields, arrays, and block-static
-callbacks remain unsupported.
+the global data slot before execution. A named raw callback file object and a
+direct raw callback parameter on a free function retain the same parsed
+signature without requiring a typedef. The file object uses the existing
+initialized-data, assignment, call, and null rules. The parameter uses the
+existing cdecl conversion and arity checks. The private pool accepts 32
+distinct raw parameter signatures and recovers after rejecting the next one.
+[ADR 0315](../docs/adr/0315-retain-raw-callback-signatures-in-private-cupidc.md)
+records this boundary. Address-of and conditional callback expressions,
+fields, arrays, block-static callbacks, and raw method parameters remain
+unsupported.
+
+The four-vCPU raw callback QEMU smoke passes with
+`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
+The log is `tests/feature14-callback-raw-qemu.log`, 32,803 bytes, with SHA-256
+`eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
+The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
+evidence. Checked-seed promotion and production adoption remain pending.
 
 The preceding poisoned-host OS build checkpoint passed in 684.260 seconds and
 accepted all fourteen exact policy artifacts. A private four-vCPU `max`/e1000
@@ -97,6 +111,13 @@ and raw kernel policy rows were updated, the repeated build passed in 874.531
 seconds with all fourteen artifacts accepted, existing FAT contents preserved,
 and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
+
+The source-head artifact contract later passed twice against all fourteen
+exact artifacts. The raw kernel is 9,270,116 bytes with SHA-256
+`9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532`.
+The 209,715,200-byte disk image has SHA-256
+`07bb498567798b72d5f9658f18c51aff8fc600ee419b9b95add26eb2bb298ac7`.
+Checked-seed promotion and production adoption remain pending.
 
 The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB

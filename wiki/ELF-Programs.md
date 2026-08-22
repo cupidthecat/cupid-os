@@ -730,6 +730,21 @@ arbitrary computed callback expressions remain signature-erased or
 unsupported. AOT still compiles one translation
 unit into a fixed-address executable and does not emit a relocatable object for
 a later link.
+
+A named raw callback file object and direct free-function parameter retain the
+same parsed signature without a typedef. The file object uses the existing
+initialized-data write or patch. The parameter uses the existing cdecl slot
+and arity checks. The private pool accepts 32 distinct raw parameter
+signatures, rejects the next one, and restores the pool before a valid retry.
+Raw method parameters and aggregate callback contexts remain outside this
+boundary. ADR 0315 records the source rule.
+
+The four-vCPU raw callback QEMU smoke passes with
+`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
+The log is `tests/feature14-callback-raw-qemu.log`, 32,803 bytes, with SHA-256
+`eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
+The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
+evidence. Checked-seed promotion and production adoption remain pending.
 [ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records the callback and one-header AOT boundaries.
 [ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
@@ -761,12 +776,24 @@ three rebuilt kernel outputs. The artifact group passed all 46 tests in 4.160
 seconds, with four expected Windows skips. After those three policy rows were
 updated, the repeated build passed in 874.531 seconds with all fourteen
 artifacts accepted, existing FAT contents preserved, and `hello.iso` staged.
-The final pass-one ELF is 9,345,464 bytes with SHA-256
+At that historical checkpoint, the pass-one ELF was 9,345,464 bytes with SHA-256
 `5dbd2c5acb7b1604cf6daf6f311e88015d0762125c60920da3737d7e10d76f06`;
 the final ELF is 9,472,440 bytes with SHA-256
 `5810ddcb963cfadb4fea3b1343bb38c17ce3f762a48f25615b3feb653f1638e3`;
 the raw kernel is 9,251,100 bytes with SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
+
+The source-head artifact contract later passed twice against all fourteen
+exact artifacts.
+
+| Source-head artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,366,752 | `263c124ab0e3c801196b5e24e86b362460eccd3b17366501fe41bdd3a907887c` |
+| `kernel/kernel.elf` | 9,493,728 | `00727f9d73cdf0be5dbd01f561a8a82aba0a99bc4e1c679756349aa934056de7` |
+| `kernel/kernel.bin` | 9,270,116 | `9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532` |
+| `cupidos.img` | 209,715,200 | `07bb498567798b72d5f9658f18c51aff8fc600ee419b9b95add26eb2bb298ac7` |
+
+Checked-seed promotion and production adoption remain pending.
 
 The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB

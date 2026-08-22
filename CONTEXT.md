@@ -182,9 +182,14 @@ plain function designator. A defined target is written into initialized data;
 a later target receives an absolute data patch during shared symbol resolution.
 The object may also accept a checked plain assignment, clear to null, and make a typed indirect call. A non-null
 assignment must match the result, record-pointer identities, fixed parameters,
-and variadic boundary before the address is stored. Raw callback declarators,
-address-of and conditional initializers, block-static objects, fields, callback
-arrays, alias chains, and recursive signatures remain outside this boundary.
+and variadic boundary before the address is stored. A named raw callback file
+object keeps the same signature and initialized-data behavior. A direct raw
+callback parameter on a free function retains its result, fixed parameters,
+record identities, and variadic boundary through the existing cdecl call path.
+The private pool holds at most 32 raw parameter signatures and rolls back with
+the program. Address-of and conditional initializers, block-static objects,
+fields, callback arrays, alias chains, raw method parameters, and recursive
+signatures remain outside this boundary.
 Direct structure and array results remain rejected. Program and REPL rollback
 restore typedef and side-table metadata, provisional signatures, code, data,
 and every patch kind. The
@@ -192,7 +197,10 @@ promoted standalone CupidC seeds do not contain this private parser or ELF
 writer, so their reproof is not callback carriage evidence. ADR 0303 records
 free-function parameters, ADR 0306 records global storage and checked
 assignment, ADR 0310 records automatic objects and method parameters, and ADR
-0313 records initialized-data function-address patches.
+0313 records initialized-data function-address patches. ADR 0315 records raw
+file objects and free-function parameters. Source-head guest runtime proves the
+raw forms with initialized, parameter, clear, reassignment, and typed-call
+coverage. Checked-seed promotion and production adoption remain pending.
 _Avoid_: reversing source evaluation, four bytes for every parameter, splitting a double into unrelated arguments
 
 **Represented bit-field assignment**:
@@ -434,13 +442,10 @@ Its final `CUPMAN2` verifier printed
 `Cupid Toolchain manifest: ok (21 artifacts)`. The first corrected attempt had
 already published a valid cohort when that final read-only verifier found an
 unrelated installed `tools` package. The checkout-local launcher rule fixed the
-host import boundary. The source-current
-`make bootstrap-audit` and `make check-bootstrap-audit` both pass. Its active-source digest
-is `177f15bddae7d6d1f3f51265b255712503a9aef88ad14ad529c23888f88211c9`.
-The 2,700,638-byte JSON has SHA-256
-`bc9543bc83d558987c063e641db3bc56ad7a7c094bef6e2a09666847da9d770f`,
-and the 12,502-byte Markdown summary has SHA-256
-`1c636c076e74de8585601d1ba09284e50e3b2dd767a91f1961065fc0eec0bc59`.
+host import boundary. The source-current `make bootstrap-audit` and
+`make check-bootstrap-audit` both pass. The generated fixed-point inventory
+records failure, help, and success counts of 20/5/21 for Linux and 8/5/7 for
+Windows.
 A pre-final-CTXT build reached the exact-size gate after 668.414 seconds. The
 later poisoned-host build passed in 684.260 seconds, and its private four-vCPU
 e1000 smoke passed in 64.601 seconds. Those records are preceding checkpoint
@@ -474,7 +479,7 @@ overall feature-14, and JIT markers each appeared once and in order. The
 and no rejection markers. The source image stayed unchanged at SHA-256
 `9045807b2bfffe41e2eaab92ab6fd4a4615fb7d72a26649ca2c037ae050bb15f`.
 
-The final integrated checkpoint's first poisoned build reached the exact-size gate
+The preceding integrated checkpoint's first poisoned build reached the exact-size gate
 after the complete checked Cupid build. The gate rejected only the three
 rebuilt kernel outputs: a 9,345,464-byte pass-one ELF, a 9,472,440-byte final
 ELF, and a 9,251,100-byte raw kernel. The artifact contract group then passed
@@ -483,7 +488,7 @@ three policy rows were updated, a repeated fully poisoned `make -j4 all`
 passed in 874.531 seconds. It checked all fourteen exact paths, preserved the
 FAT contents, and staged `test_iso/hello.iso`.
 
-| Integrated source-current output | Bytes | SHA-256 |
+| Historical integrated output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
 | `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
@@ -1182,7 +1187,12 @@ unrelocated target must stay in its source section and land at an instruction
 start there. A relocated operand is left to the existing relocation-ownership
 and link rules. The object report separates outside-section and
 mid-instruction failures. Far pointers and indirect transfers remain outside
-the policy, and linked `ET_EXEC` input is rejected.
+the policy. Source-head CupidDis also applies it to linked i386 `ET_EXEC`
+input. It checks constant direct relative targets against instruction starts
+across nonoverlapping file-backed executable load regions. The linked report
+separates targets outside loaded memory, in loaded memory without file-backed
+executable code, and inside an instruction. A `PT_DYNAMIC` or `PT_INTERP`
+header rejects the image as outside the static certification domain.
 
 The CLI exposes the policy as `--require-local-targets` beside
 `--require-known`. The promoted seeds carry both forms. The bootloader
@@ -1191,8 +1201,10 @@ Production CupidASM object publication applies the relocatable form after its
 structural check. A failure preserves the prior output. ADR 0300 records the
 raw source rule, ADR 0305 records its seed carriage and adoption, ADR 0309
 records the relocatable-object rule, and ADR 0312 records its carriage and
-adoption.
-_Avoid_: source-label proof, automatic code discovery, linked-image target proof, cross-section instruction identity
+adoption. ADR 0314 records the source-only linked-image rule. No production
+linked-image transaction selects it.
+_Avoid_: source-label proof, automatic code discovery, production linked-image
+selection, overlapping executable load regions
 
 **Relocatable entry symbol**:
 The caller-priority code label selected by CupidASM for an ELF32 relocatable
@@ -1417,19 +1429,34 @@ outputs: four OS outputs, five Linux seed images, and five Windows seed images.
 Make runs one `ARTIFACT_SIZE_CONTRACT` command with `--checked-manifest`.
 Its Host Python wrapper pins the raw policy and Linux policy manifest, all
 fourteen observations, and the complete Windows seed directory: its manifest
-plus five PE tools. The C contract parses the policy and Linux manifest with
-the observations. It does not parse the Windows manifest. On Windows, the
+plus five PE tools. A `CUPSIZE2` request carries the Linux manifest digest, the
+raw Windows manifest, and regular-file size and digest observations for all
+five PE tools. The C contract validates the Windows target, provenance, Linux
+parent link, exact inventory, and observed bytes beside the policy and Linux
+manifest. On Windows, the
 wrapper verifies the captured PE cohort, builds and runs the native contract
 from those captured bytes, and compares the report with an independent Python
 oracle. Before success, Python rereads the captured Windows byte sequence and
 walks the pinned repository view again. A leaf, parent, membership, or byte
 replacement fails. Linux builds and runs the static ELF contract from its
-checked seed. The final artifact group runs 46 tests in 4.160 seconds, with
-four expected Windows skips. Its POSIX runner passes all 15 tests in 0.146
-seconds. The integrated measurement build reached the exact-size gate with
+checked seed. The source-current focused modules contain 22, 16, and 13 tests,
+for 51 total. They pass with four existing platform-specific skips. The
+source-head artifact contract later passed twice against all fourteen exact
+artifacts. The preceding artifact group ran 46 tests
+in 4.160 seconds, with four expected Windows skips. That integrated measurement
+build reached the exact-size gate with
 changed pass-one ELF, final ELF, and raw-kernel outputs. After those three
 policy rows were updated, the repeated poisoned build passed in 874.531
 seconds and checked all fourteen artifacts.
+The source-head kernel outputs are a 9,366,752-byte
+`kernel/kernel.elf.pass1` with SHA-256
+`263c124ab0e3c801196b5e24e86b362460eccd3b17366501fe41bdd3a907887c`, a
+9,493,728-byte `kernel/kernel.elf` with SHA-256
+`00727f9d73cdf0be5dbd01f561a8a82aba0a99bc4e1c679756349aa934056de7`,
+and a 9,270,116-byte `kernel/kernel.bin` with SHA-256
+`9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532`.
+The 209,715,200-byte `cupidos.img` has SHA-256
+`07bb498567798b72d5f9658f18c51aff8fc600ee419b9b95add26eb2bb298ac7`.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
 duplicate, linked, nonregular, or differently sized members fail. An

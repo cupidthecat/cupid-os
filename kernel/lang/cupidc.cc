@@ -3562,6 +3562,8 @@ static int repl_bootstrap(void) {
   repl_state.sym_committed = repl_state.cc->sym_count;
   cc_repl_checkpoint_structs(&repl_state);
   repl_state.typedef_committed = repl_state.cc->typedef_count;
+  repl_state.raw_function_pointer_signature_committed =
+      repl_state.cc->raw_function_pointer_signature_count;
   repl_state.patch_committed = repl_state.cc->patch_count;
   repl_state.last_answer_valid = 0;
   repl_state.last_answer = 0;
@@ -3583,6 +3585,8 @@ static void repl_restore_committed_state(void) {
   repl_state.cc->sym_count = repl_state.sym_committed;
   cc_repl_restore_structs(&repl_state);
   repl_state.cc->typedef_count = repl_state.typedef_committed;
+  repl_state.cc->raw_function_pointer_signature_count =
+      repl_state.raw_function_pointer_signature_committed;
   repl_state.cc->patch_count = repl_state.patch_committed;
   repl_state.cc->has_entry = 0;
   repl_state.cc->entry_offset = 0;
@@ -3604,6 +3608,8 @@ static void repl_commit_state(void) {
   repl_state.sym_committed = repl_state.cc->sym_count;
   cc_repl_checkpoint_structs(&repl_state);
   repl_state.typedef_committed = repl_state.cc->typedef_count;
+  repl_state.raw_function_pointer_signature_committed =
+      repl_state.cc->raw_function_pointer_signature_count;
   repl_state.patch_committed = repl_state.cc->patch_count;
 }
 
@@ -3686,6 +3692,8 @@ int repl_eval(const char *line) {
   int snapshot_sym = repl_state.sym_committed;
   int snapshot_struct = repl_state.struct_committed;
   int snapshot_typedef = repl_state.typedef_committed;
+  int snapshot_raw_function_pointer_signature =
+      repl_state.raw_function_pointer_signature_committed;
   int snapshot_patch = repl_state.patch_committed;
   int snapshot_last_answer = repl_state.last_answer;
   int snapshot_last_answer_valid = repl_state.last_answer_valid;
@@ -3710,6 +3718,8 @@ int repl_eval(const char *line) {
     repl_state.sym_committed = snapshot_sym;
     repl_state.struct_committed = snapshot_struct;
     repl_state.typedef_committed = snapshot_typedef;
+    repl_state.raw_function_pointer_signature_committed =
+        snapshot_raw_function_pointer_signature;
     repl_state.patch_committed = snapshot_patch;
     repl_state.last_answer = snapshot_last_answer;
     repl_state.last_answer_valid = snapshot_last_answer_valid;
@@ -3733,6 +3743,8 @@ int repl_eval(const char *line) {
     repl_state.sym_committed = snapshot_sym;
     repl_state.struct_committed = snapshot_struct;
     repl_state.typedef_committed = snapshot_typedef;
+    repl_state.raw_function_pointer_signature_committed =
+        snapshot_raw_function_pointer_signature;
     repl_state.patch_committed = snapshot_patch;
     repl_state.last_answer = snapshot_last_answer;
     repl_state.last_answer_valid = snapshot_last_answer_valid;
@@ -3750,6 +3762,8 @@ int repl_eval(const char *line) {
     repl_state.sym_committed = snapshot_sym;
     repl_state.struct_committed = snapshot_struct;
     repl_state.typedef_committed = snapshot_typedef;
+    repl_state.raw_function_pointer_signature_committed =
+        snapshot_raw_function_pointer_signature;
     repl_state.patch_committed = snapshot_patch;
     repl_state.last_answer = snapshot_last_answer;
     repl_state.last_answer_valid = snapshot_last_answer_valid;
@@ -3767,6 +3781,8 @@ int repl_eval(const char *line) {
     repl_state.sym_committed = snapshot_sym;
     repl_state.struct_committed = snapshot_struct;
     repl_state.typedef_committed = snapshot_typedef;
+    repl_state.raw_function_pointer_signature_committed =
+        snapshot_raw_function_pointer_signature;
     repl_state.patch_committed = snapshot_patch;
     repl_state.last_answer = snapshot_last_answer;
     repl_state.last_answer_valid = snapshot_last_answer_valid;

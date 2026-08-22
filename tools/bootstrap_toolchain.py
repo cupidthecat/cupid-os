@@ -1701,6 +1701,16 @@ def require_live_seed_inputs(*seed_inputs: SeedInputs) -> None:
             )
 
 
+def _compare_seed_with_stage_two(
+    seed_inputs: SeedInputs, stage_two: Stage
+) -> dict[str, bool]:
+    captured_artifacts = dict(seed_inputs.artifact_bytes)
+    return {
+        name: captured_artifacts[name] == stage_two.tools[name].read_bytes()
+        for name in TOOL_NAMES
+    }
+
+
 def run_seed_tool(
     manifest_path: Path,
     working_directory: Path,
@@ -2453,6 +2463,13 @@ def _run_native_windows_behavior_checks(
         behavior_root,
         "native Windows ",
     )
+    _check_executable_local_target_behavior(
+        runner,
+        stage_two,
+        stage_three,
+        behavior_root,
+        "native Windows ",
+    )
 
     asset = behavior_root / "asset.bin"
     asset.write_bytes(b"native-windows-fixed-point")
@@ -2539,9 +2556,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(TOOL_NAMES) + 2,
+        "failure_cases": len(TOOL_NAMES) + 3,
         "help_cases": len(TOOL_NAMES),
-        "success_cases": len(TOOL_NAMES) + 1,
+        "success_cases": len(TOOL_NAMES) + 2,
     }
 
 
@@ -2911,6 +2928,48 @@ def _local_target_object_payload(displacement: int) -> bytes:
     return bytes(image)
 
 
+def _local_target_executable_payload(displacement: int) -> bytes:
+    text = bytes.fromhex("eb") + bytes((displacement & 0xFF,)) + bytes.fromhex(
+        "b8 00 00 00 00 c3"
+    )
+    text_offset = 84
+    image = bytearray(text_offset + len(text))
+    image[:7] = b"\x7fELF\x01\x01\x01"
+    struct.pack_into(
+        "<HHIIIIIHHHHHH",
+        image,
+        16,
+        2,
+        3,
+        1,
+        0x00400000,
+        52,
+        0,
+        0,
+        52,
+        32,
+        1,
+        0,
+        0,
+        0,
+    )
+    struct.pack_into(
+        "<IIIIIIII",
+        image,
+        52,
+        1,
+        text_offset,
+        0x00400000,
+        0x00400000,
+        len(text),
+        len(text),
+        5,
+        1,
+    )
+    image[text_offset:] = text
+    return bytes(image)
+
+
 def _check_relocatable_local_target_behavior(
     runner: ToolRunner,
     stage_two: Stage,
@@ -2970,6 +3029,75 @@ def _check_relocatable_local_target_behavior(
     ):
         raise BootstrapError(
             f"{label_prefix}CupidDis invalid relocatable target output differs"
+        )
+
+
+def _check_executable_local_target_behavior(
+    runner: ToolRunner,
+    stage_two: Stage,
+    stage_three: Stage,
+    behavior_root: Path,
+    label_prefix: str,
+) -> None:
+    local_target_executable = behavior_root / "valid-linked-local-target.elf"
+    local_target_executable.write_bytes(_local_target_executable_payload(5))
+    local_target_arguments: list[str | Path] = [
+        "--require-known",
+        "--require-local-targets",
+        local_target_executable,
+    ]
+    executable_local_target_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        local_target_arguments,
+        local_target_arguments,
+    )
+    _expect_status(
+        executable_local_target_result,
+        0,
+        f"{label_prefix}CupidDis linked local target",
+    )
+    if (
+        executable_local_target_result.stdout
+        or executable_local_target_result.stderr
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidDis linked local target output differs"
+        )
+
+    invalid_local_target_executable = (
+        behavior_root / "invalid-linked-local-target.elf"
+    )
+    invalid_local_target_executable.write_bytes(
+        _local_target_executable_payload(1)
+    )
+    invalid_executable_local_target_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        [
+            "--require-known",
+            "--require-local-targets",
+            invalid_local_target_executable,
+        ],
+    )
+    _expect_status(
+        invalid_executable_local_target_result,
+        1,
+        f"{label_prefix}CupidDis invalid linked local target",
+    )
+    if (
+        invalid_executable_local_target_result.stdout
+        or "1 of 1 direct relative targets invalid"
+        not in invalid_executable_local_target_result.stderr
+        or "1 mid-instruction"
+        not in invalid_executable_local_target_result.stderr
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidDis invalid linked target output differs"
         )
 
 
@@ -5531,6 +5659,13 @@ def _run_behavior_checks(
         behavior_root,
         "",
     )
+    _check_executable_local_target_behavior(
+        runner,
+        stage_two,
+        stage_three,
+        behavior_root,
+        "",
+    )
 
     truncated_code = behavior_root / "truncated-code.bin"
     truncated_code.write_bytes(bytes([0x0F]))
@@ -5679,9 +5814,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 19,
+        "failure_cases": 20,
         "help_cases": 5,
-        "success_cases": 20,
+        "success_cases": 21,
     }
 
 
@@ -5913,11 +6048,9 @@ def _bootstrap_from_frozen_seed(
                 raise BootstrapError(
                     f"Windows {tool_name} evidence is malformed"
                 )
-        seed_matches_stage_two = {
-            name: seed_tools[name].read_bytes()
-            == stage_two.tools[name].read_bytes()
-            for name in TOOL_NAMES
-        }
+        seed_matches_stage_two = _compare_seed_with_stage_two(
+            seed_inputs, stage_two
+        )
         report: dict[str, object] = {
             "behavior": behavior,
             "behavior_generations": ["stage-three", "stage-four"],
@@ -6124,11 +6257,9 @@ def _bootstrap_windows_from_frozen_seed(
             stage_four,
             native_plan,
         )
-        seed_matches_stage_two = {
-            name: seed_tools[name].read_bytes()
-            == stage_two.tools[name].read_bytes()
-            for name in TOOL_NAMES
-        }
+        seed_matches_stage_two = _compare_seed_with_stage_two(
+            seed_inputs, stage_two
+        )
         report: dict[str, object] = {
             "behavior": behavior,
             "behavior_generations": ["stage-three", "stage-four"],

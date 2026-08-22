@@ -72,8 +72,12 @@ The publication gate requires stage-three and stage-four identity, hosted
 runtime checks, live-input checks, and native Windows verification. Normal
 `all` uses poisoned-host Cupid tooling. Its exact artifact-size policy covers
 fourteen paths: four OS artifacts, five Linux seed images, and five Windows
-seed images. Both seed manifests must verify before the policy contract runs.
-The complete gate and all 45 policy tests pass. The host bootstrap log records
+seed images. A CUPSIZE2 request lets the CupidC-built contract validate the
+Windows manifest target, provenance, Linux parent link, exact five-tool
+inventory, and observed sizes and digests. The focused semantic-contract,
+checked-runner, and independent-policy modules contain 22, 16, and 13 tests,
+for 51 total. They pass with four existing platform-specific skips. No
+complete Make result is recorded for this source increment. The host bootstrap log records
 the post-manual-freeze poisoned build and strong private four-vCPU e1000
 frontier. Exact OS identities and runtime measurements stay there because this
 manual is an image input.
@@ -277,14 +281,24 @@ decode passes. An unrelocated direct relative target must stay in that section
 and land on an instruction start there. A relocation at the operand field
 leaves the destination for link time. The existing relocation-ownership rule
 still checks the field. Failures distinguish a target outside the section from
-one in the middle of an instruction. Linked ET_EXEC input is rejected for this
-option.
+one in the middle of an instruction. Checked-seed ET_EXEC still receives the
+focused rejection.
 
 The active ISR and context-switch objects pass this checked-seed policy. Eleven
 ISR call relocations stay outside the local count. Changing one context-switch
 branch byte produces one mid-instruction failure. The promoted seeds carry this
 form, and production object publication selects it before replacement. ADR
 0309 records the source boundary, and ADR 0312 records carriage and adoption.
+
+Source-head CupidDis also accepts the option for linked i386 ELF32 images. It
+scans nonoverlapping file-backed executable load regions twice and accepts a
+cross-region target only when it lands on an instruction start. The linked
+report separates targets outside loaded memory, in loaded memory without
+file-backed executable code, and inside an instruction. A PT_DYNAMIC or
+PT_INTERP header rejects the image as outside the static certification domain.
+Typed and CLI negative cases cover both forms. No production linked image
+transaction selects this form, and the checked seeds do not carry it. ADR 0314
+records the source boundary.
 
 Source-head and checked-seed CupidDis also check relocations that target executable sections
 in ELF32 relocatable objects. R_386_PC32 must begin at a decoded four-byte
@@ -753,9 +767,12 @@ disassembler rules, including section-local targets in static relocatable
 objects. The guarded ISR and context-switch transactions select that object
 rule after structural ELF validation. Relocated external operands remain under
 the relocation-ownership check and are excluded from the local-target count.
-Far pointers, indirect transfers, and linked ELF target proof remain outside
-the policy. The current publication and CUPMAN2 evidence are recorded in the
-overview above. Exact seed identities remain in the host bootstrap log.
+Far pointers and indirect transfers remain outside the local-target count.
+Linked ELF target proof remains outside the current checked-seed policy.
+Source-head CupidDis supports static i386 ET_EXEC proof, but that form still
+awaits promotion and no production linked-image transaction selects it. The
+current publication and CUPMAN2 evidence are recorded in the overview above.
+Exact seed identities remain in the host bootstrap log.
 >endtree
 
 >h2 See Also

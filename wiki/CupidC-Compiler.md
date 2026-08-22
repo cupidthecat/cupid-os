@@ -141,10 +141,20 @@ holds sixteen entries, and each callback signature may contain at most 32
 parameters. Each declaration may introduce only one function-pointer alias. A
 typedef-backed global callback accepts a compatible defined or later-defined
 function designator. Private CupidC writes or patches the address in initialized
-data. Raw callback declarators, address-of and conditional initializers, alias
-chains, record fields, callback arrays, block-static objects, recursive callback
-signatures, and arbitrary computed callback expressions remain outside this
-typed path.
+data. A named raw callback file object and direct free-function parameter also
+retain the parsed signature. The file object uses the same initialized-data,
+assignment, call, and null rules. The parameter uses the same cdecl conversion
+and arity checks. Address-of and conditional initializers, alias chains, record
+fields, callback arrays, block-static objects, recursive callback signatures,
+raw method parameters, and arbitrary computed callback expressions remain
+outside this typed path.
+
+The four-vCPU raw callback QEMU smoke passes with
+`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
+The log is `tests/feature14-callback-raw-qemu.log`, 32,803 bytes, with SHA-256
+`eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
+The full GUI module passes all 126 tests in 1.468 seconds. This is source-head
+evidence. Checked-seed promotion and production adoption remain pending.
 Direct structure and array callback results are rejected; record-pointer
 results retain their record identity. A rejected source or REPL unit restores
 the typedef table with the prior symbols, patches, control state, code, and
@@ -314,8 +324,12 @@ address into initialized data immediately and records an absolute data patch
 for a later definition. JIT and fixed-address AOT therefore start with the same
 callback value. A failed initializer or conflicting later definition rolls the
 data patch and provisional signature back with the rest of the program.
-Address-of, conditional callback expressions, raw callback declarators,
-callback fields and arrays, and block-static callbacks remain unsupported.
+Address-of and conditional callback expressions, callback fields and arrays,
+block-static callbacks, and raw method parameters remain unsupported. The raw
+signature pool accepts 32 distinct parameter signatures. A 33rd distinct
+signature receives `too many raw function-pointer signatures`, and a valid
+retry compiles and runs in the same state. The private callback ABI module
+passes all 268 tests in 51.685 seconds. ADR 0315 records this boundary.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations
@@ -1548,14 +1562,26 @@ seed; `toolchain:all` uses the rebuilt static tools for its published contract
 cohort and a host-selected checked seed for the manifest verifier.
 The first attempt at the audit stopped after 65.183 seconds because the test
 still locked the old artifact-size recipe. The audit and its test now require
-one `$(ARTIFACT_SIZE_CONTRACT)` command that captures both seed roles.
-`make bootstrap-audit` and `make check-bootstrap-audit` both pass. The active-source digest
-is
-`177f15bddae7d6d1f3f51265b255712503a9aef88ad14ad529c23888f88211c9`.
-The 2,700,638-byte JSON report has SHA-256
-`bc9543bc83d558987c063e641db3bc56ad7a7c094bef6e2a09666847da9d770f`.
-The 12,502-byte Markdown summary has SHA-256
-`1c636c076e74de8585601d1ba09284e50e3b2dd767a91f1961065fc0eec0bc59`.
+one `$(ARTIFACT_SIZE_CONTRACT)` command that captures both seed roles. Its
+`CUPSIZE2` request lets the CupidC-built contract validate the Windows target,
+provenance, Linux parent link, exact five-tool inventory, and observed sizes
+and digests. The focused semantic-contract, checked-runner, and
+independent-policy modules contain 22, 16, and 13 tests, for 51 total. They
+pass with four existing platform-specific skips. The source-head artifact
+contract later passed twice against all fourteen exact artifacts. The pass-one
+ELF is 9,366,752 bytes with SHA-256
+`263c124ab0e3c801196b5e24e86b362460eccd3b17366501fe41bdd3a907887c`.
+The final ELF is 9,493,728 bytes with SHA-256
+`00727f9d73cdf0be5dbd01f561a8a82aba0a99bc4e1c679756349aa934056de7`.
+The raw kernel is 9,270,116 bytes with SHA-256
+`9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532`.
+The disk image is 209,715,200 bytes with SHA-256
+`07bb498567798b72d5f9658f18c51aff8fc600ee419b9b95add26eb2bb298ac7`.
+
+`make bootstrap-audit` and `make check-bootstrap-audit` both pass. The Linux
+audit records 20 failure groups, five help groups, and 21 success groups. The
+Windows audit records eight failure groups, five help groups, and seven success
+groups.
 
 The private in-kernel CupidC compiler
 still handles embedded runtime compilation. The checked user compiler creates

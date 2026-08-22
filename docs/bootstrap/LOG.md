@@ -29194,3 +29194,142 @@ records remain unchanged.
 
 No implementation file or generated audit artifact changed in this
 reconciliation. `TempleOS/` remains untouched reference material.
+
+## 2026-08-21: validate linked-image local targets in source-head CupidDis
+
+Source-head CupidDis now accepts `--require-local-targets` for static i386
+ELF32 linked images. It scans each file-backed executable load region twice and
+uses one instruction-start map across the linked virtual address space. A
+direct relative target may cross load regions, but it must land on a recorded
+instruction start.
+
+The linked report separates targets outside loaded memory, in loaded memory
+without file-backed executable code, and inside an instruction. The second
+class covers non-executable load data and an executable memory-only tail.
+Overlapping executable file ranges receive a focused request diagnostic. Far
+and indirect transfers remain outside the policy. A `PT_DYNAMIC` or
+`PT_INTERP` program header rejects the image as outside the static
+certification domain.
+
+Typed and CLI fixtures cover same-region and cross-region targets, each failure
+class, both dynamic program-header forms, overlapping regions, constrained
+storage, and same-job recovery. The
+staged bootstrap drivers add one valid and one invalid linked-image case, which
+makes their source-current behavior inventories 5/21/20 on Linux and 5/7/8 on
+Windows. These are staged source requirements. No production linked-image
+transaction selects the form, and no seed manifest or checked tool image moves.
+ADR 0314 records the boundary.
+
+## 2026-08-21: retain raw callback signatures in private CupidC
+
+Private CupidC now retains a parsed callback signature on a named raw file
+object and on a direct raw callback parameter of a free function. The file
+object may be initialized to null, from a defined function, or from a
+prototyped function defined later. The existing absolute data fixup resolves
+the later target. Checked assignment, typed indirect calls, and null clearing
+work in JIT, fixed-address AOT, and persistent REPL units.
+
+The active spellings in `kernel/core/panic.cc` and `kernel/core/panic.h` drive
+the positive cases. Raw callback parameters retain result type, record-pointer
+identity, fixed parameters, prototype state, and the variadic boundary. A
+prototype and later definition must use the same raw callback parameter
+signature. Mixed-width calls preserve their cdecl slots, and variadic calls
+apply the existing default promotions. Mismatched results, parameters, record
+identity, variadic boundaries, and call arity fail before a valid retry in the
+same compiler state. A mismatch between the raw callback parameter in a
+function prototype and its definition fails the same way.
+
+Persistent REPL raw globals survive across successful units when initialized
+to null, from a defined function, or from a prototyped function defined in a
+later unit. Later units resolve the pending address fixup, assign a callback,
+make a typed call, and clear the object. A parse failure restores the committed
+raw signature count. A post-parse unresolved-patch failure restores it too.
+The bounded pool then accepts 32 distinct raw signatures, rejects the next one
+with `too many raw function-pointer signatures`, and runs a valid retry.
+
+The private callback ABI module passes all 268 tests in 51.685 seconds. The
+standalone seeds do not contain this private parser. No owner, host dependency,
+object format, or seed manifest changes. Explicit address-of callback
+initializers, conditional callback initializers, callback fields, callback
+arrays, block-static raw callbacks, raw method parameters, alias chains, and
+computed callbacks remain unsupported. ADR 0315 records the boundary.
+
+## 2026-08-21: validate the Windows execution seed in CUPSIZE2
+
+The artifact-size request now begins with `CUPSIZE2`. It carries the Linux
+manifest digest, the raw Windows execution-seed manifest, and five regular-file
+size and digest observations. The report schema remains
+`cupid.artifact-size-verification.v1`.
+
+The CupidC-built contract validates the Windows schema, exact tool inventory,
+filenames, producer flags, target, provenance, Linux parent link, source
+identity, policy sizes, and observed file bytes. Python still owns pinned
+capture, native seed materialization, the independent report check, live
+rereads, and the publication boundary.
+
+The semantic-contract module contains 22 tests. The checked runner contains
+16, and the independent policy module contains 13, for 51 focused tests. They
+pass with four existing platform-specific skips. The still-running Make target
+has no result recorded here.
+No seed promotion, owner transfer, host dependency, or report-schema change
+follows from this source-built contract. ADR 0316 records the boundary.
+
+## 2026-08-21: retain verified seed bytes through final report comparison
+
+The final Linux and native Windows bootstrap reports compare each checked seed
+image with its stage-two result. That comparison reopened the executable paths
+in `SeedInputs.tools` after the verified capture directory had been removed.
+The retained-seed regression was red in 0.024 seconds with
+`FileNotFoundError`.
+
+`SeedInputs.artifact_bytes` already holds the five seed images captured during
+manifest and artifact verification. One shared helper now compares those
+retained bytes with the stage-two tool images. `SeedInputs.tools` remains the
+executable path view while the private capture directory exists. Final report
+assembly no longer depends on that directory lifetime.
+
+The Linux and Windows retained-byte regressions pass two tests in 0.067
+seconds. The quick bootstrap group passes seven tests in 1.339 seconds, and the
+two live seed-drift cases pass in 2.792 seconds. `py_compile` and
+`git diff --check` are clean.
+
+The attempted complete 90-test bootstrap-seed run is incomplete evidence. It
+encountered the lifecycle failure and a source-head lock mismatch while the
+checked seed still named its promoted snapshot. No complete suite pass,
+fixed-point proof, or seed reproof is recorded for this repair. The current
+50-input source-head snapshot has SHA-256
+`73b3fa6964292a7f0b753df3535058dd6399f5e6d8e277a082ac70ce65c79e43`.
+
+This repair promotes no seed image, manifest, provenance record, source lock,
+or artifact-size policy. It changes no build owner or host dependency. No `.c`
+file qualifies for a rename from this repair. `TempleOS/` remains untouched
+reference material. ADR 0317 records the decision and remaining promotion
+boundary.
+
+## 2026-08-22: verify source-head bootstrap and runtime evidence
+
+The complete source-head bootstrap module passed all 92 tests in 2,820.626
+seconds. The generated active-source audit and its deterministic check both
+pass. The fixed-point inventory records failure, help, and success counts of
+20/5/21 for Linux and 8/5/7 for Windows.
+
+The source-head `CUPSIZE2` artifact contract passed twice against all fourteen
+exact artifacts. The current outputs are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,366,752 | `263c124ab0e3c801196b5e24e86b362460eccd3b17366501fe41bdd3a907887c` |
+| `kernel/kernel.elf` | 9,493,728 | `00727f9d73cdf0be5dbd01f561a8a82aba0a99bc4e1c679756349aa934056de7` |
+| `kernel/kernel.bin` | 9,270,116 | `9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532` |
+| `cupidos.img` | 209,715,200 | `07bb498567798b72d5f9658f18c51aff8fc600ee419b9b95add26eb2bb298ac7` |
+
+The four-vCPU raw callback QEMU smoke passed with
+`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
+Its 32,803-byte log at
+`tests/feature14-callback-raw-qemu.log` has SHA-256
+`eb915fe1894e4e1dcea236883f874f2c72e0c700a709f13168e438538d60b1ad`.
+The full GUI test module passed all 126 tests in 1.468 seconds.
+
+These are source-head results. Checked-seed promotion and production adoption
+remain pending. The earlier incomplete 90-test attempt and all dated integrated
+build evidence remain historical records.

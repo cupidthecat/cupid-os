@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import shutil
@@ -10,8 +11,11 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SOURCE = REPO_ROOT / "toolchain/tests/artifact_size_policy_contract.cc"
-MAGIC = b"CUPSIZE1"
+MAGIC = b"CUPSIZE2"
 MANIFEST_PATH = "bootstrap/seeds/i386-linux/manifest.json"
+WINDOWS_MANIFEST_PATH = "bootstrap/seeds/i386-windows/manifest.json"
+SOURCE_REVISION = "1" * 40
+SOURCE_SNAPSHOT = "2" * 64
 SEED_TOOLS = (
     ("cupidasm", "CupidASM", 101),
     ("cupidc", "CupidC", 102),
@@ -112,9 +116,77 @@ def _manifest():
         "build_plan": {
             "ignored": [None, True, False, -3, 1.25, {"nested": "value"}]
         },
+        "provenance": {
+            "source_revision": SOURCE_REVISION,
+            "source_snapshot_sha256": SOURCE_SNAPSHOT,
+        },
         "schema": "cupid.bootstrap-seed.v1",
         "target": {"architecture": "i386", "format": "elf32"},
     }
+
+
+def _windows_manifest(parent_manifest_sha256):
+    return {
+        "artifacts": [
+            {
+                "file": f"{name}.exe",
+                "name": name,
+                "producer": name in {"cupidasm", "cupidc", "cupidld"},
+                "sha256": hashlib.sha256(name.encode("ascii")).hexdigest(),
+                "size": size,
+            }
+            for name, _owner, size in SEED_TOOLS
+            for fixed_path, _fixed_owner, fixed_size in FIXED_ARTIFACTS
+            if fixed_path.endswith(f"/{name}.exe")
+            for size in (fixed_size,)
+        ],
+        "provenance": {
+            "artifact_generation": "paired-stage-four-native-windows",
+            "fixed_point_command": "make bootstrap-windows-from-seed",
+            "fixed_point_result": "pass",
+            "parent_seed_manifest_sha256": parent_manifest_sha256,
+            "parent_seed_source_revision": SOURCE_REVISION,
+            "producer_lineage": {
+                "assembly": (
+                    "native stage-three CupidASM from the checked i386 "
+                    "Windows bootstrap"
+                ),
+                "c": (
+                    "native stage-three CupidC from the checked i386 "
+                    "Windows bootstrap"
+                ),
+                "link": (
+                    "native stage-three CupidLD from the checked i386 "
+                    "Windows bootstrap"
+                ),
+            },
+            "source_input_count": 50,
+            "source_revision": SOURCE_REVISION,
+            "source_snapshot_sha256": SOURCE_SNAPSHOT,
+        },
+        "schema": "cupid.execution-seed.v1",
+        "target": {
+            "abi": "windows-stdcall-imports",
+            "architecture": "i386",
+            "byte_order": "little",
+            "entry": 4198400,
+            "linkage": "kernel32-imports",
+            "operating_system": "windows",
+            "pe_class": 32,
+        },
+    }
+
+
+def _windows_observations(windows_manifest):
+    return [
+        (
+            f"bootstrap/seeds/i386-windows/{artifact['file']}",
+            1,
+            artifact["size"],
+            artifact["sha256"],
+        )
+        for artifact in windows_manifest["artifacts"]
+    ]
 
 
 def _policy(manifest_path=MANIFEST_PATH):
@@ -163,6 +235,11 @@ def _request(
     manifest_path=MANIFEST_PATH,
     manifest=None,
     manifest_bytes=None,
+    linux_manifest_digest=None,
+    windows_manifest_path=WINDOWS_MANIFEST_PATH,
+    windows_manifest=None,
+    windows_manifest_bytes=None,
+    windows_observations=None,
     observations=None,
     trailing=b"",
 ):
@@ -176,10 +253,27 @@ def _request(
         policy_bytes = _json_bytes(policy)
     if manifest_bytes is None:
         manifest_bytes = _json_bytes(manifest)
+    if linux_manifest_digest is None:
+        linux_manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+    if windows_manifest is None:
+        windows_manifest = _windows_manifest(linux_manifest_digest)
+    if windows_observations is None:
+        windows_observations = _windows_observations(windows_manifest)
+    if windows_manifest_bytes is None:
+        windows_manifest_bytes = _json_bytes(windows_manifest)
     payload = bytearray(MAGIC)
     _append_bytes(payload, policy_bytes)
     _append_bytes(payload, manifest_path.encode("utf-8"))
     _append_bytes(payload, manifest_bytes)
+    _append_bytes(payload, linux_manifest_digest.encode("ascii"))
+    _append_bytes(payload, windows_manifest_path.encode("utf-8"))
+    _append_bytes(payload, windows_manifest_bytes)
+    payload.extend(struct.pack("<I", len(windows_observations)))
+    for path, kind, size, digest in windows_observations:
+        _append_bytes(payload, path.encode("utf-8"))
+        payload.extend(struct.pack("<I", kind))
+        payload.extend(struct.pack("<Q", size))
+        _append_bytes(payload, digest.encode("ascii"))
     payload.extend(struct.pack("<I", len(observations)))
     for path, kind, size in observations:
         _append_bytes(payload, path.encode("utf-8"))
@@ -272,6 +366,174 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         manifest = _manifest()
         manifest["schema"] = "cupid.bootstrap-seed.v0"
         self.assert_contract_failure(_request(manifest=manifest))
+
+        windows_manifest = _windows_manifest("3" * 64)
+        windows_manifest["schema"] = "cupid.execution-seed.v0"
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest="3" * 64,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+    def test_windows_seed_target_parent_and_source_revision_are_checked(self):
+        digest = "3" * 64
+        windows_manifest = _windows_manifest(digest)
+        windows_manifest["target"]["abi"] = "wrong"
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+        windows_manifest = _windows_manifest("4" * 64)
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+        windows_manifest = _windows_manifest(digest)
+        windows_manifest["provenance"]["source_revision"] = "5" * 40
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+    def test_windows_seed_lineage_matches_the_checked_manifest_contract(self):
+        checked_manifest = json.loads(
+            (REPO_ROOT / WINDOWS_MANIFEST_PATH).read_text(encoding="utf-8")
+        )
+        digest = "3" * 64
+        windows_manifest = _windows_manifest(digest)
+        self.assertEqual(
+            windows_manifest["provenance"]["producer_lineage"],
+            checked_manifest["provenance"]["producer_lineage"],
+        )
+        result = self.run_request(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_windows_seed_requires_exact_five_name_inventory_and_producers(self):
+        digest = "3" * 64
+        windows_manifest = _windows_manifest(digest)
+        windows_manifest["artifacts"].pop()
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+        windows_manifest = _windows_manifest(digest)
+        windows_manifest["artifacts"][-1] = dict(
+            windows_manifest["artifacts"][0]
+        )
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+        windows_manifest = _windows_manifest(digest)
+        windows_manifest["artifacts"][-1]["name"] = "other"
+        windows_manifest["artifacts"][-1]["file"] = "other.exe"
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+        windows_manifest = _windows_manifest(digest)
+        windows_manifest["artifacts"][0]["producer"] = False
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+    def test_windows_seed_sizes_and_digests_match_observations_and_policy(self):
+        digest = "3" * 64
+        windows_manifest = _windows_manifest(digest)
+        windows_observations = _windows_observations(windows_manifest)
+        path, kind, size, artifact_digest = windows_observations[0]
+        windows_observations[0] = (path, kind, size + 1, artifact_digest)
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+                windows_observations=windows_observations,
+            )
+        )
+
+        windows_observations = _windows_observations(windows_manifest)
+        path, kind, size, _artifact_digest = windows_observations[0]
+        windows_observations[0] = (path, kind, size, "6" * 64)
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+                windows_observations=windows_observations,
+            )
+        )
+
+        windows_manifest["artifacts"][0]["size"] += 1
+        windows_observations = _windows_observations(windows_manifest)
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+                windows_observations=windows_observations,
+            )
+        )
+
+    def test_windows_seed_observations_reject_duplicate_missing_and_unsafe(self):
+        digest = "3" * 64
+        windows_manifest = _windows_manifest(digest)
+        windows_observations = _windows_observations(windows_manifest)
+        duplicate = windows_observations[:-1] + [windows_observations[0]]
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+                windows_observations=duplicate,
+            )
+        )
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+                windows_observations=windows_observations[:-1],
+            )
+        )
+        path, kind, size, artifact_digest = windows_observations[0]
+        windows_observations[0] = (
+            "bootstrap/seeds/i386-windows/../cupidasm.exe",
+            kind,
+            size,
+            artifact_digest,
+        )
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+                windows_observations=windows_observations,
+            )
+        )
+        self.assert_contract_failure(
+            _request(windows_manifest_path="../manifest.json")
+        )
 
     def test_policy_requires_exact_object_keys(self):
         policy = _policy()
@@ -379,6 +641,19 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
     def test_malformed_json_and_integer_values_are_rejected(self):
         self.assert_contract_failure(_request(policy_bytes=b'{"schema":'))
         self.assert_contract_failure(_request(manifest_bytes=b"[] trailing"))
+        self.assert_contract_failure(
+            _request(windows_manifest_bytes=b'{"schema":')
+        )
+        windows_manifest = _windows_manifest("3" * 64)
+        self.assert_contract_failure(
+            _request(
+                linux_manifest_digest="3" * 64,
+                windows_manifest=windows_manifest,
+                windows_manifest_bytes=(
+                    _json_bytes(windows_manifest) + b" trailing"
+                ),
+            )
+        )
 
         for value in (0, -1, 1.5, True, 1 << 80):
             with self.subTest(value=value):

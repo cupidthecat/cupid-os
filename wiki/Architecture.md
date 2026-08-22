@@ -221,14 +221,25 @@ as orchestrator, but no transform is Python-only. All 443 transforms under root
 The first attempt at this audit stopped after 65.183 seconds because the test
 still locked the old artifact-size recipe. The audit and its test now require
 one `$(ARTIFACT_SIZE_CONTRACT)` command. That wrapper captures the Linux policy
-manifest and the complete checked Windows seed cohort in one transaction.
-`make bootstrap-audit` and `make check-bootstrap-audit` both pass. The active-source digest
-is
-`177f15bddae7d6d1f3f51265b255712503a9aef88ad14ad529c23888f88211c9`.
-The 2,700,638-byte JSON report has SHA-256
-`bc9543bc83d558987c063e641db3bc56ad7a7c094bef6e2a09666847da9d770f`.
-The 12,502-byte Markdown summary has SHA-256
-`1c636c076e74de8585601d1ba09284e50e3b2dd767a91f1961065fc0eec0bc59`.
+manifest and the complete checked Windows seed cohort in one transaction. Its
+`CUPSIZE2` request gives the CupidC-built contract the Windows manifest, Linux
+parent digest, and five regular-file size and digest observations. The contract
+validates the Windows target, provenance, exact inventory, and observed bytes.
+The focused modules contain 22, 16, and 13 tests, for 51 total. They pass with
+four existing platform-specific skips. The source-head artifact contract later
+passed twice against all fourteen exact artifacts.
+
+| Source-head artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,366,752 | `263c124ab0e3c801196b5e24e86b362460eccd3b17366501fe41bdd3a907887c` |
+| `kernel/kernel.elf` | 9,493,728 | `00727f9d73cdf0be5dbd01f561a8a82aba0a99bc4e1c679756349aa934056de7` |
+| `kernel/kernel.bin` | 9,270,116 | `9045039d62810684c38747a2c487ac629308da3e266b76450ddbd56375488532` |
+| `cupidos.img` | 209,715,200 | `07bb498567798b72d5f9658f18c51aff8fc600ee419b9b95add26eb2bb298ac7` |
+
+`make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
+generated audit records 20 failure groups, five help groups, and 21 success
+groups on Linux. It records eight failure groups, five help groups, and seven
+success groups on Windows.
 
 The exact artifact-size policy covers fourteen paths: four OS artifacts, five
 Linux seed executables, and five Windows seed executables. The wrapper passes
@@ -265,7 +276,7 @@ fourteen exact paths. It measured `kernel/kernel.bin` at 9,225,092 bytes. The
 pinned contract runner passed 24 tests in 27.752 seconds, and the complete
 artifact group passed 45 tests in 2.557 seconds.
 
-The final integrated fully poisoned `make -j4 all` first reached the exact-size gate
+The preceding integrated fully poisoned `make -j4 all` first reached the exact-size gate
 with three rebuilt kernel outputs. The pass-one ELF measured 9,345,464 bytes,
 the final ELF measured 9,472,440 bytes, and the raw kernel measured 9,251,100
 bytes. The artifact group passed all 46 tests in 4.160 seconds, with four
@@ -273,7 +284,7 @@ expected Windows skips. After those three rows were updated, the repeated
 poisoned build passed in 874.531 seconds. All fourteen artifacts matched the
 policy, the existing FAT contents were preserved, and `hello.iso` was staged.
 
-| Integrated output | Bytes | SHA-256 |
+| Historical integrated output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
 | `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
@@ -365,7 +376,9 @@ report requires six bytes with SHA-256
 Six focused source-freeze and PE tests passed in 0.736 seconds. The isolated
 fixed-point test passed in 1,187.863 seconds, and that suite passed all 86 tests
 in 2,444.917 seconds. After the relocatable-object cases were added, the
-current module passed all 89 tests in 3,145.502 seconds.
+ADR 0312 checkpoint passed all 89 tests in 3,145.502 seconds. The complete
+source-head module later passed all 92 tests in 2,820.626 seconds. Checked-seed
+promotion and production adoption remain pending.
 
 The earlier dual-NIC four-vCPU evidence predates this seed promotion. Those
 checks passed through SMP, RDRAND, all 62 crypto checks, USB

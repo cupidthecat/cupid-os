@@ -405,13 +405,18 @@ wrapper pins the raw policy, the Linux bootstrap manifest, the complete Windows
 manifest and five-tool cohort, and all fourteen file observations.
 Checked CupidC compiles a strict C11 policy contract, CupidASM supplies startup,
 and CupidLD links a static ELF on Linux or a native PE on Windows. The contract
-validates the policy, Linux manifest, and every observation, rereads its
-request, and emits canonical JSON. Python independently validates the captured
+uses CUPSIZE2 to validate the policy, Linux manifest, Windows target,
+provenance, Linux parent link, exact five-tool inventory, and every observed
+size and digest. It rereads its request and emits canonical JSON. Python
+independently validates the captured
 Windows cohort, checks the same request, and rewalks every live path before
 success. Missing, duplicate, unknown, linked, nonregular,
 or incorrectly sized files stop the image publisher and preserve an existing
 image. An intended output change moves its reviewed policy row with the
-producing code. The fourteen-path gate and its 45-test policy group pass. After
+producing code. The focused semantic-contract, checked-runner, and
+independent-policy modules contain 22, 16, and 13 tests, for 51 total. They
+pass with four existing platform-specific skips. No complete Make result is recorded for this source
+increment. After
 these embedded manuals are frozen, the host bootstrap log records the
 definitive poisoned build and strong private four-vCPU e1000 frontier. Exact
 sizes, hashes, timings, graphics, and audio measurements stay there because
@@ -1761,8 +1766,14 @@ signatures, alias chains, and void-pointer forms keep source-width slots. A
 typedef-backed global callback may begin with a compatible defined or
 later-defined function. A known address is written into initialized data, and a
 later definition receives an absolute data patch during symbol resolution.
-Address-of and conditional callback initializers, raw callback declarators,
-fields, arrays, and block-static callbacks remain unsupported.
+Named raw callback file objects and direct free-function parameters also
+retain their parsed signatures. The file objects use the same initialized-data,
+assignment, call, and null rules. The parameters use the same cdecl slot and
+arity checks. The private pool accepts 32 distinct raw signatures and recovers
+after rejecting the next one. Address-of and conditional callback initializers,
+fields, arrays, block-static callbacks, and raw method parameters remain
+unsupported. ADR 0315 records the raw boundary.
+The private callback ABI module passes all 268 tests in 51.685 seconds.
 Kernel bindings and other calls without fixed metadata do the same.
 Plain function initializers must match the retained result, record identity,
 fixed parameters, and variadic boundary. An explicit void-pointer cast erases

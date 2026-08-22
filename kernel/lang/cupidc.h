@@ -42,6 +42,9 @@
 #define CC_MAX_FIELDS 32             /* max fields per struct */
 #define CC_MAX_LABELS 128            /* local labels per function/top */
 #define CC_MAX_LABEL_PATCHES 128     /* pending goto patches/label */
+#define CC_MAX_TYPEDEFS 16            /* max source typedef aliases */
+#define CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES 32
+#define CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE CC_MAX_TYPEDEFS
 
 /* JIT/AOT regions live well above kernel BSS and kernel stack.
  * Layout puts the JIT image at 17 MB, with 9 MB of code and data headroom
@@ -214,6 +217,16 @@ typedef enum {
   TYPE_UINT_PTR    /* unsigned int* */
 } cc_type_t;
 
+typedef struct {
+  cc_type_t return_type;
+  int return_struct_index;
+  int param_count;
+  uint8_t param_types[CC_MAX_PARAMS];
+  int8_t param_struct_indices[CC_MAX_PARAMS];
+  int has_param_types;
+  int is_variadic;
+} cc_function_pointer_signature_t;
+
 /* HolyC-style type aliases (kept as aliases for full backward compatibility)
 */
 #define TYPE_U0 TYPE_VOID
@@ -234,8 +247,8 @@ typedef struct {
   uint32_t address; /* absolute address (kernel/func) */
   int param_count;  /* for functions */
   uint8_t param_types[CC_MAX_PARAMS]; /* fixed parameter types when known */
-  /* Record identity for TYPE_STRUCT_PTR; signature-bearing typedef index for
-   * a file-scope TYPE_FUNC_PTR parameter; -1 when neither applies. */
+  /* Record identity for TYPE_STRUCT_PTR; callback-signature handle for a
+   * file-scope TYPE_FUNC_PTR parameter; -1 when neither applies. */
   int8_t param_struct_indices[CC_MAX_PARAMS];
   int has_param_types; /* parsed prototype or definition supplied types */
   int function_signature_is_provisional; /* inferred from a local initializer */
@@ -371,20 +384,29 @@ typedef struct {
   int jit_mode; /* 1 = JIT (execute), 0 = AOT (save) */
 
   /* Typedef aliases (global scope only) */
-  char typedef_names[16][CC_MAX_IDENT];
-  cc_type_t typedef_types[16];
-  int typedef_struct_indices[16];
-  int typedef_array_counts[16];
-  int typedef_is_const_qualified[16];
-  int typedef_function_pointer_signature_valid[16];
-  cc_type_t typedef_function_pointer_return_types[16];
-  int typedef_function_pointer_return_struct_indices[16];
-  int typedef_function_pointer_param_counts[16];
-  uint8_t typedef_function_pointer_param_types[16][CC_MAX_PARAMS];
-  int8_t typedef_function_pointer_param_struct_indices[16][CC_MAX_PARAMS];
-  int typedef_function_pointer_has_param_types[16];
-  int typedef_function_pointer_is_variadic[16];
+  char typedef_names[CC_MAX_TYPEDEFS][CC_MAX_IDENT];
+  cc_type_t typedef_types[CC_MAX_TYPEDEFS];
+  int typedef_struct_indices[CC_MAX_TYPEDEFS];
+  int typedef_array_counts[CC_MAX_TYPEDEFS];
+  int typedef_is_const_qualified[CC_MAX_TYPEDEFS];
+  int typedef_function_pointer_signature_valid[CC_MAX_TYPEDEFS];
+  cc_type_t typedef_function_pointer_return_types[CC_MAX_TYPEDEFS];
+  int typedef_function_pointer_return_struct_indices[CC_MAX_TYPEDEFS];
+  int typedef_function_pointer_param_counts[CC_MAX_TYPEDEFS];
+  uint8_t
+      typedef_function_pointer_param_types[CC_MAX_TYPEDEFS][CC_MAX_PARAMS];
+  int8_t typedef_function_pointer_param_struct_indices[CC_MAX_TYPEDEFS]
+                                                       [CC_MAX_PARAMS];
+  int typedef_function_pointer_has_param_types[CC_MAX_TYPEDEFS];
+  int typedef_function_pointer_is_variadic[CC_MAX_TYPEDEFS];
   int typedef_count;
+
+  /* Raw callback parameters need stable nested signatures on their owning
+   * free-function symbols. Handles at or above the base select this pool;
+   * smaller handles still name signature-bearing typedefs. */
+  cc_function_pointer_signature_t
+      raw_function_pointer_signatures[CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES];
+  int raw_function_pointer_signature_count;
 
   /* HolyC-style top-level / auto-main handling.
    * The parser auto-emits a trailing `call main` when a file has top-level
@@ -454,6 +476,7 @@ typedef struct {
   int struct_committed;    /* Number of structs permanently committed */
   cc_struct_def_t structs_committed[CC_MAX_STRUCTS];
   int typedef_committed;   /* Number of typedefs permanently committed */
+  int raw_function_pointer_signature_committed;
   int patch_committed;     /* Number of patches permanently committed */
   int32_t last_answer;     /* Result of last expression (like TempleOS Fs->answer) */
   int last_answer_valid;   /* Whether last_answer holds a meaningful value */

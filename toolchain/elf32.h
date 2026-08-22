@@ -14,6 +14,8 @@ typedef enum {
 } ctool_elf32_file_type_t;
 
 #define CTOOL_ELF32_PT_LOAD 1u
+#define CTOOL_ELF32_PT_DYNAMIC 2u
+#define CTOOL_ELF32_PT_INTERP 3u
 #define CTOOL_ELF32_PT_TLS 7u
 
 #define CTOOL_ELF32_PF_X 0x00000001u
