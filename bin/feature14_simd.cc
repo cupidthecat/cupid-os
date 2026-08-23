@@ -18,6 +18,7 @@ int feature14_matrix_sizeof_calls;
 int feature14_float_call_count;
 int feature14_double_call_count;
 int feature14_raw_call_count;
+int feature14_callback_index_calls;
 
 int feature14_raw_target(int value) {
     feature14_raw_call_count += 1;
@@ -32,6 +33,7 @@ feature14_float_callback_t feature14_global_callback = feature14_merge_float4;
 
 typedef struct {
     feature14_float_callback_t callback;
+    float4 (*raw_callback)(float4, int, float4);
 } feature14_callback_slot_t;
 
 typedef struct {
@@ -57,6 +59,11 @@ int feature14_next_middle() {
 
 int feature14_next_inner() {
     feature14_matrix_inner_calls += 1;
+    return 1;
+}
+
+int feature14_next_callback_slot() {
+    feature14_callback_index_calls += 1;
     return 1;
 }
 
@@ -341,6 +348,29 @@ int feature14_test_callback_field() {
     if (feature14_float_call_count != 1) return 2;
     if (result.x != 6.0f || result.y != 8.0f ||
         result.z != 10.0f || result.w != 12.0f) return 3;
+    return 0;
+}
+
+int feature14_test_callback_field_postfix() {
+    float4 first = {1.0f, 2.0f, 3.0f, 4.0f};
+    float4 second = {5.0f, 6.0f, 7.0f, 8.0f};
+    float4 typed_result;
+    float4 raw_result;
+    feature14_callback_controller_t controller;
+
+    feature14_float_call_count = 0;
+    feature14_callback_index_calls = 0;
+    controller.slots[1].callback = feature14_merge_float4;
+    controller.slots[0].raw_callback = feature14_merge_float4;
+    typed_result = controller.slots[feature14_next_callback_slot()].callback(
+        first, 7, second);
+    raw_result = controller.slots[0].raw_callback(first, 11, second);
+    if (feature14_callback_index_calls != 1) return 1;
+    if (feature14_float_call_count != 2) return 2;
+    if (typed_result.x != 6.0f || typed_result.y != 8.0f ||
+        typed_result.z != 10.0f || typed_result.w != 12.0f) return 3;
+    if (raw_result.x != 6.0f || raw_result.y != 8.0f ||
+        raw_result.z != 10.0f || raw_result.w != 12.0f) return 4;
     return 0;
 }
 
@@ -845,6 +875,15 @@ int main() {
     } else {
         serial_printf("[feature14-callback-field] FAIL check=%d\n",
                       callback_field_result);
+        ok = 0;
+    }
+
+    int callback_field_call_result = feature14_test_callback_field_postfix();
+    if (callback_field_call_result == 0) {
+        serial_printf("[feature14-callback-field-call] PASS typedef=1 raw=1 float4=4 once=1 calls=2\n");
+    } else {
+        serial_printf("[feature14-callback-field-call] FAIL check=%d\n",
+                      callback_field_call_result);
         ok = 0;
     }
 

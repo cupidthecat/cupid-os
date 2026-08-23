@@ -196,10 +196,13 @@ the program. A structure or class field declared directly with a callback
 typedef retains that typedef's signature. Checked plain assignment stores a
 compatible function or callback value, null clears the field, and a member
 read keeps the signature when it is copied into a named callback object.
-Nested record and indexed record-array traversal keep the same rule.
-Conditional initializers, block-static objects, raw callback fields, callback
-arrays, alias chains, raw method parameters, postfix calls on field
-expressions, and recursive signatures remain outside this boundary.
+Nested record and indexed record-array traversal keep the same rule. Raw
+function-pointer field declarators retain the same signature. A postfix call
+through either field form uses typed fixed and variadic cdecl conversion,
+evaluates the member designator once, and preserves represented scalar,
+floating, pointer, and SIMD results. Callback arrays, block-static objects,
+alias chains, raw method parameters, conditional field values, aggregate
+results, and recursive signatures remain outside this boundary.
 Direct structure and array results remain rejected. Program and REPL rollback
 restore typedef and side-table metadata, provisional signatures, code, data,
 and every patch kind. The
@@ -210,7 +213,8 @@ assignment, ADR 0310 records automatic objects and method parameters, and ADR
 0313 records initialized-data function-address patches. ADR 0315 records raw
 file objects and free-function parameters. ADR 0319 records direct explicit
 function addresses, ADR 0321 records typedef-backed callback fields, and ADR
-0324 records grouped runtime function addresses. Source-head guest runtime proves the
+0324 records grouped runtime function addresses. ADR 0325 records raw callback
+fields and direct field calls. Source-head guest runtime proves the
 raw forms with initialized, parameter, clear, reassignment, and typed-call
 coverage. No normal AOT source requires the forms yet; the active use remains
 the in-OS feature-14 JIT smoke.
@@ -423,9 +427,11 @@ four OS outputs, five Linux seed images, and five Windows seed images.
 
 The source-current three-root graph records 452 transforms, including 443
 under root `all`. CupidC participates in 250, CupidObj in 192, CupidASM in nine,
-CupidLD in nine, and CupidDis in six. Four transforms run Cupid-built semantic
-contracts. Python participates in all 452 for coordination and safety, but no
-transform is Python-only. The Toolchain publisher now gives a checked strict
+CupidLD in nine, and CupidDis in nine. Four transforms run Cupid-built semantic
+contracts. Its assembly ownership contract covers all 31 active assembly
+sources, including four Toolchain startup sources, with no ownerless input.
+Python participates in all 452 for coordination and safety, but no transform is
+Python-only. The Toolchain publisher now gives a checked strict
 C11 author its artifact and source facts plus 58 raw stage pairs through
 `CUPMAN4`. The pairs cover 17 contract objects, 16 contract executables, 19
 bootstrap C objects, one startup object, and five tool images. The author
@@ -546,6 +552,11 @@ Checked CupidASM authors the 4,096-byte spanning lane from `test_iso/big_pattern
 _Avoid_: general optical-disc mastering, bootable ISO, Joliet author, guest ISO reader
 
 **Production external-program cohort**:
+The current checked publication path compiles `hello.cc`, `ls.cc`, and
+`cat.cc` with CupidC, links private ELF candidates with CupidLD, then runs
+CupidDis with known-instruction, local-target, and static code-anchor policies.
+All three tools share one frozen seed capture. A failed inspection or output on
+either stream preserves the earlier executable. ADR 0326 records this gate.
 The `hello.cc`, `ls.cc`, and `cat.cc` examples compiled by CupidC and linked by CupidLD. Linux runs the checked i386 Linux seed directly, while Windows runs the checked native PE execution seed directly. The compiler and linker pass their caller-owned seed captures to the shared runner. It rechecks the complete live five-tool cohort after each command, and drift detected then prevents publication. The normal build consumes the checked native tools but does not rebuild them. An explicit Windows oracle runs private compiler and linker snapshots and requires all six outputs to match the checked production seed byte for byte. The PE seed has clean stage-three to stage-four convergence and promoted-seed reproof evidence. Its clean proof passed in 1,152.7 seconds, and its 1,130.9-second reproof matched all five initial seed images. Before compilation, the user build captures the exact bytes of the six kernel and public declarations that define the shared i386 syscall contract, compares the reviewed layout, and rechecks every input before success. The reviewed contract is version 5 with 103 fields in 412 bytes, a 136-byte directory entry, an 8-byte file status record, and 101 pinned function providers. The build fixes the freestanding user profile, `_start`, and the `[0x01C00000, 0x01E00000)` arena, then validates the same ELF program-header rules enforced by the kernel loader. `user/build/` contains ignored local outputs. The guest gate boots each program from a separate private copy of the same staged image, binds syscall evidence to the loaded PID, checks output by byte count and FNV-1a fingerprint, copies the hostile cat fixture over the normal `/home/readme.txt` path in the cat copy, and requires the same PID to exit cleanly. ADR 0127 records the ABI gate and corrected VFS record layout. ADR 0130 records the optional native Windows driver path. ADR 0133 records the ABI snapshot and private guest checks. ADR 0187 records the current arena and its coordinated memory-map move. ADR 0188 records the checked-seed default on Windows. ADR 0246 records the shared invocation boundary. ADR 0272 records the checked PE execution seed and retained Linux ABI root, and ADR 0281 records the Windows promotion.
 The PE timings above describe an earlier cohort. The ADR 0292 execution seed
 passed its clean proof in 1,253.4 seconds and its promoted-seed reproof in
@@ -560,6 +571,15 @@ serial-event boundary. The source and evidence images remained unchanged at
 SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 _Avoid_: every external program, hosted GCC examples, user-mode isolation
+
+**Active assembly ownership**:
+The generated contract covering every active assembly input. The current graph
+contains 31 assembly sources, all owned by CupidASM. Four enter through the
+Toolchain fixed-point startup cohort, five are production image inputs, and 22
+are demos or includes. An ownerless source fails unless it has a reviewed
+`host_fixture` or `host_oracle` classification with a reason. ADR 0327 records
+the complete ownership rule.
+_Avoid_: counting only normal image recipes, implicit startup ownership, NASM-owned transforms
 
 **Cupid-built syscall ABI contract**:
 The static i386 contract that checks the external-program table before CupidC compiles the tracked user programs. It snapshots and rereads six ABI declarations, checks version 5, 103 fields, 412 table bytes, public scalar types and constants, both VFS record layouts, and all 101 providers, then emits the reviewed fingerprints. On Linux, stage-three and stage-four CupidC compile it as part of the static Toolchain cohort. CupidLD links the matching ELF, and the checked publisher requires identical objects and executables. On Windows, the checked PE execution seed builds a temporary copy from a separate frozen 26-file closure. CupidC compiles the contract and runtime objects, CupidASM supplies startup, and CupidLD links a validated PE that runs directly. Both paths give the contract and Python oracle the same frozen six-file snapshot and require identical JSON. The Windows path never reads or changes the Linux contract publication. ADR 0264 records the semantic transfer, and ADR 0295 records native Windows execution.
@@ -1512,15 +1532,15 @@ Windows skips. That checkpoint reached the exact-size gate with changed
 pass-one ELF, final ELF, and raw-kernel outputs. After those three policy rows
 were updated, its repeat passed in 874.531 seconds and checked all fourteen
 artifacts.
-The source-head kernel outputs are a 9,379,380-byte
+The source-head kernel outputs are a 9,383,624-byte
 `kernel/kernel.elf.pass1` with SHA-256
-`c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1`, a
-9,506,356-byte `kernel/kernel.elf` with SHA-256
-`2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f`,
-and a 9,281,656-byte `kernel/kernel.bin` with SHA-256
-`f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad`.
+`306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9`, a
+9,510,600-byte `kernel/kernel.elf` with SHA-256
+`14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350`,
+and a 9,289,008-byte `kernel/kernel.bin` with SHA-256
+`aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606`.
 The 209,715,200-byte `cupidos.img` has SHA-256
-`35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0`.
+`793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3`.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
 duplicate, linked, nonregular, or differently sized members fail. An

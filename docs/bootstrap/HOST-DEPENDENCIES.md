@@ -57,7 +57,7 @@ artifact; checked CupidC, CupidASM, and CupidLD build its private contract. No r
 transform remains. One Python runner owns direct Linux and native Windows
 execution, plus WSL staging when Windows must run the Linux bootstrap seed. It
 also owns the live post-run seed check for root tools, checked production
-CupidC, and checked user CupidLD. Each wrapper supplies the five-tool capture
+CupidC, and checked user link and CupidDis inspection. Each wrapper supplies the five-tool capture
 it already froze. Drift detected by the post-run check prevents publication.
 The checked user compiler and Toolchain contract publisher create their own
 output directories. On POSIX, the compiler requires `dir_fd`, `O_DIRECTORY`,
@@ -123,10 +123,10 @@ fourteen exact artifacts. The current kernel outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,379,380 | `c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1` |
-| `kernel/kernel.elf` | 9,506,356 | `2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f` |
-| `kernel/kernel.bin` | 9,281,656 | `f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad` |
-| `cupidos.img` | 209,715,200 | `35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0` |
+| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
+| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
+| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
+| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
 Python retains path safety, process launch, the Windows seed boundary, its
 separate policy decoder, and final drift checks. ADR 0267 records the policy,
 and ADR 0297 records the contract transfer.
@@ -250,8 +250,8 @@ and CupidObj at 375,808 bytes with SHA-256
 ADR 0268
 records the shared runtime, ADR 0269 records CupidLD's
 publication boundary, and ADR 0272 records checked carriage and production
-selection. ADRs 0281 and 0292 record preceding promotions, and ADR 0312
-records the current one.
+selection. ADRs 0281, 0292, 0312, and 0318 record preceding promotions. ADR
+0323 records the current one.
 
 An intermediate 86-test form first completed in 2,394.660 seconds and reported
 one failure and four errors.
@@ -563,11 +563,12 @@ calls, kernel bindings, and calls without parameter metadata keep their
 source-width slots. A named block-local function-pointer declaration keeps
 its fixed parameter types, variadic state, and result type. Its indirect call
 uses the same conversion and 4-, 8-, or 16-byte slot path as a direct call.
-Empty `()`, raw callback fields, callback arrays, block-static objects,
-callback alias chains, recursive signatures, and `void *` forms remain
-metadata-free. A structure or class field declared directly with a callback
-typedef keeps that signature for checked stores, null clearing, and copies into
-named callback objects.
+Empty `()`, callback arrays, block-static objects, callback alias chains,
+recursive signatures, and `void *` forms remain metadata-free. A structure or
+class field declared through a callback typedef or raw function-pointer
+declarator keeps that signature for checked stores, null clearing, named
+copies, and direct postfix calls. Nested and indexed field designators are
+evaluated once.
 Plain function initializers are checked against the retained signature,
 including record-pointer parameters, while an explicit cast opts into erasure.
 Later function addresses and provisional signatures are resolved inside
@@ -929,8 +930,8 @@ three preceding x87 forms into the trust root, ADR 0208 carries forward stack
 subtraction, ADR 0226 records SHRD, ADR 0228 records SHRD's first seed
 carriage, ADR 0243 records an earlier seed, ADR 0252 records the x87 integer
 forms, ADR 0258 records the preceding seed, ADR 0259 records the parity
-predicates, ADR 0265 records their preceding promotion, and ADR 0280 records
-the current promotion.
+predicates, and ADRs 0265, 0280, 0292, 0312, and 0318 record preceding
+promotions. ADR 0323 records the current promotion.
 These counts supersede older source-head references below. The new inspection
 coverage changes no production owner and removes no host dependency.
 
@@ -1181,18 +1182,18 @@ and fixed-address AOT paths write or patch that address in initialized data
 before execution. A named raw callback file object and direct free-function
 parameter retain the parsed signature. The private pool accepts 32 raw
 parameter signatures and fails the next distinct signature without leaking
-state. A structure or class field declared directly with a callback typedef
-retains the signature through checked plain stores, null clearing, and copies
-into named callback objects. Conditional initializers, raw callback fields,
-block-static objects,
-callback arrays, alias chains, recursive signatures, aggregate results, raw
-method parameters, and empty identifier-list signatures remain outside the
-retained path. A zero-data AOT executable reports one
+state. A structure or class field declared through a callback typedef or raw
+function-pointer declarator retains the signature through checked plain stores,
+null clearing, named copies, and direct postfix calls. Conditional initializers,
+block-static objects, callback arrays, alias chains, recursive signatures,
+aggregate results, raw method parameters, and empty identifier-list signatures
+remain outside the retained path. A zero-data AOT executable reports one
 program header and keeps code at file offset `0x80`; data-bearing executables
 retain two headers. These paths add no host tool or output owner. ADR 0319
 records direct explicit function addresses, ADR 0321 records typedef-backed
-callback fields, and ADR 0324 records grouped runtime function addresses. The
-private callback ABI module passes all 273 tests in 48.557 seconds. The
+callback fields, ADR 0324 records grouped runtime function addresses, and ADR
+0325 records raw fields and direct field calls. The private callback ABI module
+passes all 286 tests. The
 four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The 32,981-byte
@@ -1245,7 +1246,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | Checked-seed CupidObj disk path | Included in the 192 CupidObj transforms | `disk-template` authors the MBR, boot reserve, kernel lane, FAT16 metadata, pristine FATs, and empty root directory before Python performs mutable image work. |
 | Checked-seed CupidObj ISO path | Included in the 192 CupidObj transforms | `iso-fixture` authors the complete deterministic ECMA-119 and Rock Ridge image before Python compares an independent render and publishes under a per-output lock. |
 | Checked-seed CupidObj profile path | Included in the 192 CupidObj transforms | `profile-manifest` authors the canonical Doom profile JSON from a frozen `CUPROF1` snapshot before Python checks an independent oracle and publishes under an adjacent no-follow lock. |
-| CupidDis | 6 participating transforms | Supplies 4,718 deterministic text-symbol rows for the 114,851-byte panic-backtrace blob, validates the complete 431-input code cohort in the transactional `kernel.bin` transform, checks the bootloader and SMP trampoline maps, and covers every executable byte in the private ISR and context-switch objects before publication. The checked Linux and Windows seeds also validate executable relocation ownership for both guarded assembly objects. The host oracle remains optional. |
+| CupidDis | 9 participating transforms | Supplies 4,718 deterministic text-symbol rows for the 114,851-byte panic-backtrace blob, validates the complete 431-input code cohort in the transactional `kernel.bin` transform, checks the bootloader and SMP trampoline maps, covers every executable byte in the private ISR and context-switch objects, and inspects all three user ELFs before publication. The checked Linux and Windows seeds also validate executable relocation ownership for both guarded assembly objects. The host oracle remains optional. |
 | Python | 452 transforms | Launches checked Cupid tools and retains host discovery, safety, parity, drift detection, locking, publication, and mutable image work. Every transform has a Cupid participant, so no transform is Python-only. The user ABI, artifact-size, and Toolchain manifest gates combine Cupid-built contracts with independent Python oracles. The disk image, ISO image, and Doom profile manifest are composite transforms because checked CupidObj authors their deterministic bytes first. |
 | Make recursion | 0 transforms | Native hosted CupidASM, CupidObj, CupidLD, and CupidDis targets remain available, but no supported root reaches them recursively |
 
@@ -1328,10 +1329,14 @@ ELFs before CupidObj flattening. ADR 0314 records the decoder boundary, and ADR
 
 The current source graph records 452 transforms across the three supported
 roots and 443 under root `all`. Its tool participation totals are Python 452,
-CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis six. Four
-Cupid-built semantic contracts participate. It retains the 5/22/21 Linux
-fixed-point matrix and records strict validation plus flat extraction together
-on `kernel.bin`, with all 431 code inputs represented. The source-current audit
+CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis nine. Four
+Cupid-built semantic contracts participate. All 31 active assembly sources are
+CupidASM-owned, including four Toolchain startup sources. The audit rejects an
+ownerless assembly input unless it carries a reviewed host-only classification.
+It retains the 5/22/21 Linux fixed-point matrix and records strict validation
+plus flat extraction together on `kernel.bin`, with all 431 code inputs
+represented. Three user ELFs add strict CupidDis inspection before
+publication. The source-current audit
 generated in about 115 seconds, and deterministic check mode passed in 122.30
 seconds.
 

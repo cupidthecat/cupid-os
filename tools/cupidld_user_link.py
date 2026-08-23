@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import stat
 import struct
 import subprocess
 import sys
@@ -213,6 +214,40 @@ def validate_user_executable(path: Path) -> None:
             f"cannot read linked executable {path}: {error}"
         ) from error
     validate_user_executable_bytes(image)
+
+
+def _capture_private_candidate(
+    path: Path,
+    changed_message: str,
+) -> tuple[bytes, tuple[int, int, int, int, int]]:
+    try:
+        before = path.stat(follow_symlinks=False)
+        if not stat.S_ISREG(before.st_mode):
+            raise UserLinkError(changed_message)
+        payload = path.read_bytes()
+        after = path.stat(follow_symlinks=False)
+    except UserLinkError:
+        raise
+    except OSError as error:
+        raise UserLinkError(f"{changed_message}: {error}") from error
+
+    before_identity = (
+        before.st_dev,
+        before.st_ino,
+        before.st_size,
+        before.st_mtime_ns,
+        before.st_ctime_ns,
+    )
+    after_identity = (
+        after.st_dev,
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+        after.st_ctime_ns,
+    )
+    if before_identity != after_identity or len(payload) != after.st_size:
+        raise UserLinkError(changed_message)
+    return payload, after_identity
 
 
 def _root_path(root: Path) -> Path:
@@ -450,7 +485,71 @@ def link_user_program(
                 raise UserLinkError(
                     f"CupidLD did not write an executable for {source.name}"
                 )
-            validate_user_executable(temporary_output)
+            candidate_payload, candidate_identity = _capture_private_candidate(
+                temporary_output,
+                "CupidLD candidate changed before validation",
+            )
+            validate_user_executable_bytes(candidate_payload)
+            if native_snapshot is None:
+                try:
+                    inspected = run_seed_tool(
+                        manifest_path,
+                        root,
+                        "cupiddis",
+                        (
+                            "--require-known",
+                            "--require-local-targets",
+                            "--require-code-anchors",
+                            temporary_output,
+                        ),
+                        timeout=timeout,
+                        frozen_seed=seed_inputs,
+                        runner=active_runner,
+                    )
+                except BootstrapError as error:
+                    if isinstance(error.__cause__, subprocess.TimeoutExpired):
+                        raise UserLinkError(
+                            f"CupidDis timed out after {timeout} seconds for "
+                            f"{output.name}"
+                        ) from error
+                    if isinstance(error.__cause__, OSError):
+                        raise UserLinkError(
+                            f"CupidDis could not run for {output.name}: "
+                            f"{error.__cause__}"
+                        ) from error
+                    raise UserLinkError(str(error)) from error
+                if inspected.returncode != 0:
+                    details = (
+                        inspected.stderr or inspected.stdout or ""
+                    ).strip()
+                    suffix = f": {details}" if details else ""
+                    raise UserLinkError(
+                        f"CupidDis rejected {output.name} with status "
+                        f"{inspected.returncode}{suffix}"
+                    )
+                if inspected.stdout:
+                    raise UserLinkError(
+                        "CupidDis wrote unexpected standard output for "
+                        f"{output.name}"
+                    )
+                if inspected.stderr:
+                    raise UserLinkError(
+                        "CupidDis wrote unexpected standard error for "
+                        f"{output.name}"
+                    )
+                inspected_payload, inspected_identity = (
+                    _capture_private_candidate(
+                        temporary_output,
+                        "CupidDis candidate changed while it was inspected",
+                    )
+                )
+                if (
+                    inspected_identity != candidate_identity
+                    or inspected_payload != candidate_payload
+                ):
+                    raise UserLinkError(
+                        "CupidDis candidate changed while it was inspected"
+                    )
             if native_snapshot is not None:
                 try:
                     native_snapshot.require_unchanged(
@@ -469,7 +568,9 @@ def link_user_program(
                 raise UserLinkError(
                     f"input object changed while linking {source.name}"
                 )
-            os.replace(temporary_output, output)
+            publication_output = temporary_root / f".{output.name}.publish"
+            publication_output.write_bytes(candidate_payload)
+            os.replace(publication_output, output)
     except OSError as error:
         raise UserLinkError(
             f"could not publish user executable {output}: {error}"

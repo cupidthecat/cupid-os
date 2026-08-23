@@ -188,8 +188,8 @@ verified Linux plan. Each PE reserves and commits a one MiB stack. Its heap
 reserves one MiB and commits 4 KiB. The independent format reader checks these fields, and the
 native compiler must compile the unchanged keyboard driver to the same object
 as the Linux seed. ADR 0272 records the role split, ADR 0274 records the stack
-policy, and ADRs 0281, 0292, and 0312 record preceding promotions. ADR 0318
-records the current promotion. ADR 0302 records Toolchain manifest verification, and
+policy, and ADRs 0281, 0292, 0312, and 0318 record preceding promotions. ADR
+0323 records the current promotion. ADR 0302 records Toolchain manifest verification, and
 ADR 0304 records authoring, and ADR 0322 records native Windows author
 execution.
 
@@ -211,14 +211,14 @@ The focused semantic-contract, checked-runner, and independent-policy modules
 contain 22, 16, and 13 tests, for 51 total. They pass with four existing
 platform-specific skips. The source-head artifact contract passes against all
 fourteen exact artifacts. The current kernel outputs are a
-9,379,380-byte `kernel/kernel.elf.pass1` with SHA-256
-`c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1`, a
-9,506,356-byte `kernel/kernel.elf` with SHA-256
-`2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f`,
-and a 9,281,656-byte `kernel/kernel.bin` with SHA-256
-`f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad`.
+9,383,624-byte `kernel/kernel.elf.pass1` with SHA-256
+`306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9`, a
+9,510,600-byte `kernel/kernel.elf` with SHA-256
+`14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350`,
+and a 9,289,008-byte `kernel/kernel.bin` with SHA-256
+`aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606`.
 The 209,715,200-byte `cupidos.img` has SHA-256
-`35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0`.
+`793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3`.
 Failure prevents image publication and preserves the existing image. ADR 0267
 records the policy, ADR 0297 records the contract transfer, and ADR 0305
 established and first carried the fourteen-path closure. ADRs 0312 and 0318
@@ -551,8 +551,8 @@ function pointers remain rejected. A syntactic block-local
 `T (*name)(parameters)` declaration retains its fixed types, variadic
 state, and result. Its indirect call reuses the same cdecl conversions and
 4-, 8-, or 16-byte slots, including typed SIMD transport through XMM0. Empty
-`()`, raw callback fields, callback arrays, block-static objects, callback
-alias chains, recursive signatures, and `void *` forms remain
+`()`, callback arrays, block-static objects, callback alias chains, recursive
+signatures, and `void *` forms remain
 signature-erased. A plain function initializer must match the local pointer's result,
 record identity, fixed types, and variadic boundary. An explicit cast opts into
 erasure. Named local copies share the check. Later targets receive
@@ -581,11 +581,11 @@ the typedef count and metadata. JIT and AOT calls now cover the active ISO, FAT,
 and Doom callback declarations, fixed SIMD callback slots, automatic callbacks,
 and method callback parameters. A direct explicit function address keeps the
 same signature and patch behavior as a plain designator. A structure or class
-field declared directly with the callback typedef keeps that signature for
-checked plain stores, null clearing, and copies into named callback objects.
-Raw callback fields, callback arrays, block-static objects, postfix calls on
-field expressions, alias chains, recursive signatures, and arbitrary computed
-callbacks remain open. A named raw callback file object and direct
+field declared through the callback typedef or a raw function-pointer
+declarator keeps that signature for checked plain stores, null clearing, named
+copies, and direct postfix calls. Callback arrays, block-static objects, alias
+chains, recursive signatures, aggregate results, raw method parameters, and
+arbitrary computed callbacks remain open. A named raw callback file object and direct
 free-function parameter now
 retain the parsed result, parameters, record identities, prototype state, and
 variadic boundary. The private pool accepts 32 distinct raw signatures and
@@ -593,8 +593,9 @@ rejects the next one without leaking state. Direct structure or array results
 remain rejected. A
 code-only AOT image still emits one program header with code at offset `0x80`.
 ADR 0319 records the explicit address boundary, ADR 0321 records
-typedef-backed callback fields, and ADR 0324 records grouped runtime
-addresses. The focused ABI suite passes 273 tests in 48.557 seconds. The four-vCPU raw
+typedef-backed callback fields, ADR 0324 records grouped runtime addresses,
+and ADR 0325 records raw fields and direct field calls. The focused ABI suite
+passes 286 tests. The four-vCPU raw
 callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 Its 32,981-byte log has SHA-256
@@ -638,16 +639,16 @@ and permits null clearing. A compatible defined function designator writes its
 address into the global data slot. A later definition uses a checked absolute
 data patch in the shared symbol pass. Indirect JIT and AOT calls through the
 object use the same 4-, 8-, and 16-byte slots as the retained parameter path.
-The focused ABI suite passes 273 tests in 48.557 seconds. The earlier marker,
+The focused ABI suite passes 286 tests. The earlier marker,
 integrated guest, and checked self-host results remain historical. The current
 raw callback QEMU and GUI results are source-head evidence only.
 The capability is confined to the private compiler. Supported build ownership
 and host requirements remain as listed elsewhere in this matrix. Direct
 explicit function addresses use the same typed initialization and patch path.
-Typedef-backed structure and class fields retain the signature through checked
-stores and copies into named callback objects. Conditional initializers, raw
-callback fields, callback arrays, block-static objects,
-alias chains, recursive signatures, aggregate results, raw method parameters,
+Typedef-backed and raw structure and class callback fields retain the signature
+through checked stores, named copies, and direct postfix calls. Conditional
+initializers, callback arrays, block-static objects, alias chains, recursive
+signatures, aggregate results, raw method parameters,
 and arbitrary computed callbacks remain open. ADR 0313 records the
 fixed-address initialized-data rule, ADR 0315 records raw file objects and
 free-function parameters, ADR 0319 records direct explicit function
@@ -968,7 +969,8 @@ conversion. ADR 0260 records static long-double arithmetic.
 ADR 0288 records runtime integer and long-double usual conversions. ADR 0289
 records wide integer conversion and usual arithmetic with `float` and
 `double`. ADR 0293 records exact decimal `float` and `double` literals. The
-ADR 0312 first carried that capability; ADR 0318 carries it on the current checked seeds.
+ADR 0312 first carried that capability. The unchanged CupidC images in the
+current checked seeds have carried it since ADR 0318.
 Matching or mixed-width floating conditional arms retain their established
 x87 path. The four arithmetic compound operators also accept an integer and a
 floating operand in either lvalue direction. They compute at the usual
@@ -989,11 +991,14 @@ CupidC owns their compilation. CupidC also owns the three example external ELF
 programs. These six translation units
 use `.cc` names. The generated tables retain the strict kernel profile. The
 examples use the closed user profile and CupidLD links them at `0x01C00000`.
+Checked CupidDis then requires known instructions, valid local targets, and
+valid static code anchors in each private ELF before publication. ADR 0326
+records the inspection gate.
 Linux runs the checked bootstrap seed directly. Windows uses that Linux seed
 only for the full Linux contract cohort. Its user ABI gate builds and runs a
 temporary PE with checked native CupidC, CupidASM, and CupidLD. The contract
-and Python oracle read one frozen six-file ABI snapshot. Checked native CupidC
-and CupidLD executables perform the output-bearing work.
+and Python oracle read one frozen six-file ABI snapshot. Checked native CupidC,
+CupidLD, and CupidDis executables perform the output-bearing work.
 Their wrappers compile and link immutable input copies, validate every ELF
 result, and publish atomically. The 23-input default frontier matches every
 locally generated object and executable. An explicit 46-input Windows
@@ -1342,7 +1347,7 @@ contract. ADR 0265 records seed carriage and production adoption.
 
 The current source graph records 452 transforms across the three supported
 roots and 443 under root `all`. Its tool participation totals are Python 452,
-CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis six. The
+CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis nine. The
 user ABI, artifact-size, Toolchain manifest verification, and Toolchain
 manifest author operations account for four Cupid-built contracts. It retains
 the promoted seed's 5/22/21 Linux fixed-point matrix. The source-current audit
@@ -1492,11 +1497,11 @@ shape.
 | Milestone | Ownership gate | Current state |
 | --- | --- | --- |
 | Baseline | Clean, reproducible oracle build and recorded artifact/tool hashes on Windows and Linux | Complete at `1e079d1`: two clean 447-artifact builds match independently on Windows Clang/LLVM and Linux GCC/binutils, all host/CupidC/CupidASM checks pass, and the checked cross-host gate confirms the same logical cohort, source revision, quality fields, disk geometry, and tool capabilities. Host-specific aggregate hashes are `fc3e626f85780e4973b57a010528e4e3e59d72c63c54cc3701e61936555bc960` and `38bd2192e3d973b8c5b03d04ea69ed4397769913931ef0127c8fe8fee0536c0d` |
-| Capability audit | Every active source and generated input mapped to required C, ASM, ABI, object, linker, and inspector features | Complete for root `all`, `user:all`, and `toolchain:all`: 739 active inputs, 255 feature IDs, 452 transforms, 25 accounted unreachable source-like files, and a checked drift and coverage gate. Root `all` has 443 transforms. The graph contains 31 assembly files, 297 headers, 411 Cupid C files, and no ordinary C translation unit. The checked graph uses canonical Windows conditionals and the C locale on every host. No supported transform invokes a host C compiler or recursive Make. The source-head fixed-point inventory records failure, help, and success counts of 21/5/22 for Linux and 9/5/8 for Windows. |
-| Assembly migration | All five production assembly sources produced by CupidASM with equivalent bytes/behavior | Complete: the normal graph has five CupidASM-owned and zero NASM-owned transforms; exact/semantic parity, clean poisoned-tool build, ISO lane parity, interrupt/scheduler contracts, UP JIT, and four-CPU boot/runtime gates pass |
+| Capability audit | Every active source and generated input mapped to required C, ASM, ABI, object, linker, and inspector features | Complete for root `all`, `user:all`, and `toolchain:all`: 739 active inputs, 255 feature IDs, 452 transforms, 25 accounted unreachable source-like files, and a checked drift and coverage gate. Root `all` has 443 transforms. The graph contains 31 assembly files, 297 headers, 411 Cupid C files, and no ordinary C translation unit. All 31 active assembly sources are CupidASM-owned, including four Toolchain startup inputs. The checked graph uses canonical Windows conditionals and the C locale on every host. No supported transform invokes a host C compiler or recursive Make. The source-head fixed-point inventory records failure, help, and success counts of 21/5/22 for Linux and 9/5/8 for Windows. |
+| Assembly migration | Every active assembly source has a declared owner and production assembly is built by CupidASM | Complete: all 31 active assembly sources are CupidASM-owned, including four Toolchain startup sources. The normal graph has five production assembly transforms and no NASM-owned transform. Exact and semantic parity, the clean poisoned-tool build, ISO lane parity, interrupt and scheduler contracts, UP JIT, and four-CPU boot/runtime gates pass. ADR 0327 records the complete ownership audit. |
 | C migration | Every reachable kernel, tool, application, Doom, and vendored C cohort compiles and passes behavior gates with CupidC | In progress: all 239 checked-in normal roots plus the generated kernel-symbol translation compile through the checked seed. Three generated installation tables and three example programs add CupidC ownership outside that cohort. The 15 hosted Toolchain contracts also compile, link, and run through the checked i386 seed. Linux runs that seed directly; Windows uses WSL for the complete Linux cohort and checked native PE tools for production. The user ABI, artifact-size, `CUPMAN4` author, and `CUPMAN2` verifier contracts run as checked native PE files without WSL. The Linux stage-four tools still produce the author, which decides all 58 fixed-point stage equalities from raw bytes before Python's independent oracle. Only host-built native drivers and contract runners remain optional development oracles. All Doom production objects compile, and the no-WAD, explicit missing-IWAD recovery, shell-survival, and dual-NIC frontier checks pass. Full IWAD gameplay, input, audio, and save behavior remain to be checked. |
 | Toolchain self-hosting | Checked seeds rebuild host tools; consecutive post-transition generations are byte-identical on Windows and Linux | Linux rebuilds 19 C objects, startup, and all five tools; native Windows rebuilds 20 C objects, two assembly objects, and all five tools. Both bind snapshot `4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`. Linux passes 5/22/21 behavior and Windows passes 5/8/9. The complete Linux Toolchain cohort on Windows still uses WSL, and Python coordinates both fixed points. ADR 0323 records the current seed pair. |
-| Normal-build cutover | Make invokes CupidC, CupidASM, CupidLD, CupidObj, and CupidDis without GCC, Clang, NASM, LLVM, or binutils | In progress: all 443 root transforms have a Cupid participant. Across all three supported graphs, CupidC participates in 250 transforms, CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in six, and Python in all 452. No transform is Python-only. Windows selects the native checked execution seed for output-bearing tools. The `CUPMAN4` author keeps the converged Linux producer path but runs as a validated native PE on Windows. The boot paths select strict decode and local-target checks; linked kernel publication also selects code-anchor checks before flattening. Python retains coordination, independent comparison, drift, locking, and publication work. |
+| Normal-build cutover | Make invokes CupidC, CupidASM, CupidLD, CupidObj, and CupidDis without GCC, Clang, NASM, LLVM, or binutils | In progress: all 443 root transforms have a Cupid participant. Across all three supported graphs, CupidC participates in 250 transforms, CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in nine, and Python in all 452. No transform is Python-only. Windows selects the native checked execution seed for output-bearing tools. The `CUPMAN4` author keeps the converged Linux producer path but runs as a validated native PE on Windows. The boot paths select strict decode and local-target checks. Linked kernel and user ELF publication also select local-target and code-anchor checks before publication. Python retains coordination, independent comparison, drift, locking, and publication work. |
 
 The current fixed points bind revision
 `b3f0910f84ba182d0882fc67b5983b49e9627482` and snapshot
@@ -1507,7 +1512,7 @@ transaction keeps its broad 431-input scan and adds linked local-target
 and code-anchor validation over both frozen kernel ELFs before flattening.
 
 The normal cutover uses one checked invocation for root tools, checked
-production CupidC, and checked user CupidLD. Each production wrapper keeps its
+production CupidC, and checked user CupidLD plus CupidDis. Each production wrapper keeps its
 source and output transaction but delegates private seed execution and the
 live five-image recheck to `run_seed_tool`. ADR 0246 records this
 control-plane consolidation.

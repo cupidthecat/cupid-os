@@ -1470,6 +1470,34 @@ static int cc_last_type_function_pointer_signature_handle(
   return cc_last_type_typedef_index;
 }
 
+static int cc_parse_raw_function_pointer_field(
+    cc_state_t *cc, cc_type_t return_type, int return_struct_index,
+    int return_array_count, cc_token_t *field_name,
+    int *signature_handle);
+
+static int cc_parse_record_field_declarator(
+    cc_state_t *cc, cc_type_t *field_type, int *field_struct_index,
+    int *field_array_count, cc_token_t *field_name,
+    int *signature_handle) {
+  if (cc_peek(cc).type == CC_TOK_LPAREN) {
+    if (!cc_parse_raw_function_pointer_field(
+            cc, *field_type, *field_struct_index, *field_array_count,
+            field_name, signature_handle))
+      return 0;
+    *field_type = TYPE_FUNC_PTR;
+    *field_struct_index = -1;
+    *field_array_count = 0;
+    return 1;
+  }
+
+  *field_name = cc_next(cc);
+  if (field_name->type != CC_TOK_IDENT) {
+    cc_error(cc, "expected field name");
+    return 0;
+  }
+  return 1;
+}
+
 static void cc_retain_scalar_field_function_pointer_signature(
     cc_field_t *field, int signature_handle) {
   field->function_pointer_signature_handle =
@@ -2050,11 +2078,11 @@ static int cc_parse_struct_body(cc_state_t *cc, int struct_index) {
     int field_array_count = cc_last_type_array_count;
     int field_function_pointer_signature_handle =
         cc_last_type_function_pointer_signature_handle(cc, field_type);
-    cc_token_t field_name = cc_next(cc);
-    if (field_name.type != CC_TOK_IDENT) {
-      cc_error(cc, "expected field name");
+    cc_token_t field_name;
+    if (!cc_parse_record_field_declarator(
+            cc, &field_type, &field_struct_index, &field_array_count,
+            &field_name, &field_function_pointer_signature_handle))
       return 0;
-    }
 
     cc_field_t *field = &sd->fields[sd->field_count++];
     int name_index = 0;
@@ -4165,6 +4193,74 @@ static int cc_emit_function_address_value(cc_state_t *cc,
   return !cc->error;
 }
 
+static int cc_emit_retained_postfix_call(cc_state_t *cc,
+                                         int signature_handle) {
+  cc_symbol_t callee;
+  int argc = 0;
+  int arg_sizes[CC_MAX_PARAMS];
+  int total_arg_bytes = 0;
+  int return_struct_index;
+  cc_type_t return_type;
+
+  memset(&callee, 0, sizeof(callee));
+  callee.kind = SYM_LOCAL;
+  callee.type = TYPE_FUNC_PTR;
+  if (!cc_copy_function_pointer_signature_handle(
+          cc, signature_handle, &callee)) {
+    cc_error(cc, "invalid function-pointer field signature");
+    return 0;
+  }
+  return_type = callee.function_pointer_return_type;
+  return_struct_index = callee.struct_index;
+
+  /* Keep the selected field value below the arguments. Argument layout only
+   * permutes the source arguments at the top of the stack. */
+  emit_push_eax(cc);
+  cc_next(cc); /* consume '(' */
+  if (cc_peek(cc).type != CC_TOK_RPAREN) {
+    for (;;) {
+      if (argc >= CC_MAX_PARAMS) {
+        cc_error(cc, "too many call arguments");
+        return 0;
+      }
+      cc_parse_expression(cc, 1);
+      if (!cc_emit_call_argument_push(
+              cc, &callee, argc, &arg_sizes[argc]))
+        return 0;
+      total_arg_bytes += arg_sizes[argc];
+      argc++;
+      if (!cc_match(cc, CC_TOK_COMMA))
+        break;
+    }
+  }
+  cc_expect(cc, CC_TOK_RPAREN);
+  if (cc->error)
+    return 0;
+  if (!cc_validate_named_function_pointer_arity(cc, &callee, argc) ||
+      !cc_emit_cdecl_argument_layout(cc, arg_sizes, argc))
+    return 0;
+
+  /* mov eax, [esp + total_arg_bytes]; call eax */
+  emit8(cc, 0x8B);
+  emit8(cc, 0x84);
+  emit8(cc, 0x24);
+  emit32(cc, (uint32_t)total_arg_bytes);
+  emit8(cc, 0xFF);
+  emit8(cc, 0xD0);
+  emit_add_esp(cc, (int32_t)total_arg_bytes + 4);
+
+  cc_last_expr_type = return_type;
+  if (return_type == TYPE_FLOAT || return_type == TYPE_DOUBLE ||
+      return_type == TYPE_FLOAT4 || return_type == TYPE_DOUBLE2)
+    cc_last_xmm = 0;
+  cc_seed_pointer_subscript_metadata(
+      cc, return_type, return_struct_index);
+  cc_last_expr_direct_lvalue_sym = NULL;
+  cc_last_expr_indirect_lvalue = 0;
+  cc_clear_expr_callable_provenance();
+  return !cc->error;
+}
+
 static void cc_parse_ident_expr(cc_state_t *cc) {
   char name[CC_MAX_IDENT];
   int i = 0;
@@ -5204,10 +5300,12 @@ static void cc_parse_primary(cc_state_t *cc) {
         return;
       }
       int si = cc_last_expr_struct_index;
+      cc_field_t *field = cc_find_field(cc, si, field_tok.text);
 
       /* Method call sugar: obj.Method(args) -> Class_Method(&obj, args)
        * or ptr->Method(args) -> Class_Method(ptr, args).*/
-      if ((cc_last_expr_type == TYPE_STRUCT ||
+      if (!field &&
+          (cc_last_expr_type == TYPE_STRUCT ||
            cc_last_expr_type == TYPE_STRUCT_PTR) &&
           cc_peek(cc).type == CC_TOK_LPAREN && si >= 0 &&
           si < cc->struct_count) {
@@ -5331,7 +5429,6 @@ static void cc_parse_primary(cc_state_t *cc) {
         continue;
       }
 
-      cc_field_t *field = cc_find_field(cc, si, field_tok.text);
       if (!field) {
         cc_error(cc, "unknown struct field");
         return;
@@ -5393,6 +5490,15 @@ static void cc_parse_primary(cc_state_t *cc) {
         if (field->type == TYPE_FLOAT || field->type == TYPE_DOUBLE)
           cc_last_expr_indirect_lvalue = 1;
       }
+      continue;
+    }
+
+    if (next.type == CC_TOK_LPAREN &&
+        cc_last_expr_type == TYPE_FUNC_PTR &&
+        cc_last_expr_function_signature_handle >= 0) {
+      int signature_handle = cc_last_expr_function_signature_handle;
+      if (!cc_emit_retained_postfix_call(cc, signature_handle))
+        return;
       continue;
     }
 
@@ -8885,6 +8991,24 @@ static int cc_intern_raw_function_pointer_signature(
   return CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE + index;
 }
 
+static int cc_parse_raw_function_pointer_field(
+    cc_state_t *cc, cc_type_t return_type, int return_struct_index,
+    int return_array_count, cc_token_t *field_name,
+    int *signature_handle) {
+  cc_named_function_pointer_declarator_t declarator;
+
+  if (!field_name || !signature_handle)
+    return 0;
+  if (!cc_parse_named_function_pointer_declarator(
+          cc, return_type, return_struct_index, return_array_count,
+          &declarator))
+    return 0;
+  *field_name = declarator.name;
+  *signature_handle = cc_intern_raw_function_pointer_signature(
+      cc, &declarator.signature);
+  return *signature_handle >= 0;
+}
+
 typedef struct {
   cc_token_t name;
   cc_type_t type;
@@ -10996,6 +11120,8 @@ void cc_parse_program(cc_state_t *cc) {
           cc_parse_type(cc);
           cc_token_t member_name = cc_next(cc);
           cc_token_t after_member = cc_peek(cc);
+          int member_is_raw_callback =
+              member_name.type == CC_TOK_LPAREN;
 
           cc->pos = saved_pos;
           cc->line = saved_line;
@@ -11003,12 +11129,14 @@ void cc_parse_program(cc_state_t *cc) {
           cc->peek_buf = saved_peek;
           cc->cur = saved_cur;
 
-          if (member_name.type != CC_TOK_IDENT) {
+          if (member_name.type != CC_TOK_IDENT &&
+              !member_is_raw_callback) {
             cc_error(cc, "expected class member name");
             break;
           }
 
-          if (after_member.type == CC_TOK_LPAREN) {
+          if (!member_is_raw_callback &&
+              after_member.type == CC_TOK_LPAREN) {
             cc_type_t mret = cc_parse_type(cc);
             int mret_array_count = cc_last_type_array_count;
             cc_token_t mname = cc_next(cc);
@@ -11037,11 +11165,11 @@ void cc_parse_program(cc_state_t *cc) {
                 cc_last_type_function_pointer_signature_handle(cc, ftype);
             if (cc->error)
               break;
-            cc_token_t fname = cc_next(cc);
-            if (fname.type != CC_TOK_IDENT) {
-              cc_error(cc, "expected field name");
+            cc_token_t fname;
+            if (!cc_parse_record_field_declarator(
+                    cc, &ftype, &fsi, &ftype_array_count, &fname,
+                    &function_pointer_signature_handle))
               break;
-            }
 
             cc_field_t *f = &sd->fields[sd->field_count++];
             int fi = 0;
@@ -11199,11 +11327,11 @@ void cc_parse_program(cc_state_t *cc) {
               cc_last_type_function_pointer_signature_handle(cc, ftype);
           if (cc->error)
             break;
-          cc_token_t fname = cc_next(cc);
-          if (fname.type != CC_TOK_IDENT) {
-            cc_error(cc, "expected field name");
+          cc_token_t fname;
+          if (!cc_parse_record_field_declarator(
+                  cc, &ftype, &fsi, &ftype_array_count, &fname,
+                  &function_pointer_signature_handle))
             break;
-          }
           cc_field_t *f = &sd->fields[sd->field_count++];
           int fi = 0;
           while (fname.text[fi] && fi < CC_MAX_IDENT - 1) {
@@ -12017,11 +12145,11 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         int ftype_array_count = cc_last_type_array_count;
         int function_pointer_signature_handle =
             cc_last_type_function_pointer_signature_handle(cc, ftype);
-        cc_token_t fname = cc_next(cc);
-        if (fname.type != CC_TOK_IDENT) {
-          cc_error(cc, "expected field name");
+        cc_token_t fname;
+        if (!cc_parse_record_field_declarator(
+                cc, &ftype, &fsi, &ftype_array_count, &fname,
+                &function_pointer_signature_handle))
           return;
-        }
         cc_field_t *f = &sd->fields[sd->field_count++];
         int fi = 0;
         while (fname.text[fi] && fi < CC_MAX_IDENT - 1) {

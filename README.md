@@ -61,8 +61,11 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 The private CupidC callback work, SMP raw-map handoff, relocatable-object local
 target checks, and `CUPMAN4` paired-evidence author pass their focused gates.
 The fully poisoned OS build and integrated four-vCPU private guest frontier are
-also complete. The source-current `CUPMAN4` publication and final `CUPMAN2`
-verification pass in 3,952.17 seconds with the promoted local-target seed.
+also complete. An earlier `CUPMAN4` publication and final `CUPMAN2`
+verification passed in 3,952.17 seconds with the preceding linked-image seed.
+The current Linux and Windows seeds carry static ELF code-anchor checks under
+ADR 0323. Source-current publication evidence is recorded in the bootstrap
+log.
 
 Private CupidC retains a file-scope function-pointer typedef signature in direct
 free-function parameters, Cupid class method parameters,
@@ -82,20 +85,27 @@ scalar or SIMD results. Program and REPL failures restore the typedef metadata
 with the rest of the compiler transaction. Code-only AOT output still emits one
 program header with code at file offset `0x80`.
 
-The private callback ABI module passes all 273 tests in 48.557 seconds. Named
+The private callback ABI module passes all 286 tests. Named
 raw callback file objects and direct free-function parameters retain their
 parsed signatures.
 The file objects support null, defined, and later-defined initialization,
 checked assignment, typed indirect calls, and null clearing. The parameters
 use the same cdecl conversions and arity checks as a direct call. Raw callback
-fields, arrays, block-static objects, alias chains, computed expressions, and
-raw Cupid class method parameters remain open. The promoted standalone seeds
+fields now retain the same metadata in structures, classes, anonymous typedef
+records, and persistent REPL records. Typedef-backed and raw field expressions
+can be called directly. They use the existing fixed and variadic cdecl
+conversions, evaluate nested or indexed designators once, and return
+represented scalar, floating, pointer, or SIMD values. A real field wins over
+same-named class method sugar. Callback arrays, block-static objects, alias
+chains, computed conditional values, aggregate results, and raw Cupid class
+method parameters remain open. The promoted standalone seeds
 do not contain this private parser or ELF writer. ADR 0306 records global
 storage, ADR 0310 records automatic objects and method parameters, ADR 0313
 records initialized-data function-address patches, ADR 0315 records raw
 file objects and free-function parameters, and ADR 0319 records direct explicit
-function addresses. ADR 0321 records typedef-backed callback fields, and ADR
-0324 records grouped runtime function addresses.
+function addresses. ADR 0321 records typedef-backed callback fields, ADR 0324
+records grouped runtime function addresses, and ADR 0325 records raw callback
+fields and direct field calls.
 
 The four-vCPU raw callback QEMU smoke passes at source head. It records
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
@@ -110,6 +120,11 @@ The 33,347-byte log has SHA-256
 `14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
 No normal AOT source needs the syntax yet; the active use remains the in-OS
 feature-14 JIT smoke.
+
+Feature 14 also requires
+`[feature14-callback-field-call] PASS typedef=1 raw=1 float4=4 once=1 calls=2`.
+Host tests require that marker and reject its failure form. The current runtime
+verification result is recorded in the bootstrap log.
 
 The Toolchain publisher builds its strict C11 `CUPMAN4` author with the
 converged stage-four Linux CupidC, CupidASM, and CupidLD. Linux receives a
@@ -137,7 +152,7 @@ records checkout-local contract imports, and [ADR 0322](docs/adr/0322-run-the-to
 records native Windows author execution. The source graph has 739 active inputs,
 452 transforms, 255 feature requirements, and 25 accounted unreachable files.
 Participation
-is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 6, and four
+is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and four
 Cupid-built semantic contracts. Python participates in all 452 transforms,
 but no transform is Python-only. Root `all` remains at 443 transforms, each
 with a Cupid participant. The final source-current schema v3 `CUPMAN4`
@@ -192,10 +207,10 @@ kernel outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,379,380 | `c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1` |
-| `kernel/kernel.elf` | 9,506,356 | `2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f` |
-| `kernel/kernel.bin` | 9,281,656 | `f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad` |
-| `cupidos.img` | 209,715,200 | `35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0` |
+| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
+| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
+| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
+| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
 
 The final source-head `make -j4 all` checked all fourteen artifacts, preserved
 the FAT contents, and staged `test_iso/hello.iso`.
@@ -509,13 +524,17 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   supports checked plain assignment, indirect calls, and null clearing.
   Structure and class fields declared directly with that typedef keep the same
   signature for checked stores, null clearing, and copies into named callback
-  objects. Nested record and indexed record-array member paths retain it.
+  objects. Raw field declarators retain the same metadata. Nested record and
+  indexed record-array member paths retain it, and a postfix call through
+  either field form uses typed cdecl conversion without reevaluating the
+  designator.
   A later target is resolved through an initialized-data address patch. ADR
   0303 records free-function parameters, ADR 0306 records global objects, ADR
   0310 records automatic objects and method parameters, and ADR 0313 records
   static callback initialization. ADR 0315 records the raw forms, ADR 0319
   records direct explicit function addresses, ADR 0321 records typedef-backed
-  callback fields, and ADR 0324 records grouped runtime function addresses.
+  callback fields, ADR 0324 records grouped runtime function addresses, and ADR
+  0325 records raw fields and direct field calls.
 - The TCP/IP stack supports RTL8139 and E1000 devices, ARP, IPv4, ICMP, UDP, a client and server subset of RFC 793 TCP, DHCP with static fallback, DNS with a 16-entry TTL cache, and a 32-slot BSD socket table shared by the shell and CupidC. TCP uses per-socket stop-and-wait retransmission with exponential backoff, advertises the actual receive-buffer space, and collects abandoned half-open connections. IPv4 fragments outgoing packets and keeps four reassembly slots for datagrams up to about 64 KB.
 - The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 parsing with hostname, time, and best-effort chain checks against an embedded Mozilla CA bundle. The chain checker is still lenient when it cannot find a root or implement a signature algorithm. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
 - `bin/curl.cc` and `bin/wget.cc` are CupidC clients built on the socket and TLS bindings. `curl` supports GET, POST, `-o`, `-i`, `-s`, `-X`, `-d`, and `-H`, with HTTP-to-HTTP redirects capped at five hops. `wget` supports `-O` and `-q`, derives its output filename, and reports the response status and saved byte count.
@@ -901,8 +920,12 @@ The command gate now requires seven focused x87 range-reduction checks, all
 Checked-seed CupidObj emits the generated ramfs, homefs, and demo installation
 tables as `.cc` sources, and checked-seed CupidC compiles them. The separate
 `user/` build uses CupidC for `hello.cc`, `ls.cc`, and `cat.cc`, then CupidLD
-places each executable in the fixed external arena. Linux runs the checked i386
-Linux seed directly, while Windows runs the checked native PE32 execution seed.
+places each executable in the fixed external arena. Before publication,
+CupidDis requires known instructions, valid local targets, and valid static
+code anchors in the private ELF. A failure or unexpected diagnostic preserves
+the previous executable. Linux runs the checked i386 Linux seed directly,
+while Windows runs the checked native PE32 execution seed. ADR 0326 records
+this publication gate.
 Windows builds and runs the user ABI contract as a private PE with checked
 CupidC, CupidASM, and CupidLD. Linux runs the static ABI contract with the
 checked bootstrap seed. The broader Linux fixed-point, Toolchain, and
@@ -1341,7 +1364,7 @@ Poisoned-host checks cover all 239 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
 roots, the source graph records 452 transforms. CupidC participates in 250,
-CupidObj in 192, CupidASM in nine, CupidLD in nine, and CupidDis in six. Four
+CupidObj in 192, CupidASM in nine, CupidLD in nine, and CupidDis in nine. Four
 Cupid-built semantic contracts cover the user ABI, artifact-size policy,
 Toolchain publication verification, and Toolchain manifest authoring. Python
 participates in all 452, and no normal transform invokes a host C compiler.

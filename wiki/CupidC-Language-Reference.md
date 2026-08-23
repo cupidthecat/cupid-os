@@ -94,9 +94,13 @@ records direct explicit function addresses.
 [ADR 0321](../docs/adr/0321-retain-typedef-callback-signatures-on-private-record-fields.md)
 records typedef-backed record and class fields. Runtime initialization and
 assignment accept `&(function)` and nested grouping; ADR 0324 records that
-boundary. The private callback ABI module passes all 273 tests in 48.557 seconds. Conditional callback expressions, raw
-callback fields, callback arrays, block-static callbacks, direct postfix field
-calls, and raw method parameters remain open.
+boundary. Raw callback field declarators retain the parsed signature. A direct
+postfix call through a raw or typedef-backed callback field applies typed fixed
+and variadic cdecl conversion, evaluates its designator once, and preserves
+represented scalar, floating, pointer, or SIMD results. ADR 0325 records this
+boundary. The private callback ABI module passes all 286 tests. Conditional
+field values, callback arrays, block-static callbacks, alias chains, aggregate
+results, and raw method parameters remain open.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
@@ -131,14 +135,15 @@ and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
 The source-head artifact contract passes against all fourteen exact artifacts.
-The raw kernel is 9,281,656 bytes with SHA-256
-`f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad`.
+The raw kernel is 9,289,008 bytes with SHA-256
+`aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606`.
 The 209,715,200-byte disk image has SHA-256
-`35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0`.
+`793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3`.
 Those output identities are source-head evidence. Both checked seeds now carry
-the same source snapshot, and the normal kernel transaction selects strict
-linked-image validation before flattening. ADR 0318 records the promotion and
-adoption.
+the same source snapshot. The normal kernel transaction selects linked local
+target and static code-anchor validation before flattening. ADR 0318 records
+the preceding linked-image promotion, and ADR 0323 records the current
+code-anchor promotion and adoption.
 
 The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
@@ -309,13 +314,12 @@ the declared type. Grouped zero, `((void *)0)`, a compatible defined or
 later-defined function designator, and the direct address of that function may
 initialize a callback file object.
 Checked plain assignment stores a compatible callback or clears it to null.
-A structure or class field declared directly with the typedef keeps the same
-signature for checked stores, named copies, null checks, and clearing. Nested
-record members and indexed record-array members use the same path. Empty `()`,
-raw callback fields, callback arrays, block-static objects, alias chains,
-recursive callback signatures, and `void *` forms retain source-width slots.
-Calling a callback field directly with postfix `()` remains unsupported; copy
-it into a named typed callback before calling it.
+A structure or class field declared through the typedef or a raw
+function-pointer declarator keeps the same signature for checked stores, named
+copies, null checks, clearing, and direct postfix calls. Nested record members
+and indexed record-array members use the same path and evaluate their designator
+once. Empty `()`, callback arrays, block-static objects, alias chains, recursive
+callback signatures, and `void *` forms retain source-width slots.
 Direct structure and array callback results
 are rejected; record-pointer results retain their record identity. Kernel
 bindings and other calls without fixed parameter metadata do the same.
@@ -476,7 +480,8 @@ records wide integer conversion and usual arithmetic with `float` and
 records exact decimal `float` and `double` literals.
 [ADR 0296](../docs/adr/0296-support-mixed-floating-compound-assignments.md)
 records mixed arithmetic compound assignment. ADR 0312 first carried both
-capabilities; ADR 0318 carries them in the current checked seeds.
+capabilities. The unchanged CupidC images in the current checked seeds have
+carried them since ADR 0318.
 ADR 0258 records the preceding checked seed. ADR 0260 records static
 long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
 0265 records their checked-seed carriage, and ADR 0273 records private derived

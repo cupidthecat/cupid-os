@@ -112,6 +112,113 @@ def _load_audit_module():
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
+    def test_tracked_audit_attributes_toolchain_startup_assembly_to_cupidasm(self):
+        audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
+        sources = {source["path"]: source for source in audit["sources"]}
+
+        for path in (
+            "toolchain/hosted/i386-linux/start.asm",
+            "toolchain/hosted/i386-windows/publication_start.asm",
+            "toolchain/hosted/i386-windows/start.asm",
+            "toolchain/hosted/i386-windows/tool_start.asm",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(sources[path]["runtime_owner"], "CupidASM")
+                self.assertIn("cupid_assembler", sources[path]["build_owners"])
+        self.assertEqual(
+            audit["contracts"]["assembly_source_ownership"],
+            {
+                "status": "pass",
+                "active_sources": 31,
+                "cupidasm_owned_sources": 31,
+                "other_owned_sources": 0,
+                "ownerless_sources": 0,
+                "explicit_classifications": [],
+                "toolchain_startup_sources": 4,
+            },
+        )
+        markdown = _load_audit_module()._render_markdown(audit)
+        self.assertIn(
+            "31 active assembly sources; 31 CupidASM-owned; "
+            "4 Toolchain startup; 0 other-owned; 0 ownerless; "
+            "0 explicit host-only classifications",
+            markdown,
+        )
+
+    def test_toolchain_startup_assembly_ownership_rejects_a_missing_input(self):
+        module = _load_audit_module()
+        inputs = list(module.TOOLCHAIN_CONTRACT_CUPIDASM_OWNERSHIP_INPUTS)
+        inputs.remove("toolchain/hosted/i386-windows/start.asm")
+        model = module.BuildModel(
+            directory="toolchain",
+            root_target="all",
+            rules={},
+            reachable=set(),
+            direct_sources=set(inputs),
+            generated_sources=set(),
+            forced_sources=set(),
+            includes_by_source={},
+            include_search_paths=[],
+            transforms=[
+                {
+                    "output": "toolchain/build/cupidc-contracts/manifest.json",
+                    "operation": "generate_toolchain_manifest",
+                    "tools": [
+                        "cupid_assembler",
+                        "cupid_c_compiler",
+                        "cupid_c_contract",
+                        "cupid_linker",
+                        "host_python",
+                    ],
+                    "inputs": inputs,
+                }
+            ],
+        )
+
+        with self.assertRaisesRegex(
+            module.AuditError,
+            "Toolchain contract CupidASM startup ownership differs.*missing",
+        ):
+            module._toolchain_contract_cupidasm_ownership_inputs([model])
+
+    def test_toolchain_startup_assembly_ownership_rejects_a_mutated_input(self):
+        module = _load_audit_module()
+        inputs = list(module.TOOLCHAIN_CONTRACT_CUPIDASM_OWNERSHIP_INPUTS)
+        inputs.remove("toolchain/hosted/i386-windows/start.asm")
+        inputs.append("toolchain/hosted/i386-windows/unchecked_start.asm")
+        model = module.BuildModel(
+            directory="toolchain",
+            root_target="all",
+            rules={},
+            reachable=set(),
+            direct_sources=set(inputs),
+            generated_sources=set(),
+            forced_sources=set(),
+            includes_by_source={},
+            include_search_paths=[],
+            transforms=[
+                {
+                    "output": "toolchain/build/cupidc-contracts/manifest.json",
+                    "operation": "generate_toolchain_manifest",
+                    "tools": [
+                        "cupid_assembler",
+                        "cupid_c_compiler",
+                        "cupid_c_contract",
+                        "cupid_linker",
+                        "host_python",
+                    ],
+                    "inputs": inputs,
+                }
+            ],
+        )
+
+        with self.assertRaisesRegex(
+            module.AuditError,
+            "Toolchain contract CupidASM startup ownership differs.*"
+            "missing=.*start[.]asm.*unexpected=.*unchecked_start[.]asm",
+        ):
+            module._toolchain_contract_cupidasm_ownership_inputs([model])
+
     def test_ast_shape_omits_empty_interpreter_specific_fields(self):
         module = _load_audit_module()
         function = ast.parse("def probe():\n    return 1\n").body[0]
@@ -551,6 +658,76 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             sources = {entry["path"]: entry for entry in audit["sources"]}
             self.assertEqual(sources["boot.asm"]["runtime_owner"], "CupidASM")
             self.assertEqual(sources["entry.asm"]["runtime_owner"], "CupidASM")
+
+    def test_inventory_rejects_ownerless_active_assembly(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+
+                .PHONY: all
+                all: orphan.asm
+                """,
+            )
+            _write(root / "orphan.asm", "bits 32\nret\n")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(root / "audit.json"),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn(
+                "active assembly source has no build owner or explicit "
+                "classification: orphan.asm",
+                result.stderr,
+            )
+
+    def test_assembly_ownership_accepts_an_explicit_host_fixture(self):
+        module = _load_audit_module()
+        source = {
+            "path": "tests/host_start.asm",
+            "language": "assembly",
+            "build_owners": [],
+            "runtime_owner": None,
+        }
+        policy = {
+            "tests/host_start.asm": (
+                "host_fixture",
+                "native startup fixture outside Cupid OS publication",
+            )
+        }
+
+        with mock.patch.object(
+            module,
+            "KNOWN_ACTIVE_ASSEMBLY_POLICIES",
+            policy,
+            create=True,
+        ):
+            contract = module._active_assembly_ownership_contract([source])
+
+        self.assertEqual(contract["active_sources"], 1)
+        self.assertEqual(contract["ownerless_sources"], 1)
+        self.assertEqual(
+            contract["explicit_classifications"],
+            [
+                {
+                    "path": "tests/host_start.asm",
+                    "classification": "host_fixture",
+                    "reason": "native startup fixture outside Cupid OS publication",
+                }
+            ],
+        )
 
     def test_inventory_maps_reachable_language_inputs_to_tool_owned_outputs(self):
         with tempfile.TemporaryDirectory() as td:
@@ -4714,6 +4891,69 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '                        "cupidc",',
             ),
             (
+                "user disassembler selection changed",
+                "tools/cupidld_user_link.py",
+                '                        "cupiddis",',
+                '                        "cupidobj",',
+            ),
+            (
+                "user disassembler left unreachable",
+                "tools/cupidld_user_link.py",
+                "            if native_snapshot is None:\n"
+                "                try:\n"
+                "                    inspected = run_seed_tool(",
+                "            if False and native_snapshot is None:\n"
+                "                try:\n"
+                "                    inspected = run_seed_tool(",
+            ),
+            (
+                "user disassembler status ignored",
+                "tools/cupidld_user_link.py",
+                "                if inspected.returncode != 0:\n",
+                "                if False and inspected.returncode != 0:\n",
+            ),
+            (
+                "user disassembler stdout ignored",
+                "tools/cupidld_user_link.py",
+                "                if inspected.stdout:\n",
+                "                if False and inspected.stdout:\n",
+            ),
+            (
+                "user disassembler stderr ignored",
+                "tools/cupidld_user_link.py",
+                "                if inspected.stderr:\n",
+                "                if False and inspected.stderr:\n",
+            ),
+            (
+                "user disassembler candidate recheck removed",
+                "tools/cupidld_user_link.py",
+                "                inspected_payload, inspected_identity = (\n"
+                "                    _capture_private_candidate(",
+                "                inspected_payload, inspected_identity = (\n"
+                "                    _capture_unchecked_candidate(",
+            ),
+            (
+                "user disassembler candidate comparison disabled",
+                "tools/cupidld_user_link.py",
+                "                if (\n"
+                "                    inspected_identity != candidate_identity",
+                "                if False and (\n"
+                "                    inspected_identity != candidate_identity",
+            ),
+            (
+                "user publication bytes reloaded from a mutable path",
+                "tools/cupidld_user_link.py",
+                "            publication_output.write_bytes(candidate_payload)",
+                "            publication_output.write_bytes("
+                "temporary_output.read_bytes())",
+            ),
+            (
+                "user publication bypasses the frozen payload",
+                "tools/cupidld_user_link.py",
+                "            os.replace(publication_output, output)",
+                "            os.replace(temporary_output, output)",
+            ),
+            (
                 "injected runner left as a dead marker",
                 "tools/bootstrap_toolchain.py",
                 "            result = active_runner.run("
@@ -8394,7 +8634,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6369, 174),
+                "c.expression.sizeof": (6370, 174),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -8418,6 +8658,32 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 transform["output"]: transform
                 for transform in audit_payload["build"]["transforms"]
             }
+            user_build = next(
+                build
+                for build in audit_payload["supplemental_builds"]
+                if build["directory"] == "user"
+            )
+            user_transform_by_output = {
+                transform["output"]: transform
+                for transform in user_build["transforms"]
+            }
+            for program in ("hello", "ls", "cat"):
+                with self.subTest(user_program_disassembly_gate=program):
+                    transform = user_transform_by_output[
+                        f"user/build/{program}"
+                    ]
+                    self.assertEqual(
+                        transform["tools"],
+                        [
+                            "cupid_disassembler",
+                            "cupid_linker",
+                            "host_python",
+                        ],
+                    )
+                    self.assertEqual(
+                        transform["operation"],
+                        "link_elf32_executable",
+                    )
             iso_transform = root_transform_by_output["test_iso/hello.iso"]
             self.assertEqual(
                 iso_transform["tools"],
@@ -8907,7 +9173,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "cupid_assembler": 9,
                     "cupid_object": 192,
                     "cupid_linker": 9,
-                    "cupid_disassembler": 6,
+                    "cupid_disassembler": 9,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
                     "host_python": 452,
@@ -8994,9 +9260,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/hosted/i386-windows/runtime.cc":
                     ("toolchain_core", "CupidC"),
                 "toolchain/hosted/i386-windows/publication_start.asm":
-                    ("toolchain_core", None),
+                    ("toolchain_core", "CupidASM"),
                 "toolchain/hosted/i386-windows/start.asm":
-                    ("toolchain_core", None),
+                    ("toolchain_core", "CupidASM"),
                 "toolchain/hosted/i386-windows/tool_start.asm":
                     ("toolchain_core", "CupidASM"),
                 "toolchain/tests/core_contract.cc":

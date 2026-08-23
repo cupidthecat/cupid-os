@@ -305,6 +305,7 @@ TOOL_MARKERS = (
     ("$(CUPIDDIS)", "host_python"),
     ("$(CUPIDASM)", "cupid_assembler"),
     ("$(CUPIDASM)", "host_python"),
+    ("$(CUPIDLD_USER_LINK)", "cupid_disassembler"),
     ("$(CUPIDLD_USER_LINK)", "cupid_linker"),
     ("$(CUPIDLD_USER_LINK)", "host_python"),
     ("$(CUPIDLD)", "cupid_linker"),
@@ -509,6 +510,11 @@ TOOLCHAIN_CONTRACT_LINUX_INPUTS = tuple(
         | set(LINUX_BOOTSTRAP_SEED_INPUTS)
     )
 )
+TOOLCHAIN_CONTRACT_CUPIDASM_OWNERSHIP_INPUTS = tuple(
+    path
+    for path in TOOLCHAIN_CONTRACT_LINUX_INPUTS
+    if Path(path).suffix.lower() in {".asm", ".s"}
+)
 USER_SYSCALL_ABI_CHECKED_SEED_INPUTS = WINDOWS_PRODUCTION_SEED_INPUTS
 USER_SYSCALL_ABI_AUDIT_INPUTS = tuple(
     sorted(
@@ -602,6 +608,8 @@ KNOWN_UNREACHABLE_SOURCE_POLICIES = {
         "optional host compiler input for ELF32 reader comparison",
     ),
 }
+KNOWN_ACTIVE_ASSEMBLY_POLICIES: dict[str, tuple[str, str]] = {}
+ACTIVE_ASSEMBLY_POLICY_CLASSIFICATIONS = {"host_fixture", "host_oracle"}
 
 SOURCE_SUFFIX_POLICY_KEYS = {
     "residual_c_sources",
@@ -3077,6 +3085,98 @@ def _c_source_ownership_contract(
     }
 
 
+def _active_assembly_ownership_contract(
+    sources: list[dict[str, object]],
+) -> dict[str, object]:
+    active = sorted(
+        (source for source in sources if source["language"] == "assembly"),
+        key=lambda source: str(source["path"]),
+    )
+    active_by_path = {str(source["path"]): source for source in active}
+    explicit_classifications = []
+    for path, (classification, reason) in sorted(
+        KNOWN_ACTIVE_ASSEMBLY_POLICIES.items()
+    ):
+        if classification not in ACTIVE_ASSEMBLY_POLICY_CLASSIFICATIONS:
+            raise AuditError(
+                "active assembly ownership classification is invalid: "
+                f"{path}: {classification}"
+            )
+        source = active_by_path.get(path)
+        if source is None:
+            raise AuditError(
+                f"active assembly ownership policy path is missing: {path}"
+            )
+        if source["build_owners"]:
+            raise AuditError(
+                "active assembly ownership policy path already has a build "
+                f"owner: {path}"
+            )
+        explicit_classifications.append(
+            {
+                "path": path,
+                "classification": classification,
+                "reason": reason,
+            }
+        )
+    ownerless = [source for source in active if not source["build_owners"]]
+    uncategorized = [
+        source
+        for source in ownerless
+        if str(source["path"]) not in KNOWN_ACTIVE_ASSEMBLY_POLICIES
+    ]
+    if uncategorized:
+        paths = ", ".join(str(source["path"]) for source in uncategorized)
+        subject = "source has" if len(uncategorized) == 1 else "sources have"
+        raise AuditError(
+            f"active assembly {subject} no build owner or explicit "
+            f"classification: {paths}"
+        )
+    cupidasm_owned = [
+        source for source in active if source["runtime_owner"] == "CupidASM"
+    ]
+    other_owned = [
+        source
+        for source in active
+        if source["build_owners"] and source["runtime_owner"] != "CupidASM"
+    ]
+    startup_paths = set(TOOLCHAIN_CONTRACT_CUPIDASM_OWNERSHIP_INPUTS)
+    return {
+        "status": "pass",
+        "active_sources": len(active),
+        "cupidasm_owned_sources": len(cupidasm_owned),
+        "other_owned_sources": len(other_owned),
+        "ownerless_sources": len(ownerless),
+        "explicit_classifications": explicit_classifications,
+        "toolchain_startup_sources": sum(
+            str(source["path"]) in startup_paths for source in active
+        ),
+    }
+
+
+def _propagate_assembly_include_owners(
+    source_build_owners: dict[str, set[str]],
+    includes_by_source: dict[str, list[str]],
+) -> None:
+    """Give nested assembly includes the owners of their including source."""
+    changed = True
+    while changed:
+        changed = False
+        for source, includes in includes_by_source.items():
+            if _language(source) != "assembly":
+                continue
+            owners = source_build_owners.get(source, set())
+            if not owners:
+                continue
+            for included in includes:
+                if _language(included) != "assembly":
+                    continue
+                before = len(source_build_owners[included])
+                source_build_owners[included].update(owners)
+                if len(source_build_owners[included]) != before:
+                    changed = True
+
+
 def _mask_c_noncode(text: str) -> str:
     """Mask comments and literals while retaining code positions and line numbers."""
     output: list[str] = []
@@ -4984,6 +5084,7 @@ def _validate_checked_seed_wrapper(
     runner_name: str,
     publication_call: str,
     native_split: bool,
+    guard_tool_name: str | None = None,
 ) -> None:
     dynamic_namespace_calls = [
         node
@@ -5061,12 +5162,24 @@ def _validate_checked_seed_wrapper(
         and isinstance(node.func, ast.Name)
         and node.func.id == "run_seed_tool"
     ]
-    if len(calls) != 1:
+    expected_call_count = 2 if guard_tool_name is not None else 1
+    if len(calls) != expected_call_count:
         raise AuditError(
             f"checked-seed runner contract changed in {relative}: "
-            f"{function_name} does not delegate exactly once"
+            f"{function_name} has an unexpected checked tool count"
         )
-    call = calls[0]
+    matching_calls = [
+        call
+        for call in calls
+        if len(call.args) >= 3
+        and ast.unparse(call.args[2]) == repr(tool_name)
+    ]
+    if len(matching_calls) != 1:
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            f"{tool_name} invocation is not unique"
+        )
+    call = matching_calls[0]
     expected_arguments = ["manifest_path", "root", repr(tool_name), "arguments"]
     if [ast.unparse(argument) for argument in call.args] != expected_arguments:
         raise AuditError(
@@ -5093,6 +5206,165 @@ def _validate_checked_seed_wrapper(
         for parent in ast.walk(function)
         for child in ast.iter_child_nodes(parent)
     }
+    guard_call = None
+    guard_assignment = None
+    if guard_tool_name is not None:
+        guard_calls = [
+            candidate
+            for candidate in calls
+            if len(candidate.args) >= 3
+            and ast.unparse(candidate.args[2]) == repr(guard_tool_name)
+        ]
+        if len(guard_calls) != 1:
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                f"{guard_tool_name} invocation is not unique"
+            )
+        guard_call = guard_calls[0]
+        if [ast.unparse(argument) for argument in guard_call.args] != [
+            "manifest_path",
+            "root",
+            repr(guard_tool_name),
+            "('--require-known', '--require-local-targets', "
+            "'--require-code-anchors', temporary_output)",
+        ]:
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "publication guard arguments differ"
+            )
+        guard_keywords = {
+            keyword.arg: ast.unparse(keyword.value)
+            for keyword in guard_call.keywords
+            if keyword.arg is not None
+        }
+        if guard_keywords != {
+            "timeout": "timeout",
+            "frozen_seed": "seed_inputs",
+            "runner": runner_name,
+        }:
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "publication guard does not share the frozen runner"
+            )
+        guard_assignment = parents.get(guard_call)
+        if not (
+            isinstance(guard_assignment, ast.Assign)
+            and len(guard_assignment.targets) == 1
+            and ast.unparse(guard_assignment.targets[0]) == "inspected"
+        ):
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "publication guard result is not retained"
+            )
+        guard_try = parents.get(guard_assignment)
+        guard_branch = parents.get(guard_try)
+        if not (
+            isinstance(guard_try, ast.Try)
+            and guard_assignment in guard_try.body
+            and isinstance(guard_branch, ast.If)
+            and ast.unparse(guard_branch.test) == "native_snapshot is None"
+            and guard_try in guard_branch.body
+        ):
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "publication guard is conditionally unreachable"
+            )
+
+        guard_checks = {
+            ast.unparse(statement.test): statement
+            for statement in guard_branch.body
+            if isinstance(statement, ast.If)
+        }
+        for expected_test in (
+            "inspected.returncode != 0",
+            "inspected.stdout",
+            "inspected.stderr",
+        ):
+            statement = guard_checks.get(expected_test)
+            if statement is None or not statement.body or not isinstance(
+                statement.body[-1], ast.Raise
+            ):
+                raise AuditError(
+                    f"checked-seed runner contract changed in {relative}: "
+                    "publication guard result is not checked"
+                )
+
+        capture_calls = [
+            node
+            for node in ast.walk(function)
+            if isinstance(node, ast.Call)
+            and ast.unparse(node.func) == "_capture_private_candidate"
+        ]
+        capture_assignments = {
+            ast.unparse(parent.targets[0]): (candidate, parent)
+            for candidate in capture_calls
+            if isinstance((parent := parents.get(candidate)), ast.Assign)
+            and len(parent.targets) == 1
+        }
+        initial_capture = capture_assignments.get(
+            "(candidate_payload, candidate_identity)"
+        )
+        inspected_capture = capture_assignments.get(
+            "(inspected_payload, inspected_identity)"
+        )
+        if (
+            len(capture_calls) != 2
+            or initial_capture is None
+            or inspected_capture is None
+            or [ast.unparse(arg) for arg in initial_capture[0].args]
+            != [
+                "temporary_output",
+                repr("CupidLD candidate changed before validation"),
+            ]
+            or [ast.unparse(arg) for arg in inspected_capture[0].args]
+            != [
+                "temporary_output",
+                repr("CupidDis candidate changed while it was inspected"),
+            ]
+            or inspected_capture[1] not in guard_branch.body
+        ):
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "publication candidate capture differs"
+            )
+
+        validation_calls = [
+            node
+            for node in ast.walk(function)
+            if isinstance(node, ast.Call)
+            and ast.unparse(node.func) == "validate_user_executable_bytes"
+            and [ast.unparse(arg) for arg in node.args]
+            == ["candidate_payload"]
+        ]
+        candidate_comparison = guard_checks.get(
+            "inspected_identity != candidate_identity or "
+            "inspected_payload != candidate_payload"
+        )
+        publication_writes = [
+            node
+            for node in ast.walk(function)
+            if isinstance(node, ast.Call)
+            and ast.unparse(node)
+            == "publication_output.write_bytes(candidate_payload)"
+        ]
+        if (
+            len(validation_calls) != 1
+            or candidate_comparison is None
+            or not candidate_comparison.body
+            or not isinstance(candidate_comparison.body[-1], ast.Raise)
+            or len(publication_writes) != 1
+            or not initial_capture[0].lineno
+            < validation_calls[0].lineno
+            < guard_call.lineno
+            < inspected_capture[0].lineno
+            < candidate_comparison.lineno
+            < publication_writes[0].lineno
+        ):
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "validated inspection bytes are not frozen for publication"
+            )
+
     assignment = parents.get(call)
     if not (
         isinstance(assignment, ast.Assign)
@@ -5197,7 +5469,11 @@ def _validate_checked_seed_wrapper(
         for node in ast.walk(function)
         if isinstance(node, ast.Call)
         and node not in publication_calls
-        and ast.unparse(node) != "temporary_input.write_bytes(source_payload)"
+        and ast.unparse(node)
+        not in {
+            "temporary_input.write_bytes(source_payload)",
+            "publication_output.write_bytes(candidate_payload)",
+        }
         and (
             (
                 isinstance(node.func, ast.Name)
@@ -5248,14 +5524,26 @@ def _validate_checked_seed_wrapper(
         or len(freeze_assignment.targets) != 1
         or ast.unparse(freeze_assignment.targets[0]) != "seed_inputs"
         or seed_store_count != 1
-        or len(seed_loads) != 1
-        or not isinstance(parents.get(seed_loads[0]), ast.keyword)
-        or parents[seed_loads[0]].arg != "frozen_seed"
+        or len(seed_loads) != expected_call_count
+        or any(
+            not isinstance(parents.get(seed_load), ast.keyword)
+            or parents[seed_load].arg != "frozen_seed"
+            for seed_load in seed_loads
+        )
         or len(publication_calls) != 1
         or len(publication_references) != 1
         or publication_references[0] is not publication_calls[0].func
+        or (
+            guard_call is not None
+            and ast.unparse(publication_calls[0])
+            != "os.replace(publication_output, output)"
+        )
         or alternate_publications
         or not freeze_calls[0].lineno < call.lineno < publication_calls[0].lineno
+        or (
+            guard_call is not None
+            and not call.lineno < guard_call.lineno < publication_calls[0].lineno
+        )
     ):
         raise AuditError(
             f"checked-seed runner contract changed in {relative}: "
@@ -5632,6 +5920,7 @@ def _validate_checked_seed_runner_contract(root: Path) -> None:
         "active_runner",
         "os.replace",
         True,
+        "cupiddis",
     )
     _validate_checked_code_publication(
         trees["tools/hostbuild.py"],
@@ -5719,6 +6008,13 @@ def build_audit(
     for source in _toolchain_contract_cupidc_ownership_inputs(models):
         if source in all_sources:
             source_build_owners[source].add("cupid_c_contract")
+    for source in _toolchain_contract_cupidasm_ownership_inputs(models):
+        if source in all_sources:
+            source_build_owners[source].add("cupid_assembler")
+    _propagate_assembly_include_owners(
+        source_build_owners,
+        includes_by_source,
+    )
 
     feature_collector = FeatureCollector()
     for relative in sorted(all_sources):
@@ -5812,6 +6108,9 @@ def build_audit(
         runtime_owner_evidence_by_path,
         strict_unreachable_cupid_c_ownership,
         complete_supported_graph,
+    )
+    contracts["assembly_source_ownership"] = (
+        _active_assembly_ownership_contract(sources)
     )
     artifact_contract = _artifact_coverage_contract(
         root,
@@ -12407,6 +12706,58 @@ def _toolchain_contract_cupidc_ownership_inputs(
     return evidence
 
 
+def _toolchain_contract_cupidasm_ownership_inputs(
+    models: list[BuildModel],
+) -> set[str]:
+    evidence: set[str] = set()
+    observed: set[str] = set()
+    allowed = set(TOOLCHAIN_CONTRACT_CUPIDASM_OWNERSHIP_INPUTS)
+    found_manifest = False
+    for model in models:
+        if model.directory != "toolchain":
+            continue
+        for transform in model.transforms:
+            if (
+                transform.get("output")
+                != "toolchain/build/cupidc-contracts/manifest.json"
+                or transform.get("operation")
+                != "generate_toolchain_manifest"
+                or transform.get("tools")
+                != [
+                    "cupid_assembler",
+                    "cupid_c_compiler",
+                    "cupid_c_contract",
+                    "cupid_linker",
+                    "host_python",
+                ]
+            ):
+                continue
+            found_manifest = True
+            inputs = transform.get("inputs")
+            if not isinstance(inputs, list):
+                continue
+            observed.update(
+                path
+                for path in inputs
+                if isinstance(path, str)
+                and path.startswith("toolchain/hosted/")
+                and Path(path).suffix.lower() in {".asm", ".s"}
+            )
+            evidence.update(
+                path
+                for path in inputs
+                if isinstance(path, str) and path in allowed
+            )
+    if found_manifest and observed != allowed:
+        missing = sorted(allowed - observed)
+        unexpected = sorted(observed - allowed)
+        raise AuditError(
+            "Toolchain contract CupidASM startup ownership differs: "
+            f"missing={missing!r}, unexpected={unexpected!r}"
+        )
+    return evidence
+
+
 def _validate_native_user_tools_transform(
     directory: str,
     transform: dict[str, object],
@@ -14278,6 +14629,17 @@ def _render_markdown(audit: dict[str, object]) -> str:
                     "active with independent CupidC evidence; "
                     f"{contract['unreachable_tracked_cupid_c_sources']} "
                     "unreachable"
+                )
+            elif "cupidasm_owned_sources" in contract:
+                detail = (
+                    f"{contract['active_sources']} active assembly sources; "
+                    f"{contract['cupidasm_owned_sources']} CupidASM-owned; "
+                    f"{contract['toolchain_startup_sources']} Toolchain "
+                    "startup; "
+                    f"{contract['other_owned_sources']} other-owned; "
+                    f"{contract['ownerless_sources']} ownerless; "
+                    f"{len(contract['explicit_classifications'])} explicit "
+                    "host-only classifications"
                 )
             elif "expression_occurrences" in contract:
                 detail = (

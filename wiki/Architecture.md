@@ -224,7 +224,7 @@ compiler or assembler ownership from that transform.
 
 The stable audit counts cover 739 active language inputs, 452 transforms, 255
 features, and 25 unreachable inputs. CupidC participates in 250 transforms,
-CupidObj in 192, CupidASM in nine, CupidLD in nine, and CupidDis in six. Four
+CupidObj in 192, CupidASM in nine, CupidLD in nine, and CupidDis in nine. Four
 transforms use Cupid-built semantic contracts. Python participates in all 452
 as orchestrator, but no transform is Python-only. All 443 transforms under root
 `all` have a Cupid participant.
@@ -242,10 +242,10 @@ against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,379,380 | `c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1` |
-| `kernel/kernel.elf` | 9,506,356 | `2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f` |
-| `kernel/kernel.bin` | 9,281,656 | `f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad` |
-| `cupidos.img` | 209,715,200 | `35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0` |
+| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
+| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
+| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
+| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated audit records 21 failure groups, five help groups, and 22 success

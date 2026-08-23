@@ -68,10 +68,10 @@ fourteen exact artifacts. The current outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,379,380 | `c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1` |
-| `kernel/kernel.elf` | 9,506,356 | `2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f` |
-| `kernel/kernel.bin` | 9,281,656 | `f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad` |
-| `cupidos.img` | 209,715,200 | `35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0` |
+| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
+| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
+| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
+| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
 
 Source-head bootstrap reporting now compares stage two with the verified bytes
 in `SeedInputs.artifact_bytes`. It no longer reopens ephemeral
@@ -102,10 +102,14 @@ resolved through an absolute data patch. JIT and AOT keep record-pointer
 identity and supported scalar or SIMD results. Direct structure and array
 results remain rejected. A named raw callback file object and direct
 free-function parameter now retain the same parsed signature. Raw callback
-fields, arrays, block-static objects, alias chains, computed expressions, and
-raw Cupid class method parameters remain outside this boundary.
+fields retain it too. A postfix call through a typedef-backed or raw callback
+field uses typed fixed and variadic cdecl conversion, evaluates its designator
+once, and preserves represented scalar, floating, pointer, and SIMD results.
+Callback arrays, block-static objects, alias chains, conditional field values,
+aggregate results, and raw Cupid class method parameters remain outside this
+boundary. ADR 0325 records the field declaration and call boundary.
 
-The private callback ABI module passes all 273 tests in 48.557 seconds. The
+The private callback ABI module passes all 286 tests. The
 four-vCPU raw callback QEMU smoke also passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The 32,981-byte
@@ -148,7 +152,7 @@ direct suite includes a checked stage-four build and run of the author. The
 source graph retains 739
 active inputs, 452 transforms,
 255 feature requirements, and 25 accounted unreachable files. Participation
-is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 6, and four
+is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and four
 Cupid-built contracts. Python participates in every transform, but none is
 Python-only. The final source-current schema v3 `CUPMAN4`
 `make -C toolchain all` passed. The Cupid author and Python oracle agreed on all 58 stage
@@ -650,10 +654,11 @@ typedef-backed global objects initialized from null or a compatible function.
 Its indirect call uses the same conversions and 4-, 8-, or 16-byte slot
 layout, enforces fixed arity, applies default promotions after a variadic
 prefix, and publishes floating or vector results through XMM0. Empty `()`,
-`void *`, raw callback fields, callback arrays, block-static objects,
-callback alias chains, recursive signatures, conditional
-initializers, arbitrary computed expressions, raw method parameters, and
-postfix calls on callback fields remain outside this path. A structure or
+`void *`, callback arrays, block-static objects, callback alias chains,
+recursive signatures, conditional initializers, arbitrary computed
+expressions, raw method parameters, and aggregate callback results remain
+outside this path. Raw and typedef-backed callback fields retain the signature
+and support direct postfix calls. A structure or
 class field declared directly with the callback typedef keeps its signature
 for checked stores, null clearing, and copies into named callback objects. A
 later global target is resolved through an absolute initialized-data patch.
@@ -792,8 +797,9 @@ and null clearing. The typedef table holds sixteen aliases, and each retained
 signature holds at most 32 fixed parameters. A plain function initializer,
 its direct `&function` address, or a typed global assignment must match that
 signature; an explicit `void *` cast
-erases the check. Empty `()`, raw callback fields, callback arrays, block-static objects,
-alias chains, and `void *` pointers remain metadata-free. Direct structure and array results
+erases the check. Empty `()`, callback arrays, block-static objects, alias
+chains, and `void *` pointers remain metadata-free. Raw callback fields retain
+their parsed signatures. Direct structure and array results
 remain rejected, while record-pointer identity is retained.
 Named local callback copies are checked too. A structure or class field
 declared directly with the callback typedef keeps the same signature for
@@ -1355,7 +1361,7 @@ object outputs plus the pass-one and final kernel ELFs. A
 That separate command passed in 185.526 seconds with exit 0 and empty output.
 The current source graph records 452 transforms across the three supported
 roots and 443 under root `all`. Tool participation is Python 452, CupidC 250,
-CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis six. The four
+CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis nine. The four
 Cupid-built contracts cover the user ABI, artifact-size policy, Toolchain
 manifest verification, and Toolchain manifest authoring. It retains the
 5/22/21 Linux fixed-point matrix and assigns strict validation plus flat
@@ -1723,8 +1729,8 @@ Output-bearing Windows recipes run the checked PE cohort directly. Linux
 fixed-point and contract paths still run the static Linux tools through WSL,
 while native Windows reconstruction runs the PE cohort directly. Host Python
 still coordinates both paths. ADR 0272 records carriage and production
-selection, ADR 0281 records the preceding promotion, and ADR 0292 records the
-current promotion.
+selection. ADRs 0281, 0292, 0312, and 0318 record preceding promotions, and
+ADR 0323 records the current promotion.
 
 The checked-seed CLI uses an adjacent-candidate publisher for both ELF and PE
 output. It creates the candidate with exclusive-create semantics, writes and
@@ -1893,7 +1899,10 @@ checked CupidObj seed generates the ramfs program table, homefs document
 table, and CupidASM demo table as `.cc` sources. Checked CupidC compiles them.
 A separate closed wrapper compiles `hello.cc`, `ls.cc`, and `cat.cc` under the
 fixed user profile, and a CupidLD wrapper links them into the two-MiB external
-arena.
+arena. On the checked paths, CupidDis then requires known instructions, valid
+local targets, and valid static code anchors in each private ELF. It shares the
+frozen seed, runner, and timeout with CupidLD. Any failure or output on either
+stream preserves the preceding executable. ADR 0326 records this gate.
 Linux runs the checked bootstrap seed directly. Windows builds its ABI
 contract as a temporary PE with checked native CupidC, CupidASM, and CupidLD,
 then runs that image without WSL. The PE and the independent Python oracle
@@ -2503,7 +2512,10 @@ maps `U0`, the signed and unsigned sized integer spellings, `Bool`, `bool`,
 `float4`, and `double2` directly into the shared type graph. C11 continues to
 treat those spellings as ordinary identifiers. The graph contains 739 active
 language inputs: 31 assembly files, 297 headers, and 411 Cupid C files. No
-ordinary C translation unit remains in the supported roots. It records 255
+ordinary C translation unit remains in the supported roots. The assembly
+ownership contract assigns all 31 active assembly sources to CupidASM,
+including four Toolchain startup inputs, and rejects any ownerless addition.
+ADR 0327 records this complete assembly inventory. The audit records 255
 feature IDs, 452 transforms, and 25 accounted unreachable files. The preprocessor
 inventory covers 704 files and 2,461 include occurrences, split into 2,204
 quoted and 257 angle forms. Its active roots contain 397 tracked and four
@@ -3032,7 +3044,7 @@ local-target adoption.
 
 The ownership counts in the preceding long-form summary are superseded by
 CUPMAN4. CupidC participates in 250 transforms, CupidASM and CupidLD in nine
-each, CupidObj in 192, and CupidDis in six. Four semantic contracts participate,
+each, CupidObj in 192, and CupidDis in nine. Four semantic contracts participate,
 and no transform is Python-only. Python remains present in all 452 transforms
 for capture, safety, oracle comparison, and publication.
 

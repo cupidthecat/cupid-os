@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-08-20
+Verified against source on: 2026-08-22
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,11 +15,11 @@ Verified against source on: 2026-08-20
 
 >h2 Overview
 >tree open Overview
-The CupidC and CupidLD ELF path is separate from the CupidC source JIT.
+The CupidC, CupidLD, and CupidDis ELF path is separate from the CupidC source JIT.
 Linux runs the checked i386 Linux seed directly. On Windows, checked native
 CupidC, CupidASM, and CupidLD build and run the user ABI contract as a private
-PE. Checked native CupidC and CupidLD perform the output-bearing compile and
-link. An optional native Windows check
+PE. Checked native CupidC, CupidLD, and CupidDis perform the output-bearing
+compile, link, and inspection. An optional native Windows check
 requires host-built CupidC and CupidLD output to match the checked seed.
 
 kernel/lang/exec.cc currently supports:
@@ -172,11 +172,13 @@ native-driver oracle targets run only when requested by name.
 The current user/Makefile writes outputs to:
   user/build/
 
-The build freezes its CupidC and CupidLD tool images, validates each object
-and executable, and publishes only complete files. Linux runs the checked seed
+The build freezes its CupidC, CupidLD, and CupidDis tool images, validates each
+object and executable, and publishes only complete files. CupidDis requires
+known instructions, valid local targets, and valid static code anchors in each
+private ELF before publication. Linux runs the checked seed
 directly. On Windows, checked native CupidC, CupidASM, and CupidLD build and
-run the ABI contract. Checked native CupidC and CupidLD then build all six
-program artifacts directly.
+run the ABI contract. Checked native CupidC, CupidLD, and CupidDis then build
+and inspect all six program artifacts directly.
 Use `make test-user-cupidc-frontier` to repeat the deterministic build check.
 On Windows, `make test-user-native-windows-equivalence` builds private
 host-built driver snapshots and compares all six files with checked-seed
@@ -260,8 +262,11 @@ run in one shared ring-0 address space.
 >tree open Checked Build Reference
 The production path accepts the three tracked example sources and their exact
 header closure. It uses the USER_I386 profile, then links with entry symbol
-_start at the fixed external base. Source, header, tool-image, or control-file
-drift stops publication.
+_start at the fixed external base. CupidDis applies --require-known,
+--require-local-targets, and --require-code-anchors to the private executable.
+Failure or output on either stream preserves the earlier file. Source, header,
+tool-image, or control-file drift also stops publication. ADR 0326 records this
+gate.
 
 The Toolchain publication manifest includes a Cupid-built author stage. Python
 freezes the publication facts, then frames a CUPMAN4 request with raw

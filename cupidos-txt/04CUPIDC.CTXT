@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-20
+Verified against source on: 2026-08-22
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -246,7 +246,7 @@ It reports 250 CupidC participations and no host C transform. Of those, 246
 produce ordinary C outputs. The native Windows user ABI, artifact-size policy,
 Toolchain manifest author, and Toolchain manifest verifier supply the other four
 CupidC contract checks. CupidObj participates 192 times, CupidASM and CupidLD
-participate nine times each, and CupidDis participates six times. Four
+participate nine times each, and CupidDis participates nine times. Four
 transforms run Cupid-built semantic contracts. Host Python participates in all
 452 transforms, but none is Python-only. The normal Toolchain build uses checked
 static i386 tools for its contract cohort; native contract binaries are optional
@@ -278,7 +278,8 @@ captured byte sequence. All 443 audited root transforms have a
 Cupid participant and no host C or recursive Make transform. The size verifier
 emits no OS artifact. It builds a private CupidC policy contract with CupidASM
 startup and a CupidLD link. Across all three graphs, CupidASM and CupidLD each
-participate nine times, CupidObj 192 times, and CupidDis six times. Four
+participate nine times, CupidObj 192 times, and CupidDis nine times. Three of
+the CupidDis gates inspect the example user ELFs before publication. Four
 transforms run Cupid-built semantic contracts. The user compiler and Toolchain
 contract publisher create their own output directories, so empty-directory
 setup is not a separate transform. The compiler pins every
@@ -1772,7 +1773,9 @@ and XMM0 results.
 A structure or class field declared directly with the typedef keeps the
 signature for checked stores, copies into named callbacks, null checks, and
 clearing. Direct members, nested records, and indexed record arrays share that
-path. Empty (), raw callback fields, block-static objects, callback arrays, bare
+path. Raw callback fields retain the parsed signature. Direct postfix calls
+through raw or typedef-backed fields use typed cdecl conversion and evaluate
+the designator once. Empty (), block-static objects, callback arrays, bare
 nested callback signatures, alias chains, and void-pointer forms keep
 source-width slots. A
 typedef-backed global callback may begin with a compatible defined or
@@ -1784,13 +1787,13 @@ assignment, call, and null rules. The parameters use the same cdecl slot and
 arity checks. The private pool accepts 32 distinct raw signatures and recovers
 after rejecting the next one. A direct function address uses the same signature
 check as a plain function designator. Runtime initialization and assignment
-accept &(function) and nested grouping. Conditional callback initializers, raw
-callback fields, callback arrays, block-static callbacks, direct postfix field
-calls, and raw method parameters remain unsupported. ADR 0315 records the raw
+accept &(function) and nested grouping. Conditional field values, callback
+arrays, block-static callbacks, alias chains, aggregate results, and raw method
+parameters remain unsupported. ADR 0315 records the raw
 boundary, ADR 0319 records explicit function addresses, ADR 0321 records
 typedef-backed record and class fields, and ADR 0324 records grouped runtime
-addresses.
-The private callback ABI module passes all 273 tests in 48.557 seconds.
+addresses. ADR 0325 records raw fields and direct field calls.
+The private callback ABI module passes all 286 tests.
 The checked Linux and Windows CupidC seeds do not contain this private parser.
 The active runtime proof remains the feature-14 JIT smoke; no normal AOT source
 requires the syntax yet.

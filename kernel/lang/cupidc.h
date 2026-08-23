@@ -283,7 +283,7 @@ typedef struct {
   int32_t offset;   /* byte offset within struct */
   int struct_index; /* if type is struct, which struct */
   int array_count;  /* >0 if this field is a fixed array */
-  /* Retained typedef callback signature, or -1 for other field types. */
+  /* Retained callback signature, or -1 for other field types. */
   int function_pointer_signature_handle;
 } cc_field_t;
 

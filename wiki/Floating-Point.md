@@ -400,12 +400,12 @@ declared directly with the typedef also retains the signature across null
 initialization, checked plain assignment, indirect call, and null clearing.
 Cupid class method parameters and declaration-initialized automatic objects
 declared directly with the same file-scope typedef retain the signature too.
-A structure or class field declared directly with the typedef keeps the
-signature for checked stores, named copies, null checks, and clearing. Direct
-members, nested records, and indexed record arrays share that path. Empty `()`,
-raw callback fields, callback arrays, callback alias chains, block-static
-objects, recursive callback signatures, direct postfix field calls, and
-`void *` forms remain metadata-free.
+A structure or class field declared through the typedef or a raw
+function-pointer declarator keeps the signature for checked stores, named
+copies, null checks, clearing, and direct postfix calls. Direct members, nested
+records, and indexed record arrays share that path and evaluate the designator
+once. Empty `()`, callback arrays, callback alias chains, block-static objects,
+recursive callback signatures, and `void *` forms remain metadata-free.
 Kernel bindings and other calls without fixed metadata keep their source-width
 slots. A plain function initializer or direct callback argument must match the
 retained signature, including record-pointer parameters. Local callback copies
@@ -504,11 +504,12 @@ path. A free-function or Cupid class method parameter declared with a direct
 file-scope callback typedef uses that path too. A declaration-initialized
 automatic object keeps the same metadata. A file object declared with that
 typedef also uses the 16-byte slot and XMM0 return path after checked assignment.
-A structure or class field declared directly with the typedef keeps the
-signature for checked stores, named copies, null checks, and clearing. Empty
-`()`, raw callback fields, callback arrays, block-static objects, alias chains,
-recursive callback signatures, direct postfix field calls, and `void *`
-pointers do not retain the signature.
+A structure or class field declared through the typedef or a raw
+function-pointer declarator keeps the signature for checked stores, named
+copies, null checks, clearing, and direct postfix calls. Fixed SIMD arguments
+use the normal 16-byte cdecl slot and return through XMM0. Empty `()`, callback
+arrays, block-static objects, alias chains, recursive callback signatures, and
+`void *` pointers do not retain the signature.
 Plain function initializers and direct callback arguments are checked before
 the call or store. Later definitions receive address fixups and must match a
 provisional signature. A compatible conditional checks all of its named arms.

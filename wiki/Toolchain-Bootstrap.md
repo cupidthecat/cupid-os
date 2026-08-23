@@ -826,17 +826,19 @@ targets 156 sources and 312 checked compilations. Its latest rerun exceeded
 Checked-seed CupidObj generates three installation tables, and checked-seed
 CupidC compiles them. CupidC also compiles the three example external ELF
 programs. All six source files use `.cc` names. The generated tables keep the
-kernel profile. `hello.cc`, `ls.cc`, and `cat.cc` use the closed user profile
-and CupidLD link. Linux runs the checked bootstrap seed directly. Windows
+kernel profile. `hello.cc`, `ls.cc`, and `cat.cc` use the closed user profile.
+CupidLD links each private ELF, then CupidDis requires known instructions,
+valid local targets, and valid static code anchors before publication. Linux
+runs the checked bootstrap seed directly. Windows
 freezes a 26-file source and control closure and the six-file PE seed
 separately. Checked CupidC, CupidASM, and CupidLD build a private ABI contract,
 validate it, and run it directly against the same six-file snapshot as the
 Python oracle. The operation leaves the Linux contract publication untouched.
-Checked native CupidC and CupidLD then perform output compilation and linking.
-The compiler and linker
+Checked native CupidC, CupidLD, and CupidDis then perform output compilation,
+linking, and inspection. The compiler and link transaction
 freeze their complete input and control sets and pass the same frozen
 five-tool capture to the shared runner. It verifies the complete live cohort
-after CupidC or CupidLD returns. Both wrappers validate every ELF result and
+after CupidC, CupidLD, or CupidDis returns. Both wrappers validate every ELF result and
 replace an artifact only after the operation succeeds. The default frontier
 tracks 23 checked-seed inputs. An explicit 46-input Windows frontier runs
 private native hosted CupidC and CupidLD snapshots. It requires all six files
@@ -980,7 +982,8 @@ displacement can still pass if it lands on a different valid instruction start
 in same-mode code, because the check does not retain source-label identity.
 ADR 0300 records the decoder rule, ADR 0305 records raw-image carriage, and ADR
 0312 records the preceding seed and relocatable-object adoption. ADR 0318
-records the current seed and linked-image adoption.
+records the following linked-image seed, and ADR 0323 records the current
+code-anchor seed.
 
 CupidDis also applies the option to static ELF32 relocatable
 objects. It gives each executable `PROGBITS` section its own instruction-start
@@ -1076,10 +1079,12 @@ receives an absolute data patch before JIT or fixed-address AOT execution.
 A structure or class field declared directly with the typedef keeps the
 signature for checked stores, copies into named callbacks, null checks, and
 clearing. Direct, nested, and indexed record-array member paths share that
-behavior. Raw callback fields, callback arrays, block-static objects, alias
-chains, recursive callback signatures, direct postfix field calls, aggregate
+behavior. Raw callback fields retain the same signature. Direct postfix calls
+through either field form use typed fixed and variadic cdecl conversion and
+evaluate the designator once. Callback arrays, block-static objects, alias
+chains, recursive callback signatures, conditional field values, aggregate
 results, and arbitrary computed callback expressions remain outside this typed
-path. The AOT writer uses one executable
+path. ADR 0325 records this boundary. The AOT writer uses one executable
 `PT_LOAD` for zero-data programs and adds the writable data segment only when
 data is present; code begins at file offset `0x80` in both layouts. Focused
 private compiler contracts cover these source decisions. The exact
@@ -1099,10 +1104,10 @@ contract passes against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,379,380 | `c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1` |
-| `kernel/kernel.elf` | 9,506,356 | `2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f` |
-| `kernel/kernel.bin` | 9,281,656 | `f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad` |
-| `cupidos.img` | 209,715,200 | `35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0` |
+| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
+| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
+| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
+| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
 
 The first nine-artifact checkpoint on this path guarded the normal boot edge
 with a CupidC-built artifact-size contract. All 443 root transforms had a
@@ -1327,8 +1332,9 @@ operators, predicates, both conditional directions, mixed compound assignment
 results, and one-time destination evaluation. Hosted CupidC and the checked
 Cupid-built driver emit byte-identical objects. ADR 0289 records the wide input
 boundary, ADR 0292 records its fixed-point promotion, and ADR 0296 records mixed
-compound assignment. ADR 0312 first carried the extension; ADR 0318 carries it
-in the current checked seeds. No active source needs the expression shape, so
+compound assignment. ADR 0312 first carried the extension. The unchanged
+CupidC images in the current checked seeds have carried it since ADR 0318. No
+active source needs the expression shape, so
 no normal transform changes owner.
 Hosted CupidC forms decimal `float` and `double` tokens in a
 private 1536-bit integer workspace and rounds once at binary32 or binary64
@@ -1336,7 +1342,8 @@ width, with ties going to even. Public frontend, Linear IR, and ELF32 contracts
 cover halfway parity, subnormal and normal boundaries, maximum finite values,
 infinity, signed underflow zero, extreme exponents, deterministic object bytes,
 and same-job recovery. A complete token may contain 95 characters. ADR 0312
-first carried the capability; ADR 0318 carries it in the current checked seeds.
+first carried the capability. The unchanged CupidC images in the current
+checked seeds have carried it since ADR 0318.
 ADR 0293 records the language boundary.
 Compiler head also converts static initializers between bounded finite `long
 double` and every
@@ -1413,14 +1420,15 @@ the `hello.cc`, `ls.cc`, and `cat.cc` programs. Root `all` has 443 transforms:
 all 443 have a Cupid participant. The size verifier emits no OS artifact; it
 builds and runs a private CupidC contract with CupidASM and CupidLD. The 442
 artifact transforms retain five CupidASM, 192 CupidObj, two CupidLD, and six
-CupidDis participations from the manifest-checked five-tool seed. Across all
+root CupidDis participations from the manifest-checked five-tool seed. Three
+user ELF inspections bring the three-root CupidDis total to nine. Across all
 three roots, CupidASM and CupidLD each participate in nine transforms because
 the native Windows user ABI, artifact-size, Toolchain manifest author, and
 Toolchain manifest verifier assemble and link their checked contracts
 directly.
 Other native hosted commands remain explicit oracle targets. The same runner
 handles root commands.
-Checked production CupidC and checked user CupidLD pass it their caller-owned
+Checked production CupidC and checked user CupidLD plus CupidDis pass it their caller-owned
 frozen captures. It rechecks the complete live seed cohort after each command.
 Make passes wildcard-discovered output sources through `$(sort ...)`
 before generation or link. Windows and Linux therefore consume the same root
@@ -1430,6 +1438,11 @@ features, and 25 unreachable inputs across the three roots. It includes 443
 transforms under root `all`. Four transforms use Cupid-built semantic
 contracts, and no transform is Python-only. Python participates in all 452 as
 orchestrator.
+
+The assembly ownership contract covers all 31 active assembly sources. All are
+owned by CupidASM, including four Toolchain startup inputs. An ownerless source
+fails unless it has a reviewed host-only classification. ADR 0327 records the
+complete ownership rule.
 
 The first attempt at this audit stopped after 65.183 seconds because the
 test still locked the old artifact-size recipe. The audit and its test now
@@ -1585,11 +1598,13 @@ direct file-scope function-pointer typedef carries the same metadata and call
 path. A declaration-initialized automatic object carries it too. A file object
 declared directly with the typedef retains the metadata across
 null initialization, checked plain assignment, indirect call, and clearing.
-A structure or class field declared directly with the typedef retains the same
-metadata for checked stores, named copies, null checks, and clearing. Direct,
-nested, and indexed record-array member paths share that behavior. Empty `()`,
-raw callback fields, callback arrays, block-static objects, alias chains,
-recursive callback signatures, and `void *` forms remain signature-erased. A
+A structure or class field declared through the typedef or a raw
+function-pointer declarator retains the same metadata for checked stores, named
+copies, null checks, clearing, and direct postfix calls. Direct, nested, and
+indexed record-array member paths share that behavior and evaluate the selected
+designator once. Empty `()`, callback arrays, block-static objects, alias
+chains, recursive callback signatures, and `void *` forms remain
+signature-erased. A
 plain function initializer or direct callback argument must match the retained
 signature. Local copies share the check, later addresses are fixed up, and a
 provisional signature must match its definition. An explicit cast opts into
@@ -1607,9 +1622,9 @@ assignment, call, and clear rules. The parameter uses the existing cdecl slot
 and arity checks. The private pool accepts 32 distinct raw signatures, rejects
 the next one, and restores the pool before a valid retry. ADR 0315 records this
 source boundary. Runtime initialization and assignment accept `&(function)`
-and nested grouping. The full private callback ABI module passes all 273 tests
-in 48.557 seconds. ADR 0321 records the typedef-backed field boundary, and ADR
-0324 records grouped runtime addresses.
+and nested grouping. The full private callback ABI module passes all 286 tests.
+ADR 0321 records the typedef-backed field boundary, ADR 0324 records grouped
+runtime addresses, and ADR 0325 records raw fields and direct field calls.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
@@ -1670,12 +1685,12 @@ method parameter declared with a direct file-scope function-pointer typedef
 does the same. A declaration-initialized automatic object does too. A file
 object declared directly with the typedef keeps the signature across
 null initialization, checked assignment, indirect call, and clearing. Empty
-`()` and raw callback fields remain metadata-free, as do callback arrays,
-block-static objects, alias chains, recursive callback signatures, and `void *`
-forms. A structure or class field declared directly with the typedef retains
-the signature for checked stores, named copies, null checks, and clearing,
-including nested and indexed record-array member paths. Direct postfix field
-calls remain unsupported. Kernel bindings and other calls without fixed
+`()`, callback arrays, block-static objects, alias chains, recursive callback
+signatures, and `void *` forms remain metadata-free. A structure or class field
+declared through the typedef or a raw function-pointer declarator retains the
+signature for checked stores, named copies, null checks, clearing, and direct
+postfix calls, including nested and indexed record-array member paths. Kernel
+bindings and other calls without fixed
 parameter metadata retain source-width arguments. A plain function
 initializer or direct callback argument is checked before storage or call,
 while an explicit cast remains the deliberate erasure path. Later targets

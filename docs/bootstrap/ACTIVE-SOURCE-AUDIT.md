@@ -31,10 +31,10 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1470 |
 | `cupid_c_browser_fragment` | 22 | 15958 |
-| `cupid_c_program` | 108 | 20348 |
+| `cupid_c_program` | 108 | 20387 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 7141 |
-| `cupidc` | 8 | 19021 |
+| `cupidc` | 8 | 19149 |
 | `cupiddis` | 5 | 4629 |
 | `doom_port` | 7 | 3986 |
 | `driver` | 22 | 3861 |
@@ -79,7 +79,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_assembler` | 9 |
 | `cupid_c_compiler` | 250 |
 | `cupid_c_contract` | 4 |
-| `cupid_disassembler` | 6 |
+| `cupid_disassembler` | 9 |
 | `cupid_linker` | 9 |
 | `cupid_object` | 192 |
 | `host_python` | 452 |
@@ -99,16 +99,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 926 |
 | `asm.relocation` | 1 | 34 |
-| `c.control` | 12 | 86814 |
+| `c.control` | 12 | 86858 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3941 |
-| `c.expression` | 2 | 6411 |
+| `c.declarator` | 4 | 3942 |
+| `c.expression` | 2 | 6412 |
 | `c.extension` | 19 | 428 |
 | `c.initializer` | 1 | 690 |
 | `c.preprocessor` | 18 | 7125 |
 | `c.qualifier` | 2 | 16555 |
-| `c.storage` | 4 | 10642 |
-| `c.type` | 15 | 54983 |
+| `c.storage` | 4 | 10646 |
+| `c.type` | 15 | 55008 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -116,7 +116,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c.extension` | 1 | 9 |
 | `cupid_c.output` | 1 | 246 |
 | `cupid_c.storage` | 2 | 487 |
-| `cupid_c.type` | 12 | 259 |
+| `cupid_c.type` | 12 | 266 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
 
@@ -209,6 +209,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 
 | Contract | Status | Detail |
 | --- | --- | --- |
+| `assembly_source_ownership` | `pass` | 31 active assembly sources; 31 CupidASM-owned; 4 Toolchain startup; 0 other-owned; 0 ownerless; 0 explicit host-only classifications |
 | `bootstrap_artifact_coverage` | `pass` | 429 linked objects; 436 declared artifacts; 0 missing |
 | `c_preprocessor_conditionals` | `pass` | 144 conditional expressions (135 #if, 9 #elif); 29 normalized expressions; 31 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |

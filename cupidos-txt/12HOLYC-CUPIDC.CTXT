@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-08-20
+Verified against source on: 2026-08-22
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -373,21 +373,25 @@ into initialized data, while a later definition receives an absolute data
 patch. A direct &function address uses the same signature check, data write or
 patch, automatic initialization, and checked assignment as the plain function
 designator. Runtime initialization and assignment accept &(function) and
-nested grouping. JIT and private AOT calls use the retained signatures. A structure or class field
-declared directly with the typedef keeps the signature for checked stores,
-copies into named callbacks, null checks, and clearing. Direct members, nested
-records, and indexed record arrays share that path. Empty (), raw callback
-fields, block-static objects, callback arrays, bare nested callback signatures,
-alias chains, raw method parameters, and void-pointer forms remain
-signature-erased. Direct postfix field calls remain unsupported.
+nested grouping. JIT and private AOT calls use the retained signatures. A
+structure or class field declared through a typedef or raw function-pointer
+declarator keeps the signature for checked stores, copies, null checks,
+clearing, and direct postfix calls. Fixed and variadic arguments use cdecl.
+Represented scalar, pointer, floating, and SIMD results retain their normal
+types. Nested and indexed field designators are evaluated once, and a real
+field takes precedence over same-named method sugar. Empty (), block-static
+objects, callback arrays, bare nested callback signatures, alias chains, raw
+method parameters, void-pointer forms, and aggregate callback results remain
+unsupported or signature-erased.
 A named raw callback file object and direct free-function parameter retain the
 parsed signature without a typedef. The file object uses the same data write or
 patch, and the parameter uses the same cdecl slot and arity checks. The private
 pool accepts 32 distinct raw signatures and recovers after rejecting the next
 one. ADR 0315 records the raw forms, and ADR 0319 records direct explicit
 function addresses. ADR 0321 records typedef-backed record and class fields,
-and ADR 0324 records grouped runtime addresses.
-The private callback ABI module passes all 273 tests in 48.557 seconds.
+ADR 0324 records grouped runtime addresses, and ADR 0325 records raw fields and
+direct postfix field calls.
+The private callback ABI module passes all 286 tests.
 Feature 13
 retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
 nested pass-by-value vector
@@ -584,9 +588,12 @@ function address keeps the same callback signature and data patch as a plain
 function designator. A direct file object supports null initialization, checked
 plain assignment, indirect calls, and clearing. Structure and class fields
 declared directly with a callback typedef retain the signature for checked
-stores, named copies, null checks, and clearing. Raw callback fields, callback
-arrays, block-static objects, alias chains, recursive signatures, direct postfix
-field calls, and `void *` forms remain outside that typed path.
+stores, named copies, null checks, and clearing. Raw callback fields retain the
+same signature. Direct postfix calls through raw or typedef-backed fields use
+typed cdecl conversion and evaluate the designator once. Callback arrays,
+block-static objects, alias chains, recursive signatures, aggregate results,
+and `void *` forms remain outside that typed path. ADR 0325 records the field
+call boundary.
 
 The Toolchain manifest has a Cupid-built author and verifier, while Python keeps
 descriptor-pinned filesystem capture and atomic publication. Linux runs the
@@ -605,7 +612,7 @@ log records the exact publication identity and completion evidence.
 Audit generation and checked reproduction pass. The audit records 739 active
 inputs, 452 transforms, 255 feature requirements,
 and 25 accounted unreachable files. Ownership participation is CupidC 250,
-CupidObj 192, CupidASM 9, CupidLD 9, and CupidDis 6. Four transforms run
+CupidObj 192, CupidASM 9, CupidLD 9, and CupidDis 9. Four transforms run
 Cupid-built contracts, and none is Python-only. The host bootstrap log records
 the post-manual-freeze poisoned build and strong private four-vCPU e1000
 frontier. Exact OS identities and runtime measurements stay there because this

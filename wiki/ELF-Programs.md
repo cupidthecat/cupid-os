@@ -164,6 +164,13 @@ The checked build is deliberately closed over `hello.cc`, `ls.cc`, and
 frontier tests. This keeps a changed source or tool from bypassing the checked
 tool snapshot and ELF validators.
 
+Each checked link stays private until CupidDis accepts it with
+`--require-known`, `--require-local-targets`, and
+`--require-code-anchors`. CupidLD and CupidDis share one frozen seed capture.
+A failed inspection or unexpected output preserves the earlier executable.
+[ADR 0326](../docs/adr/0326-inspect-user-elfs-before-publication.md) records the
+publication gate.
+
 ### 4. Run in Cupid OS
 
 ```
@@ -732,10 +739,12 @@ declared directly with that typedef keeps it when initialized in its
 declaration. A structure or class field declared directly with the typedef
 keeps the signature for checked stores, named copies, null checks, and clearing.
 Direct members, nested records, and indexed record arrays share that path. Raw
-callback fields, callback arrays, callback alias chains, block-static objects,
-recursive callback signatures, direct postfix field calls, aggregate results,
-and arbitrary computed callback expressions remain signature-erased or
-unsupported. AOT still compiles one translation
+callback fields retain the same metadata. Direct postfix calls through either
+field form use typed cdecl conversion without evaluating the designator twice.
+Callback arrays, callback alias chains, block-static objects, recursive
+callback signatures, aggregate results, and arbitrary computed callback
+expressions remain signature-erased or unsupported. ADR 0325 records the
+completed field boundary. AOT still compiles one translation
 unit into a fixed-address executable and does not emit a relocatable object for
 a later link.
 
@@ -807,15 +816,16 @@ The source-head artifact contract passes against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,379,380 | `c2df7f1a2c2659781923d62a46c3ab9e1b411c7892821d0c92e9c5d3881cead1` |
-| `kernel/kernel.elf` | 9,506,356 | `2ba9ce226d50c136094502b5c332bbdc429c5f3a20eb1f6881aeb338dad19f7f` |
-| `kernel/kernel.bin` | 9,281,656 | `f6d8b593bd729ce1ce061853ca68950686e5be39cc1e1ade81dab6252599b8ad` |
-| `cupidos.img` | 209,715,200 | `35926266d8c451430b7f7a8ccfe46e690cc883de4871d2b1398fe2eb9c10a5f0` |
+| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
+| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
+| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
+| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
 
 Those output identities are source-head evidence. Both checked seeds now carry
-the same source snapshot, and the normal kernel transaction selects strict
-linked-image validation before flattening. ADR 0318 records the promotion and
-adoption.
+the same source snapshot. The normal kernel transaction selects linked local
+target and static code-anchor validation before flattening. ADR 0318 records
+the preceding linked-image promotion, and ADR 0323 records the current
+code-anchor promotion and adoption.
 
 The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB

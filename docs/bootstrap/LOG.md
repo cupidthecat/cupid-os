@@ -29994,3 +29994,76 @@ This repair changes no source owner, generated artifact, or tool capability.
 [Issue #29](https://github.com/cupidthecat/cupid-os/issues/29) remains open for
 IWAD-backed gameplay, input, Doom audio, menu save and load, persistence, and
 the accepted quality comparison.
+
+## 2026-08-22: Close callback calls and publication inspection gaps
+
+CupidC now retains private raw callback-field declarations and calls those
+fields directly through ordinary postfix syntax. The call path covers raw and
+typedef declarations, fixed and variadic cdecl arguments, integer, pointer,
+floating, and SIMD returns, and nested or indexed designators. A designator is
+evaluated once, and a real field takes precedence over same-named method sugar.
+The parser reports invalid calls without losing the surrounding declaration or
+REPL state. The in-image feature program records the new behavior with
+`[feature14-callback-field-call] PASS typedef=1 raw=1 float4=4 once=1 calls=2`.
+
+Checked user ELF publication now runs CupidDis after CupidLD and structural ELF
+validation, but before replacing the previous output. It requires known
+instructions, local control-flow targets, and code anchors. A nonzero exit,
+timeout, launch error, or unexpected output leaves the previous executable
+untouched. The optional native oracle remains independent of this required
+Cupid gate.
+
+The closing review found that the first version inspected a mutable candidate
+path and then published that same path without a final identity and byte check.
+A negative test reproduced the gap by changing the file while CupidDis ran.
+The wrapper now captures the validated identity and bytes, rejects any change
+after inspection, and publishes those captured bytes through a separate
+private file. The old executable remains intact on every rejected path.
+
+The active-source audit now assigns every active assembly input to a declared
+owner. It records 31 active assembly files: 31 owned by CupidASM, including four
+Toolchain startup inputs, and none without an owner. Included assembly inherits
+the owner of its active parent. A deliberately unowned include first exposed
+that missing propagation rule; the audit then learned the transitive ownership
+relationship, and a regression test keeps it in place. Host-only assembly must
+carry an explicit fixture or oracle classification with a reason.
+
+The first fully poisoned build compiled the kernel and all 83 Doom roots,
+passed the strict 431-input CupidDis gate, and stopped at the exact-size
+contract. The compiler and embedded manual changes had moved three kernel
+artifacts. Only those measured rows changed. The repeated build passed all 14
+exact artifact checks and published this source-head cohort without invoking
+GCC, NASM, or any poisoned host compiler, assembler, linker, or binary utility:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
+| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
+| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `6e1560bb1efa5c657f214f76ce0396cc7e9fda025caccf047a03eb5352959826` |
+
+A private-image QEMU run then booted four `max` i386 CPUs and compiled
+`/bin/feature14_simd.cc` with the in-OS compiler. The SMP contract reports four
+of four CPUs online at serial line 82. The callback-field marker appears at
+line 652, and clean JIT completion appears at line 656. The 33,335-byte log at
+`build/bootstrap/feature14-callback-field-call-qemu.log` has SHA-256
+`0fe466f78eaa2d880cbfd521bbeb2bba7e5ec10e1882928e7386321a4ccc30ec`.
+The private run did not modify `cupidos.img`.
+
+The final focused host verification passed 514 tests in 156.201 seconds with
+one platform skip. The build-graph audit module passes all 111 tests in
+922.325 seconds. The artifact policy modules pass 51 tests with four expected
+platform skips. The checked user build publishes `hello`, `ls`, and `cat` only
+after the new CupidDis gate. The generated audit records 739 active inputs,
+452 transforms, 255 feature requirements, and 25 accounted unreachable files.
+Its 2,701,289-byte JSON has SHA-256
+`ab5eb4917c1dc42419eb0e50516c3287a8e68e29e9b99b9e977767308ba2dc80`.
+
+The remaining 17 tracked, non-TempleOS `.c` files are still dormant history,
+fixtures, or host oracles. None has gained active Cupid ownership, so renaming
+them would misstate migration progress. `TempleOS/` remains untouched reference
+material.
