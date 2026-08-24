@@ -171,7 +171,7 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       tests/hosted_i386_windows_contract.cc \
                                       tests/hosted_i386_windows_runtime_contract.cc
 CUPIDC_HOSTED_I386_CLOSURE := ctool.cc ctool.h ctool_host.cc ctool_host.h \
-                              elf32.cc elf32.h x86.cc x86.h \
+                              elf32.cc elf32.h pe32.h pe32_impl.h x86.cc x86.h \
                               cupidbuild.cc cupidbuild.h \
                               cupidbuild_host.cc cupidbuild_host.h \
                               cupidbuild_main.cc \
@@ -209,7 +209,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h \
 	cupidc_emit.h \
 	cupidc_frontend.h cupidc_ir.h cupidc_pp.h cupidc_type.h \
-	cupiddis.h cupidld.h cupidobj.h elf32.h x86.h \
+	cupiddis.h cupidld.h cupidobj.h elf32.h pe32.h pe32_impl.h x86.h \
 	x86.cc \
 	tests/artifact_size_policy_contract.cc \
 	tests/hosted_i386_runtime_contract.cc \
@@ -289,7 +289,8 @@ ELF32_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
 X86_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                $(BUILD_DIR)/x86.o $(BUILD_DIR)/x86_contract.o
 CUPIDDIS_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
-                            $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
+                            $(BUILD_DIR)/elf32.o \
+                            $(BUILD_DIR)/x86.o \
                             $(BUILD_DIR)/cupiddis.o \
                             $(BUILD_DIR)/cupiddis_contract.o
 CUPIDDIS_KERNEL_ADAPTER_CONTRACT_OBJECTS := \
@@ -301,7 +302,8 @@ CUPIDDIS_KERNEL_ADAPTER_HOST_FLAGS := \
 	-DCTOOL_KERNEL_ADAPTER_HOST_CONTRACT -DTYPES_H -DKERNEL_H \
 	-include stdbool.h -include stdint.h
 CUPIDDIS_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
-                    $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
+                    $(BUILD_DIR)/elf32.o \
+                    $(BUILD_DIR)/x86.o \
                     $(BUILD_DIR)/cupiddis.o $(BUILD_DIR)/cupiddis_main.o
 CUPIDASM_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                             $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
@@ -403,10 +405,10 @@ $(BUILD_DIR)/elf32.o: elf32.cc elf32.h ctool.h | $(BUILD_DIR)
 $(BUILD_DIR)/x86.o: x86.cc x86.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupiddis.o: cupiddis.cc cupiddis.h elf32.h x86.h ctool.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupiddis.o: cupiddis.cc cupiddis.h pe32_impl.h elf32.h pe32.h x86.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupiddis_main.o: cupiddis_main.cc cupiddis.h ctool_host.h ctool.h elf32.h x86.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupiddis_main.o: cupiddis_main.cc cupiddis.h ctool_host.h ctool.h elf32.h pe32.h x86.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidasm.o: cupidasm.cc cupidasm.h elf32.h x86.h ctool.h | $(BUILD_DIR)
@@ -489,7 +491,7 @@ $(BUILD_DIR)/x86_contract.o: tests/x86_contract.cc \
     $(X86_CONTRACT_SUPPORT) x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupiddis_contract.o: tests/cupiddis_contract.cc cupiddis.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupiddis_contract.o: tests/cupiddis_contract.cc cupiddis.h elf32.h pe32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupiddis_kernel_adapter.o: ../kernel/lang/dis.cc \

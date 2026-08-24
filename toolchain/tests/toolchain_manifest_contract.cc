@@ -14,8 +14,8 @@ static const char manifest_report_schema[] =
 
 #define MANIFEST_ARTIFACT_COUNT 21u
 #define MANIFEST_INPUT_LIMIT 256u
-#define MANIFEST_EXPECTED_INPUT_COUNT 70u
-#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 50u
+#define MANIFEST_EXPECTED_INPUT_COUNT 72u
+#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 52u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
 #define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 19u
@@ -68,6 +68,8 @@ static const char *const
         "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
+        "toolchain/pe32.h",
+        "toolchain/pe32_impl.h",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -154,6 +156,8 @@ static const char *const manifest_expected_bootstrap_paths
         "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
+        "toolchain/pe32.h",
+        "toolchain/pe32_impl.h",
         "toolchain/tests/hosted_i386_windows_contract.cc",
         "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/x86.cc",

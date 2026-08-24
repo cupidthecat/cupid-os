@@ -120,6 +120,8 @@ INPUT_PATHS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/pe32.h",
+    "toolchain/pe32_impl.h",
     "toolchain/tests/artifact_size_policy_contract.cc",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
@@ -204,6 +206,8 @@ BOOTSTRAP_PATHS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/pe32.h",
+    "toolchain/pe32_impl.h",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "toolchain/x86.cc",
@@ -652,7 +656,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             '{"artifact_count":21,"artifact_total_bytes":652,'
-            '"bootstrap_source_input_count":50,"input_count":70,'
+            '"bootstrap_source_input_count":52,"input_count":72,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -1574,8 +1578,8 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_current_publication_inventory_counts_are_exact(self):
-        self.assertEqual(len(INPUT_PATHS), 70)
-        for input_count in (69, 71):
+        self.assertEqual(len(INPUT_PATHS), 72)
+        for input_count in (71, 73):
             with self.subTest(input_count=input_count):
                 manifest, observations = _fixture()
                 manifest["inputs"] = {
@@ -1591,7 +1595,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     _request(manifest=manifest, observations=observations)
                 )
 
-        for source_count in (49, 51):
+        for source_count in (51, 53):
             with self.subTest(source_count=source_count):
                 manifest, observations = _fixture()
                 bootstrap_files = {

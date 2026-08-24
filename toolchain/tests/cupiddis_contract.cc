@@ -2,6 +2,7 @@
 #include "ctool_host.h"
 #include "cupiddis.h"
 #include "elf32.h"
+#include "pe32.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -190,6 +191,40 @@ static int open_job(ctool_host_adapter_t *adapter, ctool_job_t **job) {
   config = ctool_host_job_config(adapter, ctool_default_limits());
   status = ctool_job_open(&config, job);
   return check_status(status, CTOOL_OK, "job open");
+}
+
+static int open_seed_job(ctool_host_adapter_t *adapter, ctool_job_t **job,
+                         ctool_source_t *source) {
+  static const char *const roots[] = {".", ".."};
+  ctool_u32 root_index;
+  for (root_index = 0u;
+       root_index < (ctool_u32)(sizeof(roots) / sizeof(roots[0]));
+       root_index++) {
+    ctool_limits_t limits = ctool_default_limits();
+    ctool_job_config_t config;
+    ctool_path_t path;
+    ctool_status_t status =
+        ctool_host_adapter_init(adapter, roots[root_index]);
+    limits.arena_bytes = 128u * 1024u * 1024u;
+    if (status == CTOOL_OK) {
+      config = ctool_host_job_config(adapter, limits);
+      status = ctool_job_open(&config, job);
+    }
+    path.text =
+        ctool_string("/bootstrap/seeds/i386-windows/cupidld.exe");
+    if (status == CTOOL_OK) {
+      status = ctool_job_load_source(*job, &path, source);
+    }
+    if (status == CTOOL_OK) {
+      return 1;
+    }
+    if (*job != (ctool_job_t *)0) {
+      ctool_job_close(*job);
+      *job = (ctool_job_t *)0;
+    }
+  }
+  (void)fprintf(stderr, "cannot load checked PE32 seed\n");
+  return 0;
 }
 
 static int active_mode_transitions_are_unchanged(void) {
@@ -3496,6 +3531,455 @@ static int run_nm(void) {
   return 0;
 }
 
+static int expect_pe32_read_failure(
+    ctool_job_t *job, const ctool_source_t *source, ctool_status_t expected,
+    ctool_u32 code, const char *message, const char *operation) {
+  ctool_pe32_image_t image;
+  ctool_u32 diagnostic_index = ctool_job_diagnostic_count(job);
+  ctool_status_t status = ctool_pe32_read(job, source, &image);
+  if (!check_status(status, expected, operation) ||
+      !is_zeroed(&image, sizeof(image)) ||
+      ctool_job_diagnostic_count(job) != diagnostic_index + 1u ||
+      !check_diagnostic(job, diagnostic_index, code, message, operation)) {
+    return 0;
+  }
+  return 1;
+}
+
+static ctool_u32 build_large_memory_pe32(ctool_u8 *output,
+                                          ctool_u32 capacity,
+                                          ctool_bytes_t reference) {
+  ctool_u32 text_header = 376u;
+  ctool_u32 bss_header = text_header + 40u;
+  if (output == (ctool_u8 *)0 || capacity < 1024u ||
+      reference.size < 376u) {
+    return 0u;
+  }
+  (void)memcpy(output, reference.data, 376u);
+  (void)memset(output + 376u, 0, 1024u - 376u);
+  put_le16(output, 132u + 2u, 2u);
+  put_le32(output, 152u + 4u, 0x200u);
+  put_le32(output, 152u + 8u, 0u);
+  put_le32(output, 152u + 12u, 0x7fffe001u);
+  put_le32(output, 152u + 16u, 0x1000u);
+  put_le32(output, 152u + 20u, 0x1000u);
+  put_le32(output, 152u + 24u, 0x2000u);
+  put_le32(output, 152u + 56u, 0x80001000u);
+  put_le32(output, 152u + 60u, 0x200u);
+  (void)memset(output + 152u + 96u, 0, 16u * 8u);
+  (void)memcpy(output + text_header, ".text", 5u);
+  put_le32(output, text_header + 8u, 1u);
+  put_le32(output, text_header + 12u, 0x1000u);
+  put_le32(output, text_header + 16u, 0x200u);
+  put_le32(output, text_header + 20u, 0x200u);
+  put_le32(output, text_header + 36u,
+           CTOOL_PE32_SCN_CODE | CTOOL_PE32_SCN_EXECUTE |
+               CTOOL_PE32_SCN_READ);
+  (void)memcpy(output + bss_header, ".bss", 4u);
+  put_le32(output, bss_header + 8u, 0x7fffe001u);
+  put_le32(output, bss_header + 12u, 0x2000u);
+  put_le32(output, bss_header + 36u,
+           CTOOL_PE32_SCN_UNINITIALIZED_DATA | CTOOL_PE32_SCN_READ |
+               CTOOL_PE32_SCN_WRITE);
+  output[0x200u] = 0xc3u;
+  return 1024u;
+}
+
+static int run_pe32(void) {
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_pe32_image_t image;
+  ctool_dis_request_t request;
+  ctool_dis_report_t report;
+  capture_t capture;
+  ctool_u8 *damaged;
+  ctool_status_t status;
+  if (!open_seed_job(&adapter, &job, &source)) {
+    return 1;
+  }
+  status = ctool_pe32_read(job, &source, &image);
+  if (!check_status(status, CTOOL_OK, "checked PE32 seed read") ||
+      image.section_count == 0u || image.import_count == 0u ||
+      image.import_library_count == 0u || image.entry_point < 0x00401000u) {
+    ctool_job_close(job);
+    return 1;
+  }
+  (void)memset(&request, 0, sizeof(request));
+  request.input = CTOOL_DIS_INPUT_PE32;
+  request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+  request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
+                     CTOOL_DIS_POLICY_CODE_ANCHORS;
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (!check_status(status, CTOOL_OK, "checked PE32 seed inspection") ||
+      report.pe32.section_count != image.section_count ||
+      report.pe32.import_count != image.import_count ||
+      report.decode_summary.code_anchor_count != 1u ||
+      report.decode_summary.code_anchor_outside_executable_count != 0u ||
+      report.decode_summary.code_anchor_mid_instruction_count != 0u) {
+    ctool_job_close(job);
+    return 1;
+  }
+  request.views = CTOOL_DIS_VIEW_HEADER | CTOOL_DIS_VIEW_SECTIONS |
+                  CTOOL_DIS_VIEW_IMPORTS;
+  request.policies = 0u;
+  (void)memset(&capture, 0, sizeof(capture));
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK, "checked PE32 seed rendering") ||
+      !contains(&capture, "PE32 i386", "PE32 header") ||
+      !contains(&capture, "[sections]", "PE32 sections") ||
+      !contains(&capture, "[imports]", "PE32 imports")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  damaged = (ctool_u8 *)malloc((size_t)source.contents.size);
+  if (damaged == (ctool_u8 *)0) {
+    ctool_job_close(job);
+    return 1;
+  }
+  {
+    ctool_source_t invalid = source;
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    invalid.contents = ctool_bytes(damaged, 64u);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_INPUT,
+            CTOOL_PE32_DIAG_BAD_DOS_HEADER,
+            "PE32 DOS header is truncated", "truncated PE32 DOS header")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    invalid.contents = ctool_bytes(damaged, source.contents.size);
+    damaged[2] ^= 1u;
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_PE32_DIAG_BAD_DOS_HEADER,
+            "PE32 DOS stub is not the CupidLD profile",
+            "malformed PE32 DOS header")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    invalid.contents = ctool_bytes(damaged, 140u);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_INPUT,
+            CTOOL_PE32_DIAG_BAD_SIGNATURE,
+            "PE32 signature or COFF header is truncated",
+            "truncated PE32 COFF header")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    invalid.contents = ctool_bytes(damaged, source.contents.size);
+    put_le16(damaged, 132u, 0u);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_PE32_DIAG_UNSUPPORTED_COFF,
+            "PE32 COFF header is outside the CupidLD profile",
+            "malformed PE32 COFF header")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    invalid.contents = ctool_bytes(damaged, 200u);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_INPUT,
+            CTOOL_PE32_DIAG_BAD_OPTIONAL_HEADER,
+            "PE32 optional header is truncated",
+            "truncated PE32 optional header")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    invalid.contents = ctool_bytes(damaged, source.contents.size);
+    put_le16(damaged, 152u, 0x020bu);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_PE32_DIAG_BAD_OPTIONAL_HEADER,
+            "PE optional header is not PE32",
+            "malformed PE32 optional header")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  {
+    ctool_source_t invalid = source;
+    ctool_u32 second_section = 376u + 40u;
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    put_le32(damaged, second_section + 12u, 0x1000u);
+    invalid.contents = ctool_bytes(damaged, source.contents.size);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_INPUT,
+            CTOOL_PE32_DIAG_BAD_SECTION,
+            "PE32 section virtual ranges overlap",
+            "overlapping PE32 sections")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    put_le32(damaged, 376u + 20u, source.contents.size);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_INPUT,
+            CTOOL_PE32_DIAG_BAD_SECTION,
+            "PE32 section file range is invalid",
+            "out-of-bounds PE32 section")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    put_le32(damaged, 152u + 16u, image.image_size);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_INPUT,
+            CTOOL_PE32_DIAG_BAD_ENTRY,
+            "PE32 entry is not file-backed executable code",
+            "out-of-range PE32 entry")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    invalid.contents = ctool_bytes(
+        damaged,
+        build_large_memory_pe32(damaged, source.contents.size,
+                                source.contents));
+    if (invalid.contents.size == 0u ||
+        !expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_PE32_DIAG_BAD_OPTIONAL_HEADER,
+            "PE32 image exceeds CupidLD's 2 GiB RVA range",
+            "oversized PE32 memory image")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  {
+    ctool_source_t invalid = source;
+    const ctool_pe32_section_t *idata =
+        (const ctool_pe32_section_t *)0;
+    ctool_u32 descriptor_offset;
+    ctool_u32 idata_end;
+    ctool_u32 lookup_offset;
+    ctool_u32 iat_size_offset = 152u + 96u + 12u * 8u + 4u;
+    ctool_u32 section_index;
+    for (section_index = 0u; section_index < image.section_count;
+         section_index++) {
+      if (image.sections[section_index].kind == CTOOL_PE32_SECTION_IDATA) {
+        idata = &image.sections[section_index];
+      }
+    }
+    if (idata == (const ctool_pe32_section_t *)0 ||
+        image.import_library_count == 0u || image.import_count == 0u) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    descriptor_offset = idata->file_offset;
+    idata_end = idata->file_offset + idata->virtual_size;
+    lookup_offset =
+        idata->file_offset +
+        (image.import_libraries[0].lookup_rva - idata->virtual_address);
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    put_le32(damaged, descriptor_offset + 4u, 1u);
+    invalid.contents = ctool_bytes(damaged, source.contents.size);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_PE32_DIAG_BAD_IMPORT,
+            "stateful PE32 import descriptors are unsupported",
+            "invalid PE32 import descriptor")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    put_le32(damaged, 152u + 96u + 1u * 8u + 4u,
+             ((idata->virtual_size / 20u) + 2u) * 20u);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_INPUT,
+            CTOOL_PE32_DIAG_BAD_IMPORT,
+            "PE32 import directory is out of range",
+            "out-of-range PE32 import directory")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    put_le32(damaged, descriptor_offset,
+             image.import_libraries[0].lookup_rva + 4u);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_INPUT,
+            CTOOL_PE32_DIAG_BAD_IMPORT,
+            "PE32 import lookup tables are not canonical",
+            "misordered PE32 lookup table")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    put_le32(damaged, iat_size_offset, image.iat_directory_size - 4u);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_INPUT,
+            CTOOL_PE32_DIAG_BAD_DIRECTORY,
+            "PE32 IAT directory does not match its tables",
+            "invalid PE32 IAT extent")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    put_le32(damaged, lookup_offset,
+             get_le32(damaged, lookup_offset) | 0x80000000u);
+    if (!expect_pe32_read_failure(
+            job, &invalid, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_PE32_DIAG_BAD_IMPORT,
+            "ordinal PE32 imports are unsupported",
+            "ordinal PE32 import")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    status = ctool_pe32_read(job, &source, &report.pe32);
+    if (!check_status(status, CTOOL_OK,
+                      "PE32 post-allocation recovery") ||
+        report.pe32.import_count != image.import_count) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    {
+      const ctool_pe32_import_library_t *last_library =
+          &image.import_libraries[image.import_library_count - 1u];
+      ctool_u32 terminal =
+          idata->file_offset +
+          (last_library->lookup_rva - idata->virtual_address) +
+          last_library->import_count * 4u;
+      (void)memcpy(damaged, source.contents.data, source.contents.size);
+      (void)memset(damaged + terminal, 1, idata_end - terminal);
+      if (!expect_pe32_read_failure(
+              job, &invalid, CTOOL_ERR_INPUT,
+              CTOOL_PE32_DIAG_BAD_IMPORT,
+              "PE32 import lookup table is unterminated or empty",
+              "unterminated PE32 lookup table")) {
+        free(damaged);
+        ctool_job_close(job);
+        return 1;
+      }
+    }
+    {
+      const ctool_pe32_import_t *last_import =
+          &image.imports[image.import_count - 1u];
+      ctool_u32 name_offset =
+          idata->file_offset +
+          (last_import->hint_name_rva - idata->virtual_address) + 2u;
+      ctool_u32 terminator = name_offset + last_import->procedure_name.size;
+      (void)memcpy(damaged, source.contents.data, source.contents.size);
+      (void)memset(damaged + terminator, (int)'A',
+                   idata_end - terminator);
+      if (!expect_pe32_read_failure(
+              job, &invalid, CTOOL_ERR_INPUT,
+              CTOOL_PE32_DIAG_BAD_IMPORT,
+              "PE32 import hint or procedure name is invalid",
+              "unterminated PE32 procedure name")) {
+        free(damaged);
+        ctool_job_close(job);
+        return 1;
+      }
+    }
+  }
+  {
+    ctool_source_t changed = source;
+    ctool_u32 text_offset = image.sections[0].file_offset;
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    damaged[text_offset] = 0x0fu;
+    damaged[text_offset + 1u] = 0xffu;
+    changed.contents = ctool_bytes(damaged, source.contents.size);
+    (void)memset(&request, 0, sizeof(request));
+    request.input = CTOOL_DIS_INPUT_PE32;
+    request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+    status = ctool_dis_inspect(job, &changed, &request, &report);
+    if (!check_status(status, CTOOL_OK, "unknown PE32 opcode") ||
+        report.decode_summary.unknown_count == 0u) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    damaged[text_offset] = 0xe9u;
+    damaged[text_offset + 1u] = 0xfbu;
+    damaged[text_offset + 2u] = 0xffu;
+    damaged[text_offset + 3u] = 0xffu;
+    damaged[text_offset + 4u] = 0x7fu;
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
+    status = ctool_dis_inspect(job, &changed, &request, &report);
+    if (!check_status(status, CTOOL_OK, "invalid PE32 local target") ||
+        report.decode_summary.direct_relative_target_count == 0u ||
+        report.decode_summary.direct_relative_outside_image_count == 0u) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    put_le32(damaged, 152u + 16u,
+             image.sections[0].virtual_address + 2u);
+    request.policies = CTOOL_DIS_POLICY_CODE_ANCHORS;
+    status = ctool_dis_inspect(job, &changed, &request, &report);
+    if (!check_status(status, CTOOL_OK, "invalid PE32 entry anchor") ||
+        report.decode_summary.code_anchor_count != 1u ||
+        report.decode_summary.code_anchor_mid_instruction_count != 1u) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  {
+    ctool_source_t invalid = source;
+    ctool_dis_report_t invalid_report;
+    (void)memcpy(damaged, source.contents.data, source.contents.size);
+    invalid.contents = ctool_bytes(damaged, 64u);
+    (void)memset(&request, 0, sizeof(request));
+    request.input = CTOOL_DIS_INPUT_PE32;
+    request.views = CTOOL_DIS_VIEW_HEADER;
+    status = ctool_dis_inspect(job, &invalid, &request, &report);
+    if (!check_status(status, CTOOL_ERR_INPUT,
+                      "PE32 inspection rollback") ||
+        !is_zeroed(&report, sizeof(report))) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    status = ctool_dis_inspect(job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK, "PE32 same-process recovery")) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+    invalid_report = report;
+    invalid_report.pe32.sections = (const ctool_pe32_section_t *)0;
+    (void)memset(&capture, 0, sizeof(capture));
+    status = ctool_dis_render(job, &invalid_report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "forged PE32 report") ||
+        capture.size != 0u) {
+      free(damaged);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  free(damaged);
+  ctool_job_close(job);
+  (void)puts("pe32: ok");
+  return 0;
+}
+
 static int run_errors(void) {
   static const ctool_u8 code[] = {0x90u};
   ctool_host_adapter_t adapter;
@@ -3654,6 +4138,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "nm") == 0) {
     return run_nm();
+  }
+  if (strcmp(argv[1], "pe32") == 0) {
+    return run_pe32();
   }
   if (strcmp(argv[1], "errors") == 0) {
     return run_errors();

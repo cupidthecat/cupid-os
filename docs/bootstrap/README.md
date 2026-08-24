@@ -39,7 +39,9 @@ ADR 0323 records code-anchor seed carriage and linked-kernel adoption.
 ADR 0324 records grouped runtime function addresses, ADR 0328 records
 typedef-backed callback field arrays, and ADR 0330 records raw callback arrays
 with static storage duration. ADR 0331 records nested callback-parameter
-signatures. ADR 0340 records source-resolved raw control edges.
+signatures. ADR 0338 records bounded PE32 inspection, ADR 0339 records the
+first CupidBuild publication seam, and ADR 0340 records source-resolved raw
+control edges.
 
 ## 2026-08-24 source-current checkpoint
 
@@ -56,7 +58,19 @@ The lock follow-up passes the checked Linux object contract and native Windows
 and WSL behavior cases; fresh checked standalone execution remains open. This
 is not a seed or Make cutover. The promoted
 cohorts still contain five tools, and both normal object recipes still enter
-the Python transaction. ADR 0339 records the split.
+the Python transaction.
+
+Source-head hosted CupidDis now inspects CupidLD's bounded static i386 PE32
+profile. It reports PE and COFF headers, canonical sections, named imports,
+and shared-x86 disassembly. Strict mode validates the PE entry and constant
+direct relative targets against decoded instruction starts. The reader rejects
+dynamic or noncanonical layouts, ordinal imports, malformed tables,
+overlapping sections, out-of-file ranges, and a loaded span above CupidLD's 2
+GiB RVA limit instead of claiming general PE support. All five checked Windows
+seed images pass both readers, and their complete rendered sections and import
+records match an independent Python parse. The promoted tools predate this
+input mode, so PE inspection remains a source-head capability until a later
+seed promotion.
 
 Checked CupidDis now validates unrelocated direct relative targets in static
 ELF32 relocatable objects. It gives each executable `PROGBITS` section its own
@@ -242,12 +256,12 @@ installed packages. The direct module passes 40 tests in 54.623 seconds, the
 publisher passes 64 tests in 12.144 seconds, and the pinned verifier runner
 executes 25 tests in 32.773 seconds with three POSIX-only skips on Windows. The
 direct suite includes a checked stage-four build and run of the author. The
-source graph retains 745
+source graph retains 747
 active inputs, 452 transforms,
-255 feature requirements, and 25 accounted unreachable files. Participation
+255 feature requirements, and 26 accounted unreachable files. Participation
 is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and four
 Cupid-built contracts. Python participates in every transform, but none is
-Python-only. The final source-current schema v3 `CUPMAN4`
+Python-only. The last complete schema v3 `CUPMAN4`
 `make -C toolchain all` passed. The Cupid author and Python oracle agreed on all 58 stage
 pairs. Every stage-three object and executable matched its stage-four
 counterpart. The hosted runtime passed, and live inputs stayed frozen. The
@@ -260,7 +274,13 @@ Its final `CUPMAN2` verifier printed
 `Cupid Toolchain manifest: ok (21 artifacts)`. The first corrected attempt
 published a valid cohort but failed this last read-only verifier because WSL
 found an unrelated installed `tools` package. ADR 0311 records the launcher pin
-that closed the gap. An earlier
+that closed the gap.
+
+CupidBuild and the PE32 reader expand the source-head inventories to 75
+publication inputs and 55 bootstrap inputs. Focused manifest tests pass, but no complete
+Toolchain publication has assigned new artifact or manifest digests yet.
+
+An earlier
 `make bootstrap-audit` run failed after 65.183 seconds because its
 artifact-size recipe lock omitted the Windows seed verifier. The current graph
 locks one `$(ARTIFACT_SIZE_CONTRACT)` command with
@@ -1318,12 +1338,12 @@ modification. The initial contract snapshot, private copy, and newly discovered
 live contract inventory must match in membership and hashes. This catches additions,
 removals, and a transient edit copied before its live source is restored.
 Every run derives the cohort from its requested executable, requires a named
-manifest artifact, and verifies all artifact hashes, the live 70-input
-contract set, the checked seed manifest, and the 50-file fixed-point source
+manifest artifact, and verifies all artifact hashes, the live 72-input
+contract set, the checked seed manifest, and the 52-file fixed-point source
 inventory before execution. The contract set includes the user syscall ABI
 contract and its six declarations, both Windows runtime paths, the CupidLD
 publication runtime and bridge, the direct Windows runtime contract,
-`direct.h`, `windows.h`, the Toolchain Makefile, both strict C11 contract
+`direct.h`, `windows.h`, both PE32 reader headers, the Toolchain Makefile, both strict C11 contract
 sources, the publisher, and the independent Python ABI oracle. The seed
 manifest is read once for hashing,
 decoding, schema validation, and build-plan use. A concurrent replacement
@@ -2596,7 +2616,7 @@ mode consumes `CUPMAN2` and follows the host-selected execution cohort, so it
 runs as a native PE on Windows. Author mode consumes independent `CUPMAN4`
 facts. The converged stage-four Linux tools build a static ELF on Linux or a
 validated PE on Windows. Together the
-modes bind all 21 artifacts, 70 publication inputs, 50 bootstrap inputs, the
+modes bind all 21 artifacts, 72 publication inputs, 52 bootstrap inputs, the
 Linux publication seed, and 58 raw stage pairs. The pairs cover 17 contract
 objects, 16 contract executables, 19 bootstrap C objects, one startup object,
 and five tool images. The author requires regular, nonempty, byte-identical
@@ -2607,7 +2627,7 @@ fixed-point summary from the exact pair inventories. The request has no caller
 repeats all 58 comparisons independently after the author accepts the request.
 Schema `cupid.toolchain-contracts.v3` does not change. Only
 actual contract build inputs receive compiler or assembler ownership; provenance-only
-observations do not. The final source-current schema v3 `CUPMAN4` publication
+observations do not. The last complete schema v3 `CUPMAN4` publication
 passed and wrote 21 artifacts and a 27,071-byte manifest with
 SHA-256
 `02408d9d541de1454e2f0888cff501bc755964448d0f177a4162bcebdcaf178b`.
@@ -2619,6 +2639,8 @@ resolve `tools` from this checkout. The direct manifest module passes 40 tests
 in 54.623 seconds, the publisher passes 64 in 12.144 seconds, and the pinned
 verifier runner executes 25 tests in 32.773 seconds with three
 POSIX-only skips on Windows.
+That publication records the preceding 70/50 inventories. Source head now
+expects 72/52, and the next full publication must produce new evidence.
 The publisher gives `x86_contract.cc` its sibling `/toolchain/tests`
 quoted-include root so checked CupidC can read both frozen x86 `.inc`
 corpora. Other contract plans keep the narrower shared include path.
@@ -2643,15 +2665,15 @@ failures there. The checked seed parses all
 29 declarations in `simd_intrin.h` under the Cupid profile. That mode now
 maps `U0`, the signed and unsigned sized integer spellings, `Bool`, `bool`,
 `float4`, and `double2` directly into the shared type graph. C11 continues to
-treat those spellings as ordinary identifiers. The graph contains 745 active
-language inputs: 32 assembly files, 299 headers, and 414 Cupid C files. No
+treat those spellings as ordinary identifiers. The graph contains 747 active
+language inputs: 32 assembly files, 301 headers, and 414 Cupid C files. No
 ordinary C translation unit remains in the supported roots. The assembly
 ownership contract assigns all 32 active assembly sources to CupidASM,
 including five Toolchain startup inputs, and rejects any ownerless addition.
 ADR 0327 records this complete assembly inventory. The audit records 255
-feature IDs, 452 transforms, and 25 accounted unreachable files. The preprocessor
-inventory covers 709 files and 2,487 include occurrences, split into 2,211
-quoted and 276 angle forms. Its active roots contain 403 tracked and four
+feature IDs, 452 transforms, and 26 accounted unreachable files. The preprocessor
+inventory covers 711 files and 2,494 include occurrences, split into 2,217
+quoted and 277 angle forms. Its active roots contain 403 tracked and four
 generated translation units.
 
 The ADR 0302 audit remains historical. Its active-source digest is

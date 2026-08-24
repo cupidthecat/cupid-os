@@ -69,6 +69,20 @@ The current Linux and Windows seeds carry static ELF code-anchor checks under
 ADR 0323. Source-current publication evidence is recorded in the bootstrap
 log.
 
+Source-head hosted CupidDis now reads the deterministic static i386 PE32
+profile emitted by CupidLD. It reports PE and COFF headers, sections, and
+named imports, then decodes executable sections through the shared x86 model.
+Strict inspection checks the entry point and direct local targets against
+decoded instruction starts. All five checked Windows seed images and an
+import-free CupidLD fixture pass beside the independent Python PE validator.
+This is not general PE support: images above CupidLD's 2 GiB RVA limit,
+dynamic images, base relocations, ordinal imports, PE symbols, and
+noncanonical section layouts remain outside the accepted profile. The five
+seed reports match an independent Python reconstruction field for field. The
+promoted seeds predate the reader, so this is
+source-head evidence rather than seed-carriage evidence. ADR 0338 records the
+boundary.
+
 Private CupidC retains a file-scope function-pointer typedef signature in direct
 free-function parameters, Cupid class method parameters,
 declaration-initialized automatic objects, and file objects. Every automatic
@@ -208,13 +222,13 @@ pinned verifier runner executes 25 tests in 32.773 seconds with three
 POSIX-only skips on Windows. [ADR 0307](docs/adr/0307-author-toolchain-fixed-point-evidence-from-stage-pairs.md)
 records the paired-evidence boundary, [ADR 0311](docs/adr/0311-pin-checked-contract-imports-to-the-checkout.md)
 records checkout-local contract imports, and [ADR 0322](docs/adr/0322-run-the-toolchain-manifest-author-natively-on-windows.md)
-records native Windows author execution. The source graph has 739 active inputs,
+records native Windows author execution. The source graph has 741 active inputs,
 452 transforms, 255 feature requirements, and 25 accounted unreachable files.
 Participation
 is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and four
 Cupid-built semantic contracts. Python participates in all 452 transforms,
 but no transform is Python-only. Root `all` remains at 443 transforms, each
-with a Cupid participant. The final source-current schema v3 `CUPMAN4`
+with a Cupid participant. The latest complete schema v3 `CUPMAN4`
 `make -C toolchain all` passed. The Cupid author and Python
 oracle agreed on all 58 stage pairs. Every stage-three object and executable
 matched its stage-four counterpart, the hosted runtime passed, and live inputs
@@ -235,7 +249,7 @@ recipe has one `$(ARTIFACT_SIZE_CONTRACT)` command, and that command carries
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The source-current
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-21/5/22 for Linux and 9/5/8 for Windows. The audit still records 739 active
+21/5/22 for Linux and 9/5/8 for Windows. The audit records 741 active
 sources, 452 transforms, 255 feature requirements, and 25 accounted unreachable
 files.
 [ADR 0304](docs/adr/0304-author-toolchain-publication-manifests-with-cupidc.md)

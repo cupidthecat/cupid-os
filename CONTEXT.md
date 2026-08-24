@@ -671,18 +671,19 @@ declaration membership, reproduces that inventory under a private root,
 compares seventeen objects and sixteen executables across the converged
 compiler pair, runs the stage-four runtime behavior probe, and publishes the
 stage-four executables with the five stage-four tools as 21 artifacts plus a
-manifest. Its frozen inventory contains 70 inputs, including the exact-decimal
+manifest. Its source-current inventory contains 72 inputs, including the exact-decimal
 fixture, fingerprint-bound x86 catalogue corpus, `toolchain/x86.cc`, native
 Windows runtime and startup, publication bridges, direct runtime contract,
 hosted Windows declarations, six external-program ABI declarations, the
-artifact-size and Toolchain manifest contract sources, and an independent
+artifact-size and Toolchain manifest contract sources, both PE32 reader
+headers, and an independent
 Python oracle. Live inventory discovery catches additions, removals, and restored
 edits that changed a private copy. The output must be a dedicated
 `cupidc-contracts` directory inside the source tree. An existing destination
 must already verify, and arbitrary directories, source trees, files, or
 symbolic links remain untouched. A run derives the cohort from its requested
 executable and verifies the named artifact, all recorded hashes, and current
-inputs first. The audit keeps the 70-file publication inventory distinct from
+inputs first. The audit keeps the 72-file publication inventory distinct from
 the publisher's 94 Make prerequisites. `toolchain:all` owns this path. Native
 GCC or Clang builds are optional oracles under `native-oracles`, not normal
 build inputs.
@@ -692,7 +693,7 @@ _Avoid_: checked seed, native contract suite, 19-source tool fixed point
 The strict C11 program that verifies and authors the 21-artifact Toolchain
 publication. Verification consumes a pinned `CUPMAN2` snapshot. Author mode
 consumes a pinned `CUPMAN4` snapshot. It carries the independent artifact,
-70-input, 50-bootstrap-input, Linux-seed, build-plan, and generation facts,
+72-input, 52-bootstrap-input, Linux-seed, build-plan, and generation facts,
 plus four exact raw stage-pair inventories. Those inventories contain 17
 contract objects, 16 contract executables, 20 bootstrap objects, and five
 bootstrap tools. The author compares and hashes both byte streams in every
@@ -1260,7 +1261,16 @@ without changing binary assets.
 _Avoid_: source formatting, binary wrapping
 
 **CupidDis**:
-The Cupid Toolchain disassembler and binary inspector.
+The Cupid Toolchain disassembler and binary inspector. Hosted source head
+accepts raw images, static i386 ELF32, and CupidLD's bounded static i386 PE32
+profile. Its PE views report headers, sections, named imports, and decoded
+executable sections. Strict PE inspection validates the entry and constant
+direct relative targets against shared x86 instruction starts. PE symbols,
+relocations, dynamic images, ordinal imports, and general layouts remain
+outside the represented profile. The reader also enforces CupidLD's 2 GiB RVA
+limit for the loaded image. Complete seed reports match an independent Python
+reconstruction of their sections and imports. The promoted seed images
+predate PE input support.
 _Avoid_: Cupid disassembler when naming the tool
 
 **Conditional move family**:
@@ -1327,6 +1337,10 @@ across nonoverlapping file-backed executable load regions. The linked report
 separates targets outside loaded memory, in loaded memory without file-backed
 executable code, and inside an instruction. A `PT_DYNAMIC` or `PT_INTERP`
 header rejects the image as outside the static certification domain.
+Source-head hosted CupidDis applies the same start-map rule to CupidLD PE32
+images. A PE target may cross executable sections, but it must land on a
+decoded start. The report separates a target in loaded non-executable data,
+outside loaded sections, or inside an instruction.
 
 The CLI exposes the policy as `--require-local-targets` beside
 `--require-known`. The promoted seeds carry both forms. The bootloader
@@ -1361,6 +1375,14 @@ An assembly symbol declared as `global name:function` or
 function from global binding. An unannotated assembly symbol remains
 `STT_NOTYPE`.
 _Avoid_: treating every global as code, disassembly-inferred function
+
+**Static PE entry anchor**:
+The `AddressOfEntryPoint` in a CupidLD-profile i386 PE32 image. Source-head
+hosted CupidDis requires it to equal a decoded instruction start in a
+file-backed executable section. PE function symbols are not represented, so
+the entry is the only PE code anchor. The promoted seeds do not carry this
+inspection path yet.
+_Avoid_: inferred export, arbitrary PE entry, checked-seed carriage
 
 **Relocatable entry symbol**:
 The caller-priority code label selected by CupidASM for an ELF32 relocatable
@@ -1637,14 +1659,17 @@ fourteen-artifact expansion.
 _Avoid_: output-quality oracle, approximate size budget, hard-coded seed directory
 
 **Frozen fixed-point source closure**:
-The exact 50 source inputs copied into one private compiler root before a
+The source-current 52 inputs copied into one private compiler root before a
 checked-seed bootstrap runs. The closure includes the small Windows probe,
 the native Windows tool runtime and startup, CupidLD's publication runtime and
-bridge, the direct runtime contract, and the hosted Windows declarations. All
+bridge, the direct runtime contract, the hosted Windows declarations, and the
+PE32 reader interface and implementation header. All
 built stages and their behavior checks consume that root. The
 harness rehashes the private and live closures at each boundary, then publishes
 stages two through four, behavior evidence, and the report as one complete directory only
 after every gate passes.
+The promoted seed manifests retain their historical 50-input snapshots until
+a later fixed-point promotion.
 _Avoid_: live source root, source hash alone, public staging directory
 
 **Native Windows fixed-point driver**:

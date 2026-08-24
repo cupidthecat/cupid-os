@@ -149,7 +149,7 @@ records the runtime probe rename, ADR 0196 records the complete transfer, ADR
 records the manifest author, ADR 0307 records raw stage-pair evidence, and ADR
 0322 records native Windows author execution.
 
-The final source-current schema v3 `CUPMAN4` publication passed and
+The latest complete schema v3 `CUPMAN4` publication passed and
 wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
 Its 27,071-byte manifest has SHA-256
@@ -167,6 +167,19 @@ production checkpoint.
 The audit assigns generation ownership for the author only to those 20 build inputs.
 The 70 publication inputs and 50 bootstrap inputs are observed facts, so they
 do not inherit compiler or assembler ownership from the author transform.
+
+Source head adds `pe32.h` and its private implementation header to the checked
+Toolchain source closure. The live inventories therefore contain 72
+publication inputs and 52 bootstrap files, while the latest complete
+publication remains the historical 70-input, 50-file checkpoint above. The
+compiled fixed-point plan still contains 19 C objects. Hosted CupidDis uses
+the new reader to inspect the deterministic static i386 PE32 profile emitted
+by CupidLD. It reports headers, sections, and named imports, decodes every
+executable section, and can require valid entry and direct-local-target
+anchors. It rejects loaded spans above CupidLD's 2 GiB RVA limit. All five
+checked Windows seed reports match an independent Python reconstruction, but
+the promoted CupidDis executables predate the reader and do not carry it. ADR
+0338 records this boundary.
 
 Fourteen ordinary contract compiles use the worker pool and 900-second plan
 budgets. The pool drains before the heavyweight `cupidc-object` compile starts
@@ -1512,8 +1525,8 @@ frozen captures. It rechecks the complete live seed cohort after each command.
 Make passes wildcard-discovered output sources through `$(sort ...)`
 before generation or link. Windows and Linux therefore consume the same root
 order across host locales.
-The stable audit counts record 745 active language inputs, 452 transforms, 255
-features, and 25 unreachable inputs across the three roots. It includes 443
+The stable audit counts record 747 active language inputs, 452 transforms, 255
+features, and 26 unreachable inputs across the three roots. It includes 443
 transforms under root `all`. Four transforms use Cupid-built semantic
 contracts, and no transform is Python-only. Python participates in all 452 as
 orchestrator.
@@ -2159,7 +2172,7 @@ The [current production checkpoint](#current-production-checkpoint) records the
 latest schema v3 publication, settled audit, definitive poisoned build, final
 artifact identities, and strong full private frontier smoke. Earlier build and
 guest results on this page remain dated checkpoints.
-The stable audit counts are 745 active language inputs, 452 transforms, 255
+The stable audit counts are 747 active language inputs, 452 transforms, 255
 feature requirements, six CupidDis production checks, and no active
 CupidC-owned `.c` source.
 

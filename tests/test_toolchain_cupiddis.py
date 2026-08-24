@@ -15,6 +15,7 @@ sys.path.insert(0, str(REPO_ROOT / "tools"))
 
 from hostbuild import _symbols_from_nm
 import bootstrap_baseline
+import bootstrap_toolchain
 
 
 def elf32_executable(segments):
@@ -203,6 +204,148 @@ def elf32_relocation_sections(image):
     return sections
 
 
+def python_pe32_records(path):
+    data = path.read_bytes()
+    pe_offset = struct.unpack_from("<I", data, 0x3C)[0]
+    section_count = struct.unpack_from("<H", data, pe_offset + 6)[0]
+    optional_offset = pe_offset + 24
+    optional_size = struct.unpack_from("<H", data, pe_offset + 20)[0]
+    image_base = struct.unpack_from("<I", data, optional_offset + 28)[0]
+    entry_rva = struct.unpack_from("<I", data, optional_offset + 16)[0]
+    image_size = struct.unpack_from("<I", data, optional_offset + 56)[0]
+    headers_size = struct.unpack_from("<I", data, optional_offset + 60)[0]
+    directories = tuple(
+        struct.unpack_from("<II", data, optional_offset + 96 + index * 8)
+        for index in range(16)
+    )
+    sections = []
+    section_offset = optional_offset + optional_size
+    for index in range(section_count):
+        header = section_offset + index * 40
+        name = data[header : header + 8].split(b"\0", 1)[0].decode("ascii")
+        virtual_size, rva, raw_size, raw_offset = struct.unpack_from(
+            "<IIII", data, header + 8
+        )
+        characteristics = struct.unpack_from("<I", data, header + 36)[0]
+        sections.append(
+            {
+                "index": index,
+                "name": name,
+                "rva": rva,
+                "vaddr": image_base + rva,
+                "virtual_size": virtual_size,
+                "raw_offset": raw_offset,
+                "raw_size": raw_size,
+                "characteristics": characteristics,
+            }
+        )
+
+    idata = next(section for section in sections if section["name"] == ".idata")
+
+    def rva_offset(rva):
+        return idata["raw_offset"] + rva - idata["rva"]
+
+    def rva_string(rva):
+        offset = rva_offset(rva)
+        end = data.index(0, offset, idata["raw_offset"] + idata["virtual_size"])
+        return data[offset:end].decode("ascii")
+
+    libraries = []
+    descriptor_offset = rva_offset(directories[1][0])
+    library_index = 0
+    while True:
+        lookup_rva, timestamp, forwarder, name_rva, iat_rva = struct.unpack_from(
+            "<IIIII", data, descriptor_offset + library_index * 20
+        )
+        if (lookup_rva, timestamp, forwarder, name_rva, iat_rva) == (0, 0, 0, 0, 0):
+            break
+        procedures = []
+        procedure_index = 0
+        while True:
+            lookup_cell_rva = lookup_rva + procedure_index * 4
+            iat_cell_rva = iat_rva + procedure_index * 4
+            hint_rva = struct.unpack_from("<I", data, rva_offset(lookup_cell_rva))[0]
+            iat_value = struct.unpack_from("<I", data, rva_offset(iat_cell_rva))[0]
+            if hint_rva == 0:
+                break
+            procedures.append(
+                {
+                    "name": rva_string(hint_rva + 2),
+                    "hint_rva": hint_rva,
+                    "lookup_rva": lookup_cell_rva,
+                    "iat_rva": iat_cell_rva,
+                    "iat_value": iat_value,
+                }
+            )
+            procedure_index += 1
+        libraries.append(
+            {
+                "name": rva_string(name_rva),
+                "lookup_rva": lookup_rva,
+                "iat_rva": iat_rva,
+                "procedures": procedures,
+            }
+        )
+        library_index += 1
+    return {
+        "entry": image_base + entry_rva,
+        "image_base": image_base,
+        "image_size": image_size,
+        "headers_size": headers_size,
+        "directories": directories,
+        "sections": sections,
+        "libraries": libraries,
+    }
+
+
+def render_python_pe32_records(records):
+    imports = [
+        (library, procedure)
+        for library in records["libraries"]
+        for procedure in library["procedures"]
+    ]
+    lines = [
+        "PE32 i386 "
+        f"entry=0x{records['entry']:08X} "
+        f"image-base=0x{records['image_base']:08X} "
+        f"sections={len(records['sections'])} "
+        f"imports={len(imports)} "
+        f"libraries={len(records['libraries'])} "
+        f"image-size=0x{records['image_size']:08X} "
+        f"headers-size=0x{records['headers_size']:08X}",
+        "[directories]",
+        f"import rva=0x{records['directories'][1][0]:08X} "
+        f"size=0x{records['directories'][1][1]:08X}",
+        f"iat rva=0x{records['directories'][12][0]:08X} "
+        f"size=0x{records['directories'][12][1]:08X}",
+        "[sections]",
+    ]
+    for section in records["sections"]:
+        characteristics = section["characteristics"]
+        flags = ""
+        if characteristics & 0x40000000:
+            flags += "R"
+        if characteristics & 0x80000000:
+            flags += "W"
+        if characteristics & 0x20000000:
+            flags += "X"
+        lines.append(
+            f"[{section['index']}] {section['name']} flags={flags} "
+            f"rva=0x{section['rva']:08X} vaddr=0x{section['vaddr']:08X} "
+            f"vsize=0x{section['virtual_size']:08X} "
+            f"off=0x{section['raw_offset']:08X} "
+            f"rawsize=0x{section['raw_size']:08X}"
+        )
+    lines.append("[imports]")
+    for index, (library, procedure) in enumerate(imports):
+        lines.append(
+            f"[{index}] {library['name']}!{procedure['name']} "
+            f"lookup=0x{procedure['lookup_rva']:08X} "
+            f"iat=0x{procedure['iat_rva']:08X}"
+        )
+    return "\n".join(lines) + "\n"
+
+
 class CupidDisOracleConfigurationTests(unittest.TestCase):
     def test_configured_symbol_reader_arguments_are_preserved(self):
         with mock.patch.dict(
@@ -233,6 +376,7 @@ class CupidDisContractTests(unittest.TestCase):
         cls.elf_contract_path = build_path / ("elf32-contract" + suffix)
         cls.cli_path = build_path / ("cupiddis" + suffix)
         cls.asm_path = build_path / ("cupidasm" + suffix)
+        cls.ld_path = build_path / ("cupidld" + suffix)
         relative_prefix = relative_build.as_posix()
         result = subprocess.run(
             [
@@ -244,6 +388,7 @@ class CupidDisContractTests(unittest.TestCase):
                 f"{relative_prefix}/elf32-contract{suffix}",
                 f"{relative_prefix}/cupiddis{suffix}",
                 f"{relative_prefix}/cupidasm{suffix}",
+                f"{relative_prefix}/cupidld{suffix}",
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -618,6 +763,68 @@ class CupidDisContractTests(unittest.TestCase):
             fixture_path = Path(cls._fixture_directory.name) / name
             fixture_path.write_bytes(elf32_symbolized_executable(**arguments))
             setattr(cls, attribute, fixture_path)
+        cls.pe32_object_path = (
+            Path(cls._fixture_directory.name) / "cupiddis-pe32.o"
+        )
+        pe32_source = (
+            Path(cls._fixture_directory.name) / "cupiddis-pe32.asm"
+        )
+        pe32_source.write_text(
+            "BITS 32\n"
+            "section .text\n"
+            "global _start\n"
+            "_start:\n"
+            "    jmp done\n"
+            "    nop\n"
+            "done:\n"
+            "    ret\n",
+            encoding="utf-8",
+        )
+        pe32_assembled = subprocess.run(
+            [
+                str(cls.asm_path),
+                "-f",
+                "elf32",
+                str(pe32_source),
+                "-o",
+                str(cls.pe32_object_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        if pe32_assembled.returncode != 0:
+            raise AssertionError(
+                "CupidDis PE32 fixture assembly failed\n"
+                + pe32_assembled.stdout
+                + pe32_assembled.stderr
+            )
+        cls.pe32_path = (
+            Path(cls._fixture_directory.name) / "cupiddis-pe32.exe"
+        )
+        pe32_linked = subprocess.run(
+            [
+                str(cls.ld_path),
+                "-m",
+                "i386pe",
+                "--text-address",
+                "0x00401000",
+                "--entry",
+                "_start",
+                "-o",
+                str(cls.pe32_path),
+                str(cls.pe32_object_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        if pe32_linked.returncode != 0:
+            raise AssertionError(
+                "CupidDis PE32 fixture link failed\n"
+                + pe32_linked.stdout
+                + pe32_linked.stderr
+            )
         unsupported_exec_programs = (
             ("dynamic_exec_target_path", "dynamic-exec-target.elf", 2),
             ("interpreter_exec_target_path", "interpreter-exec-target.elf", 3),
@@ -664,6 +871,9 @@ class CupidDisContractTests(unittest.TestCase):
     def test_typed_static_executable_code_anchor_policy(self):
         self.run_contract("anchors")
 
+    def test_typed_pe32_reader_inspection_and_recovery(self):
+        self.run_contract("pe32")
+
     def test_relocatable_object_report_and_relocation_overlay(self):
         self.run_contract("object")
 
@@ -705,6 +915,171 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertIn("[program headers]", result.stdout)
         self.assertIn("[disassembly LOAD#0]", result.stdout)
         self.assertIn("mov eax, 0x12345678", result.stdout)
+
+    def test_cli_inspects_cupidld_pe32_fixture(self):
+        result = subprocess.run(
+            [str(self.cli_path), str(self.pe32_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PE32 i386 entry=0x00401000", result.stdout)
+        self.assertIn("[sections]\n", result.stdout)
+        self.assertIn("[imports]\n", result.stdout)
+        self.assertIn("[disassembly .text]\n", result.stdout)
+        self.assertIn("jmp 0x00401003", result.stdout)
+
+    def test_cli_inspects_and_strictly_checks_all_windows_seeds(self):
+        seed_root = REPO_ROOT / "bootstrap" / "seeds" / "i386-windows"
+        expected_names = {
+            "cupidasm.exe",
+            "cupidc.exe",
+            "cupiddis.exe",
+            "cupidld.exe",
+            "cupidobj.exe",
+        }
+        seeds = sorted(seed_root.glob("*.exe"))
+        self.assertEqual({path.name for path in seeds}, expected_names)
+        for path in seeds:
+            expected_imports = bootstrap_toolchain._windows_imports(path.stem)
+            bootstrap_toolchain._validate_static_i386_pe32(
+                path,
+                0x00401000,
+                expected_imports,
+            )
+            records = python_pe32_records(path)
+            self.assertEqual(
+                tuple(
+                    (
+                        library["name"],
+                        tuple(
+                            procedure["name"]
+                            for procedure in library["procedures"]
+                        ),
+                    )
+                    for library in records["libraries"]
+                ),
+                tuple(
+                    (library, tuple(procedures))
+                    for library, procedures in expected_imports
+                ),
+            )
+            for library in records["libraries"]:
+                self.assertEqual(
+                    tuple(
+                        procedure["lookup_rva"]
+                        for procedure in library["procedures"]
+                    ),
+                    tuple(
+                        library["lookup_rva"] + index * 4
+                        for index in range(len(library["procedures"]))
+                    ),
+                )
+                self.assertEqual(
+                    tuple(
+                        procedure["iat_rva"]
+                        for procedure in library["procedures"]
+                    ),
+                    tuple(
+                        library["iat_rva"] + index * 4
+                        for index in range(len(library["procedures"]))
+                    ),
+                )
+                self.assertTrue(
+                    all(
+                        procedure["iat_value"] == procedure["hint_rva"]
+                        for procedure in library["procedures"]
+                    )
+                )
+            with self.subTest(seed=path.name, mode="report"):
+                report = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--headers",
+                        "--sections",
+                        "--imports",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(report.returncode, 0, report.stderr)
+                self.assertEqual(
+                    report.stdout, render_python_pe32_records(records)
+                )
+            with self.subTest(seed=path.name, mode="strict"):
+                checked = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-local-targets",
+                        "--require-code-anchors",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(checked.returncode, 0, checked.stderr)
+                self.assertEqual(checked.stdout, "")
+                self.assertEqual(checked.stderr, "")
+
+    def test_cli_pe32_failures_preserve_empty_output(self):
+        image = self.pe32_path.read_bytes()
+        cases = []
+        truncated = Path(self._fixture_directory.name) / "pe32-truncated.exe"
+        truncated.write_bytes(image[:64])
+        cases.append((truncated, (), "PE32 DOS header is truncated"))
+
+        unknown = Path(self._fixture_directory.name) / "pe32-unknown.exe"
+        unknown_image = bytearray(image)
+        text_offset = struct.unpack_from("<I", unknown_image, 376 + 20)[0]
+        unknown_image[text_offset : text_offset + 2] = b"\x0f\xff"
+        unknown.write_bytes(unknown_image)
+        cases.append((unknown, ("--require-known",), "code check failed"))
+
+        local_target = (
+            Path(self._fixture_directory.name) / "pe32-bad-target.exe"
+        )
+        target_image = bytearray(image)
+        target_image[text_offset : text_offset + 2] = bytes.fromhex("eb 7f")
+        local_target.write_bytes(target_image)
+        cases.append(
+            (
+                local_target,
+                ("--require-known", "--require-local-targets"),
+                "local target check failed",
+            )
+        )
+
+        entry_anchor = (
+            Path(self._fixture_directory.name) / "pe32-bad-entry.exe"
+        )
+        anchor_image = bytearray(image)
+        entry_rva = struct.unpack_from("<I", anchor_image, 152 + 16)[0]
+        struct.pack_into("<I", anchor_image, 152 + 16, entry_rva + 1)
+        entry_anchor.write_bytes(anchor_image)
+        cases.append(
+            (
+                entry_anchor,
+                ("--require-known", "--require-code-anchors"),
+                "code anchor check failed",
+            )
+        )
+
+        for path, arguments, expected in cases:
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    [str(self.cli_path), *arguments, str(path)],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(expected, result.stderr)
 
     def test_cli_requires_every_code_region_to_decode_cleanly(self):
         clean = subprocess.run(

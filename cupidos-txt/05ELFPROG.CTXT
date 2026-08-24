@@ -59,6 +59,21 @@ reserves one MiB and commits 4 KiB. The independent validator checks those
 fields, reconstructs the exact .idata cursor, and rejects equivalent but
 noncanonical layouts.
 
+>h3 Source-Head PE Inspection
+Source-head hosted CupidDis reads this deterministic static i386 PE32 profile.
+It reports the bounded PE and COFF fields, canonical sections, and named
+imports. Strict inspection decodes every executable section through the
+shared x86 model and checks the entry point and constant direct local targets
+against instruction starts. All five checked Windows tool images and an
+import-free CupidLD fixture pass beside the independent Python validator.
+
+Dynamic PE, base relocations, ordinal imports, PE symbols, and general section
+layouts remain unsupported. The same applies to a loaded span above CupidLD's
+2 GiB RVA limit. Complete section and import reports for the five checked tools
+match an independent parse of their PE bytes. The promoted CupidDis tools
+predate this reader, so a later fixed-point proof and seed promotion must
+establish carriage.
+
 CupidASM assembles the repository Windows entry, and freestanding CupidC
 compiles its headerless main. CupidLD links GetStdHandle, WriteFile, and
 ExitProcess imports. Windows validates and runs the image, requires the exact

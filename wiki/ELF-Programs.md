@@ -135,6 +135,20 @@ records the preceding strict-relocation promotion. [ADR
 0323](../docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
 records the current promotion and production adoption.
 
+Source-head hosted CupidDis can inspect the same deterministic static i386
+PE32 profile that CupidLD emits. `--headers`, `--sections`, and `--imports`
+report the accepted PE fields, canonical section layout, and named imports.
+Strict known-instruction, local-target, and code-anchor checks decode each
+executable section through the shared x86 model and require the entry point to
+start an instruction. The five checked Windows tool images and an import-free
+CupidLD fixture pass alongside the independent Python PE validator. This
+reader deliberately rejects dynamic PE, base relocations, ordinal imports, PE
+symbols, loaded spans above CupidLD's 2 GiB RVA limit, and layouts outside its
+current static profile. The complete seed reports match an independent Python
+reconstruction of their sections and import records. The promoted CupidDis
+seeds predate this input mode; a later fixed-point proof and seed promotion
+must establish carriage. ADR 0338 records the boundary.
+
 The checked-seed CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,
 then reopens the file and checks its size and contents against the linker

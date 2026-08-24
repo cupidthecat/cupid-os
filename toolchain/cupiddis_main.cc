@@ -41,11 +41,11 @@ static void cupiddis_usage(FILE *stream) {
   (void)fprintf(
       stream,
       "usage: cupiddis [--headers] [--sections] [--symbols] "
-      "[--relocations] [--disassemble] [--all] [--nm] FILE\n"
+      "[--relocations] [--imports] [--disassemble] [--all] [--nm] FILE\n"
       "       cupiddis --require-known [--require-local-targets] "
       "[--require-source-edges] [--require-code-anchors] "
       "[--headers] [--sections] "
-      "[--symbols] [--relocations] [--disassemble] [--all] "
+      "[--symbols] [--relocations] [--imports] [--disassemble] [--all] "
       "FILE [FILE...]\n"
       "       cupiddis --raw --mode 16|32 "
       "[--range-at OFFSET:16|32|data]... "
@@ -834,6 +834,11 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
       cli->have_views = CTOOL_TRUE;
       continue;
     }
+    if (strcmp(argument, "--imports") == 0) {
+      cli->views |= CTOOL_DIS_VIEW_IMPORTS;
+      cli->have_views = CTOOL_TRUE;
+      continue;
+    }
     if (strcmp(argument, "--disassemble") == 0) {
       cli->views |= CTOOL_DIS_VIEW_DISASSEMBLY;
       cli->have_views = CTOOL_TRUE;
@@ -1045,12 +1050,35 @@ static int cupiddis_is_elf(ctool_bytes_t bytes) {
              : 0;
 }
 
+static int cupiddis_is_pe32(ctool_bytes_t bytes) {
+  return bytes.size >= 2u && bytes.data[0] == (ctool_u8)'M' &&
+                 bytes.data[1] == (ctool_u8)'Z'
+             ? 1
+             : 0;
+}
+
 static void cupiddis_make_request(const cupiddis_cli_t *cli,
+                                   ctool_bytes_t input,
                                    ctool_dis_request_t *request) {
   (void)memset(request, 0, sizeof(*request));
-  request->input = cli->raw == CTOOL_TRUE ? CTOOL_DIS_INPUT_RAW
-                                          : CTOOL_DIS_INPUT_ELF32;
+  request->input = cli->raw == CTOOL_TRUE
+                       ? CTOOL_DIS_INPUT_RAW
+                       : (cupiddis_is_pe32(input) != 0
+                              ? CTOOL_DIS_INPUT_PE32
+                              : CTOOL_DIS_INPUT_ELF32);
   request->views = cli->views;
+  if (request->views == CTOOL_DIS_VIEW_ALL) {
+    request->views = request->input == CTOOL_DIS_INPUT_PE32
+                         ? CTOOL_DIS_VIEW_HEADER |
+                               CTOOL_DIS_VIEW_SECTIONS |
+                               CTOOL_DIS_VIEW_IMPORTS |
+                               CTOOL_DIS_VIEW_DISASSEMBLY
+                         : CTOOL_DIS_VIEW_HEADER |
+                               CTOOL_DIS_VIEW_SECTIONS |
+                               CTOOL_DIS_VIEW_SYMBOLS |
+                               CTOOL_DIS_VIEW_RELOCATIONS |
+                               CTOOL_DIS_VIEW_DISASSEMBLY;
+  }
   request->policies = 0u;
   if (cli->require_local_targets == CTOOL_TRUE) {
     request->policies |= CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
@@ -1135,14 +1163,15 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
   if (!cupiddis_range_map_matches(cli, &source, input)) {
     goto done;
   }
-  if (cli->raw == CTOOL_FALSE && !cupiddis_is_elf(source.contents)) {
+  if (cli->raw == CTOOL_FALSE && !cupiddis_is_elf(source.contents) &&
+      !cupiddis_is_pe32(source.contents)) {
     (void)fprintf(stderr,
-                  "cupiddis: %s: input is not ELF32; raw input requires "
-                  "--raw\n",
+                  "cupiddis: %s: input is not supported ELF32 or PE32; "
+                  "raw input requires --raw\n",
                   input);
     goto done;
   }
-  cupiddis_make_request(cli, &request);
+  cupiddis_make_request(cli, source.contents, &request);
   status = ctool_dis_inspect_indexed(job, decoder, &source, &request,
                                      &report);
   if (status != CTOOL_OK) {
@@ -1192,7 +1221,8 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
           report.decode_summary.direct_relative_data_count +
           report.decode_summary.direct_relative_wrong_mode_count +
           report.decode_summary.direct_relative_mid_instruction_count;
-    } else if (report.elf32.file_type == CTOOL_ELF32_ET_EXEC) {
+    } else if (report.input == CTOOL_DIS_INPUT_PE32 ||
+               report.elf32.file_type == CTOOL_ELF32_ET_EXEC) {
       invalid_targets =
           report.decode_summary.direct_relative_outside_image_count +
           report.decode_summary.direct_relative_data_count +
@@ -1220,7 +1250,8 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
                 report.decode_summary.direct_relative_wrong_mode_count,
             (unsigned long long)
                 report.decode_summary.direct_relative_mid_instruction_count);
-      } else if (report.elf32.file_type == CTOOL_ELF32_ET_EXEC) {
+      } else if (report.input == CTOOL_DIS_INPUT_PE32 ||
+                 report.elf32.file_type == CTOOL_ELF32_ET_EXEC) {
         (void)fprintf(
             stderr,
             "cupiddis: %s: local target check failed: %llu of %llu direct "
@@ -1416,12 +1447,14 @@ int main(int argc, char **argv) {
   if (!cupiddis_range_map_matches(&cli, &source, cli.input)) {
     goto done;
   }
-  if (cli.raw == CTOOL_FALSE && !cupiddis_is_elf(source.contents)) {
+  if (cli.raw == CTOOL_FALSE && !cupiddis_is_elf(source.contents) &&
+      !cupiddis_is_pe32(source.contents)) {
     (void)fprintf(stderr,
-                  "cupiddis: input is not ELF32; raw input requires --raw\n");
+                  "cupiddis: input is not supported ELF32 or PE32; "
+                  "raw input requires --raw\n");
     goto done;
   }
-  cupiddis_make_request(&cli, &request);
+  cupiddis_make_request(&cli, source.contents, &request);
   status = ctool_dis_inspect(job, &source, &request, &report);
   output.context = stdout;
   output.write = cupiddis_stdout_write;

@@ -30689,3 +30689,76 @@ Python path still owns full manifest schema, provenance, target, and build-plan
 verification. No object owner or host-dependency count changes in this step.
 No `.c` file reached Cupid ownership, so no source rename is due. ADR 0339
 records this boundary, and `TempleOS/` remains untouched reference material.
+## 2026-08-24: inspect CupidLD PE32 images with CupidDis
+
+### Scope and decisions
+
+- Added a typed reader for CupidLD's deterministic static i386 PE32 profile.
+  It reports headers, sections, named imports, and executable bytes. It rejects
+  dynamic or noncanonical PE layouts, ordinal imports, malformed tables,
+  overlapping sections, and out-of-file ranges.
+- Hosted CupidDis now detects PE input and offers header, section, import, and
+  disassembly views. The shared x86 decoder handles executable sections. The
+  strict entry-anchor and local-target policies reuse the decoded start map.
+- Kept the Python PE validator as a parity oracle. It checks the same five
+  Windows seed images, expected entries, and import sets as the CupidDis tests.
+- Kept the 19-object Linux fixed-point plan unchanged. `pe32_impl.h` carries
+  the implementation inside CupidDis's existing translation unit. The public
+  `pe32.h` interface can move to a separate object after a later plan and seed
+  promotion.
+- Expanded the Toolchain manifest contract to 75 publication inputs and 55
+  bootstrap inputs. The last complete publication remains the preceding
+  70/50 cohort; no new publication or seed digest is claimed here.
+
+### Tests and evidence
+
+- `python -m unittest tests.test_toolchain_cupiddis`: 31 tests passed with one
+  platform skip in 22.640 seconds.
+- `toolchain/build/pe32-red/cupiddis-contract.exe pe32`: passed against the
+  checked Windows `cupidld.exe`.
+- `make -B toolchain/cupiddis.o`: checked-seed CupidC compiled the complete
+  source-current CupidDis translation unit, including the PE32 reader.
+- `python tools/bootstrap_toolchain.py verify` passed for both checked i386
+  Linux and Windows manifests.
+- Focused Toolchain manifest tests passed with the 72/52 inventories. The full
+  manifest module's 40 tests also passed during a combined run; the unrelated
+  kernel dependency assertion exposed the first `.inc` carriage and led to the
+  private implementation header used now.
+- `make bootstrap-audit` passed after the merged source refresh. The generated
+  graph has 747 active inputs, 452 transforms, 255 feature requirements, and
+  26 accounted unreachable files.
+- The full static fixed-point test entered its stage build but was stopped
+  before a result so the combined seed-promotion lane could run without
+  competing compiler workers. No fixed-point or seed-carriage result is
+  claimed for this slice.
+
+Positive coverage includes all five checked Windows seed executables and an
+import-free CupidLD fixture. Negative coverage includes truncated and malformed
+DOS, COFF, and optional headers; overlapping and out-of-bounds sections;
+invalid entries and imports; unknown opcodes; invalid local targets and entry
+anchors; report rollback; failed-output preservation; and same-process
+recovery.
+
+The promoted CupidDis executables predate this input mode. PE inspection is a
+source-head hosted capability until a later fixed-point proof and promotion.
+No production transform changes owner, no `.c` file is added, and `TempleOS/`
+remains untouched reference material. ADR 0338 records the boundary.
+
+### Review follow-up
+
+Spec review found that the first reader did not enforce CupidLD's 2 GiB
+`SizeOfImage` limit. A 1 KiB typed fixture now keeps `.text` file-backed while
+a memory-only `.bss` raises the loaded span to `0x80001000`. The reader rejects
+it before accepting the optional header.
+
+The typed import negatives now cover an ordinal lookup thunk, an out-of-range
+import directory, misordered lookup tables, a mismatched IAT extent, an
+unterminated lookup table, and an unterminated procedure name. The ordinal
+case fails after import metadata allocation, clears its output, and is
+followed by a successful clean read in the same job.
+
+The five-seed Python comparison no longer stops at report headings. It parses
+the PE bytes independently, checks the expected library and procedure groups,
+reconstructs lookup and IAT cell RVAs and values, and requires the complete
+CupidDis header, directory, section, and import report to match. The focused
+CupidDis module passes 31 tests with one platform skip in 11.669 seconds.

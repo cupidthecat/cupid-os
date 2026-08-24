@@ -76,6 +76,7 @@ HOSTED_TOOL_CORE_SOURCES := toolchain/ctool.cc toolchain/ctool.h \
 	toolchain/ctool_host.cc toolchain/ctool_host.h \
 	toolchain/elf32.cc toolchain/elf32.h
 CUPIDDIS_SOURCES := $(HOSTED_TOOL_CORE_SOURCES) \
+	toolchain/pe32.h toolchain/pe32_impl.h \
 	toolchain/x86.cc toolchain/x86.h \
 	toolchain/cupiddis.cc toolchain/cupiddis.h toolchain/cupiddis_main.cc \
 	toolchain/Makefile
@@ -1109,7 +1110,7 @@ toolchain/elf32.o: toolchain/elf32.cc toolchain/ctool.h toolchain/elf32.h $(CUPI
 toolchain/x86.o: toolchain/x86.cc toolchain/ctool.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source toolchain/x86.cc --output toolchain/x86.o
 
-toolchain/cupiddis.o: toolchain/cupiddis.cc toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+toolchain/cupiddis.o: toolchain/cupiddis.cc toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/pe32_impl.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupiddis.cc --output toolchain/cupiddis.o
 
 toolchain/cupidasm.o: toolchain/cupidasm.cc toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -1201,7 +1202,7 @@ kernel/lang/as.o: kernel/lang/as.cc drivers/ata.h drivers/keyboard.h \
 kernel/lang/as_elf.o: kernel/lang/as_elf.cc kernel/lang/as_elf.h toolchain/ctool.h toolchain/cupidasm.h toolchain/cupidld.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as_elf.cc --output kernel/lang/as_elf.o
 
-kernel/lang/dis.o: kernel/lang/dis.cc kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/ctool_kernel.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/lang/dis.o: kernel/lang/dis.cc kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/ctool_kernel.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/dis.cc --output kernel/lang/dis.o
 
 # Auto-generate browser CSS data tables from Blink .in files.

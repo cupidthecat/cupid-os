@@ -3,6 +3,7 @@
 
 #include "ctool.h"
 #include "elf32.h"
+#include "pe32.h"
 #include "x86.h"
 
 /* Platform-neutral inspection seam shared by the hosted and kernel CupidDis
@@ -11,7 +12,8 @@
 
 typedef enum {
   CTOOL_DIS_INPUT_RAW = 0,
-  CTOOL_DIS_INPUT_ELF32
+  CTOOL_DIS_INPUT_ELF32,
+  CTOOL_DIS_INPUT_PE32
 } ctool_dis_input_t;
 
 #define CTOOL_DIS_VIEW_HEADER 0x00000001u
@@ -19,20 +21,22 @@ typedef enum {
 #define CTOOL_DIS_VIEW_SYMBOLS 0x00000004u
 #define CTOOL_DIS_VIEW_RELOCATIONS 0x00000008u
 #define CTOOL_DIS_VIEW_DISASSEMBLY 0x00000010u
-#define CTOOL_DIS_VIEW_ALL 0x0000001fu
+#define CTOOL_DIS_VIEW_IMPORTS 0x00000020u
+#define CTOOL_DIS_VIEW_ALL 0x0000003fu
 
-/* Raw, relocatable ELF32, and linked ELF32 callers can ask CupidDis to
- * classify constant direct relative targets.  An ELF request must include
- * the disassembly view.
+/* Raw, relocatable ELF32, linked ELF32, and static PE32 callers can ask
+ * CupidDis to classify constant direct relative targets. ELF and PE requests
+ * must include the disassembly view.
  * Inspection still succeeds for structurally valid code, so a caller that
  * enforces this policy rejects a report when the input-specific invalid target
  * counters below are nonzero. */
 #define CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS 0x00000001u
-/* Static ELF32 callers can also ask CupidDis to classify code anchors against
- * decoded instruction starts.  Relocatable input checks every defined
- * function symbol in an executable PROGBITS section.  Linked input also
- * checks the entry point and uses file-backed executable load regions.
- * Invalid anchors are reported through the typed counters below. */
+/* Static ELF32 and PE32 callers can also ask CupidDis to classify code anchors
+ * against decoded instruction starts. Relocatable ELF checks every defined
+ * function symbol in an executable PROGBITS section. Linked ELF checks the
+ * entry point and each defined function symbol against file-backed executable
+ * load regions. PE checks the entry point because the bounded profile carries
+ * no symbol table. Invalid anchors use the typed counters below. */
 #define CTOOL_DIS_POLICY_CODE_ANCHORS 0x00000002u
 /* Raw callers can bind each represented call or jump to the source-resolved
  * edge metadata published beside the range map. */
@@ -95,8 +99,8 @@ typedef struct {
 } ctool_dis_raw_edge_t;
 
 /* Decode counts cover code regions selected for disassembly.  Bytes in
- * declared raw DATA ranges and non-executable ELF regions are not decoded or
- * counted.  Relocation counts cover relocations whose targets are executable
+ * declared raw DATA ranges and non-executable object regions are not decoded
+ * or counted. Relocation counts cover relocations whose targets are executable
  * ET_REL sections.  An unmatched relocation does not name a compatible
  * four-byte field in a decoded instruction.  Direct-relative target counts
  * are populated only when the matching policy is selected.  Outside-image and
@@ -162,6 +166,7 @@ typedef struct {
   const ctool_u32 *raw_label_order;
   ctool_u32 raw_label_order_count;
   ctool_elf32_object_t elf32;
+  ctool_pe32_image_t pe32;
   const ctool_u32 *function_order;
   ctool_u32 function_order_count;
   const ctool_u32 *symbol_order;
@@ -193,8 +198,8 @@ ctool_status_t ctool_dis_render(ctool_job_t *job,
                                  ctool_text_sink_t output);
 
 /* The source descriptor and bytes, raw mode ranges, raw control edges, raw
- * labels and their names, and all ELF names and payload views are borrowed
- * and must outlive rendering.  ELF metadata arrays and every derived
+ * labels and their names, and all ELF or PE names and payload views are
+ * borrowed and must outlive rendering. ELF and PE metadata arrays and every
  * raw/function/symbol/relocation order array are owned by the inspecting job's
  * arena, so that job must also outlive rendering.  Only an unmodified report
  * returned successfully by ctool_dis_inspect may be passed to
