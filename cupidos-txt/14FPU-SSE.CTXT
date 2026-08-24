@@ -414,6 +414,13 @@ and aggregate callback results remain unsupported. Checked-seed hosted CupidC
 continues to own the production kernel/lang/cupidc.cc object; the standalone
 seeds do not contain this private parser.
 
+Reviewed native bindings use the same recursive signature record for fixed and
+variadic scalar parameters. Their kernel calls share ordinary typed
+conversion, complete cdecl slot layout, cleanup, arity, default promotion, and
+result transport. The first set includes every libm binding. Unreviewed
+entries stay on the named legacy result-only path. The nested handle for
+set_icon_drawer is not yet published through this registration seam.
+
 Private decimal float and double literals use a fixed 1536-bit integer
 workspace. CupidC forms the exact decimal ratio and rounds once to the selected
 IEEE width with ties going to even. An f suffix selects binary32 before
@@ -540,7 +547,11 @@ Composite:
 >box
 libm functions use a CupidC-internal ABI and return results in XMM0 instead of
 ST(0), as System V expects. Default GCC code in the kernel cannot call these
-functions directly. CupidC JIT code reaches them through the BIND_T table.
+functions directly. CupidC JIT code reaches them through reviewed fixed
+binding signatures. Base functions publish double parameters and f-suffixed
+functions publish float parameters. The ordinary typed-call path converts
+inputs, lays out the 4- or 8-byte cdecl slots, and returns the result through
+XMM0.
 >endbox
 >endtree
 

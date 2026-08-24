@@ -1120,6 +1120,17 @@ source or REPL state. The active
 continues to be built by checked-seed hosted CupidC; retaining this shape in the
 private parser does not transfer it to in-OS CupidC.
 
+The private compiler now exposes a public registration seam for reviewed
+native signatures. It copies the existing result, record, fixed parameter,
+prototype, and variadic fields onto a kernel symbol only after validating the
+whole descriptor. Typed `SYM_KERNEL` calls reuse the existing cdecl conversion,
+layout, cleanup, arity, promotion, and return paths. Console, string, port, and
+all 50 `libm` bindings form the first cohort. A malformed or over-capacity
+descriptor does not consume a symbol, and a valid registration can follow in
+the same state. Unreviewed bindings retain their legacy source-width behavior.
+This private change moves no object owner or host dependency. ADR 0332 records
+the boundary.
+
 The source contract matches the active six-entry `wipes` table in
 `kernel/doom/src/f_wipe.cc`. Its three phases select `wipeno*3`,
 `wipeno*3+1`, and `wipeno*3+2`. Automatic raw callback arrays, raw callback

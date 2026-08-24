@@ -192,6 +192,29 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     symbol->address = address;
                 }
 
+                static int bind_fixed_kernel(
+                    cc_state_t *cc, const char *name, uint32_t address,
+                    cc_type_t result_type, int parameter_count,
+                    int is_variadic,
+                    cc_type_t parameter0, cc_type_t parameter1,
+                    cc_type_t parameter2, cc_type_t parameter3) {
+                  cc_function_pointer_signature_t signature;
+                  memset(&signature, 0, sizeof(signature));
+                  memset(signature.param_struct_indices, -1,
+                         sizeof(signature.param_struct_indices));
+                  signature.return_type = result_type;
+                  signature.return_struct_index = -1;
+                  signature.param_count = parameter_count;
+                  signature.param_types[0] = (uint8_t)parameter0;
+                  signature.param_types[1] = (uint8_t)parameter1;
+                  signature.param_types[2] = (uint8_t)parameter2;
+                  signature.param_types[3] = (uint8_t)parameter3;
+                  signature.has_param_types = 1;
+                  signature.is_variadic = is_variadic;
+                  return cc_register_kernel_binding(
+                      cc, name, address, &signature);
+                }
+
                 static void bind_feature13_kernels(cc_state_t *cc) {
                   bind_kernel(cc, "repl_eval", TYPE_INT, 0x01001000u);
                   bind_kernel(cc, "serial_printf", TYPE_VOID, 0x01001010u);
@@ -199,7 +222,10 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   bind_kernel(cc, "fabs", TYPE_DOUBLE, 0x01001030u);
                   bind_kernel(cc, "sin", TYPE_DOUBLE, 0x01001040u);
                   bind_kernel(cc, "cos", TYPE_DOUBLE, 0x01001050u);
-                  bind_kernel(cc, "sqrt", TYPE_DOUBLE, 0x01001060u);
+                  if (!bind_fixed_kernel(
+                          cc, "sqrt", 0x01001060u, TYPE_DOUBLE, 1, 0,
+                          TYPE_DOUBLE, TYPE_VOID, TYPE_VOID, TYPE_VOID))
+                    return;
                   bind_kernel(cc, "log", TYPE_DOUBLE, 0x01001070u);
                   bind_kernel(cc, "pow", TYPE_DOUBLE, 0x01001080u);
                   bind_kernel(cc, "tanh", TYPE_DOUBLE, 0x01001090u);
@@ -207,6 +233,68 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   bind_kernel(cc, "atan2", TYPE_DOUBLE, 0x010010b0u);
                   bind_kernel(cc, "hypot", TYPE_DOUBLE, 0x010010c0u);
                   bind_kernel(cc, "exp", TYPE_DOUBLE, 0x010010d0u);
+                  if (!bind_fixed_kernel(
+                          cc, "native_float", 0x01001200u, TYPE_FLOAT, 1, 0,
+                          TYPE_FLOAT, TYPE_VOID, TYPE_VOID, TYPE_VOID))
+                    return;
+                  if (!bind_fixed_kernel(
+                          cc, "native_mixed", 0x01001220u, TYPE_INT, 4, 0,
+                          TYPE_INT, TYPE_DOUBLE, TYPE_FLOAT, TYPE_INT))
+                    return;
+                  if (!bind_fixed_kernel(
+                          cc, "native_variadic", 0x01001240u, TYPE_INT, 1, 1,
+                          TYPE_INT, TYPE_VOID, TYPE_VOID, TYPE_VOID))
+                    return;
+                }
+
+                static cc_state_t *new_compiler_state(int jit_mode);
+
+                static int check_binding_registration_rollback(int jit_mode) {
+                  cc_state_t *cc = new_compiler_state(jit_mode);
+                  cc_function_pointer_signature_t signature;
+                  int symbol_checkpoint;
+                  if (cc == NULL || cc->error)
+                    return 74;
+
+                  symbol_checkpoint = cc->sym_count;
+                  memset(&signature, 0, sizeof(signature));
+                  memset(signature.param_struct_indices, -1,
+                         sizeof(signature.param_struct_indices));
+                  signature.return_type = TYPE_INT;
+                  signature.return_struct_index = -1;
+                  signature.param_count = 1;
+                  signature.param_types[0] = 0xffu;
+                  signature.has_param_types = 1;
+                  if (cc_register_kernel_binding(
+                          cc, "malformed_binding", 0x01001260u,
+                          &signature) || !cc->error ||
+                      cc->sym_count != symbol_checkpoint)
+                    return 75;
+
+                  cc->error = 0;
+                  cc->error_msg[0] = 0;
+                  signature.param_count = CC_MAX_PARAMS + 1;
+                  signature.param_types[0] = TYPE_INT;
+                  if (cc_register_kernel_binding(
+                          cc, "capacity_binding", 0x01001260u,
+                          &signature) || !cc->error ||
+                      cc->sym_count != symbol_checkpoint)
+                    return 76;
+
+                  cc->error = 0;
+                  cc->error_msg[0] = 0;
+                  signature.param_count = 1;
+                  if (!cc_register_kernel_binding(
+                          cc, "recovered_binding", 0x01001260u,
+                          &signature) || cc->error ||
+                      cc->sym_count != symbol_checkpoint + 1)
+                    return 77;
+                  if (!cc->symbols[symbol_checkpoint].has_param_types ||
+                      cc->symbols[symbol_checkpoint].param_count != 1 ||
+                      cc->symbols[symbol_checkpoint].param_types[0] !=
+                          TYPE_INT)
+                    return 78;
+                  return 0;
                 }
 
                 static cc_state_t *new_compiler_state(int jit_mode) {
@@ -329,6 +417,10 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       strcmp(argv[4], "--recover-two-failures") == 0;
                   int aot_mode =
                       argc == 5 && strcmp(argv[4], "--aot") == 0;
+                  if ((argc == 2 ||
+                       (argc == 3 && strcmp(argv[2], "--aot") == 0)) &&
+                      strcmp(argv[1], "--binding-registration-rollback") == 0)
+                    return check_binding_registration_rollback(argc == 2);
                   if (argc == 3 &&
                       strcmp(argv[1], "--check-number-boundary") == 0)
                     return check_numeric_token_boundary(argv[2]);
@@ -732,6 +824,10 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   jmp test_print
                 .org 0x1020
                   jmp test_print
+                .org 0x1060
+                test_sqrt:
+                  movsd 4(%esp), %xmm0
+                  ret
                 .org 0x1100
                 test_print:
                   pushl %ebp
@@ -756,6 +852,29 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   popl %ebx
                   popl %eax
                   leave
+                  ret
+
+                .org 0x1200
+                test_native_float:
+                  movss 4(%esp), %xmm0
+                  ret
+
+                .org 0x1220
+                test_native_mixed:
+                  movl 4(%esp), %eax
+                  cvttsd2si 8(%esp), %ecx
+                  addl %ecx, %eax
+                  cvttss2si 16(%esp), %ecx
+                  addl %ecx, %eax
+                  addl 20(%esp), %eax
+                  ret
+
+                .org 0x1240
+                test_native_variadic:
+                  movl 4(%esp), %eax
+                  addl 8(%esp), %eax
+                  cvttsd2si 12(%esp), %ecx
+                  addl %ecx, %eax
                   ret
 
                 .section .cupidcode,"ax",@progbits
@@ -885,6 +1004,100 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             )
             entry_offset = int(compile_result.stdout.strip())
             return self._run_i386(root, entry_offset)
+
+    def test_typed_kernel_bindings_convert_and_lay_out_fixed_arguments(self):
+        source = """
+            int main(void) {
+              float small = 5.0f;
+              if (sqrt(7) != 7.0) return 1;
+              if (native_float(6) != 6.0f) return 2;
+              if (sqrt(small) != 5.0) return 3;
+              if (native_mixed(1, 2, 3, 4) != 10) return 4;
+              if (native_variadic(1, (char)2, 3.0f) != 6) return 5;
+              return 0;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_typed_kernel_binding_arity_and_type_failures_recover(self):
+        failures = (
+            (
+                "too few",
+                "int main(void) { return sqrt(); }",
+                "kernel binding call has too few arguments",
+            ),
+            (
+                "too many",
+                "int main(void) { return sqrt(1, 2); }",
+                "kernel binding call has too many arguments",
+            ),
+            (
+                "wrong type",
+                'int main(void) { return sqrt("not a number"); }',
+                "cdecl argument type does not match fixed parameter",
+            ),
+        )
+        for label, source, diagnostic in failures:
+            for aot in (False, True):
+                with self.subTest(label=label, aot=aot):
+                    with tempfile.TemporaryDirectory(
+                        prefix="private-cupidc-kernel-binding-negative-",
+                        ignore_cleanup_errors=True,
+                    ) as temporary:
+                        result, _code, _data = self._compile(
+                            Path(temporary), source, aot=aot
+                        )
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn(diagnostic, result.stderr)
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-kernel-binding-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_two_failures(
+                root,
+                "int main(void) { return sqrt(); }",
+                'int main(void) { return sqrt("bad"); }',
+                "int main(void) { return native_mixed(1, 2, 3, 4) - 10; }",
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            self.assertIn(
+                "kernel binding call has too few arguments", result.stderr
+            )
+            self.assertIn(
+                "cdecl argument type does not match fixed parameter",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode, 0, runtime.stdout + runtime.stderr
+            )
+
+    def test_typed_kernel_binding_descriptor_failures_roll_back(self):
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                command = [str(self.driver), "--binding-registration-rollback"]
+                if aot:
+                    command.append("--aot")
+                result = subprocess.run(
+                    command,
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    timeout=30,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
 
     def test_two_double_parameters_keep_their_full_cdecl_width(self):
         result = self._compile_and_run(

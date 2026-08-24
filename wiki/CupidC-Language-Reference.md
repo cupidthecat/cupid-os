@@ -126,6 +126,15 @@ The active private binding
 built by checked-seed hosted CupidC. Retaining its nested signature in the
 private parser does not transfer the compiler source to in-OS CupidC.
 
+A reviewed native kernel binding may publish a complete
+`cc_function_pointer_signature_t`. Fixed calls then use the same scalar and
+floating conversion, cdecl slot, cleanup, arity, variadic promotion, and result
+rules as retained direct or indirect functions. Console, string, port, and all
+50 `libm` bindings form the first reviewed set. Other bindings keep their
+previous source-width arguments through the legacy result-only path. The
+active nested callback handle is not yet published through this seam. ADR 0332
+records fixed native signature publication.
+
 A raw callback scalar with static storage may be declared at file scope, as a
 block-static object, or as a persistent REPL global. It may start as null or a
 compatible defined or later-defined function. A raw callback array is also

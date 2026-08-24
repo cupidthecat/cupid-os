@@ -173,6 +173,27 @@ parameters, ADR 0313 records initialized-data function-address patches, ADR
 addresses, ADR 0321 records typedef-backed callback fields, and ADR 0324
 records grouped runtime function addresses.
 
+Private CupidC now has a public fixed-signature registration seam for native
+kernel bindings. A reviewed binding publishes the existing
+`cc_function_pointer_signature_t`, including result and parameter types,
+record identities, prototype state, and the variadic boundary. Direct
+`SYM_KERNEL` calls use the ordinary typed conversion, cdecl layout, cleanup,
+arity, promotion, and result rules. Unreviewed entries retain their previous
+source-width arguments through the explicitly named legacy result-only path.
+
+The first reviewed cohort contains console, string, and port helpers plus all
+50 `libm` symbols. `sqrt` now publishes `double(double)`, and `sqrtf` publishes
+`float(float)`. Public JIT and fixed-address AOT tests cover integer conversion
+to both floating widths, `float` to `double`, an `int, double, float, int`
+layout, and variadic `char` and `float` promotions. Arity, type, malformed
+descriptor, and 33-parameter cases fail without consuming a symbol, followed
+by a valid compile in the same state. The private call ABI, binding contract,
+and GUI modules pass 450 tests in 110.266 seconds while the audit checker runs
+in parallel. Checked-seed CupidC builds the two changed kernel compiler
+objects. The complete active kernel and Doom tree compile and both CupidLD
+passes finish, but the shared checked-CupidDis scan reaches its fixed
+300-second process limit. ADR 0332 records this boundary.
+
 The `CUPMAN4` Toolchain author consumes the publication facts plus raw
 stage-three and stage-four bytes for 58 fixed-point pairs: 17 contract objects,
 16 contract executables, 19 bootstrap C objects, one startup object, and five
@@ -662,11 +683,12 @@ their local function-pointer declarations. The table contains 208 promoted
 integer, 41 unsigned-word, 25 `float`, 25 `double`, 19 character-pointer,
 eight other-pointer, and 231 `void` results. The unsigned group covers every
 `uint32_t`, `size_t`, and `swap_handle_t` result, while `uint8_t` and
-`uint16_t` results keep their integer promotion. `BIND` is reserved for the
-`void` group, while `BIND_T`
-records every value result. A source-contract test parses the complete table,
-checks its exact size, and rejects an untyped non-void fixture. This prevents
-a returned control value from being mistaken for a `void` expression.
+`uint16_t` results keep their integer promotion. Reviewed entries use fixed or
+variadic signature registration. The first set covers console, string, port,
+and all 50 `libm` bindings. Other entries use the named legacy result-only
+path. A source-contract test parses the complete table, checks its exact size,
+and rejects an untyped non-void fixture. This prevents a returned control value
+from being mistaken for a `void` expression.
 
 Private CupidC also supports prefix and postfix `++` and `--` on scalar
 `float` and `double` lvalues. One typed helper serves expression updates,
@@ -708,9 +730,11 @@ passes private AOT compilation. ADR 0230 records the rule and the corrected
 census interpretation.
 
 A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
-Function-pointer calls, kernel bindings, and calls without fixed parameter
-metadata keep their source-width slots. A named block-local function-pointer
-declaration retains fixed parameter and result types. A file-scope callback
+Function-pointer calls and calls without fixed parameter metadata keep their
+source-width slots. Legacy result-only kernel bindings do too. Reviewed native
+bindings retain fixed metadata and use the same typed call path. A named
+block-local function-pointer declaration retains fixed parameter and result
+types. A file-scope callback
 typedef carries the same information through direct free-function parameters,
 Cupid class method parameters, declaration-initialized automatic objects, and
 typedef-backed global objects initialized from null or a compatible function.
@@ -720,10 +744,10 @@ prefix, and publishes floating or vector results through XMM0. Empty `()`,
 `void *`, callback alias chains, self-referential signature graphs, conditional
 initializers, arbitrary computed expressions, raw method parameters,
 callback-valued results, pointer-to-function-pointer `**` declarators, and
-aggregate results remain outside this path. `BIND` metadata still carries no
-nested callback signature. Data-backed raw callback arrays may use one
-dimension at file scope, in a block-static declaration, or in persistent REPL
-storage. The same path handles block-static raw callback scalars. Automatic,
+aggregate results remain outside this path. Native binding metadata does not
+yet carry a nested callback signature. Data-backed raw callback arrays may use
+one dimension at file scope, in a block-static declaration, or in persistent
+REPL storage. The same path handles block-static raw callback scalars. Automatic,
 parameter, record or class field, and multidimensional raw callback arrays are
 still rejected. Raw and typedef-backed callback fields retain the signature
 and support direct postfix calls. A structure or

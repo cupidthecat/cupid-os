@@ -471,6 +471,12 @@ void cc_sym_init(cc_state_t *cc);
 cc_symbol_t *cc_sym_find(cc_state_t *cc, const char *name);
 cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
                         cc_type_t type);
+int cc_register_kernel_binding_legacy(
+    cc_state_t *cc, const char *name, uint32_t address,
+    int parameter_count, cc_type_t return_type);
+int cc_register_kernel_binding(
+    cc_state_t *cc, const char *name, uint32_t address,
+    const cc_function_pointer_signature_t *signature);
 
 /*  *  REPL (HolyC-style interactive shell)
  **/

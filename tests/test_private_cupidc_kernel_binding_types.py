@@ -15,11 +15,12 @@ DECLARATION_RE = re.compile(
     r"[ \t]*\("
 )
 BIND_RE = re.compile(
-    r"(?m)^[ \t]*(?P<macro>BIND(?:_T)?)"
+    r"(?m)^[ \t]*(?P<macro>BIND(?:_T|_FIXED|_VARIADIC)?)"
     r"\(\s*\"(?P<name>[^\"]+)\""
     r"\s*,\s*(?P<pointer>p_[A-Za-z0-9_]+)"
     r"\s*,\s*(?P<parameter_count>[0-9]+)"
     r"(?:\s*,\s*(?P<return_type>TYPE_[A-Z0-9_]+))?"
+    r"(?P<parameter_types>(?:\s*,\s*TYPE_[A-Z0-9_]+)*)"
     r"[ \t\r\n]*\);"
 )
 
@@ -157,6 +158,9 @@ def _binding_contract(source):
             "name": match.group("name"),
             "parameter_count": int(match.group("parameter_count")),
             "return_type": match.group("return_type"),
+            "parameter_types": re.findall(
+                r"TYPE_[A-Z0-9_]+", match.group("parameter_types")
+            ),
         }
 
     violations = []
@@ -170,16 +174,24 @@ def _binding_contract(source):
 
         expected = _expected_cupid_type(declared_type)
         if expected == "TYPE_VOID":
-            if binding["macro"] != "BIND":
+            if binding["macro"] == "BIND_T":
                 violations.append(
-                    f"{binding['name']}: void declaration must use BIND"
+                    f"{binding['name']}: void declaration used BIND_T"
                 )
-            if binding["return_type"] is not None:
+            if binding["macro"] == "BIND" and binding["return_type"] is not None:
                 violations.append(
                     f"{binding['name']}: void binding published a result"
                 )
+            if (
+                binding["macro"] != "BIND"
+                and binding["return_type"] != "TYPE_VOID"
+            ):
+                violations.append(
+                    f"{binding['name']}: expected TYPE_VOID, got "
+                    f"{binding['return_type']}"
+                )
         else:
-            if binding["macro"] != "BIND_T":
+            if binding["macro"] == "BIND":
                 violations.append(
                     f"{binding['name']}: {declared_type.strip()} "
                     f"declaration used untyped BIND"
@@ -208,7 +220,7 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
         self.assertEqual(len(bindings), 557)
         published_types = Counter(
             binding["return_type"]
-            if binding["macro"] == "BIND_T"
+            if binding["macro"] != "BIND"
             else "TYPE_VOID"
             for binding in bindings.values()
         )
@@ -238,6 +250,7 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
                 "name": "htonl",
                 "parameter_count": 1,
                 "return_type": "TYPE_UINT",
+                "parameter_types": [],
             },
         )
 
@@ -261,7 +274,7 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     binding["return_type"]
-                    if binding["macro"] == "BIND_T"
+                    if binding["macro"] != "BIND"
                     else "TYPE_VOID",
                     return_type,
                 )
@@ -295,6 +308,74 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
                     declarations[pointer].strip(), ("uint8_t", "uint16_t")
                 )
                 self.assertEqual(bindings[pointer]["return_type"], "TYPE_INT")
+
+    def test_libm_bindings_publish_fixed_floating_signatures(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        _declarations, bindings, violations = _binding_contract(source)
+        self.assertEqual(violations, [])
+
+        unary_double = {
+            "sqrt", "sin", "cos", "tan", "atan", "fabs", "floor",
+            "ceil", "round", "trunc", "exp", "exp2", "log", "log2",
+            "asin", "acos", "sinh", "cosh", "tanh", "cbrt",
+        }
+        binary_double = {"atan2", "fmod", "pow", "hypot", "nextafter"}
+        for name in sorted(unary_double | binary_double):
+            with self.subTest(name=name):
+                binding = next(
+                    value for value in bindings.values()
+                    if value["name"] == name
+                )
+                self.assertEqual(binding["macro"], "BIND_FIXED")
+                self.assertEqual(binding["return_type"], "TYPE_DOUBLE")
+                self.assertEqual(
+                    binding["parameter_types"],
+                    ["TYPE_DOUBLE"] * binding["parameter_count"],
+                )
+
+                float_binding = next(
+                    value for value in bindings.values()
+                    if value["name"] == name + "f"
+                )
+                self.assertEqual(float_binding["macro"], "BIND_FIXED")
+                self.assertEqual(float_binding["return_type"], "TYPE_FLOAT")
+                self.assertEqual(
+                    float_binding["parameter_types"],
+                    ["TYPE_FLOAT"] * float_binding["parameter_count"],
+                )
+
+    def test_unreviewed_bindings_use_the_named_legacy_registration_seam(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        body = _registration_body(source)
+        self.assertIn("BIND_LEGACY_RESULT", body)
+        self.assertIn("BIND_LEGACY_VOID", body)
+        self.assertIn("cc_register_kernel_binding_legacy", body)
+
+    def test_reviewed_scalar_bindings_publish_prototypes_and_variadic_state(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        _declarations, bindings, violations = _binding_contract(source)
+        self.assertEqual(violations, [])
+        by_name = {binding["name"]: binding for binding in bindings.values()}
+
+        self.assertEqual(by_name["print"]["macro"], "BIND_FIXED")
+        self.assertEqual(
+            by_name["print"]["parameter_types"], ["TYPE_CHAR_PTR"]
+        )
+        self.assertEqual(by_name["strlen"]["macro"], "BIND_FIXED")
+        self.assertEqual(
+            by_name["memset"]["parameter_types"],
+            ["TYPE_PTR", "TYPE_INT", "TYPE_UINT"],
+        )
+        self.assertEqual(
+            by_name["serial_printf"],
+            {
+                "macro": "BIND_VARIADIC",
+                "name": "serial_printf",
+                "parameter_count": 1,
+                "return_type": "TYPE_VOID",
+                "parameter_types": ["TYPE_CHAR_PTR"],
+            },
+        )
 
     def test_untyped_nonvoid_binding_names_the_bad_contract(self):
         fixture = """

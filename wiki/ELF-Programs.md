@@ -772,6 +772,14 @@ signature pool and surrounding AOT transaction. The active
 compiler source remains built by checked-seed hosted CupidC; this private AOT
 rule does not transfer its ownership to in-OS CupidC.
 
+Fixed-address AOT calls to reviewed native bindings use their retained
+`cc_function_pointer_signature_t`. Integer-to-float, integer-to-double,
+float-to-double, mixed-width slots, arity checks, variadic promotions, cleanup,
+and result transport share the ordinary typed-call path. The same tests run in
+JIT mode. Unreviewed bindings stay on the named legacy result-only path, and
+this private metadata change does not alter the external ELF loader ABI. ADR
+0332 records the boundary.
+
 Raw callback scalars with static storage use the same data write and patch
 path at file scope, block-static scope, and persistent REPL scope. A
 one-dimensional raw callback array is also available in those contexts. A

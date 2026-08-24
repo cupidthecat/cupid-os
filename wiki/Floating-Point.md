@@ -646,7 +646,10 @@ hypot, nextafter.
 
 libm functions use a CupidC-internal ABI that returns results in XMM0 rather
 than ST(0), as System V expects. Default GCC-generated kernel C cannot call
-them directly. CupidC JIT code calls them through the `BIND_T` table.
+them directly. CupidC JIT code calls them through reviewed fixed binding
+signatures. Each double function publishes `double` parameters, and each
+f-suffixed function publishes `float` parameters, so ordinary call conversion
+and cdecl slot layout apply before the XMM0 result returns.
 
 ## CupidASM opcodes
 

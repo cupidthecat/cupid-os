@@ -122,9 +122,9 @@ Automatic raw callback arrays, raw callback array parameters, raw record or
 class field arrays, multidimensional raw callback arrays, computed conditional
 values, aggregate results, and raw Cupid class method parameters remain open.
 Callback-valued results, pointer-to-function-pointer `**` declarators,
-callback alias chains, and publication through `BIND` metadata remain separate
-work. Typedef-backed fixed callback field arrays stay on their separate
-retained-field path. The promoted standalone seeds do not contain this private
+callback alias chains, and nested callback publication through binding metadata
+remain separate work. Typedef-backed fixed callback field arrays stay on their
+separate retained-field path. The promoted standalone seeds do not contain this private
 parser or ELF writer. ADR 0306 records global
 storage, ADR 0310 records automatic objects and method parameters, ADR 0313
 records initialized-data function-address patches, ADR 0315 records raw
@@ -134,6 +134,16 @@ records grouped runtime function addresses, ADR 0325 records raw callback
 fields and direct field calls, and ADR 0328 records typedef-backed callback
 field arrays. ADR 0330 records data-backed raw callback arrays and block-static
 raw callbacks. ADR 0331 records recursive callback-parameter signatures.
+
+Reviewed native bindings now publish fixed or variadic parameter metadata
+through the same `cc_function_pointer_signature_t` representation. Typed
+kernel calls use the existing conversion, complete cdecl slot layout, cleanup,
+arity, promotion, and result paths. The first reviewed set contains console,
+string, port, and all 50 `libm` bindings. Unreviewed entries retain their
+previous source-width arguments through a named legacy result-only path. JIT
+and fixed-address AOT tests cover floating conversions, mixed-width slots,
+diagnostics, descriptor limits, rollback, and same-state recovery. ADR 0332
+records this boundary.
 
 The full GUI test module passes all 128 tests in 0.955 seconds. The
 source-current private frontier boot brings four of four `max` i386 CPUs
@@ -591,8 +601,8 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   is limited to 16 levels, and the private raw-signature pool holds 32 entries.
   Program and REPL rollback restore that pool after a rejected source.
   Callback-valued results, pointer-to-function-pointer `**` declarators,
-  callback alias chains, and publication through `BIND` metadata remain
-  separate work.
+  callback alias chains, and nested callback publication through binding
+  metadata remain separate work.
   A later target is resolved through an initialized-data address patch. ADR
   0303 records free-function parameters, ADR 0306 records global objects, ADR
   0310 records automatic objects and method parameters, and ADR 0313 records

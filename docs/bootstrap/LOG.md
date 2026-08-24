@@ -30428,3 +30428,55 @@ at this checkpoint still contain the preceding inspector, so active assembly
 and production publication do not select the new object policy yet. ADR 0335
 records the boundary. No source suffix or build owner changes, and
 `TempleOS/` remains untouched reference material.
+
+## 2026-08-24: publish fixed signatures for reviewed native bindings
+
+Private CupidC now exposes a public registration seam for native kernel
+bindings that have a reviewed ABI. The caller supplies the existing
+`cc_function_pointer_signature_t`, including the result, fixed parameters,
+record identities, prototype state, and variadic boundary. Registration
+validates the complete descriptor before adding a symbol. An invalid type or a
+33-parameter descriptor leaves the symbol count unchanged, and a valid
+registration can follow in the same compiler state.
+
+Typed `SYM_KERNEL` calls use the existing fixed argument conversion, complete
+cdecl slot layout, cleanup, arity checks, default variadic promotions, and
+result transport. The first reviewed cohort contains console, string, and port
+helpers plus all 50 `libm` bindings. `sqrt` now publishes `double(double)`, and
+`sqrtf` publishes `float(float)`. Entries whose parameters have not been
+reviewed retain their previous source-width behavior through the explicitly
+named legacy result-only path.
+
+The public JIT and fixed-address AOT contract converts integers to both
+floating widths, widens `float` to `double`, preserves an `int, double, float,
+int` slot layout, and promotes a variadic `char` and `float`. Negative cases
+cover too few and too many arguments, an incompatible source type, malformed
+metadata, capacity, rollback, and recovery. The private call ABI, binding
+contract, and GUI modules pass 450 tests in 110.266 seconds while the audit
+checker runs in parallel. Checked-seed CupidC builds the changed parser and
+registration objects. The parser object is 504,980 bytes with SHA-256
+`be724c126e0aa70f5bc618396a6444ccbee0691132d62a4cfa8335bbd14bbf7f`;
+the registration object is 277,760 bytes with SHA-256
+`d07d4f8bae7db939032a34e8b35cc64522975ef9c09db67828c2f006e59899bc`.
+
+Two normal `make -j4 all` runs compile the complete active kernel and Doom
+tree, regenerate the manuals and installed program sources through CupidObj,
+and complete both CupidLD passes. In each run, the following checked CupidDis
+production scan reaches its fixed 300-second process timeout without an object
+or linked-image diagnostic. No third heavy run was started during the shared
+seed and audit window, and the timeout policy was not weakened. Because the
+raw kernel was not published, no artifact-policy row or four-vCPU image smoke
+is claimed for this source head.
+
+After integrating repaired baseline follow-ups `729be876` and `6f708487`,
+`make bootstrap-audit` regenerated the active records and
+`make check-bootstrap-audit` reproduced them exactly. The 2,702,374-byte JSON
+has SHA-256
+`530794a11b47d0f5eab70dca64df02eb622335b01117f3a463386ef8765ea3f8`.
+The follow-up's cross-host callback-capacity conditional row remains present.
+
+This private compiler change moves no production object owner, checked seed,
+object format, or host dependency. Nested publication for the active
+`set_icon_drawer` binding remains separate work. No source suffix changes, and
+`TempleOS/` remains untouched reference material. ADR 0332 records the
+boundary.

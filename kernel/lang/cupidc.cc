@@ -1006,53 +1006,87 @@ static const ui_theme_t *cc_ui_theme_pastel_dream(void) {
 /* Kernel Bindings Registration */
 
 static void cc_register_kernel_bindings(cc_state_t *cc) {
-/* Helper macro to add a kernel function binding.
- *
- * BIND()   - use only for a function that returns no value.
- * BIND_T() - publish a value-returning function's Cupid type. The caller uses
- *            this metadata to select EAX or XMM0 and to validate later
- *            operators and control expressions. */
-#define BIND_T(name_str, func_ptr, nparams, ret_type)                          \
+/* The legacy path publishes only a result and an advisory parameter count.
+ * Keep it for declarations whose full ABI has not been reviewed. */
+#define BIND_LEGACY_RESULT(name_str, func_ptr, nparams, ret_type)              \
   do {                                                                         \
-    cc_symbol_t *s = cc_sym_add(cc, name_str, SYM_KERNEL, (ret_type));         \
-    if (s) {                                                                   \
-      uint32_t addr;                                                           \
-      memcpy(&addr, &(func_ptr), sizeof(addr));                                \
-      s->address = addr;                                                       \
-      s->param_count = (nparams);                                              \
-      s->is_defined = 1;                                                       \
-    }                                                                          \
+    uint32_t binding_address;                                                   \
+    memcpy(&binding_address, &(func_ptr), sizeof(binding_address));             \
+    if (!cc_register_kernel_binding_legacy(                                    \
+            cc, (name_str), binding_address, (nparams), (ret_type)))           \
+      return;                                                                  \
   } while (0)
+#define BIND_LEGACY_VOID(name_str, func_ptr, nparams)                          \
+  BIND_LEGACY_RESULT((name_str), (func_ptr), (nparams), TYPE_VOID)
+
+/* Existing unreviewed registrations keep their short spelling while routing
+ * through the explicitly named legacy result-only seam above. */
+#define BIND_T(name_str, func_ptr, nparams, ret_type)                          \
+  BIND_LEGACY_RESULT((name_str), (func_ptr), (nparams), (ret_type))
 #define BIND(name_str, func_ptr, nparams)                                      \
-  BIND_T((name_str), (func_ptr), (nparams), TYPE_VOID)
+  BIND_LEGACY_VOID((name_str), (func_ptr), (nparams))
+
+#define BIND_SIGNATURE(name_str, func_ptr, nparams, ret_type, variadic, ...)   \
+  do {                                                                         \
+    cc_function_pointer_signature_t binding_signature;                         \
+    cc_type_t binding_parameter_types[] = {__VA_ARGS__};                       \
+    uint32_t binding_address;                                                   \
+    int binding_parameter_index;                                               \
+    memset(&binding_signature, 0, sizeof(binding_signature));                  \
+    memset(binding_signature.param_struct_indices, -1,                         \
+           sizeof(binding_signature.param_struct_indices));                    \
+    binding_signature.return_type = (ret_type);                                \
+    binding_signature.return_struct_index = -1;                                \
+    binding_signature.param_count = (nparams);                                 \
+    binding_signature.has_param_types = 1;                                     \
+    binding_signature.is_variadic = (variadic);                                \
+    for (binding_parameter_index = 0;                                          \
+         binding_parameter_index < (nparams);                                  \
+         binding_parameter_index++)                                            \
+      binding_signature.param_types[binding_parameter_index] =                 \
+          (uint8_t)binding_parameter_types[binding_parameter_index];           \
+    memcpy(&binding_address, &(func_ptr), sizeof(binding_address));             \
+    if (!cc_register_kernel_binding(                                           \
+            cc, (name_str), binding_address, &binding_signature))              \
+      return;                                                                  \
+  } while (0)
+#define BIND_FIXED(name_str, func_ptr, nparams, ret_type, ...)                 \
+  BIND_SIGNATURE((name_str), (func_ptr), (nparams), (ret_type), 0,             \
+                 __VA_ARGS__)
+#define BIND_VARIADIC(name_str, func_ptr, nparams, ret_type, ...)              \
+  BIND_SIGNATURE((name_str), (func_ptr), (nparams), (ret_type), 1,             \
+                 __VA_ARGS__)
 
   /* Console output */
   void (*p_print)(const char *) = cc_print;
-  BIND("print", p_print, 1);
+  BIND_FIXED("print", p_print, 1, TYPE_VOID, TYPE_CHAR_PTR);
 
   void (*p_println)(const char *) = cc_println;
-  BIND("println", p_println, 1);
+  BIND_FIXED("println", p_println, 1, TYPE_VOID, TYPE_CHAR_PTR);
 
   void (*p_putchar)(char) = cc_putchar;
-  BIND("putchar", p_putchar, 1);
+  BIND_FIXED("putchar", p_putchar, 1, TYPE_VOID, TYPE_CHAR);
 
   void (*p_print_int)(uint32_t) = cc_print_int;
-  BIND("print_int", p_print_int, 1);
+  BIND_FIXED("print_int", p_print_int, 1, TYPE_VOID, TYPE_UINT);
 
   void (*p_print_hex)(uint32_t) = print_hex;
-  BIND("print_hex", p_print_hex, 1);
+  BIND_FIXED("print_hex", p_print_hex, 1, TYPE_VOID, TYPE_UINT);
 
   void (*p_clear)(void) = clear_screen;
-  BIND("clear_screen", p_clear, 0);
+  BIND_FIXED("clear_screen", p_clear, 0, TYPE_VOID, TYPE_VOID);
 
   void (*p_serial_printf)(const char *, ...) = serial_printf;
-  BIND("serial_printf", p_serial_printf, 1);
+  BIND_VARIADIC("serial_printf", p_serial_printf, 1, TYPE_VOID,
+                TYPE_CHAR_PTR);
 
   void (*p_cc_print_builtin)(const char *, ...) = cc_print_builtin;
-  BIND("__cc_Print", p_cc_print_builtin, 1);
+  BIND_VARIADIC("__cc_Print", p_cc_print_builtin, 1, TYPE_VOID,
+                TYPE_CHAR_PTR);
 
   void (*p_cc_printline_builtin)(const char *, ...) = cc_printline_builtin;
-  BIND("__cc_PrintLine", p_cc_printline_builtin, 1);
+  BIND_VARIADIC("__cc_PrintLine", p_cc_printline_builtin, 1, TYPE_VOID,
+                TYPE_CHAR_PTR);
 
   /* Memory management */
   /* kmalloc_debug takes (size, file, line) but CupidC programs should
@@ -1062,30 +1096,33 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("kmalloc", p_malloc, 1, TYPE_PTR);
 
   void (*p_free)(void *) = kfree;
-  BIND("kfree", p_free, 1);
+  BIND_FIXED("kfree", p_free, 1, TYPE_VOID, TYPE_PTR);
 
   /* String operations */
   size_t (*p_strlen)(const char *) = strlen;
-  BIND_T("strlen", p_strlen, 1, TYPE_UINT);
+  BIND_FIXED("strlen", p_strlen, 1, TYPE_UINT, TYPE_CHAR_PTR);
 
   int (*p_strcmp)(const char *, const char *) = strcmp;
-  BIND_T("strcmp", p_strcmp, 2, TYPE_INT);
+  BIND_FIXED("strcmp", p_strcmp, 2, TYPE_INT, TYPE_CHAR_PTR, TYPE_CHAR_PTR);
 
   int (*p_strncmp)(const char *, const char *, size_t) = strncmp;
-  BIND_T("strncmp", p_strncmp, 3, TYPE_INT);
+  BIND_FIXED("strncmp", p_strncmp, 3, TYPE_INT, TYPE_CHAR_PTR,
+             TYPE_CHAR_PTR, TYPE_UINT);
 
   void *(*p_memset)(void *, int, size_t) = memset;
-  BIND_T("memset", p_memset, 3, TYPE_PTR);
+  BIND_FIXED("memset", p_memset, 3, TYPE_PTR, TYPE_PTR, TYPE_INT,
+             TYPE_UINT);
 
   void *(*p_memcpy)(void *, const void *, size_t) = memcpy;
-  BIND_T("memcpy", p_memcpy, 3, TYPE_PTR);
+  BIND_FIXED("memcpy", p_memcpy, 3, TYPE_PTR, TYPE_PTR, TYPE_PTR,
+             TYPE_UINT);
 
   /* Port I/O */
   void (*p_outb)(uint32_t, uint32_t) = cc_outb;
-  BIND("outb", p_outb, 2);
+  BIND_FIXED("outb", p_outb, 2, TYPE_VOID, TYPE_UINT, TYPE_UINT);
 
   uint32_t (*p_inb)(uint32_t) = cc_inb;
-  BIND_T("inb", p_inb, 1, TYPE_UINT);
+  BIND_FIXED("inb", p_inb, 1, TYPE_UINT, TYPE_UINT);
 
   /* PC speaker */
   void (*p_pc_speaker_on)(uint32_t) = pc_speaker_on;
@@ -2420,65 +2457,65 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
    * f-suffixed float variants).  These functions follow the CupidC
    * kernel-binding ABI (stack args, XMM0 return) - see libm.cc.*/
   double (*p_sqrt)(double)  = sqrt;
-  BIND_T("sqrt",    p_sqrt,   1, TYPE_DOUBLE);
+  BIND_FIXED("sqrt", p_sqrt, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_sqrtf)(float)  = sqrtf;
-  BIND_T("sqrtf",   p_sqrtf,  1, TYPE_FLOAT);
+  BIND_FIXED("sqrtf", p_sqrtf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_sin)(double)   = sin;
-  BIND_T("sin",     p_sin,    1, TYPE_DOUBLE);
+  BIND_FIXED("sin", p_sin, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_sinf)(float)   = sinf;
-  BIND_T("sinf",    p_sinf,   1, TYPE_FLOAT);
+  BIND_FIXED("sinf", p_sinf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_cos)(double)   = cos;
-  BIND_T("cos",     p_cos,    1, TYPE_DOUBLE);
+  BIND_FIXED("cos", p_cos, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_cosf)(float)   = cosf;
-  BIND_T("cosf",    p_cosf,   1, TYPE_FLOAT);
+  BIND_FIXED("cosf", p_cosf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_tan)(double)   = tan;
-  BIND_T("tan",     p_tan,    1, TYPE_DOUBLE);
+  BIND_FIXED("tan", p_tan, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_tanf)(float)   = tanf;
-  BIND_T("tanf",    p_tanf,   1, TYPE_FLOAT);
+  BIND_FIXED("tanf", p_tanf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_atan)(double)  = atan;
-  BIND_T("atan",    p_atan,   1, TYPE_DOUBLE);
+  BIND_FIXED("atan", p_atan, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_atanf)(float)  = atanf;
-  BIND_T("atanf",   p_atanf,  1, TYPE_FLOAT);
+  BIND_FIXED("atanf", p_atanf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_atan2)(double, double) = atan2;
-  BIND_T("atan2",   p_atan2,  2, TYPE_DOUBLE);
+  BIND_FIXED("atan2", p_atan2, 2, TYPE_DOUBLE, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_atan2f)(float, float)  = atan2f;
-  BIND_T("atan2f",  p_atan2f, 2, TYPE_FLOAT);
+  BIND_FIXED("atan2f", p_atan2f, 2, TYPE_FLOAT, TYPE_FLOAT, TYPE_FLOAT);
 
   /* fabs/floor/ceil/round/trunc/fmod + f-variants. */
   double (*p_fabs)(double)   = fabs;
-  BIND_T("fabs",    p_fabs,   1, TYPE_DOUBLE);
+  BIND_FIXED("fabs", p_fabs, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_fabsf)(float)   = fabsf;
-  BIND_T("fabsf",   p_fabsf,  1, TYPE_FLOAT);
+  BIND_FIXED("fabsf", p_fabsf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_floor)(double)  = floor;
-  BIND_T("floor",   p_floor,  1, TYPE_DOUBLE);
+  BIND_FIXED("floor", p_floor, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_floorf)(float)  = floorf;
-  BIND_T("floorf",  p_floorf, 1, TYPE_FLOAT);
+  BIND_FIXED("floorf", p_floorf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_ceil)(double)   = ceil;
-  BIND_T("ceil",    p_ceil,   1, TYPE_DOUBLE);
+  BIND_FIXED("ceil", p_ceil, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_ceilf)(float)   = ceilf;
-  BIND_T("ceilf",   p_ceilf,  1, TYPE_FLOAT);
+  BIND_FIXED("ceilf", p_ceilf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_round)(double)  = round;
-  BIND_T("round",   p_round,  1, TYPE_DOUBLE);
+  BIND_FIXED("round", p_round, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_roundf)(float)  = roundf;
-  BIND_T("roundf",  p_roundf, 1, TYPE_FLOAT);
+  BIND_FIXED("roundf", p_roundf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_trunc)(double)  = trunc;
-  BIND_T("trunc",   p_trunc,  1, TYPE_DOUBLE);
+  BIND_FIXED("trunc", p_trunc, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_truncf)(float)  = truncf;
-  BIND_T("truncf",  p_truncf, 1, TYPE_FLOAT);
+  BIND_FIXED("truncf", p_truncf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_fmod)(double, double) = fmod;
-  BIND_T("fmod",    p_fmod,   2, TYPE_DOUBLE);
+  BIND_FIXED("fmod", p_fmod, 2, TYPE_DOUBLE, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_fmodf)(float, float)  = fmodf;
-  BIND_T("fmodf",   p_fmodf,  2, TYPE_FLOAT);
+  BIND_FIXED("fmodf", p_fmodf, 2, TYPE_FLOAT, TYPE_FLOAT, TYPE_FLOAT);
 
   /* exp/exp2/log/log2/pow + f-variants.
    *   exp2  - F2XM1 + FSCALE with FRNDINT range reduction
@@ -2488,58 +2525,58 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
    *   pow   - C dispatch (y=0 -> 1; x<=0 + y!=0 -> domain error) then
    *           x87 exp/log pipeline, ST(0)->XMM0 bridged in asm wrapper.*/
   double (*p_exp)(double)    = exp;
-  BIND_T("exp",     p_exp,    1, TYPE_DOUBLE);
+  BIND_FIXED("exp", p_exp, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_expf)(float)    = expf;
-  BIND_T("expf",    p_expf,   1, TYPE_FLOAT);
+  BIND_FIXED("expf", p_expf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_exp2)(double)   = exp2;
-  BIND_T("exp2",    p_exp2,   1, TYPE_DOUBLE);
+  BIND_FIXED("exp2", p_exp2, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_exp2f)(float)   = exp2f;
-  BIND_T("exp2f",   p_exp2f,  1, TYPE_FLOAT);
+  BIND_FIXED("exp2f", p_exp2f, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_log)(double)    = log;
-  BIND_T("log",     p_log,    1, TYPE_DOUBLE);
+  BIND_FIXED("log", p_log, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_logf)(float)    = logf;
-  BIND_T("logf",    p_logf,   1, TYPE_FLOAT);
+  BIND_FIXED("logf", p_logf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_log2)(double)   = log2;
-  BIND_T("log2",    p_log2,   1, TYPE_DOUBLE);
+  BIND_FIXED("log2", p_log2, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_log2f)(float)   = log2f;
-  BIND_T("log2f",   p_log2f,  1, TYPE_FLOAT);
+  BIND_FIXED("log2f", p_log2f, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_pow)(double, double) = pow;
-  BIND_T("pow",     p_pow,    2, TYPE_DOUBLE);
+  BIND_FIXED("pow", p_pow, 2, TYPE_DOUBLE, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_powf)(float, float)  = powf;
-  BIND_T("powf",    p_powf,   2, TYPE_FLOAT);
+  BIND_FIXED("powf", p_powf, 2, TYPE_FLOAT, TYPE_FLOAT, TYPE_FLOAT);
 
   /* asin/acos/sinh/cosh/tanh + f-variants.
    *   asin/acos - atan2 + sqrt; domain |x|<=1 else libm_errno=1, return 0.
    *   sinh/cosh - (exp(x) +/- exp(-x)) / 2.
    *   tanh      - (e1 - e2) / (e1 + e2).*/
   double (*p_asin)(double)   = asin;
-  BIND_T("asin",    p_asin,   1, TYPE_DOUBLE);
+  BIND_FIXED("asin", p_asin, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_asinf)(float)   = asinf;
-  BIND_T("asinf",   p_asinf,  1, TYPE_FLOAT);
+  BIND_FIXED("asinf", p_asinf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_acos)(double)   = acos;
-  BIND_T("acos",    p_acos,   1, TYPE_DOUBLE);
+  BIND_FIXED("acos", p_acos, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_acosf)(float)   = acosf;
-  BIND_T("acosf",   p_acosf,  1, TYPE_FLOAT);
+  BIND_FIXED("acosf", p_acosf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_sinh)(double)   = sinh;
-  BIND_T("sinh",    p_sinh,   1, TYPE_DOUBLE);
+  BIND_FIXED("sinh", p_sinh, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_sinhf)(float)   = sinhf;
-  BIND_T("sinhf",   p_sinhf,  1, TYPE_FLOAT);
+  BIND_FIXED("sinhf", p_sinhf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_cosh)(double)   = cosh;
-  BIND_T("cosh",    p_cosh,   1, TYPE_DOUBLE);
+  BIND_FIXED("cosh", p_cosh, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_coshf)(float)   = coshf;
-  BIND_T("coshf",   p_coshf,  1, TYPE_FLOAT);
+  BIND_FIXED("coshf", p_coshf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_tanh)(double)   = tanh;
-  BIND_T("tanh",    p_tanh,   1, TYPE_DOUBLE);
+  BIND_FIXED("tanh", p_tanh, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_tanhf)(float)   = tanhf;
-  BIND_T("tanhf",   p_tanhf,  1, TYPE_FLOAT);
+  BIND_FIXED("tanhf", p_tanhf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   /* cbrt/hypot/nextafter + f-variants.
    *   cbrt      - bit-trick initial estimate + 3 Newton iterations of
@@ -2547,19 +2584,21 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
    *   hypot     - scale-safe sqrt(x^2+y^2) via max * sqrt(1+(min/max)^2).
    *   nextafter - IEEE bit-level step toward y (++/-- the integer repr).*/
   double (*p_cbrt)(double)   = cbrt;
-  BIND_T("cbrt",    p_cbrt,   1, TYPE_DOUBLE);
+  BIND_FIXED("cbrt", p_cbrt, 1, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_cbrtf)(float)   = cbrtf;
-  BIND_T("cbrtf",   p_cbrtf,  1, TYPE_FLOAT);
+  BIND_FIXED("cbrtf", p_cbrtf, 1, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_hypot)(double, double) = hypot;
-  BIND_T("hypot",   p_hypot,  2, TYPE_DOUBLE);
+  BIND_FIXED("hypot", p_hypot, 2, TYPE_DOUBLE, TYPE_DOUBLE, TYPE_DOUBLE);
   float  (*p_hypotf)(float, float)  = hypotf;
-  BIND_T("hypotf",  p_hypotf, 2, TYPE_FLOAT);
+  BIND_FIXED("hypotf", p_hypotf, 2, TYPE_FLOAT, TYPE_FLOAT, TYPE_FLOAT);
 
   double (*p_nextafter)(double, double) = nextafter;
-  BIND_T("nextafter",  p_nextafter,  2, TYPE_DOUBLE);
+  BIND_FIXED("nextafter", p_nextafter, 2, TYPE_DOUBLE, TYPE_DOUBLE,
+             TYPE_DOUBLE);
   float  (*p_nextafterf)(float, float)  = nextafterf;
-  BIND_T("nextafterf", p_nextafterf, 2, TYPE_FLOAT);
+  BIND_FIXED("nextafterf", p_nextafterf, 2, TYPE_FLOAT, TYPE_FLOAT,
+             TYPE_FLOAT);
 
   /* Full networking stack */
   uint32_t (*p_net_ip)(void)        = cc_net_get_ip;
@@ -2768,6 +2807,11 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
 #undef BIND
 #undef BIND_T
+#undef BIND_VARIADIC
+#undef BIND_FIXED
+#undef BIND_SIGNATURE
+#undef BIND_LEGACY_VOID
+#undef BIND_LEGACY_RESULT
 }
 
 /* Source File / Preprocessor Helpers */

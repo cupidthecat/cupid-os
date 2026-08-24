@@ -175,7 +175,13 @@ int` slot as one unchanged i386 address word. Narrow and floating destinations
 do not receive that rule. The existing represented pointer-category rule is
 unchanged. A parsed variadic tail widens
 `float` to `double` and promotes `char` to `int`. Indirect calls without
-retained fixed parameter metadata and kernel bindings keep their source width.
+retained fixed parameter metadata and legacy result-only kernel bindings keep
+their source width. A reviewed native kernel binding carries the existing
+function-pointer signature representation. Its direct call uses fixed
+conversion, complete cdecl slots, exact cleanup, arity checks, variadic
+promotions, and the declared result channel. The first reviewed cohort contains
+console, string, port, and all 50 `libm` bindings, including
+`double sqrt(double)`.
 A named block-local function-pointer declaration retains its fixed
 parameter types, variadic state, and result type. Its indirect call uses the
 same conversion and 4-, 8-, or 16-byte slot path as a direct call, enforces
@@ -232,8 +238,8 @@ raw callback array parameters, raw record or class field arrays,
 multidimensional raw callback arrays, raw method parameters, conditional field
 values, and aggregate results remain outside this boundary. Callback-valued
 results, pointer-to-function-pointer `**` declarators, callback alias chains,
-and publication through `BIND` metadata remain separate work. Typedef-backed
-fixed callback field arrays remain the separate ADR 0328 path.
+and nested callback publication through binding metadata remain separate work.
+Typedef-backed fixed callback field arrays remain the separate ADR 0328 path.
 Direct structure and array results remain rejected. Program and REPL rollback
 restore typedef and side-table metadata, provisional signatures, code, data,
 and every patch kind. The
@@ -247,7 +253,8 @@ function addresses, ADR 0321 records typedef-backed callback fields, and ADR
 0324 records grouped runtime function addresses. ADR 0325 records raw callback
 fields and direct field calls. ADR 0328 records typedef-backed callback field
 arrays, and ADR 0330 records data-backed raw callback arrays and block-static
-raw callbacks. ADR 0331 records recursive callback-parameter signatures.
+raw callbacks. ADR 0331 records recursive callback-parameter signatures. ADR
+0332 records fixed signature publication for reviewed native bindings.
 Source-head guest runtime proves the existing scalar raw forms with
 initialized, parameter, clear, reassignment, and typed-call coverage.
 The active nested shape is `p_icon_set_drawer` in `kernel/lang/cupidc.cc`,

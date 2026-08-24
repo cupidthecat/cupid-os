@@ -1240,10 +1240,16 @@ continues to produce the active `f_wipe.cc` object. This leaves object
 ownership, checked seeds, the object format, and host dependencies unchanged.
 Checked-seed hosted CupidC also keeps production ownership of
 `kernel/lang/cupidc.cc`, where the unchanged `p_icon_set_drawer` declaration
-supplies the active nested callback requirement. `BIND` still publishes its
-existing parameter-count metadata, so nested kernel-binding signatures remain
-outside this private parser change. ADR 0331 records the nested signature
-boundary. At the ADR 0331 source head, the private ABI suite passes 310 tests
+supplies the active nested callback requirement. Reviewed console, string,
+port, and `libm` bindings now publish fixed parameter metadata through
+`cc_function_pointer_signature_t`. Typed kernel calls reuse private CupidC's
+existing conversion, cdecl layout, cleanup, arity, variadic promotion, and
+result paths. Unreviewed bindings keep their previous source-width calls
+through a named legacy result-only seam. This changes neither the checked-seed
+owner of `kernel/lang/cupidc.cc` nor the host tool set. Nested publication for
+`p_icon_set_drawer` remains open. ADR 0331 records recursive source signatures,
+and ADR 0332 records fixed native binding publication. At the ADR 0331 source
+head, the private ABI suite passes 310 tests
 in 75.017 seconds and the GUI contract suite passes 128 tests in 0.955 seconds.
 The 157,520-byte private four-vCPU frontier log records the nested callback
 marker, the overall feature pass, and clean JIT completion; its SHA-256 is

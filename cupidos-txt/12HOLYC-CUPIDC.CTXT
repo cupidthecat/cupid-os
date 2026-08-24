@@ -482,6 +482,14 @@ class method parameters, callback alias chains, and aggregate callback results
 also remain outside the retained path. Checked-seed hosted CupidC still owns
 the production kernel/lang/cupidc.cc object.
 
+Reviewed native kernel bindings publish complete fixed or variadic metadata
+through the existing function-pointer signature representation. Direct
+SYM_KERNEL calls reuse the ordinary typed conversion, cdecl layout, cleanup,
+arity, default promotion, and result paths. Console, string, port, and all 50
+libm bindings form the first reviewed set. Other registrations use the named
+legacy result-only path and keep their previous source-width arguments. The
+active nested set_icon_drawer handle is not yet published through this seam.
+
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
 slot before the call. Represented pointer categories and integer null forms can
@@ -560,6 +568,12 @@ interval convert back from float or double through casts, initialization,
 assignment, fixed arguments, and returns. Forty kernel
 bindings with uint32_t, size_t, or swap_handle_t results publish that lane;
 narrower unsigned results keep integer promotion.
+
+The libm bindings also retain their fixed parameter widths. A base function
+such as sqrt publishes double(double), while its f-suffixed partner publishes
+float(float). Integer arguments convert before the call, and a float widens for
+a declared double parameter. Arity and type failures leave the compiler ready
+for a later valid program.
 
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)

@@ -2726,24 +2726,28 @@ static int cc_symbol_has_cdecl_parameter_metadata(
     const cc_symbol_t *symbol) {
   if (!symbol || !symbol->has_param_types)
     return 0;
-  if (symbol->kind == SYM_FUNC)
+  if (symbol->kind == SYM_FUNC || symbol->kind == SYM_KERNEL)
     return 1;
   return (symbol->kind == SYM_LOCAL || symbol->kind == SYM_PARAM ||
           symbol->kind == SYM_GLOBAL) &&
          symbol->type == TYPE_FUNC_PTR;
 }
 
-static int cc_validate_named_function_pointer_arity(
+static int cc_validate_named_call_arity(
     cc_state_t *cc, const cc_symbol_t *symbol, int argument_count) {
-  if (!symbol || symbol->type != TYPE_FUNC_PTR ||
-      !cc_symbol_has_cdecl_parameter_metadata(symbol))
+  if (!cc_symbol_has_cdecl_parameter_metadata(symbol) ||
+      (symbol->kind != SYM_KERNEL && symbol->type != TYPE_FUNC_PTR))
     return 1;
   if (argument_count < symbol->param_count) {
-    cc_error(cc, "function-pointer call has too few arguments");
+    cc_error(cc, symbol->kind == SYM_KERNEL
+                     ? "kernel binding call has too few arguments"
+                     : "function-pointer call has too few arguments");
     return 0;
   }
   if (!symbol->is_variadic && argument_count > symbol->param_count) {
-    cc_error(cc, "function-pointer call has too many arguments");
+    cc_error(cc, symbol->kind == SYM_KERNEL
+                     ? "kernel binding call has too many arguments"
+                     : "function-pointer call has too many arguments");
     return 0;
   }
   return 1;
@@ -3436,6 +3440,143 @@ cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
   sym->kind = kind;
   sym->type = type;
   return sym;
+}
+
+static int32_t cc_cdecl_slot_size(cc_type_t type);
+
+static int cc_kernel_binding_record_identity_is_valid(
+    cc_state_t *cc, cc_type_t type, int record_index) {
+  if (type == TYPE_STRUCT_PTR)
+    return record_index >= 0 && record_index < cc->struct_count;
+  return record_index == -1;
+}
+
+static int cc_validate_kernel_binding_signature(
+    cc_state_t *cc, const cc_function_pointer_signature_t *signature) {
+  int parameter_index;
+
+  if (!signature) {
+    cc_error(cc, "kernel binding signature is missing");
+    return 0;
+  }
+  if (signature->return_type < TYPE_INT ||
+      signature->return_type > TYPE_UINT_PTR ||
+      signature->return_type == TYPE_STRUCT ||
+      signature->return_type == TYPE_FUNC_PTR) {
+    cc_error(cc, "kernel binding result type is not supported");
+    return 0;
+  }
+  if (!cc_kernel_binding_record_identity_is_valid(
+          cc, signature->return_type,
+          signature->return_struct_index)) {
+    cc_error(cc, "kernel binding result record identity is invalid");
+    return 0;
+  }
+  if (signature->param_count < 0 ||
+      signature->param_count > CC_MAX_PARAMS) {
+    cc_error(cc, "too many kernel binding parameters");
+    return 0;
+  }
+  if ((signature->has_param_types != 0 &&
+       signature->has_param_types != 1) ||
+      (signature->is_variadic != 0 && signature->is_variadic != 1)) {
+    cc_error(cc, "kernel binding prototype metadata is malformed");
+    return 0;
+  }
+  if (!signature->has_param_types) {
+    if (signature->param_count != 0 || signature->is_variadic) {
+      cc_error(cc, "unprototyped kernel binding metadata is malformed");
+      return 0;
+    }
+    return 1;
+  }
+
+  for (parameter_index = 0;
+       parameter_index < signature->param_count;
+       parameter_index++) {
+    cc_type_t parameter_type =
+        (cc_type_t)signature->param_types[parameter_index];
+    int record_or_signature =
+        signature->param_struct_indices[parameter_index];
+    if (parameter_type < TYPE_INT || parameter_type > TYPE_UINT_PTR ||
+        cc_cdecl_slot_size(parameter_type) == 0) {
+      cc_error(cc, "kernel binding parameter type is not supported");
+      return 0;
+    }
+    if (parameter_type == TYPE_FUNC_PTR) {
+      if (!cc_validate_function_pointer_parameter_signature(
+              cc, record_or_signature, 1))
+        return 0;
+    } else if (!cc_kernel_binding_record_identity_is_valid(
+                   cc, parameter_type, record_or_signature)) {
+      cc_error(cc, "kernel binding parameter record identity is invalid");
+      return 0;
+    }
+  }
+  return 1;
+}
+
+int cc_register_kernel_binding_legacy(
+    cc_state_t *cc, const char *name, uint32_t address,
+    int parameter_count, cc_type_t return_type) {
+  cc_symbol_t *symbol;
+  if (!cc || !name || !name[0]) {
+    if (cc)
+      cc_error(cc, "kernel binding name is missing");
+    return 0;
+  }
+  if (parameter_count < 0 || parameter_count > CC_MAX_PARAMS) {
+    cc_error(cc, "too many legacy kernel binding parameters");
+    return 0;
+  }
+  if (return_type < TYPE_INT || return_type > TYPE_UINT_PTR ||
+      return_type == TYPE_STRUCT || return_type == TYPE_FUNC_PTR ||
+      return_type == TYPE_STRUCT_PTR) {
+    cc_error(cc, "legacy kernel binding result type is not supported");
+    return 0;
+  }
+  if (cc_sym_find(cc, name)) {
+    cc_error(cc, "duplicate kernel binding");
+    return 0;
+  }
+  symbol = cc_sym_add(cc, name, SYM_KERNEL, return_type);
+  if (!symbol)
+    return 0;
+  symbol->address = address;
+  symbol->param_count = parameter_count;
+  symbol->is_defined = 1;
+  return 1;
+}
+
+int cc_register_kernel_binding(
+    cc_state_t *cc, const char *name, uint32_t address,
+    const cc_function_pointer_signature_t *signature) {
+  cc_symbol_t *symbol;
+  if (!cc || !name || !name[0]) {
+    if (cc)
+      cc_error(cc, "kernel binding name is missing");
+    return 0;
+  }
+  if (!cc_validate_kernel_binding_signature(cc, signature))
+    return 0;
+  if (cc_sym_find(cc, name)) {
+    cc_error(cc, "duplicate kernel binding");
+    return 0;
+  }
+  symbol = cc_sym_add(cc, name, SYM_KERNEL, signature->return_type);
+  if (!symbol)
+    return 0;
+  symbol->address = address;
+  symbol->struct_index = signature->return_struct_index;
+  symbol->param_count = signature->param_count;
+  memcpy(symbol->param_types, signature->param_types,
+         sizeof(symbol->param_types));
+  memcpy(symbol->param_struct_indices, signature->param_struct_indices,
+         sizeof(symbol->param_struct_indices));
+  symbol->has_param_types = signature->has_param_types;
+  symbol->is_variadic = signature->is_variadic;
+  symbol->is_defined = 1;
+  return 1;
 }
 
 static int cc_begin_program_symbol_transaction(
@@ -4363,7 +4504,7 @@ static int cc_emit_retained_postfix_call(cc_state_t *cc,
   cc_expect(cc, CC_TOK_RPAREN);
   if (cc->error)
     return 0;
-  if (!cc_validate_named_function_pointer_arity(cc, &callee, argc) ||
+  if (!cc_validate_named_call_arity(cc, &callee, argc) ||
       !cc_emit_cdecl_argument_layout(cc, arg_sizes, argc))
     return 0;
 
@@ -4455,7 +4596,7 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
     cc_expect(cc, CC_TOK_RPAREN);
 
-    if (!cc_validate_named_function_pointer_arity(cc, call_sym, argc))
+    if (!cc_validate_named_call_arity(cc, call_sym, argc))
       return;
 
     if (!cc_emit_cdecl_argument_layout(cc, arg_sizes, argc))

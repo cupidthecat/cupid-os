@@ -45057,7 +45057,7 @@
         "toolchain/tests/user_syscall_abi_contract.cc"
       ],
       "id": "c.control.do",
-      "occurrences": 83
+      "occurrences": 84
     },
     {
       "category": "control",
@@ -45364,7 +45364,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5183
+      "occurrences": 5184
     },
     {
       "category": "control",
@@ -45640,7 +45640,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4561
+      "occurrences": 4563
     },
     {
       "category": "control",
@@ -46093,7 +46093,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 40836
+      "occurrences": 40860
     },
     {
       "category": "control",
@@ -46466,7 +46466,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 25141
+      "occurrences": 25167
     },
     {
       "category": "control",
@@ -46853,7 +46853,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2877
+      "occurrences": 2878
     },
     {
       "category": "declaration",
@@ -47084,6 +47084,7 @@
         "kernel/gui/desktop.cc",
         "kernel/gui/gui_themes.cc",
         "kernel/lang/ctool_kernel.cc",
+        "kernel/lang/cupidc.cc",
         "kernel/lang/cupidc_parse.cc",
         "kernel/lang/exec.cc",
         "kernel/lang/godspeak.cc",
@@ -47131,7 +47132,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2883
+      "occurrences": 2884
     },
     {
       "category": "declarator",
@@ -47179,7 +47180,7 @@
         "toolchain/tests/x86_contract.cc"
       ],
       "id": "c.declarator.variadic",
-      "occurrences": 59
+      "occurrences": 62
     },
     {
       "category": "expression",
@@ -47406,7 +47407,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6400
+      "occurrences": 6405
     },
     {
       "category": "extension",
@@ -48450,7 +48451,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3135
+      "occurrences": 3140
     },
     {
       "category": "preprocessor",
@@ -48978,7 +48979,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.preprocessor.function_macro",
-      "occurrences": 214
+      "occurrences": 219
     },
     {
       "category": "preprocessor",
@@ -50142,7 +50143,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.preprocessor.undef",
-      "occurrences": 88
+      "occurrences": 93
     },
     {
       "category": "preprocessor",
@@ -50169,11 +50170,12 @@
         "kernel/core/assert.h",
         "kernel/core/panic.h",
         "kernel/doom/dglibc_compat.h",
+        "kernel/lang/cupidc.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc"
       ],
       "id": "c.preprocessor.variadic_macro",
-      "occurrences": 14
+      "occurrences": 17
     },
     {
       "category": "qualifier",
@@ -50537,7 +50539,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 16381
+      "occurrences": 16388
     },
     {
       "category": "qualifier",
@@ -51078,7 +51080,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 9850
+      "occurrences": 9853
     },
     {
       "category": "type",
@@ -51521,7 +51523,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 9561
+      "occurrences": 9565
     },
     {
       "category": "type",
@@ -52284,7 +52286,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 23701
+      "occurrences": 23713
     },
     {
       "category": "type",
@@ -54745,7 +54747,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "8aca49c89e5129070b1d580994598184ab7f1b45c89995a26a4e56f429c67ddb",
+    "active_source_digest": "f68a78713dcd59f4c33754285d7bcab1feee688f75450b3c0a0523290b871a9c",
     "control_files": [
       {
         "path": "Makefile",
@@ -75266,6 +75268,7 @@
         "c.control.switch",
         "c.control.while",
         "c.declarator.function_pointer",
+        "c.declarator.unsized_array",
         "c.declarator.variadic",
         "c.expression.sizeof",
         "c.extension.builtin.va_arg",
@@ -75277,6 +75280,7 @@
         "c.preprocessor.function_macro",
         "c.preprocessor.include",
         "c.preprocessor.undef",
+        "c.preprocessor.variadic_macro",
         "c.qualifier.const",
         "c.qualifier.volatile",
         "c.storage.static",
@@ -75371,12 +75375,12 @@
         "kernel/util/calendar.h"
       ],
       "language": "cupid_c",
-      "lines": 4151,
+      "lines": 4195,
       "origin": "tracked",
       "path": "kernel/lang/cupidc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "0bec7beb0f9eb75858ed9550bf7d93d017bc6d3c728cd213b9cca6eed5784ff1"
+      "sha256": "0f05c5c5c6696a1ec8988ae3435d470278e36b2d8bf54b23fed97e45b2d2641f"
     },
     {
       "build_owners": [
@@ -75410,12 +75414,12 @@
         "kernel/lang/dis.h"
       ],
       "language": "c_header",
-      "lines": 544,
+      "lines": 550,
       "origin": "tracked",
       "path": "kernel/lang/cupidc.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "05a89a65e3e690b992c8d38188288daa42ac34529e26c8901516ccab41b1ea70"
+      "sha256": "034e79617d0925bd764abf133778c43c2c4a0ca9987998c6e06d96f75b6fec19"
     },
     {
       "build_owners": [
@@ -75550,12 +75554,12 @@
         "kernel/lang/cupidc.h"
       ],
       "language": "cupid_c",
-      "lines": 13099,
+      "lines": 13240,
       "origin": "tracked",
       "path": "kernel/lang/cupidc_parse.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "cffba8024d74d975dd08ce7f538b7208ece382f1693e966ede1a852eda1e97f8"
+      "sha256": "9f189b8d7a15af528e123cc29daf10f9fa96bb5685e8d9d5b05dada7b53426ee"
     },
     {
       "build_owners": [

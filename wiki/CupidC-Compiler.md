@@ -184,6 +184,15 @@ valid compile can reuse the state. This covers the active
 production owner, checked-seed hosted CupidC; this private parser capability
 does not move it to the in-OS compiler.
 
+Native bindings also have a public fixed-signature registration seam. A
+reviewed entry publishes the existing `cc_function_pointer_signature_t`, so a
+direct kernel call shares fixed conversion, complete cdecl slot layout,
+cleanup, arity, default variadic promotion, and result transport with other
+typed calls. The first reviewed set contains console, string, port, and all 50
+`libm` entries. Unreviewed bindings use an explicitly named legacy result-only
+path and retain their previous source-width arguments. Nested publication for
+`set_icon_drawer` remains separate work. ADR 0332 records this boundary.
+
 The separate data-backed raw-array path serves the active six-entry table in
 `kernel/doom/src/f_wipe.cc`. The table groups three handlers per wipe and uses
 indexes `wipeno*3`,
@@ -275,13 +284,21 @@ Integer and pointer conditions keep their existing EAX path. Void
 expressions, structures by value, `float4`, and `double2` fail with
 `truth test requires a scalar operand`.
 
-Kernel calls participate in the same type rules. Each of the 557 registered
-bindings carries its declared result type. The table contains 326 value calls
+Kernel calls participate in the same result rules. Each of the 557 registered
+bindings carries its declared result type. Reviewed entries also carry fixed
+or variadic parameter types. The table contains 326 value calls
 and 231 `void` calls. Its values split into 208 promoted integers, 41 unsigned
 words, 25 `float`, 25 `double`, 19 character pointers, and eight other
 pointers. A result from `input_dialog`, for example, can control an `if`
 without losing its integer type, while a high-bit `htonl` result keeps
 unsigned comparison.
+
+The reviewed `libm` cohort publishes exact floating prototypes, including
+`double sqrt(double)` and `float sqrtf(float)`. Integer inputs convert to the
+declared width before the call, and a binary32 input widens for a binary64
+parameter. Mixed 4- and 8-byte values keep complete cdecl slots. A fixed kernel
+call reports too few or too many arguments before execution, while a type
+mismatch uses the standard fixed-parameter diagnostic.
 
 The table includes the 46 effects, bitmap-font, transform, GUI, and theme
 bindings that were missing for `gfxgui_test.cc`. Three accessors return

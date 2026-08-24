@@ -373,10 +373,16 @@ registrations split into 326 typed value results and 231 verified `void`
 results. The value group contains 208 promoted integers, 41 unsigned words,
 25 `float`, 25 `double`, 19 character pointers, and eight other pointers.
 Explicit `uint32_t`, `size_t`, and `swap_handle_t` results use the unsigned lane;
-`uint8_t` and `uint16_t` retain integer promotion. A complete source-contract
-test prevents a non-void declaration from using the untyped macro and checks
-the exact Cupid type on every typed entry. This repairs private compiler
-semantics without moving a source file or adding a host dependency.
+`uint8_t` and `uint16_t` retain integer promotion. Reviewed console, string,
+port, and `libm` entries now publish fixed or variadic parameter metadata
+through the existing function-pointer signature representation. Their calls
+share typed conversion, complete cdecl slot layout, cleanup, arity, default
+promotion, and result transport with direct and indirect typed functions.
+Unreviewed entries retain their previous source-width arguments through the
+named legacy result-only path. Source contracts check the complete table and
+the exact 50-symbol floating cohort. This repairs private compiler semantics
+without moving a source file or adding a host dependency. ADR 0332 records the
+boundary.
 
 Forty-six of those registrations expose the linked graphics effects,
 bitmap-font assets, transforms, GUI initialization, and theme APIs required by
@@ -697,10 +703,11 @@ and multidimensional raw callback arrays remain unsupported.
 
 Nested callback parameters remain a private compiler capability. Checked-seed
 hosted CupidC still builds the `kernel/lang/cupidc.cc` object containing
-`p_icon_set_drawer`. Its nested
-callback stays one four-byte i386 argument slot, and the checked seeds, object
-format, and host dependencies do not change. `BIND` metadata still carries no
-nested callback signature.
+`p_icon_set_drawer`. Its nested callback stays one four-byte i386 argument
+slot, and the checked seeds, object format, and host dependencies do not
+change. The new public fixed-signature registration seam retains record and
+prototype metadata, but this active binding does not yet publish its nested
+child handle.
 
 Private CupidC now converts decimal `float` and `double` tokens with a fixed
 1536-bit integer workspace. It rounds the exact decimal ratio once to the

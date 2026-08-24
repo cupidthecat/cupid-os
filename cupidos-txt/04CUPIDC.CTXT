@@ -1846,6 +1846,14 @@ callback alias chains, and aggregate callback results remain unsupported.
 The checked Linux and Windows CupidC seeds do not contain this private parser.
 Checked-seed hosted CupidC continues to compile the production
 kernel/lang/cupidc.cc object and the Doom source.
+
+Reviewed native bindings publish fixed or variadic parameter metadata through
+the existing function-pointer signature representation. Their direct kernel
+calls share typed conversion, complete cdecl slots, cleanup, arity, default
+promotion, and result transport with other typed calls. The first reviewed set
+contains console, string, port, and all 50 libm bindings. Unreviewed entries use
+the named legacy result-only path and keep their previous source-width
+arguments. Nested publication for set_icon_drawer remains separate work.
 Plain function initializers must match the retained result, record identity,
 fixed parameters, and variadic boundary. An explicit void-pointer cast erases
 that comparison. Named local copies use the same check. Later target addresses
@@ -1904,10 +1912,13 @@ Element access on SIMD:
 Intrinsics: _mm_*_ps (17) and _mm_*_pd (11) are recognized by
 name and inlined as SSE opcodes. See kernel/cpu/simd_intrin.h.
 
-libm is available via the BIND_T table (25 operations, 50 symbols
+libm is available through fixed binding signatures (25 operations, 50 symbols
 with f-variants): sqrt, sin, cos, tan, atan, atan2, exp, exp2, log,
 log2, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter,
 fabs, floor, ceil, round, trunc, fmod.
+Each base function publishes double parameters and each f-variant publishes
+float parameters. Calls such as sqrt(7) therefore convert to a complete
+eight-byte double slot before entering the native function.
 
 printf supports %f, %e, %g, and precision forms like %.3f.
 

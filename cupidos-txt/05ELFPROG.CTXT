@@ -364,6 +364,14 @@ private pool accepts 32 distinct raw signatures and recovers after rejecting
 the next one. The private callback ABI module passes all 268 tests in 51.685
 seconds. ADR 0315 records this boundary.
 
+Reviewed native kernel bindings use the same signature representation in JIT
+and fixed-address AOT output. Exact parameter metadata drives scalar and
+floating conversion, complete cdecl slot layout, cleanup, arity, variadic
+promotion, and result transport. A mixed int, double, float, int test preserves
+all four slots in both modes. Unreviewed bindings remain on the named legacy
+result-only path, so this change does not alter the external ELF loader ABI.
+ADR 0332 records the boundary.
+
 The four-vCPU e1000 feature14 guest contract requires direct-call,
 named-callback, typedef-parameter, typedef-global, and automatic-callback
 evidence in that order. The retained paths must print
