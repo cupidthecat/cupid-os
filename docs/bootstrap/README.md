@@ -105,11 +105,14 @@ free-function parameter now retain the same parsed signature. Raw callback
 fields retain it too. A postfix call through a typedef-backed or raw callback
 field uses typed fixed and variadic cdecl conversion, evaluates its designator
 once, and preserves represented scalar, floating, pointer, and SIMD results.
-Callback arrays, block-static objects, alias chains, conditional field values,
-aggregate results, and raw Cupid class method parameters remain outside this
-boundary. ADR 0325 records the field declaration and call boundary.
+Typedef-backed callback arrays on structure and class fields retain the
+signature through indexed stores, named copies, and direct calls. Each index
+is evaluated once. Raw callback-array declarators, block-static objects, alias
+chains, conditional field values, aggregate results, and raw Cupid class
+method parameters remain outside this boundary. ADR 0325 records the field
+declaration and call boundary, and ADR 0328 records callback field arrays.
 
-The private callback ABI module passes all 286 tests. The
+The private callback ABI module passes all 289 tests. The
 four-vCPU raw callback QEMU smoke also passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The 32,981-byte
@@ -654,7 +657,7 @@ typedef-backed global objects initialized from null or a compatible function.
 Its indirect call uses the same conversions and 4-, 8-, or 16-byte slot
 layout, enforces fixed arity, applies default promotions after a variadic
 prefix, and publishes floating or vector results through XMM0. Empty `()`,
-`void *`, callback arrays, block-static objects, callback alias chains,
+`void *`, raw callback-array declarators, block-static objects, callback alias chains,
 recursive signatures, conditional initializers, arbitrary computed
 expressions, raw method parameters, and aggregate callback results remain
 outside this path. Raw and typedef-backed callback fields retain the signature
@@ -797,7 +800,7 @@ and null clearing. The typedef table holds sixteen aliases, and each retained
 signature holds at most 32 fixed parameters. A plain function initializer,
 its direct `&function` address, or a typed global assignment must match that
 signature; an explicit `void *` cast
-erases the check. Empty `()`, callback arrays, block-static objects, alias
+erases the check. Empty `()`, raw callback-array declarators, block-static objects, alias
 chains, and `void *` pointers remain metadata-free. Raw callback fields retain
 their parsed signatures. Direct structure and array results
 remain rejected, while record-pointer identity is retained.

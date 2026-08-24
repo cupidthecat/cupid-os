@@ -200,9 +200,12 @@ Nested record and indexed record-array traversal keep the same rule. Raw
 function-pointer field declarators retain the same signature. A postfix call
 through either field form uses typed fixed and variadic cdecl conversion,
 evaluates the member designator once, and preserves represented scalar,
-floating, pointer, and SIMD results. Callback arrays, block-static objects,
-alias chains, raw method parameters, conditional field values, aggregate
-results, and recursive signatures remain outside this boundary.
+floating, pointer, and SIMD results. A typedef-backed callback array field
+keeps the same signature through an indexed store, named copy, and direct
+postfix call. The compiler evaluates its index once. Raw callback-array
+declarators, block-static objects, alias chains, raw method parameters,
+conditional field values, aggregate results, and recursive signatures remain
+outside this boundary.
 Direct structure and array results remain rejected. Program and REPL rollback
 restore typedef and side-table metadata, provisional signatures, code, data,
 and every patch kind. The
@@ -214,7 +217,8 @@ assignment, ADR 0310 records automatic objects and method parameters, and ADR
 file objects and free-function parameters. ADR 0319 records direct explicit
 function addresses, ADR 0321 records typedef-backed callback fields, and ADR
 0324 records grouped runtime function addresses. ADR 0325 records raw callback
-fields and direct field calls. Source-head guest runtime proves the
+fields and direct field calls. ADR 0328 records typedef-backed callback field
+arrays. Source-head guest runtime proves the
 raw forms with initialized, parameter, clear, reassignment, and typed-call
 coverage. No normal AOT source requires the forms yet; the active use remains
 the in-OS feature-14 JIT smoke.

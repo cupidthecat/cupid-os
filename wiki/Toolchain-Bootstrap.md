@@ -1081,10 +1081,13 @@ signature for checked stores, copies into named callbacks, null checks, and
 clearing. Direct, nested, and indexed record-array member paths share that
 behavior. Raw callback fields retain the same signature. Direct postfix calls
 through either field form use typed fixed and variadic cdecl conversion and
-evaluate the designator once. Callback arrays, block-static objects, alias
-chains, recursive callback signatures, conditional field values, aggregate
-results, and arbitrary computed callback expressions remain outside this typed
-path. ADR 0325 records this boundary. The AOT writer uses one executable
+evaluate the designator once. Typedef-backed callback arrays on structure and
+class fields retain the signature through indexed stores, named copies, and
+direct calls. Each index is evaluated once. Raw callback-array declarators,
+block-static objects, alias chains, recursive callback signatures, conditional
+field values, aggregate results, and arbitrary computed callback expressions
+remain outside this typed path. ADR 0325 records direct field calls, and ADR
+0328 records callback field arrays. The AOT writer uses one executable
 `PT_LOAD` for zero-data programs and adds the writable data segment only when
 data is present; code begins at file offset `0x80` in both layouts. Focused
 private compiler contracts cover these source decisions. The exact
@@ -1602,7 +1605,7 @@ A structure or class field declared through the typedef or a raw
 function-pointer declarator retains the same metadata for checked stores, named
 copies, null checks, clearing, and direct postfix calls. Direct, nested, and
 indexed record-array member paths share that behavior and evaluate the selected
-designator once. Empty `()`, callback arrays, block-static objects, alias
+designator once. Empty `()`, raw callback-array declarators, block-static objects, alias
 chains, recursive callback signatures, and `void *` forms remain
 signature-erased. A
 plain function initializer or direct callback argument must match the retained
@@ -1622,9 +1625,10 @@ assignment, call, and clear rules. The parameter uses the existing cdecl slot
 and arity checks. The private pool accepts 32 distinct raw signatures, rejects
 the next one, and restores the pool before a valid retry. ADR 0315 records this
 source boundary. Runtime initialization and assignment accept `&(function)`
-and nested grouping. The full private callback ABI module passes all 286 tests.
+and nested grouping. The full private callback ABI module passes all 289 tests.
 ADR 0321 records the typedef-backed field boundary, ADR 0324 records grouped
-runtime addresses, and ADR 0325 records raw fields and direct field calls.
+runtime addresses, ADR 0325 records raw fields and direct field calls, and ADR
+0328 records typedef-backed callback field arrays.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
@@ -1685,7 +1689,7 @@ method parameter declared with a direct file-scope function-pointer typedef
 does the same. A declaration-initialized automatic object does too. A file
 object declared directly with the typedef keeps the signature across
 null initialization, checked assignment, indirect call, and clearing. Empty
-`()`, callback arrays, block-static objects, alias chains, recursive callback
+`()`, raw callback-array declarators, block-static objects, alias chains, recursive callback
 signatures, and `void *` forms remain metadata-free. A structure or class field
 declared through the typedef or a raw function-pointer declarator retains the
 signature for checked stores, named copies, null checks, clearing, and direct

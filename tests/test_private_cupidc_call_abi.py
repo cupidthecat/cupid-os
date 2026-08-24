@@ -3348,6 +3348,141 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     result.returncode, 16, result.stdout + result.stderr
                 )
 
+    def test_typedef_callback_field_arrays_run_in_jit_and_aot(self):
+        source = """
+            typedef int (*callback_t)(double first, int second);
+
+            struct Holder {
+              callback_t callbacks[2];
+            };
+
+            int selected;
+            int stored;
+            int observed;
+
+            int select_slot(void) {
+              selected++;
+              return 1;
+            }
+
+            int select_store(void) {
+              stored++;
+              return 0;
+            }
+
+            int combine(double first, int second) {
+              observed = (int)first * 10 + second;
+              return observed;
+            }
+
+            int subtract(double first, int second) {
+              return (int)first * 10 - second;
+            }
+
+            int main(void) {
+              struct Holder holder;
+              callback_t copied = 0;
+              holder.callbacks[select_store()] = combine;
+              holder.callbacks[1] = subtract;
+              if (stored != 1) return 1;
+              holder.callbacks[0](2, 5);
+              if (observed != 25) return 2;
+              copied = holder.callbacks[0];
+              if (copied(3, 4) != 34) return 3;
+              if (holder.callbacks[select_slot()](5, 2) != 48) return 4;
+              if (selected != 1) return 5;
+              return 83;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 83, result.stdout + result.stderr
+                )
+
+    def test_typedef_callback_field_arrays_cover_other_record_paths(self):
+        records = (
+            (
+                "class",
+                "class Holder { callback_t callbacks[2]; };",
+                "Holder",
+            ),
+            (
+                "anonymous-typedef",
+                "typedef struct { callback_t callbacks[2]; } Holder;",
+                "Holder",
+            ),
+        )
+        for label, declaration, holder_type in records:
+            source = f"""
+                typedef int (*callback_t)(int value);
+                {declaration}
+
+                int plus_one(int value) {{ return value + 1; }}
+                int minus_two(int value) {{ return value - 2; }}
+
+                int main(void) {{
+                  {holder_type} holder;
+                  holder.callbacks[0] = plus_one;
+                  holder.callbacks[1] = minus_two;
+                  return holder.callbacks[0](4) + holder.callbacks[1](9);
+                }}
+            """
+            for aot in (False, True):
+                with self.subTest(record=label, aot=aot):
+                    result = self._compile_and_run(source, aot=aot)
+                    self.assertEqual(
+                        result.returncode, 12, result.stdout + result.stderr
+                    )
+
+        repl_result = self._compile_repl_and_run(
+            (
+                "typedef int (*callback_t)(int value);",
+                "struct Holder { callback_t callbacks[2]; };",
+                "int plus_one(int value) { return value + 1; }",
+                "int minus_two(int value) { return value - 2; }",
+                "struct Holder holder;",
+                """
+                int main(void) {
+                  holder.callbacks[0] = plus_one;
+                  holder.callbacks[1] = minus_two;
+                  return holder.callbacks[0](4) + holder.callbacks[1](9);
+                }
+                """,
+            )
+        )
+        self.assertEqual(
+            repl_result.returncode,
+            12,
+            repl_result.stdout + repl_result.stderr,
+        )
+
+    def test_typedef_callback_field_arrays_retain_variadic_return_abi(self):
+        source = """
+            typedef double (*callback_t)(double, ...);
+
+            struct Holder {
+              callback_t callbacks[2];
+            };
+
+            double keep(double value, ...) {
+              return value + 0.5;
+            }
+
+            int main(void) {
+              struct Holder holder;
+              holder.callbacks[0] = keep;
+              return (int)holder.callbacks[0](8.5, 1.25f, 3);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 9, result.stdout + result.stderr
+                )
+
     def test_repl_keeps_raw_callback_struct_field_signature(self):
         result = self._compile_repl_and_run(
             (
@@ -3446,6 +3581,14 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 int main() { return 0; }
                 """,
                 "expected function pointer name",
+            ),
+            (
+                "raw-array",
+                """
+                struct Holder { int (*callbacks[2])(int); };
+                int main() { return 0; }
+                """,
+                "raw function-pointer arrays are not supported; use a callback typedef",
             ),
         )
         retry_source = """
@@ -3570,6 +3713,49 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 """,
                 "cdecl argument type does not match fixed parameter",
             ),
+            (
+                "array-too-few",
+                """
+                typedef int (*callback_t)(int, int);
+                struct Holder { callback_t callbacks[2]; };
+                int add(int first, int second) { return first + second; }
+                int main() {
+                  struct Holder holder;
+                  holder.callbacks[0] = add;
+                  return holder.callbacks[0](1);
+                }
+                """,
+                "function-pointer call has too few arguments",
+            ),
+            (
+                "array-too-many",
+                """
+                typedef int (*callback_t)(int);
+                struct Holder { callback_t callbacks[2]; };
+                int identity(int value) { return value; }
+                int main() {
+                  struct Holder holder;
+                  holder.callbacks[0] = identity;
+                  return holder.callbacks[0](1, 2);
+                }
+                """,
+                "function-pointer call has too many arguments",
+            ),
+            (
+                "array-fixed-type",
+                """
+                typedef int (*callback_t)(double);
+                struct Holder { callback_t callbacks[2]; };
+                int inspect(double value) { return (int)value; }
+                int main() {
+                  struct Holder holder;
+                  int value = 7;
+                  holder.callbacks[0] = inspect;
+                  return holder.callbacks[0](&value);
+                }
+                """,
+                "cdecl argument type does not match fixed parameter",
+            ),
         )
         retry_source = """
             struct Holder { int (*callback)(int); };
@@ -3675,22 +3861,39 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 "function-pointer assignment requires plain =",
             ),
             (
-                "callback-array-remains-erased",
+                "callback-array-field-store",
                 """
                 typedef int (*callback_t)(int value);
                 struct Holder { callback_t callbacks[2]; };
 
-                int right(int value) { return value; }
+                int wrong(double value) { return (int)value; }
                 int main() {
                   struct Holder holder;
-                  callback_t callback = 0;
+                  holder.callbacks[0] = wrong;
+                  return 0;
+                }
+                """,
+                "function-pointer assignment parameters do not match destination",
+            ),
+            (
+                "callback-array-field-copy",
+                """
+                struct Expected { int value; };
+                struct Wrong { int value; };
+                typedef int (*expected_callback_t)(struct Expected *value);
+                typedef int (*wrong_callback_t)(struct Wrong *value);
+                struct Holder { expected_callback_t callbacks[2]; };
+
+                int right(struct Expected *value) { return value->value; }
+                int main() {
+                  struct Holder holder;
+                  wrong_callback_t callback = 0;
                   holder.callbacks[0] = right;
                   callback = holder.callbacks[0];
                   return 0;
                 }
                 """,
-                "function-pointer assignment requires a function, zero, or "
-                "explicit pointer cast",
+                "function-pointer assignment parameters do not match destination",
             ),
         )
         retry_source = """

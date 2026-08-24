@@ -1498,10 +1498,9 @@ static int cc_parse_record_field_declarator(
   return 1;
 }
 
-static void cc_retain_scalar_field_function_pointer_signature(
+static void cc_retain_field_function_pointer_signature(
     cc_field_t *field, int signature_handle) {
-  field->function_pointer_signature_handle =
-      field->array_count == 0 ? signature_handle : -1;
+  field->function_pointer_signature_handle = signature_handle;
 }
 
 static int cc_has_incomplete_simd_row(void) {
@@ -2114,7 +2113,7 @@ static int cc_parse_struct_body(cc_state_t *cc, int struct_index) {
       if (!cc_expect(cc, CC_TOK_RBRACK))
         return 0;
     }
-    cc_retain_scalar_field_function_pointer_signature(
+    cc_retain_field_function_pointer_signature(
         field, field_function_pointer_signature_handle);
     if (field_type == TYPE_STRUCT &&
         !cc_struct_is_complete(cc, field_struct_index)) {
@@ -5466,6 +5465,10 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_last_expr_array_object_size = array_object_size;
         cc_last_expr_array_elem_type = field->type;
         cc_last_expr_struct_index = field->struct_index;
+        if (field->type == TYPE_FUNC_PTR &&
+            field->function_pointer_signature_handle >= 0)
+          cc_set_expr_function_signature_handle(
+              field->function_pointer_signature_handle);
       } else if (field->type == TYPE_STRUCT) {
         cc_last_expr_type = TYPE_STRUCT;
         cc_last_expr_struct_index = field->struct_index;
@@ -5514,6 +5517,8 @@ static void cc_parse_primary(cc_state_t *cc) {
       int base_array_rank = cc_last_expr_array_rank;
       int base_si = cc_last_expr_struct_index;
       int base_is_const = cc_last_expr_const_lvalue;
+      int base_function_pointer_signature_handle =
+          cc_last_expr_function_signature_handle;
       emit_push_eax(cc); /* push base address */
 
       cc_parse_expression(cc, 1);
@@ -5553,6 +5558,11 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_last_expr_array_rank = 0;
         cc_last_expr_array_object_size = 0;
         cc_last_expr_array_elem_type = TYPE_INT;
+      } else if (base_array_elem_type == TYPE_FUNC_PTR) {
+        if (!address_of_array_element)
+          emit_deref_dword(cc);
+        cc_last_expr_type = TYPE_FUNC_PTR;
+        cc_reset_expr_subscript_metadata();
       } else if (base_type == TYPE_CHAR_PTR && base_array_rank > 1) {
         /* Multi-D char first subscript: pointer to row. For 3D arrays
          * the second-stride (dim2) becomes the new elem_size so the
@@ -5643,6 +5653,10 @@ static void cc_parse_primary(cc_state_t *cc) {
 
       cc_expect(cc, CC_TOK_RBRACK);
       cc_clear_expr_callable_provenance();
+      if (cc_last_expr_type == TYPE_FUNC_PTR &&
+          base_function_pointer_signature_handle >= 0)
+        cc_set_expr_function_signature_handle(
+            base_function_pointer_signature_handle);
       if (address_of_array_element &&
           cc_peek(cc).type != CC_TOK_LBRACK) {
         cc_type_t selected_type = cc_last_expr_type;
@@ -8913,6 +8927,11 @@ static int cc_parse_named_function_pointer_declarator(
     cc_error(cc, "expected function pointer name");
     return 0;
   }
+  if (cc_peek(cc).type == CC_TOK_LBRACK) {
+    cc_error(cc,
+             "raw function-pointer arrays are not supported; use a callback typedef");
+    return 0;
+  }
   cc_expect(cc, CC_TOK_RPAREN);
   if (cc->error)
     return 0;
@@ -10185,6 +10204,18 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
 
       /* Expect assignment operator */
       cc_token_t assign_op = cc_peek(cc);
+      if (assign_op.type == CC_TOK_LPAREN && ftype == TYPE_FUNC_PTR &&
+          function_pointer_signature_handle >= 0) {
+        emit_deref_dword(cc);
+        cc_last_expr_type = TYPE_FUNC_PTR;
+        cc_set_expr_function_signature_handle(
+            function_pointer_signature_handle);
+        if (!cc_emit_retained_postfix_call(
+                cc, function_pointer_signature_handle))
+          break;
+        cc_expect(cc, CC_TOK_SEMICOLON);
+        break;
+      }
       if (assign_op.type == CC_TOK_PLUSPLUS ||
           assign_op.type == CC_TOK_MINUSMINUS) {
         int decrement = cc_next(cc).type == CC_TOK_MINUSMINUS;
@@ -11201,7 +11232,7 @@ void cc_parse_program(cc_state_t *cc) {
               f->array_count = array_count;
               cc_expect(cc, CC_TOK_RBRACK);
             }
-            cc_retain_scalar_field_function_pointer_signature(
+            cc_retain_field_function_pointer_signature(
                 f, function_pointer_signature_handle);
 
             if (f->array_count > 0 &&
@@ -11363,7 +11394,7 @@ void cc_parse_program(cc_state_t *cc) {
             f->array_count = array_count;
             cc_expect(cc, CC_TOK_RBRACK);
           }
-          cc_retain_scalar_field_function_pointer_signature(
+          cc_retain_field_function_pointer_signature(
               f, function_pointer_signature_handle);
 
           if (f->array_count > 0 &&
@@ -12180,7 +12211,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
           f->array_count = array_count;
           cc_expect(cc, CC_TOK_RBRACK);
         }
-        cc_retain_scalar_field_function_pointer_signature(
+        cc_retain_field_function_pointer_signature(
             f, function_pointer_signature_handle);
         if (ftype == TYPE_STRUCT && !cc_struct_is_complete(cc, fsi)) {
           cc_error(cc, "field has incomplete struct type");

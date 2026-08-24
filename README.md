@@ -85,7 +85,7 @@ scalar or SIMD results. Program and REPL failures restore the typedef metadata
 with the rest of the compiler transaction. Code-only AOT output still emits one
 program header with code at file offset `0x80`.
 
-The private callback ABI module passes all 286 tests. Named
+The private callback ABI module passes all 289 tests. Named
 raw callback file objects and direct free-function parameters retain their
 parsed signatures.
 The file objects support null, defined, and later-defined initialization,
@@ -96,16 +96,19 @@ records, and persistent REPL records. Typedef-backed and raw field expressions
 can be called directly. They use the existing fixed and variadic cdecl
 conversions, evaluate nested or indexed designators once, and return
 represented scalar, floating, pointer, or SIMD values. A real field wins over
-same-named class method sugar. Callback arrays, block-static objects, alias
-chains, computed conditional values, aggregate results, and raw Cupid class
-method parameters remain open. The promoted standalone seeds
+same-named class method sugar. Typedef-backed callback arrays on structure and
+class fields retain the signature through indexed stores, copies, and direct
+calls, with each index evaluated once. Raw callback-array declarators,
+block-static objects, alias chains, computed conditional values, aggregate
+results, and raw Cupid class method parameters remain open. The promoted standalone seeds
 do not contain this private parser or ELF writer. ADR 0306 records global
 storage, ADR 0310 records automatic objects and method parameters, ADR 0313
 records initialized-data function-address patches, ADR 0315 records raw
 file objects and free-function parameters, and ADR 0319 records direct explicit
 function addresses. ADR 0321 records typedef-backed callback fields, ADR 0324
-records grouped runtime function addresses, and ADR 0325 records raw callback
-fields and direct field calls.
+records grouped runtime function addresses, ADR 0325 records raw callback
+fields and direct field calls, and ADR 0328 records typedef-backed callback
+field arrays.
 
 The four-vCPU raw callback QEMU smoke passes at source head. It records
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
@@ -513,7 +516,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - Private CupidC preserves unsigned 32-bit runtime types through objects, pointers, calls, enums, unary operations, conditionals, comparisons, division, remainder, right shift, `sizeof`, and scalar returns. `/=`, `%=`, and `>>=` use the same signedness rules while evaluating each destination once. It converts the complete `uint32_t` range exactly to `double` and correctly rounded `float`, including ordinary and method returns. Values in C's defined interval convert from `float` or `double` to an unsigned word through casts, initialization, assignment, arguments, and returns. Forty kernel bindings with `uint32_t`, `size_t`, or `swap_handle_t` results publish that unsigned type. The Browser stores array length in the same lane, accepts canonical indices through 4,294,967,294, and treats 4,294,967,295 as an ordinary property. ADR 0221 records the original type boundary, and ADR 0249 records the two completed operations. The feature-13 guest checks four conversion boundaries, signed and high-bit unsigned `%=` results, and one evaluation of a side-effecting destination. Its required boot marker is `[feature13-unsigned] PASS conversions=4 remainders=2 once=1`.
 - Private `float4` and `double2` values support matching packed arithmetic and fixed arrays with one, two, or three dimensions in global, local, block-static, and persistent REPL storage. Array rank stays independent of byte stride, including when an inner extent is one. Access keeps checked row strides until the final 16-byte vector leaf, uses unaligned-safe moves, supports plain and arithmetic compound assignment, and preserves lane values. Prefix and postfix `++` and `--` work on modifiable direct vectors and fully indexed leaves. Each evaluated index runs once. Const qualification is retained through typedef aliases. Const direct vectors and fixed-array leaves remain readable. Plain and arithmetic compound assignment, plus prefix and postfix `++` and `--`, are rejected before a store. Prefix returns the stored vector, while postfix returns the exact old 128-bit payload. Indexes inside row or vector `sizeof` do not run, and incomplete rows cannot escape as untyped pointers. Fixed-prototype direct functions and methods pass either vector by value in complete 16-byte cdecl slots and return it in XMM0. Those slots are packed at four-byte granularity and use `MOVUPS`; the private boundary does not promise 16-byte call-site alignment. SIMD variadic tails, unprototyped calls, and calls through signature-erased function pointers remain rejected. SIMD pointers, fields, lane updates, and computed vector updates remain explicit gaps. Direct arithmetic uses a stable machine operand order, and minimum and maximum intrinsics retain their defined NaN and signed-zero behavior. Feature 14 now also requires `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`. ADR 0257 records multidimensional row descent, ADR 0294 records whole-vector updates, and ADR 0299 records fixed SIMD calls.
 - The signature-erased function-pointer limit in the preceding SIMD summary
-  applies to raw fields, block-static objects, callback arrays, alias chains, empty
+  applies to raw callback-array declarators, block-static objects, alias chains, empty
   `()`, and deliberate `void *` erasure. A named raw callback file object or
   direct free-function parameter now retains its parsed signature. A direct
   file-scope callback typedef
@@ -534,7 +537,8 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   static callback initialization. ADR 0315 records the raw forms, ADR 0319
   records direct explicit function addresses, ADR 0321 records typedef-backed
   callback fields, ADR 0324 records grouped runtime function addresses, and ADR
-  0325 records raw fields and direct field calls.
+  0325 records raw fields and direct field calls, and ADR 0328 records
+  typedef-backed callback field arrays.
 - The TCP/IP stack supports RTL8139 and E1000 devices, ARP, IPv4, ICMP, UDP, a client and server subset of RFC 793 TCP, DHCP with static fallback, DNS with a 16-entry TTL cache, and a 32-slot BSD socket table shared by the shell and CupidC. TCP uses per-socket stop-and-wait retransmission with exponential backoff, advertises the actual receive-buffer space, and collects abandoned half-open connections. IPv4 fragments outgoing packets and keeps four reassembly slots for datagrams up to about 64 KB.
 - The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 parsing with hostname, time, and best-effort chain checks against an embedded Mozilla CA bundle. The chain checker is still lenient when it cannot find a root or implement a signature algorithm. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
 - `bin/curl.cc` and `bin/wget.cc` are CupidC clients built on the socket and TLS bindings. `curl` supports GET, POST, `-o`, `-i`, `-s`, `-X`, `-d`, and `-H`, with HTTP-to-HTTP redirects capped at five hops. `wget` supports `-O` and `-q`, derives its output filename, and reports the response status and saved byte count.

@@ -1775,9 +1775,11 @@ signature for checked stores, copies into named callbacks, null checks, and
 clearing. Direct members, nested records, and indexed record arrays share that
 path. Raw callback fields retain the parsed signature. Direct postfix calls
 through raw or typedef-backed fields use typed cdecl conversion and evaluate
-the designator once. Empty (), block-static objects, callback arrays, bare
-nested callback signatures, alias chains, and void-pointer forms keep
-source-width slots. A
+the designator once. Typedef-backed callback arrays on structure and class
+fields retain the signature through indexed stores, named copies, and direct
+calls, with each index evaluated once. Empty (), block-static objects, raw
+callback-array declarators, bare nested callback signatures, alias chains, and
+void-pointer forms keep source-width slots. A
 typedef-backed global callback may begin with a compatible defined or
 later-defined function. A known address is written into initialized data, and a
 later definition receives an absolute data patch during symbol resolution.
@@ -1787,13 +1789,14 @@ assignment, call, and null rules. The parameters use the same cdecl slot and
 arity checks. The private pool accepts 32 distinct raw signatures and recovers
 after rejecting the next one. A direct function address uses the same signature
 check as a plain function designator. Runtime initialization and assignment
-accept &(function) and nested grouping. Conditional field values, callback
-arrays, block-static callbacks, alias chains, aggregate results, and raw method
-parameters remain unsupported. ADR 0315 records the raw
+accept &(function) and nested grouping. Conditional field values, raw
+callback-array declarators, block-static callbacks, alias chains, aggregate
+results, and raw method parameters remain unsupported. ADR 0315 records the raw
 boundary, ADR 0319 records explicit function addresses, ADR 0321 records
 typedef-backed record and class fields, and ADR 0324 records grouped runtime
-addresses. ADR 0325 records raw fields and direct field calls.
-The private callback ABI module passes all 286 tests.
+addresses. ADR 0325 records raw fields and direct field calls. ADR 0328 records
+typedef-backed callback field arrays.
+The private callback ABI module passes all 289 tests.
 The checked Linux and Windows CupidC seeds do not contain this private parser.
 The active runtime proof remains the feature-14 JIT smoke; no normal AOT source
 requires the syntax yet.

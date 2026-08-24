@@ -990,7 +990,7 @@ identity is retained; direct structure and array results reject. A
 typedef-backed global callback may begin with a compatible defined or
 later-defined function designator. The private JIT and fixed-address AOT paths
 write or patch the initialized four-byte data slot before execution. Empty
-`()`, block-static objects, callback arrays, alias chains, recursive signatures,
+`()`, block-static objects, raw callback-array declarators, alias chains, recursive signatures,
 conditional initializers, raw method parameters,
 and `void *` pointers remain outside this retained path. A named raw callback
 file object and direct free-function parameter retain the parsed result,
@@ -1008,12 +1008,15 @@ Nested record and indexed record-array paths keep the field metadata. Raw
 callback field declarators retain the parsed signature. Direct postfix calls
 through raw or typedef-backed fields use typed fixed and variadic cdecl
 conversion, evaluate nested or indexed designators once, and preserve scalar,
-floating, pointer, or SIMD results. Callback arrays, block-static objects,
-alias chains, conditional field values, raw method parameters, aggregate
-results, and recursive signatures remain open. ADR 0321 records typedef-backed
-field storage, ADR 0324 records grouped runtime addresses, and ADR 0325 records
-raw fields and direct field calls. The private callback ABI module passes all
-286 tests. A
+floating, pointer, or SIMD results. Typedef-backed callback arrays on structure
+and class fields retain the signature through indexed stores, named copies,
+and direct calls, and evaluate the index once. Raw callback-array declarators,
+block-static objects, alias chains, conditional field values, raw method
+parameters, aggregate results, and recursive signatures remain open. ADR 0321
+records typedef-backed field storage, ADR 0324 records grouped runtime
+addresses, ADR 0325 records raw fields and direct field calls, and ADR 0328
+records typedef-backed callback field arrays. The private callback ABI module
+passes all 289 tests. A
 code-only AOT fixture emits one program header, keeps code at offset `0x80`, and
 returns 17. The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.

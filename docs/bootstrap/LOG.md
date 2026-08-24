@@ -30067,3 +30067,49 @@ The remaining 17 tracked, non-TempleOS `.c` files are still dormant history,
 fixtures, or host oracles. None has gained active Cupid ownership, so renaming
 them would misstate migration progress. `TempleOS/` remains untouched reference
 material.
+
+## 2026-08-24: retain typedef-backed callback field arrays
+
+Private CupidC now keeps a callback typedef's signature on fixed structure and
+class field arrays. Indexed assignment, named copies, and direct postfix calls
+use the same result, record-identity, fixed-parameter, variadic, cdecl-slot, and
+return rules as scalar callback fields. A side-effecting index is evaluated
+once.
+
+The previous array-erasure negative became a JIT and AOT execution case with
+two mixed-width callbacks. Focused negatives reject incompatible element
+stores and copies, restore compiler state before a valid retry, and give raw
+callback-array declarators a direct unsupported-feature diagnostic. The
+private callback ABI module passes all 289 tests. The kernel object build and
+private four-vCPU feature-14 smoke pass as the runtime gates.
+
+The complete callback module passed in 4.669 seconds, and all 126 GUI terminal
+contracts passed in 0.237 seconds. A `make -j4 all` run with the conventional
+compiler, assembler, linker, and binary-utility variables poisoned rebuilt the
+active OS and Doom cohort and passed the strict CupidDis gate. It stopped only
+because `kernel/kernel.bin` measured 9,291,944 bytes against the earlier
+9,292,276-byte lock. Updating that one measured row let all 14 exact artifact
+checks pass, after which the image builder published this cohort:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,387,712 | `48c61008aaf09cf7d9068e93ce43148ed5577e7e1e5ed1daf981f7cbf0bd62b9` |
+| `kernel/kernel.elf` | 9,514,688 | `7bb3757c556e72c3d720d39c1be71262af45c5bb75cc07ed58080212fbd90b88` |
+| `kernel/kernel.bin` | 9,291,944 | `6f422bf35d2ed3dcc519d43724f909b0957700fd73cf7152188924fe403f8e6d` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `a31ada722b82d86643664eec3313093b33ef2079363adb78b59c4a739607f7e9` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `924f04d91733c672741c1d16213cdb8321bd0bf62c37a1ec6b8a27712c43cf9d` |
+
+A private-image QEMU run booted four `max` i386 CPUs and reported all four
+online at serial line 82. In-OS CupidC compiled `/bin/feature14_simd.cc`, printed
+the callback-field-call marker at line 692, and completed JIT execution at line
+696. The 35,145-byte log at
+`build/bootstrap/feature14-callback-array-qemu.log` has SHA-256
+`974f1b6d13f9caa1358cebc5863bfb7133be15774bc6fc1e201dfb9374c3478d`.
+The private smoke left `cupidos.img` unchanged.
+
+ADR 0328 records the typed array boundary. The checked standalone seeds do not
+contain this private parser, and no owner, object format, host dependency, or
+source suffix changes. `TempleOS/` remains read-only reference material.

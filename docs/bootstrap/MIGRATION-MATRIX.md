@@ -551,7 +551,7 @@ function pointers remain rejected. A syntactic block-local
 `T (*name)(parameters)` declaration retains its fixed types, variadic
 state, and result. Its indirect call reuses the same cdecl conversions and
 4-, 8-, or 16-byte slots, including typed SIMD transport through XMM0. Empty
-`()`, callback arrays, block-static objects, callback alias chains, recursive
+`()`, raw callback-array declarators, block-static objects, callback alias chains, recursive
 signatures, and `void *` forms remain
 signature-erased. A plain function initializer must match the local pointer's result,
 record identity, fixed types, and variadic boundary. An explicit cast opts into
@@ -583,7 +583,9 @@ and method callback parameters. A direct explicit function address keeps the
 same signature and patch behavior as a plain designator. A structure or class
 field declared through the callback typedef or a raw function-pointer
 declarator keeps that signature for checked plain stores, null clearing, named
-copies, and direct postfix calls. Callback arrays, block-static objects, alias
+copies, and direct postfix calls. Typedef-backed callback arrays on structure
+and class fields keep the signature through indexed stores, named copies, and
+direct calls. Raw callback-array declarators, block-static objects, alias
 chains, recursive signatures, aggregate results, raw method parameters, and
 arbitrary computed callbacks remain open. A named raw callback file object and direct
 free-function parameter now
@@ -594,8 +596,9 @@ remain rejected. A
 code-only AOT image still emits one program header with code at offset `0x80`.
 ADR 0319 records the explicit address boundary, ADR 0321 records
 typedef-backed callback fields, ADR 0324 records grouped runtime addresses,
-and ADR 0325 records raw fields and direct field calls. The focused ABI suite
-passes 286 tests. The four-vCPU raw
+ADR 0325 records raw fields and direct field calls, and ADR 0328 records
+typedef-backed callback field arrays. The focused ABI suite passes 289 tests.
+The four-vCPU raw
 callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 Its 32,981-byte log has SHA-256
@@ -647,7 +650,7 @@ and host requirements remain as listed elsewhere in this matrix. Direct
 explicit function addresses use the same typed initialization and patch path.
 Typedef-backed and raw structure and class callback fields retain the signature
 through checked stores, named copies, and direct postfix calls. Conditional
-initializers, callback arrays, block-static objects, alias chains, recursive
+initializers, raw callback-array declarators, block-static objects, alias chains, recursive
 signatures, aggregate results, raw method parameters,
 and arbitrary computed callbacks remain open. ADR 0313 records the
 fixed-address initialized-data rule, ADR 0315 records raw file objects and

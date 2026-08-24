@@ -149,11 +149,14 @@ typedef keeps the signature for checked stores, named copies, null checks, and
 clearing. Nested record members and indexed record-array members use the same
 path. Raw callback field declarators retain the parsed signature. Direct
 postfix calls through raw or typedef-backed fields use typed fixed and variadic
-cdecl conversion and evaluate the member designator once. Conditional field
-values, alias chains, callback arrays, block-static objects, recursive callback
-signatures, raw method parameters, aggregate results, and arbitrary computed
-callback expressions remain outside this typed path. ADR 0325 records the raw
-field and direct call boundary.
+cdecl conversion and evaluate the member designator once. Typedef-backed
+callback arrays on structure and class fields retain the signature through
+indexed stores, named copies, and direct calls. Each index is evaluated once.
+Conditional field values, alias chains, raw callback-array declarators,
+block-static objects, recursive callback signatures, raw method parameters,
+aggregate results, and arbitrary computed callback expressions remain outside
+this typed path. ADR 0325 records the raw field and direct call boundary. ADR
+0328 records typedef-backed callback field arrays.
 
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
@@ -304,7 +307,7 @@ callback, and null clears it. A structure or class field declared through the
 typedef or a raw function-pointer declarator keeps the signature through
 checked stores, named copies, null checks, clearing, and direct postfix calls.
 Direct, nested, and indexed record-array member paths share that behavior and
-evaluate the selected designator once. Empty `()`, callback arrays,
+evaluate the selected designator once. Empty `()`, raw callback-array declarators,
 block-static objects, alias chains, recursive callback signatures, and `void *`
 pointers still erase it. Direct structure and array callback results are
 rejected; record-pointer results retain their record identity. Named SIMD
@@ -345,16 +348,19 @@ Raw and typedef-backed callback fields retain their signatures and support
 direct postfix calls. The call path covers fixed and variadic arguments,
 represented scalar, pointer, floating, and SIMD results, and nested or indexed
 designators evaluated once. A real field takes precedence over same-named
-method sugar. Conditional callback expressions, callback arrays, block-static
+method sugar. Typedef-backed callback field arrays retain the signature through
+indexed stores, named copies, and direct calls, with each index evaluated once.
+Conditional callback expressions, raw callback-array declarators, block-static
 callbacks, alias chains, raw method parameters, and aggregate callback results
 remain unsupported. The raw signature pool accepts 32 distinct parameter
 signatures. Runtime initialization and assignment accept `&(function)` and
 nested grouping. A 33rd distinct signature receives
 `too many raw function-pointer signatures`, and a valid retry compiles and runs
-in the same state. The private callback ABI module passes all 286 tests. ADR
+in the same state. The private callback ABI module passes all 289 tests. ADR
 0315 records the raw file and parameter boundary, ADR 0321 records the
 typedef-backed field boundary, ADR 0324 records grouped runtime addresses, and
-ADR 0325 records raw fields and direct postfix field calls.
+ADR 0325 records raw fields and direct postfix field calls, and ADR 0328
+records typedef-backed callback field arrays.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations
@@ -2781,8 +2787,10 @@ When the parser encounters a call to an undefined function, it emits a placehold
   objects. Structure and class fields declared through those typedefs or raw
   function-pointer declarators retain the signature for checked stores, named
   copies, null checks, clearing, and direct postfix calls. Nested and indexed
-  record-array member paths evaluate the selected designator once. Callback
-  alias chains, block-static objects, callback arrays, recursive callback
+  record-array member paths evaluate the selected designator once.
+  Typedef-backed callback field arrays retain the signature through indexed
+  stores, named copies, and direct calls. Callback alias chains, block-static
+  objects, raw callback-array declarators, recursive callback
   signatures, aggregate results, and arbitrary computed callback expressions
   remain unrepresented. Static callback storage accepts null or a compatible
   defined or later-defined function designator.
