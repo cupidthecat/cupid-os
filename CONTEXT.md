@@ -1175,6 +1175,24 @@ and region metadata. The `parity_gfx2d.asm` fixture carries both
 by the demo and the exports in `kernel/lang/as.cc`.
 _Avoid_: Cupid ASM when referring to the assembler
 
+**Kernel CupidASM artifact request**:
+The typed in-OS adapter request for raw binary, unlinked ELF32 relocatable, or
+linked executable output. All three forms use the shared CupidASM core. A raw
+result carries borrowed code16, code32, and data ranges plus its origin, and
+the adapter can render those ranges as `cupid.raw-map.v1`. An ELF32 result
+keeps its sections, undefined symbols, and relocations for a later link. The
+executable form selects `main` or `_start` and passes the object to in-kernel
+CupidLD. Raw image and map publication writes both private candidates before
+moving either target and restores previous targets after a command failure.
+Matching pair-level commit records sit beside the artifact and map. Each names
+the exact backup and marker paths from the finished publication, so a later
+command can finish deferred cleanup after reusing either member. Without a
+valid record, retained backups belong to an interrupted publication and must
+be restored.
+This rollback pair is not crash-atomic and does not lock concurrent shell
+publishers. ADR 0337 records the boundary.
+_Avoid_: separate kernel assembler, inferred byte-only mode map, crash-safe pair
+
 **Cupid ASM alignment statement**:
 The `align POWER_OF_TWO[, FILL_BYTE]` statement. In raw output it aligns the
 absolute `ORG` address. In ELF32 objects it aligns the current section offset

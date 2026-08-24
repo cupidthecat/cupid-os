@@ -19,6 +19,8 @@
 
 void as_jit(const char *path);
 void as_aot(const char *src_path, const char *out_path);
+void as_write_artifact(const char *src_path, const char *out_path,
+                       const char *map_path, uint32_t format);
 void as_kernel_selftest(void);
 
 #endif

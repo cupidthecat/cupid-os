@@ -62,6 +62,26 @@ class CupidAsmKernelElfContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "errors: ok\n")
 
+    def test_kernel_adapter_returns_mixed_mode_raw_bytes_and_map(self):
+        result = self._run("artifact-raw")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "artifact-raw: ok\n")
+
+    def test_kernel_adapter_returns_unlinked_relocatable_object(self):
+        result = self._run("artifact-relocatable")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "artifact-relocatable: ok\n")
+
+    def test_kernel_artifact_request_and_command_errors_recover(self):
+        result = self._run("artifact-errors")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "artifact-errors: ok\n")
+
+    def test_kernel_artifact_pair_publication_preserves_old_outputs(self):
+        result = self._run("artifact-publication")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "artifact-publication: ok\n")
+
 
 if __name__ == "__main__":
     unittest.main()

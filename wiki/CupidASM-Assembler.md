@@ -1,9 +1,9 @@
 # CupidASM Assembler
 
-CupidASM is an x86-32 assembler built into the Cupid OS kernel. It assembles
-Intel-syntax `.asm` files into native machine code for immediate execution or
-into ELF32 relocatable objects for AOT linking. JIT programs run in ring 0 and
-can call the kernel directly.
+CupidASM is Cupid OS's shared 16/32-bit x86 assembler. The kernel command can
+run fixed images immediately, write raw binaries with typed range maps, keep
+an ELF32 relocatable object for a later link, or ask CupidLD for a linked
+executable. JIT programs run in ring 0 and can call the kernel directly.
 
 ---
 
@@ -12,10 +12,10 @@ can call the kernel directly.
 | Feature | Details |
 |---------|---------|
 | Syntax | Intel (NASM-style) |
-| Target | x86 32-bit flat model |
+| Target | 16/32-bit x86 raw images and i386 ELF32 |
 | Assembler type | Single-pass with forward-reference patch table |
 | Calling convention | cdecl |
-| Execution modes | JIT (in-memory) and AOT (ELF32 binary) |
+| Output modes | JIT, raw binary plus map, ELF32 `ET_REL`, and linked ELF32 |
 | Privilege level | Ring 0 - full system access |
 | Source extension | `.asm` |
 | Code size limit | 1 MB |
@@ -45,9 +45,9 @@ You can also run `.asm` files directly with `./`:
 > ./demos/hello.asm
 ```
 
-### AOT Mode - Assemble to ELF Binary
+### Artifact Output
 
-Using the `as` command with `-o`:
+The older `as -o` form still writes a linked executable:
 
 ```
 > as -o hello demos/hello.asm
@@ -63,6 +63,31 @@ Or using the dedicated `cupidasm` command:
 
 If `-o` is omitted with `cupidasm`, the output name is derived from the source file (e.g., `hello.asm` -> `hello`).
 
+Select an artifact explicitly with `-f`:
+
+```text
+> as -f bin --map mixed.map -o mixed.bin /home/mixed.asm
+> as -f elf32 -o module.o /home/module.asm
+> as -f exec -o hello demos/hello.asm
+```
+
+`bin` writes the flat bytes and requires `--map`. The map uses
+`cupid.raw-map.v1` and records the origin plus each code16, code32, or data
+range. `elf32` writes an unlinked i386 `ET_REL` file, so undefined symbols and
+relocations remain available to a later link. It does not require `main` or
+`_start`. `exec` uses the existing entry selection and in-kernel CupidLD link.
+
+The same options work with `cupidasm`. Source-only `cupidasm`, both historical
+`-o` orders, and `as -o` continue to select `exec`. A raw image and map are
+prepared together. An explicit `-f` requires `-o`. A failed command write or
+replacement restores the previous pair. If restoration fails, the backup is
+kept for the next command to recover. This protects one running command; the
+pair writes the same commit record beside both outputs. That record names its
+private backups and markers, so failed cleanup remains safe when a later
+command reuses either path. Partial or unsafe records are rejected. The VFS
+does not yet provide a crash-atomic two-file transaction or a
+concurrent-writer lock. ADR 0337 records this boundary.
+
 For the in-kernel `as -o` path, CupidASM emits one ELF32 relocatable object.
 It applies the caller's ordered `main` and `_start` entry candidates, publishes
 the selected spelling, and promotes only that code label to a global symbol.
@@ -77,7 +102,9 @@ The complete smoke passed in 79.661 seconds. ADR 0276 records this split.
 
 ## Program Structure
 
-CupidASM programs use NASM-style section directives and require a `main:` (or `_start:`) label as the entry point.
+CupidASM programs use NASM-style section directives. JIT and linked
+executables require a `main:` or `_start:` entry label. Raw and unlinked
+relocatable output do not.
 
 ```asm
 section .data

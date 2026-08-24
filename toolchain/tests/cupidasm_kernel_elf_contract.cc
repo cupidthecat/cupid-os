@@ -23,6 +23,21 @@ static const ctool_elf32_section_t *find_section(
   return (const ctool_elf32_section_t *)0;
 }
 
+static const ctool_elf32_symbol_t *find_symbol(
+    const ctool_elf32_object_t *object, const char *name) {
+  ctool_string_t expected = ctool_string(name);
+  ctool_u32 index;
+  for (index = 0u; index < object->symbol_count; index++) {
+    const ctool_elf32_symbol_t *symbol = &object->symbols[index];
+    if (symbol->name.size == expected.size &&
+        (expected.size == 0u ||
+         memcmp(symbol->name.data, expected.data, expected.size) == 0)) {
+      return symbol;
+    }
+  }
+  return (const ctool_elf32_symbol_t *)0;
+}
+
 static int link_result_is_zero(const ctool_ld_result_t *result) {
   const ctool_u8 *bytes = (const ctool_u8 *)result;
   ctool_u32 index;
@@ -57,8 +72,9 @@ static int run_linked_object(void) {
   ctool_source_t executable_source;
   ctool_asm_request_t assembly_request;
   ctool_asm_result_t assembly_result;
+  as_artifact_request_t artifact_request;
+  as_artifact_result_t artifact_result;
   ctool_ld_result_t link_result;
-  ctool_ld_result_t repeat_result;
   ctool_elf32_object_t executable;
   const ctool_elf32_section_t *text;
   const ctool_elf32_section_t *data;
@@ -169,12 +185,22 @@ static int run_linked_object(void) {
   status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
                                  &repeat_output);
   if (status == CTOOL_OK) {
-    status = as_elf32_exec_link(job, &assembly_result, 0x01a00000u,
-                                0x00200000u, repeat_output,
-                                &repeat_result);
+    (void)memset(&artifact_request, 0, sizeof(artifact_request));
+    artifact_request.format = AS_ARTIFACT_FORMAT_EXEC;
+    artifact_request.initial_mode = CTOOL_X86_MODE_32;
+    artifact_request.definitions = &definition;
+    artifact_request.definition_count = 1u;
+    artifact_request.entry_candidates = entries;
+    artifact_request.entry_candidate_count = 2u;
+    artifact_request.executable_text_address = 0x01a00000u;
+    artifact_request.executable_maximum_span = 0x00200000u;
+    status = as_artifact_assemble(job, &assembly_source, &artifact_request,
+                                  repeat_output, &artifact_result);
   }
   if (status != CTOOL_OK ||
-      memcmp(&repeat_result, &link_result, sizeof(link_result)) != 0 ||
+      artifact_result.format != AS_ARTIFACT_FORMAT_EXEC ||
+      artifact_result.entry_address != link_result.entry ||
+      memcmp(&artifact_result.link, &link_result, sizeof(link_result)) != 0 ||
       ctool_buffer_view(repeat_output).size != first_image.size ||
       memcmp(ctool_buffer_view(repeat_output).data, first_image.data,
              first_image.size) != 0) {
@@ -706,6 +732,950 @@ failed:
   return 1;
 }
 
+static int run_artifact_raw(void) {
+  static const char source_text[] =
+      "BITS 16\n"
+      "ORG 0x8000\n"
+      "start: mov ax, 0x1234\n"
+      "db 0xaa, 0xbb\n"
+      "BITS 32\n"
+      "mov eax, 0x12345678\n"
+      "ret\n";
+  static const ctool_u8 expected_bytes[] = {
+      0xb8u, 0x34u, 0x12u, 0xaau, 0xbbu,
+      0xb8u, 0x78u, 0x56u, 0x34u, 0x12u, 0xc3u};
+  static const char expected_map[] =
+      "cupid.raw-map.v1\n"
+      "size 11\n"
+      "base 0x00008000\n"
+      "range 0x00000000 code16\n"
+      "range 0x00000003 data\n"
+      "range 0x00000005 code32\n";
+  static const char empty_source_text[] =
+      "ORG 0x9000\n"
+      "VALUE equ 1\n";
+  static const char expected_empty_map[] =
+      "cupid.raw-map.v1\n"
+      "size 0\n"
+      "base 0x00009000\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_buffer_t *map_output = (ctool_buffer_t *)0;
+  ctool_source_t source;
+  as_artifact_request_t request;
+  as_artifact_result_t result;
+  ctool_status_t status;
+
+  status = ctool_host_adapter_init(&adapter, ".");
+  if (status == CTOOL_OK) {
+    config = ctool_host_job_config(&adapter, ctool_default_limits());
+    status = ctool_job_open(&config, &job);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 32u, config.limits.output_bytes,
+                                   &output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 64u, config.limits.output_bytes,
+                                   &map_output);
+  }
+  if (status != CTOOL_OK) {
+    if (output != (ctool_buffer_t *)0) ctool_buffer_close(output);
+    if (job != (ctool_job_t *)0) ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/mixed-kernel.asm");
+  source.contents = ctool_bytes(
+      source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  (void)memset(&request, 0, sizeof(request));
+  request.format = AS_ARTIFACT_FORMAT_BIN;
+  request.initial_mode = CTOOL_X86_MODE_32;
+  status = as_artifact_assemble(job, &source, &request, output, &result);
+  if (status == CTOOL_OK) {
+    status = as_artifact_render_raw_map(&result, map_output);
+  }
+  if (status != CTOOL_OK || result.format != AS_ARTIFACT_FORMAT_BIN ||
+      result.bytes.size != (ctool_u32)sizeof(expected_bytes) ||
+      memcmp(result.bytes.data, expected_bytes, sizeof(expected_bytes)) != 0 ||
+      result.raw_origin != 0x8000u || result.raw_range_count != 3u ||
+      result.raw_ranges[0].offset != 0u ||
+      result.raw_ranges[0].kind != CTOOL_ASM_RAW_RANGE_CODE16 ||
+      result.raw_ranges[1].offset != 3u ||
+      result.raw_ranges[1].kind != CTOOL_ASM_RAW_RANGE_DATA ||
+      result.raw_ranges[2].offset != 5u ||
+      result.raw_ranges[2].kind != CTOOL_ASM_RAW_RANGE_CODE32 ||
+      ctool_buffer_view(map_output).size !=
+          (ctool_u32)(sizeof(expected_map) - 1u) ||
+      memcmp(ctool_buffer_view(map_output).data, expected_map,
+             sizeof(expected_map) - 1u) != 0) {
+    (void)fprintf(stderr, "kernel raw artifact differs (%s)\n",
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(map_output);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_buffer_clear(map_output);
+  ctool_buffer_clear(output);
+  source.contents = ctool_bytes(
+      empty_source_text, (ctool_u32)(sizeof(empty_source_text) - 1u));
+  status = as_artifact_assemble(job, &source, &request, output, &result);
+  if (status == CTOOL_OK) {
+    status = as_artifact_render_raw_map(&result, map_output);
+  }
+  if (status != CTOOL_OK || result.bytes.size != 0u ||
+      result.raw_ranges != (const ctool_asm_raw_range_t *)0 ||
+      result.raw_range_count != 0u || result.raw_origin != 0x9000u ||
+      ctool_buffer_view(map_output).size !=
+          (ctool_u32)(sizeof(expected_empty_map) - 1u) ||
+      memcmp(ctool_buffer_view(map_output).data, expected_empty_map,
+             sizeof(expected_empty_map) - 1u) != 0) {
+    (void)fprintf(stderr, "empty kernel raw artifact differs (%s)\n",
+                  ctool_status_name(status));
+    ctool_buffer_close(map_output);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_buffer_close(map_output);
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+  (void)puts("artifact-raw: ok");
+  return 0;
+}
+
+static int run_artifact_relocatable(void) {
+  static const char source_text[] =
+      "BITS 32\n"
+      "extern target\n"
+      "global main\n"
+      "section .text\n"
+      "main: call target\n"
+      "ret\n"
+      "section .data\n"
+      "pointer: dd target\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_source_t source;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  as_artifact_request_t request;
+  as_artifact_result_t result;
+  const ctool_elf32_section_t *text;
+  const ctool_elf32_section_t *data;
+  const ctool_elf32_symbol_t *target;
+  ctool_status_t status;
+
+  status = ctool_host_adapter_init(&adapter, ".");
+  if (status == CTOOL_OK) {
+    config = ctool_host_job_config(&adapter, ctool_default_limits());
+    status = ctool_job_open(&config, &job);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                   &output);
+  }
+  if (status != CTOOL_OK) {
+    if (job != (ctool_job_t *)0) ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/kernel-relocatable.asm");
+  source.contents = ctool_bytes(
+      source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  (void)memset(&request, 0, sizeof(request));
+  request.format = AS_ARTIFACT_FORMAT_ELF32;
+  request.initial_mode = CTOOL_X86_MODE_32;
+  status = as_artifact_assemble(job, &source, &request, output, &result);
+  object_source.path.text = ctool_string("/kernel-relocatable.o");
+  object_source.contents = ctool_buffer_view(output);
+  (void)memset(&object, 0, sizeof(object));
+  if (status == CTOOL_OK) {
+    status = ctool_elf32_read(job, &object_source, &object);
+  }
+  text = find_section(&object, ".text");
+  data = find_section(&object, ".data");
+  target = find_symbol(&object, "target");
+  if (status != CTOOL_OK || result.format != AS_ARTIFACT_FORMAT_ELF32 ||
+      result.bytes.data != ctool_buffer_view(output).data ||
+      result.bytes.size != ctool_buffer_view(output).size ||
+      result.entry_symbol.data != (const char *)0 ||
+      result.entry_symbol.size != 0u ||
+      result.entry_address != 0u || result.raw_ranges != (const ctool_asm_raw_range_t *)0 ||
+      object.file_type != CTOOL_ELF32_ET_REL ||
+      object.relocation_count != 2u ||
+      target == (const ctool_elf32_symbol_t *)0 ||
+      target->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      target->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      target->section_file_index != CTOOL_ELF32_NO_SECTION ||
+      text == (const ctool_elf32_section_t *)0 || text->contents.size != 6u ||
+      data == (const ctool_elf32_section_t *)0 || data->contents.size != 4u) {
+    (void)fprintf(stderr, "kernel relocatable artifact differs (%s)\n",
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+  (void)puts("artifact-relocatable: ok");
+  return 0;
+}
+
+static int result_is_zero(const as_artifact_result_t *result) {
+  const ctool_u8 *bytes = (const ctool_u8 *)result;
+  ctool_u32 index;
+  for (index = 0u; index < (ctool_u32)sizeof(*result); index++) {
+    if (bytes[index] != 0u) return 0;
+  }
+  return 1;
+}
+
+static int run_artifact_errors(void) {
+  static const char source_text[] = "BITS 32\nmain: ret\n";
+  static const ctool_u8 sentinel[] = {0x51u, 0x52u};
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_buffer_t *map_output = (ctool_buffer_t *)0;
+  ctool_source_t source;
+  ctool_string_t entry;
+  as_artifact_request_t request;
+  as_artifact_result_t result;
+  as_command_t command;
+  ctool_status_t status;
+
+  status = ctool_host_adapter_init(&adapter, ".");
+  if (status == CTOOL_OK) {
+    config = ctool_host_job_config(&adapter, ctool_default_limits());
+    status = ctool_job_open(&config, &job);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 32u, config.limits.output_bytes,
+                                   &output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 32u, 40u, &map_output);
+  }
+  if (status != CTOOL_OK) {
+    if (output != (ctool_buffer_t *)0) ctool_buffer_close(output);
+    if (job != (ctool_job_t *)0) ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/artifact-errors.asm");
+  source.contents = ctool_bytes(
+      source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  entry = ctool_string("main");
+  (void)memset(&request, 0, sizeof(request));
+  request.format = (as_artifact_format_t)99;
+  request.initial_mode = CTOOL_X86_MODE_32;
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = as_artifact_assemble(job, &source, &request, output, &result);
+  if (status != CTOOL_ERR_INVALID_ARGUMENT ||
+      ctool_buffer_view(output).size != 0u || !result_is_zero(&result)) {
+    (void)fprintf(stderr, "invalid artifact format rollback differs\n");
+    goto failed;
+  }
+
+  request.format = AS_ARTIFACT_FORMAT_EXEC;
+  request.entry_candidates = &entry;
+  request.entry_candidate_count = 1u;
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = as_artifact_assemble(job, &source, &request, output, &result);
+  if (status != CTOOL_ERR_INVALID_ARGUMENT ||
+      ctool_buffer_view(output).size != 0u || !result_is_zero(&result)) {
+    (void)fprintf(stderr, "missing exec layout rollback differs\n");
+    goto failed;
+  }
+
+  request.format = AS_ARTIFACT_FORMAT_BIN;
+  request.entry_candidates = (const ctool_string_t *)0;
+  request.entry_candidate_count = 0u;
+  status = ctool_buffer_append(output,
+                               ctool_bytes(sentinel, sizeof(sentinel)));
+  (void)memset(&result, 0xa5, sizeof(result));
+  if (status == CTOOL_OK) {
+    status = as_artifact_assemble(job, &source, &request, output, &result);
+  }
+  if (status != CTOOL_ERR_INVALID_ARGUMENT ||
+      ctool_buffer_view(output).size != sizeof(sentinel) ||
+      memcmp(ctool_buffer_view(output).data, sentinel, sizeof(sentinel)) != 0 ||
+      !result_is_zero(&result)) {
+    (void)fprintf(stderr, "nonempty artifact output preservation differs\n");
+    goto failed;
+  }
+  ctool_buffer_clear(output);
+  status = as_artifact_assemble(job, &source, &request, output, &result);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "artifact recovery differs (%s)\n",
+                  ctool_status_name(status));
+    goto failed;
+  }
+  status = as_artifact_render_raw_map(&result, map_output);
+  if (status != CTOOL_ERR_LIMIT || ctool_buffer_view(map_output).size != 0u) {
+    (void)fprintf(stderr, "raw map rollback differs (%s)\n",
+                  ctool_status_name(status));
+    goto failed;
+  }
+
+  status = as_command_parse(AS_COMMAND_AS,
+                            ctool_string("-f bin -o /out /in.asm"),
+                            &command);
+  if (status != CTOOL_ERR_INPUT ||
+      as_command_parse(AS_COMMAND_AS,
+                       ctool_string("-f bad -o /out /in.asm"),
+                       &command) != CTOOL_ERR_INPUT ||
+      as_command_parse(AS_COMMAND_CUPIDASM,
+                       ctool_string("-f elf32 --map /map /in.asm -o /out"),
+                       &command) != CTOOL_ERR_INPUT ||
+      as_command_parse(AS_COMMAND_CUPIDASM,
+                       ctool_string("-f bin --map /out -o /out /in.asm"),
+                       &command) != CTOOL_ERR_INPUT ||
+      as_command_parse(AS_COMMAND_CUPIDASM,
+                       ctool_string("-f elf32 /in.asm"),
+                       &command) != CTOOL_ERR_INPUT) {
+    (void)fprintf(stderr, "invalid artifact command parsing differs\n");
+    goto failed;
+  }
+  if (as_command_parse(AS_COMMAND_AS, ctool_string("-o /out /in.asm"),
+                       &command) != CTOOL_OK ||
+      command.kind != AS_COMMAND_ARTIFACT ||
+      command.format != AS_ARTIFACT_FORMAT_EXEC) {
+    (void)fprintf(stderr, "as executable compatibility parsing differs\n");
+    goto failed;
+  }
+  if (as_command_parse(AS_COMMAND_AS, ctool_string("/in.asm"),
+                       &command) != CTOOL_OK ||
+      command.kind != AS_COMMAND_JIT) {
+    (void)fprintf(stderr, "as JIT compatibility parsing differs\n");
+    goto failed;
+  }
+  if (as_command_parse(AS_COMMAND_CUPIDASM,
+                       ctool_string("-f bin --map /map -o /out /in.asm"),
+                       &command) != CTOOL_OK ||
+      command.kind != AS_COMMAND_ARTIFACT ||
+      command.format != AS_ARTIFACT_FORMAT_BIN || command.map.size != 4u) {
+    (void)fprintf(stderr, "raw artifact command parsing differs\n");
+    goto failed;
+  }
+  if (as_command_parse(AS_COMMAND_CUPIDASM,
+                       ctool_string("/in.asm -f elf32 -o /out"),
+                       &command) != CTOOL_OK ||
+      command.kind != AS_COMMAND_ARTIFACT ||
+      command.format != AS_ARTIFACT_FORMAT_ELF32) {
+    (void)fprintf(stderr, "relocatable artifact command parsing differs\n");
+    goto failed;
+  }
+  if (as_command_parse(AS_COMMAND_CUPIDASM,
+                       ctool_string("/in.asm -o /out"), &command) != CTOOL_OK ||
+      command.kind != AS_COMMAND_ARTIFACT ||
+      command.format != AS_ARTIFACT_FORMAT_EXEC) {
+    (void)fprintf(stderr, "cupidasm output compatibility parsing differs\n");
+    goto failed;
+  }
+  if (as_command_parse(AS_COMMAND_CUPIDASM, ctool_string("/in.asm"),
+                       &command) != CTOOL_OK ||
+      command.kind != AS_COMMAND_ARTIFACT ||
+      command.format != AS_ARTIFACT_FORMAT_EXEC || command.output.size != 0u) {
+    (void)fprintf(stderr, "cupidasm default output parsing differs\n");
+    goto failed;
+  }
+
+  ctool_buffer_close(map_output);
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+  (void)puts("artifact-errors: ok");
+  return 0;
+
+failed:
+  ctool_buffer_close(map_output);
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+  return 1;
+}
+
+#define FAKE_FILE_COUNT 16u
+#define FAKE_FILE_BYTES 4096u
+
+typedef struct {
+  const char *path;
+  ctool_u8 bytes[FAKE_FILE_BYTES];
+  ctool_u32 size;
+  ctool_bool exists;
+} fake_file_t;
+
+typedef struct {
+  fake_file_t files[FAKE_FILE_COUNT];
+  ctool_u32 commit_inspect_count;
+  ctool_u32 fail_commit_inspect_at;
+  ctool_u32 write_count;
+  ctool_u32 fail_write_at;
+  ctool_u32 write_then_fail_at;
+  ctool_u32 write_prefix_then_fail_at;
+  ctool_u32 replace_count;
+  ctool_u32 fail_replace_at;
+  ctool_u32 fail_replace_again_at;
+  ctool_u32 remove_count;
+  ctool_u32 fail_remove_at;
+} fake_publication_t;
+
+static fake_file_t *fake_find(fake_publication_t *store,
+                              ctool_string_t path) {
+  ctool_u32 index;
+  for (index = 0u; index < FAKE_FILE_COUNT; index++) {
+    const char *name = store->files[index].path;
+    if (name != (const char *)0 && strlen(name) == path.size &&
+        memcmp(name, path.data, path.size) == 0) {
+      return &store->files[index];
+    }
+  }
+  return (fake_file_t *)0;
+}
+
+static ctool_status_t fake_inspect(void *context, ctool_string_t path,
+                                   ctool_bool *exists_out) {
+  fake_publication_t *store = (fake_publication_t *)context;
+  fake_file_t *file = fake_find(store, path);
+  if (file == (fake_file_t *)0 || exists_out == (ctool_bool *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  if (file == &store->files[6] || file == &store->files[7] ||
+      file == &store->files[8]) {
+    store->commit_inspect_count++;
+    if (store->commit_inspect_count == store->fail_commit_inspect_at) {
+      return CTOOL_ERR_IO;
+    }
+  }
+  *exists_out = file->exists;
+  return CTOOL_OK;
+}
+
+static ctool_status_t fake_read(void *context, ctool_string_t path,
+                                ctool_mut_bytes_t destination,
+                                ctool_u32 *size_out) {
+  fake_file_t *file = fake_find((fake_publication_t *)context, path);
+  if (file == (fake_file_t *)0 || file->exists == CTOOL_FALSE ||
+      destination.data == (ctool_u8 *)0 || size_out == (ctool_u32 *)0 ||
+      file->size > destination.size) {
+    return CTOOL_ERR_IO;
+  }
+  if (file->size != 0u) {
+    (void)memcpy(destination.data, file->bytes, file->size);
+  }
+  *size_out = file->size;
+  return CTOOL_OK;
+}
+
+static ctool_status_t fake_write_new(void *context, ctool_string_t path,
+                                     ctool_bytes_t contents) {
+  fake_publication_t *store = (fake_publication_t *)context;
+  fake_file_t *file = fake_find(store, path);
+  store->write_count++;
+  if (store->write_count == store->fail_write_at) return CTOOL_ERR_IO;
+  if (file == (fake_file_t *)0 || file->exists == CTOOL_TRUE ||
+      contents.size > FAKE_FILE_BYTES) {
+    return CTOOL_ERR_IO;
+  }
+  if (store->write_count == store->write_prefix_then_fail_at) {
+    ctool_u32 prefix = contents.size / 2u;
+    if (prefix != 0u) (void)memcpy(file->bytes, contents.data, prefix);
+    file->size = prefix;
+    file->exists = CTOOL_TRUE;
+    return CTOOL_ERR_IO;
+  }
+  if (contents.size != 0u) {
+    (void)memcpy(file->bytes, contents.data, contents.size);
+  }
+  file->size = contents.size;
+  file->exists = CTOOL_TRUE;
+  if (store->write_count == store->write_then_fail_at) return CTOOL_ERR_IO;
+  return CTOOL_OK;
+}
+
+static ctool_status_t fake_replace(void *context, ctool_string_t from,
+                                   ctool_string_t to) {
+  fake_publication_t *store = (fake_publication_t *)context;
+  fake_file_t *source = fake_find(store, from);
+  fake_file_t *destination = fake_find(store, to);
+  store->replace_count++;
+  if (store->replace_count == store->fail_replace_at ||
+      store->replace_count == store->fail_replace_again_at) {
+    return CTOOL_ERR_IO;
+  }
+  if (source == (fake_file_t *)0 || destination == (fake_file_t *)0 ||
+      source->exists == CTOOL_FALSE) {
+    return CTOOL_ERR_IO;
+  }
+  (void)memcpy(destination->bytes, source->bytes, source->size);
+  destination->size = source->size;
+  destination->exists = CTOOL_TRUE;
+  source->size = 0u;
+  source->exists = CTOOL_FALSE;
+  return CTOOL_OK;
+}
+
+static ctool_status_t fake_remove(void *context, ctool_string_t path) {
+  fake_publication_t *store = (fake_publication_t *)context;
+  fake_file_t *file = fake_find(store, path);
+  store->remove_count++;
+  if (store->remove_count == store->fail_remove_at) return CTOOL_ERR_IO;
+  if (file == (fake_file_t *)0) return CTOOL_ERR_INVALID_ARGUMENT;
+  file->size = 0u;
+  file->exists = CTOOL_FALSE;
+  return CTOOL_OK;
+}
+
+static void fake_reset(fake_publication_t *store) {
+  static const char *paths[FAKE_FILE_COUNT] = {
+      "/out", "/out.new", "/out.cupid-as-old", "/map",
+      "/map.new", "/map.cupid-as-old", "/map.cupid-as-done",
+      "/map2.cupid-as-done", "/out.cupid-as-done",
+      "/map2", "/map2.new", "/map2.cupid-as-old",
+      "/out2", "/out2.new", "/out2.cupid-as-old",
+      "/out2.cupid-as-done"};
+  static const char old_output[] = "old-output";
+  static const char old_map[] = "old-map";
+  ctool_u32 index;
+  (void)memset(store, 0, sizeof(*store));
+  for (index = 0u; index < FAKE_FILE_COUNT; index++) {
+    store->files[index].path = paths[index];
+  }
+  (void)memcpy(store->files[0].bytes, old_output, sizeof(old_output) - 1u);
+  store->files[0].size = (ctool_u32)(sizeof(old_output) - 1u);
+  store->files[0].exists = CTOOL_TRUE;
+  (void)memcpy(store->files[3].bytes, old_map, sizeof(old_map) - 1u);
+  store->files[3].size = (ctool_u32)(sizeof(old_map) - 1u);
+  store->files[3].exists = CTOOL_TRUE;
+}
+
+static int fake_has(fake_publication_t *store, ctool_u32 index,
+                    const char *text) {
+  ctool_u32 size = (ctool_u32)strlen(text);
+  return store->files[index].exists == CTOOL_TRUE &&
+         store->files[index].size == size &&
+         memcmp(store->files[index].bytes, text, size) == 0;
+}
+
+static void fake_seed_commit_record(fake_publication_t *store,
+                                    const ctool_u8 *backup,
+                                    ctool_u32 backup_size) {
+  static const ctool_u8 magic[8] = {'C', 'U', 'P', 'I', 'D', 'A', 'S', 1u};
+  static const char commit[] = "/out.cupid-as-done";
+  fake_file_t *file = &store->files[8];
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  for (index = 0u; index < 8u; index++) file->bytes[cursor++] = magic[index];
+  file->bytes[cursor++] = 1u;
+  file->bytes[cursor++] = 0u;
+  file->bytes[cursor++] = 0u;
+  file->bytes[cursor++] = 0u;
+  file->bytes[cursor++] = (ctool_u8)backup_size;
+  file->bytes[cursor++] = 0u;
+  file->bytes[cursor++] = 0u;
+  file->bytes[cursor++] = 0u;
+  for (index = 0u; index < backup_size; index++) {
+    file->bytes[cursor++] = backup[index];
+  }
+  file->bytes[cursor++] = 0u;
+  file->bytes[cursor++] = (ctool_u8)(sizeof(commit) - 1u);
+  file->bytes[cursor++] = 0u;
+  file->bytes[cursor++] = 0u;
+  file->bytes[cursor++] = 0u;
+  for (index = 0u; index < (ctool_u32)(sizeof(commit) - 1u); index++) {
+    file->bytes[cursor++] = (ctool_u8)commit[index];
+  }
+  file->bytes[cursor++] = 0u;
+  file->size = cursor;
+  file->exists = CTOOL_TRUE;
+}
+
+static void fake_make_long_publication_paths(char *target, char *backup,
+                                             char *commit, char fill) {
+  static const char backup_suffix[] = ".cupid-as-old";
+  static const char commit_suffix[] = ".cupid-as-done";
+  ctool_u32 index;
+  target[0] = '/';
+  for (index = 1u; index < 496u; index++) target[index] = fill;
+  target[496] = '\0';
+  for (index = 0u; index < 496u; index++) {
+    backup[index] = target[index];
+    commit[index] = target[index];
+  }
+  for (index = 0u; index < (ctool_u32)sizeof(backup_suffix); index++) {
+    backup[496u + index] = backup_suffix[index];
+  }
+  for (index = 0u; index < (ctool_u32)sizeof(commit_suffix); index++) {
+    commit[496u + index] = commit_suffix[index];
+  }
+}
+
+static int run_artifact_publication(void) {
+  static const ctool_u8 output_bytes[] = "new-output";
+  static const ctool_u8 map_bytes[] = "new-map";
+  static char long_output[512];
+  static char long_output_backup[512];
+  static char long_output_commit[512];
+  static char long_map[512];
+  static char long_map_backup[512];
+  static char long_map_commit[512];
+  ctool_u8 publication_scratch[512u * 4u + 32u];
+  fake_publication_t store;
+  as_artifact_publication_ops_t ops;
+  as_artifact_publication_request_t request;
+  ctool_status_t status;
+
+  (void)memset(&ops, 0, sizeof(ops));
+  ops.context = &store;
+  ops.inspect = fake_inspect;
+  ops.read = fake_read;
+  ops.write_new = fake_write_new;
+  ops.replace = fake_replace;
+  ops.remove = fake_remove;
+  (void)memset(&request, 0, sizeof(request));
+  request.artifact.target = ctool_string("/out");
+  request.artifact.candidate = ctool_string("/out.new");
+  request.artifact.backup = ctool_string("/out.cupid-as-old");
+  request.artifact.commit = ctool_string("/out.cupid-as-done");
+  request.map.target = ctool_string("/map");
+  request.map.candidate = ctool_string("/map.new");
+  request.map.backup = ctool_string("/map.cupid-as-old");
+  request.map.commit = ctool_string("/map.cupid-as-done");
+  request.scratch.data = publication_scratch;
+  request.scratch.size = (ctool_u32)sizeof(publication_scratch);
+  request.artifact_bytes = ctool_bytes(
+      output_bytes, (ctool_u32)(sizeof(output_bytes) - 1u));
+  request.map_bytes = ctool_bytes(
+      map_bytes, (ctool_u32)(sizeof(map_bytes) - 1u));
+
+  {
+    as_artifact_publication_request_t invalid = request;
+    invalid.map.candidate = invalid.artifact.target;
+    if (as_artifact_publish(&ops, &invalid) != CTOOL_ERR_INVALID_ARGUMENT) {
+      (void)fprintf(stderr, "overlapping publication paths were accepted\n");
+      return 1;
+    }
+    invalid = request;
+    invalid.artifact.commit = ctool_string("/other.cupid-as-done");
+    if (as_artifact_publish(&ops, &invalid) != CTOOL_ERR_INVALID_ARGUMENT) {
+      (void)fprintf(stderr, "mismatched recovery paths were accepted\n");
+      return 1;
+    }
+  }
+
+  {
+    static const ctool_u8 embedded_backup[] = {
+        '/', 'o', 'u', 't', '\0', '.', 'c', 'u', 'p', 'i', 'd', '-', 'a',
+        's', '-', 'o', 'l', 'd'};
+    fake_reset(&store);
+    fake_seed_commit_record(
+        &store, embedded_backup, (ctool_u32)sizeof(embedded_backup));
+    status = as_artifact_publish(&ops, &request);
+    if (status != CTOOL_ERR_INPUT ||
+        !fake_has(&store, 0u, "old-output") ||
+        !fake_has(&store, 3u, "old-map") || store.remove_count != 0u) {
+      (void)fprintf(stderr, "unsafe recovery record was accepted\n");
+      return 1;
+    }
+  }
+
+  fake_make_long_publication_paths(
+      long_output, long_output_backup, long_output_commit, 'a');
+  fake_make_long_publication_paths(
+      long_map, long_map_backup, long_map_commit, 'b');
+  fake_reset(&store);
+  store.files[0].path = long_output;
+  store.files[2].path = long_output_backup;
+  store.files[8].path = long_output_commit;
+  store.files[3].path = long_map;
+  store.files[5].path = long_map_backup;
+  store.files[6].path = long_map_commit;
+  request.artifact.target = ctool_string(long_output);
+  request.artifact.backup = ctool_string(long_output_backup);
+  request.artifact.commit = ctool_string(long_output_commit);
+  request.map.target = ctool_string(long_map);
+  request.map.backup = ctool_string(long_map_backup);
+  request.map.commit = ctool_string(long_map_commit);
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_OK || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      store.files[2].exists == CTOOL_TRUE ||
+      store.files[5].exists == CTOOL_TRUE ||
+      store.files[6].exists == CTOOL_TRUE ||
+      store.files[8].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "near-limit recovery record differs\n");
+    return 1;
+  }
+  request.artifact.target = ctool_string("/out");
+  request.artifact.backup = ctool_string("/out.cupid-as-old");
+  request.artifact.commit = ctool_string("/out.cupid-as-done");
+  request.map.target = ctool_string("/map");
+  request.map.backup = ctool_string("/map.cupid-as-old");
+  request.map.commit = ctool_string("/map.cupid-as-done");
+
+  fake_reset(&store);
+  store.fail_write_at = 1u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "old-output") ||
+      !fake_has(&store, 3u, "old-map")) {
+    (void)fprintf(stderr, "first publication write rollback differs\n");
+    return 1;
+  }
+
+  fake_reset(&store);
+  store.fail_write_at = 2u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "old-output") ||
+      !fake_has(&store, 3u, "old-map") ||
+      store.files[1].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "second publication write rollback differs\n");
+    return 1;
+  }
+
+  fake_reset(&store);
+  store.fail_write_at = 3u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "old-output") ||
+      !fake_has(&store, 3u, "old-map") ||
+      store.files[6].exists == CTOOL_TRUE ||
+      store.files[8].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "commit-marker write rollback differs\n");
+    return 1;
+  }
+
+  fake_reset(&store);
+  store.write_prefix_then_fail_at = 3u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "old-output") ||
+      !fake_has(&store, 3u, "old-map") ||
+      store.files[2].exists == CTOOL_TRUE ||
+      store.files[5].exists == CTOOL_TRUE ||
+      store.files[6].exists == CTOOL_TRUE ||
+      store.files[8].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "partial commit-marker rollback differs\n");
+    return 1;
+  }
+
+  fake_reset(&store);
+  store.write_then_fail_at = 3u;
+  store.fail_commit_inspect_at = 3u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      !fake_has(&store, 2u, "old-output") ||
+      !fake_has(&store, 5u, "old-map") ||
+      store.files[8].exists == CTOOL_FALSE) {
+    (void)fprintf(stderr, "ambiguous commit-marker write was not retained\n");
+    return 1;
+  }
+  store.write_then_fail_at = 0u;
+  store.fail_commit_inspect_at = 0u;
+  store.fail_write_at = store.write_count + 1u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      store.files[2].exists == CTOOL_TRUE ||
+      store.files[5].exists == CTOOL_TRUE ||
+      store.files[6].exists == CTOOL_TRUE ||
+      store.files[8].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "ambiguous commit-marker recovery differs\n");
+    return 1;
+  }
+
+  fake_reset(&store);
+  store.fail_replace_at = 4u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "old-output") ||
+      !fake_has(&store, 3u, "old-map")) {
+    (void)fprintf(stderr, "publication replacement rollback differs\n");
+    return 1;
+  }
+
+  store.fail_replace_at = 0u;
+  store.write_count = 0u;
+  store.replace_count = 0u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_OK || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      store.files[1].exists == CTOOL_TRUE ||
+      store.files[2].exists == CTOOL_TRUE ||
+      store.files[4].exists == CTOOL_TRUE ||
+      store.files[5].exists == CTOOL_TRUE ||
+      store.files[6].exists == CTOOL_TRUE ||
+      store.files[8].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "publication recovery differs (%s)\n",
+                  ctool_status_name(status));
+    return 1;
+  }
+
+  fake_reset(&store);
+  store.fail_remove_at = 1u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_OK || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      !fake_has(&store, 2u, "old-output") ||
+      store.files[6].exists == CTOOL_FALSE ||
+      store.files[8].exists == CTOOL_FALSE) {
+    (void)fprintf(stderr, "deferred backup cleanup differs\n");
+    return 1;
+  }
+  store.fail_remove_at = 0u;
+  store.fail_write_at = store.write_count + 1u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      store.files[2].exists == CTOOL_TRUE ||
+      store.files[6].exists == CTOOL_TRUE ||
+      store.files[8].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "deferred cleanup recovery differs\n");
+    return 1;
+  }
+
+  fake_reset(&store);
+  store.fail_remove_at = 2u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_OK || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      !fake_has(&store, 5u, "old-map") ||
+      store.files[6].exists == CTOOL_FALSE ||
+      store.files[8].exists == CTOOL_FALSE) {
+    (void)fprintf(stderr, "deferred map cleanup differs\n");
+    return 1;
+  }
+  request.artifact.target = ctool_string("/out2");
+  request.artifact.candidate = ctool_string("/out2.new");
+  request.artifact.backup = ctool_string("/out2.cupid-as-old");
+  request.artifact.commit = ctool_string("/out2.cupid-as-done");
+  store.fail_remove_at = 0u;
+  store.fail_write_at = store.write_count + 1u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      store.files[5].exists == CTOOL_TRUE ||
+      store.files[6].exists == CTOOL_TRUE ||
+      store.files[8].exists == CTOOL_TRUE ||
+      store.files[12].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "changed-artifact map preservation differs\n");
+    return 1;
+  }
+  request.artifact.target = ctool_string("/out");
+  request.artifact.candidate = ctool_string("/out.new");
+  request.artifact.backup = ctool_string("/out.cupid-as-old");
+  request.artifact.commit = ctool_string("/out.cupid-as-done");
+
+  fake_reset(&store);
+  store.fail_remove_at = 2u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_OK || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      !fake_has(&store, 5u, "old-map") ||
+      store.files[6].exists == CTOOL_FALSE ||
+      store.files[8].exists == CTOOL_FALSE) {
+    (void)fprintf(stderr, "changed-map setup cleanup differs\n");
+    return 1;
+  }
+  request.map.target = ctool_string("/map2");
+  request.map.candidate = ctool_string("/map2.new");
+  request.map.backup = ctool_string("/map2.cupid-as-old");
+  request.map.commit = ctool_string("/map2.cupid-as-done");
+  store.fail_remove_at = 0u;
+  store.fail_write_at = 0u;
+  store.write_count = 0u;
+  store.replace_count = 0u;
+  store.remove_count = 0u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_OK || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      !fake_has(&store, 9u, "new-map") ||
+      store.files[5].exists == CTOOL_TRUE ||
+      store.files[8].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "changed-map cleanup recovery differs\n");
+    return 1;
+  }
+  request.map.target = ctool_string("/map");
+  request.map.candidate = ctool_string("/map.new");
+  request.map.backup = ctool_string("/map.cupid-as-old");
+  request.map.commit = ctool_string("/map.cupid-as-done");
+  store.fail_write_at = store.write_count + 1u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      store.files[5].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "return-to-map preservation differs\n");
+    return 1;
+  }
+
+  fake_reset(&store);
+  store.fail_replace_at = 4u;
+  store.fail_replace_again_at = 6u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "old-output") ||
+      store.files[3].exists == CTOOL_TRUE ||
+      !fake_has(&store, 5u, "old-map")) {
+    (void)fprintf(stderr, "failed restoration did not retain its backup\n");
+    return 1;
+  }
+  (void)memcpy(store.files[3].bytes, "partial-map", 11u);
+  store.files[3].size = 11u;
+  store.files[3].exists = CTOOL_TRUE;
+  store.fail_replace_at = 0u;
+  store.fail_replace_again_at = 0u;
+  store.fail_write_at = 1u;
+  store.write_count = 0u;
+  store.replace_count = 0u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "old-output") ||
+      !fake_has(&store, 3u, "old-map") ||
+      store.files[5].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "retained backup restoration differs\n");
+    return 1;
+  }
+  store.fail_write_at = 0u;
+  store.write_count = 0u;
+  store.replace_count = 0u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_OK || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "new-map") ||
+      store.files[5].exists == CTOOL_TRUE) {
+    (void)fprintf(stderr, "retained backup recovery differs\n");
+    return 1;
+  }
+
+  fake_reset(&store);
+  (void)memset(&request.map, 0, sizeof(request.map));
+  request.map_bytes = ctool_bytes((const void *)0, 0u);
+  store.fail_replace_at = 2u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_ERR_IO || !fake_has(&store, 0u, "old-output") ||
+      !fake_has(&store, 3u, "old-map")) {
+    (void)fprintf(stderr, "single artifact rollback differs\n");
+    return 1;
+  }
+  store.fail_replace_at = 0u;
+  store.write_count = 0u;
+  store.replace_count = 0u;
+  status = as_artifact_publish(&ops, &request);
+  if (status != CTOOL_OK || !fake_has(&store, 0u, "new-output") ||
+      !fake_has(&store, 3u, "old-map")) {
+    (void)fprintf(stderr, "single artifact recovery differs\n");
+    return 1;
+  }
+
+  (void)puts("artifact-publication: ok");
+  return 0;
+}
+
 int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "linked-object") == 0) {
     return run_linked_object();
@@ -722,8 +1692,22 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "errors") == 0) {
     return run_errors();
   }
+  if (argc == 2 && strcmp(argv[1], "artifact-raw") == 0) {
+    return run_artifact_raw();
+  }
+  if (argc == 2 && strcmp(argv[1], "artifact-relocatable") == 0) {
+    return run_artifact_relocatable();
+  }
+  if (argc == 2 && strcmp(argv[1], "artifact-errors") == 0) {
+    return run_artifact_errors();
+  }
+  if (argc == 2 && strcmp(argv[1], "artifact-publication") == 0) {
+    return run_artifact_publication();
+  }
   (void)fprintf(stderr,
                 "usage: cupidasm-kernel-elf-contract "
-                "linked-object|link-errors|code-only|code-data-bss|errors\n");
+                "linked-object|link-errors|code-only|code-data-bss|errors|"
+                "artifact-raw|artifact-relocatable|artifact-errors|"
+                "artifact-publication\n");
   return 2;
 }

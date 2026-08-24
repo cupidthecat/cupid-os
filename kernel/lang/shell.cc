@@ -6,6 +6,7 @@
 #include "blockcache.h"
 #include "calendar.h"
 #include "as.h"
+#include "as_elf.h"
 #include "dis.h"
 #include "cupidc.h"
 #include "cupidscript.h"
@@ -2344,151 +2345,105 @@ static void shell_ccc_cmd(const char *args) {
  *  CupidASM Assembler Commands
 */
 
-/* as <file.asm> - JIT assemble and run */
-static void shell_asm_cmd(const char *args) {
-  if (!args || args[0] == '\0') {
-    shell_print("Usage: as <file.asm>\n");
-    shell_print("  Assemble and run an assembly source file\n");
-    shell_print("  as -o <output> <file.asm>  - assemble to ELF binary\n");
-    return;
-  }
-
-  /* Check for -o flag (AOT mode) */
-  if (args[0] == '-' && args[1] == 'o') {
-    int ai = 2;
-    while (args[ai] == ' ') ai++;
-
-    /* Parse output filename */
-    char out[VFS_MAX_PATH];
-    int oi = 0;
-    while (args[ai] && args[ai] != ' ' && oi < VFS_MAX_PATH - 1) {
-      out[oi++] = args[ai++];
-    }
-    out[oi] = '\0';
-
-    /* Skip whitespace */
-    while (args[ai] == ' ') ai++;
-
-    /* Parse source filename */
-    char src[VFS_MAX_PATH];
-    int si = 0;
-    while (args[ai] && args[ai] != ' ' && si < VFS_MAX_PATH - 1) {
-      src[si++] = args[ai++];
-    }
-    src[si] = '\0';
-
-    if (src[0] == '\0' || out[0] == '\0') {
-      shell_print("Usage: as -o <output> <file.asm>\n");
-      return;
-    }
-
-    char rsrc[VFS_MAX_PATH];
-    char rout[VFS_MAX_PATH];
-    shell_resolve_path(src, rsrc);
-    shell_resolve_path(out, rout);
-    as_aot(rsrc, rout);
-    return;
-  }
-
-  char rpath[VFS_MAX_PATH];
-  shell_resolve_path(args, rpath);
-  as_jit(rpath);
+static void shell_asm_usage(const char *name) {
+  shell_print("Usage: ");
+  shell_print(name);
+  shell_print(" <file.asm>\n");
+  shell_print("       ");
+  shell_print(name);
+  shell_print(" -f bin --map <map> -o <output> <file.asm>\n");
+  shell_print("       ");
+  shell_print(name);
+  shell_print(" -f elf32|exec -o <output> <file.asm>\n");
+  shell_print("  The older -o form still writes a linked executable.\n");
 }
 
-/* cupidasm <file.asm> -o <output> - AOT assemble to ELF binary */
-static void shell_cupidasm_cmd(const char *args) {
-  if (!args || args[0] == '\0') {
-    shell_print("Usage: cupidasm <file.asm> [-o <output>]\n");
-    shell_print("   or: cupidasm -o <output> <file.asm>\n");
-    shell_print("  Assemble source to ELF binary\n");
+static int shell_asm_copy_token(ctool_string_t token, char *output) {
+  ctool_u32 index;
+  if (token.data == (const char *)0 || token.size == 0u ||
+      token.size >= VFS_MAX_PATH) {
+    return 0;
+  }
+  for (index = 0u; index < token.size; index++) {
+    output[index] = token.data[index];
+  }
+  output[token.size] = '\0';
+  return 1;
+}
+
+static int shell_asm_default_output(const char *source, char *output) {
+  int source_size = 0;
+  int output_size = 0;
+  while (source[source_size] != '\0') source_size++;
+  if (source_size >= VFS_MAX_PATH) return 0;
+  if (source_size > 4 && source[source_size - 4] == '.' &&
+      source[source_size - 3] == 'a' &&
+      source[source_size - 2] == 's' &&
+      source[source_size - 1] == 'm') {
+    source_size -= 4;
+  }
+  while (output_size < source_size) {
+    output[output_size] = source[output_size];
+    output_size++;
+  }
+  output[output_size] = '\0';
+  return output_size != 0;
+}
+
+static void shell_asm_dispatch(const char *name,
+                               as_command_frontend_t frontend,
+                               const char *args) {
+  as_command_t command;
+  char source[VFS_MAX_PATH];
+  char output[VFS_MAX_PATH];
+  char map[VFS_MAX_PATH];
+  char resolved_source[VFS_MAX_PATH];
+  char resolved_output[VFS_MAX_PATH];
+  char resolved_map[VFS_MAX_PATH];
+  const char *map_path = (const char *)0;
+  ctool_status_t status;
+  if (args == (const char *)0) args = "";
+  status = as_command_parse(frontend, ctool_string(args), &command);
+  if (status != CTOOL_OK ||
+      !shell_asm_copy_token(command.source, source)) {
+    shell_asm_usage(name);
     return;
   }
-
-  /* Parse up to 3 whitespace-delimited tokens. */
-  char tok0[VFS_MAX_PATH];
-  char tok1[VFS_MAX_PATH];
-  char tok2[VFS_MAX_PATH];
-  char src[VFS_MAX_PATH];
-  char out[VFS_MAX_PATH];
-  int ai = 0;
-
-  tok0[0] = '\0';
-  tok1[0] = '\0';
-  tok2[0] = '\0';
-  src[0] = '\0';
-  out[0] = '\0';
-
-  while (args[ai] == ' ') ai++;
-
-  int i = 0;
-  while (args[ai] && args[ai] != ' ' && i < VFS_MAX_PATH - 1) {
-    tok0[i++] = args[ai++];
-  }
-  tok0[i] = '\0';
-
-  while (args[ai] == ' ') ai++;
-
-  i = 0;
-  while (args[ai] && args[ai] != ' ' && i < VFS_MAX_PATH - 1) {
-    tok1[i++] = args[ai++];
-  }
-  tok1[i] = '\0';
-
-  while (args[ai] == ' ') ai++;
-
-  i = 0;
-  while (args[ai] && args[ai] != ' ' && i < VFS_MAX_PATH - 1) {
-    tok2[i++] = args[ai++];
-  }
-  tok2[i] = '\0';
-
-  while (args[ai] == ' ') ai++;
-  if (args[ai] != '\0' || tok0[0] == '\0') {
-    shell_print("Usage: cupidasm <file.asm> [-o <output>]\n");
-    shell_print("   or: cupidasm -o <output> <file.asm>\n");
+  shell_resolve_path(source, resolved_source);
+  if (command.kind == AS_COMMAND_JIT) {
+    as_jit(resolved_source);
     return;
   }
-
-  /* Accept both orders:
-   *   cupidasm <src> -o <out>
-   *   cupidasm -o <out> <src>
-   * plus:
-   *   cupidasm <src>         (default output derived from source)
-*/
-  if (tok1[0] == '\0') {
-    int slen = 0, oi = 0;
-    while (tok0[slen]) slen++;
-    if (slen > 4 && tok0[slen - 4] == '.' && tok0[slen - 3] == 'a' &&
-        tok0[slen - 2] == 's' && tok0[slen - 1] == 'm') {
-      for (int k = 0; k < slen - 4 && oi < VFS_MAX_PATH - 1; k++) {
-        out[oi++] = tok0[k];
-      }
-    } else {
-      for (int k = 0; k < slen && oi < VFS_MAX_PATH - 1; k++) {
-        out[oi++] = tok0[k];
-      }
+  if (command.output.size != 0u) {
+    if (!shell_asm_copy_token(command.output, output)) {
+      shell_asm_usage(name);
+      return;
     }
-    out[oi] = '\0';
-    strcpy(src, tok0);
-  } else if (strcmp(tok0, "-o") == 0 && tok1[0] && tok2[0]) {
-    strcpy(out, tok1);
-    strcpy(src, tok2);
-  } else if (strcmp(tok1, "-o") == 0 && tok2[0]) {
-    strcpy(src, tok0);
-    strcpy(out, tok2);
-  } else {
-    shell_print("Usage: cupidasm <file.asm> [-o <output>]\n");
-    shell_print("   or: cupidasm -o <output> <file.asm>\n");
+  } else if (!shell_asm_default_output(source, output)) {
+    shell_asm_usage(name);
     return;
   }
+  shell_resolve_path(output, resolved_output);
+  if (command.map.size != 0u) {
+    if (!shell_asm_copy_token(command.map, map)) {
+      shell_asm_usage(name);
+      return;
+    }
+    shell_resolve_path(map, resolved_map);
+    map_path = resolved_map;
+  }
+  as_write_artifact(resolved_source, resolved_output, map_path,
+                    (uint32_t)command.format);
+}
 
-  /* Resolve paths */
-  char rsrc[VFS_MAX_PATH];
-  char rout[VFS_MAX_PATH];
-  shell_resolve_path(src, rsrc);
-  shell_resolve_path(out, rout);
+/* as <file.asm> assembles and runs a JIT program. */
+static void shell_asm_cmd(const char *args) {
+  shell_asm_dispatch("as", AS_COMMAND_AS, args);
+}
 
-  as_aot(rsrc, rout);
+/* cupidasm writes an artifact and keeps its historical executable default. */
+static void shell_cupidasm_cmd(const char *args) {
+  shell_asm_dispatch("cupidasm", AS_COMMAND_CUPIDASM, args);
 }
 
 static void shell_dis_cmd(const char *args) {

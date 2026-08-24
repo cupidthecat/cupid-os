@@ -5,6 +5,120 @@
 #include "cupidasm.h"
 #include "cupidld.h"
 
+typedef enum {
+  AS_ARTIFACT_FORMAT_BIN = 1,
+  AS_ARTIFACT_FORMAT_ELF32,
+  AS_ARTIFACT_FORMAT_EXEC
+} as_artifact_format_t;
+
+typedef struct {
+  as_artifact_format_t format;
+  ctool_x86_mode_t initial_mode;
+  ctool_u32 initial_origin;
+  const ctool_asm_definition_t *definitions;
+  ctool_u32 definition_count;
+  const ctool_path_t *include_roots;
+  ctool_u32 include_root_count;
+  const ctool_string_t *entry_candidates;
+  ctool_u32 entry_candidate_count;
+  ctool_bool case_insensitive_symbols;
+  ctool_bool allow_implicit_externs;
+  ctool_u32 executable_text_address;
+  ctool_u32 executable_maximum_span;
+} as_artifact_request_t;
+
+typedef struct {
+  as_artifact_format_t format;
+  ctool_bytes_t bytes;
+  const ctool_asm_raw_range_t *raw_ranges;
+  ctool_u32 raw_range_count;
+  ctool_u32 raw_origin;
+  ctool_string_t entry_symbol;
+  ctool_u32 entry_address;
+  ctool_ld_result_t link;
+} as_artifact_result_t;
+
+/* Build one kernel-owned CupidASM artifact through the shared assembler.
+ * Raw results retain their typed range map. ELF32 results remain unlinked.
+ * Executable results pass the relocatable object to CupidLD. Output must be
+ * empty, and any failure restores it to empty and clears the result. */
+ctool_status_t as_artifact_assemble(ctool_job_t *job,
+                                    const ctool_source_t *source,
+                                    const as_artifact_request_t *request,
+                                    ctool_buffer_t *output,
+                                    as_artifact_result_t *result_out);
+
+/* Render the canonical map carried by one successful raw result. The result
+ * borrows its byte and range views. Output must be empty and stays empty when
+ * validation, formatting, or buffer growth fails. */
+ctool_status_t as_artifact_render_raw_map(
+    const as_artifact_result_t *result, ctool_buffer_t *output);
+
+typedef enum {
+  AS_COMMAND_AS = 1,
+  AS_COMMAND_CUPIDASM
+} as_command_frontend_t;
+
+typedef enum {
+  AS_COMMAND_JIT = 1,
+  AS_COMMAND_ARTIFACT
+} as_command_kind_t;
+
+typedef struct {
+  as_command_kind_t kind;
+  as_artifact_format_t format;
+  ctool_string_t source;
+  ctool_string_t output;
+  ctool_string_t map;
+} as_command_t;
+
+/* Parse the in-OS `as` and `cupidasm` argument surfaces. Returned strings
+ * borrow the caller's argument buffer. `as SOURCE` selects JIT. The older
+ * AOT spellings select linked executable output. */
+ctool_status_t as_command_parse(as_command_frontend_t frontend,
+                                ctool_string_t arguments,
+                                as_command_t *command_out);
+
+typedef struct {
+  void *context;
+  ctool_status_t (*inspect)(void *context, ctool_string_t path,
+                            ctool_bool *exists_out);
+  ctool_status_t (*read)(void *context, ctool_string_t path,
+                         ctool_mut_bytes_t destination,
+                         ctool_u32 *size_out);
+  ctool_status_t (*write_new)(void *context, ctool_string_t path,
+                              ctool_bytes_t contents);
+  ctool_status_t (*replace)(void *context, ctool_string_t source,
+                            ctool_string_t destination);
+  ctool_status_t (*remove)(void *context, ctool_string_t path);
+} as_artifact_publication_ops_t;
+
+typedef struct {
+  ctool_string_t target;
+  ctool_string_t candidate;
+  ctool_string_t backup;
+  ctool_string_t commit;
+} as_artifact_publication_path_t;
+
+typedef struct {
+  as_artifact_publication_path_t artifact;
+  as_artifact_publication_path_t map;
+  ctool_bytes_t artifact_bytes;
+  ctool_bytes_t map_bytes;
+  ctool_mut_bytes_t scratch;
+} as_artifact_publication_request_t;
+
+/* Publish an artifact and its optional range map as one rollback-capable
+ * pair. Both candidates are written before either target moves. A failed
+ * write leaves both targets untouched. A later replacement failure restores
+ * every target that existed when the operation began. The caller supplies
+ * scratch space for a commit record that names every backup and marker in the
+ * pair. The publisher writes that record beside each member, so a later
+ * request can finish deferred cleanup after reusing either path. */
+ctool_status_t as_artifact_publish(
+    const as_artifact_publication_ops_t *ops,
+    const as_artifact_publication_request_t *request);
+
 /* Link one validated CupidASM relocatable object through CupidLD's fixed-text
  * profile.  The assembler result and its bytes are borrowed for the call.
  * Output must be empty.  Failure leaves it empty and zeros the link result. */

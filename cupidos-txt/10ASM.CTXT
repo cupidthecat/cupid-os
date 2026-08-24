@@ -37,9 +37,10 @@ Source architecture:
 - toolchain/x86.cc: shared instruction encoding
 - toolchain/elf32.cc: shared relocatable-object output
 - kernel/lang/as.cc: 631 runtime definitions, VFS, fixed placement, and JIT/AOT
-  execution policy; the checked CupidC seed owns its normal object
-- kernel/lang/as_elf.cc and .h: relocatable-object request and in-kernel
-  CupidLD fixed-text link adapter
+  execution and artifact-publication policy; the checked CupidC seed owns its
+  normal object
+- kernel/lang/as_elf.cc and .h: typed raw, relocatable, and executable request,
+  raw-map rendering, rollback publication, and in-kernel CupidLD adapter
 - toolchain/cupidasm_main.cc: hosted cupidasm command adapter
 
 The normal image runs CupidASM from a checked five-tool seed. It owns five
@@ -181,13 +182,31 @@ The old kernel-only as_lex.c and as_parse.c implementations were removed.
 Main command forms:
   as file.asm
   as -o output file.asm
+  as -f bin --map output.map -o output.bin file.asm
+  as -f elf32 -o output.o file.asm
+  as -f exec -o output file.asm
   cupidasm file.asm
   cupidasm file.asm -o output
   cupidasm -o output file.asm
 
-as is the JIT-first path.
-cupidasm is the explicit assemble-to-ELF path with a default derived output
-name when -o is omitted.
+as is the JIT-first path. The older -o form writes a linked executable.
+cupidasm writes a linked executable by default and derives its name when -o is
+omitted. Both commands accept -f bin|elf32|exec. An explicit -f requires -o,
+and raw output also requires --map. It writes the source-derived
+cupid.raw-map.v1 origin and code16, code32,
+or data ranges beside the flat bytes. ELF32 output remains an unlinked i386
+ET_REL file with undefined symbols and relocations. It does not require main
+or _start. Exec output selects main or _start and links with in-kernel CupidLD.
+
+The raw image and map use one rollback publication. Both private candidates
+are written before either target moves. A failed write or later replacement
+restores the previous pair. If restoration fails, the backup stays available
+for the next command to recover. Matching commit records beside the image and
+map name the private backups and markers. Cleanup therefore remains safe when
+a later command reuses either path. Partial or unsafe records are rejected.
+This is command-level
+rollback, not a crash-atomic two-file VFS transaction or a concurrent-writer
+lock. ADR 0337 records the boundary.
 
 Source-backed limits:
 - code buffer: 1 MB
@@ -709,21 +728,38 @@ definitions before the desktop starts.
 >button Run Hello Demo | shell:as /demos/hello.asm
 >endtree
 
->h2 AOT ELF Output
->tree open AOT ELF Output
-as -o asks shared CupidASM for an ELF32 relocatable object. CupidASM applies
-the caller-priority MAIN and _START entry names, publishes the selected
-spelling, and promotes only that code label. In-kernel CupidLD resolves the
-object and writes the executable at the existing 0x01A00000 text address.
-JIT continues to use a fixed image directly.
+>h2 Artifact Output
+>tree open Artifact Output
+The public kernel adapter asks shared CupidASM for raw bytes or an ELF32
+relocatable object. Exec output applies the caller-priority MAIN and _START
+entry names, publishes the selected spelling, and promotes only that code
+label. In-kernel CupidLD resolves the object and writes the executable at the
+existing 0x01A00000 text address. JIT continues to use a fixed image directly.
 
 Common patterns:
   as -o /home/hello /demos/hello.asm
+  as -f bin --map /home/mixed.map -o /home/mixed.bin /home/mixed.asm
+  as -f elf32 -o /home/module.o /home/module.asm
+  as -f exec -o /home/hello /demos/hello.asm
   cupidasm /demos/hello.asm -o /home/hello
   cupidasm /demos/hello.asm
 
 If cupidasm is called without -o, the output name is derived from the
 source path by stripping .asm.
+
+BIN output requires both -o and --map. The map records the raw origin and
+source-derived CODE16, CODE32, and DATA ranges. ELF32 keeps an unlinked ET_REL
+object with undefined symbols and relocations, so it does not need an entry
+label. EXEC retains the existing entry selection and CupidLD link. Both
+historical -o orders continue to mean EXEC.
+
+The publisher writes both raw candidates before moving either target. A write
+or later replacement failure restores the previous image and map. This is a
+running-command rollback boundary. Matching commit records beside both members
+name the old backups and markers from that publication. A later command can
+finish private cleanup without replacing completed output when it reuses
+either path. This is not a crash-atomic two-file transaction or a
+concurrent-writer lock.
 
 The adapter accepts code-only and code/data/BSS objects and leaves its output
 empty when assembly, entry selection, linking, or validation fails. The loader
@@ -738,6 +774,7 @@ A private guest smoke ran `as -o /hello-aot /demos/hello.asm`, followed by
 `exec /hello-aot`. It passed in 79.661 seconds. CupidASM produced a 15,680-byte
 ET_REL object, and in-kernel CupidLD linked an 8,536-byte ELF at 0x01A00000
 with two PT_LOAD segments. PID 4 exited cleanly.
+ADR 0337 records the raw, relocatable, executable, and publication boundary.
 >endtree
 
 >h2 Disassembly Workflow

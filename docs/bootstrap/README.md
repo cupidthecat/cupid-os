@@ -39,9 +39,9 @@ ADR 0323 records code-anchor seed carriage and linked-kernel adoption.
 ADR 0324 records grouped runtime function addresses, ADR 0328 records
 typedef-backed callback field arrays, and ADR 0330 records raw callback arrays
 with static storage duration. ADR 0331 records nested callback-parameter
-signatures. ADR 0338 records bounded PE32 inspection, ADR 0339 records the
-first CupidBuild publication seam, and ADR 0340 records source-resolved raw
-control edges.
+signatures. ADR 0337 records the in-OS CupidASM artifact boundary, ADR 0338
+records bounded PE32 inspection, ADR 0339 records the first CupidBuild
+publication seam, and ADR 0340 records source-resolved raw control edges.
 
 ## 2026-08-24 source-current checkpoint
 
@@ -129,6 +129,30 @@ The current 50-input source-head digest is
 Both checked seeds bind that snapshot at revision
 `b3f0910f84ba182d0882fc67b5983b49e9627482`. ADR 0323 records their
 code-anchor carriage and the linked-kernel adoption.
+
+The in-OS CupidASM adapter now exposes raw binary, unlinked ELF32 relocatable,
+and linked executable results through one typed request. Raw results keep the
+shared assembler's source-derived code16, code32, and data ranges and render
+the existing `cupid.raw-map.v1` format. The shell accepts `-f bin|elf32|exec`;
+the older `as -o`, `cupidasm -o`, and source-only `cupidasm` forms still write
+a linked executable. Raw image and map publication prepares both candidates
+before moving a target and restores the previous pair when a command write or
+replacement fails. This is rollback within a running command, not a
+crash-atomic multi-file commit. A retained backup takes precedence over a
+partial target when the next command starts. Matching commit records beside
+the artifact and map name every private backup and marker. The next command
+can finish cleanup after reusing either member, even when the other path
+changes. The publisher reads back a marker whose write reported failure and
+accepts only the complete current record. An uncertain check leaves the
+targets and backups in place for the next command to resolve. The focused
+native contract is green, and the DEBUG kernel includes an exact mixed
+16/32-bit raw-map self-test. The merged adapter, preprocessor, frontend, and
+x86-source suites pass 145 tests. The checked production compiler also rebuilds
+`as.cc`, `as_elf.cc`, and `shell.cc` from this source head.
+The consolidated checked-seed build, final image publication, and guest
+exercise remain deferred until the shared seed lane finishes, so the capability
+stays Partial. ADR 0337 records the request, command, and publication
+boundaries.
 
 Private CupidC carries a file-scope function-pointer typedef signature on direct
 free-function parameters, Cupid class method parameters,

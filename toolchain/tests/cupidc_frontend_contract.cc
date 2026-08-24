@@ -7668,9 +7668,8 @@ static int validate_scalar_initializer_unit(
 }
 
 static int validate_toolchain_static_string(
-    const ctool_c_translation_unit_t *unit, ctool_u32 binding_index,
-    const char *name, ctool_u32 initializer_index, const char *path,
-    ctool_u32 line) {
+    const ctool_c_translation_unit_t *unit, const char *name,
+    const char *path, ctool_u32 line) {
   const ctool_c_block_binding_t *binding;
   const ctool_c_initializer_t *initializer;
   const ctool_c_type_node_t *array;
@@ -7678,12 +7677,25 @@ static int validate_toolchain_static_string(
   const ctool_c_type_layout_t *layout;
   ctool_u32 qualifiers = 0u;
   ctool_u32 traversed = 0u;
-  if (binding_index >= unit->block_binding_count ||
-      initializer_index >= unit->initializer_count) {
+  ctool_u32 binding_index;
+  binding = NULL;
+  for (binding_index = 0u; binding_index < unit->block_binding_count;
+       binding_index++) {
+    const ctool_c_block_binding_t *candidate =
+        &unit->block_bindings[binding_index];
+    if (string_equal(candidate->name, name) &&
+        dual_location_matches(&candidate->location,
+                              &candidate->physical_location, path, line)) {
+      if (binding != NULL) {
+        return 1;
+      }
+      binding = candidate;
+    }
+  }
+  if (binding == NULL || binding->initializer >= unit->initializer_count) {
     return 1;
   }
-  binding = &unit->block_bindings[binding_index];
-  initializer = &unit->initializers[initializer_index];
+  initializer = &unit->initializers[binding->initializer];
   array = type_node(unit, binding->type);
   layout = type_layout(unit, binding->type);
   while (array != NULL &&
@@ -7711,7 +7723,6 @@ static int validate_toolchain_static_string(
   }
   return !string_equal(binding->name, name) ||
                  binding->storage != CTOOL_C_STORAGE_STATIC ||
-                 binding->initializer != initializer_index ||
                  initializer->kind != CTOOL_C_INITIALIZER_STRING ||
                  initializer->type != binding->type ||
                  initializer->expression != CTOOL_C_AST_NONE ||
@@ -7753,8 +7764,8 @@ static int validate_toolchain_frontier(const char *host_root) {
   static const toolchain_frontier_case_t cases[] = {
       {"/toolchain/ctool.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u,
        5981u, 133u, 33u, 0u, 0u},
-      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 97u, 2219u,
-       14266u, 269u, 186u, 0u, 0u},
+      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 130u, 3446u,
+       24161u, 424u, 388u, 1u, 0u},
       {"/toolchain/cupidld.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 2875u,
        18200u, 369u, 337u, 0u, 2u},
       {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 140u, 3451u,
@@ -7769,8 +7780,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        77764u, 1132u, 755u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 461u,
        17619u, 115690u, 2629u, 1584u, 0u, 0u},
-      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 84u, 3146u,
-       20714u, 346u, 196u, 0u, 0u},
+      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 88u, 3280u,
+       21579u, 358u, 200u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1866u,
@@ -7842,14 +7853,12 @@ static int validate_toolchain_frontier(const char *host_root) {
         if (strcmp(test_case->path, "/toolchain/ctool.cc") == 0) {
           static_string_valid =
               validate_toolchain_static_string(
-                  &unit, 111u, "digits", 26u, "/toolchain/ctool.cc",
-                  1181u) == 0;
+                  &unit, "digits", "/toolchain/ctool.cc", 1181u) == 0;
         } else if (strcmp(test_case->path,
                           "/toolchain/cupiddis.cc") == 0) {
           static_string_valid =
               validate_toolchain_static_string(
-                  &unit, 135u, "hex", 78u, "/toolchain/cupiddis.cc",
-                  1301u) == 0;
+                  &unit, "hex", "/toolchain/cupiddis.cc", 1925u) == 0;
         }
         if (status == CTOOL_OK && ctool_job_diagnostic_count(job) == 0u &&
             unit.function_definition_count ==

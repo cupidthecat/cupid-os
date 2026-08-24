@@ -30762,3 +30762,61 @@ the PE bytes independently, checks the expected library and procedure groups,
 reconstructs lookup and IAT cell RVAs and values, and requires the complete
 CupidDis header, directory, section, and import report to match. The focused
 CupidDis module passes 31 tests with one platform skip in 11.669 seconds.
+## 2026-08-24: expose raw and relocatable in-OS CupidASM artifacts
+
+The public kernel adapter now accepts one typed request for raw binary,
+unlinked ELF32 relocatable, or linked executable output. Every request enters
+the shared CupidASM core. Raw results keep their origin and source-derived
+code16, code32, and data ranges, and the adapter renders those ranges as
+`cupid.raw-map.v1`. Relocatable output keeps undefined symbols and relocations
+without requiring an entry point. Executable output preserves the existing
+`main` or `_start` selection and in-kernel CupidLD link.
+
+The `as` and `cupidasm` commands share one parser for `-f bin|elf32|exec`,
+`-o`, and `--map`. The older `as -o`, both `cupidasm -o` orders, and
+source-only `cupidasm` spellings still produce linked executables. An explicit
+format requires an output path, and raw output also requires a distinct map
+path. The existing source-only `as` path remains JIT.
+
+Raw image and map publication writes both private candidates before either
+public target moves. A later failure restores the old pair. If restoration
+itself fails, the backup remains authoritative: the next command removes any
+partial target and restores the backup before it attempts another candidate
+write. Once both targets move, the publisher writes the same commit record
+beside the artifact and map. It names the exact backups and markers from the
+completed publication. If deleting an old backup fails, the next command can
+find that transaction by reusing either public path and remove the stale backup
+without replacing a completed target. A marker write that reports failure is
+read back and must match the complete current record. Partial, malformed, or
+unsafe records never authorize cleanup. If the immediate existence check also
+fails, the command preserves the targets and recovery files for the next
+command to resolve. This protects one running command. It does not add a crash-atomic
+two-file VFS transaction or a concurrent-writer lock.
+
+The focused kernel-adapter module passes all seven tests. Its positive cases
+cover mixed 16/32-bit raw code and data, an empty equ-only raw image, an exact
+typed map, an unlinked object with two external relocations, and byte parity
+with the existing linked executable path. Negative cases cover invalid formats
+and option combinations, constrained map output, failed candidate writes,
+failed target replacements, failed restoration with both a retained backup
+and partial target, definite, partial, and ambiguous commit-marker failures,
+unsafe record paths, failed map-backup cleanup followed by a changed artifact
+or map path, mismatched backup and marker stems, a pair near `VFS_MAX_PATH`,
+output preservation, and same-state recovery. After integration with the PE
+reader, CupidBuild, function typing, and raw-edge work, the adapter,
+preprocessor, frontend, and x86 source-manifest modules pass 145 tests
+together. The merged locks cover 403 active preprocessing roots, 35
+conditional shapes, all 32 active assembly sources, and the current CupidASM
+and CupidDis frontend totals. The checked production compiler rebuilds the
+current `as.cc`, `as_elf.cc`, and `shell.cc` objects successfully.
+`make bootstrap-audit` and `make check-bootstrap-audit` pass with 747 active
+inputs, 452 reachable transforms, and 255 distinct feature requirements.
+
+The complete checked-contract publisher did not reach this feature contract.
+Its stage-two CupidC compile of the existing `cupidc_frontend.cc` hit the
+publisher's 360-second timeout. The shared seed lane, exact artifact-size
+refresh, final image publication, and guest exercise remain for consolidated
+integration. The capability stays Partial until those gates pass. No normal
+build owner or host dependency moved, and no source suffix changed. No `.c`
+file reached Cupid ownership, so no rename is due. `TempleOS/` remains
+untouched reference material. ADR 0337 records the boundary.

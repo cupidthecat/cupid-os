@@ -90,6 +90,14 @@ typedef struct {
   ctool_u32 definition_count;
 } as_assembled_artifact_t;
 
+typedef struct {
+  ctool_job_t *job;
+  ctool_buffer_t *artifact_output;
+  ctool_buffer_t *map_output;
+  as_artifact_result_t result;
+  ctool_u32 definition_count;
+} as_output_artifact_t;
+
 static char as_ascii_fold(char character) {
   if (character >= 'A' && character <= 'Z') {
     return (char)(character - 'A' + 'a');
@@ -1469,6 +1477,19 @@ static void as_assembled_artifact_close(as_assembled_artifact_t *artifact) {
   memset(artifact, 0, sizeof(*artifact));
 }
 
+static void as_output_artifact_close(as_output_artifact_t *artifact) {
+  if (artifact->map_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(artifact->map_output);
+  }
+  if (artifact->artifact_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(artifact->artifact_output);
+  }
+  if (artifact->job != (ctool_job_t *)0) {
+    ctool_job_close(artifact->job);
+  }
+  memset(artifact, 0, sizeof(*artifact));
+}
+
 static const ctool_asm_region_t *as_fixed_region(
     const ctool_asm_result_t *artifact, uint32_t address) {
   ctool_u32 index;
@@ -1669,6 +1690,119 @@ static ctool_status_t as_open_artifact(
   return status;
 }
 
+static ctool_status_t as_open_output_artifact(
+    const char *path, as_artifact_format_t format,
+    as_output_artifact_t *assembled) {
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_job_config_t config = ctool_kernel_job_config(limits);
+  ctool_path_t root;
+  ctool_path_t input_path;
+  ctool_path_t cwd_path;
+  ctool_path_t include_roots[2];
+  ctool_source_t source;
+  ctool_string_t entries[2];
+  as_artifact_request_t request;
+  as_definition_builder_t definitions;
+  ctool_status_t status;
+  ctool_u32 include_root_count = 0u;
+
+  if (assembled == (as_output_artifact_t *)0 ||
+      path == (const char *)0 || path[0] == '\0' ||
+      (format != AS_ARTIFACT_FORMAT_BIN &&
+       format != AS_ARTIFACT_FORMAT_ELF32 &&
+       format != AS_ARTIFACT_FORMAT_EXEC)) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  memset(assembled, 0, sizeof(*assembled));
+  status = ctool_job_open(&config, &assembled->job);
+  if (status == CTOOL_OK) {
+    status = ctool_path_root(ctool_job_arena(assembled->job), &root);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_path_resolve(ctool_job_arena(assembled->job), &root,
+                                ctool_string(path), limits.path_bytes,
+                                &input_path);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_load_source(assembled->job, &input_path, &source);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(assembled->job, 256u,
+                                   limits.output_bytes,
+                                   &assembled->artifact_output);
+  }
+  definitions.definitions = (ctool_asm_definition_t *)0;
+  definitions.count = 0u;
+  definitions.capacity = AS_MAX_DEFINITIONS;
+  definitions.status = status;
+  if (status == CTOOL_OK) {
+    status = ctool_arena_alloc_zero(
+        ctool_job_arena(assembled->job), AS_MAX_DEFINITIONS,
+        (ctool_u32)sizeof(ctool_asm_definition_t),
+        (ctool_u32)sizeof(void *), (void **)&definitions.definitions);
+    definitions.status = status;
+  }
+  if (status == CTOOL_OK) {
+    as_register_definitions(&definitions, 0);
+    status = definitions.status;
+    assembled->definition_count = definitions.count;
+  }
+  if (status == CTOOL_OK) {
+    const char *cwd = shell_get_cwd();
+    status = ctool_path_resolve(ctool_job_arena(assembled->job), &root,
+                                ctool_string(cwd != NULL ? cwd : "/"),
+                                limits.path_bytes, &cwd_path);
+  }
+  if (status == CTOOL_OK &&
+      ctool_path_equal(&cwd_path, &root) == CTOOL_FALSE) {
+    include_roots[include_root_count++] = cwd_path;
+  }
+  if (status == CTOOL_OK) {
+    include_roots[include_root_count++] = root;
+    entries[0] = ctool_string("main");
+    entries[1] = ctool_string("_start");
+    memset(&request, 0, sizeof(request));
+    request.format = format;
+    request.initial_mode = CTOOL_X86_MODE_32;
+    request.definitions = definitions.definitions;
+    request.definition_count = definitions.count;
+    request.include_roots = include_roots;
+    request.include_root_count = include_root_count;
+    if (format == AS_ARTIFACT_FORMAT_EXEC) {
+      request.entry_candidates = entries;
+      request.entry_candidate_count = 2u;
+    }
+    request.case_insensitive_symbols = CTOOL_TRUE;
+    request.allow_implicit_externs = CTOOL_FALSE;
+    if (format == AS_ARTIFACT_FORMAT_EXEC) {
+      request.executable_text_address = AS_JIT_CODE_BASE;
+      request.executable_maximum_span = AS_MAX_CODE + AS_MAX_DATA;
+    }
+    status = as_artifact_assemble(assembled->job, &source, &request,
+                                  assembled->artifact_output,
+                                  &assembled->result);
+  }
+  if (status == CTOOL_OK && format == AS_ARTIFACT_FORMAT_BIN) {
+    status = ctool_job_open_buffer(assembled->job, 128u,
+                                   limits.output_bytes,
+                                   &assembled->map_output);
+    if (status == CTOOL_OK) {
+      status = as_artifact_render_raw_map(&assembled->result,
+                                          assembled->map_output);
+    }
+  }
+  if (status != CTOOL_OK) {
+    if (assembled->job != (ctool_job_t *)0 &&
+        ctool_job_diagnostic_count(assembled->job) != 0u) {
+      (void)ctool_job_render_diagnostics(assembled->job);
+    } else {
+      as_report_failure("assembly", path, status);
+    }
+    as_output_artifact_close(assembled);
+  }
+  return status;
+}
+
 static void as_copy_fixed_region(const ctool_asm_result_t *artifact,
                                  const ctool_asm_region_t *region) {
   memset((void *)region->address, 0, region->memory_size);
@@ -1719,64 +1853,308 @@ void as_jit(const char *path) {
   as_assembled_artifact_close(&fixed);
 }
 
-void as_aot(const char *src_path, const char *out_path) {
-  as_assembled_artifact_t assembled;
-  ctool_buffer_t *executable = (ctool_buffer_t *)0;
-  ctool_ld_result_t link_result;
-  ctool_path_t root;
-  ctool_path_t output_path;
-  ctool_status_t status;
+static ctool_status_t as_publication_vfs_status(int status) {
+  if (status == VFS_ENOENT) return CTOOL_ERR_NOT_FOUND;
+  if (status == VFS_ENOSPC) return CTOOL_ERR_LIMIT;
+  if (status == VFS_EINVAL) return CTOOL_ERR_INVALID_ARGUMENT;
+  return CTOOL_ERR_IO;
+}
 
+static ctool_status_t as_publication_inspect(void *context,
+                                             ctool_string_t path,
+                                             ctool_bool *exists_out) {
+  vfs_stat_t stat;
+  int status;
+  (void)context;
+  if (exists_out == (ctool_bool *)0 || path.data == (const char *)0 ||
+      path.data[path.size] != '\0') {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  *exists_out = CTOOL_FALSE;
+  status = vfs_stat(path.data, &stat);
+  if (status == VFS_ENOENT) return CTOOL_OK;
+  if (status != VFS_OK) return as_publication_vfs_status(status);
+  if (stat.type != VFS_TYPE_FILE) return CTOOL_ERR_INPUT;
+  *exists_out = CTOOL_TRUE;
+  return CTOOL_OK;
+}
+
+static ctool_status_t as_publication_write_new(void *context,
+                                               ctool_string_t path,
+                                               ctool_bytes_t contents) {
+  int status;
+  (void)context;
+  if (path.data == (const char *)0 || path.data[path.size] != '\0' ||
+      (contents.data == (const ctool_u8 *)0 && contents.size != 0u) ||
+      contents.size > 0x7fffffffu) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  status = vfs_write_all(path.data, contents.data, contents.size);
+  if (status < 0) return as_publication_vfs_status(status);
+  return (ctool_u32)status == contents.size ? CTOOL_OK : CTOOL_ERR_IO;
+}
+
+static ctool_status_t as_publication_read(void *context,
+                                         ctool_string_t path,
+                                         ctool_mut_bytes_t destination,
+                                         ctool_u32 *size_out) {
+  vfs_stat_t stat;
+  int status;
+  (void)context;
+  if (path.data == (const char *)0 || path.data[path.size] != '\0' ||
+      destination.data == (ctool_u8 *)0 || size_out == (ctool_u32 *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  *size_out = 0u;
+  status = vfs_stat(path.data, &stat);
+  if (status != VFS_OK) return as_publication_vfs_status(status);
+  if (stat.type != VFS_TYPE_FILE) return CTOOL_ERR_INPUT;
+  if (stat.size > destination.size) return CTOOL_ERR_LIMIT;
+  status = vfs_read_all(path.data, destination.data, destination.size);
+  if (status < 0) return as_publication_vfs_status(status);
+  if ((uint32_t)status != stat.size) return CTOOL_ERR_IO;
+  *size_out = stat.size;
+  return CTOOL_OK;
+}
+
+static ctool_status_t as_publication_replace(void *context,
+                                             ctool_string_t source,
+                                             ctool_string_t destination) {
+  int status;
+  (void)context;
+  if (source.data == (const char *)0 ||
+      source.data[source.size] != '\0' ||
+      destination.data == (const char *)0 ||
+      destination.data[destination.size] != '\0') {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  status = vfs_rename(source.data, destination.data);
+  return status == VFS_OK ? CTOOL_OK : as_publication_vfs_status(status);
+}
+
+static ctool_status_t as_publication_remove(void *context,
+                                            ctool_string_t path) {
+  int status;
+  (void)context;
+  if (path.data == (const char *)0 || path.data[path.size] != '\0') {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  status = vfs_unlink(path.data);
+  return status == VFS_OK ? CTOOL_OK : as_publication_vfs_status(status);
+}
+
+static ctool_status_t as_publication_private_path(
+    ctool_job_t *job, const ctool_path_t *target, const char *suffix,
+    ctool_path_t *path_out) {
+  char spelling[VFS_MAX_PATH];
+  ctool_path_t root;
+  ctool_status_t status;
+  ctool_u32 suffix_size = 0u;
+  ctool_u32 index;
+  while (suffix[suffix_size] != '\0') suffix_size++;
+  if (target->text.size > VFS_MAX_PATH - 1u - suffix_size) {
+    return CTOOL_ERR_LIMIT;
+  }
+  for (index = 0u; index < target->text.size; index++) {
+    spelling[index] = target->text.data[index];
+  }
+  for (index = 0u; index < suffix_size; index++) {
+    spelling[target->text.size + index] = suffix[index];
+  }
+  spelling[target->text.size + suffix_size] = '\0';
+  status = ctool_path_root(ctool_job_arena(job), &root);
+  if (status != CTOOL_OK) return status;
+  return ctool_path_resolve(ctool_job_arena(job), &root,
+                            ctool_string(spelling),
+                            ctool_default_limits().path_bytes, path_out);
+}
+
+static ctool_status_t as_publish_output(as_output_artifact_t *assembled,
+                                        const char *out_path,
+                                        const char *map_path) {
+  ctool_u8 publication_scratch[VFS_MAX_PATH * 4u + 32u];
+  ctool_path_t root;
+  ctool_path_t output;
+  ctool_path_t output_candidate;
+  ctool_path_t output_backup;
+  ctool_path_t publication_commit;
+  ctool_path_t map;
+  ctool_path_t map_candidate;
+  ctool_path_t map_backup;
+  ctool_path_t map_commit;
+  as_artifact_publication_ops_t ops;
+  as_artifact_publication_request_t request;
+  ctool_status_t status = ctool_path_root(
+      ctool_job_arena(assembled->job), &root);
+  if (status == CTOOL_OK) {
+    status = ctool_path_resolve(ctool_job_arena(assembled->job), &root,
+                                ctool_string(out_path),
+                                ctool_default_limits().path_bytes, &output);
+  }
+  if (status == CTOOL_OK) {
+    status = as_publication_private_path(assembled->job, &output,
+                                         ".cupid-as-new",
+                                         &output_candidate);
+  }
+  if (status == CTOOL_OK) {
+    status = as_publication_private_path(assembled->job, &output,
+                                         ".cupid-as-old", &output_backup);
+  }
+  if (status == CTOOL_OK) {
+    status = as_publication_private_path(assembled->job, &output,
+                                         ".cupid-as-done",
+                                         &publication_commit);
+  }
+  if (status == CTOOL_OK && map_path != (const char *)0) {
+    status = ctool_path_resolve(ctool_job_arena(assembled->job), &root,
+                                ctool_string(map_path),
+                                ctool_default_limits().path_bytes, &map);
+  }
+  if (status == CTOOL_OK && map_path != (const char *)0) {
+    status = as_publication_private_path(assembled->job, &map,
+                                         ".cupid-as-new", &map_candidate);
+  }
+  if (status == CTOOL_OK && map_path != (const char *)0) {
+    status = as_publication_private_path(assembled->job, &map,
+                                         ".cupid-as-old", &map_backup);
+  }
+  if (status == CTOOL_OK && map_path != (const char *)0) {
+    status = as_publication_private_path(assembled->job, &map,
+                                         ".cupid-as-done", &map_commit);
+  }
+  if (status != CTOOL_OK) return status;
+
+  memset(&ops, 0, sizeof(ops));
+  ops.inspect = as_publication_inspect;
+  ops.read = as_publication_read;
+  ops.write_new = as_publication_write_new;
+  ops.replace = as_publication_replace;
+  ops.remove = as_publication_remove;
+  memset(&request, 0, sizeof(request));
+  request.artifact.target = output.text;
+  request.artifact.candidate = output_candidate.text;
+  request.artifact.backup = output_backup.text;
+  request.artifact.commit = publication_commit.text;
+  request.scratch.data = publication_scratch;
+  request.scratch.size = (ctool_u32)sizeof(publication_scratch);
+  request.artifact_bytes = assembled->result.bytes;
+  if (map_path != (const char *)0) {
+    request.map.target = map.text;
+    request.map.candidate = map_candidate.text;
+    request.map.backup = map_backup.text;
+    request.map.commit = map_commit.text;
+    request.map_bytes = ctool_buffer_view(assembled->map_output);
+  }
+  return as_artifact_publish(&ops, &request);
+}
+
+void as_write_artifact(const char *src_path, const char *out_path,
+                       const char *map_path, uint32_t format_value) {
+  as_output_artifact_t assembled;
+  as_artifact_format_t format = (as_artifact_format_t)format_value;
+  ctool_status_t status;
   if (src_path == (const char *)0 || src_path[0] == '\0' ||
-      out_path == (const char *)0 || out_path[0] == '\0') {
+      out_path == (const char *)0 || out_path[0] == '\0' ||
+      (format != AS_ARTIFACT_FORMAT_BIN &&
+       format != AS_ARTIFACT_FORMAT_ELF32 &&
+       format != AS_ARTIFACT_FORMAT_EXEC) ||
+      (format == AS_ARTIFACT_FORMAT_BIN &&
+       (map_path == (const char *)0 || map_path[0] == '\0')) ||
+      (format != AS_ARTIFACT_FORMAT_BIN &&
+       map_path != (const char *)0)) {
     as_report_failure("output", out_path, CTOOL_ERR_INVALID_ARGUMENT);
     return;
   }
-  serial_printf("[asm] AOT assemble: %s -> %s\n", src_path, out_path);
-  status = as_open_artifact(src_path, 0, CTOOL_ASM_ARTIFACT_ELF32_REL,
-                            &assembled);
-  if (status != CTOOL_OK) {
-    return;
-  }
-  print("Assembled: ");
-  print_int(assembled.artifact.bytes.size);
-  print(" byte relocatable object\n");
-  status = ctool_job_open_buffer(assembled.job, 256u,
-                                 ctool_default_limits().output_bytes,
-                                 &executable);
+  serial_printf("[asm] Assemble artifact: %s -> %s\n", src_path, out_path);
+  status = as_open_output_artifact(src_path, format, &assembled);
   if (status == CTOOL_OK) {
-    status = as_elf32_exec_link(assembled.job, &assembled.artifact,
-                                AS_JIT_CODE_BASE,
-                                AS_MAX_CODE + AS_MAX_DATA, executable,
-                                &link_result);
-  }
-  if (status == CTOOL_OK) {
-    status = ctool_path_root(ctool_job_arena(assembled.job), &root);
-  }
-  if (status == CTOOL_OK) {
-    status = ctool_path_resolve(ctool_job_arena(assembled.job), &root,
-                                ctool_string(out_path),
-                                ctool_default_limits().path_bytes,
-                                &output_path);
-  }
-  if (status == CTOOL_OK) {
-    status = ctool_job_write(assembled.job, &output_path,
-                             ctool_buffer_view(executable));
+    status = as_publish_output(&assembled, out_path, map_path);
   }
   if (status != CTOOL_OK) {
     as_report_failure("output", out_path, status);
   } else {
-    serial_printf("[asm] Wrote ELF: %s (entry=0x%x, total=%u bytes)\n",
-                  out_path, link_result.entry,
-                  ctool_buffer_view(executable).size);
+    if (format == AS_ARTIFACT_FORMAT_BIN) {
+      serial_printf("[asm] Wrote raw image: %s (%u bytes), map: %s\n",
+                    out_path, assembled.result.bytes.size, map_path);
+    } else if (format == AS_ARTIFACT_FORMAT_ELF32) {
+      serial_printf("[asm] Wrote ELF32 relocatable: %s (%u bytes)\n",
+                    out_path, assembled.result.bytes.size);
+    } else {
+      serial_printf("[asm] Wrote executable: %s (entry=0x%x, %u bytes)\n",
+                    out_path, assembled.result.entry_address,
+                    assembled.result.bytes.size);
+    }
     print("Written to ");
     print(out_path);
     print("\n");
   }
-  if (executable != (ctool_buffer_t *)0) {
-    ctool_buffer_close(executable);
+  as_output_artifact_close(&assembled);
+}
+
+void as_aot(const char *src_path, const char *out_path) {
+  as_write_artifact(src_path, out_path, (const char *)0,
+                    AS_ARTIFACT_FORMAT_EXEC);
+}
+
+static ctool_status_t as_raw_kernel_selftest(void) {
+  static const char source_text[] =
+      "BITS 16\n"
+      "ORG 0x8000\n"
+      "mov ax, 0x1234\n"
+      "db 0xaa, 0xbb\n"
+      "BITS 32\n"
+      "ret\n";
+  static const ctool_u8 expected_bytes[] = {
+      0xb8u, 0x34u, 0x12u, 0xaau, 0xbbu, 0xc3u};
+  static const char expected_map[] =
+      "cupid.raw-map.v1\n"
+      "size 6\n"
+      "base 0x00008000\n"
+      "range 0x00000000 code16\n"
+      "range 0x00000003 data\n"
+      "range 0x00000005 code32\n";
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_job_config_t config = ctool_kernel_job_config(limits);
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_buffer_t *map = (ctool_buffer_t *)0;
+  ctool_source_t source;
+  as_artifact_request_t request;
+  as_artifact_result_t result;
+  ctool_status_t status = ctool_job_open(&config, &job);
+
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 32u, limits.output_bytes, &output);
   }
-  as_assembled_artifact_close(&assembled);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 64u, limits.output_bytes, &map);
+  }
+  if (status == CTOOL_OK) {
+    memset(&source, 0, sizeof(source));
+    source.path.text = ctool_string("/kernel-selftest.asm");
+    source.contents = ctool_bytes(
+        source_text, (ctool_u32)(sizeof(source_text) - 1u));
+    memset(&request, 0, sizeof(request));
+    request.format = AS_ARTIFACT_FORMAT_BIN;
+    request.initial_mode = CTOOL_X86_MODE_32;
+    status = as_artifact_assemble(job, &source, &request, output, &result);
+  }
+  if (status == CTOOL_OK) {
+    status = as_artifact_render_raw_map(&result, map);
+  }
+  if (status == CTOOL_OK &&
+      (result.bytes.size != (ctool_u32)sizeof(expected_bytes) ||
+       memcmp(result.bytes.data, expected_bytes, sizeof(expected_bytes)) != 0 ||
+       ctool_buffer_view(map).size !=
+           (ctool_u32)(sizeof(expected_map) - 1u) ||
+       memcmp(ctool_buffer_view(map).data, expected_map,
+              sizeof(expected_map) - 1u) != 0)) {
+    status = CTOOL_ERR_INTERNAL;
+  }
+  if (map != (ctool_buffer_t *)0) ctool_buffer_close(map);
+  if (output != (ctool_buffer_t *)0) ctool_buffer_close(output);
+  if (job != (ctool_job_t *)0) ctool_job_close(job);
+  return status;
 }
 
 void as_kernel_selftest(void) {
@@ -1793,6 +2171,11 @@ void as_kernel_selftest(void) {
                  fixed.definition_count);
   }
   as_assembled_artifact_close(&fixed);
+  status = as_raw_kernel_selftest();
+  if (status != CTOOL_OK) {
+    kernel_panic("CupidASM raw artifact self-test failed (%u)",
+                 (uint32_t)status);
+  }
   KINFO("CupidASM kernel adapter self-test passed (%u definitions)",
         AS_EXPECTED_DEFINITIONS);
 }

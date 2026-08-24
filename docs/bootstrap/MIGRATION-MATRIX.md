@@ -171,6 +171,20 @@ AOT smoke passed in 79.661 seconds with a
 15,680-byte `ET_REL` object and an 8,536-byte linked ELF. ADRs 0275, 0276, and
 0277 record these boundaries.
 
+The same kernel adapter now returns all three artifact forms instead of
+hiding raw and unlinked output behind the hosted command. `bin` keeps the
+typed range map needed by mixed 16/32-bit work, `elf32` keeps undefined symbols
+and relocations for a later link, and `exec` retains the existing CupidLD
+path. The in-OS shell exposes those choices through `-f bin|elf32|exec` without
+changing the older executable spellings. Raw image and map writes use one
+rollback operation so a command failure preserves the previous pair. This
+operation writes matching commit records beside both members. Each record
+names the exact backups and markers, so failed cleanup stays safe when a later
+request reuses either path. This prevents stale bytes from replacing a
+completed pair. This adds an
+in-OS authoring route but does not transfer a normal build transform or remove
+the checked host transaction. ADR 0337 records the boundary.
+
 The public native Windows driver freezes the PE execution seed and Linux plan
 seed as separate trust roles and builds through stage four. It compares stages
 three and four, runs behavior on both, and publishes transactionally. Under the
