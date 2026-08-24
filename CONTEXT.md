@@ -26,6 +26,15 @@ _Avoid_: directory (a cohort may cross directories), individual file count
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context
 
+**Source-resolved raw control edge**:
+A bounded record that binds a raw call or jump at one source instruction offset
+to the address CupidASM resolved before encoding. Local rows also retain the
+image offset and target code mode. External rows keep the resolved address and
+mode without claiming that the target belongs to the image. Register- and
+memory-indirect transfers are recorded as unprovable because runtime state owns
+their destination.
+_Avoid_: decoded instruction boundary, assumed local target
+
 **Platform adapter**:
 The narrow allocator, whole-file, and text-output capabilities that connect the shared Cupid Toolchain core to a hosted runtime or the Cupid OS kernel.
 _Avoid_: tool backend, giant platform vtable

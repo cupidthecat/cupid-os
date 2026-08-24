@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-08-22
+Verified against source on: 2026-08-24
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -226,6 +226,20 @@ The cupid.raw-map.v1 file records the image size, ORG base, and coalesced range
 starts. Instructions use their active BITS mode. Data declarations, alignment,
 and reserved storage are data. CupidDis rejects stale sizes, missing or repeated
 fields, invalid kinds, and unordered starts before decoding.
+
+Source-head CupidASM writes cupid.raw-map.v2. It keeps the range records and
+adds an exact list of source-resolved calls and jumps. Each row records the
+instruction offset, relative, far, or indirect kind, local, external, or
+unprovable class, resolved destination, target mode, and far segment when one
+is encoded. CupidDis still reads v1. Source-head validation can require v2:
+  cupiddis --require-known --require-local-targets \
+      --require-source-edges --raw --range-map boot.map boot.bin
+
+The added rule rejects a branch that reaches the wrong valid instruction
+start and checks immediate far mode transitions. Indirect register or memory
+targets remain explicitly unprovable because runtime state supplies their
+destination. The checked production seeds still use v1. ADR 0340 records the
+source contract.
 
 The normal boot edge uses the shared map transaction. Hostbuild freezes the
 production manifest, five checked tools, source, and output boundary. CupidASM

@@ -1550,7 +1550,9 @@ static ctool_status_t as_validate_object_artifact(
       artifact->entry_symbol.data == (const char *)0 ||
       artifact->entry_symbol.size == 0u || artifact->entry_address != 0u ||
       artifact->raw_ranges != (const ctool_asm_raw_range_t *)0 ||
-      artifact->raw_range_count != 0u || artifact->raw_origin != 0u) {
+      artifact->raw_range_count != 0u ||
+      artifact->raw_edges != (const ctool_asm_raw_edge_t *)0 ||
+      artifact->raw_edge_count != 0u || artifact->raw_origin != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
   return CTOOL_OK;

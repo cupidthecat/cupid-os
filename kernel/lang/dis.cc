@@ -147,6 +147,9 @@ void dis_disassemble(const uint8_t *buffer, uint32_t size,
         request.raw_base_address = base_address;
         request.raw_ranges = (const ctool_dis_raw_range_t *)0;
         request.raw_range_count = 0u;
+        request.raw_edges = (const ctool_dis_raw_edge_t *)0;
+        request.raw_edge_count = 0u;
+        request.raw_edge_metadata_present = CTOOL_FALSE;
         request.labels = labels;
         request.label_count = count;
         status = ctool_dis_inspect(job, &source, &request, &report);
@@ -202,6 +205,9 @@ int dis_elf(const char *path, dis_output_fn output) {
         request.raw_base_address = 0u;
         request.raw_ranges = (const ctool_dis_raw_range_t *)0;
         request.raw_range_count = 0u;
+        request.raw_edges = (const ctool_dis_raw_edge_t *)0;
+        request.raw_edge_count = 0u;
+        request.raw_edge_metadata_present = CTOOL_FALSE;
         request.labels = (const ctool_dis_label_t *)0;
         request.label_count = 0u;
         status = ctool_dis_inspect(job, &source, &request, &report);

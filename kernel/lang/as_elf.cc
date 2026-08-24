@@ -46,7 +46,9 @@ ctool_status_t as_elf32_exec_link(ctool_job_t *job,
       artifact->entry_symbol.data == (const char *)0 ||
       artifact->entry_symbol.size == 0u || artifact->entry_address != 0u ||
       artifact->raw_ranges != (const ctool_asm_raw_range_t *)0 ||
-      artifact->raw_range_count != 0u || artifact->raw_origin != 0u ||
+      artifact->raw_range_count != 0u ||
+      artifact->raw_edges != (const ctool_asm_raw_edge_t *)0 ||
+      artifact->raw_edge_count != 0u || artifact->raw_origin != 0u ||
       maximum_image_span == 0u) {
     return CTOOL_ERR_INVALID_ARGUMENT;
   }

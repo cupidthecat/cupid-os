@@ -32,8 +32,12 @@ typedef enum {
  * point and each defined function symbol against decoded instruction starts.
  * Invalid anchors are reported through the typed counters below. */
 #define CTOOL_DIS_POLICY_CODE_ANCHORS 0x00000002u
+/* Raw callers can bind each represented call or jump to the source-resolved
+ * edge metadata published beside the range map. */
+#define CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES 0x00000004u
 #define CTOOL_DIS_POLICY_ALL                                               \
-  (CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS | CTOOL_DIS_POLICY_CODE_ANCHORS)
+  (CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS | CTOOL_DIS_POLICY_CODE_ANCHORS | \
+   CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES)
 
 typedef enum {
   CTOOL_DIS_TEXT_CUPID = 0,
@@ -64,6 +68,30 @@ typedef struct {
   ctool_dis_raw_range_kind_t kind;
 } ctool_dis_raw_range_t;
 
+typedef enum {
+  CTOOL_DIS_RAW_EDGE_RELATIVE = 1,
+  CTOOL_DIS_RAW_EDGE_FAR,
+  CTOOL_DIS_RAW_EDGE_INDIRECT
+} ctool_dis_raw_edge_kind_t;
+
+typedef enum {
+  CTOOL_DIS_RAW_EDGE_LOCAL = 1,
+  CTOOL_DIS_RAW_EDGE_EXTERNAL,
+  CTOOL_DIS_RAW_EDGE_UNPROVABLE
+} ctool_dis_raw_edge_class_t;
+
+#define CTOOL_DIS_RAW_EDGE_NO_TARGET 0xffffffffu
+
+typedef struct {
+  ctool_u32 source_offset;
+  ctool_dis_raw_edge_kind_t kind;
+  ctool_dis_raw_edge_class_t class_id;
+  ctool_u32 target_offset;
+  ctool_u32 target_address;
+  ctool_x86_mode_t target_mode;
+  ctool_u32 target_segment;
+} ctool_dis_raw_edge_t;
+
 /* Decode counts cover code regions selected for disassembly.  Bytes in
  * declared raw DATA ranges and non-executable ELF regions are not decoded or
  * counted.  Relocation counts cover relocations whose targets are executable
@@ -90,6 +118,14 @@ typedef struct {
   ctool_u64 code_anchor_count;
   ctool_u64 code_anchor_outside_executable_count;
   ctool_u64 code_anchor_mid_instruction_count;
+  ctool_u64 source_control_edge_count;
+  ctool_u64 source_control_edge_local_count;
+  ctool_u64 source_control_edge_external_count;
+  ctool_u64 source_control_edge_unprovable_count;
+  ctool_u64 source_control_edge_invalid_count;
+  ctool_u64 source_control_edge_source_mismatch_count;
+  ctool_u64 source_control_edge_target_mismatch_count;
+  ctool_u64 source_control_edge_target_mode_mismatch_count;
 } ctool_dis_decode_summary_t;
 
 typedef struct {
@@ -100,6 +136,9 @@ typedef struct {
   ctool_u32 raw_base_address;
   const ctool_dis_raw_range_t *raw_ranges;
   ctool_u32 raw_range_count;
+  const ctool_dis_raw_edge_t *raw_edges;
+  ctool_u32 raw_edge_count;
+  ctool_bool raw_edge_metadata_present;
   const ctool_dis_label_t *labels;
   ctool_u32 label_count;
 } ctool_dis_request_t;
@@ -113,6 +152,9 @@ typedef struct {
   ctool_u32 base_address;
   const ctool_dis_raw_range_t *raw_ranges;
   ctool_u32 raw_range_count;
+  const ctool_dis_raw_edge_t *raw_edges;
+  ctool_u32 raw_edge_count;
+  ctool_bool raw_edge_metadata_present;
   const ctool_dis_label_t *labels;
   ctool_u32 label_count;
   const ctool_u32 *raw_label_order;
@@ -148,9 +190,9 @@ ctool_status_t ctool_dis_render(ctool_job_t *job,
                                  ctool_dis_text_t text,
                                  ctool_text_sink_t output);
 
-/* The source descriptor and bytes, raw mode ranges, raw labels and their
- * names, and all ELF names and payload views are borrowed and must outlive
- * rendering.  ELF metadata arrays and every derived
+/* The source descriptor and bytes, raw mode ranges, raw control edges, raw
+ * labels and their names, and all ELF names and payload views are borrowed
+ * and must outlive rendering.  ELF metadata arrays and every derived
  * raw/function/symbol/relocation order array are owned by the inspecting job's
  * arena, so that job must also outlive rendering.  Only an unmodified report
  * returned successfully by ctool_dis_inspect may be passed to

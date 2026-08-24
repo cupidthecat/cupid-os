@@ -16,6 +16,14 @@ stage-four provenance and keeps the Linux plan as a separate verified parent.
 ADR 0272 records the two roles, ADR 0292 records the strict-relocation promotion, and
 ADRs 0295 and 0297 record the native Windows contracts.
 
+Source-head CupidASM and CupidDis now share raw-map v2 control-edge metadata.
+The assembler records the resolved destination for relative and immediate far
+transfers, marks out-of-image destinations as external, and leaves indirect
+runtime destinations explicitly unprovable. CupidDis can require those rows
+and reject a changed destination even when it remains a valid instruction
+boundary. The checked seeds still carry v1, so this capability does not yet
+guard production boot or SMP publication. ADR 0340 records the source step.
+
 Source head can reconstruct native Windows stages two through four without WSL.
 The reproducible operator entry points are:
 

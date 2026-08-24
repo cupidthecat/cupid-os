@@ -39,7 +39,7 @@ ADR 0323 records code-anchor seed carriage and linked-kernel adoption.
 ADR 0324 records grouped runtime function addresses, ADR 0328 records
 typedef-backed callback field arrays, and ADR 0330 records raw callback arrays
 with static storage duration. ADR 0331 records nested callback-parameter
-signatures.
+signatures. ADR 0340 records source-resolved raw control edges.
 
 ## 2026-08-24 source-current checkpoint
 
@@ -484,6 +484,26 @@ carries both options. The normal boot rule calls
 `CHECKED_SEED_INPUTS`. Standalone CupidASM overrides therefore cannot replace
 the checked closure. ADR 0277 records the schema, and ADR 0283 records the
 production cutover.
+
+Source-head raw results now add ordered source-resolved control edges. The
+hosted writer serializes them as `cupid.raw-map.v2`, while CupidDis keeps v1
+read compatibility. A row identifies its source instruction, relative, far,
+or indirect kind, local, external, or unprovable class, resolved destination,
+target mode, and far segment where applicable. `--require-source-edges`
+requires strict known decoding and explicit v2 range-map metadata. It rejects
+a changed destination even when that destination is another valid instruction
+start, and it validates immediate far transitions that the local-relative rule
+does not cover.
+
+The active boot map has twelve rows: nine local relative transfers, two local
+far transitions, and the intentional external far transfer to `0x00100000`.
+The SMP map has six: four local relative transfers, one local far transition,
+and one register-indirect jump recorded as unprovable. The focused assembler,
+disassembler, and active-source modules passed 52 tests with one platform
+skip, and the native raw-source contract passed separately. These source-head
+changes do not alter either binary. The checked seeds and guarded production
+transactions still use v1 until promotion and adoption. ADR 0340 records the
+source contract.
 
 Checked-seed CupidDis can require every constant relative call or jump in a
 raw image to land on an instruction start in same-mode code. The explicit
