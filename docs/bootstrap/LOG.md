@@ -30324,3 +30324,36 @@ not contain this private parser. This step moves no object owner or host
 dependency and changes no source suffix. No `.c` file reached Cupid ownership,
 so no rename is due. `TempleOS/` remains untouched reference material. ADR
 0331 records the accepted boundary.
+
+## 2026-08-24: refresh source-derived bootstrap locks
+
+The checked audit now matches the active source added by the recent Windows
+publication, linker, disassembler, and compiler work. The active C manifest
+contains 397 roots: 156 in `KERNEL`, 108 in `CUPID_RUNTIME`, 35 in
+`HOSTED_I386_LINUX`, and 6 in `HOSTED_I386_WINDOWS`. Its conditional contract
+records 29 rows, 135 `#if` directives, 9 `#elif` directives, and 31 probes.
+The shared x86 manifest contributes 189 macros alongside 129 inline-assembly
+macros.
+
+The assembly inventory now covers 31 active files, including 29 files with
+instructions and 1,414 statements. The source still uses 91 mnemonic families,
+2 prefixes, and 27 registers; its 176 memory operands include the Windows
+publication entry points. Sorted evidence for `call(m32:abs)` and
+`push(m32:base-disp)` now begins in `windows/publication_start.asm` at lines 19
+and 18.
+
+CupidC's lexical source locks now record 4,547 `for`, 3,138 `goto`, 40,672
+`if`, 5,162 `else`, 25,044 `return`, and 2,873 `while` tokens. The CupidDis
+frontier also reflects its relocatable-target and static-ELF validation work:
+97 definitions, 2,219 statements, 14,266 expressions, 269 block bindings, and
+186 initializers. Its checked `hex` string remains the same 17-byte constant;
+the surrounding additions moved that binding to index 135, initializer 78,
+and source line 1301.
+
+`make bootstrap-audit` regenerated the JSON, Markdown summary, and active
+preprocessor cases through the supported path. The preprocessor suite passes
+all 39 tests, the frontend suite passes all 97 tests, and the x86 source
+manifest passes both tests. These are source-derived lock repairs only. They
+change no compiler, assembler, disassembler, object, linker, ABI, ownership,
+host-dependency, or source-suffix behavior. No `.c` file reached Cupid
+ownership, and `TempleOS/` remains untouched reference material.
