@@ -400,8 +400,9 @@ compatibility rule remains in force.
 
 The nested callback itself remains one four-byte i386 cdecl slot. Its child
 handle affects checking and does not change the runtime ABI. The compiler
-accepts signature graphs through sixteen levels and up to 32 distinct raw
-signatures. Depth and pool failures roll back the parent and child handles,
+accepts signature graphs through sixteen levels. A 33-entry backing pool uses
+one record for the active kernel callback and leaves 32 records for source.
+Depth and pool failures roll back the parent and child handles,
 emitted state, and pending data patches. Persistent REPL rollback restores the
 same state.
 
@@ -417,9 +418,10 @@ seeds do not contain this private parser.
 Reviewed native bindings use the same recursive signature record for fixed and
 variadic scalar parameters. Their kernel calls share ordinary typed
 conversion, complete cdecl slot layout, cleanup, arity, default promotion, and
-result transport. The first set includes every libm binding. Unreviewed
-entries stay on the named legacy result-only path. The nested handle for
-set_icon_drawer is not yet published through this registration seam.
+result transport. The reviewed set includes every libm binding and
+set_icon_drawer. The icon setter publishes its retained void(int, int) child
+handle through the outer native descriptor. Unreviewed entries stay on the
+named legacy result-only path. ADR 0333 records the nested binding.
 
 Private decimal float and double literals use a fixed 1536-bit integer
 workspace. CupidC forms the exact decimal ratio and rounds once to the selected

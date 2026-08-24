@@ -469,8 +469,9 @@ unprototyped compatibility rule remains in force. The structural check applies
 at each retained child.
 
 Every nested callback is still one four-byte i386 cdecl argument. Its handle is
-compile-time metadata. Nesting is bounded at sixteen signature levels, and the
-raw pool holds 32 distinct signatures. A rejected function, complete source,
+compile-time metadata. Nesting is bounded at sixteen signature levels. The
+backing pool holds 33 signatures; the active kernel callback uses one and
+leaves 32 for source declarations. A rejected function, complete source,
 or persistent REPL unit restores the child handles and raw pool together with
 symbols, data patches, and emitted state.
 
@@ -488,7 +489,8 @@ SYM_KERNEL calls reuse the ordinary typed conversion, cdecl layout, cleanup,
 arity, default promotion, and result paths. Console, string, port, and all 50
 libm bindings form the first reviewed set. Other registrations use the named
 legacy result-only path and keep their previous source-width arguments. The
-active nested set_icon_drawer handle is not yet published through this seam.
+active set_icon_drawer binding publishes its retained void(int, int) child
+through this seam. ADR 0333 records the nested binding.
 
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
@@ -657,10 +659,11 @@ parameters, and `void *` forms remain outside that typed path. ADR 0325 records
 the field-call boundary.
 
 The active set_icon_drawer binding has one four-byte nested drawer parameter.
-Its private signature graph uses the sixteen-level depth bound and the
-32-entry raw pool. Rollback restores both parent and child handles. The
-standalone checked seeds do not contain this private parser; checked-seed
-hosted CupidC remains the production owner of kernel/lang/cupidc.cc.
+Its private signature graph uses the sixteen-level depth bound and one record
+from the 33-entry backing pool. Source retains a 32-entry budget. Rollback
+restores both parent and child handles. The standalone checked seeds do not
+contain this private parser; checked-seed hosted CupidC remains the production
+owner of kernel/lang/cupidc.cc.
 
 The Toolchain manifest has a Cupid-built author and verifier, while Python keeps
 descriptor-pinned filesystem capture and atomic publication. Linux runs the

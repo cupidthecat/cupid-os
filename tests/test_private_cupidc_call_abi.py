@@ -158,6 +158,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 }
 
                 static FILE *aot_output;
+                static int include_record_callback_binding;
 
                 int vfs_open(const char *path, uint32_t flags) {
                   (void)flags;
@@ -215,6 +216,36 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       cc, name, address, &signature);
                 }
 
+                static void init_binding_signature(
+                    cc_function_pointer_signature_t *signature,
+                    cc_type_t result_type, int parameter_count) {
+                  memset(signature, 0, sizeof(*signature));
+                  memset(signature->param_struct_indices, -1,
+                         sizeof(signature->param_struct_indices));
+                  signature->return_type = result_type;
+                  signature->return_struct_index = -1;
+                  signature->param_count = parameter_count;
+                  signature->has_param_types = 1;
+                }
+
+                static int bind_nested_kernel(
+                    cc_state_t *cc, const char *name, uint32_t address,
+                    const cc_function_pointer_signature_t *callback) {
+                  cc_function_pointer_signature_t signature;
+                  int callback_handle =
+                      cc_retain_kernel_binding_callback_signature(
+                          cc, callback);
+                  if (callback_handle < 0)
+                    return 0;
+                  init_binding_signature(&signature, TYPE_VOID, 2);
+                  signature.param_types[0] = TYPE_INT;
+                  signature.param_types[1] = TYPE_FUNC_PTR;
+                  signature.param_struct_indices[1] =
+                      (int8_t)callback_handle;
+                  return cc_register_kernel_binding(
+                      cc, name, address, &signature);
+                }
+
                 static void bind_feature13_kernels(cc_state_t *cc) {
                   bind_kernel(cc, "repl_eval", TYPE_INT, 0x01001000u);
                   bind_kernel(cc, "serial_printf", TYPE_VOID, 0x01001010u);
@@ -245,6 +276,34 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                           cc, "native_variadic", 0x01001240u, TYPE_INT, 1, 1,
                           TYPE_INT, TYPE_VOID, TYPE_VOID, TYPE_VOID))
                     return;
+                  {
+                    cc_function_pointer_signature_t callback;
+                    init_binding_signature(&callback, TYPE_VOID, 2);
+                    callback.param_types[0] = TYPE_INT;
+                    callback.param_types[1] = TYPE_INT;
+                    if (!bind_nested_kernel(
+                            cc, "set_icon_drawer", 0x01001280u, &callback))
+                      return;
+                  }
+                }
+
+                static int bind_record_callback_kernel(cc_state_t *cc) {
+                  cc_function_pointer_signature_t callback;
+                  if (cc->struct_count != 0)
+                    return 0;
+                  memcpy(cc->structs[0].name, "BindingRecord",
+                         sizeof("BindingRecord"));
+                  cc->structs[0].align = 4;
+                  memcpy(cc->structs[1].name, "OtherRecord",
+                         sizeof("OtherRecord"));
+                  cc->structs[1].align = 4;
+                  cc->struct_count = 2;
+                  init_binding_signature(&callback, TYPE_VOID, 1);
+                  callback.param_types[0] = TYPE_STRUCT_PTR;
+                  callback.param_struct_indices[0] = 0;
+                  return bind_nested_kernel(
+                      cc, "native_record_drawer", 0x010012a0u,
+                      &callback);
                 }
 
                 static cc_state_t *new_compiler_state(int jit_mode);
@@ -297,6 +356,124 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   return 0;
                 }
 
+                static int check_nested_binding_signature_limits(
+                    int jit_mode) {
+                  cc_state_t *cc = new_compiler_state(jit_mode);
+                  cc_function_pointer_signature_t signature;
+                  int handle;
+                  int raw_checkpoint;
+                  int depth_index;
+                  if (cc == NULL || cc->error)
+                    return 79;
+
+                  init_binding_signature(&signature, TYPE_VOID, 1);
+                  signature.param_types[0] = TYPE_FUNC_PTR;
+                  signature.param_struct_indices[0] = 127;
+                  raw_checkpoint =
+                      cc->raw_function_pointer_signature_count;
+                  if (cc_retain_kernel_binding_callback_signature(
+                          cc, &signature) >= 0 || !cc->error ||
+                      cc->raw_function_pointer_signature_count !=
+                          raw_checkpoint)
+                    return 80;
+
+                  cc->error = 0;
+                  cc->error_msg[0] = 0;
+                  init_binding_signature(&signature, TYPE_VOID, 2);
+                  signature.param_types[0] = TYPE_INT;
+                  signature.param_types[1] = TYPE_INT;
+                  handle = cc_retain_kernel_binding_callback_signature(
+                      cc, &signature);
+                  if (handle < 0 || cc->error)
+                    return 81;
+
+                  for (depth_index = 0;
+                       depth_index < CC_MAX_FUNCTION_POINTER_SIGNATURE_DEPTH;
+                       depth_index++) {
+                    init_binding_signature(&signature, TYPE_VOID, 1);
+                    signature.param_types[0] = TYPE_FUNC_PTR;
+                    signature.param_struct_indices[0] = (int8_t)handle;
+                    handle =
+                        cc_retain_kernel_binding_callback_signature(
+                            cc, &signature);
+                    if (handle < 0 || cc->error)
+                      return 82;
+                  }
+                  raw_checkpoint =
+                      cc->raw_function_pointer_signature_count;
+                  init_binding_signature(&signature, TYPE_VOID, 1);
+                  signature.param_types[0] = TYPE_FUNC_PTR;
+                  signature.param_struct_indices[0] = (int8_t)handle;
+                  if (cc_retain_kernel_binding_callback_signature(
+                          cc, &signature) >= 0 || !cc->error ||
+                      cc->raw_function_pointer_signature_count !=
+                          raw_checkpoint)
+                    return 83;
+
+                  cc->error = 0;
+                  cc->error_msg[0] = 0;
+                  init_binding_signature(&signature, TYPE_VOID, 1);
+                  signature.param_types[0] = TYPE_FUNC_PTR;
+                  signature.param_struct_indices[0] =
+                      (int8_t)(handle - 1);
+                  if (cc_retain_kernel_binding_callback_signature(
+                          cc, &signature) != handle || cc->error ||
+                      cc->raw_function_pointer_signature_count !=
+                          raw_checkpoint)
+                    return 84;
+                  return 0;
+                }
+
+                static int check_nested_binding_signature_capacity(
+                    int jit_mode) {
+                  cc_state_t *cc = new_compiler_state(jit_mode);
+                  cc_function_pointer_signature_t signature;
+                  int arity;
+                  int parameter_index;
+                  int retained[CC_MAX_PARAMS];
+                  int extra_retained;
+                  int raw_checkpoint;
+                  if (cc == NULL || cc->error)
+                    return 85;
+
+                  for (arity = 0; arity < CC_MAX_PARAMS; arity++) {
+                    init_binding_signature(&signature, TYPE_VOID, arity);
+                    for (parameter_index = 0;
+                         parameter_index < arity; parameter_index++)
+                      signature.param_types[parameter_index] = TYPE_INT;
+                    retained[arity] =
+                        cc_retain_kernel_binding_callback_signature(
+                            cc, &signature);
+                    if (retained[arity] < 0 || cc->error)
+                      return 86;
+                  }
+                  init_binding_signature(&signature, TYPE_INT, 0);
+                  extra_retained =
+                      cc_retain_kernel_binding_callback_signature(
+                          cc, &signature);
+                  if (extra_retained < 0 || cc->error)
+                    return 87;
+                  raw_checkpoint =
+                      cc->raw_function_pointer_signature_count;
+                  init_binding_signature(&signature, TYPE_INT, 1);
+                  signature.param_types[0] = TYPE_INT;
+                  if (cc_retain_kernel_binding_callback_signature(
+                          cc, &signature) >= 0 || !cc->error ||
+                      cc->raw_function_pointer_signature_count !=
+                          raw_checkpoint)
+                    return 88;
+
+                  cc->error = 0;
+                  cc->error_msg[0] = 0;
+                  init_binding_signature(&signature, TYPE_VOID, 0);
+                  if (cc_retain_kernel_binding_callback_signature(
+                          cc, &signature) != retained[0] || cc->error ||
+                      cc->raw_function_pointer_signature_count !=
+                          raw_checkpoint)
+                    return 89;
+                  return 0;
+                }
+
                 static cc_state_t *new_compiler_state(int jit_mode) {
                   cc_state_t *cc = (cc_state_t *)calloc(1u, sizeof(*cc));
                   if (cc == NULL)
@@ -312,6 +489,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   cc->jit_mode = jit_mode;
                   cc_sym_init(cc);
                   bind_feature13_kernels(cc);
+                  if (!cc->error && include_record_callback_binding &&
+                      !bind_record_callback_kernel(cc))
+                    return NULL;
                   return cc;
                 }
 
@@ -408,7 +588,13 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       argc == 5 && strcmp(argv[4], "--recover") == 0;
                   int same_state_recovery_mode =
                       argc == 5 &&
-                      strcmp(argv[4], "--recover-same-state") == 0;
+                      (strcmp(argv[4], "--recover-same-state") == 0 ||
+                       strcmp(argv[4],
+                              "--recover-same-state-record") == 0);
+                  int record_binding_mode =
+                      argc == 5 &&
+                      strcmp(argv[4],
+                             "--recover-same-state-record") == 0;
                   int recover_after_success_mode =
                       argc == 5 &&
                       strcmp(argv[4], "--recover-after-success") == 0;
@@ -421,6 +607,14 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                        (argc == 3 && strcmp(argv[2], "--aot") == 0)) &&
                       strcmp(argv[1], "--binding-registration-rollback") == 0)
                     return check_binding_registration_rollback(argc == 2);
+                  if ((argc == 2 ||
+                       (argc == 3 && strcmp(argv[2], "--aot") == 0)) &&
+                      strcmp(argv[1], "--nested-binding-signature-limits") == 0)
+                    return check_nested_binding_signature_limits(argc == 2);
+                  if ((argc == 2 ||
+                       (argc == 3 && strcmp(argv[2], "--aot") == 0)) &&
+                      strcmp(argv[1], "--nested-binding-signature-capacity") == 0)
+                    return check_nested_binding_signature_capacity(argc == 2);
                   if (argc == 3 &&
                       strcmp(argv[1], "--check-number-boundary") == 0)
                     return check_numeric_token_boundary(argv[2]);
@@ -433,6 +627,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       !aot_mode)
                     return 64;
                   source = read_source(argv[1]);
+                  include_record_callback_binding = record_binding_mode;
                   cc = new_compiler_state(aot_mode ? 0 : 1);
                   if (source == NULL || cc == NULL)
                     return 65;
@@ -721,7 +916,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         return result, code_path, data_path
 
     def _compile_after_failure(
-        self, root, failing_source, retry_source, *, same_state=False
+        self, root, failing_source, retry_source, *, same_state=False,
+        record_binding=False
     ):
         source_path = root / "fixture.cc"
         code_path = root / "code.bin"
@@ -738,7 +934,13 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 str(source_path),
                 str(code_path),
                 str(data_path),
-                "--recover-same-state" if same_state else "--recover",
+                (
+                    "--recover-same-state-record"
+                    if record_binding
+                    else (
+                        "--recover-same-state" if same_state else "--recover"
+                    )
+                ),
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -875,6 +1077,18 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   addl 8(%esp), %eax
                   cvttsd2si 12(%esp), %ecx
                   addl %ecx, %eax
+                  ret
+
+                .org 0x1280
+                test_set_icon_drawer:
+                  cmpl $0, 4(%esp)
+                  jl 1f
+                  movl 8(%esp), %eax
+                  pushl $7
+                  pushl 8(%esp)
+                  call *%eax
+                  addl $8, %esp
+                1:
                   ret
 
                 .section .cupidcode,"ax",@progbits
@@ -1538,6 +1752,52 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     runtime.stdout + runtime.stderr,
                 )
 
+    def test_nested_kernel_binding_descriptor_limits_recover_same_state(self):
+        for mode in ("jit", "aot"):
+            with self.subTest(mode=mode):
+                command = [
+                    str(self.driver),
+                    "--nested-binding-signature-limits",
+                ]
+                if mode == "aot":
+                    command.append("--aot")
+                result = subprocess.run(
+                    command,
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    timeout=30,
+                )
+                self.assertEqual(
+                    result.returncode,
+                    0,
+                    result.stdout + result.stderr,
+                )
+
+    def test_nested_kernel_binding_descriptor_capacity_recovers_same_state(self):
+        for mode in ("jit", "aot"):
+            with self.subTest(mode=mode):
+                command = [
+                    str(self.driver),
+                    "--nested-binding-signature-capacity",
+                ]
+                if mode == "aot":
+                    command.append("--aot")
+                result = subprocess.run(
+                    command,
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    timeout=30,
+                )
+                self.assertEqual(
+                    result.returncode,
+                    0,
+                    result.stdout + result.stderr,
+                )
+
     def test_aot_zero_data_program_keeps_advertised_code_offset(self):
         with tempfile.TemporaryDirectory(
             prefix="private-cupidc-zero-data-aot-",
@@ -2165,6 +2425,10 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "void (*drawer)(int, int)) {",
             icon_source,
         )
+        self.assertIn(
+            "cc_retain_kernel_binding_callback_signature",
+            compiler_source,
+        )
 
         source = """
             int observed;
@@ -2191,6 +2455,120 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     47,
                     result.stdout + result.stderr,
                 )
+
+    def test_nested_kernel_binding_executes_in_jit_and_aot(self):
+        source = """
+            int observed;
+
+            void draw(int x, int y) {
+              observed = x * 10 + y;
+            }
+
+            int main() {
+              set_icon_drawer(4, draw);
+              return observed;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    47,
+                    result.stdout + result.stderr,
+                )
+
+    def test_nested_kernel_binding_mismatches_recover_same_state(self):
+        cases = (
+            (
+                "result",
+                """
+                int wrong(int x, int y) { return x + y; }
+                int main() { set_icon_drawer(4, wrong); return 0; }
+                """,
+                "function-pointer argument result does not match parameter type",
+                False,
+            ),
+            (
+                "parameters",
+                """
+                void wrong(int x) { (void)x; }
+                int main() { set_icon_drawer(4, wrong); return 0; }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+                False,
+            ),
+            (
+                "parameter type",
+                """
+                struct Wrong { int value; };
+                void wrong(struct Wrong *value, int marker) {
+                  (void)value;
+                  (void)marker;
+                }
+                int main() { set_icon_drawer(4, wrong); return 0; }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+                False,
+            ),
+            (
+                "record identity",
+                """
+                struct BindingRecord { int value; };
+                struct OtherRecord { int value; };
+                void wrong(struct OtherRecord *value) { (void)value; }
+                int main() { native_record_drawer(4, wrong); return 0; }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+                True,
+            ),
+            (
+                "variadic boundary",
+                """
+                void wrong(int x, ...) { (void)x; }
+                int main() { set_icon_drawer(4, wrong); return 0; }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+                False,
+            ),
+        )
+        retry_source = """
+            int observed;
+            void draw(int x, int y) { observed = x * 10 + y; }
+            int main() {
+              set_icon_drawer(6, draw);
+              return observed;
+            }
+        """
+        record_retry_source = """
+            struct BindingRecord { int value; };
+            int observed;
+            void draw_record(struct BindingRecord *value) {
+              observed = value == 0 ? 1 : 0;
+            }
+            int main() {
+              native_record_drawer(6, draw_record);
+              return observed;
+            }
+        """
+        for label, failing_source, diagnostic, record_binding in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-nested-kernel-binding-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    record_retry_source if record_binding else retry_source,
+                    same_state=True,
+                    record_binding=record_binding,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                self.assertGreaterEqual(int(result.stdout.strip()), 0)
 
     def test_nested_callback_signatures_match_across_raw_and_typedef_forms(self):
         source = """
@@ -9450,6 +9828,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "float4=4 once=1 calls=2",
             "[feature14-callback-raw-array] PASS modes=2 phases=3 "
             "calls=12 stored=1 persistent=1",
+            "[feature14-callback-nested] PASS outer=1 inner=1 value=43",
+            "[feature14-callback-binding] PASS call=1 ignored=1 callback=0",
             "[feature14-minmax] PASS nan=4 signed_zero=4",
             "[feature14-nan] PASS float_left=",
             "PASS feature14_simd",

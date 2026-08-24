@@ -765,10 +765,12 @@ require the same prototype state.
 
 Nested signature metadata does not change the executable ABI. Each callback
 argument remains one four-byte i386 cdecl slot. A signature deeper than 16
-levels or a 33rd distinct raw signature rejects the source and restores the
-signature pool and surrounding AOT transaction. The active
-`void (*p_icon_set_drawer)(int, void (*)(int, int))` binding in
-`kernel/lang/cupidc.cc` uses this form for `set_icon_drawer`. The production
+levels or a 33rd distinct source signature rejects the source and restores the
+signature pool and surrounding AOT transaction. A 33-record backing pool keeps
+that source budget after the active kernel descriptor occupies one record. The
+active `void (*p_icon_set_drawer)(int, void (*)(int, int))` binding in
+`kernel/lang/cupidc.cc` retains `void(int, int)` and publishes that handle for
+`set_icon_drawer`. The production
 compiler source remains built by checked-seed hosted CupidC; this private AOT
 rule does not transfer its ownership to in-OS CupidC.
 
@@ -778,7 +780,7 @@ float-to-double, mixed-width slots, arity checks, variadic promotions, cleanup,
 and result transport share the ordinary typed-call path. The same tests run in
 JIT mode. Unreviewed bindings stay on the named legacy result-only path, and
 this private metadata change does not alter the external ELF loader ABI. ADR
-0332 records the boundary.
+0332 records fixed signatures, and ADR 0333 records the nested binding.
 
 Raw callback scalars with static storage use the same data write and patch
 path at file scope, block-static scope, and persistent REPL scope. A

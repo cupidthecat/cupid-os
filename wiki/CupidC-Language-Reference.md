@@ -116,7 +116,8 @@ signature-bearing object, crosses a higher-order fixed parameter, is passed by
 an indirect callback call, appears in a conditional, or participates in a
 function declaration, definition, or later-definition check. The nested value
 still uses one four-byte i386 cdecl slot. Signature nesting is limited to 16
-levels, and the raw-signature pool holds 32 distinct entries. Failed depth,
+levels. The backing pool holds 33 raw entries; the active kernel callback uses
+one, leaving 32 for source declarations. Failed depth,
 capacity, or compatibility checks restore the child handles with the source or
 REPL transaction before a later compile runs.
 
@@ -130,10 +131,12 @@ A reviewed native kernel binding may publish a complete
 `cc_function_pointer_signature_t`. Fixed calls then use the same scalar and
 floating conversion, cdecl slot, cleanup, arity, variadic promotion, and result
 rules as retained direct or indirect functions. Console, string, port, and all
-50 `libm` bindings form the first reviewed set. Other bindings keep their
-previous source-width arguments through the legacy result-only path. The
-active nested callback handle is not yet published through this seam. ADR 0332
-records fixed native signature publication.
+50 `libm` bindings and `set_icon_drawer` form the reviewed set. The icon setter
+publishes a retained `void(int, int)` child handle, so its second argument must
+match the nested result, parameters, record identities, prototype state, and
+variadic boundary. Other bindings keep their previous source-width arguments
+through the legacy result-only path. ADR 0332 records fixed native signature
+publication, and ADR 0333 records the nested binding.
 
 A raw callback scalar with static storage may be declared at file scope, as a
 block-static object, or as a persistent REPL global. It may start as null or a

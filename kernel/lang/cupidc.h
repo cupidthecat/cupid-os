@@ -43,7 +43,9 @@
 #define CC_MAX_LABELS 128            /* local labels per function/top */
 #define CC_MAX_LABEL_PATCHES 128     /* pending goto patches/label */
 #define CC_MAX_TYPEDEFS 16            /* max source typedef aliases */
-#define CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES 32
+/* Keep the source-facing 32-signature budget after the active kernel callback
+ * descriptor occupies one record in the shared graph. */
+#define CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES 33
 #define CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE CC_MAX_TYPEDEFS
 #define CC_MAX_FUNCTION_POINTER_SIGNATURE_DEPTH 16
 #if (CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE + \
@@ -476,6 +478,9 @@ int cc_register_kernel_binding_legacy(
     int parameter_count, cc_type_t return_type);
 int cc_register_kernel_binding(
     cc_state_t *cc, const char *name, uint32_t address,
+    const cc_function_pointer_signature_t *signature);
+int cc_retain_kernel_binding_callback_signature(
+    cc_state_t *cc,
     const cc_function_pointer_signature_t *signature);
 
 /*  *  REPL (HolyC-style interactive shell)

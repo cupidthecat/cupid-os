@@ -450,12 +450,14 @@ the child callback to an untyped address.
 
 The callback argument itself remains one four-byte i386 slot even when its
 child signature contains `double`, SIMD, or variadic parameters. The metadata
-may nest through 16 levels and use at most 32 distinct raw-signature entries.
+may nest through 16 levels. Its 33-record backing pool leaves 32 records for
+source declarations after the active kernel callback occupies one.
 A rejected depth, capacity, or mismatch restores the signature state before a
 later source or REPL unit runs. The active
 `void (*p_icon_set_drawer)(int, void (*)(int, int))` binding in
-`kernel/lang/cupidc.cc` exercises the same higher-order shape without floating
-arguments. That production source remains built by checked-seed hosted CupidC,
+`kernel/lang/cupidc.cc` publishes the retained `void(int, int)` child through
+that same higher-order shape. That production source remains built by
+checked-seed hosted CupidC,
 not by the private in-OS compiler.
 
 Raw callback arrays use braced static initializers. A fixed array may omit

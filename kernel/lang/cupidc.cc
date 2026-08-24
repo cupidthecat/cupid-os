@@ -1056,6 +1056,14 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 #define BIND_VARIADIC(name_str, func_ptr, nparams, ret_type, ...)              \
   BIND_SIGNATURE((name_str), (func_ptr), (nparams), (ret_type), 1,             \
                  __VA_ARGS__)
+#define BIND_RETAINED(name_str, func_ptr, nparams, ret_type, signature)        \
+  do {                                                                         \
+    uint32_t binding_address;                                                   \
+    memcpy(&binding_address, &(func_ptr), sizeof(binding_address));             \
+    if (!cc_register_kernel_binding(                                           \
+            cc, (name_str), binding_address, &(signature)))                    \
+      return;                                                                  \
+  } while (0)
 
   /* Console output */
   void (*p_print)(const char *) = cc_print;
@@ -2414,7 +2422,39 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   void (*p_icon_set_drawer)(int, void (*)(int, int)) =
       gfx2d_icon_set_custom_drawer;
-  BIND("set_icon_drawer", p_icon_set_drawer, 2);
+  {
+    cc_function_pointer_signature_t drawer_signature;
+    cc_function_pointer_signature_t setter_signature;
+    int drawer_signature_handle;
+    memset(&drawer_signature, 0, sizeof(drawer_signature));
+    memset(drawer_signature.param_struct_indices, -1,
+           sizeof(drawer_signature.param_struct_indices));
+    drawer_signature.return_type = TYPE_VOID;
+    drawer_signature.return_struct_index = -1;
+    drawer_signature.param_count = 2;
+    drawer_signature.param_types[0] = TYPE_INT;
+    drawer_signature.param_types[1] = TYPE_INT;
+    drawer_signature.has_param_types = 1;
+    drawer_signature_handle =
+        cc_retain_kernel_binding_callback_signature(
+            cc, &drawer_signature);
+    if (drawer_signature_handle < 0)
+      return;
+
+    memset(&setter_signature, 0, sizeof(setter_signature));
+    memset(setter_signature.param_struct_indices, -1,
+           sizeof(setter_signature.param_struct_indices));
+    setter_signature.return_type = TYPE_VOID;
+    setter_signature.return_struct_index = -1;
+    setter_signature.param_count = 2;
+    setter_signature.param_types[0] = TYPE_INT;
+    setter_signature.param_types[1] = TYPE_FUNC_PTR;
+    setter_signature.param_struct_indices[1] =
+        (int8_t)drawer_signature_handle;
+    setter_signature.has_param_types = 1;
+    BIND_RETAINED("set_icon_drawer", p_icon_set_drawer, 2, TYPE_VOID,
+                  setter_signature);
+  }
 
     void (*p_icon_draw_named)(const char *, int, int, uint32_t) =
       gfx2d_icon_draw_named;
@@ -2807,6 +2847,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
 #undef BIND
 #undef BIND_T
+#undef BIND_RETAINED
 #undef BIND_VARIADIC
 #undef BIND_FIXED
 #undef BIND_SIGNATURE

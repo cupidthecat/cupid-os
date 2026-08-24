@@ -1112,24 +1112,28 @@ also requires the same prototype state. Raw and typedef children may be mixed
 when the applicable structure agrees.
 
 The nested callback remains one four-byte i386 cdecl argument. Private CupidC
-accepts 16 signature levels and 32 distinct raw-signature entries. A rejected
+accepts 16 signature levels. A 33-record backing pool uses one record for the
+active kernel callback and preserves 32 distinct source signatures. A rejected
 depth, capacity, or structural mismatch restores the pool and the surrounding
 source or REPL state. The active
 `void (*p_icon_set_drawer)(int, void (*)(int, int))` binding supplies
-`set_icon_drawer` from `kernel/lang/cupidc.cc`. The production compiler source
-continues to be built by checked-seed hosted CupidC; retaining this shape in the
-private parser does not transfer it to in-OS CupidC.
+`set_icon_drawer` from `kernel/lang/cupidc.cc`. It retains `void(int, int)` and
+places that handle in the outer native descriptor. The production compiler
+source continues to be built by checked-seed hosted CupidC; retaining this
+shape in the private parser does not transfer it to in-OS CupidC.
 
 The private compiler now exposes a public registration seam for reviewed
 native signatures. It copies the existing result, record, fixed parameter,
 prototype, and variadic fields onto a kernel symbol only after validating the
 whole descriptor. Typed `SYM_KERNEL` calls reuse the existing cdecl conversion,
-layout, cleanup, arity, promotion, and return paths. Console, string, port, and
-all 50 `libm` bindings form the first cohort. A malformed or over-capacity
-descriptor does not consume a symbol, and a valid registration can follow in
-the same state. Unreviewed bindings retain their legacy source-width behavior.
-This private change moves no object owner or host dependency. ADR 0332 records
-the boundary.
+layout, cleanup, arity, promotion, and return paths. Console, string, port, all
+50 `libm` bindings, and `set_icon_drawer` form the reviewed cohort. The icon
+setter retains its child through the same public seam. A malformed, corrupt,
+over-depth, or over-capacity child descriptor consumes no new record. A
+rejected outer registration consumes no symbol, and a valid operation can
+follow in the same state. Unreviewed bindings retain their legacy source-width
+behavior. This private change moves no object owner or host dependency. ADR
+0332 records fixed signatures, and ADR 0333 records the nested binding.
 
 The source contract matches the active six-entry `wipes` table in
 `kernel/doom/src/f_wipe.cc`. Its three phases select `wipeno*3`,

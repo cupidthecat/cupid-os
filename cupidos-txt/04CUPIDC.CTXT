@@ -1832,8 +1832,9 @@ boundary at every level.
 
 Each nested callback value still occupies one four-byte i386 cdecl slot. The
 handle is compiler metadata, not part of the runtime pointer. Signature graphs
-may be nested through sixteen levels, and the private raw-signature pool holds
-32 distinct entries. A deeper graph or exhausted pool reports a direct error.
+may be nested through sixteen levels. The backing pool holds 33 entries; the
+active kernel callback uses one, leaving 32 entries for source declarations.
+A deeper graph or exhausted pool reports a direct error.
 A failed function, source, or persistent REPL unit restores parent and child
 handles with the raw pool, symbols, and pending patches.
 
@@ -1851,9 +1852,12 @@ Reviewed native bindings publish fixed or variadic parameter metadata through
 the existing function-pointer signature representation. Their direct kernel
 calls share typed conversion, complete cdecl slots, cleanup, arity, default
 promotion, and result transport with other typed calls. The first reviewed set
-contains console, string, port, and all 50 libm bindings. Unreviewed entries use
-the named legacy result-only path and keep their previous source-width
-arguments. Nested publication for set_icon_drawer remains separate work.
+contains console, string, port, all 50 libm bindings, and set_icon_drawer.
+The icon setter publishes its retained void(int, int) child handle through the
+outer native descriptor. Unreviewed entries use the named legacy result-only
+path and keep their previous source-width arguments. ADR 0333 records the
+nested binding.
+
 Plain function initializers must match the retained result, record identity,
 fixed parameters, and variadic boundary. An explicit void-pointer cast erases
 that comparison. Named local copies use the same check. Later target addresses

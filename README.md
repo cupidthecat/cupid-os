@@ -101,9 +101,10 @@ Structural comparison always checks result and record identity. At each
 prototyped level it also checks parameters and the variadic boundary.
 Compatibility keeps the existing unprototyped-call rule, while exact
 declaration checks require matching prototype state. Each comparison memoizes
-pairs across the 48 raw-or-typedef handles. Nesting is limited to 16 levels,
-the raw pool holds 32 signatures, and failed program or REPL transactions
-restore that pool. Raw callback fields now retain the same metadata in
+pairs across the 49 raw-or-typedef handles. Nesting is limited to 16 levels.
+The 33-record backing pool uses one entry for the active kernel callback and
+leaves 32 for source declarations. Failed program or REPL transactions restore
+their records. Raw callback fields now retain the same metadata in
 structures, classes, anonymous typedef records, and persistent REPL records.
 Typedef-backed and raw field expressions can be called directly. They use the
 existing fixed and variadic cdecl conversions, evaluate nested or indexed
@@ -121,11 +122,10 @@ Block-static scalar raw callbacks share the same data-backed declaration path.
 Automatic raw callback arrays, raw callback array parameters, raw record or
 class field arrays, multidimensional raw callback arrays, computed conditional
 values, aggregate results, and raw Cupid class method parameters remain open.
-Callback-valued results, pointer-to-function-pointer `**` declarators,
-callback alias chains, and nested callback publication through binding metadata
-remain separate work. Typedef-backed fixed callback field arrays stay on their
-separate retained-field path. The promoted standalone seeds do not contain this private
-parser or ELF writer. ADR 0306 records global
+Callback-valued results, pointer-to-function-pointer `**` declarators, and
+callback alias chains remain separate work. Typedef-backed fixed callback field
+arrays stay on their separate retained-field path. The promoted standalone
+seeds do not contain this private parser or ELF writer. ADR 0306 records global
 storage, ADR 0310 records automatic objects and method parameters, ADR 0313
 records initialized-data function-address patches, ADR 0315 records raw
 file objects and free-function parameters, and ADR 0319 records direct explicit
@@ -145,14 +145,29 @@ and fixed-address AOT tests cover floating conversions, mixed-width slots,
 diagnostics, descriptor limits, rollback, and same-state recovery. ADR 0332
 records this boundary.
 
-The full GUI test module passes all 128 tests in 0.955 seconds. The
-source-current private frontier boot brings four of four `max` i386 CPUs
-online, then records
+The active `set_icon_drawer(int, void (*)(int, int))` binding now retains its
+inner callback through that same recursive graph and publishes the handle in
+the outer native descriptor. Nested result, parameter, record-identity, and
+variadic mismatches fail before the native call. Corrupt handles, excessive
+depth, and capacity failures leave the state reusable. The shared backing pool
+has 33 records so the built-in descriptor does not reduce the existing
+32-signature source budget. Feature 14 calls the real binding with an invalid
+handle and requires
+`[feature14-callback-binding] PASS call=1 ignored=1 callback=0`. ADR 0333
+records this boundary. The private ABI, binding contract, and GUI modules pass
+456 tests. Checked-seed CupidC builds both changed compiler objects, and the
+supported audit regeneration reproduces the generated records exactly. The
+full target build and four-vCPU smoke are deferred to the consolidated
+integration run.
+
+The most recent completed private frontier boot predates ADR 0333. At the ADR
+0331 checkpoint, the full GUI test module passed all 128 tests in 0.955 seconds
+and the boot brought four of four `max` i386 CPUs online, then recorded
 `[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,
 `[feature14-callback-nested] PASS outer=1 inner=1 value=43`,
 `PASS feature14_simd`, and clean in-OS CupidC JIT completion. The 151,289-byte
 `build/bootstrap/feature14-raw-array-qemu.log` remains the ADR 0330 checkpoint.
-The current 157,520-byte
+The 157,520-byte ADR 0331 log at
 `build/bootstrap/feature14-nested-callback-qemu.log` has SHA-256
 `b34a68aebdfecaeeb347c1ff4764cbe609a6ed2f154557a15133a601101585c6`.
 The wider frontier check changed 109,518 framebuffer pixels and captured
@@ -597,12 +612,12 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   record identities, prototype state, and variadic boundary. The nested handle
   uses the existing `param_struct_indices` entry while the argument remains one
   four-byte i386 slot, so cdecl layout is unchanged. Raw and typedef graphs
-  compare structurally through a memoized 48-handle relation. Signature nesting
-  is limited to 16 levels, and the private raw-signature pool holds 32 entries.
-  Program and REPL rollback restore that pool after a rejected source.
-  Callback-valued results, pointer-to-function-pointer `**` declarators,
-  callback alias chains, and nested callback publication through binding
-  metadata remain separate work.
+  compare structurally through a memoized 49-handle relation. Signature nesting
+  is limited to 16 levels. The backing pool holds 33 entries, with one used by
+  the active kernel callback so source keeps its 32-entry budget. Program and
+  REPL rollback restore source records after a rejection. Callback-valued
+  results, pointer-to-function-pointer `**` declarators, and callback alias
+  chains remain separate work.
   A later target is resolved through an initialized-data address patch. ADR
   0303 records free-function parameters, ADR 0306 records global objects, ADR
   0310 records automatic objects and method parameters, and ADR 0313 records

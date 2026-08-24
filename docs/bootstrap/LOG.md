@@ -30480,3 +30480,64 @@ object format, or host dependency. Nested publication for the active
 `set_icon_drawer` binding remains separate work. No source suffix changes, and
 `TempleOS/` remains untouched reference material. ADR 0332 records the
 boundary.
+
+## 2026-08-24: publish the active nested callback binding
+
+Private CupidC now retains callback descriptors for reviewed native bindings
+through the existing `cc_function_pointer_signature_t` graph. The new public
+retention function validates a complete child descriptor, including nested
+handles, and interns it in the same raw-signature pool used by source
+declarators. `set_icon_drawer(int, void (*)(int, int))` retains
+`void(int, int)` and stores that child handle in its fixed outer binding
+descriptor. Typed `SYM_KERNEL` calls therefore apply the existing callback
+compatibility, arity, cdecl layout, cleanup, and result rules before entering
+the graphics implementation.
+
+The red test driver failed because the public retention function did not
+exist. The green JIT and fixed-address AOT fixtures pass a matching drawer
+through a fake native setter and observe both callback arguments. Negative
+sources reject nested result, parameter type, exact record identity, and
+variadic-boundary mismatches, then compile a valid call in the same state.
+Public descriptor checks reject a corrupt handle, a seventeenth nested edge,
+and a full graph without changing the retained-record count. Each case recovers
+through a valid new record or structural deduplication.
+
+The first complete ABI replay exposed four persistent-REPL regressions. The
+built-in descriptor had consumed one of the 32 source records, so valid
+32-signature units stopped at 31. The backing graph now holds 33 records. The
+active binding occupies one and source keeps its previous 32-record budget.
+The four existing rollback cases and the new public capacity case pass after
+that correction.
+
+Feature 14 now calls the real binding with handle `-1`. The graphics setter
+returns without invoking the callback, and the guest requires
+`[feature14-callback-binding] PASS call=1 ignored=1 callback=0` immediately
+after its existing nested callback marker. The GUI frontier requires that
+ordering and rejects the matching failure marker.
+
+The private call ABI, binding contract, and GUI modules pass 456 tests in
+78.310 seconds. Checked-seed CupidC builds the changed objects:
+
+| Object | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/lang/cupidc_parse.o` | 505,228 | `6b540b53a606d5d5471ea372100a3380049915c50a3c8bf12926081705a06603` |
+| `kernel/lang/cupidc.o` | 299,208 | `bc66b63d7711ab49c8baac2719ffc87be9a6c330081888374db0dbbfdce0f5c9` |
+
+`make bootstrap-audit` regenerates the active records, and
+`make check-bootstrap-audit` reproduces them exactly. The 2,702,374-byte JSON
+has SHA-256
+`43d13d4c40afedb97247fbc30c9f8daebdf26bc60e35ee8c4d971534ab3f16ba`.
+The cross-host callback-capacity conditional row from the repaired baseline is
+still present.
+
+The combined seed retry remained active during this validation, so no
+competing full build or four-vCPU smoke was started. One consolidated target
+build and runtime check is deferred until after integration. No raw kernel or
+image was published, and the artifact-size policy did not change.
+
+The standalone checked seeds do not contain this private parser. Checked-seed
+hosted CupidC remains the production owner of the compiler and feature guest.
+This step moves no object owner, checked seed, object format, or host
+dependency. No `.c` file reached Cupid ownership, so no suffix change is due.
+No issue is ready to close from this private increment. `TempleOS/` remains
+untouched reference material. ADR 0333 records the boundary.

@@ -114,12 +114,14 @@ including the nested result, record identities, fixed parameters, and variadic
 boundary. Compatible uses keep the existing unprototyped callback rule, while
 declaration and definition matching also requires the same prototype state.
 Nesting is limited to 16 callback signature levels. Nested raw signatures share
-the existing 32-record raw signature pool with outer raw declarations. Program
-and persistent REPL failures restore the pool and retained graphs before a valid
-retry. This metadata does not change the i386 ABI: each callback parameter still
-occupies one four-byte cdecl slot.
-The active requirement is the unchanged `p_icon_set_drawer` declaration in
-`kernel/lang/cupidc.cc`, whose second parameter is itself a raw callback.
+one 33-record backing pool with outer raw declarations. The active kernel
+callback descriptor occupies one record, leaving the existing 32-record source
+budget intact. Program and persistent REPL failures restore the pool and
+retained graphs before a valid retry. This metadata does not change the i386
+ABI: each callback parameter still occupies one four-byte cdecl slot.
+The active `p_icon_set_drawer` declaration in `kernel/lang/cupidc.cc` now
+retains `void(int, int)` in that graph and publishes its handle through the
+outer `set_icon_drawer(int, callback)` binding descriptor.
 Typedef-backed callback arrays on structure and class fields retain the
 signature through indexed stores, named copies, and direct calls. Each index
 is evaluated once. One-dimensional raw callback arrays now work at file scope,
@@ -744,11 +746,12 @@ prefix, and publishes floating or vector results through XMM0. Empty `()`,
 `void *`, callback alias chains, self-referential signature graphs, conditional
 initializers, arbitrary computed expressions, raw method parameters,
 callback-valued results, pointer-to-function-pointer `**` declarators, and
-aggregate results remain outside this path. Native binding metadata does not
-yet carry a nested callback signature. Data-backed raw callback arrays may use
-one dimension at file scope, in a block-static declaration, or in persistent
-REPL storage. The same path handles block-static raw callback scalars. Automatic,
-parameter, record or class field, and multidimensional raw callback arrays are
+aggregate results remain outside this path. The active `set_icon_drawer`
+binding carries a nested callback handle through this metadata. Data-backed raw
+callback arrays may use one dimension at file scope, in a block-static
+declaration, or in persistent REPL storage. The same path handles block-static
+raw callback scalars. Automatic, parameter, record or class field, and
+multidimensional raw callback arrays are
 still rejected. Raw and typedef-backed callback fields retain the signature
 and support direct postfix calls. A structure or
 class field declared directly with the callback typedef keeps its signature
@@ -757,9 +760,11 @@ later global target is resolved through an absolute initialized-data patch.
 Named raw callback file objects and direct free-function parameters retain
 their parsed signatures. Their callback-valued parameters retain nested
 signatures through 16 levels. Raw and typedef-backed nested signatures compare
-structurally without changing the four-byte cdecl slot. The private pool holds
-at most 32 raw signatures, shared by outer and nested declarations, and rolls
-back with the program or persistent REPL unit.
+structurally without changing the four-byte cdecl slot. The backing pool holds
+33 raw signatures shared by bindings and source declarations. The active
+binding uses one record, so source and persistent REPL units keep their prior
+32-record budget. Failed units roll back their own records without removing
+the binding descriptor.
 Character operands undergo integer
 promotion in ordinary integer arithmetic and use the integer SSE conversion
 path when paired with a floating operand or cast.

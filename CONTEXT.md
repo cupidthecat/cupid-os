@@ -212,13 +212,14 @@ parameter, record-identity, prototype, and variadic metadata. For a
 handle instead of a record index. The argument remains one four-byte i386 word,
 so the retained graph does not change cdecl layout. Raw and direct-typedef
 signature graphs compare structurally. Each comparison memoizes handle pairs
-across the combined 48-handle domain. Parsing and comparison accept at most 16
-nested levels, and the private pool holds at most 32 raw signatures. Failed
-program and REPL transactions restore that pool with the rest of the parser
-state. A structure or class field declared directly with a callback
-typedef retains that typedef's signature. Checked plain assignment stores a
-compatible function or callback value, null clears the field, and a member
-read keeps the signature when it is copied into a named callback object.
+across the combined 49-handle domain. Parsing and comparison accept at most 16
+nested levels. The backing pool holds 33 raw signatures: the active kernel
+callback descriptor occupies one, preserving 32 records for source
+declarations. Failed program and REPL transactions restore that pool with the
+rest of the parser state. A structure or class field declared directly with a
+callback typedef retains that typedef's signature. Checked plain assignment
+stores a compatible function or callback value, null clears the field, and a
+member read keeps the signature when it is copied into a named callback object.
 Nested record and indexed record-array traversal keep the same rule. Raw
 function-pointer field declarators retain the same signature. A postfix call
 through either field form uses typed fixed and variadic cdecl conversion,
@@ -237,8 +238,8 @@ callbacks use the same initialized-data path. Automatic raw callback arrays,
 raw callback array parameters, raw record or class field arrays,
 multidimensional raw callback arrays, raw method parameters, conditional field
 values, and aggregate results remain outside this boundary. Callback-valued
-results, pointer-to-function-pointer `**` declarators, callback alias chains,
-and nested callback publication through binding metadata remain separate work.
+results, pointer-to-function-pointer `**` declarators, and callback alias
+chains remain separate work.
 Typedef-backed fixed callback field arrays remain the separate ADR 0328 path.
 Direct structure and array results remain rejected. Program and REPL rollback
 restore typedef and side-table metadata, provisional signatures, code, data,
@@ -254,12 +255,15 @@ function addresses, ADR 0321 records typedef-backed callback fields, and ADR
 fields and direct field calls. ADR 0328 records typedef-backed callback field
 arrays, and ADR 0330 records data-backed raw callback arrays and block-static
 raw callbacks. ADR 0331 records recursive callback-parameter signatures. ADR
-0332 records fixed signature publication for reviewed native bindings.
+0332 records fixed signature publication for reviewed native bindings, and ADR
+0333 records nested callback publication for the active icon drawer binding.
 Source-head guest runtime proves the existing scalar raw forms with
 initialized, parameter, clear, reassignment, and typed-call coverage.
 The active nested shape is `p_icon_set_drawer` in `kernel/lang/cupidc.cc`,
 which points to `gfx2d_icon_set_custom_drawer` and its callback-valued
-`drawer` parameter. Active Doom source in `kernel/doom/src/f_wipe.cc` supplies
+`drawer` parameter. The binding retains `void(int, int)` in the shared graph
+and publishes its handle in the outer `void(int, callback)` descriptor. Active
+Doom source in `kernel/doom/src/f_wipe.cc` supplies
 the six-entry raw callback table for the separate array boundary. Checked-seed
 hosted CupidC still owns both production translations. The standalone checked
 seeds do not contain the private parser, and this capability moves no build

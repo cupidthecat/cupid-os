@@ -9385,6 +9385,16 @@ static int cc_intern_raw_function_pointer_signature(
   return CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE + index;
 }
 
+int cc_retain_kernel_binding_callback_signature(
+    cc_state_t *cc,
+    const cc_function_pointer_signature_t *signature) {
+  if (!cc)
+    return -1;
+  if (!cc_validate_kernel_binding_signature(cc, signature))
+    return -1;
+  return cc_intern_raw_function_pointer_signature(cc, signature);
+}
+
 static int cc_parse_raw_function_pointer_field(
     cc_state_t *cc, cc_type_t return_type, int return_struct_index,
     int return_array_count, cc_token_t *field_name,

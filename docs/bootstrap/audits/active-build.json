@@ -38612,7 +38612,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 49,
+              "line": 51,
               "path": "kernel/lang/cupidc.h",
               "text": "#if (CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE +      CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES) > 128"
             }
@@ -45057,7 +45057,7 @@
         "toolchain/tests/user_syscall_abi_contract.cc"
       ],
       "id": "c.control.do",
-      "occurrences": 84
+      "occurrences": 85
     },
     {
       "category": "control",
@@ -45364,7 +45364,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5184
+      "occurrences": 5185
     },
     {
       "category": "control",
@@ -46093,7 +46093,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 40860
+      "occurrences": 40866
     },
     {
       "category": "control",
@@ -46466,7 +46466,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 25167
+      "occurrences": 25174
     },
     {
       "category": "control",
@@ -46853,7 +46853,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2878
+      "occurrences": 2879
     },
     {
       "category": "declaration",
@@ -47407,7 +47407,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6405
+      "occurrences": 6410
     },
     {
       "category": "extension",
@@ -48451,7 +48451,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3140
+      "occurrences": 3141
     },
     {
       "category": "preprocessor",
@@ -48892,7 +48892,7 @@
           "text": "#error \"Unknown byte order\""
         },
         {
-          "line": 51,
+          "line": 53,
           "path": "kernel/lang/cupidc.h",
           "text": "#error \"function-pointer signature handles must fit in int8_t\""
         },
@@ -48979,7 +48979,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.preprocessor.function_macro",
-      "occurrences": 219
+      "occurrences": 220
     },
     {
       "category": "preprocessor",
@@ -50143,7 +50143,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.preprocessor.undef",
-      "occurrences": 93
+      "occurrences": 94
     },
     {
       "category": "preprocessor",
@@ -50539,7 +50539,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 16388
+      "occurrences": 16390
     },
     {
       "category": "qualifier",
@@ -52286,7 +52286,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 23713
+      "occurrences": 23718
     },
     {
       "category": "type",
@@ -54747,7 +54747,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "f68a78713dcd59f4c33754285d7bcab1feee688f75450b3c0a0523290b871a9c",
+    "active_source_digest": "c96a7b318116c6d4afafb19046e68c2ad3a32a93c7940e4b5f3d4fd96338f826",
     "control_files": [
       {
         "path": "Makefile",
@@ -57102,12 +57102,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 1153,
+      "lines": 1169,
       "origin": "tracked",
       "path": "bin/feature14_simd.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "dba75dff889b179865025df0e25e4a72e2b4b4cde46444609b490a9da57ce515"
+      "sha256": "f8717924ab63880a144d4d85dba310c3854c10d6888498d5ea9ec473060ec3f7"
     },
     {
       "build_owners": [
@@ -75375,12 +75375,12 @@
         "kernel/util/calendar.h"
       ],
       "language": "cupid_c",
-      "lines": 4195,
+      "lines": 4236,
       "origin": "tracked",
       "path": "kernel/lang/cupidc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "0f05c5c5c6696a1ec8988ae3435d470278e36b2d8bf54b23fed97e45b2d2641f"
+      "sha256": "333540ba64a8adee87227596a56ff8074113133ad5e8dd6fb1fb0f8a8eb3f1f6"
     },
     {
       "build_owners": [
@@ -75414,12 +75414,12 @@
         "kernel/lang/dis.h"
       ],
       "language": "c_header",
-      "lines": 550,
+      "lines": 555,
       "origin": "tracked",
       "path": "kernel/lang/cupidc.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "034e79617d0925bd764abf133778c43c2c4a0ca9987998c6e06d96f75b6fec19"
+      "sha256": "40eccf4b8257dede709dc896078137b932a49fdccc419322f7ea9dd94f26ca10"
     },
     {
       "build_owners": [
@@ -75554,12 +75554,12 @@
         "kernel/lang/cupidc.h"
       ],
       "language": "cupid_c",
-      "lines": 13240,
+      "lines": 13250,
       "origin": "tracked",
       "path": "kernel/lang/cupidc_parse.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9f189b8d7a15af528e123cc29daf10f9fa96bb5685e8d9d5b05dada7b53426ee"
+      "sha256": "e30103d44a5a06c457b7a65c11efa9f922241070f9916c9f6451ed8bc8a56d9a"
     },
     {
       "build_owners": [

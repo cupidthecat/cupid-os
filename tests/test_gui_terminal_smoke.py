@@ -177,6 +177,7 @@ def _frontier_command_outputs():
             "[feature14-callback-raw-array] PASS modes=2 phases=3 "
             "calls=12 stored=1 persistent=1\n"
             "[feature14-callback-nested] PASS outer=1 inner=1 value=43\n"
+            "[feature14-callback-binding] PASS call=1 ignored=1 callback=0\n"
             "[feature14-callback-automatic] PASS local=4 method=4 calls=2\n"
             "[feature14-callback-field] PASS stored=1 copied=1 cleared=1 "
             "float4=4 calls=1\n"
@@ -2141,6 +2142,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "calls=12 stored=1 persistent=1\n"
             ),
             "[feature14-callback-nested] PASS outer=1 inner=1 value=43\n",
+            "[feature14-callback-binding] PASS call=1 ignored=1 callback=0\n",
             (
                 "[feature14-callback-automatic] PASS local=4 method=4 "
                 "calls=2\n"
@@ -2184,6 +2186,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback-field-call] FAIL",
             "[feature14-callback-raw-array] FAIL",
             "[feature14-callback-nested] FAIL",
+            "[feature14-callback-binding] FAIL",
             "[feature14-minmax] FAIL",
             "[feature14-nan] FAIL",
             "FAIL feature14_simd",
@@ -2266,7 +2269,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "void feature14_nested_install(int handle, "
             "void (*drawer)(int, int))",
             "set_drawer(4, feature14_nested_draw);",
+            "set_icon_drawer(-1, feature14_nested_draw);",
             "[feature14-callback-nested] PASS outer=1 inner=1 value=43",
+            "[feature14-callback-binding] PASS call=1 ignored=1 callback=0",
             "static int (*wipes[])(int, int, int)",
             "(*wipes[wipeno*3])(4, 2, 1)",
             "(*wipes[wipeno*3+1])(4, 2, 1)",
@@ -2304,6 +2309,20 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         self.assertEqual(
             gui_terminal_smoke.frontier_failure_marker(poisoned),
             "[feature14-callback-nested] FAIL",
+        )
+
+    def test_feature14_callback_binding_failure_cannot_hide_behind_pass_evidence(self):
+        sample = _frontier_command_output("/bin/feature14_simd.cc")
+        poisoned = sample.replace(
+            "[feature14-callback-binding] PASS",
+            "[feature14-callback-binding] FAIL\n"
+            "[feature14-callback-binding] PASS",
+            1,
+        )
+
+        self.assertEqual(
+            gui_terminal_smoke.frontier_failure_marker(poisoned),
+            "[feature14-callback-binding] FAIL",
         )
 
     def test_feature14_nested_callback_evidence_keeps_callback_order(self):

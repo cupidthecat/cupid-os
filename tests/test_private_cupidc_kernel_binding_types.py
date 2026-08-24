@@ -15,12 +15,13 @@ DECLARATION_RE = re.compile(
     r"[ \t]*\("
 )
 BIND_RE = re.compile(
-    r"(?m)^[ \t]*(?P<macro>BIND(?:_T|_FIXED|_VARIADIC)?)"
+    r"(?m)^[ \t]*(?P<macro>BIND(?:_T|_FIXED|_VARIADIC|_RETAINED)?)"
     r"\(\s*\"(?P<name>[^\"]+)\""
     r"\s*,\s*(?P<pointer>p_[A-Za-z0-9_]+)"
     r"\s*,\s*(?P<parameter_count>[0-9]+)"
     r"(?:\s*,\s*(?P<return_type>TYPE_[A-Z0-9_]+))?"
     r"(?P<parameter_types>(?:\s*,\s*TYPE_[A-Z0-9_]+)*)"
+    r"(?:\s*,\s*[A-Za-z_][A-Za-z0-9_]*)?"
     r"[ \t\r\n]*\);"
 )
 
@@ -375,6 +376,29 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
                 "return_type": "TYPE_VOID",
                 "parameter_types": ["TYPE_CHAR_PTR"],
             },
+        )
+
+    def test_icon_drawer_binding_publishes_its_nested_callback_handle(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        _declarations, bindings, violations = _binding_contract(source)
+        self.assertEqual(violations, [])
+        by_name = {binding["name"]: binding for binding in bindings.values()}
+
+        self.assertEqual(by_name["set_icon_drawer"]["macro"], "BIND_RETAINED")
+        self.assertEqual(by_name["set_icon_drawer"]["parameter_count"], 2)
+        self.assertEqual(by_name["set_icon_drawer"]["return_type"], "TYPE_VOID")
+        self.assertIn(
+            "cc_retain_kernel_binding_callback_signature(\n"
+            "            cc, &drawer_signature)",
+            source,
+        )
+        self.assertIn(
+            "setter_signature.param_types[1] = TYPE_FUNC_PTR;",
+            source,
+        )
+        self.assertIn(
+            "setter_signature.param_struct_indices[1] =",
+            source,
         )
 
     def test_untyped_nonvoid_binding_names_the_bad_contract(self):

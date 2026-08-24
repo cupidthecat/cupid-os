@@ -464,6 +464,13 @@ int feature14_test_callback_nested() {
     return 0;
 }
 
+int feature14_test_callback_binding() {
+    feature14_nested_inner_calls = 0;
+    set_icon_drawer(-1, feature14_nested_draw);
+    if (feature14_nested_inner_calls != 0) return 1;
+    return 0;
+}
+
 int main() {
     int ok = 1;
 
@@ -964,6 +971,15 @@ int main() {
     } else {
         serial_printf("[feature14-callback-nested] FAIL check=%d\n",
                       callback_nested_result);
+        ok = 0;
+    }
+
+    int callback_binding_result = feature14_test_callback_binding();
+    if (callback_binding_result == 0) {
+        serial_printf("[feature14-callback-binding] PASS call=1 ignored=1 callback=0\n");
+    } else {
+        serial_printf("[feature14-callback-binding] FAIL check=%d\n",
+                      callback_binding_result);
         ok = 0;
     }
 

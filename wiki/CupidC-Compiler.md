@@ -175,8 +175,9 @@ Raw and typedef child handles may be mixed when the applicable structure
 agrees.
 
 Each nested callback value still occupies one four-byte i386 cdecl slot. The
-metadata graph is limited to 16 signature levels, and the private raw-signature
-pool still holds 32 distinct entries. A depth or capacity failure rolls the
+metadata graph is limited to 16 signature levels. Its backing pool holds 33
+raw entries, with one used by the active kernel callback descriptor so source
+units retain their 32-entry budget. A depth or capacity failure rolls the
 new handles back with the surrounding source or REPL transaction, so a later
 valid compile can reuse the state. This covers the active
 `void (*p_icon_set_drawer)(int, void (*)(int, int))` binding for
@@ -188,10 +189,12 @@ Native bindings also have a public fixed-signature registration seam. A
 reviewed entry publishes the existing `cc_function_pointer_signature_t`, so a
 direct kernel call shares fixed conversion, complete cdecl slot layout,
 cleanup, arity, default variadic promotion, and result transport with other
-typed calls. The first reviewed set contains console, string, port, and all 50
-`libm` entries. Unreviewed bindings use an explicitly named legacy result-only
-path and retain their previous source-width arguments. Nested publication for
-`set_icon_drawer` remains separate work. ADR 0332 records this boundary.
+typed calls. The reviewed set contains console, string, port, all 50 `libm`
+entries, and `set_icon_drawer(int, void (*)(int, int))`. The icon binding
+retains `void(int, int)` in the existing raw graph and places that handle in
+the outer descriptor. Unreviewed bindings use an explicitly named legacy
+result-only path and retain their previous source-width arguments. ADR 0332
+records fixed native signatures, and ADR 0333 records the nested binding.
 
 The separate data-backed raw-array path serves the active six-entry table in
 `kernel/doom/src/f_wipe.cc`. The table groups three handlers per wipe and uses

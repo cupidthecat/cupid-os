@@ -380,9 +380,14 @@ share typed conversion, complete cdecl slot layout, cleanup, arity, default
 promotion, and result transport with direct and indirect typed functions.
 Unreviewed entries retain their previous source-width arguments through the
 named legacy result-only path. Source contracts check the complete table and
-the exact 50-symbol floating cohort. This repairs private compiler semantics
-without moving a source file or adding a host dependency. ADR 0332 records the
-boundary.
+the exact 50-symbol floating cohort. The active `set_icon_drawer` entry also
+retains its `void(int, int)` callback and publishes the child handle in its
+outer native descriptor. JIT and fixed-address AOT tests execute that binding;
+negative cases cover nested result, parameter, record-identity, and variadic
+mismatches plus corrupt handles, depth, capacity, and same-state recovery.
+This repairs private compiler semantics without moving a source file or adding
+a host dependency. ADR 0332 records fixed signatures, and ADR 0333 records the
+nested binding.
 
 Forty-six of those registrations expose the linked graphics effects,
 bitmap-font assets, transforms, GUI initialization, and theme APIs required by
@@ -624,8 +629,10 @@ method parameters, and arbitrary computed callbacks also remain open. A named
 raw
 callback file object and direct free-function parameter now
 retain the parsed result, parameters, record identities, prototype state, and
-variadic boundary. The private pool accepts 32 distinct raw signatures and
-rejects the next one without leaking state. Direct structure or array results
+variadic boundary. The source budget accepts 32 distinct raw signatures and
+rejects the next one without leaking state. A 33-record backing pool preserves
+that budget after the active kernel drawer descriptor occupies one record.
+Direct structure or array results
 remain rejected. A
 code-only AOT image still emits one program header with code at offset `0x80`.
 ADR 0319 records the explicit address boundary, ADR 0321 records
