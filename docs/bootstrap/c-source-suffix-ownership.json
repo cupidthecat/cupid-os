@@ -154,6 +154,7 @@
   "unreachable_cupid_c_sources": {
     "bin/old_cc2.cc": "explicitly_excluded",
     "bin/old_cc2_single.cc": "explicitly_excluded",
-    "demos/paint.cc": "superseded"
+    "demos/paint.cc": "superseded",
+    "toolchain/tests/cupiddis_kernel_adapter_contract.cc": "host_oracle"
   }
 }

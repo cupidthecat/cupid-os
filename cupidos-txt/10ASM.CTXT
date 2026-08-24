@@ -818,6 +818,13 @@ Both checked seeds carry the static ELF code-anchor rule for entry and defined
 function symbols. The normal kernel publisher applies it to the pass-one and
 final ELFs before CupidObj flattening. Minimal DWARF source information remains
 separate work.
+
+The in-OS raw adapter accepts fixed 16-bit code, fixed 32-bit code, or a
+borrowed map of code16, code32, and data ranges. Its strict option checks the
+shared CupidDis summary and returns an error without a listing when selected
+code is unknown, invalid, or truncated. Existing CupidC JIT listings still use
+the permissive fixed-32 wrapper. The DEBUG self-test covers one mixed map and
+one strict rejection through the public adapter.
 >endtree
 
 >h2 See Also

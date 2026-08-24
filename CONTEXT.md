@@ -1284,6 +1284,15 @@ data ranges as `db` rows without entering the x86 decoder. The assembler, not
 a byte heuristic, places source-derived transitions at statement boundaries.
 _Avoid_: raw mode map, automatic code or mode detection, one kind per retained instruction
 
+**In-kernel raw disassembly request**:
+The public `dis_disassemble_raw` adapter request for a borrowed byte buffer.
+It selects fixed 16-bit code, fixed 32-bit code, or a shared typed raw range
+map. Its optional strict-known rule checks CupidDis's typed decode summary and
+returns a VFS error before rendering when selected code contains an unknown,
+invalid, or truncated instruction. The older `dis_disassemble` call is a
+permissive fixed-32 wrapper.
+_Avoid_: raw-map parser, inferred mode, strict legacy listing
+
 **Raw layout policy**:
 The artifact owner's accepted size, origin, and ordered raw range map for one
 flat image. CupidASM reports source layout, while the owner decides whether
@@ -1594,15 +1603,18 @@ Windows skips. That checkpoint reached the exact-size gate with changed
 pass-one ELF, final ELF, and raw-kernel outputs. After those three policy rows
 were updated, its repeat passed in 874.531 seconds and checked all fourteen
 artifacts.
-The source-head kernel outputs are a 9,417,012-byte
+The source-head kernel outputs are a 9,421,144-byte
 `kernel/kernel.elf.pass1` with SHA-256
-`5d353af4f5de45ca47f4de4be51ef732db0b907125543cbebad4a9c19f166605`, a
-9,543,988-byte `kernel/kernel.elf` with SHA-256
-`1dfcd029e9a31d6da949181b3e5c2654fb6ae064a826e05fa9438ae1f3d01472`,
-and a 9,320,044-byte `kernel/kernel.bin` with SHA-256
-`3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d`.
-The 209,715,200-byte `cupidos.img` has SHA-256
+`e8e35e976b60502f81cb5a1fa45cbe8b91fea19c7cbb688784139dc8d7d8110d`, a
+9,548,120-byte `kernel/kernel.elf` with SHA-256
+`e7b0de94ad364f79c71b336790737d110b9250091a98ff57dadbaf60e04010a2`,
+and a 9,323,140-byte `kernel/kernel.bin` with SHA-256
+`7e7cff0d2b15f0a233dbfdd8bfc7eeb918bc366c950c1c6a4d147a7ecaeea887`.
+The preceding 209,715,200-byte `cupidos.img` has SHA-256
 `acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43`.
+The current adapter branch linked both ELFs, but its strict production
+inspection reached the existing 300-second process budget and did not publish
+or boot a replacement image.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
 duplicate, linked, nonregular, or differently sized members fail. An

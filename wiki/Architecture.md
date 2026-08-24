@@ -60,6 +60,13 @@ the prior image on failure. ADR 0305 records the raw-image promotion, and ADR
 0312 records the preceding seed and relocatable-object adoption. ADR 0323
 records the current seed and linked-image adoption.
 
+The public in-kernel raw adapter accepts fixed 16-bit code, fixed 32-bit code,
+or the same typed code16, code32, and data range records used by the shared
+inspector. A caller may require complete known-instruction coverage. CupidDis
+then checks its typed summary and returns before printing a listing if selected
+code is unknown, invalid, or truncated. The older JIT adapter remains
+permissive fixed-32. ADR 0334 records this boundary.
+
 Checked CupidDis can also validate static ELF code anchors. Its explicit
 policy checks the kernel entry and every defined function symbol against
 decoded starts in file-backed executable load regions. It reports an address
@@ -242,10 +249,10 @@ against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,417,012 | `5d353af4f5de45ca47f4de4be51ef732db0b907125543cbebad4a9c19f166605` |
-| `kernel/kernel.elf` | 9,543,988 | `1dfcd029e9a31d6da949181b3e5c2654fb6ae064a826e05fa9438ae1f3d01472` |
-| `kernel/kernel.bin` | 9,320,044 | `3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d` |
-| `cupidos.img` | 209,715,200 | `acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43` |
+| `kernel/kernel.elf.pass1` | 9,421,144 | `e8e35e976b60502f81cb5a1fa45cbe8b91fea19c7cbb688784139dc8d7d8110d` |
+| `kernel/kernel.elf` | 9,548,120 | `e7b0de94ad364f79c71b336790737d110b9250091a98ff57dadbaf60e04010a2` |
+| `kernel/kernel.bin` | 9,323,140 | `7e7cff0d2b15f0a233dbfdd8bfc7eeb918bc366c950c1c6a4d147a7ecaeea887` |
+| `cupidos.img` (last published) | 209,715,200 | `acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43` |
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated audit records 21 failure groups, five help groups, and 22 success

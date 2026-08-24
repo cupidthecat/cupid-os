@@ -7,7 +7,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 739
-- Unreachable source-like files: 25
+- Unreachable source-like files: 26
 - Reachable output transforms: 452
 - Distinct feature requirements: 255
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
@@ -35,7 +35,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 7418 |
 | `cupidc` | 8 | 19899 |
-| `cupiddis` | 5 | 5483 |
+| `cupiddis` | 5 | 5534 |
 | `doom_port` | 7 | 3986 |
 | `driver` | 22 | 3861 |
 | `generated_install_table` | 3 | 0 |
@@ -59,7 +59,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `toolchain_contract` | 25 | 168516 |
 | `toolchain_core` | 39 | 89334 |
 | `toolchain_host_adapter` | 2 | 266 |
-| `toolchain_kernel_adapter` | 2 | 530 |
+| `toolchain_kernel_adapter` | 2 | 577 |
 | `user_program` | 3 | 139 |
 | `user_runtime_interface` | 1 | 360 |
 | `vendored_doom` | 197 | 66533 |
@@ -70,7 +70,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | --- | --- | ---: | ---: |
 | `.` | `all` | 443 | 20 |
 | `user` | `all` | 7 | 0 |
-| `toolchain` | `all` | 2 | 2 |
+| `toolchain` | `all` | 2 | 5 |
 
 ## Current output ownership
 
@@ -99,16 +99,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 926 |
 | `asm.relocation` | 1 | 34 |
-| `c.control` | 12 | 87443 |
+| `c.control` | 12 | 87449 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3965 |
-| `c.expression` | 2 | 6452 |
+| `c.declarator` | 4 | 3969 |
+| `c.expression` | 2 | 6458 |
 | `c.extension` | 19 | 428 |
 | `c.initializer` | 1 | 690 |
-| `c.preprocessor` | 18 | 7155 |
-| `c.qualifier` | 2 | 16649 |
-| `c.storage` | 4 | 10699 |
-| `c.type` | 15 | 55244 |
+| `c.preprocessor` | 18 | 7158 |
+| `c.qualifier` | 2 | 16665 |
+| `c.storage` | 4 | 10703 |
+| `c.type` | 15 | 55261 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -171,7 +171,7 @@ It is also a declared Make prerequisite.
 | `explicitly_excluded` | 2 |
 | `historical_copy` | 7 |
 | `host_fixture` | 5 |
-| `host_oracle` | 1 |
+| `host_oracle` | 2 |
 | `not_reached` | 5 |
 | `superseded` | 4 |
 
@@ -203,6 +203,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `tests/usb_interrupt_ownership_contract.c` | `c` | `host_fixture` | 50 | native USB behavior fixture compiled by the host test harness |
 | `tests/usb_msc_lifetime_contract.c` | `c` | `host_fixture` | 150 | native USB behavior fixture compiled by the host test harness |
 | `tests/usb_reconciliation_runtime.c` | `c` | `host_fixture` | 728 | native USB behavior fixture compiled by the host test harness |
+| `toolchain/tests/cupiddis_kernel_adapter_contract.cc` | `cupid_c` | `host_oracle` | 224 | native public kernel-adapter contract outside production build roots |
 | `toolchain/tests/elf32_oracle.c` | `c` | `host_oracle` | 8 | optional host compiler input for ELF32 reader comparison |
 
 ## Audit contracts
@@ -213,11 +214,11 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bootstrap_artifact_coverage` | `pass` | 429 linked objects; 436 declared artifacts; 0 missing |
 | `c_preprocessor_conditionals` | `pass` | 145 conditional expressions (136 #if, 9 #elif); 30 normalized expressions; 32 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
-| `c_preprocessor_include_operands` | `pass` | 2461 C include operands (2204 quoted, 257 angle, 0 pp-token); 704 source files; max conditional depth 2 |
+| `c_preprocessor_include_operands` | `pass` | 2462 C include operands (2205 quoted, 257 angle, 0 pp-token); 704 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 704 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 397 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=35, HOSTED_I386_WINDOWS=6, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
-| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 410 tracked .cc sources; 407 active with independent CupidC evidence; 3 unreachable |
+| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 411 tracked .cc sources; 407 active with independent CupidC evidence; 4 unreachable |
 | `cupid_toolchain_fixed_point` | `pass` | 19 tool C sources (18 strict, 1 GNU); 5 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12); 19 C objects and 1 startup object compared across stages; 5 tool images; 22 success and 21 failure cases; i386-linux |
 
 ## Interpretation limits

@@ -607,6 +607,10 @@ KNOWN_UNREACHABLE_SOURCE_POLICIES = {
         "host_oracle",
         "optional host compiler input for ELF32 reader comparison",
     ),
+    "toolchain/tests/cupiddis_kernel_adapter_contract.cc": (
+        "host_oracle",
+        "native public kernel-adapter contract outside production build roots",
+    ),
 }
 KNOWN_ACTIVE_ASSEMBLY_POLICIES: dict[str, tuple[str, str]] = {}
 ACTIVE_ASSEMBLY_POLICY_CLASSIFICATIONS = {"host_fixture", "host_oracle"}

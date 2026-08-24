@@ -405,6 +405,10 @@ OPERAND_FREE_DEPENDENCIES = {
         "kernel/lang/shell.h",
         "kernel/mm/memory.h",
         "kernel/util/calendar.h",
+        "toolchain/ctool.h",
+        "toolchain/cupiddis.h",
+        "toolchain/elf32.h",
+        "toolchain/x86.h",
     ),
     "kernel/network/socket.cc": (
         "drivers/rtc.h",
@@ -620,6 +624,10 @@ PORT_IO_DEPENDENCIES = {
         "kernel/usb/usb.h",
         "kernel/usb/usb_hc.h",
         "kernel/util/calendar.h",
+        "toolchain/ctool.h",
+        "toolchain/cupiddis.h",
+        "toolchain/elf32.h",
+        "toolchain/x86.h",
     ),
     "kernel/usb/ehci.cc": (
         "drivers/pci.h",

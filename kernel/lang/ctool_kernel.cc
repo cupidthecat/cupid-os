@@ -403,9 +403,19 @@ static void ctool_kernel_cupiddis_selftest(void) {
   static const char object_name[] = "/tmp/ctool-cupiddis-selftest.elf";
   static const ctool_u8 code[] = {0xb8u, 0x78u, 0x56u, 0x34u,
                                   0x12u, 0xc3u};
+  static const ctool_u8 mapped_code[] = {
+      0xb8u, 0x34u, 0x12u, 0x90u, 0xb8u,
+      0x78u, 0x56u, 0x34u, 0x12u, 0xc3u};
+  static const ctool_dis_raw_range_t mapped_ranges[] = {
+      {0u, CTOOL_DIS_RAW_RANGE_CODE16},
+      {3u, CTOOL_DIS_RAW_RANGE_DATA},
+      {4u, CTOOL_DIS_RAW_RANGE_CODE32}};
+  static const ctool_u8 truncated_code[] = {0x0fu};
   static const dis_sym_t symbols[] = {{0x00400000u, "entry"}};
+  static const dis_sym_t mapped_symbols[] = {{0x00008003u, "literal"}};
   uint8_t image[90];
   ctool_kernel_dis_capture_t capture;
+  dis_raw_request_t raw_request;
   int status;
 
   memset(&capture, 0, (uint32_t)sizeof(capture));
@@ -420,6 +430,43 @@ static void ctool_kernel_cupiddis_selftest(void) {
       strstr(capture.bytes, "mov eax, 0x12345678") == (char *)0 ||
       strstr(capture.bytes, "ret") == (char *)0) {
     kernel_panic("CupidDis kernel adapter self-test failed");
+  }
+
+  raw_request.mode = CTOOL_DIS_RAW_RANGE_MAP;
+  raw_request.base_address = 0x00008000u;
+  raw_request.ranges = mapped_ranges;
+  raw_request.range_count =
+      (uint32_t)(sizeof(mapped_ranges) / sizeof(mapped_ranges[0]));
+  raw_request.require_known = CTOOL_TRUE;
+  memset(&capture, 0, (uint32_t)sizeof(capture));
+  ctool_kernel_dis_capture_active = &capture;
+  status = dis_disassemble_raw(
+      mapped_code, (uint32_t)sizeof(mapped_code), &raw_request,
+      mapped_symbols, 1, ctool_kernel_dis_capture_write);
+  ctool_kernel_dis_capture_active = (ctool_kernel_dis_capture_t *)0;
+  if (status != VFS_OK || capture.overflowed ||
+      strstr(capture.bytes, "mov ax, 0x1234") == (char *)0 ||
+      strstr(capture.bytes, "00008003 <literal>:") == (char *)0 ||
+      strstr(capture.bytes, "db 0x90") == (char *)0 ||
+      strstr(capture.bytes, "mov eax, 0x12345678") == (char *)0 ||
+      strstr(capture.bytes, "nop") != (char *)0) {
+    kernel_panic("CupidDis kernel raw-map self-test failed");
+  }
+
+  raw_request.mode = CTOOL_X86_MODE_32;
+  raw_request.base_address = 0x00009000u;
+  raw_request.ranges = (const ctool_dis_raw_range_t *)0;
+  raw_request.range_count = 0u;
+  memset(&capture, 0, (uint32_t)sizeof(capture));
+  ctool_kernel_dis_capture_active = &capture;
+  status = dis_disassemble_raw(
+      truncated_code, (uint32_t)sizeof(truncated_code), &raw_request,
+      (const dis_sym_t *)0, 0, ctool_kernel_dis_capture_write);
+  ctool_kernel_dis_capture_active = (ctool_kernel_dis_capture_t *)0;
+  if (status != VFS_EINVAL || capture.overflowed ||
+      strstr(capture.bytes, "code check failed") == (char *)0 ||
+      strstr(capture.bytes, "[disassembly raw]") != (char *)0) {
+    kernel_panic("CupidDis kernel strict-code self-test failed");
   }
 
   memset(image, 0, (uint32_t)sizeof(image));

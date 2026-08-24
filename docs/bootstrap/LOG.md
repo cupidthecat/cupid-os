@@ -30541,3 +30541,83 @@ This step moves no object owner, checked seed, object format, or host
 dependency. No `.c` file reached Cupid ownership, so no suffix change is due.
 No issue is ready to close from this private increment. `TempleOS/` remains
 untouched reference material. ADR 0333 records the boundary.
+
+## 2026-08-24: expose typed raw CupidDis kernel requests
+
+The public kernel adapter now accepts a `dis_raw_request_t`. A caller selects
+fixed 16-bit code, fixed 32-bit code, or `CTOOL_DIS_RAW_RANGE_MAP` with the
+shared borrowed code16, code32, and data records. The adapter passes that state
+to `ctool_dis_inspect`; it does not parse a second map format or copy and split
+the source. Data ranges still bypass the decoder and stop at labels through the
+shared renderer.
+
+`require_known` checks the typed decode summary after inspection. Any unknown,
+invalid, or truncated selected code returns `VFS_EINVAL` before a listing is
+written. Core request diagnostics still take precedence for malformed maps and
+invalid modes. The existing `dis_disassemble` entry point constructs a
+permissive fixed-32 request, so CupidC JIT output keeps its fallback rows.
+
+The native contract was written first and failed because
+`dis_raw_request_t` and `dis_disassemble_raw` did not exist. Its final cases
+cover the legacy 32-bit entry, strict fixed-16 decoding, a labeled
+code16/data/code32 map, strict unknown, invalid, and truncated-code rejection,
+permissive legacy fallback, a nonzero first range offset, and a successful
+request after that failure. The first host build tried to compile the kernel's
+freestanding `types.h` against native 64-bit Clang and hit its expected
+`size_t` mismatch.
+An independent Linux/GCC run then found the freestanding `putchar` declaration
+colliding with GCC's hosted built-in. The native-only rules now preinclude the
+standard Boolean and integer headers while suppressing the freestanding type
+and kernel declarations. A contract-only prototype supplies the adapter's
+print fallback. No test header enters CupidObj's production profile universe,
+and the production compile does not select that branch.
+
+The DEBUG kernel self-test keeps its original permissive 32-bit and temporary
+ELF command checks. It adds one strict mixed-map request and checks that the
+middle `0x90` byte renders as `db`, not `nop`. It then rejects a truncated
+opcode without a listing before continuing to the ELF check.
+
+Source-head evidence:
+
+| Command | Result |
+| --- | --- |
+| `make -C toolchain test-kernel-cupiddis-adapter` | PASS, five public-adapter cases |
+| `wsl make -C toolchain BUILD_DIR=build-linux-adapter test-kernel-cupiddis-adapter` | PASS, the same contract built and ran with Linux GCC |
+| `python -B -m unittest -v tests.test_toolchain_cupiddis` | PASS, 27 tests with the unavailable `/dev/full` case skipped |
+| `make -j2 kernel/lang/dis.o kernel/lang/ctool_kernel.o` | PASS, both changed units compiled by checked CupidC |
+| `make kernel/lang/cupidc.o` | PASS, the existing JIT caller compiled through the expanded public header closure |
+| `python -B -m unittest -v tests.test_cupidc_kernel_compile` | PASS, 35 recursive-dependency and checked-compiler cases in 159.327 seconds |
+| `make check-bootstrap-audit` | PASS after supported audit regeneration and the final baseline repair |
+| direct `artifact_size_contract.py verify` invocation | PASS, all 14 exact artifacts accepted |
+
+`make -j2 all` compiled the complete kernel, Doom, manuals, tools, and programs,
+then linked both kernel ELFs with CupidLD. The checked production CupidDis
+process reached its existing 300-second budget while scanning the 431-input
+cohort. A direct retry of the same protected `validate-code` transaction
+reached the same limit. Neither run produced a decode diagnostic or published
+`kernel.bin`, so they are resource-contended timeouts, not passes and not
+runtime evidence. The timeout policy was left unchanged for the consolidated
+integration build.
+
+Checked CupidObj flattened the successful final link so the intentional size
+change could be reviewed. The exact-size policy now accepts these source-head
+outputs:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,421,144 | `e8e35e976b60502f81cb5a1fa45cbe8b91fea19c7cbb688784139dc8d7d8110d` |
+| `kernel/kernel.elf` | 9,548,120 | `e7b0de94ad364f79c71b336790737d110b9250091a98ff57dadbaf60e04010a2` |
+| `kernel/kernel.bin` | 9,323,140 | `7e7cff0d2b15f0a233dbfdd8bfc7eeb918bc366c950c1c6a4d147a7ecaeea887` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `18f1ee1a2981518fd5ee198200c82f9b24a8aefe725be7b814364f9fdb423cb9` |
+
+The DEBUG mixed-map and strict-negative checks are compiled into the linked
+kernel, but this feature branch did not publish or boot a new image after the
+resource-contended inspection timeout. Guest runtime proof remains due on the
+consolidated branch.
+
+Raw-file shell syntax, local-target policy selection through this adapter, and
+typed data inside executable ELF sections remain open. The hosted command,
+checked seeds, production owner counts, object formats, and host dependencies
+do not change. No source reached a new ownership boundary, so no suffix rename
+is due. `TempleOS/` remains read-only reference material. ADR 0334 records the
+request boundary.

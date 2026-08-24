@@ -8,6 +8,10 @@
 #include "kernel.h"
 #include "vfs.h"
 
+#ifdef CTOOL_KERNEL_ADAPTER_HOST_CONTRACT
+void print(const char *text);
+#endif
+
 #define DIS_SINK_CHUNK_BYTES 128u
 #define DIS_SOURCE_BYTES 67108864u
 #define DIS_ARENA_BYTES 134217728u
@@ -99,9 +103,10 @@ static void dis_report_failure(ctool_job_t *job, dis_output_fn output,
     }
 }
 
-void dis_disassemble(const uint8_t *buffer, uint32_t size,
-                     uint32_t base_address, const dis_sym_t *symbols,
-                     int symbol_count, dis_output_fn output) {
+int dis_disassemble_raw(const uint8_t *buffer, uint32_t size,
+                        const dis_raw_request_t *raw_request,
+                        const dis_sym_t *symbols, int symbol_count,
+                        dis_output_fn output) {
     dis_sink_context_t sink_context;
     ctool_job_config_t config;
     ctool_job_t *job = (ctool_job_t *)0;
@@ -110,12 +115,17 @@ void dis_disassemble(const uint8_t *buffer, uint32_t size,
     ctool_dis_request_t request;
     ctool_dis_report_t report;
     ctool_status_t status;
+    ctool_bool strict_failed = CTOOL_FALSE;
     ctool_u32 count = 0u;
     ctool_u32 index;
 
+    if (raw_request == (const dis_raw_request_t *)0) {
+        dis_out(output, "dis: invalid raw request\n");
+        return VFS_EINVAL;
+    }
     if (buffer == (const uint8_t *)0 || size == 0u) {
         dis_out(output, "dis: empty code buffer\n");
-        return;
+        return VFS_EINVAL;
     }
     if (symbols != (const dis_sym_t *)0 && symbol_count > 0) {
         count = (ctool_u32)symbol_count;
@@ -143,10 +153,10 @@ void dis_disassemble(const uint8_t *buffer, uint32_t size,
         request.input = CTOOL_DIS_INPUT_RAW;
         request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
         request.policies = 0u;
-        request.raw_mode = CTOOL_X86_MODE_32;
-        request.raw_base_address = base_address;
-        request.raw_ranges = (const ctool_dis_raw_range_t *)0;
-        request.raw_range_count = 0u;
+        request.raw_mode = raw_request->mode;
+        request.raw_base_address = raw_request->base_address;
+        request.raw_ranges = raw_request->ranges;
+        request.raw_range_count = raw_request->range_count;
         request.raw_edges = (const ctool_dis_raw_edge_t *)0;
         request.raw_edge_count = 0u;
         request.raw_edge_metadata_present = CTOOL_FALSE;
@@ -154,17 +164,41 @@ void dis_disassemble(const uint8_t *buffer, uint32_t size,
         request.label_count = count;
         status = ctool_dis_inspect(job, &source, &request, &report);
     }
+    if (status == CTOOL_OK && raw_request->require_known != CTOOL_FALSE &&
+        (report.decode_summary.unknown_count != 0u ||
+         report.decode_summary.invalid_count != 0u ||
+         report.decode_summary.truncated_count != 0u)) {
+        status = CTOOL_ERR_INPUT;
+        strict_failed = CTOOL_TRUE;
+    }
     if (status == CTOOL_OK) {
         status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
                                   dis_text_sink(&sink_context));
     }
     if (status != CTOOL_OK) {
-        dis_report_failure(job, output, status,
-                           "dis: disassembly failed\n");
+        const char *fallback =
+            strict_failed != CTOOL_FALSE
+                ? "dis: code check failed: unknown, invalid, or truncated instruction\n"
+                : "dis: disassembly failed\n";
+        dis_report_failure(job, output, status, fallback);
     }
     if (job != (ctool_job_t *)0) {
         ctool_job_close(job);
     }
+    return dis_vfs_status(status);
+}
+
+void dis_disassemble(const uint8_t *buffer, uint32_t size,
+                     uint32_t base_address, const dis_sym_t *symbols,
+                     int symbol_count, dis_output_fn output) {
+    dis_raw_request_t request;
+    request.mode = CTOOL_X86_MODE_32;
+    request.base_address = base_address;
+    request.ranges = (const ctool_dis_raw_range_t *)0;
+    request.range_count = 0u;
+    request.require_known = CTOOL_FALSE;
+    (void)dis_disassemble_raw(buffer, size, &request, symbols, symbol_count,
+                              output);
 }
 
 int dis_elf(const char *path, dis_output_fn output) {

@@ -131,6 +131,8 @@ NATIVE_CUPIDC_OBJECT_CONTRACT := \
 NATIVE_ELF32_CONTRACT := $(BUILD_DIR)/elf32-contract$(EXE)
 NATIVE_X86_CONTRACT := $(BUILD_DIR)/x86-contract$(EXE)
 NATIVE_CUPIDDIS_CONTRACT := $(BUILD_DIR)/cupiddis-contract$(EXE)
+NATIVE_CUPIDDIS_KERNEL_ADAPTER_CONTRACT := \
+	$(BUILD_DIR)/cupiddis-kernel-adapter-contract$(EXE)
 NATIVE_CUPIDASM_CONTRACT := $(BUILD_DIR)/cupidasm-contract$(EXE)
 NATIVE_CUPIDASM_DEMOS_CONTRACT := \
 	$(BUILD_DIR)/cupidasm-demos-contract$(EXE)
@@ -282,6 +284,14 @@ CUPIDDIS_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                             $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
                             $(BUILD_DIR)/cupiddis.o \
                             $(BUILD_DIR)/cupiddis_contract.o
+CUPIDDIS_KERNEL_ADAPTER_CONTRACT_OBJECTS := \
+	$(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
+	$(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o $(BUILD_DIR)/cupiddis.o \
+	$(BUILD_DIR)/cupiddis_kernel_adapter.o \
+	$(BUILD_DIR)/cupiddis_kernel_adapter_contract.o
+CUPIDDIS_KERNEL_ADAPTER_HOST_FLAGS := \
+	-DCTOOL_KERNEL_ADAPTER_HOST_CONTRACT -DTYPES_H -DKERNEL_H \
+	-include stdbool.h -include stdint.h
 CUPIDDIS_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                     $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
                     $(BUILD_DIR)/cupiddis.o $(BUILD_DIR)/cupiddis_main.o
@@ -321,7 +331,8 @@ NATIVE_ORACLE_ARTIFACTS := $(NATIVE_CONTRACT) \
 	$(NATIVE_CUPIDC_FRONTEND_CONTRACT) $(NATIVE_CUPIDC_IR_CONTRACT) \
 	$(NATIVE_CUPIDC_OBJECT_CONTRACT) $(CUPIDC) \
 	$(NATIVE_ELF32_CONTRACT) $(NATIVE_X86_CONTRACT) \
-	$(NATIVE_CUPIDDIS_CONTRACT) $(CUPIDDIS) \
+	$(NATIVE_CUPIDDIS_CONTRACT) \
+	$(NATIVE_CUPIDDIS_KERNEL_ADAPTER_CONTRACT) $(CUPIDDIS) \
 	$(NATIVE_CUPIDASM_CONTRACT) $(NATIVE_CUPIDASM_DEMOS_CONTRACT) \
 	$(NATIVE_CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) \
 	$(NATIVE_CUPIDOBJ_CONTRACT) $(CUPIDOBJ) \
@@ -457,6 +468,22 @@ $(BUILD_DIR)/x86_contract.o: tests/x86_contract.cc \
 $(BUILD_DIR)/cupiddis_contract.o: tests/cupiddis_contract.cc cupiddis.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
+$(BUILD_DIR)/cupiddis_kernel_adapter.o: ../kernel/lang/dis.cc \
+    ../kernel/lang/dis.h ../kernel/lang/ctool_kernel.h \
+    ../kernel/core/kernel.h ../kernel/core/types.h ../kernel/cpu/isr.h \
+    ../kernel/fs/vfs.h cupiddis.h elf32.h x86.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CUPIDDIS_KERNEL_ADAPTER_HOST_FLAGS) \
+		-I../kernel/lang -I../kernel/core -I../kernel/cpu -I../kernel/fs \
+		$(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupiddis_kernel_adapter_contract.o: \
+    tests/cupiddis_kernel_adapter_contract.cc ../kernel/lang/dis.h \
+    ../kernel/lang/ctool_kernel.h ../kernel/core/types.h \
+    ctool_host.h cupiddis.h elf32.h x86.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CUPIDDIS_KERNEL_ADAPTER_HOST_FLAGS) \
+		-I../kernel/lang -I../kernel/core \
+		$(CFLAGS) -x c -c $< -o $@
+
 $(BUILD_DIR)/cupidasm_contract.o: tests/cupidasm_contract.cc cupidasm.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
@@ -511,6 +538,11 @@ $(NATIVE_X86_CONTRACT): $(X86_OBJECTS)
 
 $(NATIVE_CUPIDDIS_CONTRACT): $(CUPIDDIS_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDDIS_CONTRACT_OBJECTS) -o $@
+
+$(NATIVE_CUPIDDIS_KERNEL_ADAPTER_CONTRACT): \
+    $(CUPIDDIS_KERNEL_ADAPTER_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) \
+		$(CUPIDDIS_KERNEL_ADAPTER_CONTRACT_OBJECTS) -o $@
 
 $(CUPIDDIS): $(CUPIDDIS_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDDIS_OBJECTS) -o $@
@@ -868,8 +900,12 @@ clean:
 
 native-oracles: $(NATIVE_ORACLE_ARTIFACTS)
 
+test-kernel-cupiddis-adapter: $(NATIVE_CUPIDDIS_KERNEL_ADAPTER_CONTRACT)
+	$(NATIVE_CUPIDDIS_KERNEL_ADAPTER_CONTRACT)
+
 print-bootstrap-artifacts:
 	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
 
-.PHONY: all test test-cupidc-pp-active-generated native-oracles clean \
+.PHONY: all test test-cupidc-pp-active-generated \
+        test-kernel-cupiddis-adapter native-oracles clean \
         print-bootstrap-artifacts
