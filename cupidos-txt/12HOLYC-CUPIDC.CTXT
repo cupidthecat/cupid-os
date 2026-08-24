@@ -379,14 +379,14 @@ declarator keeps the signature for checked stores, copies, null checks,
 clearing, and direct postfix calls. Fixed and variadic arguments use cdecl.
 Represented scalar, pointer, floating, and SIMD results retain their normal
 types. Nested and indexed field designators are evaluated once, and a real
-field takes precedence over same-named method sugar. Empty (), bare nested
-callback signatures, alias chains, raw method parameters, void-pointer forms,
+field takes precedence over same-named method sugar. Empty (), alias chains,
+raw method parameters, void-pointer forms,
 and aggregate callback results remain unsupported or signature-erased.
 A named raw callback file object and direct free-function parameter retain the
 parsed signature without a typedef. The file object uses the same data write or
 patch, and the parameter uses the same cdecl slot and arity checks. The private
-pool accepts 32 distinct raw signatures and recovers after rejecting the next
-one. ADR 0315 records the raw forms, and ADR 0319 records direct explicit
+raw-signature pool owns those parameter signatures. ADR 0315 records the raw
+forms, and ADR 0319 records direct explicit
 function addresses. ADR 0321 records typedef-backed record and class fields,
 ADR 0324 records grouped runtime addresses, and ADR 0325 records raw fields and
 direct postfix field calls.
@@ -457,9 +457,30 @@ prints the overall feature14 PASS and finishes with CupidC JIT completion.
 
 Function-pointer typedef declarations remain file-scope, allow one alias per
 declaration, and share a sixteen-entry table. Direct record and array results
-are rejected. Record-pointer results retain identity. Nested function-pointer
-parameters occupy one four-byte word, but their inner signature is not yet
-retained.
+are rejected. Record-pointer results retain identity.
+
+Nested function-pointer parameters keep child signature handles. A raw child
+uses an interned raw-signature handle, while a child named by a direct callback
+typedef keeps that typedef handle. The parser and compatibility checker follow
+those handles through further callback parameters. Equivalent prototyped raw
+and typedef-backed forms are compatible when their result, record-pointer
+identity, fixed parameter list, and variadic boundary agree. The existing
+unprototyped compatibility rule remains in force. The structural check applies
+at each retained child.
+
+Every nested callback is still one four-byte i386 cdecl argument. Its handle is
+compile-time metadata. Nesting is bounded at sixteen signature levels, and the
+raw pool holds 32 distinct signatures. A rejected function, complete source,
+or persistent REPL unit restores the child handles and raw pool together with
+symbols, data patches, and emitted state.
+
+The active set_icon_drawer binding uses
+void (*p_icon_set_drawer)(int, void (*)(int, int)). Private CupidC retains the
+outer setter and inner drawer shapes. Function pointers cannot return records
+or arrays, and raw callback array parameters remain unsupported. Raw Cupid
+class method parameters, callback alias chains, and aggregate callback results
+also remain outside the retained path. Checked-seed hosted CupidC still owns
+the production kernel/lang/cupidc.cc object.
 
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
@@ -614,10 +635,18 @@ plain assignment, indirect calls, and clearing. Structure and class fields
 declared directly with a callback typedef retain the signature for checked
 stores, named copies, null checks, and clearing. Raw callback fields retain the
 same signature. Direct postfix calls through raw or typedef-backed fields use
-typed cdecl conversion and evaluate the designator once. Callback arrays,
-block-static objects, alias chains, recursive signatures, aggregate results,
-and `void *` forms remain outside that typed path. ADR 0325 records the field
-call boundary.
+typed cdecl conversion and evaluate the designator once. Data-backed raw
+callback arrays and block-static raw callback scalars use the ADR 0330 path.
+Nested raw or typedef-backed callback parameters retain child handles and are
+checked recursively. Alias chains, aggregate results, raw Cupid class method
+parameters, and `void *` forms remain outside that typed path. ADR 0325 records
+the field-call boundary.
+
+The active set_icon_drawer binding has one four-byte nested drawer parameter.
+Its private signature graph uses the sixteen-level depth bound and the
+32-entry raw pool. Rollback restores both parent and child handles. The
+standalone checked seeds do not contain this private parser; checked-seed
+hosted CupidC remains the production owner of kernel/lang/cupidc.cc.
 
 The Toolchain manifest has a Cupid-built author and verifier, while Python keeps
 descriptor-pinned filesystem capture and atomic publication. Linux runs the

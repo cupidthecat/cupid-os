@@ -30239,3 +30239,88 @@ not contain this private parser, and checked-seed hosted CupidC still owns the
 production Doom translation. This step changes no object owner, object format,
 host dependency, or source suffix. `TempleOS/` remains untouched reference
 material.
+
+## 2026-08-24: retain nested callback-parameter signatures
+
+Private CupidC now retains a callback parameter's own signature instead of
+reducing the nested value to an untyped four-byte address. Raw nested
+declarators use the existing 32-entry raw-signature pool. Direct callback
+typedefs keep their typedef handles. The outer parameter stores either handle
+in its existing `param_struct_indices` element, so symbol layout and the i386
+cdecl ABI do not change.
+
+Structural comparison follows raw and typedef handles recursively. It checks
+results, record identities, fixed parameters, and variadic boundaries at each
+prototyped level. Compatible initialization, assignment, argument, call, and
+conditional paths keep the existing unprototyped callback rule. A declaration
+or definition match also requires the same prototype state. Pair memoization
+bounds repeated graph work across the 48-handle domain, and signature parsing
+stops after 16 callback levels.
+
+The active requirement is the unchanged
+`void (*p_icon_set_drawer)(int, void (*)(int, int))` declaration in
+`kernel/lang/cupidc.cc`. It points to
+`gfx2d_icon_set_custom_drawer`, whose public declaration and definition carry
+the same nested drawer type. The feature-14 guest passes a drawer through that
+shape and calls it, proving that the outer and inner calls keep their declared
+interfaces at runtime.
+
+Closing review found two forms that the first implementation handled too
+loosely. A nested `**` declarator discarded one pointer level, so the parser
+now rejects it with a direct diagnostic and recovers in the same compiler
+state. Declaration matching also used the compatible graph relation, which
+allowed nested `()` and `(void)` forms to agree. Non-provisional declarations
+now use strict recursive equality, while provisional function targets keep the
+compatible relation needed by initializer refinement.
+
+Positive JIT and fixed-address AOT tests cover the active binding, raw and
+typedef structural equivalence in both directions, several callback levels,
+record-pointer results and parameters, and a variadic child. Negative cases
+cover nested results, parameters, records, variadic boundaries, conditionals,
+later definitions, strict prototype state, `**`, depth, and raw-pool capacity.
+Program and persistent REPL failures restore child signatures, data patches,
+and forward symbols before a valid retry. The complete private callback ABI
+module passes all 310 tests in 75.017 seconds. The focused same-state mismatch
+method also passes after both review corrections.
+
+The GUI contract module passes all 128 tests in 0.955 seconds. The artifact
+policy and runner modules pass all 29 tests in 2.837 seconds, with four
+expected platform skips. The first full build stopped at the exact-size gate
+after the new parser, manuals, and guest source moved the two ELFs and raw
+kernel. Review hardening then moved only `kernel/kernel.bin` from 9,319,772 to
+9,320,044 bytes. The final `make -j4 all` run rebuilt the full active kernel,
+toolchain, user source payload, generated inputs, assembly demos, and Doom
+tree. CupidLD linked both kernel passes, CupidDis accepted the object cohort
+and strict linked-image targets and anchors, all 14 exact artifact checks
+passed, and the image publisher staged the deterministic ISO.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,417,012 | `5d353af4f5de45ca47f4de4be51ef732db0b907125543cbebad4a9c19f166605` |
+| `kernel/kernel.elf` | 9,543,988 | `1dfcd029e9a31d6da949181b3e5c2654fb6ae064a826e05fa9438ae1f3d01472` |
+| `kernel/kernel.bin` | 9,320,044 | `3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `73e14bed41df6b4911667ba96a83b0fab3aa79bbed7dcc75f4b46beba4c68295` |
+
+The final private-image smoke booted four `max` i386 CPUs and reported all
+four online at line 82. In-OS CupidC printed
+`[feature14-callback-nested] PASS outer=1 inner=1 value=43` at line 1368,
+printed `PASS feature14_simd` at line 1374, and completed JIT execution at line
+1375. The broader frontier changed 109,518 framebuffer pixels, captured
+32,701,862 AC97 frames with a peak of 25,600, and captured 76,710 PC-speaker
+frames with a peak of 24,831. The 157,520-byte log at
+`build/bootstrap/feature14-nested-callback-qemu.log` has SHA-256
+`b34a68aebdfecaeeb347c1ff4764cbe609a6ed2f154557a15133a601101585c6`.
+The private run left `cupidos.img` unchanged.
+
+Callback-valued results, pointer-to-function-pointer declarators beyond the
+direct diagnostic, callback typedef alias chains, and nested signature
+publication through `BIND` remain separate work. Checked-seed hosted CupidC
+still owns the production compiler translation, and the standalone seeds do
+not contain this private parser. This step moves no object owner or host
+dependency and changes no source suffix. No `.c` file reached Cupid ownership,
+so no rename is due. `TempleOS/` remains untouched reference material. ADR
+0331 records the accepted boundary.

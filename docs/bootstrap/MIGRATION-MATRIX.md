@@ -211,14 +211,14 @@ The focused semantic-contract, checked-runner, and independent-policy modules
 contain 22, 16, and 13 tests, for 51 total. They pass with four existing
 platform-specific skips. The source-head artifact contract passes against all
 fourteen exact artifacts. The current kernel outputs are a
-9,404,288-byte `kernel/kernel.elf.pass1` with SHA-256
-`346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf`, a
-9,531,264-byte `kernel/kernel.elf` with SHA-256
-`66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9`,
-and a 9,308,184-byte `kernel/kernel.bin` with SHA-256
-`fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478`.
+9,417,012-byte `kernel/kernel.elf.pass1` with SHA-256
+`5d353af4f5de45ca47f4de4be51ef732db0b907125543cbebad4a9c19f166605`, a
+9,543,988-byte `kernel/kernel.elf` with SHA-256
+`1dfcd029e9a31d6da949181b3e5c2654fb6ae064a826e05fa9438ae1f3d01472`,
+and a 9,320,044-byte `kernel/kernel.bin` with SHA-256
+`3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d`.
 The 209,715,200-byte `cupidos.img` has SHA-256
-`d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed`.
+`acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43`.
 Failure prevents image publication and preserves the existing image. ADR 0267
 records the policy, ADR 0297 records the contract transfer, and ADR 0305
 established and first carried the fourteen-path closure. ADRs 0312 and 0318
@@ -551,8 +551,11 @@ function pointers remain rejected. A syntactic block-local
 `T (*name)(parameters)` declaration retains its fixed types, variadic
 state, and result. Its indirect call reuses the same cdecl conversions and
 4-, 8-, or 16-byte slots, including typed SIMD transport through XMM0. Empty
-`()`, callback alias chains, recursive signatures, and `void *` forms remain
-signature-erased. A plain function initializer must match the local pointer's result,
+`()`, callback alias chains, self-referential signature graphs, and `void *`
+forms remain signature-erased. Callback-valued parameters keep their nested
+signatures through 16 levels. The recursive metadata does not change the ABI;
+each callback parameter keeps one four-byte cdecl slot. A plain function
+initializer must match the local pointer's result,
 record identity, fixed types, and variadic boundary. An explicit cast opts into
 erasure. Named local copies share the check. Later targets receive
 absolute fixups, and provisional signatures must match their definitions. A
@@ -576,9 +579,14 @@ independent copy. Each function-pointer typedef declaration publishes one
 alias. The existing typedef table holds sixteen aliases, and each retained
 signature holds at most 32 fixed parameter types plus record-pointer
 identities, variadic state, and a result type. Program and REPL failures restore
-the typedef count and metadata. JIT and AOT calls now cover the active ISO, FAT,
-and Doom callback declarations, fixed SIMD callback slots, automatic callbacks,
-and method callback parameters. A direct explicit function address keeps the
+the typedef count and metadata. Raw and typedef-backed callback-parameter
+signatures now match by recursive structure. Nested raw records share the
+existing 32-entry pool with outer raw declarations, and failed programs or
+persistent REPL units restore that pool before retrying. The unchanged
+`p_icon_set_drawer` declaration in `kernel/lang/cupidc.cc` supplies the active
+nested form. JIT and AOT calls now cover the active ISO, FAT, and Doom callback
+declarations, fixed SIMD callback slots, automatic callbacks, and method
+callback parameters. A direct explicit function address keeps the
 same signature and patch behavior as a plain designator. A structure or class
 field declared through the callback typedef or a raw function-pointer
 declarator keeps that signature for checked plain stores, null clearing, named
@@ -593,8 +601,10 @@ are valid initializer elements. A target defined later uses the existing
 absolute data patch. A block-static raw callback scalar uses the same storage
 path. Automatic,
 parameter, record or class field, and multidimensional raw callback arrays
-remain open. Alias chains, recursive signatures, aggregate results, raw method
-parameters, and arbitrary computed callbacks also remain open. A named raw
+remain open. Alias chains, self-referential signature graphs, callback-valued
+results, pointer-to-function-pointer `**` declarators, aggregate results, raw
+method parameters, and arbitrary computed callbacks also remain open. A named
+raw
 callback file object and direct free-function parameter now
 retain the parsed result, parameters, record identities, prototype state, and
 variadic boundary. The private pool accepts 32 distinct raw signatures and
@@ -606,14 +616,21 @@ typedef-backed callback fields, ADR 0324 records grouped runtime addresses,
 ADR 0325 records raw fields and direct field calls, and ADR 0328 records
 typedef-backed callback field arrays. ADR 0330 records data-backed raw callback
 arrays, driven by the unchanged callback table in `kernel/doom/src/f_wipe.cc`.
+ADR 0331 records nested callback-parameter signatures.
 At the ADR 0328 checkpoint, the focused ABI suite passed 289 tests.
-The source-current suite passes 301 tests in 5.505 seconds, and the full GUI
-module passes all 126 tests in 0.333 seconds. A private four-vCPU frontier boot
-records all four CPUs online, the raw-array marker
+At the ADR 0330 checkpoint, the suite passed 301 tests in 5.505 seconds, and
+the full GUI module passed all 126 tests in 0.333 seconds. Its private
+four-vCPU frontier boot recorded all four CPUs online, the raw-array marker
 `[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,
 the overall feature pass, and clean JIT completion. Its 151,289-byte log has
 SHA-256
 `d414c1db732fa3593eb938caf04b81682a1dcc693a7060b57be5e7c00984c621`.
+At the ADR 0331 source head, the focused ABI suite passes 310 tests in 75.017
+seconds and the GUI contract suite passes 128 tests in 0.955 seconds. The
+private four-vCPU frontier records
+`[feature14-callback-nested] PASS outer=1 inner=1 value=43`, the overall feature
+pass, and clean JIT completion. Its 157,520-byte log has SHA-256
+`b34a68aebdfecaeeb347c1ff4764cbe609a6ed2f154557a15133a601101585c6`.
 The standalone CupidC seeds do not contain this private parser. Production
 ownership does not move with this change. Checked-seed hosted CupidC still
 produces the active `f_wipe.cc` object, and the checked seeds, object format,
@@ -657,7 +674,8 @@ and host requirements remain as listed elsewhere in this matrix. Direct
 explicit function addresses use the same typed initialization and patch path.
 Typedef-backed and raw structure and class callback fields retain the signature
 through checked stores, named copies, and direct postfix calls. Conditional
-initializers, alias chains, recursive signatures, aggregate results, raw method parameters,
+initializers, alias chains, self-referential signature graphs, callback-valued
+results, aggregate results, raw method parameters,
 and arbitrary computed callbacks remain open. ADR 0313 records the
 fixed-address initialized-data rule, ADR 0315 records raw file objects and
 free-function parameters, ADR 0319 records direct explicit function
@@ -665,6 +683,13 @@ addresses, and ADR 0321 records typedef-backed callback fields. ADR 0330 narrows
 that list by adding data-backed one-dimensional raw callback arrays and
 block-static raw callback scalars. Automatic, parameter, record or class field,
 and multidimensional raw callback arrays remain unsupported.
+
+Nested callback parameters remain a private compiler capability. Checked-seed
+hosted CupidC still builds the `kernel/lang/cupidc.cc` object containing
+`p_icon_set_drawer`. Its nested
+callback stays one four-byte i386 argument slot, and the checked seeds, object
+format, and host dependencies do not change. `BIND` metadata still carries no
+nested callback signature.
 
 Private CupidC now converts decimal `float` and `double` tokens with a fixed
 1536-bit integer workspace. It rounds the exact decimal ratio once to the

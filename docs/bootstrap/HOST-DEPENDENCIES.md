@@ -125,10 +125,10 @@ fourteen exact artifacts. The current kernel outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,404,288 | `346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf` |
-| `kernel/kernel.elf` | 9,531,264 | `66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9` |
-| `kernel/kernel.bin` | 9,308,184 | `fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478` |
-| `cupidos.img` | 209,715,200 | `d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed` |
+| `kernel/kernel.elf.pass1` | 9,417,012 | `5d353af4f5de45ca47f4de4be51ef732db0b907125543cbebad4a9c19f166605` |
+| `kernel/kernel.elf` | 9,543,988 | `1dfcd029e9a31d6da949181b3e5c2654fb6ae064a826e05fa9438ae1f3d01472` |
+| `kernel/kernel.bin` | 9,320,044 | `3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d` |
+| `cupidos.img` | 209,715,200 | `acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43` |
 Python retains path safety, process launch, the Windows seed boundary, its
 separate policy decoder, and final drift checks. ADR 0267 records the policy,
 and ADR 0297 records the contract transfer.
@@ -565,9 +565,13 @@ calls, kernel bindings, and calls without parameter metadata keep their
 source-width slots. A named block-local function-pointer declaration keeps
 its fixed parameter types, variadic state, and result type. Its indirect call
 uses the same conversion and 4-, 8-, or 16-byte slot path as a direct call.
-Empty `()`, callback alias chains, recursive signatures, and `void *` forms
-remain metadata-free. One-dimensional raw callback arrays at file scope, in
-block-static declarations, or in persistent REPL globals now retain their
+Empty `()`, callback alias chains, self-referential signature graphs, and
+`void *` forms remain metadata-free. Callback-valued parameters retain their
+nested signatures recursively. Raw and typedef-backed forms match by structure
+through 16 callback signature levels, while every callback parameter remains
+one four-byte i386 cdecl slot. Nested raw records share the existing 32-entry
+pool with outer raw declarations. One-dimensional raw callback arrays at file
+scope, in block-static declarations, or in persistent REPL globals retain their
 signature. The same data-backed path covers a block-static raw callback scalar.
 Automatic, parameter, record or class field, and multidimensional raw callback
 arrays remain unsupported. A structure or
@@ -1187,8 +1191,15 @@ may begin with a compatible defined or later-defined function. The private JIT
 and fixed-address AOT paths write or patch that address in initialized data
 before execution. A named raw callback file object and direct free-function
 parameter retain the parsed signature. The private pool accepts 32 raw
-parameter signatures and fails the next distinct signature without leaking
-state. A structure or class field declared through a callback typedef or raw
+signatures, including records created for nested callback parameters, and fails
+the next distinct signature without leaking state. Program and persistent REPL
+failures restore the shared pool before retrying. Raw and typedef-backed nested
+signatures compare structurally, including results, record identities, fixed
+parameters, and variadic boundaries. Compatible uses keep the existing
+unprototyped callback rule; declaration matching also requires the same
+prototype state. Their retained metadata does not change the existing
+four-byte callback argument slot. A structure or
+class field declared through a callback typedef or raw
 function-pointer declarator retains the signature through checked plain stores,
 null clearing, named copies, and direct postfix calls. One-dimensional raw
 callback arrays at file scope, in block-static storage, and across persistent
@@ -1198,8 +1209,9 @@ and uninitialized or omitted fixed-array entries are zero-filled. Initializers
 accept compatible functions and null entries. A function defined later uses
 the existing absolute data patch. Explicit unary `*` keeps the selected element
 callable. A block-static raw callback scalar uses the same path. Conditional
-initializers, alias chains,
-recursive signatures, aggregate results, raw method parameters, and empty
+initializers, alias chains, callback-valued results,
+pointer-to-function-pointer `**` declarators, self-referential signature graphs,
+aggregate results, raw method parameters, and empty
 identifier-list signatures remain outside the retained path. Automatic,
 parameter, record or class field, and multidimensional raw callback arrays also
 remain unsupported. A zero-data AOT executable reports one
@@ -1210,14 +1222,24 @@ callback fields, ADR 0324 records grouped runtime function addresses, and ADR
 0325 records raw fields and direct field calls. ADR 0330 records the raw
 static-storage array boundary, driven by the unchanged callback table in
 `kernel/doom/src/f_wipe.cc`. At the ADR 0325 checkpoint, the private callback
-ABI module passed all 286 tests. The source-current module passes all 301 tests
-in 5.505 seconds, and the full GUI module passes all 126 tests in 0.333
-seconds. A private four-vCPU frontier boot records all four CPUs online and
+ABI module passed all 286 tests. At the ADR 0330 checkpoint, the module passed
+all 301 tests in 5.505 seconds, and the full GUI module passed all 126 tests in
+0.333 seconds. Its private four-vCPU frontier boot recorded all four CPUs online and
 `[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`
 before the overall feature pass and clean JIT completion. The standalone
 CupidC seeds do not contain this private parser. Checked-seed hosted CupidC
 continues to produce the active `f_wipe.cc` object. This leaves object
 ownership, checked seeds, the object format, and host dependencies unchanged.
+Checked-seed hosted CupidC also keeps production ownership of
+`kernel/lang/cupidc.cc`, where the unchanged `p_icon_set_drawer` declaration
+supplies the active nested callback requirement. `BIND` still publishes its
+existing parameter-count metadata, so nested kernel-binding signatures remain
+outside this private parser change. ADR 0331 records the nested signature
+boundary. At the ADR 0331 source head, the private ABI suite passes 310 tests
+in 75.017 seconds and the GUI contract suite passes 128 tests in 0.955 seconds.
+The 157,520-byte private four-vCPU frontier log records the nested callback
+marker, the overall feature pass, and clean JIT completion; its SHA-256 is
+`b34a68aebdfecaeeb347c1ff4764cbe609a6ed2f154557a15133a601101585c6`.
 The marker contract requires
 `[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
 `cleared=1 calls=2` and

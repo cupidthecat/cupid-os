@@ -191,8 +191,16 @@ the designator. Runtime initialization and assignment accept `&(function)` and
 nested grouping. A direct raw
 callback parameter on a free function retains its result, fixed parameters,
 record identities, and variadic boundary through the existing cdecl call path.
-The private pool holds at most 32 raw parameter signatures and rolls back with
-the program. A structure or class field declared directly with a callback
+Callback-valued parameters are parsed recursively and retain the same result,
+parameter, record-identity, prototype, and variadic metadata. For a
+`TYPE_FUNC_PTR` parameter, `param_struct_indices` holds the nested signature
+handle instead of a record index. The argument remains one four-byte i386 word,
+so the retained graph does not change cdecl layout. Raw and direct-typedef
+signature graphs compare structurally. Each comparison memoizes handle pairs
+across the combined 48-handle domain. Parsing and comparison accept at most 16
+nested levels, and the private pool holds at most 32 raw signatures. Failed
+program and REPL transactions restore that pool with the rest of the parser
+state. A structure or class field declared directly with a callback
 typedef retains that typedef's signature. Checked plain assignment stores a
 compatible function or callback value, null clears the field, and a member
 read keeps the signature when it is copied into a named callback object.
@@ -212,10 +220,11 @@ compatible defined or later-defined functions; a later target uses
 including calls written with an explicit unary `*`. Block-static scalar raw
 callbacks use the same initialized-data path. Automatic raw callback arrays,
 raw callback array parameters, raw record or class field arrays,
-multidimensional raw callback arrays, alias chains, raw method parameters,
-conditional field values, aggregate results, and recursive signatures remain
-outside this boundary. Typedef-backed fixed callback field arrays remain the
-separate ADR 0328 path.
+multidimensional raw callback arrays, raw method parameters, conditional field
+values, and aggregate results remain outside this boundary. Callback-valued
+results, pointer-to-function-pointer `**` declarators, callback alias chains,
+and publication through `BIND` metadata remain separate work. Typedef-backed
+fixed callback field arrays remain the separate ADR 0328 path.
 Direct structure and array results remain rejected. Program and REPL rollback
 restore typedef and side-table metadata, provisional signatures, code, data,
 and every patch kind. The
@@ -229,12 +238,17 @@ function addresses, ADR 0321 records typedef-backed callback fields, and ADR
 0324 records grouped runtime function addresses. ADR 0325 records raw callback
 fields and direct field calls. ADR 0328 records typedef-backed callback field
 arrays, and ADR 0330 records data-backed raw callback arrays and block-static
-raw callbacks. Source-head guest runtime proves the existing scalar raw forms
-with initialized, parameter, clear, reassignment, and typed-call coverage.
-Active Doom source in `kernel/doom/src/f_wipe.cc` supplies the
-six-entry raw callback table that drives the new private parser boundary. Its
-production translation remains owned by checked-seed hosted CupidC.
-_Avoid_: reversing source evaluation, four bytes for every parameter, splitting a double into unrelated arguments
+raw callbacks. ADR 0331 records recursive callback-parameter signatures.
+Source-head guest runtime proves the existing scalar raw forms with
+initialized, parameter, clear, reassignment, and typed-call coverage.
+The active nested shape is `p_icon_set_drawer` in `kernel/lang/cupidc.cc`,
+which points to `gfx2d_icon_set_custom_drawer` and its callback-valued
+`drawer` parameter. Active Doom source in `kernel/doom/src/f_wipe.cc` supplies
+the six-entry raw callback table for the separate array boundary. Checked-seed
+hosted CupidC still owns both production translations. The standalone checked
+seeds do not contain the private parser, and this capability moves no build
+owner or host dependency.
+_Avoid_: reversing source evaluation, four bytes for every parameter, erasing a nested callback signature, splitting a double into unrelated arguments
 
 **Represented bit-field assignment**:
 A plain Cupid C assignment to a non-atomic integer bit field whose declared storage unit is four bytes and fits inside its record. Linear IR retains the graph member, while i386 emission preserves neighboring bits and returns the value represented by the stored field.
@@ -1553,15 +1567,15 @@ Windows skips. That checkpoint reached the exact-size gate with changed
 pass-one ELF, final ELF, and raw-kernel outputs. After those three policy rows
 were updated, its repeat passed in 874.531 seconds and checked all fourteen
 artifacts.
-The source-head kernel outputs are a 9,404,288-byte
+The source-head kernel outputs are a 9,417,012-byte
 `kernel/kernel.elf.pass1` with SHA-256
-`346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf`, a
-9,531,264-byte `kernel/kernel.elf` with SHA-256
-`66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9`,
-and a 9,308,184-byte `kernel/kernel.bin` with SHA-256
-`fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478`.
+`5d353af4f5de45ca47f4de4be51ef732db0b907125543cbebad4a9c19f166605`, a
+9,543,988-byte `kernel/kernel.elf` with SHA-256
+`1dfcd029e9a31d6da949181b3e5c2654fb6ae064a826e05fa9438ae1f3d01472`,
+and a 9,320,044-byte `kernel/kernel.bin` with SHA-256
+`3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d`.
 The 209,715,200-byte `cupidos.img` has SHA-256
-`d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed`.
+`acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43`.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
 duplicate, linked, nonregular, or differently sized members fail. An

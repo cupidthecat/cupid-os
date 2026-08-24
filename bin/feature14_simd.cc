@@ -19,6 +19,9 @@ int feature14_float_call_count;
 int feature14_double_call_count;
 int feature14_raw_call_count;
 int feature14_raw_array_call_count;
+int feature14_nested_outer_calls;
+int feature14_nested_inner_calls;
+int feature14_nested_value;
 int feature14_callback_index_calls;
 
 int feature14_raw_target(int value) {
@@ -435,6 +438,29 @@ int feature14_test_callback_raw_array() {
     if (feature14_dispatch_wipe(1, 1) != 1921) return 3;
     if (feature14_dispatch_wipe(1, 0) != 1921) return 4;
     if (feature14_raw_array_call_count != 12) return 5;
+    return 0;
+}
+
+void feature14_nested_draw(int x, int y) {
+    feature14_nested_inner_calls += 1;
+    feature14_nested_value = x * 10 + y;
+}
+
+void feature14_nested_install(int handle, void (*drawer)(int, int)) {
+    feature14_nested_outer_calls += 1;
+    drawer(handle, 3);
+}
+
+int feature14_test_callback_nested() {
+    void (*set_drawer)(int, void (*)(int, int)) =
+        feature14_nested_install;
+    feature14_nested_outer_calls = 0;
+    feature14_nested_inner_calls = 0;
+    feature14_nested_value = 0;
+    set_drawer(4, feature14_nested_draw);
+    if (feature14_nested_outer_calls != 1) return 1;
+    if (feature14_nested_inner_calls != 1) return 2;
+    if (feature14_nested_value != 43) return 3;
     return 0;
 }
 
@@ -929,6 +955,15 @@ int main() {
     } else {
         serial_printf("[feature14-callback-raw-array] FAIL check=%d\n",
                       callback_raw_array_result);
+        ok = 0;
+    }
+
+    int callback_nested_result = feature14_test_callback_nested();
+    if (callback_nested_result == 0) {
+        serial_printf("[feature14-callback-nested] PASS outer=1 inner=1 value=43\n");
+    } else {
+        serial_printf("[feature14-callback-nested] FAIL check=%d\n",
+                      callback_nested_result);
         ok = 0;
     }
 

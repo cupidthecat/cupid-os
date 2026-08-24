@@ -312,6 +312,10 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   int repl_patch_rollback_mode =
                       argc == 5 &&
                       strcmp(argv[4], "--repl-patch-rollback") == 0;
+                  int repl_patch_signature_rollback_mode =
+                      argc == 5 &&
+                      strcmp(argv[4],
+                             "--repl-patch-signature-rollback") == 0;
                   int recovery_mode =
                       argc == 5 && strcmp(argv[4], "--recover") == 0;
                   int same_state_recovery_mode =
@@ -330,6 +334,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     return check_numeric_token_boundary(argv[2]);
                   if (argc != 4 && !repl_mode && !repl_rollback_mode &&
                       !repl_patch_rollback_mode &&
+                      !repl_patch_signature_rollback_mode &&
                       !recovery_mode && !same_state_recovery_mode &&
                       !recover_after_success_mode &&
                       !double_failure_recovery_mode &&
@@ -409,7 +414,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     cc_lex_init(cc, retry_source);
                     cc_parse_program(cc);
                   } else if (repl_mode || repl_rollback_mode ||
-                             repl_patch_rollback_mode) {
+                             repl_patch_rollback_mode ||
+                             repl_patch_signature_rollback_mode) {
                     char *unit = source;
                     int unit_index = 0;
                     repl_state_t checkpoint;
@@ -430,7 +436,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       while (!cc->error &&
                              cc_lex_peek(cc).type != CC_TOK_EOF)
                         cc_parse_repl_line(cc, &is_expr);
-                      if ((repl_rollback_mode || repl_patch_rollback_mode) &&
+                      if ((repl_rollback_mode || repl_patch_rollback_mode ||
+                           repl_patch_signature_rollback_mode) &&
                           unit_index == 0) {
                         if (cc->error)
                           break;
@@ -443,9 +450,16 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                             cc->raw_function_pointer_signature_count;
                         checkpoint.patch_committed = cc->patch_count;
                       } else if ((repl_rollback_mode ||
-                                  repl_patch_rollback_mode) &&
+                                  repl_patch_rollback_mode ||
+                                  repl_patch_signature_rollback_mode) &&
                                  unit_index == 1) {
-                        if (repl_patch_rollback_mode) {
+                        if (repl_patch_signature_rollback_mode) {
+                          if (!cc->error ||
+                              cc->patch_count <= checkpoint.patch_committed ||
+                              cc->raw_function_pointer_signature_count <=
+                                  checkpoint.raw_function_pointer_signature_committed)
+                            return 73;
+                        } else if (repl_patch_rollback_mode) {
                           if (!cc->error ||
                               cc->patch_count <= checkpoint.patch_committed)
                             return 73;
@@ -580,7 +594,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         return result, code_path, data_path
 
     def _compile_repl_after_struct_failure(
-        self, root, units, *, require_patch=False
+        self, root, units, *, require_patch=False,
+        require_patch_and_raw_signature=False
     ):
         source_path = root / "fixture.cc"
         code_path = root / "code.bin"
@@ -596,9 +611,13 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 str(code_path),
                 str(data_path),
                 (
-                    "--repl-patch-rollback"
-                    if require_patch
-                    else "--repl-rollback"
+                    "--repl-patch-signature-rollback"
+                    if require_patch_and_raw_signature
+                    else (
+                        "--repl-patch-rollback"
+                        if require_patch
+                        else "--repl-rollback"
+                    )
                 ),
             ],
             cwd=REPO_ROOT,
@@ -1909,6 +1928,524 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     result.stdout + result.stderr,
                 )
 
+    def test_nested_raw_callback_parameters_match_active_cupidc_shape(self):
+        compiler_source = (KERNEL_LANG / "cupidc.cc").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "void (*p_icon_set_drawer)(int, void (*)(int, int)) =",
+            compiler_source,
+        )
+        icon_header = (
+            REPO_ROOT / "kernel" / "gfx" / "gfx2d_icons.h"
+        ).read_text(encoding="utf-8")
+        icon_source = (
+            REPO_ROOT / "kernel" / "gfx" / "gfx2d_icons.cc"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "void gfx2d_icon_set_custom_drawer(int handle, "
+            "void (*drawer)(int, int));",
+            icon_header,
+        )
+        self.assertIn(
+            "void gfx2d_icon_set_custom_drawer(int handle, "
+            "void (*drawer)(int, int)) {",
+            icon_source,
+        )
+
+        source = """
+            int observed;
+
+            void draw(int x, int y) {
+              observed = x * 10 + y;
+            }
+
+            void install(int slot, void (*drawer)(int, int)) {
+              drawer(slot, 7);
+            }
+
+            int main() {
+              void (*binding)(int, void (*)(int, int)) = install;
+              binding(4, draw);
+              return observed;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    47,
+                    result.stdout + result.stderr,
+                )
+
+    def test_nested_callback_signatures_match_across_raw_and_typedef_forms(self):
+        source = """
+            typedef void (*drawer_t)(int, int);
+            int observed;
+
+            void draw(int x, int y) {
+              observed = x * 10 + y;
+            }
+
+            void install_named(int slot, drawer_t drawer) {
+              drawer(slot, 2);
+            }
+
+            void install_raw(int slot, void (*drawer)(int, int)) {
+              drawer(slot, 3);
+            }
+
+            int main() {
+              void (*raw_binding)(int, void (*)(int, int)) = install_named;
+              void (*named_binding)(int, drawer_t) = install_raw;
+              raw_binding(4, draw);
+              if (observed != 42) return 1;
+              named_binding(5, draw);
+              return observed;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    53,
+                    result.stdout + result.stderr,
+                )
+
+    def test_recursive_callback_signatures_execute_in_jit_and_aot(self):
+        source = """
+            int observed;
+
+            void leaf(int value) {
+              observed = value;
+            }
+
+            void middle(int value, void (*callback)(int)) {
+              callback(value + 1);
+            }
+
+            void outer(int value,
+                       void (*callback)(int, void (*)(int))) {
+              callback(value, leaf);
+            }
+
+            int main() {
+              void (*binding)(
+                  int, void (*)(int, void (*)(int))) = outer;
+              binding(8, middle);
+              return observed;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    9,
+                    result.stdout + result.stderr,
+                )
+
+    def test_nested_record_and_variadic_callbacks_execute_in_jit_and_aot(self):
+        sources = (
+            (
+                "record",
+                """
+                struct Entry { int value; };
+                struct Entry *select(struct Entry *entry) { return entry; }
+                struct Entry *install(
+                    struct Entry *(*picker)(struct Entry *),
+                    struct Entry *entry) {
+                  return picker(entry);
+                }
+                int main() {
+                  struct Entry entry;
+                  struct Entry *(*setter)(
+                      struct Entry *(*)(struct Entry *),
+                      struct Entry *) = install;
+                  entry.value = 47;
+                  return setter(select, &entry)->value;
+                }
+                """,
+                47,
+            ),
+            (
+                "variadic",
+                """
+                int inspect(double fixed, ...) { return (int)fixed; }
+                int invoke(int (*callback)(double, ...)) {
+                  return callback(6, 2.5f);
+                }
+                int main() {
+                  int (*outer)(int (*)(double, ...)) = invoke;
+                  return outer(inspect);
+                }
+                """,
+                6,
+            ),
+        )
+        for label, source, expected in sources:
+            for aot in (False, True):
+                with self.subTest(case=label, aot=aot):
+                    result = self._compile_and_run(source, aot=aot)
+                    self.assertEqual(
+                        result.returncode,
+                        expected,
+                        result.stdout + result.stderr,
+                    )
+
+    def test_nested_callback_mismatches_recover_same_state(self):
+        cases = (
+            (
+                "initializer parameter",
+                """
+                void wrong(int slot, void (*drawer)(double)) { (void)slot; }
+                int main() {
+                  void (*binding)(int, void (*)(int, int)) = wrong;
+                  return binding != 0;
+                }
+                """,
+                "function-pointer initializer parameters do not match declaration",
+            ),
+            (
+                "assignment result",
+                """
+                void right(int slot, void (*drawer)(int, int)) { (void)slot; }
+                void wrong(int slot, int (*drawer)(int, int)) { (void)slot; }
+                int main() {
+                  void (*binding)(int, void (*)(int, int)) = right;
+                  binding = wrong;
+                  return binding != 0;
+                }
+                """,
+                "function-pointer assignment parameters do not match destination",
+            ),
+            (
+                "higher-order fixed argument",
+                """
+                void wrong(int slot, void (*drawer)(double)) { (void)slot; }
+                void accept(void (*binding)(int, void (*)(int, int))) {
+                  (void)binding;
+                }
+                int main() {
+                  accept(wrong);
+                  return 0;
+                }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "record identity",
+                """
+                struct One { int value; };
+                struct Two { int value; };
+                void wrong(int slot, void (*drawer)(struct Two *)) {
+                  (void)slot;
+                }
+                void accept(
+                    void (*binding)(int, void (*)(struct One *))) {
+                  (void)binding;
+                }
+                int main() {
+                  accept(wrong);
+                  return 0;
+                }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "variadic boundary",
+                """
+                void wrong(int slot, void (*drawer)(int)) { (void)slot; }
+                void accept(void (*binding)(int, void (*)(int, ...))) {
+                  (void)binding;
+                }
+                int main() {
+                  accept(wrong);
+                  return 0;
+                }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "prototype definition",
+                """
+                void accept(
+                    void (*setter)(int, void (*)(int, int)));
+                void accept(
+                    void (*setter)(int, void (*)(double))) {
+                  (void)setter;
+                }
+                int main() { return 0; }
+                """,
+                "function declaration does not match prior declaration",
+            ),
+            (
+                "nested prototype state",
+                """
+                void accept(void (*setter)(int (*)()));
+                void accept(void (*setter)(int (*)(void))) {
+                  (void)setter;
+                }
+                int main() { return 0; }
+                """,
+                "function declaration does not match prior declaration",
+            ),
+            (
+                "indirect nested result",
+                """
+                struct Entry { int value; };
+                struct Wrong { int value; };
+                struct Wrong *wrong(struct Entry *entry) { return 0; }
+                void install(
+                    struct Entry *(*callback)(struct Entry *)) {
+                  (void)callback;
+                }
+                int main() {
+                  void (*setter)(
+                      struct Entry *(*)(struct Entry *)) = install;
+                  setter(wrong);
+                  return 0;
+                }
+                """,
+                "function-pointer argument result does not match parameter type",
+            ),
+            (
+                "indirect nested parameter",
+                """
+                struct Entry { int value; };
+                struct Wrong { int value; };
+                struct Entry *wrong(struct Wrong *entry) { return 0; }
+                void install(
+                    struct Entry *(*callback)(struct Entry *)) {
+                  (void)callback;
+                }
+                int main() {
+                  void (*setter)(
+                      struct Entry *(*)(struct Entry *)) = install;
+                  setter(wrong);
+                  return 0;
+                }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "indirect nested variadic boundary",
+                """
+                int wrong(double value) { return (int)value; }
+                void install(int (*callback)(double, ...)) {
+                  (void)callback;
+                }
+                int main() {
+                  void (*setter)(int (*)(double, ...)) = install;
+                  setter(wrong);
+                  return 0;
+                }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "conditional",
+                """
+                void left(int slot, void (*drawer)(int, int)) { (void)slot; }
+                void right(int slot, void (*drawer)(double)) { (void)slot; }
+                int main() {
+                  void (*binding)(int, void (*)(int, int)) =
+                      1 ? left : right;
+                  return binding != 0;
+                }
+                """,
+                "conditional function-pointer signatures do not match",
+            ),
+            (
+                "later definition",
+                """
+                void (*binding)(int, void (*)(int, int)) = later;
+                void later(int slot, void (*drawer)(double)) { (void)slot; }
+                int main() { return binding != 0; }
+                """,
+                "function definition does not match prior function-pointer initializer",
+            ),
+            (
+                "pointer to function pointer",
+                """
+                int main() {
+                  void (*binding)(int (**)(int)) = 0;
+                  return binding != 0;
+                }
+                """,
+                "function-pointer parameter declarator requires exactly one '*'",
+            ),
+        )
+        retry_source = """
+            int observed;
+            void draw(int x, int y) { observed = x * 10 + y; }
+            void install(int slot, void (*drawer)(int, int)) {
+              drawer(slot, 9);
+            }
+            int main() {
+              void (*binding)(int, void (*)(int, int)) = install;
+              binding(6, draw);
+              return observed;
+            }
+        """
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-nested-callback-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode,
+                    69,
+                    runtime.stdout + runtime.stderr,
+                )
+
+    def test_nested_callback_signature_depth_failure_recovers_same_state(self):
+        nested_parameter = "int"
+        for _depth in range(18):
+            nested_parameter = f"int (*)({nested_parameter})"
+        failing_source = (
+            f"int (*binding)({nested_parameter});\n"
+            "int main() { return binding != 0; }"
+        )
+        retry_source = """
+            int identity(int value) { return value; }
+            int invoke(int (*callback)(int)) { return callback(9); }
+            int main() { return invoke(identity); }
+        """
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-nested-callback-depth-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                failing_source,
+                retry_source,
+                same_state=True,
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            self.assertIn(
+                "function-pointer signature nesting is too deep",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                9,
+                runtime.stdout + runtime.stderr,
+            )
+
+    def test_typedef_backed_nested_callback_depth_is_bounded(self):
+        typedefs = ["typedef int (*layer0)(int);"]
+        for depth in range(1, 16):
+            typedefs.append(
+                f"typedef int (*layer{depth})(layer{depth - 1});"
+            )
+        accepted_source = "\n".join(typedefs)
+        accepted_source += "\nint (*binding)(layer15) = 0;"
+        accepted_source += "\nint main() { return binding != 0; }"
+
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(accepted_source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    0,
+                    result.stdout + result.stderr,
+                )
+
+        failing_source = "\n".join(typedefs)
+        failing_source += "\nint (*binding)(int (*)(layer15)) = 0;"
+        failing_source += "\nint main() { return binding != 0; }"
+        retry_source = """
+            int identity(int value) { return value; }
+            int invoke(int (*callback)(int)) { return callback(9); }
+            int main() { return invoke(identity); }
+        """
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-typedef-callback-depth-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                failing_source,
+                retry_source,
+                same_state=True,
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            self.assertIn(
+                "function-pointer signature nesting is too deep",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                9,
+                runtime.stdout + runtime.stderr,
+            )
+
+    def test_nested_callback_signature_capacity_recovers_same_state(self):
+        declarations = []
+        for arity in range(33):
+            parameters = "void" if arity == 0 else ", ".join(
+                "int" for _ in range(arity)
+            )
+            declarations.append(
+                f"int (*holder{arity})(int (*)({parameters})) = 0;"
+            )
+        failing_source = "\n".join(declarations)
+        failing_source += "\nint main() { return 0; }"
+        retry_source = """
+            int identity(int value) { return value; }
+            int invoke(int (*callback)(int)) { return callback(9); }
+            int main() { return invoke(identity); }
+        """
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-nested-callback-capacity-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                failing_source,
+                retry_source,
+                same_state=True,
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            self.assertIn(
+                "too many raw function-pointer signatures",
+                result.stderr,
+            )
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                9,
+                runtime.stdout + runtime.stderr,
+            )
+
     def test_raw_callback_parameter_prototype_matches_definition(self):
         source = """
             int invoke(int (*callback)(double, int));
@@ -2194,6 +2731,59 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             self.assertEqual(
                 runtime.returncode,
                 9,
+                runtime.stdout + runtime.stderr,
+            )
+
+    def test_repl_rolls_back_nested_signature_and_data_patch_together(self):
+        capacity_declarations = []
+        for arity in range(31):
+            parameters = "void" if arity == 0 else ", ".join(
+                "int" for _ in range(arity)
+            )
+            capacity_declarations.append(
+                f"int hold{arity}(int (*callback)({parameters})) {{ "
+                "return callback != 0; }"
+            )
+        capacity_declarations.append(
+            "void hold_active(void (*callback)(int, int)) { "
+            "(void)callback; }"
+        )
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-nested-callback-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code_path, data_path = (
+                self._compile_repl_after_struct_failure(
+                    root,
+                    (
+                        "int baseline;",
+                        "int later(int value); "
+                        "int (*pending)(int) = later; "
+                        "int (*poisoned)(int (*)(double)) = 0; "
+                        "int broken(void) { return missing_value; }",
+                        "\n".join(capacity_declarations),
+                        "int observed; "
+                        "void draw(int x, int y) { "
+                        "observed = x * 10 + y; } "
+                        "void install(int slot, void (*drawer)(int, int)) { "
+                        "drawer(slot, 3); } "
+                        "int main() { "
+                        "void (*binding)(int, void (*)(int, int)) = install; "
+                        "binding(4, draw); return observed; }",
+                    ),
+                    require_patch_and_raw_signature=True,
+                )
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            self.assertEqual(data_path.stat().st_size, 8)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                43,
                 runtime.stdout + runtime.stderr,
             )
 
@@ -5325,8 +5915,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
               return marker;
             }
 
-            int draw(int x, int y) {
-              return x + y;
+            void draw(int x, int y) {
+              (void)x;
+              (void)y;
             }
 
             int main() {

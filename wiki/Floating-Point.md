@@ -408,8 +408,7 @@ once. Raw callback scalars and one-dimensional arrays with static storage at
 file scope, block-static scope, or persistent REPL scope keep the signature as
 well. Automatic raw callback arrays, callback array parameters, raw array
 fields, multidimensional raw arrays, empty `()`, callback alias chains,
-recursive callback signatures, and `void *` forms remain unsupported or
-metadata-free.
+and `void *` forms remain unsupported or metadata-free.
 Kernel bindings and other calls without fixed metadata keep their source-width
 slots. A plain function initializer or direct callback argument must match the
 retained signature, including record-pointer parameters. Local callback copies
@@ -436,6 +435,28 @@ designator, and a typedef-backed record or class field retains its signature.
 Runtime initialization and assignment accept `&(function)` and nested
 grouping. ADR 0319 records explicit function addresses, ADR 0321 records the
 field boundary, and ADR 0324 records grouped runtime addresses.
+
+A callback's fixed parameter list may contain another raw or
+typedef-backed callback. The parent signature keeps a child handle and follows
+it recursively during initialization, assignment, higher-order argument
+checking, indirect calls, conditionals, and declaration or definition matching.
+The structural comparison includes the child result, its fixed parameter
+widths, record-pointer identities, and variadic boundary. Compatible uses keep
+the existing unprototyped callback rule. Declaration and definition matching
+also requires the same prototype state. A raw child and typedef child are
+compatible when the applicable structure agrees.
+This retains mixed floating widths and variadic metadata instead of reducing
+the child callback to an untyped address.
+
+The callback argument itself remains one four-byte i386 slot even when its
+child signature contains `double`, SIMD, or variadic parameters. The metadata
+may nest through 16 levels and use at most 32 distinct raw-signature entries.
+A rejected depth, capacity, or mismatch restores the signature state before a
+later source or REPL unit runs. The active
+`void (*p_icon_set_drawer)(int, void (*)(int, int))` binding in
+`kernel/lang/cupidc.cc` exercises the same higher-order shape without floating
+arguments. That production source remains built by checked-seed hosted CupidC,
+not by the private in-OS compiler.
 
 Raw callback arrays use braced static initializers. A fixed array may omit
 entries, which remain zero, while an unsized array infers its count from a
@@ -525,8 +546,8 @@ A structure or class field declared through the typedef or a raw
 function-pointer declarator keeps the signature for checked stores, named
 copies, null checks, clearing, and direct postfix calls. Fixed SIMD arguments
 use the normal 16-byte cdecl slot and return through XMM0. Empty `()`, callback
-arrays outside data-backed static storage, alias chains, recursive callback
-signatures, and `void *` pointers do not retain the signature. Raw callback
+arrays outside data-backed static storage, callback alias chains, and `void *`
+pointers do not retain the signature. Raw callback
 scalars and one-dimensional arrays at file scope, block-static scope, or
 persistent REPL scope do retain it. Automatic raw callback arrays, parameter
 arrays, raw array fields, and multidimensional raw arrays remain unsupported.

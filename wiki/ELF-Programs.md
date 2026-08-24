@@ -742,8 +742,8 @@ Direct members, nested records, and indexed record arrays share that path. Raw
 callback fields retain the same metadata. Direct postfix calls through either
 field form use typed cdecl conversion without evaluating the designator twice.
 Typedef-backed fixed callback arrays in records retain the signature through
-indexing. Callback alias chains, recursive callback signatures, aggregate
-results, and arbitrary computed callback expressions remain signature-erased
+indexing. Callback alias chains, aggregate results, and arbitrary computed
+callback expressions remain signature-erased
 or unsupported. ADR 0325 records the completed field boundary, and ADR 0328
 records typedef-backed callback field arrays. AOT still compiles one translation
 unit into a fixed-address executable and does not emit a relocatable object for
@@ -754,6 +754,24 @@ same parsed signature without a typedef. The file object uses the existing
 initialized-data write or patch. The parameter uses the existing cdecl slot
 and arity checks. The private pool accepts 32 distinct raw parameter
 signatures, rejects the next one, and restores the pool before a valid retry.
+When one callback takes another callback as a fixed parameter, the outer
+signature stores a child handle. Raw nested declarators use raw handles;
+callback typedef parameters use typedef handles. The AOT type checker descends
+through both forms and compares nested results, parameters, record-pointer
+identities, and variadic boundaries. Initializers, assignments, higher-order
+arguments, indirect calls, and conditionals keep the existing compatibility
+rule for unprototyped callbacks. Matching declarations and definitions also
+require the same prototype state.
+
+Nested signature metadata does not change the executable ABI. Each callback
+argument remains one four-byte i386 cdecl slot. A signature deeper than 16
+levels or a 33rd distinct raw signature rejects the source and restores the
+signature pool and surrounding AOT transaction. The active
+`void (*p_icon_set_drawer)(int, void (*)(int, int))` binding in
+`kernel/lang/cupidc.cc` uses this form for `set_icon_drawer`. The production
+compiler source remains built by checked-seed hosted CupidC; this private AOT
+rule does not transfer its ownership to in-OS CupidC.
+
 Raw callback scalars with static storage use the same data write and patch
 path at file scope, block-static scope, and persistent REPL scope. A
 one-dimensional raw callback array is also available in those contexts. A
@@ -774,13 +792,16 @@ unsupported. ADR 0315 records the raw scalar and parameter source rule.
 [ADR 0330](../docs/adr/0330-support-data-backed-raw-callback-arrays.md)
 records data-backed raw callback arrays and block-static scalar callbacks.
 
-The source-current private callback ABI module passes all 301 tests in 5.505
-seconds, and the full GUI module passes all 126 tests in 0.333 seconds. A
+The source-current private callback ABI module passes all 310 tests in 75.017
+seconds, and the full GUI module passes all 128 tests in 0.955 seconds. A
 private four-vCPU frontier boot records all four CPUs online,
 `[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,
-`PASS feature14_simd`, and clean in-OS CupidC JIT completion. Its 151,289-byte
+`[feature14-callback-nested] PASS outer=1 inner=1 value=43`,
+`PASS feature14_simd`, and clean in-OS CupidC JIT completion. Its 157,520-byte
 log has SHA-256
-`d414c1db732fa3593eb938caf04b81682a1dcc693a7060b57be5e7c00984c621`.
+`b34a68aebdfecaeeb347c1ff4764cbe609a6ed2f154557a15133a601101585c6`.
+The broader frontier changes 109,518 framebuffer pixels and captures
+32,701,862 AC97 frames and 76,710 PC-speaker frames.
 The standalone CupidC seeds do not contain this private parser. The production
 Doom cohort, including `f_wipe.cc`, remains built by checked-seed hosted
 CupidC. This private AOT capability does not transfer that cohort to in-OS
@@ -833,10 +854,10 @@ The source-head artifact contract passes against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,404,288 | `346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf` |
-| `kernel/kernel.elf` | 9,531,264 | `66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9` |
-| `kernel/kernel.bin` | 9,308,184 | `fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478` |
-| `cupidos.img` | 209,715,200 | `d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed` |
+| `kernel/kernel.elf.pass1` | 9,417,012 | `5d353af4f5de45ca47f4de4be51ef732db0b907125543cbebad4a9c19f166605` |
+| `kernel/kernel.elf` | 9,543,988 | `1dfcd029e9a31d6da949181b3e5c2654fb6ae064a826e05fa9438ae1f3d01472` |
+| `kernel/kernel.bin` | 9,320,044 | `3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d` |
+| `cupidos.img` | 209,715,200 | `acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43` |
 
 Those output identities are source-head evidence. Both checked seeds now carry
 the same source snapshot. The normal kernel transaction selects linked local

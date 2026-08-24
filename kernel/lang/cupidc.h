@@ -45,6 +45,11 @@
 #define CC_MAX_TYPEDEFS 16            /* max source typedef aliases */
 #define CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES 32
 #define CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE CC_MAX_TYPEDEFS
+#define CC_MAX_FUNCTION_POINTER_SIGNATURE_DEPTH 16
+#if (CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE + \
+     CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES) > 128
+#error "function-pointer signature handles must fit in int8_t"
+#endif
 
 /* JIT/AOT regions live well above kernel BSS and kernel stack.
  * Layout puts the JIT image at 17 MB, with 9 MB of code and data headroom

@@ -38,7 +38,8 @@ fields. ADR 0322 records native Windows `CUPMAN4` author execution.
 ADR 0323 records code-anchor seed carriage and linked-kernel adoption.
 ADR 0324 records grouped runtime function addresses, ADR 0328 records
 typedef-backed callback field arrays, and ADR 0330 records raw callback arrays
-with static storage duration.
+with static storage duration. ADR 0331 records nested callback-parameter
+signatures.
 
 ## 2026-08-24 source-current checkpoint
 
@@ -70,10 +71,10 @@ fourteen exact artifacts. The current outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,404,288 | `346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf` |
-| `kernel/kernel.elf` | 9,531,264 | `66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9` |
-| `kernel/kernel.bin` | 9,308,184 | `fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478` |
-| `cupidos.img` | 209,715,200 | `d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed` |
+| `kernel/kernel.elf.pass1` | 9,417,012 | `5d353af4f5de45ca47f4de4be51ef732db0b907125543cbebad4a9c19f166605` |
+| `kernel/kernel.elf` | 9,543,988 | `1dfcd029e9a31d6da949181b3e5c2654fb6ae064a826e05fa9438ae1f3d01472` |
+| `kernel/kernel.bin` | 9,320,044 | `3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d` |
+| `cupidos.img` | 209,715,200 | `acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43` |
 
 Source-head bootstrap reporting now compares stage two with the verified bytes
 in `SeedInputs.artifact_bytes`. It no longer reopens ephemeral
@@ -107,6 +108,18 @@ free-function parameter now retain the same parsed signature. Raw callback
 fields retain it too. A postfix call through a typedef-backed or raw callback
 field uses typed fixed and variadic cdecl conversion, evaluates its designator
 once, and preserves represented scalar, floating, pointer, and SIMD results.
+Callback-valued parameters inside a retained signature keep their own
+signatures recursively. Raw and typedef-backed spellings match by structure,
+including the nested result, record identities, fixed parameters, and variadic
+boundary. Compatible uses keep the existing unprototyped callback rule, while
+declaration and definition matching also requires the same prototype state.
+Nesting is limited to 16 callback signature levels. Nested raw signatures share
+the existing 32-record raw signature pool with outer raw declarations. Program
+and persistent REPL failures restore the pool and retained graphs before a valid
+retry. This metadata does not change the i386 ABI: each callback parameter still
+occupies one four-byte cdecl slot.
+The active requirement is the unchanged `p_icon_set_drawer` declaration in
+`kernel/lang/cupidc.cc`, whose second parameter is itself a raw callback.
 Typedef-backed callback arrays on structure and class fields retain the
 signature through indexed stores, named copies, and direct calls. Each index
 is evaluated once. One-dimensional raw callback arrays now work at file scope,
@@ -127,13 +140,28 @@ boundary, ADR 0328 records typedef-backed callback field arrays, and ADR 0330
 records data-backed raw callback arrays.
 
 At the ADR 0328 checkpoint, the private callback ABI module passed all 289
-tests. The source-current module passes all 301 tests in 5.505 seconds, and the
-full GUI module passes all 126 tests in 0.333 seconds. A private four-vCPU
-frontier boot records all four CPUs online, the raw-array marker
+tests. At the ADR 0330 checkpoint, the module passed all 301 tests in 5.505
+seconds, and the full GUI module passed all 126 tests in 0.333 seconds. Its
+private four-vCPU frontier boot recorded all four CPUs online, the raw-array marker
 `[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,
 `PASS feature14_simd`, and clean JIT completion. Its 151,289-byte log at
 `build/bootstrap/feature14-raw-array-qemu.log` has SHA-256
 `d414c1db732fa3593eb938caf04b81682a1dcc693a7060b57be5e7c00984c621`.
+
+At the ADR 0331 source head, the private callback ABI module passes all 310
+tests in 75.017 seconds. The GUI contract module passes all 128 tests in 0.955
+seconds, and the artifact policy modules pass 29 tests in 2.837 seconds with
+four expected platform skips. The final `make -j4 all` run compiles the full
+active kernel and Doom cohort with checked-seed CupidC, links both kernel
+passes with CupidLD, passes both CupidDis gates, accepts all 14 exact artifact
+sizes, and publishes the image. A private four-vCPU frontier boot records all
+CPUs online at line 82, the nested callback marker at line 1368, feature-14
+success at line 1374, and clean JIT completion at line 1375. The 157,520-byte
+`build/bootstrap/feature14-nested-callback-qemu.log` has SHA-256
+`b34a68aebdfecaeeb347c1ff4764cbe609a6ed2f154557a15133a601101585c6`.
+The run changes 109,518 framebuffer pixels and captures 32,701,862 AC97 frames
+and 76,710 PC-speaker frames. It leaves the source image unchanged.
+
 The standalone CupidC seeds do not contain this private parser. The active
 runtime proof remains the in-OS JIT smoke. The production
 `kernel/doom/src/f_wipe.cc` object remains owned by checked-seed hosted CupidC,
@@ -669,9 +697,11 @@ typedef-backed global objects initialized from null or a compatible function.
 Its indirect call uses the same conversions and 4-, 8-, or 16-byte slot
 layout, enforces fixed arity, applies default promotions after a variadic
 prefix, and publishes floating or vector results through XMM0. Empty `()`,
-`void *`, callback alias chains, recursive signatures, conditional initializers,
-arbitrary computed expressions, raw method parameters, and aggregate callback
-results remain outside this path. Data-backed raw callback arrays may use one
+`void *`, callback alias chains, self-referential signature graphs, conditional
+initializers, arbitrary computed expressions, raw method parameters,
+callback-valued results, pointer-to-function-pointer `**` declarators, and
+aggregate results remain outside this path. `BIND` metadata still carries no
+nested callback signature. Data-backed raw callback arrays may use one
 dimension at file scope, in a block-static declaration, or in persistent REPL
 storage. The same path handles block-static raw callback scalars. Automatic,
 parameter, record or class field, and multidimensional raw callback arrays are
@@ -681,8 +711,11 @@ class field declared directly with the callback typedef keeps its signature
 for checked stores, null clearing, and copies into named callback objects. A
 later global target is resolved through an absolute initialized-data patch.
 Named raw callback file objects and direct free-function parameters retain
-their parsed signatures. The private pool holds at most 32 raw parameter
-signatures and rolls back with the program.
+their parsed signatures. Their callback-valued parameters retain nested
+signatures through 16 levels. Raw and typedef-backed nested signatures compare
+structurally without changing the four-byte cdecl slot. The private pool holds
+at most 32 raw signatures, shared by outer and nested declarations, and rolls
+back with the program or persistent REPL unit.
 Character operands undergo integer
 promotion in ordinary integer arithmetic and use the integer SSE conversion
 path when paired with a floating operand or cast.
@@ -816,7 +849,11 @@ signature holds at most 32 fixed parameters. A plain function initializer,
 its direct `&function` address, or a typed global assignment must match that
 signature; an explicit `void *` cast
 erases the check. Empty `()`, alias chains, and `void *` pointers remain
-metadata-free. One-dimensional raw callback arrays with static storage retain
+metadata-free. Callback-valued parameters retain their nested signature, and
+matching descends through raw or typedef-backed signature graphs. The graph is
+limited to 16 callback levels, while all callback values keep their existing
+four-byte i386 representation. One-dimensional raw callback arrays with static
+storage retain
 their signature through indexed stores and calls, but automatic, parameter,
 record or class field, and multidimensional raw arrays remain unsupported. Raw
 callback fields retain their parsed signatures. Direct structure and array results

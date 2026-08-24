@@ -349,8 +349,8 @@ boundary. A free-function or Cupid class method parameter declared through that
 typedef receives the signature. A declaration-initialized automatic object
 receives its own copy. File objects and raw or typedef-backed record fields can
 retain the same signature. JIT and private AOT calls use that metadata. Empty
-(), bare nested callback signatures, alias chains, and void-pointer forms
-remain metadata-free. Plain function initializers must match the retained
+(), alias chains, and void-pointer forms remain metadata-free. Plain function
+initializers must match the retained
 signature; an explicit cast erases it. ADR 0301 records the earlier named-local
 callback rule. Named local copies share the check. Later targets receive
 absolute fixups, and provisional signatures must match their definitions.
@@ -388,9 +388,31 @@ records the raw data-backed array and shared block-static scalar boundary.
 
 Function-pointer typedef declarations remain file-scope, allow one alias per
 declaration, and share a sixteen-entry table. Direct record and array callback
-results are rejected; record-pointer results retain identity. Nested callback
-parameters still occupy one four-byte word without preserving their inner
-signature.
+results are rejected; record-pointer results retain identity.
+
+A callback parameter nested inside another retained function pointer keeps a
+child handle. Raw children use the private raw-signature pool, and direct
+callback typedefs keep their typedef handles. Further callback parameters are
+followed recursively. Structurally compatible prototyped raw and typedef-backed
+children agree on result and fixed parameter types, record-pointer identities,
+and the variadic boundary at every level. The existing unprototyped
+compatibility rule remains in force.
+
+The nested callback itself remains one four-byte i386 cdecl slot. Its child
+handle affects checking and does not change the runtime ABI. The compiler
+accepts signature graphs through sixteen levels and up to 32 distinct raw
+signatures. Depth and pool failures roll back the parent and child handles,
+emitted state, and pending data patches. Persistent REPL rollback restores the
+same state.
+
+The active binding shape is
+void (*p_icon_set_drawer)(int, void (*)(int, int)) for set_icon_drawer. The
+outer call checks the inner drawer signature before using the normal cdecl
+word. Function pointers still cannot return records or arrays. Raw callback
+array parameters, raw Cupid class method parameters, callback alias chains,
+and aggregate callback results remain unsupported. Checked-seed hosted CupidC
+continues to own the production kernel/lang/cupidc.cc object; the standalone
+seeds do not contain this private parser.
 
 Private decimal float and double literals use a fixed 1536-bit integer
 workspace. CupidC forms the exact decimal ratio and rounds once to the selected
@@ -458,9 +480,9 @@ fixed callback array fields retain it after subscripting. Raw static-storage
 callback arrays use the data-backed rules above. Alias chains still erase the
 signature.
 Named raw callback file objects and direct free-function parameters retain the
-same mixed-width slot metadata without a typedef. The private pool accepts 32
-distinct raw signatures and recovers after rejecting the next one. ADR 0315
-records this boundary. ADR 0325 records direct raw or typedef-backed field
+same mixed-width slot metadata without a typedef. They use the shared
+raw-signature pool described above. ADR 0315 records this boundary. ADR 0325
+records direct raw or typedef-backed field
 calls, and ADR 0328 records typedef-backed callback field arrays.
 Named SIMD intrinsics keep their inline lowering. A plain function initializer
 must match the retained

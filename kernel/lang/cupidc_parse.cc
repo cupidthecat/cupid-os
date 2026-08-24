@@ -1323,33 +1323,160 @@ static int cc_copy_function_pointer_signature_handle(
   return 1;
 }
 
-static int cc_function_pointer_signature_handles_match(
-    cc_state_t *cc, int left_handle, int right_handle) {
+#define CC_FUNCTION_POINTER_SIGNATURE_HANDLE_COUNT \
+  (CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE + \
+   CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES)
+#define CC_FUNCTION_POINTER_SIGNATURE_MATCH_WORDS \
+  ((CC_FUNCTION_POINTER_SIGNATURE_HANDLE_COUNT + 31) / 32)
+
+typedef struct {
+  uint32_t known[CC_FUNCTION_POINTER_SIGNATURE_HANDLE_COUNT]
+                [CC_FUNCTION_POINTER_SIGNATURE_MATCH_WORDS];
+  uint32_t matching[CC_FUNCTION_POINTER_SIGNATURE_HANDLE_COUNT]
+                   [CC_FUNCTION_POINTER_SIGNATURE_MATCH_WORDS];
+} cc_function_pointer_signature_match_context_t;
+
+static int cc_function_pointer_signature_cached_result(
+    cc_function_pointer_signature_match_context_t *context,
+    int left_handle, int right_handle, int *result) {
+  uint32_t mask = 1u << (right_handle & 31);
+  int word = right_handle >> 5;
+  if ((context->known[left_handle][word] & mask) == 0)
+    return 0;
+  *result = (context->matching[left_handle][word] & mask) != 0;
+  return 1;
+}
+
+static void cc_cache_function_pointer_signature_result(
+    cc_function_pointer_signature_match_context_t *context,
+    int left_handle, int right_handle, int result) {
+  uint32_t right_mask = 1u << (right_handle & 31);
+  uint32_t left_mask = 1u << (left_handle & 31);
+  int right_word = right_handle >> 5;
+  int left_word = left_handle >> 5;
+  context->known[left_handle][right_word] |= right_mask;
+  context->known[right_handle][left_word] |= left_mask;
+  if (result) {
+    context->matching[left_handle][right_word] |= right_mask;
+    context->matching[right_handle][left_word] |= left_mask;
+  } else {
+    context->matching[left_handle][right_word] &= ~right_mask;
+    context->matching[right_handle][left_word] &= ~left_mask;
+  }
+}
+
+static int cc_function_pointer_signature_handles_compare_depth(
+    cc_state_t *cc, int left_handle, int right_handle, int depth,
+    int allow_unprototyped,
+    cc_function_pointer_signature_match_context_t *context) {
   cc_function_pointer_signature_t left;
   cc_function_pointer_signature_t right;
+  int cached_result;
   int parameter_index;
+  if (left_handle == right_handle && left_handle >= 0)
+    return 1;
+  if (depth > CC_MAX_FUNCTION_POINTER_SIGNATURE_DEPTH)
+    return 0;
   if (!cc_get_function_pointer_signature(cc, left_handle, &left) ||
       !cc_get_function_pointer_signature(cc, right_handle, &right))
-    return 1;
+    return 0;
+  if (cc_function_pointer_signature_cached_result(
+          context, left_handle, right_handle, &cached_result))
+    return cached_result;
+  /* Mark the pair compatible before descending. Parsed graphs are acyclic,
+   * and this also gives future recursive typedef graphs a finite comparison. */
+  cc_cache_function_pointer_signature_result(
+      context, left_handle, right_handle, 1);
   if (left.return_type != right.return_type ||
       (left.return_type == TYPE_STRUCT_PTR &&
        left.return_struct_index != right.return_struct_index))
-    return 0;
-  if (!left.has_param_types || !right.has_param_types)
-    return 1;
+    goto mismatch;
+  if (!left.has_param_types || !right.has_param_types) {
+    if (allow_unprototyped ||
+        left.has_param_types == right.has_param_types)
+      return 1;
+    goto mismatch;
+  }
   if (left.param_count != right.param_count ||
       left.is_variadic != right.is_variadic)
-    return 0;
+    goto mismatch;
   for (parameter_index = 0; parameter_index < left.param_count;
        parameter_index++) {
     if (left.param_types[parameter_index] !=
-            right.param_types[parameter_index] ||
-        (left.param_types[parameter_index] == TYPE_STRUCT_PTR &&
-         left.param_struct_indices[parameter_index] !=
-             right.param_struct_indices[parameter_index]))
+        right.param_types[parameter_index])
+      goto mismatch;
+    if (left.param_types[parameter_index] == TYPE_STRUCT_PTR &&
+        left.param_struct_indices[parameter_index] !=
+            right.param_struct_indices[parameter_index])
+      goto mismatch;
+    if (left.param_types[parameter_index] == TYPE_FUNC_PTR &&
+        !cc_function_pointer_signature_handles_compare_depth(
+            cc, left.param_struct_indices[parameter_index],
+            right.param_struct_indices[parameter_index], depth + 1,
+            allow_unprototyped, context))
+      goto mismatch;
+  }
+  return 1;
+
+mismatch:
+  cc_cache_function_pointer_signature_result(
+      context, left_handle, right_handle, 0);
+  return 0;
+}
+
+static int cc_function_pointer_signature_handles_match(
+    cc_state_t *cc, int left_handle, int right_handle) {
+  cc_function_pointer_signature_match_context_t context;
+  memset(&context, 0, sizeof(context));
+  return cc_function_pointer_signature_handles_compare_depth(
+      cc, left_handle, right_handle, 0, 1, &context);
+}
+
+static int cc_function_pointer_signature_handles_equal(
+    cc_state_t *cc, int left_handle, int right_handle) {
+  cc_function_pointer_signature_match_context_t context;
+  memset(&context, 0, sizeof(context));
+  return cc_function_pointer_signature_handles_compare_depth(
+      cc, left_handle, right_handle, 0, 0, &context);
+}
+
+static int cc_validate_function_pointer_signature_graph_depth(
+    cc_state_t *cc, int signature_handle, int depth,
+    int8_t greatest_depth[CC_FUNCTION_POINTER_SIGNATURE_HANDLE_COUNT]) {
+  cc_function_pointer_signature_t signature;
+  int parameter_index;
+  if (depth > CC_MAX_FUNCTION_POINTER_SIGNATURE_DEPTH) {
+    cc_error(cc, "function-pointer signature nesting is too deep");
+    return 0;
+  }
+  if (!cc_get_function_pointer_signature(
+          cc, signature_handle, &signature)) {
+    cc_error(cc, "function-pointer parameter signature is not retained");
+    return 0;
+  }
+  if (greatest_depth[signature_handle] >= depth)
+    return 1;
+  greatest_depth[signature_handle] = (int8_t)depth;
+  if (!signature.has_param_types)
+    return 1;
+  for (parameter_index = 0;
+       parameter_index < signature.param_count;
+       parameter_index++) {
+    if (signature.param_types[parameter_index] == TYPE_FUNC_PTR &&
+        !cc_validate_function_pointer_signature_graph_depth(
+            cc, signature.param_struct_indices[parameter_index],
+            depth + 1, greatest_depth))
       return 0;
   }
   return 1;
+}
+
+static int cc_validate_function_pointer_parameter_signature(
+    cc_state_t *cc, int signature_handle, int depth) {
+  int8_t greatest_depth[CC_FUNCTION_POINTER_SIGNATURE_HANDLE_COUNT];
+  memset(greatest_depth, -1, sizeof(greatest_depth));
+  return cc_validate_function_pointer_signature_graph_depth(
+      cc, signature_handle, depth, greatest_depth);
 }
 
 static int cc_find_struct(cc_state_t *cc, const char *name);
@@ -3462,7 +3589,7 @@ static int cc_parse_function_pointer_local_initializer(
 static int cc_emit_indirect_scalar_load(cc_state_t *cc,
                                         cc_type_t object_type);
 static int cc_function_pointer_signatures_match(
-    const cc_symbol_t *left, const cc_symbol_t *right);
+    cc_state_t *cc, const cc_symbol_t *left, const cc_symbol_t *right);
 static int cc_validate_function_pointer_assignment_value(
     cc_state_t *cc, const cc_symbol_t *pointer);
 static int cc_validate_function_pointer_assignment_value_handle(
@@ -6109,7 +6236,7 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
              false_candidate_index < false_function_signature_count;
              false_candidate_index++) {
           if (!cc_function_pointer_signatures_match(
-                  true_function_signatures[true_candidate_index],
+                  cc, true_function_signatures[true_candidate_index],
                   cc_last_expr_function_signature_candidates
                       [false_candidate_index])) {
             cc_error(
@@ -8774,11 +8901,21 @@ static int cc_skip_balanced_declarator_tokens(cc_state_t *cc,
   return !cc->error;
 }
 
+static int cc_parse_function_pointer_signature_depth(
+    cc_state_t *cc, uint8_t param_types[CC_MAX_PARAMS],
+    int8_t param_struct_indices[CC_MAX_PARAMS], int *param_count,
+    int *has_param_types, int *is_variadic, int signature_depth);
+static int cc_intern_raw_function_pointer_signature(
+    cc_state_t *cc, const cc_function_pointer_signature_t *signature);
+
 static int cc_parse_function_pointer_parameter_type(
-    cc_state_t *cc, cc_type_t *out_type, int8_t *out_struct_index) {
+    cc_state_t *cc, cc_type_t *out_type, int8_t *out_struct_index,
+    int signature_depth) {
   cc_type_t parameter_type = cc_parse_type(cc);
   int parameter_struct_index = cc_last_type_struct_index;
   int typedef_array_count = cc_last_type_array_count;
+  int function_pointer_signature_handle =
+      cc_last_type_function_pointer_signature_handle(cc, parameter_type);
   if (cc->error)
     return 0;
 
@@ -8806,10 +8943,43 @@ static int cc_parse_function_pointer_parameter_type(
       return 0;
 
     if (cc_peek(cc).type == CC_TOK_LPAREN) {
-      /* A nested function-pointer parameter is one four-byte ABI value.
-       * Its own signature is not needed to lay out the outer call. */
-      if (!cc_skip_balanced_declarator_tokens(
-              cc, CC_TOK_LPAREN, CC_TOK_RPAREN))
+      cc_function_pointer_signature_t nested_signature;
+      if (pointer_depth != 1) {
+        cc_error(
+            cc,
+            "function-pointer parameter declarator requires exactly one '*'");
+        return 0;
+      }
+      if (signature_depth >= CC_MAX_FUNCTION_POINTER_SIGNATURE_DEPTH) {
+        cc_error(cc, "function-pointer signature nesting is too deep");
+        return 0;
+      }
+      if (parameter_type == TYPE_STRUCT) {
+        cc_error(
+            cc,
+            "function-pointer struct result is not supported; use pointer result");
+        return 0;
+      }
+      if (typedef_array_count > 0) {
+        cc_error(cc, "function-pointer array result is not supported");
+        return 0;
+      }
+      memset(&nested_signature, 0, sizeof(nested_signature));
+      nested_signature.return_type = parameter_type;
+      nested_signature.return_struct_index =
+          parameter_type == TYPE_STRUCT_PTR ? parameter_struct_index : -1;
+      memset(nested_signature.param_struct_indices, -1,
+             sizeof(nested_signature.param_struct_indices));
+      if (!cc_parse_function_pointer_signature_depth(
+              cc, nested_signature.param_types,
+              nested_signature.param_struct_indices,
+              &nested_signature.param_count,
+              &nested_signature.has_param_types,
+              &nested_signature.is_variadic, signature_depth + 1))
+        return 0;
+      function_pointer_signature_handle =
+          cc_intern_raw_function_pointer_signature(cc, &nested_signature);
+      if (function_pointer_signature_handle < 0)
         return 0;
       parameter_type = TYPE_FUNC_PTR;
     } else {
@@ -8839,17 +9009,24 @@ static int cc_parse_function_pointer_parameter_type(
     cc_error(cc, "function-pointer parameter type is not supported");
     return 0;
   }
+  if (parameter_type == TYPE_FUNC_PTR &&
+      !cc_validate_function_pointer_parameter_signature(
+          cc, function_pointer_signature_handle, signature_depth + 1))
+    return 0;
   *out_type = parameter_type;
-  *out_struct_index = parameter_type == TYPE_STRUCT_PTR
-                          ? (int8_t)parameter_struct_index
-                          : (int8_t)-1;
+  *out_struct_index =
+      parameter_type == TYPE_STRUCT_PTR
+          ? (int8_t)parameter_struct_index
+          : parameter_type == TYPE_FUNC_PTR
+                ? (int8_t)function_pointer_signature_handle
+                : (int8_t)-1;
   return 1;
 }
 
-static int cc_parse_function_pointer_signature(
+static int cc_parse_function_pointer_signature_depth(
     cc_state_t *cc, uint8_t param_types[CC_MAX_PARAMS],
     int8_t param_struct_indices[CC_MAX_PARAMS], int *param_count,
-    int *has_param_types, int *is_variadic) {
+    int *has_param_types, int *is_variadic, int signature_depth) {
   cc_lexer_checkpoint_t checkpoint;
   *param_count = 0;
   *has_param_types = 0;
@@ -8895,7 +9072,8 @@ static int cc_parse_function_pointer_signature(
       return 0;
     }
     if (!cc_parse_function_pointer_parameter_type(
-            cc, &parameter_type, &parameter_struct_index))
+            cc, &parameter_type, &parameter_struct_index,
+            signature_depth))
       return 0;
     param_types[*param_count] = (uint8_t)parameter_type;
     param_struct_indices[*param_count] = parameter_struct_index;
@@ -8911,6 +9089,15 @@ static int cc_parse_function_pointer_signature(
       return 0;
   }
   return 0;
+}
+
+static int cc_parse_function_pointer_signature(
+    cc_state_t *cc, uint8_t param_types[CC_MAX_PARAMS],
+    int8_t param_struct_indices[CC_MAX_PARAMS], int *param_count,
+    int *has_param_types, int *is_variadic) {
+  return cc_parse_function_pointer_signature_depth(
+      cc, param_types, param_struct_indices, param_count,
+      has_param_types, is_variadic, 0);
 }
 
 typedef struct {
@@ -9005,6 +9192,7 @@ static void cc_apply_named_function_pointer_declarator(
 }
 
 static int cc_raw_function_pointer_signatures_equal(
+    cc_state_t *cc,
     const cc_function_pointer_signature_t *left,
     const cc_function_pointer_signature_t *right) {
   int parameter_index;
@@ -9017,7 +9205,19 @@ static int cc_raw_function_pointer_signatures_equal(
   for (parameter_index = 0; parameter_index < left->param_count;
        parameter_index++) {
     if (left->param_types[parameter_index] !=
-            right->param_types[parameter_index] ||
+        right->param_types[parameter_index])
+      return 0;
+    if (left->param_types[parameter_index] == TYPE_STRUCT_PTR &&
+        left->param_struct_indices[parameter_index] !=
+            right->param_struct_indices[parameter_index])
+      return 0;
+    if (left->param_types[parameter_index] == TYPE_FUNC_PTR &&
+        !cc_function_pointer_signature_handles_equal(
+            cc, left->param_struct_indices[parameter_index],
+            right->param_struct_indices[parameter_index]))
+      return 0;
+    if (left->param_types[parameter_index] != TYPE_STRUCT_PTR &&
+        left->param_types[parameter_index] != TYPE_FUNC_PTR &&
         left->param_struct_indices[parameter_index] !=
             right->param_struct_indices[parameter_index])
       return 0;
@@ -9031,7 +9231,7 @@ static int cc_intern_raw_function_pointer_signature(
   for (index = 0; index < cc->raw_function_pointer_signature_count;
        index++) {
     if (cc_raw_function_pointer_signatures_equal(
-            &cc->raw_function_pointer_signatures[index], signature))
+            cc, &cc->raw_function_pointer_signatures[index], signature))
       return CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE + index;
   }
   if (cc->raw_function_pointer_signature_count >=
@@ -9316,7 +9516,7 @@ static int cc_function_signature_is_prescan_unknown(
 }
 
 static int cc_function_pointer_signatures_match(
-    const cc_symbol_t *left, const cc_symbol_t *right) {
+    cc_state_t *cc, const cc_symbol_t *left, const cc_symbol_t *right) {
   cc_type_t left_result;
   cc_type_t right_result;
   int parameter_index;
@@ -9340,10 +9540,16 @@ static int cc_function_pointer_signatures_match(
   for (parameter_index = 0; parameter_index < left->param_count;
        parameter_index++) {
     if (left->param_types[parameter_index] !=
-            right->param_types[parameter_index] ||
-        (left->param_types[parameter_index] == TYPE_STRUCT_PTR &&
-         left->param_struct_indices[parameter_index] !=
-             right->param_struct_indices[parameter_index]))
+        right->param_types[parameter_index])
+      return 0;
+    if (left->param_types[parameter_index] == TYPE_STRUCT_PTR &&
+        left->param_struct_indices[parameter_index] !=
+            right->param_struct_indices[parameter_index])
+      return 0;
+    if (left->param_types[parameter_index] == TYPE_FUNC_PTR &&
+        !cc_function_pointer_signature_handles_match(
+            cc, left->param_struct_indices[parameter_index],
+            right->param_struct_indices[parameter_index]))
       return 0;
   }
   return 1;
@@ -9513,7 +9719,11 @@ static int cc_check_function_pointer_value_compatibility(
             target->param_types[parameter_index] ||
         (pointer->param_types[parameter_index] == TYPE_STRUCT_PTR &&
          pointer->param_struct_indices[parameter_index] !=
-             target->param_struct_indices[parameter_index])) {
+             target->param_struct_indices[parameter_index]) ||
+        (pointer->param_types[parameter_index] == TYPE_FUNC_PTR &&
+         !cc_function_pointer_signature_handles_match(
+             cc, pointer->param_struct_indices[parameter_index],
+             target->param_struct_indices[parameter_index]))) {
       cc_error(cc, parameters_diagnostic);
       return 0;
     }
@@ -10753,11 +10963,17 @@ static void cc_parse_function(cc_state_t *cc) {
                   func_sym->param_struct_indices[parameter_index]) &&
             (prior_function_symbol.param_types[parameter_index] !=
                  TYPE_FUNC_PTR ||
-             cc_function_pointer_signature_handles_match(
-                 cc,
-                 prior_function_symbol.param_struct_indices[
-                     parameter_index],
-                 func_sym->param_struct_indices[parameter_index]));
+             (prior_signature_was_provisional
+                  ? cc_function_pointer_signature_handles_match(
+                        cc,
+                        prior_function_symbol.param_struct_indices[
+                            parameter_index],
+                        func_sym->param_struct_indices[parameter_index])
+                  : cc_function_pointer_signature_handles_equal(
+                        cc,
+                        prior_function_symbol.param_struct_indices[
+                            parameter_index],
+                        func_sym->param_struct_indices[parameter_index])));
       }
     }
     if (!signature_matches) {
