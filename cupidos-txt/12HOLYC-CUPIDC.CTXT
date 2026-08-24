@@ -379,10 +379,9 @@ declarator keeps the signature for checked stores, copies, null checks,
 clearing, and direct postfix calls. Fixed and variadic arguments use cdecl.
 Represented scalar, pointer, floating, and SIMD results retain their normal
 types. Nested and indexed field designators are evaluated once, and a real
-field takes precedence over same-named method sugar. Empty (), block-static
-objects, callback arrays, bare nested callback signatures, alias chains, raw
-method parameters, void-pointer forms, and aggregate callback results remain
-unsupported or signature-erased.
+field takes precedence over same-named method sugar. Empty (), bare nested
+callback signatures, alias chains, raw method parameters, void-pointer forms,
+and aggregate callback results remain unsupported or signature-erased.
 A named raw callback file object and direct free-function parameter retain the
 parsed signature without a typedef. The file object uses the same data write or
 patch, and the parameter uses the same cdecl slot and arity checks. The private
@@ -391,7 +390,32 @@ one. ADR 0315 records the raw forms, and ADR 0319 records direct explicit
 function addresses. ADR 0321 records typedef-backed record and class fields,
 ADR 0324 records grouped runtime addresses, and ADR 0325 records raw fields and
 direct postfix field calls.
-The private callback ABI module passes all 286 tests.
+
+Raw one-dimensional function-pointer arrays retain the parsed signature when
+they use file, block-static, or persistent REPL storage. The block-static raw
+scalar form shares this data allocation, initializer, and patch path. A fixed
+array needs a positive checked bound. An omitted bound is inferred from a
+nonempty braced initializer; an unsized declaration without that initializer
+fails. Fixed storage is cleared before its elements are written, so an omitted
+initializer and missing trailing entries stay null. An initializer cannot
+exceed the declared bound, and each non-null element must match the array
+signature. Known function addresses are stored immediately. Later definitions
+use absolute data patches.
+
+An indexed element keeps the callback result, fixed parameters, record
+identities, prototype state, and variadic boundary through assignment, copying,
+argument conversion, and calls. Direct indexed calls and the explicit
+(*callbacks[index])(...) spelling use the same typed cdecl path, with one
+evaluation of the index. The private source contract follows Doom's active
+kernel/doom/src/f_wipe.cc declaration, static int (*wipes[])(int, int, int),
+and its wipeno*3 phase dispatch. The
+production Doom object remains a checked-seed hosted CupidC output.
+
+Automatic raw callback arrays, raw callback array parameters, raw callback
+array fields, and multidimensional raw callback arrays remain unsupported.
+Typedef-backed fixed callback arrays on record fields keep their retained
+signature under ADR 0328. ADR 0330 records the data-backed raw array and shared
+block-static scalar rules.
 Feature 13
 retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
 nested pass-by-value vector

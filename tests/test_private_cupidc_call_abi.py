@@ -309,6 +309,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   int repl_rollback_mode =
                       argc == 5 &&
                       strcmp(argv[4], "--repl-rollback") == 0;
+                  int repl_patch_rollback_mode =
+                      argc == 5 &&
+                      strcmp(argv[4], "--repl-patch-rollback") == 0;
                   int recovery_mode =
                       argc == 5 && strcmp(argv[4], "--recover") == 0;
                   int same_state_recovery_mode =
@@ -326,6 +329,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       strcmp(argv[1], "--check-number-boundary") == 0)
                     return check_numeric_token_boundary(argv[2]);
                   if (argc != 4 && !repl_mode && !repl_rollback_mode &&
+                      !repl_patch_rollback_mode &&
                       !recovery_mode && !same_state_recovery_mode &&
                       !recover_after_success_mode &&
                       !double_failure_recovery_mode &&
@@ -404,7 +408,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     }
                     cc_lex_init(cc, retry_source);
                     cc_parse_program(cc);
-                  } else if (repl_mode || repl_rollback_mode) {
+                  } else if (repl_mode || repl_rollback_mode ||
+                             repl_patch_rollback_mode) {
                     char *unit = source;
                     int unit_index = 0;
                     repl_state_t checkpoint;
@@ -425,7 +430,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       while (!cc->error &&
                              cc_lex_peek(cc).type != CC_TOK_EOF)
                         cc_parse_repl_line(cc, &is_expr);
-                      if (repl_rollback_mode && unit_index == 0) {
+                      if ((repl_rollback_mode || repl_patch_rollback_mode) &&
+                          unit_index == 0) {
                         if (cc->error)
                           break;
                         checkpoint.code_committed = cc->code_pos;
@@ -436,10 +442,18 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                         checkpoint.raw_function_pointer_signature_committed =
                             cc->raw_function_pointer_signature_count;
                         checkpoint.patch_committed = cc->patch_count;
-                      } else if (repl_rollback_mode && unit_index == 1) {
-                        if (!cc->error &&
-                            cc->patch_count <= checkpoint.patch_committed)
+                      } else if ((repl_rollback_mode ||
+                                  repl_patch_rollback_mode) &&
+                                 unit_index == 1) {
+                        if (repl_patch_rollback_mode) {
+                          if (!cc->error ||
+                              cc->patch_count <= checkpoint.patch_committed)
+                            return 73;
+                        } else if (!cc->error &&
+                                   cc->patch_count <=
+                                       checkpoint.patch_committed) {
                           return 73;
+                        }
                         cc->code_pos = checkpoint.code_committed;
                         cc->data_pos = checkpoint.data_committed;
                         cc->sym_count = checkpoint.sym_committed;
@@ -565,7 +579,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         return result, code_path, data_path
 
-    def _compile_repl_after_struct_failure(self, root, units):
+    def _compile_repl_after_struct_failure(
+        self, root, units, *, require_patch=False
+    ):
         source_path = root / "fixture.cc"
         code_path = root / "code.bin"
         data_path = root / "data.bin"
@@ -579,7 +595,11 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 str(source_path),
                 str(code_path),
                 str(data_path),
-                "--repl-rollback",
+                (
+                    "--repl-patch-rollback"
+                    if require_patch
+                    else "--repl-rollback"
+                ),
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -3482,6 +3502,603 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 self.assertEqual(
                     result.returncode, 9, result.stdout + result.stderr
                 )
+
+    def test_doom_wipe_callback_table_keeps_active_raw_array_shape(self):
+        source = (
+            REPO_ROOT / "kernel" / "doom" / "src" / "f_wipe.cc"
+        ).read_text(encoding="utf-8")
+
+        for fragment in (
+            "static int (*wipes[])(int, int, int)",
+            "(*wipes[wipeno*3])(width, height, ticks);",
+            "(*wipes[wipeno*3+1])(width, height, ticks);",
+            "(*wipes[wipeno*3+2])(width, height, ticks);",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
+
+    def test_block_static_raw_callback_arrays_run_in_jit_and_aot(self):
+        source = """
+            int wipe_zero_start(int width, int height, int ticks) {
+              return 100 + width + height + ticks;
+            }
+
+            int wipe_zero_tick(int width, int height, int ticks) {
+              return 200 + width + height + ticks;
+            }
+
+            int wipe_zero_end(int width, int height, int ticks) {
+              return 300 + width + height + ticks;
+            }
+
+            int wipe_one_start(int width, int height, int ticks) {
+              return 400 + width + height + ticks;
+            }
+
+            int wipe_one_tick(int width, int height, int ticks);
+
+            int wipe_one_end(int width, int height, int ticks) {
+              return 600 + width + height + ticks;
+            }
+
+            int replacement(int width, int height, int ticks) {
+              return 900 + width + height + ticks;
+            }
+
+            int dispatch(int wipeno, int phase, int replace) {
+              static int (*wipes[])(int, int, int) = {
+                wipe_zero_start, wipe_zero_tick, wipe_zero_end,
+                wipe_one_start, wipe_one_tick, wipe_one_end
+              };
+              if (replace) wipes[wipeno*3+1] = replacement;
+              if (phase == 0)
+                return (*wipes[wipeno*3])(4, 2, 1);
+              if (phase == 1)
+                return (*wipes[wipeno*3+1])(4, 2, 1);
+              return (*wipes[wipeno*3+2])(4, 2, 1);
+            }
+
+            int wipe_one_tick(int width, int height, int ticks) {
+              return 500 + width + height + ticks;
+            }
+
+            int main(void) {
+              if (dispatch(0, 0, 0) != 107) return 1;
+              if (dispatch(0, 1, 0) != 207) return 2;
+              if (dispatch(0, 2, 0) != 307) return 3;
+              if (dispatch(1, 0, 0) != 407) return 4;
+              if (dispatch(1, 1, 0) != 507) return 5;
+              if (dispatch(1, 2, 0) != 607) return 6;
+              if (dispatch(1, 1, 1) != 907) return 7;
+              if (dispatch(1, 1, 0) != 907) return 8;
+              return 83;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 83, result.stdout + result.stderr
+                )
+
+    def test_block_static_raw_callback_scalar_runs_in_jit_and_aot(self):
+        source = """
+            int later_target(int value);
+            int replacement(int value) { return value + 9; }
+
+            int dispatch(int replace) {
+              static int (*callback)(int) = later_target;
+              if (replace) callback = replacement;
+              return callback(9);
+            }
+
+            int later_target(int value) { return value + 1; }
+
+            int main(void) {
+              if (dispatch(0) != 10) return 1;
+              if (dispatch(1) != 18) return 2;
+              if (dispatch(0) != 18) return 3;
+              return 85;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 85, result.stdout + result.stderr
+                )
+
+    def test_raw_callback_arrays_keep_mixed_width_calls_and_one_store_index(self):
+        source = """
+            int call_index_calls;
+            int store_index_calls;
+
+            int combine(double first, int second) {
+              return (int)first * 10 + second;
+            }
+
+            int replacement(double first, int second) {
+              return (int)first * 20 + second;
+            }
+
+            int next_store_index(void) {
+              store_index_calls += 1;
+              return 0;
+            }
+
+            int next_call_index(void) {
+              call_index_calls += 1;
+              return 0;
+            }
+
+            int main(void) {
+              static int (*callbacks[])(double, int) = { combine };
+              int initial = (*callbacks[next_call_index()])(2.5, 4);
+              callbacks[next_store_index()] = replacement;
+              if (call_index_calls != 1) return 1;
+              if (store_index_calls != 1) return 2;
+              if (initial != 24) return 3;
+              return callbacks[0](2.5, 4);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 44, result.stdout + result.stderr
+                )
+
+    def test_file_scope_raw_callback_arrays_run_in_jit_and_aot(self):
+        source = """
+            int plus_one(int value) { return value + 1; }
+
+            int (*inferred_callbacks[])(int) = {
+              (&plus_one), later_global,
+            };
+            int (*fixed_callbacks[3])(int) = { (&plus_one), 0 };
+            int (*zeroed_callbacks[1])(int);
+
+            int later_global(int value) { return value + 4; }
+
+            int main(void) {
+              int assigned_result;
+              int (*copied)(int) = inferred_callbacks[1];
+              if (fixed_callbacks[1] != 0) return 1;
+              if (fixed_callbacks[2] != 0) return 2;
+              if (zeroed_callbacks[0] != 0) return 3;
+              if (sizeof(inferred_callbacks) != 8) return 4;
+              if (sizeof(fixed_callbacks) != 12) return 5;
+              if (sizeof(zeroed_callbacks) != 4) return 6;
+              fixed_callbacks[2] = later_global;
+              assigned_result = fixed_callbacks[2](5);
+              fixed_callbacks[2] = 0;
+              if (inferred_callbacks[0](3) != 4) return 7;
+              if ((*inferred_callbacks[1])(3) != 7) return 8;
+              if (copied(3) != 7) return 9;
+              if (assigned_result != 9) return 10;
+              if (fixed_callbacks[2] != 0) return 11;
+              return 84;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 84, result.stdout + result.stderr
+                )
+
+    def test_raw_callback_arrays_keep_variadic_double_results(self):
+        source = """
+            double keep(double value, ...) { return value + 0.5; }
+
+            int main(void) {
+              static double (*callbacks[])(double, ...) = { keep };
+              return (int)(*callbacks[0])(8.5, 1.25f, 3);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 9, result.stdout + result.stderr
+                )
+
+    def test_raw_callback_array_elements_flow_through_typed_values(self):
+        source = """
+            int add_one(int value) { return value + 1; }
+
+            int invoke(int (*callback)(int), int value) {
+              return callback(value);
+            }
+
+            int main(void) {
+              static int (*callbacks[])(int) = { add_one };
+              int (*copied)(int) = callbacks[0];
+              return invoke(callbacks[0], 8) + copied(8);
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 18, result.stdout + result.stderr
+                )
+
+    def test_raw_callback_arrays_keep_record_pointer_identity(self):
+        source = """
+            struct Pair { int value; };
+
+            struct Pair *choose(struct Pair *value) { return value; }
+
+            struct Pair *invoke(
+                struct Pair *(*callback)(struct Pair *),
+                struct Pair *value) {
+              return callback(value);
+            }
+
+            int main(void) {
+              static struct Pair *(*callbacks[])(struct Pair *) = {
+                choose
+              };
+              struct Pair *(*copied)(struct Pair *) = callbacks[0];
+              struct Pair pair;
+              pair.value = 23;
+              return invoke(callbacks[0], &pair)->value +
+                     copied(&pair)->value;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 46, result.stdout + result.stderr
+                )
+
+    def test_repl_keeps_raw_callback_array_signature(self):
+        result = self._compile_repl_and_run(
+            (
+                "int later_repl(int value); "
+                "int (*callbacks[])(int) = { later_repl, 0 };",
+                "int later_repl(int value) { return value + 4; }",
+                "int main(void) { "
+                "if (callbacks[1] != 0) return 1; "
+                "return (*callbacks[0])(8); }",
+            )
+        )
+        self.assertEqual(result.returncode, 12, result.stdout + result.stderr)
+
+    def test_repl_accepts_raw_callback_array_without_a_semicolon(self):
+        result = self._compile_repl_and_run(
+            (
+                "int plus_one(int value) { return value + 1; }",
+                "int (*callbacks[])(int) = { plus_one }",
+                "int main(void) { return callbacks[0](8); }",
+            )
+        )
+        self.assertEqual(result.returncode, 9, result.stdout + result.stderr)
+
+    def test_raw_callback_array_failures_recover_same_state(self):
+        cases = (
+            (
+                "unsized-without-initializer",
+                "int (*callbacks[])(int); int main(void) { return 0; }",
+                "unsized raw function-pointer array requires an initializer",
+            ),
+            (
+                "empty-unsized-initializer",
+                "int (*callbacks[])(int) = {}; int main(void) { return 0; }",
+                "unsized raw function-pointer array requires at least one initializer",
+            ),
+            (
+                "excess-fixed-initializers",
+                """
+                int first(int value) { return value; }
+                int second(int value) { return value + 1; }
+                int (*callbacks[1])(int) = { first, second };
+                int main(void) { return 0; }
+                """,
+                "too many initializers for raw function-pointer array",
+            ),
+            (
+                "initializer-without-braces",
+                """
+                int right(int value) { return value; }
+                int (*callbacks[1])(int) = right;
+                int main(void) { return 0; }
+                """,
+                "raw function-pointer array initializer requires braces",
+            ),
+            (
+                "incompatible-initializer",
+                """
+                int later_compatible(int value);
+                double wrong_result(int value) { return value; }
+                int (*callbacks[])(int) = {
+                  later_compatible, wrong_result
+                };
+                int later_compatible(int value) { return value; }
+                int main(void) { return 0; }
+                """,
+                "function-pointer initializer result does not match declaration",
+            ),
+            (
+                "automatic-storage",
+                """
+                int main(void) {
+                  int (*callbacks[2])(int);
+                  return 0;
+                }
+                """,
+                "automatic raw function-pointer arrays are not supported",
+            ),
+            (
+                "parameter-storage",
+                """
+                int invoke(int (*callbacks[2])(int)) { return 0; }
+                int main(void) { return 0; }
+                """,
+                "raw function-pointer array parameters are not supported",
+            ),
+            (
+                "nonpositive-size",
+                "int (*callbacks[0])(int); int main(void) { return 0; }",
+                "raw function-pointer array size must be positive",
+            ),
+            (
+                "multiple-dimensions",
+                "int (*callbacks[2][2])(int); int main(void) { return 0; }",
+                "raw function-pointer arrays support one dimension",
+            ),
+            (
+                "indexed-call-too-few-arguments",
+                """
+                int combine(int first, int second) {
+                  return first + second;
+                }
+                int (*callbacks[])(int, int) = { combine };
+                int main(void) { return callbacks[0](1); }
+                """,
+                "function-pointer call has too few arguments",
+            ),
+            (
+                "indexed-call-too-many-arguments",
+                """
+                int identity(int value) { return value; }
+                int (*callbacks[])(int) = { identity };
+                int main(void) { return callbacks[0](1, 2); }
+                """,
+                "function-pointer call has too many arguments",
+            ),
+            (
+                "incompatible-indexed-store",
+                """
+                int right(int value) { return value; }
+                int wrong(double value) { return (int)value; }
+                int (*callbacks[])(int) = { right };
+                int main(void) {
+                  callbacks[0] = wrong;
+                  return 0;
+                }
+                """,
+                "function-pointer assignment parameters do not match destination",
+            ),
+            (
+                "incompatible-indexed-store-result",
+                """
+                int right(int value) { return value; }
+                double wrong(int value) { return value; }
+                int (*callbacks[])(int) = { right };
+                int main(void) {
+                  callbacks[0] = wrong;
+                  return 0;
+                }
+                """,
+                "function-pointer assignment result does not match destination",
+            ),
+            (
+                "incompatible-indexed-argument",
+                """
+                int target(double value) { return (int)value; }
+                int invoke(int (*callback)(int), int value) {
+                  return callback(value);
+                }
+                int (*callbacks[])(double) = { target };
+                int main(void) { return invoke(callbacks[0], 9); }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "incompatible-indexed-declaration-initializer",
+                """
+                int target(double value) { return (int)value; }
+                int (*callbacks[])(double) = { target };
+                int main(void) {
+                  int (*copied)(int) = callbacks[0];
+                  return copied(9);
+                }
+                """,
+                "function-pointer initializer parameters do not match declaration",
+            ),
+            (
+                "incompatible-indexed-argument-result",
+                """
+                double target(int value) { return value; }
+                int invoke(int (*callback)(int), int value) {
+                  return callback(value);
+                }
+                double (*callbacks[])(int) = { target };
+                int main(void) { return invoke(callbacks[0], 9); }
+                """,
+                "function-pointer argument result does not match parameter type",
+            ),
+            (
+                "incompatible-indexed-declaration-initializer-result",
+                """
+                double target(int value) { return value; }
+                double (*callbacks[])(int) = { target };
+                int main(void) {
+                  int (*copied)(int) = callbacks[0];
+                  return copied(9);
+                }
+                """,
+                "function-pointer initializer result does not match declaration",
+            ),
+            (
+                "incompatible-indexed-argument-record-identity",
+                """
+                struct Pair { int value; };
+                struct Other { int value; };
+                struct Pair *choose(struct Pair *value) { return value; }
+                struct Other *invoke(
+                    struct Other *(*callback)(struct Other *),
+                    struct Other *value) {
+                  return callback(value);
+                }
+                struct Pair *(*callbacks[])(struct Pair *) = { choose };
+                int main(void) {
+                  struct Other value;
+                  return invoke(callbacks[0], &value)->value;
+                }
+                """,
+                "function-pointer argument result does not match parameter type",
+            ),
+            (
+                "incompatible-indexed-initializer-record-identity",
+                """
+                struct Pair { int value; };
+                struct Other { int value; };
+                struct Pair *choose(struct Pair *value) { return value; }
+                struct Pair *(*callbacks[])(struct Pair *) = { choose };
+                int main(void) {
+                  struct Other *(*copied)(struct Other *) = callbacks[0];
+                  struct Other value;
+                  return copied(&value)->value;
+                }
+                """,
+                "function-pointer initializer result does not match declaration",
+            ),
+            (
+                "incompatible-indexed-argument-parameter-record-identity",
+                """
+                struct Result { int value; };
+                struct Pair { int value; };
+                struct Other { int value; };
+                struct Result output;
+                struct Result *choose(struct Pair *value) { return &output; }
+                struct Result *invoke(
+                    struct Result *(*callback)(struct Other *),
+                    struct Other *value) {
+                  return callback(value);
+                }
+                struct Result *(*callbacks[])(struct Pair *) = { choose };
+                int main(void) {
+                  struct Other value;
+                  return invoke(callbacks[0], &value)->value;
+                }
+                """,
+                "function-pointer argument parameters do not match parameter type",
+            ),
+            (
+                "incompatible-indexed-initializer-parameter-record-identity",
+                """
+                struct Result { int value; };
+                struct Pair { int value; };
+                struct Other { int value; };
+                struct Result output;
+                struct Result *choose(struct Pair *value) { return &output; }
+                struct Result *(*callbacks[])(struct Pair *) = { choose };
+                int main(void) {
+                  struct Result *(*copied)(struct Other *) = callbacks[0];
+                  struct Other value;
+                  return copied(&value)->value;
+                }
+                """,
+                "function-pointer initializer parameters do not match declaration",
+            ),
+        )
+        retry_source = """
+            int right(int value) { return value; }
+            int main(void) {
+              static int (*callbacks[])(int) = { right };
+              return callbacks[0](9);
+            }
+        """
+
+        for label, failing_source, diagnostic in cases:
+            with self.subTest(case=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-raw-callback-array-recovery-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                root = Path(temporary)
+                result, _code, _data = self._compile_after_failure(
+                    root,
+                    failing_source,
+                    retry_source,
+                    same_state=True,
+                )
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+                self.assertIn(diagnostic, result.stderr)
+                runtime = self._run_i386(root, int(result.stdout.strip()))
+                self.assertEqual(
+                    runtime.returncode,
+                    9,
+                    runtime.stdout + runtime.stderr,
+                )
+
+    def test_repl_rolls_back_a_partial_raw_callback_array_initializer(self):
+        capacity_declarations = []
+        for arity in range(32):
+            parameters = "void" if arity == 0 else ", ".join(
+                "int" for _ in range(arity)
+            )
+            capacity_declarations.append(
+                f"int hold{arity}(int (*callback)({parameters})) {{ "
+                "return callback != 0; }"
+            )
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-raw-array-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code_path, data_path = (
+                self._compile_repl_after_struct_failure(
+                    root,
+                    (
+                        "int baseline;",
+                        "int later_poisoned(double value); "
+                        "double wrong_result(double value) { return value; } "
+                        "int (*poisoned[])(double) = { "
+                        "later_poisoned, wrong_result };",
+                        "int sentinel = 77; "
+                        "int later_poisoned(double value) { "
+                        "return (int)value; } "
+                        + "\n".join(capacity_declarations),
+                        "int recovered(int value) { return value; } "
+                        "int (*callbacks[])(int) = { recovered }; "
+                        "int main(void) { "
+                        "if (baseline != 0 || sentinel != 77) return 1; "
+                        "return callbacks[0](9); }",
+                    ),
+                    require_patch=True,
+                )
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            self.assertIn(
+                "function-pointer initializer result does not match declaration",
+                result.stderr,
+            )
+            self.assertEqual(data_path.stat().st_size, 12)
+            runtime = self._run_i386(root, int(result.stdout.strip()))
+            self.assertEqual(
+                runtime.returncode,
+                9,
+                runtime.stdout + runtime.stderr,
+            )
 
     def test_repl_keeps_raw_callback_struct_field_signature(self):
         result = self._compile_repl_and_run(
@@ -8027,6 +8644,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "float4=4 calls=1",
             "[feature14-callback-field-call] PASS typedef=1 raw=1 "
             "float4=4 once=1 calls=2",
+            "[feature14-callback-raw-array] PASS modes=2 phases=3 "
+            "calls=12 stored=1 persistent=1",
             "[feature14-minmax] PASS nan=4 signed_zero=4",
             "[feature14-nan] PASS float_left=",
             "PASS feature14_simd",

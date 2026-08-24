@@ -18,6 +18,7 @@ int feature14_matrix_sizeof_calls;
 int feature14_float_call_count;
 int feature14_double_call_count;
 int feature14_raw_call_count;
+int feature14_raw_array_call_count;
 int feature14_callback_index_calls;
 
 int feature14_raw_target(int value) {
@@ -371,6 +372,69 @@ int feature14_test_callback_field_postfix() {
         typed_result.z != 10.0f || typed_result.w != 12.0f) return 3;
     if (raw_result.x != 6.0f || raw_result.y != 8.0f ||
         raw_result.z != 10.0f || raw_result.w != 12.0f) return 4;
+    return 0;
+}
+
+int feature14_wipe_zero_start(int width, int height, int ticks) {
+    feature14_raw_array_call_count += 1;
+    return 100 + width + height + ticks;
+}
+
+int feature14_wipe_zero_tick(int width, int height, int ticks) {
+    feature14_raw_array_call_count += 1;
+    return 200 + width + height + ticks;
+}
+
+int feature14_wipe_zero_end(int width, int height, int ticks) {
+    feature14_raw_array_call_count += 1;
+    return 300 + width + height + ticks;
+}
+
+int feature14_wipe_one_start(int width, int height, int ticks) {
+    feature14_raw_array_call_count += 1;
+    return 400 + width + height + ticks;
+}
+
+int feature14_wipe_one_tick(int width, int height, int ticks) {
+    feature14_raw_array_call_count += 1;
+    return 500 + width + height + ticks;
+}
+
+int feature14_wipe_one_end(int width, int height, int ticks) {
+    feature14_raw_array_call_count += 1;
+    return 600 + width + height + ticks;
+}
+
+int feature14_wipe_replacement(int width, int height, int ticks) {
+    feature14_raw_array_call_count += 1;
+    return 900 + width + height + ticks;
+}
+
+int feature14_dispatch_wipe(int wipeno, int replace) {
+    static int (*wipes[])(int, int, int) = {
+        feature14_wipe_zero_start,
+        feature14_wipe_zero_tick,
+        feature14_wipe_zero_end,
+        feature14_wipe_one_start,
+        feature14_wipe_one_tick,
+        feature14_wipe_one_end
+    };
+    int result;
+
+    if (replace) wipes[wipeno*3+1] = feature14_wipe_replacement;
+    result = (*wipes[wipeno*3])(4, 2, 1);
+    result += (*wipes[wipeno*3+1])(4, 2, 1);
+    result += (*wipes[wipeno*3+2])(4, 2, 1);
+    return result;
+}
+
+int feature14_test_callback_raw_array() {
+    feature14_raw_array_call_count = 0;
+    if (feature14_dispatch_wipe(0, 0) != 621) return 1;
+    if (feature14_dispatch_wipe(1, 0) != 1521) return 2;
+    if (feature14_dispatch_wipe(1, 1) != 1921) return 3;
+    if (feature14_dispatch_wipe(1, 0) != 1921) return 4;
+    if (feature14_raw_array_call_count != 12) return 5;
     return 0;
 }
 
@@ -856,6 +920,15 @@ int main() {
     } else {
         serial_printf("[feature14-callback-raw] FAIL check=%d\n",
                       callback_raw_result);
+        ok = 0;
+    }
+
+    int callback_raw_array_result = feature14_test_callback_raw_array();
+    if (callback_raw_array_result == 0) {
+        serial_printf("[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1\n");
+    } else {
+        serial_printf("[feature14-callback-raw-array] FAIL check=%d\n",
+                      callback_raw_array_result);
         ok = 0;
     }
 

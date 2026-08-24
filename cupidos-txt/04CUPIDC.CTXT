@@ -1777,9 +1777,9 @@ path. Raw callback fields retain the parsed signature. Direct postfix calls
 through raw or typedef-backed fields use typed cdecl conversion and evaluate
 the designator once. Typedef-backed callback arrays on structure and class
 fields retain the signature through indexed stores, named copies, and direct
-calls, with each index evaluated once. Empty (), block-static objects, raw
-callback-array declarators, bare nested callback signatures, alias chains, and
-void-pointer forms keep source-width slots. A
+calls, with each index evaluated once. Empty (), bare nested callback
+signatures, alias chains, and void-pointer forms keep source-width slots.
+Kernel bindings and other calls without fixed metadata do the same. A
 typedef-backed global callback may begin with a compatible defined or
 later-defined function. A known address is written into initialized data, and a
 later definition receives an absolute data patch during symbol resolution.
@@ -1789,18 +1789,40 @@ assignment, call, and null rules. The parameters use the same cdecl slot and
 arity checks. The private pool accepts 32 distinct raw signatures and recovers
 after rejecting the next one. A direct function address uses the same signature
 check as a plain function designator. Runtime initialization and assignment
-accept &(function) and nested grouping. Conditional field values, raw
-callback-array declarators, block-static callbacks, alias chains, aggregate
-results, and raw method parameters remain unsupported. ADR 0315 records the raw
-boundary, ADR 0319 records explicit function addresses, ADR 0321 records
-typedef-backed record and class fields, and ADR 0324 records grouped runtime
-addresses. ADR 0325 records raw fields and direct field calls. ADR 0328 records
-typedef-backed callback field arrays.
-The private callback ABI module passes all 289 tests.
+accept &(function) and nested grouping. Conditional field values, callback
+alias chains, aggregate results, and raw method parameters remain unsupported.
+
+One-dimensional raw function-pointer arrays keep their signature in
+data-backed file, block-static, and persistent REPL storage. A block-static raw
+scalar callback uses the same allocation, initializer, and later-target patch
+path. An array may have a positive fixed bound or infer its bound from a
+nonempty braced initializer. An inferred array requires that initializer. A
+fixed array reserves and clears its complete checked allocation, so an omitted
+initializer or missing trailing elements are null. Too many elements fail
+instead of extending the declared object. Each non-null initializer must match
+the array signature. A defined function address is written immediately, while
+a later definition receives an absolute data patch.
+
+Subscripted loads, stores, copies, arguments, and calls retain the result,
+parameter, record-identity, prototype, and variadic metadata. Both
+callbacks[index](...) and the active explicit form
+(*callbacks[index])(...) use the typed indirect-call path. Each index is
+evaluated once. The private contract mirrors the active Doom table in
+kernel/doom/src/f_wipe.cc: static int (*wipes[])(int, int, int), selected by
+wipeno*3 and the following two phase entries. The normal Doom object remains
+owned by checked-seed hosted CupidC; this private parser capability does not
+move production ownership.
+
+Automatic raw function-pointer arrays, raw array parameters, raw array record
+fields, and multidimensional raw arrays remain unsupported. Typedef-backed
+fixed callback arrays on record fields keep the separate ADR 0328 path. ADR
+0315 records the raw scalar boundary, ADR 0319 records explicit function
+addresses, ADR 0321 records typedef-backed record and class fields, and ADR
+0324 records grouped runtime addresses. ADR 0325 records raw fields and direct
+field calls. ADR 0330 records data-backed raw callback arrays and the shared
+block-static scalar path.
 The checked Linux and Windows CupidC seeds do not contain this private parser.
-The active runtime proof remains the feature-14 JIT smoke; no normal AOT source
-requires the syntax yet.
-Kernel bindings and other calls without fixed metadata do the same.
+The production Doom source is compiled by checked-seed hosted CupidC.
 Plain function initializers must match the retained result, record identity,
 fixed parameters, and variadic boundary. An explicit void-pointer cast erases
 that comparison. Named local copies use the same check. Later target addresses

@@ -152,23 +152,40 @@ postfix calls through raw or typedef-backed fields use typed fixed and variadic
 cdecl conversion and evaluate the member designator once. Typedef-backed
 callback arrays on structure and class fields retain the signature through
 indexed stores, named copies, and direct calls. Each index is evaluated once.
-Conditional field values, alias chains, raw callback-array declarators,
-block-static objects, recursive callback signatures, raw method parameters,
-aggregate results, and arbitrary computed callback expressions remain outside
-this typed path. ADR 0325 records the raw field and direct call boundary. ADR
-0328 records typedef-backed callback field arrays.
+Raw callback objects with static storage use the same initialized-data path. A
+block-static scalar may start as null or from a compatible function, including
+one defined later, and keeps its checked assignment and call signature across
+function invocations. File-scope, block-static, and persistent REPL raw
+callback arrays may have one fixed dimension or infer their count from a
+nonempty braced initializer. Defined functions are written into the data
+slots, later functions receive absolute data patches, explicit null entries
+stay zero, and a fixed array's omitted elements are zero-filled. An indexed
+store or call retains the array signature, checks the callback or arguments,
+and evaluates the index once.
 
-The four-vCPU raw callback QEMU smoke passes with
-`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
-`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.368 seconds. A focused four-vCPU
-QEMU boot observes the callback-field marker, `PASS feature14_simd`, and clean
-in-OS CupidC JIT completion. Its 33,347-byte log has SHA-256
-`14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
-The standalone CupidC seeds do not contain this private parser. No normal AOT
-source needs the syntax yet; the active use remains the in-OS feature-14 JIT
-smoke.
+This covers the active six-entry table in `kernel/doom/src/f_wipe.cc`. The
+table groups three handlers per wipe and uses indexes `wipeno*3`,
+`wipeno*3+1`, and `wipeno*3+2`. Automatic raw callback arrays, raw callback
+array parameters, raw callback arrays in records or classes, and
+multidimensional raw callback arrays remain unsupported. Conditional field
+values, alias chains, recursive callback signatures, raw method parameters,
+aggregate results, and arbitrary computed callback expressions remain outside
+the typed path. ADR 0325 records raw fields and direct calls, ADR 0328 records
+typedef-backed callback field arrays, and ADR 0330 records data-backed raw
+callback arrays and block-static scalar callbacks.
+
+The source-current private callback ABI module passes all 301 tests in 5.505
+seconds, and the full GUI module passes all 126 tests in 0.333 seconds. A
+private four-vCPU frontier boot records all four CPUs online,
+`[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,
+`PASS feature14_simd`, and clean in-OS CupidC JIT completion. Its 151,289-byte
+log has SHA-256
+`d414c1db732fa3593eb938caf04b81682a1dcc693a7060b57be5e7c00984c621`.
+The standalone CupidC seeds do not contain this private parser. The active Doom
+source remains in the production Doom cohort built by checked-seed hosted
+CupidC; it is now also a source contract for the private compiler. This
+capability does not transfer that cohort to in-OS CupidC, promote a seed, or
+remove a remaining bootstrap dependency.
 Direct structure and array callback results are rejected; record-pointer
 results retain their record identity. A rejected source or REPL unit restores
 the typedef table with the prior symbols, patches, control state, code, and
@@ -307,9 +324,12 @@ callback, and null clears it. A structure or class field declared through the
 typedef or a raw function-pointer declarator keeps the signature through
 checked stores, named copies, null checks, clearing, and direct postfix calls.
 Direct, nested, and indexed record-array member paths share that behavior and
-evaluate the selected designator once. Empty `()`, raw callback-array declarators,
-block-static objects, alias chains, recursive callback signatures, and `void *`
-pointers still erase it. Direct structure and array callback results are
+evaluate the selected designator once. A data-backed raw callback scalar or
+one-dimensional array at file scope, block-static scope, or persistent REPL
+scope also keeps the signature. Automatic raw callback arrays, callback array
+parameters, raw callback arrays in records, multidimensional raw callback
+arrays, empty `()`, alias chains, recursive callback signatures, and `void *`
+pointers remain unsupported or signature-erased. Direct structure and array callback results are
 rejected; record-pointer results retain their record identity. Named SIMD
 intrinsics continue to lower inline. A plain function initializer or direct
 callback argument must match the retained result, record identity, fixed
@@ -350,17 +370,21 @@ represented scalar, pointer, floating, and SIMD results, and nested or indexed
 designators evaluated once. A real field takes precedence over same-named
 method sugar. Typedef-backed callback field arrays retain the signature through
 indexed stores, named copies, and direct calls, with each index evaluated once.
-Conditional callback expressions, raw callback-array declarators, block-static
-callbacks, alias chains, raw method parameters, and aggregate callback results
-remain unsupported. The raw signature pool accepts 32 distinct parameter
+Raw callback scalars and one-dimensional arrays with static storage share the
+global initialized-data, absolute-patch, checked store, and typed indexed-call
+rules. Conditional callback expressions, automatic or parameter raw callback
+arrays, raw callback arrays in records, multidimensional raw callback arrays,
+alias chains, raw method parameters, and aggregate callback results remain
+unsupported. The raw signature pool accepts 32 distinct parameter
 signatures. Runtime initialization and assignment accept `&(function)` and
 nested grouping. A 33rd distinct signature receives
 `too many raw function-pointer signatures`, and a valid retry compiles and runs
-in the same state. The private callback ABI module passes all 289 tests. ADR
+in the same state. ADR
 0315 records the raw file and parameter boundary, ADR 0321 records the
 typedef-backed field boundary, ADR 0324 records grouped runtime addresses, and
 ADR 0325 records raw fields and direct postfix field calls, and ADR 0328
-records typedef-backed callback field arrays.
+records typedef-backed callback field arrays. ADR 0330 records the static
+storage raw callback array boundary.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations
@@ -1601,14 +1625,14 @@ and digests. The focused semantic-contract, checked-runner, and
 independent-policy modules contain 22, 16, and 13 tests, for 51 total. They
 pass with four existing platform-specific skips. The source-head artifact
 contract passes against all fourteen exact artifacts. The pass-one ELF is
-9,383,624 bytes with SHA-256
-`306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9`.
-The final ELF is 9,510,600 bytes with SHA-256
-`14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350`.
-The raw kernel is 9,289,008 bytes with SHA-256
-`aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606`.
+9,404,288 bytes with SHA-256
+`346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf`.
+The final ELF is 9,531,264 bytes with SHA-256
+`66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9`.
+The raw kernel is 9,308,184 bytes with SHA-256
+`fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478`.
 The disk image is 209,715,200 bytes with SHA-256
-`793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3`.
+`d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed`.
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The Linux
 audit records 21 failure groups, five help groups, and 22 success groups. The
@@ -2789,11 +2813,16 @@ When the parser encounters a call to an undefined function, it emits a placehold
   copies, null checks, clearing, and direct postfix calls. Nested and indexed
   record-array member paths evaluate the selected designator once.
   Typedef-backed callback field arrays retain the signature through indexed
-  stores, named copies, and direct calls. Callback alias chains, block-static
-  objects, raw callback-array declarators, recursive callback
+  stores, named copies, and direct calls. Raw callback scalars and
+  one-dimensional arrays at file scope, block-static scope, or persistent REPL
+  scope retain the same signature in data-backed storage. Arrays accept fixed
+  counts or infer a count from a nonempty braced initializer. Automatic raw
+  callback arrays, callback array parameters, raw arrays in records,
+  multidimensional raw arrays, callback alias chains, recursive callback
   signatures, aggregate results, and arbitrary computed callback expressions
   remain unrepresented. Static callback storage accepts null or a compatible
-  defined or later-defined function designator.
+  defined or later-defined function designator; fixed-array elements not named
+  by an initializer stay zero.
   Private JIT and fixed-address AOT write or patch the function address in
   initialized data before execution.
 

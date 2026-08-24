@@ -741,10 +741,11 @@ keeps the signature for checked stores, named copies, null checks, and clearing.
 Direct members, nested records, and indexed record arrays share that path. Raw
 callback fields retain the same metadata. Direct postfix calls through either
 field form use typed cdecl conversion without evaluating the designator twice.
-Callback arrays, callback alias chains, block-static objects, recursive
-callback signatures, aggregate results, and arbitrary computed callback
-expressions remain signature-erased or unsupported. ADR 0325 records the
-completed field boundary. AOT still compiles one translation
+Typedef-backed fixed callback arrays in records retain the signature through
+indexing. Callback alias chains, recursive callback signatures, aggregate
+results, and arbitrary computed callback expressions remain signature-erased
+or unsupported. ADR 0325 records the completed field boundary, and ADR 0328
+records typedef-backed callback field arrays. AOT still compiles one translation
 unit into a fixed-address executable and does not emit a relocatable object for
 a later link.
 
@@ -753,21 +754,37 @@ same parsed signature without a typedef. The file object uses the existing
 initialized-data write or patch. The parameter uses the existing cdecl slot
 and arity checks. The private pool accepts 32 distinct raw parameter
 signatures, rejects the next one, and restores the pool before a valid retry.
-Raw method parameters and aggregate callback contexts remain outside this
-boundary. ADR 0315 records the source rule.
+Raw callback scalars with static storage use the same data write and patch
+path at file scope, block-static scope, and persistent REPL scope. A
+one-dimensional raw callback array is also available in those contexts. A
+fixed-size array may omit its initializer or provide a shorter braced list;
+both cases leave the remaining entries at zero. An unsized array requires a
+nonempty braced initializer, which determines its count. Compatible defined
+functions are written into the writable data segment, later functions receive
+absolute data patches, and explicit null entries remain zero. Indexed stores
+and calls retain the signature, apply the existing compatibility and cdecl
+rules, and evaluate the index once.
 
-The four-vCPU raw callback QEMU smoke passes with
-`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
-`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.368 seconds. Its host contract
-requires the callback-field marker. A focused four-vCPU QEMU boot observes
-`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`,
-then `PASS feature14_simd` and clean in-OS CupidC JIT completion. Its
-33,347-byte log has SHA-256
-`14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
-The standalone CupidC seeds do not contain this private parser. No normal AOT
-input needs the syntax yet.
+This private AOT rule represents the active six-entry `wipes` table in
+`kernel/doom/src/f_wipe.cc`, including its `wipeno*3`, `wipeno*3+1`, and
+`wipeno*3+2` calls. Automatic raw callback arrays, raw callback array
+parameters, raw callback arrays in records or classes, multidimensional raw
+callback arrays, raw method parameters, and aggregate callback contexts remain
+unsupported. ADR 0315 records the raw scalar and parameter source rule.
+[ADR 0330](../docs/adr/0330-support-data-backed-raw-callback-arrays.md)
+records data-backed raw callback arrays and block-static scalar callbacks.
+
+The source-current private callback ABI module passes all 301 tests in 5.505
+seconds, and the full GUI module passes all 126 tests in 0.333 seconds. A
+private four-vCPU frontier boot records all four CPUs online,
+`[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,
+`PASS feature14_simd`, and clean in-OS CupidC JIT completion. Its 151,289-byte
+log has SHA-256
+`d414c1db732fa3593eb938caf04b81682a1dcc693a7060b57be5e7c00984c621`.
+The standalone CupidC seeds do not contain this private parser. The production
+Doom cohort, including `f_wipe.cc`, remains built by checked-seed hosted
+CupidC. This private AOT capability does not transfer that cohort to in-OS
+CupidC, promote a seed, or remove a remaining bootstrap dependency.
 [ADR 0303](../docs/adr/0303-retain-typedef-callback-signatures-in-private-cupidc.md)
 records the callback and one-header AOT boundaries.
 [ADR 0306](../docs/adr/0306-retain-global-typedef-callback-signatures-in-private-cupidc.md)
@@ -816,10 +833,10 @@ The source-head artifact contract passes against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
-| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
-| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
-| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
+| `kernel/kernel.elf.pass1` | 9,404,288 | `346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf` |
+| `kernel/kernel.elf` | 9,531,264 | `66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9` |
+| `kernel/kernel.bin` | 9,308,184 | `fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478` |
+| `cupidos.img` | 209,715,200 | `d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed` |
 
 Those output identities are source-head evidence. Both checked seeds now carry
 the same source snapshot. The normal kernel transaction selects linked local

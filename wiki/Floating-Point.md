@@ -404,8 +404,12 @@ A structure or class field declared through the typedef or a raw
 function-pointer declarator keeps the signature for checked stores, named
 copies, null checks, clearing, and direct postfix calls. Direct members, nested
 records, and indexed record arrays share that path and evaluate the designator
-once. Empty `()`, callback arrays, callback alias chains, block-static objects,
-recursive callback signatures, and `void *` forms remain metadata-free.
+once. Raw callback scalars and one-dimensional arrays with static storage at
+file scope, block-static scope, or persistent REPL scope keep the signature as
+well. Automatic raw callback arrays, callback array parameters, raw array
+fields, multidimensional raw arrays, empty `()`, callback alias chains,
+recursive callback signatures, and `void *` forms remain unsupported or
+metadata-free.
 Kernel bindings and other calls without fixed metadata keep their source-width
 slots. A plain function initializer or direct callback argument must match the
 retained signature, including record-pointer parameters. Local callback copies
@@ -433,6 +437,17 @@ Runtime initialization and assignment accept `&(function)` and nested
 grouping. ADR 0319 records explicit function addresses, ADR 0321 records the
 field boundary, and ADR 0324 records grouped runtime addresses.
 
+Raw callback arrays use braced static initializers. A fixed array may omit
+entries, which remain zero, while an unsized array infers its count from a
+nonempty list. Compatible defined functions are written into data immediately;
+later definitions receive absolute data patches. Indexed stores and calls keep
+the fixed and variadic parameter widths, check the callback signature, and
+evaluate the index once. This includes mixed `double` and integer parameter
+slots and floating results. The active six-entry `wipes` table in
+`kernel/doom/src/f_wipe.cc` uses three entries per wipe through indexes
+`wipeno*3`, `wipeno*3+1`, and `wipeno*3+2`. ADR 0330 records this data-backed
+array path and the matching block-static scalar path.
+
 The four-vCPU raw callback QEMU smoke passes with
 `[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
 The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
@@ -443,8 +458,10 @@ requires the callback-field marker. A focused four-vCPU QEMU boot observes
 then `PASS feature14_simd` and clean in-OS CupidC JIT completion. Its
 33,347-byte log has SHA-256
 `14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
-The standalone CupidC seeds do not contain this private parser. No normal AOT
-input needs the syntax yet.
+The standalone CupidC seeds do not contain this private parser. The active Doom
+source remains in the production Doom cohort built by checked-seed hosted
+CupidC. This private compiler feature does not transfer that cohort to in-OS
+CupidC, promote a seed, or remove a remaining bootstrap dependency.
 
 Private decimal `float` and `double` literals use a fixed 1536-bit integer
 workspace. The converter forms the exact decimal ratio and rounds once to the
@@ -508,8 +525,11 @@ A structure or class field declared through the typedef or a raw
 function-pointer declarator keeps the signature for checked stores, named
 copies, null checks, clearing, and direct postfix calls. Fixed SIMD arguments
 use the normal 16-byte cdecl slot and return through XMM0. Empty `()`, callback
-arrays, block-static objects, alias chains, recursive callback signatures, and
-`void *` pointers do not retain the signature.
+arrays outside data-backed static storage, alias chains, recursive callback
+signatures, and `void *` pointers do not retain the signature. Raw callback
+scalars and one-dimensional arrays at file scope, block-static scope, or
+persistent REPL scope do retain it. Automatic raw callback arrays, parameter
+arrays, raw array fields, and multidimensional raw arrays remain unsupported.
 Plain function initializers and direct callback arguments are checked before
 the call or store. Later definitions receive address fixups and must match a
 provisional signature. A compatible conditional checks all of its named arms.

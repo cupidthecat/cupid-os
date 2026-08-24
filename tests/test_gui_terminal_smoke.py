@@ -174,6 +174,8 @@ def _frontier_command_outputs():
             "assigned=1 cleared=1 calls=2\n"
             "[feature14-callback-raw] PASS initialized=1 parameter=1 "
             "cleared=1 reassigned=1 calls=3\n"
+            "[feature14-callback-raw-array] PASS modes=2 phases=3 "
+            "calls=12 stored=1 persistent=1\n"
             "[feature14-callback-automatic] PASS local=4 method=4 calls=2\n"
             "[feature14-callback-field] PASS stored=1 copied=1 cleared=1 "
             "float4=4 calls=1\n"
@@ -2134,6 +2136,10 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "cleared=1 reassigned=1 calls=3\n"
             ),
             (
+                "[feature14-callback-raw-array] PASS modes=2 phases=3 "
+                "calls=12 stored=1 persistent=1\n"
+            ),
+            (
                 "[feature14-callback-automatic] PASS local=4 method=4 "
                 "calls=2\n"
             ),
@@ -2174,6 +2180,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback-automatic] FAIL",
             "[feature14-callback-field] FAIL",
             "[feature14-callback-field-call] FAIL",
+            "[feature14-callback-raw-array] FAIL",
             "[feature14-minmax] FAIL",
             "[feature14-nan] FAIL",
             "FAIL feature14_simd",
@@ -2250,6 +2257,12 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "assigned=1 cleared=1 calls=2",
             "[feature14-callback-raw] PASS initialized=1 parameter=1 "
             "cleared=1 reassigned=1 calls=3",
+            "[feature14-callback-raw-array] PASS modes=2 phases=3 "
+            "calls=12 stored=1 persistent=1",
+            "static int (*wipes[])(int, int, int)",
+            "(*wipes[wipeno*3])(4, 2, 1)",
+            "(*wipes[wipeno*3+1])(4, 2, 1)",
+            "(*wipes[wipeno*3+2])(4, 2, 1)",
             "[feature14-callback-automatic] PASS local=4 method=4 calls=2",
             "[feature14-callback-field] PASS stored=1 copied=1 cleared=1 "
             "float4=4 calls=1",

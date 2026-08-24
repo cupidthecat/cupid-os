@@ -242,10 +242,10 @@ against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
-| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
-| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
-| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
+| `kernel/kernel.elf.pass1` | 9,404,288 | `346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf` |
+| `kernel/kernel.elf` | 9,531,264 | `66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9` |
+| `kernel/kernel.bin` | 9,308,184 | `fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478` |
+| `cupidos.img` | 209,715,200 | `d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed` |
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated audit records 21 failure groups, five help groups, and 22 success

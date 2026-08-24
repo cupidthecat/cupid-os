@@ -257,6 +257,8 @@ typedef struct {
   int is_array;     /* stack-allocated array? */
   int is_const_qualified; /* object or fixed-array element is const */
   cc_type_t function_pointer_return_type; /* declared result for named indirect calls */
+  /* Retained callback signature for function-pointer arrays, or -1. */
+  int function_pointer_signature_handle;
   int struct_index; /* record identity for struct values, pointers,
                        and callback results */
   int array_elem_size; /* element size for array subscript scaling */

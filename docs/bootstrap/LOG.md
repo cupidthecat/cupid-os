@@ -30169,3 +30169,73 @@ Seed capture, fixed-point comparison, live five-tool rechecks, and atomic
 publication are unchanged. ADR 0329 records the decision. Python remains the
 checked runner, so this step transfers no tool owner or host dependency and
 changes no source suffix. `TempleOS/` remains untouched reference material.
+
+## 2026-08-24: support data-backed raw callback arrays
+
+Private CupidC now accepts one-dimensional raw function-pointer arrays with
+static storage. File objects, block-static declarations, and persistent REPL
+globals may use a positive fixed bound or infer a bound from a nonempty braced
+initializer. Fixed arrays begin at zero, compatible function targets fill
+their four-byte slots, and targets defined later reuse
+`CC_PATCH_DATA_ABSOLUTE`. Indexed stores and calls retain the parsed callback
+signature, including the explicit unary `*` spelling used by Doom. A
+block-static raw callback scalar uses the same data-backed path.
+
+The unchanged driver is `kernel/doom/src/f_wipe.cc`. Its six-entry `wipes`
+table groups three handlers per wipe and calls `wipeno*3`, `wipeno*3+1`, and
+`wipeno*3+2`. The first focused compile stopped at the raw array declarator,
+which kept the work on the compiler instead of rewriting the active Doom
+source. Closing review then found two narrower gaps: an indexed element lost
+its signature when copied into another declaration or passed as a typed
+argument, and a completed persistent REPL declaration still required a
+semicolon. Both paths now share the retained signature and declaration finish
+rules. Record-pointer result and parameter identities stay distinct.
+
+The transaction tests also force a failure after an initializer has created a
+forward data patch. They verify that data, symbols, patches, and the raw
+signature pool all return to their earlier state before a valid retry. The
+private callback ABI module passes all 301 tests in 5.505 seconds. The full GUI
+contract module passes all 126 tests in 0.333 seconds. A direct parser object
+rebuild and private JIT and fixed-address AOT runs of the Doom-shaped feature
+program also pass.
+
+The fully poisoned build set `CC`, `CXX`, `AS`, `LD`, `AR`, `NM`, `OBJCOPY`,
+`OBJDUMP`, `READELF`, `STRIP`, and `NASM` to `false`. It compiled the active
+kernel and every active Doom root, linked both kernel passes through CupidLD,
+and passed strict CupidDis code validation. It stopped only when the exact
+size contract found the three kernel images had moved. The policy rows changed
+from 9,387,712 to 9,404,288 bytes for `kernel.elf.pass1`, from 9,514,688 to
+9,531,264 bytes for `kernel.elf`, and from 9,292,472 to 9,308,184 bytes for
+`kernel.bin`. The repeated exact verifier accepted all fourteen artifacts,
+and the image publisher preserved the FAT contents and staged the deterministic
+ISO.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,404,288 | `346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf` |
+| `kernel/kernel.elf` | 9,531,264 | `66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9` |
+| `kernel/kernel.bin` | 9,308,184 | `fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `d4d01225e705f699f3d47b5924a3f69bad82e7eceeabd9a143515ea8877a766c` |
+
+The complete private-image frontier boot used four `max` i386 CPUs and brought
+all four online at serial line 82. In-OS CupidC printed
+`[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`
+at line 1365, printed `PASS feature14_simd` at line 1371, and completed JIT
+execution at line 1372. The wider runtime check changed 128,141 framebuffer
+pixels, captured 33,986,596 AC97 frames with a peak of 25,600, and captured
+78,173 PC-speaker frames with a peak of 24,831. The 151,289-byte log at
+`build/bootstrap/feature14-raw-array-qemu.log` has SHA-256
+`d414c1db732fa3593eb938caf04b81682a1dcc693a7060b57be5e7c00984c621`.
+The private run left the source image unchanged.
+
+Automatic raw callback arrays, callback array parameters, raw record or class
+field arrays, and multidimensional raw callback arrays remain explicit limits.
+ADR 0330 records the accepted boundary. The standalone checked seeds still do
+not contain this private parser, and checked-seed hosted CupidC still owns the
+production Doom translation. This step changes no object owner, object format,
+host dependency, or source suffix. `TempleOS/` remains untouched reference
+material.

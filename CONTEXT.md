@@ -202,10 +202,20 @@ through either field form uses typed fixed and variadic cdecl conversion,
 evaluates the member designator once, and preserves represented scalar,
 floating, pointer, and SIMD results. A typedef-backed callback array field
 keeps the same signature through an indexed store, named copy, and direct
-postfix call. The compiler evaluates its index once. Raw callback-array
-declarators, block-static objects, alias chains, raw method parameters,
+postfix call. The compiler evaluates its index once. A one-dimensional raw
+function-pointer array with static storage keeps the same signature at block,
+file, and persistent REPL scope. Its bound may be a positive constant or may
+be inferred from a nonempty initializer. Omitted fixed elements and an
+uninitialized fixed array begin as null. Initializers accept null and
+compatible defined or later-defined functions; a later target uses
+`CC_PATCH_DATA_ABSOLUTE`. Indexed stores and calls keep the retained signature,
+including calls written with an explicit unary `*`. Block-static scalar raw
+callbacks use the same initialized-data path. Automatic raw callback arrays,
+raw callback array parameters, raw record or class field arrays,
+multidimensional raw callback arrays, alias chains, raw method parameters,
 conditional field values, aggregate results, and recursive signatures remain
-outside this boundary.
+outside this boundary. Typedef-backed fixed callback field arrays remain the
+separate ADR 0328 path.
 Direct structure and array results remain rejected. Program and REPL rollback
 restore typedef and side-table metadata, provisional signatures, code, data,
 and every patch kind. The
@@ -218,10 +228,12 @@ file objects and free-function parameters. ADR 0319 records direct explicit
 function addresses, ADR 0321 records typedef-backed callback fields, and ADR
 0324 records grouped runtime function addresses. ADR 0325 records raw callback
 fields and direct field calls. ADR 0328 records typedef-backed callback field
-arrays. Source-head guest runtime proves the
-raw forms with initialized, parameter, clear, reassignment, and typed-call
-coverage. No normal AOT source requires the forms yet; the active use remains
-the in-OS feature-14 JIT smoke.
+arrays, and ADR 0330 records data-backed raw callback arrays and block-static
+raw callbacks. Source-head guest runtime proves the existing scalar raw forms
+with initialized, parameter, clear, reassignment, and typed-call coverage.
+Active Doom source in `kernel/doom/src/f_wipe.cc` supplies the
+six-entry raw callback table that drives the new private parser boundary. Its
+production translation remains owned by checked-seed hosted CupidC.
 _Avoid_: reversing source evaluation, four bytes for every parameter, splitting a double into unrelated arguments
 
 **Represented bit-field assignment**:
@@ -985,9 +997,14 @@ assignment, indirect call, and clearing. A later initialization target receives
 an absolute data patch. A structure or class field declared directly with the
 typedef keeps the signature through checked stores, named copies, null checks,
 and clearing. Direct members, nested records, and indexed record arrays share
-that path. Raw callback fields, callback arrays, block-static objects, alias
-chains, `void *`, and empty-`()` pointers still lack it and keep the focused
-rejection. Direct postfix calls through a field remain unsupported.
+that path. Raw callback fields retain the same metadata, and direct postfix
+calls through either field form use the typed cdecl path. A one-dimensional
+raw callback array with static storage retains its signature at block, file,
+and persistent REPL scope; block-static scalar raw callbacks use the same
+data-backed path. Automatic raw callback arrays, raw callback array parameters,
+raw record or class field arrays, multidimensional raw callback arrays, alias
+chains, `void *`, and empty-`()` pointers still lack this support and keep
+focused diagnostics.
 A plain function initializer or direct `&function` address must match the local
 pointer's result, record identity, fixed parameters, and variadic boundary.
 Named local callback copies follow the same rule. Later target addresses are
@@ -1536,15 +1553,15 @@ Windows skips. That checkpoint reached the exact-size gate with changed
 pass-one ELF, final ELF, and raw-kernel outputs. After those three policy rows
 were updated, its repeat passed in 874.531 seconds and checked all fourteen
 artifacts.
-The source-head kernel outputs are a 9,383,624-byte
+The source-head kernel outputs are a 9,404,288-byte
 `kernel/kernel.elf.pass1` with SHA-256
-`306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9`, a
-9,510,600-byte `kernel/kernel.elf` with SHA-256
-`14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350`,
-and a 9,289,008-byte `kernel/kernel.bin` with SHA-256
-`aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606`.
+`346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf`, a
+9,531,264-byte `kernel/kernel.elf` with SHA-256
+`66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9`,
+and a 9,308,184-byte `kernel/kernel.bin` with SHA-256
+`fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478`.
 The 209,715,200-byte `cupidos.img` has SHA-256
-`793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3`.
+`d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed`.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
 duplicate, linked, nonregular, or differently sized members fail. An

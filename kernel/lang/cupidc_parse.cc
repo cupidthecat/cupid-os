@@ -3299,6 +3299,7 @@ cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
   memset(sym, 0, sizeof(*sym));
   memset(sym->param_struct_indices, -1,
          sizeof(sym->param_struct_indices));
+  sym->function_pointer_signature_handle = -1;
   int i = 0;
   while (name[i] && i < CC_MAX_IDENT - 1) {
     sym->name[i] = name[i];
@@ -4591,6 +4592,10 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
   } else if (sym->kind == SYM_FUNC || sym->kind == SYM_KERNEL) {
     (void)cc_emit_function_address_value(cc, sym);
   }
+  if (sym->is_array && sym->array_elem_type == TYPE_FUNC_PTR &&
+      sym->function_pointer_signature_handle >= 0)
+    cc_set_expr_function_signature_handle(
+        sym->function_pointer_signature_handle);
 }
 
 static void cc_parse_primary(cc_state_t *cc) {
@@ -4894,6 +4899,13 @@ static void cc_parse_primary(cc_state_t *cc) {
     if (cc_reject_incomplete_simd_row(cc))
       break;
     cc_type_t ptr_type = cc_last_expr_type;
+    if (ptr_type == TYPE_FUNC_PTR) {
+      /* C permits an explicit dereference before calling a function pointer.
+       * The pointer value is already the callable address. */
+      cc_last_expr_indirect_lvalue = 0;
+      cc_last_expr_direct_lvalue_sym = NULL;
+      break;
+    }
     cc_type_t object_type = cc_pointed_object_type(ptr_type);
     if (object_type == TYPE_VOID) {
       cc_error(cc, "dereference requires a supported pointer");
@@ -6854,6 +6866,9 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   cc_type_t elem_type = sym->is_array
                             ? sym->array_elem_type
                             : cc_pointed_object_type(sym->type);
+  if (sym->is_array && elem_type == TYPE_FUNC_PTR)
+    function_pointer_signature_handle =
+        sym->function_pointer_signature_handle;
   if (elem_type == TYPE_VOID)
     elem_type = TYPE_INT;
   int is_fp = elem_type == TYPE_FLOAT || elem_type == TYPE_DOUBLE;
@@ -8901,6 +8916,8 @@ static int cc_parse_function_pointer_signature(
 typedef struct {
   cc_token_t name;
   cc_function_pointer_signature_t signature;
+  /* 0 is scalar, -1 is inferred from an initializer, positive is fixed. */
+  int array_count;
 } cc_named_function_pointer_declarator_t;
 
 static int cc_parse_named_function_pointer_declarator(
@@ -8927,10 +8944,27 @@ static int cc_parse_named_function_pointer_declarator(
     cc_error(cc, "expected function pointer name");
     return 0;
   }
-  if (cc_peek(cc).type == CC_TOK_LBRACK) {
-    cc_error(cc,
-             "raw function-pointer arrays are not supported; use a callback typedef");
-    return 0;
+  if (cc_match(cc, CC_TOK_LBRACK)) {
+    int32_t array_count;
+    declarator->array_count = -1;
+    if (cc_peek(cc).type != CC_TOK_RBRACK) {
+      if (!cc_parse_const_int_expr(cc, &array_count)) {
+        cc_error(cc, "expected raw function-pointer array size");
+        return 0;
+      }
+      if (array_count <= 0) {
+        cc_error(cc, "raw function-pointer array size must be positive");
+        return 0;
+      }
+      declarator->array_count = array_count;
+    }
+    cc_expect(cc, CC_TOK_RBRACK);
+    if (cc->error)
+      return 0;
+    if (cc_peek(cc).type == CC_TOK_LBRACK) {
+      cc_error(cc, "raw function-pointer arrays support one dimension");
+      return 0;
+    }
   }
   cc_expect(cc, CC_TOK_RPAREN);
   if (cc->error)
@@ -9022,6 +9056,11 @@ static int cc_parse_raw_function_pointer_field(
           cc, return_type, return_struct_index, return_array_count,
           &declarator))
     return 0;
+  if (declarator.array_count != 0) {
+    cc_error(cc,
+             "raw function-pointer arrays are not supported; use a callback typedef");
+    return 0;
+  }
   *field_name = declarator.name;
   *signature_handle = cc_intern_raw_function_pointer_signature(
       cc, &declarator.signature);
@@ -9053,6 +9092,10 @@ static int cc_parse_named_free_function_parameter(
     if (!cc_parse_named_function_pointer_declarator(
             cc, base_type, struct_index, typedef_array_count, &declarator))
       return 0;
+    if (declarator.array_count != 0) {
+      cc_error(cc, "raw function-pointer array parameters are not supported");
+      return 0;
+    }
     parameter->name = declarator.name;
     parameter->type = TYPE_FUNC_PTR;
     parameter->struct_index = declarator.signature.return_struct_index;
@@ -9192,7 +9235,8 @@ typedef enum {
  * A cast through void * deliberately erases the source signature. */
 static cc_function_pointer_initializer_kind_t
 cc_probe_function_pointer_initializer(cc_state_t *cc,
-                                      cc_symbol_t **out_target) {
+                                      cc_symbol_t **out_target,
+                                      int list_element) {
   cc_lexer_checkpoint_t checkpoint;
   cc_token_t token;
   cc_symbol_t *target = NULL;
@@ -9224,8 +9268,13 @@ cc_probe_function_pointer_initializer(cc_state_t *cc,
       goto done;
     grouping_depth--;
   }
-  if (cc_lex_peek(cc).type != CC_TOK_SEMICOLON)
-    goto done;
+  {
+    cc_token_type_t terminator = cc_lex_peek(cc).type;
+    if (terminator != CC_TOK_SEMICOLON &&
+        !(list_element &&
+          (terminator == CC_TOK_COMMA || terminator == CC_TOK_RBRACE)))
+      goto done;
+  }
 
   if (!explicit_address && token.type == CC_TOK_NUMBER &&
       token.int_value == 0) {
@@ -9472,6 +9521,24 @@ static int cc_check_function_pointer_value_compatibility(
   return 1;
 }
 
+static int cc_check_retained_function_pointer_value_compatibility(
+    cc_state_t *cc, const cc_symbol_t *destination,
+    int source_signature_handle, const char *result_diagnostic,
+    const char *parameters_diagnostic) {
+  cc_symbol_t source;
+
+  memset(&source, 0, sizeof(source));
+  source.type = TYPE_FUNC_PTR;
+  if (!cc_copy_function_pointer_signature_handle(
+          cc, source_signature_handle, &source)) {
+    cc_error(cc, "invalid retained function-pointer signature");
+    return 0;
+  }
+  return cc_check_function_pointer_value_compatibility(
+      cc, destination, &source, result_diagnostic,
+      parameters_diagnostic);
+}
+
 static int cc_check_function_pointer_initializer(
     cc_state_t *cc, const cc_symbol_t *pointer,
     const cc_symbol_t *target) {
@@ -9553,8 +9620,7 @@ static int cc_validate_function_pointer_argument_value(
       (cc_is_object_pointer_type(cc_last_expr_type) ||
        cc_last_expr_type == TYPE_FUNC_PTR))
     return 1;
-  if (cc_last_expr_type != TYPE_FUNC_PTR ||
-      cc_last_expr_function_signature_count <= 0) {
+  if (cc_last_expr_type != TYPE_FUNC_PTR) {
     cc_error(
         cc,
         "function-pointer argument requires a function, zero, or explicit pointer cast");
@@ -9566,6 +9632,18 @@ static int cc_validate_function_pointer_argument_value(
   if (!cc_copy_function_pointer_signature_handle(
           cc, function_pointer_signature_handle, &expected))
     return 1;
+
+  if (cc_last_expr_function_signature_handle >= 0)
+    return cc_check_retained_function_pointer_value_compatibility(
+        cc, &expected, cc_last_expr_function_signature_handle,
+        "function-pointer argument result does not match parameter type",
+        "function-pointer argument parameters do not match parameter type");
+  if (cc_last_expr_function_signature_count <= 0) {
+    cc_error(
+        cc,
+        "function-pointer argument requires a function, zero, or explicit pointer cast");
+    return 0;
+  }
 
   for (target_index = 0;
        target_index < cc_last_expr_function_signature_count;
@@ -9586,6 +9664,12 @@ static int cc_validate_function_pointer_initializer_value(
     cc_state_t *cc, const cc_symbol_t *pointer,
     cc_function_pointer_initializer_kind_t initializer_kind,
     cc_symbol_t *const *targets, int target_count) {
+  if (cc_last_expr_type == TYPE_FUNC_PTR &&
+      cc_last_expr_function_signature_handle >= 0)
+    return cc_check_retained_function_pointer_value_compatibility(
+        cc, pointer, cc_last_expr_function_signature_handle,
+        "function-pointer initializer result does not match declaration",
+        "function-pointer initializer parameters do not match declaration");
   if (initializer_kind == CC_FP_INITIALIZER_DESIGNATOR)
     return cc_check_function_pointer_initializer_candidates(
         cc, pointer, targets, target_count);
@@ -9618,16 +9702,8 @@ static int cc_validate_function_pointer_assignment_value(
     return 0;
   }
   if (cc_last_expr_function_signature_handle >= 0) {
-    cc_symbol_t source;
-    memset(&source, 0, sizeof(source));
-    source.type = TYPE_FUNC_PTR;
-    if (!cc_copy_function_pointer_signature_handle(
-            cc, cc_last_expr_function_signature_handle, &source)) {
-      cc_error(cc, "invalid function-pointer field signature");
-      return 0;
-    }
-    return cc_check_function_pointer_value_compatibility(
-        cc, pointer, &source,
+    return cc_check_retained_function_pointer_value_compatibility(
+        cc, pointer, cc_last_expr_function_signature_handle,
         "function-pointer assignment result does not match destination",
         "function-pointer assignment parameters do not match destination");
   }
@@ -9692,10 +9768,11 @@ static int cc_parse_global_function_pointer_null_inner(
 }
 
 static int cc_parse_global_function_pointer_initializer(
-    cc_state_t *cc, cc_symbol_t *pointer, uint32_t data_offset) {
+    cc_state_t *cc, cc_symbol_t *pointer, uint32_t data_offset,
+    int list_element) {
   cc_symbol_t *target = NULL;
   cc_function_pointer_initializer_kind_t initializer_kind =
-      cc_probe_function_pointer_initializer(cc, &target);
+      cc_probe_function_pointer_initializer(cc, &target, list_element);
 
   if (initializer_kind == CC_FP_INITIALIZER_DESIGNATOR && target &&
       (target->kind == SYM_FUNC || target->kind == SYM_KERNEL)) {
@@ -9756,6 +9833,151 @@ static int cc_parse_global_function_pointer_initializer(
   return 0;
 }
 
+/* Raw callback objects with static storage share one data and fixup path.
+ * Scalar declarations retain their signature directly on the symbol. Arrays
+ * keep an interned handle that survives subscripting and checked calls. */
+static int cc_finish_data_backed_declaration(
+    cc_state_t *cc, int require_semicolon) {
+  if (require_semicolon)
+    cc_expect(cc, CC_TOK_SEMICOLON);
+  else if (cc_peek(cc).type == CC_TOK_SEMICOLON)
+    cc_next(cc);
+  return !cc->error;
+}
+
+static int cc_parse_data_backed_raw_function_pointer_declaration(
+    cc_state_t *cc,
+    const cc_named_function_pointer_declarator_t *declarator,
+    int require_semicolon) {
+  cc_symbol_t *symbol;
+  uint32_t data_offset = cc->data_pos;
+
+  if (!declarator || cc->error)
+    return 0;
+
+  if (declarator->array_count == 0) {
+    symbol = cc_sym_add(cc, declarator->name.text, SYM_GLOBAL,
+                        TYPE_FUNC_PTR);
+    if (!symbol)
+      return 0;
+    if (!cc_data_reserve(cc, 4))
+      return 0;
+    symbol->address = cc->data_base + data_offset;
+    cc_apply_named_function_pointer_declarator(symbol, declarator);
+    memset(cc->data + data_offset, 0, 4);
+    cc->data_pos += 4;
+    if (cc_match(cc, CC_TOK_EQ) &&
+        !cc_parse_global_function_pointer_initializer(
+            cc, symbol, data_offset, 0))
+      return 0;
+    return cc_finish_data_backed_declaration(
+        cc, require_semicolon);
+  }
+
+  {
+    cc_symbol_t pointer_signature;
+    int signature_handle = cc_intern_raw_function_pointer_signature(
+        cc, &declarator->signature);
+    int declared_count = declarator->array_count;
+    int element_count = 0;
+    int32_t total_bytes = 0;
+    int has_initializer;
+
+    if (signature_handle < 0)
+      return 0;
+    memset(&pointer_signature, 0, sizeof(pointer_signature));
+    memset(pointer_signature.param_struct_indices, -1,
+           sizeof(pointer_signature.param_struct_indices));
+    cc_apply_named_function_pointer_declarator(
+        &pointer_signature, declarator);
+
+    symbol = cc_sym_add(cc, declarator->name.text, SYM_GLOBAL, TYPE_PTR);
+    if (!symbol)
+      return 0;
+    symbol->address = cc->data_base + data_offset;
+    symbol->is_array = 1;
+    symbol->array_elem_size = 4;
+    symbol->array_rank = 1;
+    symbol->array_elem_type = TYPE_FUNC_PTR;
+    symbol->function_pointer_signature_handle = signature_handle;
+
+    has_initializer = cc_match(cc, CC_TOK_EQ);
+    if (!has_initializer && declared_count < 0) {
+      cc_error(
+          cc,
+          "unsized raw function-pointer array requires an initializer");
+      return 0;
+    }
+
+    if (declared_count > 0) {
+      if (!cc_checked_array_bytes(
+              cc, declared_count, 4, &total_bytes) ||
+          !cc_data_reserve(cc, (uint32_t)total_bytes))
+        return 0;
+      memset(cc->data + data_offset, 0, (size_t)total_bytes);
+      cc->data_pos += (uint32_t)total_bytes;
+      symbol->array_object_size = total_bytes;
+    }
+
+    if (!has_initializer) {
+      return cc_finish_data_backed_declaration(
+          cc, require_semicolon);
+    }
+    if (!cc_match(cc, CC_TOK_LBRACE)) {
+      cc_error(cc,
+               "raw function-pointer array initializer requires braces");
+      return 0;
+    }
+    if (cc_peek(cc).type == CC_TOK_RBRACE) {
+      if (declared_count < 0) {
+        cc_error(
+            cc,
+            "unsized raw function-pointer array requires at least one initializer");
+        return 0;
+      }
+      cc_next(cc);
+      return cc_finish_data_backed_declaration(
+          cc, require_semicolon);
+    }
+
+    for (;;) {
+      uint32_t element_offset;
+      if (declared_count > 0 && element_count >= declared_count) {
+        cc_error(cc,
+                 "too many initializers for raw function-pointer array");
+        return 0;
+      }
+      if (declared_count < 0) {
+        if (!cc_data_reserve(cc, 4))
+          return 0;
+        memset(cc->data + cc->data_pos, 0, 4);
+        cc->data_pos += 4;
+      }
+      element_offset = data_offset + (uint32_t)element_count * 4u;
+      if (!cc_parse_global_function_pointer_initializer(
+              cc, &pointer_signature, element_offset, 1))
+        return 0;
+      element_count++;
+
+      if (cc_match(cc, CC_TOK_COMMA)) {
+        if (cc_match(cc, CC_TOK_RBRACE))
+          break;
+        continue;
+      }
+      cc_expect(cc, CC_TOK_RBRACE);
+      if (cc->error)
+        return 0;
+      break;
+    }
+
+    if (declared_count < 0) {
+      symbol->array_object_size = element_count * 4;
+    }
+    return cc_finish_data_backed_declaration(
+        cc, require_semicolon);
+  }
+}
+
 static int cc_parse_function_pointer_local_initializer(
     cc_state_t *cc, cc_symbol_t *pointer, int32_t local_slot) {
   cc_symbol_t *initializer_targets[CC_MAX_PARAMS];
@@ -9777,7 +9999,7 @@ static int cc_parse_function_pointer_local_initializer(
     int initializer_patch_count = cc->patch_count;
 
     initializer_kind = cc_probe_function_pointer_initializer(
-        cc, &initializer_target);
+        cc, &initializer_target, 0);
     cc_parse_expression(cc, 1);
     if (cc_last_expr_function_signature_erased) {
       initializer_kind = CC_FP_INITIALIZER_EXPLICIT_CAST;
@@ -9834,6 +10056,16 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
       return;
     }
     cc_type_t type = cc_parse_type(cc);
+    if (cc_peek(cc).type == CC_TOK_LPAREN) {
+      cc_named_function_pointer_declarator_t declarator;
+      if (!cc_parse_named_function_pointer_declarator(
+              cc, type, cc_last_type_struct_index,
+              cc_last_type_array_count, &declarator))
+        return;
+      (void)cc_parse_data_backed_raw_function_pointer_declaration(
+          cc, &declarator, 1);
+      return;
+    }
     cc_parse_static_local_declaration(cc, type);
     return;
   }
@@ -9854,6 +10086,12 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
               cc, type, function_pointer_return_struct_index,
               function_pointer_return_array_count, &declarator))
         return;
+      if (declarator.array_count != 0) {
+        cc_error(
+            cc,
+            "automatic raw function-pointer arrays are not supported");
+        return;
+      }
       if (!cc_reserve_local_frame(cc, 4, 4, &local_slot))
         return;
       sym = cc_sym_add(cc, declarator.name.text, SYM_LOCAL, TYPE_FUNC_PTR);
@@ -11523,6 +11761,12 @@ void cc_parse_program(cc_state_t *cc) {
                   cc, gtype, gtype_si, gtype_array_count,
                   &raw_function_pointer))
             break;
+          if (raw_function_pointer.array_count != 0) {
+            if (!cc_parse_data_backed_raw_function_pointer_declaration(
+                    cc, &raw_function_pointer, 1))
+              break;
+            continue;
+          }
           has_raw_function_pointer_declarator = 1;
           gname = raw_function_pointer.name;
           gtype = TYPE_FUNC_PTR;
@@ -11731,7 +11975,7 @@ void cc_parse_program(cc_state_t *cc) {
               cc_token_t val;
               if (gtype == TYPE_FUNC_PTR) {
                 if (!cc_parse_global_function_pointer_initializer(
-                        cc, gsym, addr_off))
+                        cc, gsym, addr_off, 0))
                   break;
                 cc_expect(cc, CC_TOK_SEMICOLON);
                 continue;
@@ -12318,6 +12562,11 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
               cc, gtype, gtype_si, gtype_array_count,
               &raw_function_pointer))
         return;
+      if (raw_function_pointer.array_count != 0) {
+        (void)cc_parse_data_backed_raw_function_pointer_declaration(
+            cc, &raw_function_pointer, 0);
+        return;
+      }
       has_raw_function_pointer_declarator = 1;
       gname = raw_function_pointer.name;
       gtype = TYPE_FUNC_PTR;
@@ -12503,7 +12752,7 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
           cc_token_t val;
           if (gtype == TYPE_FUNC_PTR) {
             if (!cc_parse_global_function_pointer_initializer(
-                    cc, gsym, addr_off))
+                    cc, gsym, addr_off, 0))
               return;
             if (cc_peek(cc).type == CC_TOK_SEMICOLON)
               cc_next(cc);

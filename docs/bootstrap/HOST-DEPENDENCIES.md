@@ -20,7 +20,9 @@ ordinary C translation unit remained in a supported root. Its active-source
 audit records failure, help, and success counts of 21/5/22 for Linux and
 9/5/8 for Windows. Each promoted host cohort includes one successful and one
 failing static code-anchor case. Generation and checked comparison both pass.
-The final fully poisoned OS build and strong full private guest frontier pass.
+The poisoned OS build reaches the exact-size gate after the complete compile,
+link, and strict-disassembly path. The repeated exact verifier, image
+publisher, and strong full private guest frontier pass.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -123,10 +125,10 @@ fourteen exact artifacts. The current kernel outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
-| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
-| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
-| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
+| `kernel/kernel.elf.pass1` | 9,404,288 | `346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf` |
+| `kernel/kernel.elf` | 9,531,264 | `66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9` |
+| `kernel/kernel.bin` | 9,308,184 | `fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478` |
+| `cupidos.img` | 209,715,200 | `d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed` |
 Python retains path safety, process launch, the Windows seed boundary, its
 separate policy decoder, and final drift checks. ADR 0267 records the policy,
 and ADR 0297 records the contract transfer.
@@ -563,8 +565,12 @@ calls, kernel bindings, and calls without parameter metadata keep their
 source-width slots. A named block-local function-pointer declaration keeps
 its fixed parameter types, variadic state, and result type. Its indirect call
 uses the same conversion and 4-, 8-, or 16-byte slot path as a direct call.
-Empty `()`, callback arrays, block-static objects, callback alias chains,
-recursive signatures, and `void *` forms remain metadata-free. A structure or
+Empty `()`, callback alias chains, recursive signatures, and `void *` forms
+remain metadata-free. One-dimensional raw callback arrays at file scope, in
+block-static declarations, or in persistent REPL globals now retain their
+signature. The same data-backed path covers a block-static raw callback scalar.
+Automatic, parameter, record or class field, and multidimensional raw callback
+arrays remain unsupported. A structure or
 class field declared through a callback typedef or raw function-pointer
 declarator keeps that signature for checked stores, null clearing, named
 copies, and direct postfix calls. Nested and indexed field designators are
@@ -1184,24 +1190,34 @@ parameter retain the parsed signature. The private pool accepts 32 raw
 parameter signatures and fails the next distinct signature without leaking
 state. A structure or class field declared through a callback typedef or raw
 function-pointer declarator retains the signature through checked plain stores,
-null clearing, named copies, and direct postfix calls. Conditional initializers,
-block-static objects, callback arrays, alias chains, recursive signatures,
-aggregate results, raw method parameters, and empty identifier-list signatures
-remain outside the retained path. A zero-data AOT executable reports one
+null clearing, named copies, and direct postfix calls. One-dimensional raw
+callback arrays at file scope, in block-static storage, and across persistent
+REPL units retain their signature through indexed stores and calls. Bound
+inference requires a nonempty initializer; an explicit bound must be positive,
+and uninitialized or omitted fixed-array entries are zero-filled. Initializers
+accept compatible functions and null entries. A function defined later uses
+the existing absolute data patch. Explicit unary `*` keeps the selected element
+callable. A block-static raw callback scalar uses the same path. Conditional
+initializers, alias chains,
+recursive signatures, aggregate results, raw method parameters, and empty
+identifier-list signatures remain outside the retained path. Automatic,
+parameter, record or class field, and multidimensional raw callback arrays also
+remain unsupported. A zero-data AOT executable reports one
 program header and keeps code at file offset `0x80`; data-bearing executables
 retain two headers. These paths add no host tool or output owner. ADR 0319
 records direct explicit function addresses, ADR 0321 records typedef-backed
 callback fields, ADR 0324 records grouped runtime function addresses, and ADR
-0325 records raw fields and direct field calls. The private callback ABI module
-passes all 286 tests. The
-four-vCPU raw callback QEMU smoke passes with
-`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-The 32,981-byte
-`tests/feature14-callback-raw-qemu.log` has SHA-256
-`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.368 seconds. The standalone
-CupidC seeds do not contain this private parser. No normal AOT source requires
-the forms yet.
+0325 records raw fields and direct field calls. ADR 0330 records the raw
+static-storage array boundary, driven by the unchanged callback table in
+`kernel/doom/src/f_wipe.cc`. At the ADR 0325 checkpoint, the private callback
+ABI module passed all 286 tests. The source-current module passes all 301 tests
+in 5.505 seconds, and the full GUI module passes all 126 tests in 0.333
+seconds. A private four-vCPU frontier boot records all four CPUs online and
+`[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`
+before the overall feature pass and clean JIT completion. The standalone
+CupidC seeds do not contain this private parser. Checked-seed hosted CupidC
+continues to produce the active `f_wipe.cc` object. This leaves object
+ownership, checked seeds, the object format, and host dependencies unchanged.
 The marker contract requires
 `[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
 `cleared=1 calls=2` and

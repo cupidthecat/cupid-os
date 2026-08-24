@@ -1083,11 +1083,28 @@ behavior. Raw callback fields retain the same signature. Direct postfix calls
 through either field form use typed fixed and variadic cdecl conversion and
 evaluate the designator once. Typedef-backed callback arrays on structure and
 class fields retain the signature through indexed stores, named copies, and
-direct calls. Each index is evaluated once. Raw callback-array declarators,
-block-static objects, alias chains, recursive callback signatures, conditional
-field values, aggregate results, and arbitrary computed callback expressions
-remain outside this typed path. ADR 0325 records direct field calls, and ADR
-0328 records callback field arrays. The AOT writer uses one executable
+direct calls. Each index is evaluated once. Raw callback scalars with static
+storage use the initialized-data path at file scope, block-static scope, and
+persistent REPL scope. One-dimensional raw callback arrays work in those same
+contexts with a fixed count or a count inferred from a nonempty braced
+initializer. Known functions are written into their four-byte slots, later
+functions receive absolute data patches, null entries remain zero, and omitted
+fixed-array entries are zero-filled. Indexed stores and calls retain the
+signature and evaluate the index once.
+
+The source contract matches the active six-entry `wipes` table in
+`kernel/doom/src/f_wipe.cc`. Its three phases select `wipeno*3`,
+`wipeno*3+1`, and `wipeno*3+2`. Automatic raw callback arrays, raw callback
+array parameters, raw callback arrays in records or classes, and
+multidimensional raw callback arrays remain unsupported. Alias chains,
+recursive callback signatures, conditional field values, aggregate results,
+and arbitrary computed callback expressions remain outside this typed path.
+ADR 0325 records direct field calls, ADR 0328 records callback field arrays,
+and ADR 0330 records data-backed raw callback arrays and block-static scalar
+callbacks. The production Doom cohort remains built by checked-seed hosted
+CupidC. This private compiler capability does not transfer that cohort to
+in-OS CupidC, promote a seed, or remove a remaining bootstrap dependency. The
+AOT writer uses one executable
 `PT_LOAD` for zero-data programs and adds the writable data segment only when
 data is present; code begins at file offset `0x80` in both layouts. Focused
 private compiler contracts cover these source decisions. The exact
@@ -1107,10 +1124,10 @@ contract passes against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,383,624 | `306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9` |
-| `kernel/kernel.elf` | 9,510,600 | `14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350` |
-| `kernel/kernel.bin` | 9,289,008 | `aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606` |
-| `cupidos.img` | 209,715,200 | `793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3` |
+| `kernel/kernel.elf.pass1` | 9,404,288 | `346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf` |
+| `kernel/kernel.elf` | 9,531,264 | `66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9` |
+| `kernel/kernel.bin` | 9,308,184 | `fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478` |
+| `cupidos.img` | 209,715,200 | `d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed` |
 
 The first nine-artifact checkpoint on this path guarded the normal boot edge
 with a CupidC-built artifact-size contract. All 443 root transforms had a
@@ -1605,9 +1622,12 @@ A structure or class field declared through the typedef or a raw
 function-pointer declarator retains the same metadata for checked stores, named
 copies, null checks, clearing, and direct postfix calls. Direct, nested, and
 indexed record-array member paths share that behavior and evaluate the selected
-designator once. Empty `()`, raw callback-array declarators, block-static objects, alias
-chains, recursive callback signatures, and `void *` forms remain
-signature-erased. A
+designator once. Raw callback scalars and one-dimensional arrays at file scope,
+block-static scope, or persistent REPL scope retain that signature in
+data-backed storage. Automatic raw callback arrays, callback array parameters,
+raw callback arrays in records, multidimensional raw callback arrays, empty
+`()`, alias chains, recursive callback signatures, and `void *` forms remain
+unsupported or signature-erased. A
 plain function initializer or direct callback argument must match the retained
 signature. Local copies share the check, later addresses are fixed up, and a
 provisional signature must match its definition. An explicit cast opts into
@@ -1625,23 +1645,23 @@ assignment, call, and clear rules. The parameter uses the existing cdecl slot
 and arity checks. The private pool accepts 32 distinct raw signatures, rejects
 the next one, and restores the pool before a valid retry. ADR 0315 records this
 source boundary. Runtime initialization and assignment accept `&(function)`
-and nested grouping. The full private callback ABI module passes all 289 tests.
+and nested grouping.
 ADR 0321 records the typedef-backed field boundary, ADR 0324 records grouped
 runtime addresses, ADR 0325 records raw fields and direct field calls, and ADR
-0328 records typedef-backed callback field arrays.
+0328 records typedef-backed callback field arrays. ADR 0330 records data-backed
+raw callback arrays and block-static scalar callbacks.
 
-The four-vCPU raw callback QEMU smoke passes with
-`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-The log is `tests/feature14-callback-raw-qemu.log`, 32,981 bytes, with SHA-256
-`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.368 seconds. Its host contract
-requires the callback-field marker described below. A focused four-vCPU QEMU
-boot observes that marker, `PASS feature14_simd`, and clean in-OS CupidC JIT
-completion. Its 33,347-byte log has SHA-256
-`14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
-The standalone CupidC seeds do not contain this private parser. No normal AOT
-source needs the syntax yet; the active use remains the in-OS feature-14 JIT
-smoke.
+The source-current private callback ABI module passes all 301 tests in 5.505
+seconds, and the full GUI module passes all 126 tests in 0.333 seconds. A
+private four-vCPU frontier boot records all four CPUs online,
+`[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,
+`PASS feature14_simd`, and clean in-OS CupidC JIT completion. Its 151,289-byte
+log has SHA-256
+`d414c1db732fa3593eb938caf04b81682a1dcc693a7060b57be5e7c00984c621`.
+The standalone CupidC seeds do not contain this private parser. The active Doom
+source remains in the production Doom cohort built by checked-seed hosted
+CupidC. This private parser capability does not transfer that cohort to in-OS
+CupidC, promote a seed, or remove a remaining bootstrap dependency.
 The feature-14 guest publishes
 `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6` followed by
 `[feature14-callback] PASS float4=4 double2=2 calls=2`.
@@ -1667,6 +1687,8 @@ callback storage and checked assignment. ADR 0310 records automatic
 callback objects and Cupid class method parameters. ADR 0313 records static
 callback initialization. ADR 0319 records direct explicit function addresses.
 ADR 0321 records typedef-backed record and class fields.
+ADR 0330 records data-backed raw callback arrays and block-static scalar
+callbacks.
 
 Private decimal literals now use a fixed 1536-bit integer workspace. CupidC
 forms the exact decimal ratio and rounds once to the selected binary32 or
@@ -1688,9 +1710,12 @@ same conversions and keeps its declared result. A free-function or Cupid class
 method parameter declared with a direct file-scope function-pointer typedef
 does the same. A declaration-initialized automatic object does too. A file
 object declared directly with the typedef keeps the signature across
-null initialization, checked assignment, indirect call, and clearing. Empty
-`()`, raw callback-array declarators, block-static objects, alias chains, recursive callback
-signatures, and `void *` forms remain metadata-free. A structure or class field
+null initialization, checked assignment, indirect call, and clearing. Raw
+callback scalars and one-dimensional arrays with data-backed static storage
+keep the signature too. Automatic raw callback arrays, callback array
+parameters, raw callback arrays in records, multidimensional raw callback
+arrays, empty `()`, alias chains, recursive callback signatures, and `void *`
+forms remain unsupported or metadata-free. A structure or class field
 declared through the typedef or a raw function-pointer declarator retains the
 signature for checked stores, named copies, null checks, clearing, and direct
 postfix calls, including nested and indexed record-array member paths. Kernel
@@ -1713,6 +1738,8 @@ ADR 0306 records global callback storage and checked assignment. ADR 0310
 records automatic callback objects and Cupid class method parameters. ADR 0313
 records static callback initialization. ADR 0319 records direct explicit
 function addresses. ADR 0321 records typedef-backed record and class fields.
+ADR 0330 records data-backed raw callback arrays and block-static scalar
+callbacks.
 
 Checked CupidASM assembles the ISO spanning fixture from
 `test_iso/big_pattern.asm`. Hostbuild freezes that source and the checked seed,

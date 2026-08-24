@@ -347,11 +347,11 @@ keeps its declared result. A file-scope function-pointer typedef retains the
 result, fixed parameters, record identities, prototype state, and variadic
 boundary. A free-function or Cupid class method parameter declared through that
 typedef receives the signature. A declaration-initialized automatic object
-receives its own copy. JIT and private AOT calls use that metadata. Empty (),
-global, field, and block-static objects, bare nested callback signatures, later
-assignments, and void-pointer forms remain metadata-free. Plain function initializers must
-match the retained signature; an explicit cast erases it. ADR 0301 records the
-earlier named-local
+receives its own copy. File objects and raw or typedef-backed record fields can
+retain the same signature. JIT and private AOT calls use that metadata. Empty
+(), bare nested callback signatures, alias chains, and void-pointer forms
+remain metadata-free. Plain function initializers must match the retained
+signature; an explicit cast erases it. ADR 0301 records the earlier named-local
 callback rule. Named local copies share the check. Later targets receive
 absolute fixups, and provisional signatures must match their definitions.
 Compatible conditional selection checks every named arm, and failed
@@ -361,6 +361,30 @@ zero is not. Null conditional arms are neutral for erasure, and every non-null
 object arm must be cast. A failed function, method, or complete source restores
 its emitted state, patches, control state, touched function symbols, kernel
 bindings, and reused void(void) __start thunk.
+
+Raw one-dimensional function-pointer arrays retain that ABI metadata in
+data-backed file, block-static, and persistent REPL storage. A block-static raw
+scalar callback shares the same allocation, initializer, and later-target
+patch path. A positive fixed bound reserves and clears the full checked
+allocation. An omitted bound is inferred from a nonempty braced initializer.
+Missing fixed entries and omitted fixed initializers remain null, while an
+excess initializer fails. Every non-null element must match the parsed
+signature. A known function address is stored immediately, and a later
+definition receives an absolute data patch.
+
+The signature survives subscripting, indexed assignment, named copies,
+argument conversion, and typed indirect calls. Direct indexed calls and
+(*callbacks[index])(...) both keep the existing four-, eight-, and sixteen-byte
+cdecl slot rules, the variadic boundary, and represented result transport. The
+index runs once. The private contract uses the active Doom
+static int (*wipes[])(int, int, int) shape with wipeno*3 phase selection.
+Checked-seed hosted CupidC still owns the production kernel/doom/src/f_wipe.cc
+object.
+
+Automatic raw callback arrays, raw array parameters, raw array record fields,
+and multidimensional raw arrays remain unsupported. Typedef-backed fixed
+callback arrays on record fields use the retained ADR 0328 path. ADR 0330
+records the raw data-backed array and shared block-static scalar boundary.
 
 Function-pointer typedef declarations remain file-scope, allow one alias per
 declaration, and share a sixteen-entry table. Direct record and array callback
@@ -429,12 +453,15 @@ A file object declared directly with that typedef also keeps the signature
 through null or compatible function initialization, checked assignment,
 indirect call, and clearing. A defined function address is written into
 initialized data, while a later definition receives an absolute data patch.
-Fields, callback arrays, block-static objects, and alias chains still erase the
+Raw or typedef-backed scalar fields retain the signature, and typedef-backed
+fixed callback array fields retain it after subscripting. Raw static-storage
+callback arrays use the data-backed rules above. Alias chains still erase the
 signature.
 Named raw callback file objects and direct free-function parameters retain the
 same mixed-width slot metadata without a typedef. The private pool accepts 32
 distinct raw signatures and recovers after rejecting the next one. ADR 0315
-records this boundary.
+records this boundary. ADR 0325 records direct raw or typedef-backed field
+calls, and ADR 0328 records typedef-backed callback field arrays.
 Named SIMD intrinsics keep their inline lowering. A plain function initializer
 must match the retained
 signature; an explicit cast opts into erasure. Local callback copies share the

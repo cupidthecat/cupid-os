@@ -211,14 +211,14 @@ The focused semantic-contract, checked-runner, and independent-policy modules
 contain 22, 16, and 13 tests, for 51 total. They pass with four existing
 platform-specific skips. The source-head artifact contract passes against all
 fourteen exact artifacts. The current kernel outputs are a
-9,383,624-byte `kernel/kernel.elf.pass1` with SHA-256
-`306cf266c3d75ee64351e53b127b64ba1d3d4f6fb73774a9bb4349065b6558e9`, a
-9,510,600-byte `kernel/kernel.elf` with SHA-256
-`14c80455c5f34cea13d51cda6cb09d573d368fe463de71321acdd35c12e40350`,
-and a 9,289,008-byte `kernel/kernel.bin` with SHA-256
-`aaafc89541e47176f5b9047283a9b9d8372bcfed55244f322cfb3fdf36b27606`.
+9,404,288-byte `kernel/kernel.elf.pass1` with SHA-256
+`346ce54d44212d286817883cd361deffaa0c50870a9551a66ca090fb1571a5bf`, a
+9,531,264-byte `kernel/kernel.elf` with SHA-256
+`66df5bd16592011df543b1829154795b7d0de4cfc75bec6cf530973430a968a9`,
+and a 9,308,184-byte `kernel/kernel.bin` with SHA-256
+`fa6ac8cf3a6af30188b8158c40a89b6a5035f216cf17db9a66b22e3366718478`.
 The 209,715,200-byte `cupidos.img` has SHA-256
-`793abece9678fd446a35d9204290099d1819f3f605930f1e7c0c17c90c923eb3`.
+`d92aeb09c6bde76db414681c0bead948bf6cf6b83bed24121da2250e2e832bed`.
 Failure prevents image publication and preserves the existing image. ADR 0267
 records the policy, ADR 0297 records the contract transfer, and ADR 0305
 established and first carried the fourteen-path closure. ADRs 0312 and 0318
@@ -551,8 +551,7 @@ function pointers remain rejected. A syntactic block-local
 `T (*name)(parameters)` declaration retains its fixed types, variadic
 state, and result. Its indirect call reuses the same cdecl conversions and
 4-, 8-, or 16-byte slots, including typed SIMD transport through XMM0. Empty
-`()`, raw callback-array declarators, block-static objects, callback alias chains, recursive
-signatures, and `void *` forms remain
+`()`, callback alias chains, recursive signatures, and `void *` forms remain
 signature-erased. A plain function initializer must match the local pointer's result,
 record identity, fixed types, and variadic boundary. An explicit cast opts into
 erasure. Named local copies share the check. Later targets receive
@@ -585,10 +584,18 @@ field declared through the callback typedef or a raw function-pointer
 declarator keeps that signature for checked plain stores, null clearing, named
 copies, and direct postfix calls. Typedef-backed callback arrays on structure
 and class fields keep the signature through indexed stores, named copies, and
-direct calls. Raw callback-array declarators, block-static objects, alias
-chains, recursive signatures, aggregate results, raw method parameters, and
-arbitrary computed callbacks remain open. A named raw callback file object and direct
-free-function parameter now
+direct calls. One-dimensional raw callback arrays at file scope, in
+block-static storage, and in persistent REPL storage keep the signature through
+indexed stores and calls, including an explicit unary `*` call. Their bound may
+be inferred from a nonempty initializer or stated as a positive fixed count.
+Fixed arrays zero-fill missing entries. Compatible functions and null entries
+are valid initializer elements. A target defined later uses the existing
+absolute data patch. A block-static raw callback scalar uses the same storage
+path. Automatic,
+parameter, record or class field, and multidimensional raw callback arrays
+remain open. Alias chains, recursive signatures, aggregate results, raw method
+parameters, and arbitrary computed callbacks also remain open. A named raw
+callback file object and direct free-function parameter now
 retain the parsed result, parameters, record identities, prototype state, and
 variadic boundary. The private pool accepts 32 distinct raw signatures and
 rejects the next one without leaking state. Direct structure or array results
@@ -597,20 +604,20 @@ code-only AOT image still emits one program header with code at offset `0x80`.
 ADR 0319 records the explicit address boundary, ADR 0321 records
 typedef-backed callback fields, ADR 0324 records grouped runtime addresses,
 ADR 0325 records raw fields and direct field calls, and ADR 0328 records
-typedef-backed callback field arrays. The focused ABI suite passes 289 tests.
-The four-vCPU raw
-callback QEMU smoke passes with
-`[feature14-callback-raw] PASS initialized=1 parameter=1 cleared=1 reassigned=1 calls=3`.
-Its 32,981-byte log has SHA-256
-`502152c8ae22fdb6b4a32159276de58c9368fa5c3a47a1803c2e0ca1da4873f7`.
-The full GUI module passes all 126 tests in 1.368 seconds. A focused four-vCPU
-QEMU boot reaches
-`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`.
-It then prints `PASS feature14_simd` and completes the in-OS CupidC JIT run.
-The 33,347-byte log has SHA-256
-`14511351d544fe8c4d4293b64fbaa7de9a3fdcaeb69f2ac0553e9d0a71d29696`.
-The standalone CupidC seeds do not contain this private parser. No normal AOT
-source requires the forms yet. The
+typedef-backed callback field arrays. ADR 0330 records data-backed raw callback
+arrays, driven by the unchanged callback table in `kernel/doom/src/f_wipe.cc`.
+At the ADR 0328 checkpoint, the focused ABI suite passed 289 tests.
+The source-current suite passes 301 tests in 5.505 seconds, and the full GUI
+module passes all 126 tests in 0.333 seconds. A private four-vCPU frontier boot
+records all four CPUs online, the raw-array marker
+`[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,
+the overall feature pass, and clean JIT completion. Its 151,289-byte log has
+SHA-256
+`d414c1db732fa3593eb938caf04b81682a1dcc693a7060b57be5e7c00984c621`.
+The standalone CupidC seeds do not contain this private parser. Production
+ownership does not move with this change. Checked-seed hosted CupidC still
+produces the active `f_wipe.cc` object, and the checked seeds, object format,
+and host dependency set are unchanged. The
 684.260-second poisoned-host build and 64.601-second private smoke are preceding
 checkpoint history. The integrated build first reached the exact-size gate with
 a 9,345,464-byte pass-one ELF, a 9,472,440-byte final ELF, and a 9,251,100-byte
@@ -650,12 +657,14 @@ and host requirements remain as listed elsewhere in this matrix. Direct
 explicit function addresses use the same typed initialization and patch path.
 Typedef-backed and raw structure and class callback fields retain the signature
 through checked stores, named copies, and direct postfix calls. Conditional
-initializers, raw callback-array declarators, block-static objects, alias chains, recursive
-signatures, aggregate results, raw method parameters,
+initializers, alias chains, recursive signatures, aggregate results, raw method parameters,
 and arbitrary computed callbacks remain open. ADR 0313 records the
 fixed-address initialized-data rule, ADR 0315 records raw file objects and
 free-function parameters, ADR 0319 records direct explicit function
-addresses, and ADR 0321 records typedef-backed callback fields.
+addresses, and ADR 0321 records typedef-backed callback fields. ADR 0330 narrows
+that list by adding data-backed one-dimensional raw callback arrays and
+block-static raw callback scalars. Automatic, parameter, record or class field,
+and multidimensional raw callback arrays remain unsupported.
 
 Private CupidC now converts decimal `float` and `double` tokens with a fixed
 1536-bit integer workspace. It rounds the exact decimal ratio once to the
