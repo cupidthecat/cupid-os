@@ -181,9 +181,9 @@ class X86SourceManifestTests(unittest.TestCase):
         for record in records:
             selected.setdefault((record[2], signature(record)), record)
 
-        self.assertEqual(len(paths), 29)
-        self.assertEqual(len({record[0] for record in records}), 27)
-        self.assertEqual(len(records), 1282)
+        self.assertEqual(len(paths), 31)
+        self.assertEqual(len({record[0] for record in records}), 29)
+        self.assertEqual(len(records), 1414)
         self.assertEqual(len({record[4] for record in records}), 91)
         self.assertEqual(len({key[1] for key in selected}), 166)
         self.assertEqual(len(selected), 189)

@@ -1,8 +1,8 @@
 /*
  * Active-source x86 oracle manifest.
  *
- * The 189 rows represent every mode-specific signature across 29 active
- * assembly inputs. Of those, 27 contain instructions, with 1,282 statements
+ * The 189 rows represent every mode-specific signature across 31 active
+ * assembly inputs. Of those, 29 contain instructions, with 1,414 statements
  * and 166 mode-independent signatures. Signatures retain semantic prefixes,
  * operand classes, explicit memory/far widths, address shape, and explicit a32.
  * NASM 2.16.01 assembled each representative in isolation; symbolic values
@@ -81,7 +81,7 @@ X86_ACTIVE_CASE("asm:demos/math.asm:79:bits32:and(r32,imm)", CTOOL_X86_MODE_32, 
 X86_ACTIVE_CASE("asm:demos/parity_priv.asm:51:bits32:bswap(r32)", CTOOL_X86_MODE_32, CTOOL_X86_MN_BSWAP, 2u, {0x0fu, 0xc8u})
 X86_ACTIVE_CASE("asm:demos/syscall_vfs_extended_demo.asm:21:bits32:call(r32)", CTOOL_X86_MODE_32, CTOOL_X86_MN_CALL, 2u, {0xffu, 0xd0u})
 X86_ACTIVE_CASE("asm:demos/asm_compat_reserve.asm:21:bits32:call(ref)", CTOOL_X86_MODE_32, CTOOL_X86_MN_CALL, 5u, {0xe8u, 0xfbu, 0xffu, 0xffu, 0xffu})
-X86_ACTIVE_CASE("asm:toolchain/hosted/i386-windows/start.asm:18:bits32:call(m32:abs)", CTOOL_X86_MODE_32, CTOOL_X86_MN_CALL, 6u, {0xffu, 0x15u, 0x34u, 0x12u, 0x00u, 0x00u})
+X86_ACTIVE_CASE("asm:toolchain/hosted/i386-windows/publication_start.asm:19:bits32:call(m32:abs)", CTOOL_X86_MODE_32, CTOOL_X86_MN_CALL, 6u, {0xffu, 0x15u, 0x34u, 0x12u, 0x00u, 0x00u})
 X86_ACTIVE_CASE("asm:demos/jcc_aliases.asm:18:bits32:clc()", CTOOL_X86_MODE_32, CTOOL_X86_MN_CLC, 1u, {0xf8u})
 X86_ACTIVE_CASE("asm:kernel/core/context_switch.asm:107:bits32:cld()", CTOOL_X86_MODE_32, CTOOL_X86_MN_CLD, 1u, {0xfcu})
 X86_ACTIVE_CASE("asm:kernel/core/context_switch.asm:95:bits32:cli()", CTOOL_X86_MODE_32, CTOOL_X86_MN_CLI, 1u, {0xfau})
@@ -169,7 +169,7 @@ X86_ACTIVE_CASE("asm:kernel/cpu/isr.asm:84:bits32:pop(seg)", CTOOL_X86_MODE_32, 
 X86_ACTIVE_CASE("asm:kernel/cpu/isr.asm:87:bits32:popa()", CTOOL_X86_MODE_32, CTOOL_X86_MN_POPA, 1u, {0x61u})
 X86_ACTIVE_CASE("asm:kernel/core/context_switch.asm:106:bits32:popfd()", CTOOL_X86_MODE_32, CTOOL_X86_MN_POPF, 1u, {0x9du})
 X86_ACTIVE_CASE("asm:demos/fs_syscalls.asm:75:bits32:push(imm)", CTOOL_X86_MODE_32, CTOOL_X86_MN_PUSH, 2u, {0x6au, 0x3fu})
-X86_ACTIVE_CASE("asm:toolchain/hosted/i386-windows/start.asm:30:bits32:push(m32:base-disp)", CTOOL_X86_MODE_32, CTOOL_X86_MN_PUSH, 3u, {0xffu, 0x75u, 0x0cu})
+X86_ACTIVE_CASE("asm:toolchain/hosted/i386-windows/publication_start.asm:18:bits32:push(m32:base-disp)", CTOOL_X86_MODE_32, CTOOL_X86_MN_PUSH, 3u, {0xffu, 0x75u, 0x0cu})
 X86_ACTIVE_CASE("asm:demos/asm_compat_reserve.asm:29:bits32:push(r32)", CTOOL_X86_MODE_32, CTOOL_X86_MN_PUSH, 1u, {0x50u})
 X86_ACTIVE_CASE("asm:demos/asm_compat_reserve.asm:20:bits32:push(ref)", CTOOL_X86_MODE_32, CTOOL_X86_MN_PUSH, 5u, {0x68u, 0x34u, 0x12u, 0x00u, 0x00u})
 X86_ACTIVE_CASE("asm:kernel/cpu/isr.asm:51:bits32:push(seg)", CTOOL_X86_MODE_32, CTOOL_X86_MN_PUSH, 1u, {0x1eu})

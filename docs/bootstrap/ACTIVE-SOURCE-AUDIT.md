@@ -31,10 +31,10 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1470 |
 | `cupid_c_browser_fragment` | 22 | 15958 |
-| `cupid_c_program` | 108 | 20387 |
+| `cupid_c_program` | 108 | 20495 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 7141 |
-| `cupidc` | 8 | 19149 |
+| `cupidc` | 8 | 19652 |
 | `cupiddis` | 5 | 4629 |
 | `doom_port` | 7 | 3986 |
 | `driver` | 22 | 3861 |
@@ -99,16 +99,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 926 |
 | `asm.relocation` | 1 | 34 |
-| `c.control` | 12 | 86858 |
+| `c.control` | 12 | 87040 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3942 |
-| `c.expression` | 2 | 6412 |
+| `c.declarator` | 4 | 3944 |
+| `c.expression` | 2 | 6419 |
 | `c.extension` | 19 | 428 |
 | `c.initializer` | 1 | 690 |
-| `c.preprocessor` | 18 | 7125 |
-| `c.qualifier` | 2 | 16555 |
-| `c.storage` | 4 | 10646 |
-| `c.type` | 15 | 55008 |
+| `c.preprocessor` | 18 | 7131 |
+| `c.qualifier` | 2 | 16560 |
+| `c.storage` | 4 | 10659 |
+| `c.type` | 15 | 55126 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -211,7 +211,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | --- | --- | --- |
 | `assembly_source_ownership` | `pass` | 31 active assembly sources; 31 CupidASM-owned; 4 Toolchain startup; 0 other-owned; 0 ownerless; 0 explicit host-only classifications |
 | `bootstrap_artifact_coverage` | `pass` | 429 linked objects; 436 declared artifacts; 0 missing |
-| `c_preprocessor_conditionals` | `pass` | 144 conditional expressions (135 #if, 9 #elif); 29 normalized expressions; 31 directive/expression pairs |
+| `c_preprocessor_conditionals` | `pass` | 145 conditional expressions (136 #if, 9 #elif); 30 normalized expressions; 32 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
 | `c_preprocessor_include_operands` | `pass` | 2461 C include operands (2204 quoted, 257 angle, 0 pp-token); 704 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 704 source files; max conditional depth 0 |

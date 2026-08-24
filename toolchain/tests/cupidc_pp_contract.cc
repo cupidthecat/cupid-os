@@ -142,7 +142,7 @@ static const active_row_t active_rows[] = {
 
 static const active_expected_profile_t active_expected_profiles[] = {
     {"KERNEL_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE,
-     CTOOL_FALSE, CTOOL_FALSE, 155u,
+     CTOOL_FALSE, CTOOL_FALSE, 156u,
      18u, 8u, 0u},
     {"DOOM_COMPAT_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE,
      CTOOL_TRUE, CTOOL_TRUE, 3u,
@@ -155,15 +155,15 @@ static const active_expected_profile_t active_expected_profiles[] = {
     {"FREESTANDING_I386", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_FALSE,
      CTOOL_FALSE, CTOOL_FALSE, 1u, 0u, 1u, 0u},
     {"CUPID_RUNTIME", CTOOL_C_PP_MODE_CUPID, CTOOL_FALSE, CTOOL_FALSE,
-     CTOOL_FALSE, CTOOL_FALSE, 107u, 0u, 0u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 108u, 0u, 0u, 0u},
     {"HOSTED_TOOLCHAIN_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
      CTOOL_FALSE, CTOOL_FALSE, 0u, 1u, 1u, 0u},
     {"HOSTED_KERNEL_BRIDGE_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
      CTOOL_FALSE, CTOOL_FALSE, 0u, 2u, 1u, 0u},
     {"HOSTED_I386_LINUX", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
-     CTOOL_FALSE, CTOOL_FALSE, 33u, 2u, 1u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 35u, 2u, 1u, 0u},
     {"HOSTED_I386_WINDOWS", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
-     CTOOL_FALSE, CTOOL_FALSE, 4u, 2u, 2u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 6u, 2u, 2u, 0u},
     {"HOSTED_I386_KERNEL_BRIDGE", CTOOL_C_PP_MODE_C11, CTOOL_FALSE,
      CTOOL_TRUE, CTOOL_FALSE, CTOOL_FALSE, 2u, 3u, 1u, 0u},
     {"HOSTED_I386_LINUX_GNU", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_TRUE,
@@ -3168,9 +3168,9 @@ static int run_conditional_active_cases(void) {
       probe_count++;
     }
   }
-  if ((ctool_u32)(sizeof(cases) / sizeof(cases[0])) != 27u ||
-      if_occurrences != 116u || elif_occurrences != 9u ||
-      probe_count != 29u) {
+  if ((ctool_u32)(sizeof(cases) / sizeof(cases[0])) != 29u ||
+      if_occurrences != 135u || elif_occurrences != 9u ||
+      probe_count != 31u) {
     (void)fprintf(stderr,
                   "conditional-active: checked manifest totals differ\n");
     return 1;
@@ -4193,9 +4193,9 @@ static int run_macro_active_cases(const char *host_root) {
       }
     }
   }
-  if (active_count != 187u || inline_count != 129u) {
+  if (active_count != 189u || inline_count != 129u) {
     (void)fprintf(stderr,
-                  "macro-active-cases: expected 187+129 calls, got %u+%u\n",
+                  "macro-active-cases: expected 189+129 calls, got %u+%u\n",
                   active_count, inline_count);
     ctool_job_close(job);
     return 1;
@@ -5593,7 +5593,7 @@ static int validate_active_manifest(const char *mode) {
           (ctool_u32)(sizeof(active_expected_profiles) /
                       sizeof(active_expected_profiles[0])) ||
       kind_counts[ACTIVE_ROW_PROFILE] != 12u ||
-      kind_counts[ACTIVE_ROW_CASE] != 391u ||
+      kind_counts[ACTIVE_ROW_CASE] != 397u ||
       kind_counts[ACTIVE_ROW_GENERATED_CASE] != 4u ||
       kind_counts[ACTIVE_ROW_INCLUDE_ONLY] != 22u ||
       kind_counts[ACTIVE_ROW_NON_ROOT] != 2u ||
@@ -5818,7 +5818,7 @@ static int run_one_active_case(const char *mode, const char *host_root,
 
 static int run_active_corpus(const char *mode, const char *host_root,
                              ctool_bool generated) {
-  ctool_u32 expected_count = generated == CTOOL_TRUE ? 4u : 382u;
+  ctool_u32 expected_count = generated == CTOOL_TRUE ? 4u : 397u;
   ctool_u32 executed_count = 0u;
   ctool_u32 row_index;
 
