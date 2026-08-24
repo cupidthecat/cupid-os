@@ -30350,6 +30350,10 @@ frontier also reflects its relocatable-target and static-ELF validation work:
 the surrounding additions moved that binding to index 135, initializer 78,
 and source line 1301.
 
+The active expression inventory also records 6,377 `sizeof` uses across 174
+files. This keeps the checked build-graph test aligned with the regenerated
+source audit without changing the accepted language surface.
+
 `make bootstrap-audit` regenerated the JSON, Markdown summary, and active
 preprocessor cases through the supported path. The preprocessor suite passes
 all 39 tests, the frontend suite passes all 97 tests, and the x86 source
