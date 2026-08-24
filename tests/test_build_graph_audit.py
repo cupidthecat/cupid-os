@@ -2483,11 +2483,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 135)
+            self.assertEqual(contract["if_occurrences"], 136)
             self.assertEqual(contract["elif_occurrences"], 9)
-            self.assertEqual(contract["expression_occurrences"], 144)
-            self.assertEqual(contract["unique_expressions"], 29)
-            self.assertEqual(contract["directive_expression_pairs"], 31)
+            self.assertEqual(contract["expression_occurrences"], 145)
+            self.assertEqual(contract["unique_expressions"], 30)
+            self.assertEqual(contract["directive_expression_pairs"], 32)
             self.assertTrue(
                 all(
                     not item["path"].casefold().startswith("templeos/")
@@ -2523,6 +2523,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "! defined ( __STDC_VERSION__ ) || "
                     "( __STDC_VERSION__ < 202311L )": 1,
                     "! defined ( __cplusplus )": 1,
+                    "( CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE + "
+                    "CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES ) > 128": 0,
                     "( __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ )": 0,
                     "( __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ )": 1,
                     "0": 0,

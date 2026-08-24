@@ -30331,7 +30331,7 @@ The checked audit now matches the active source added by the recent Windows
 publication, linker, disassembler, and compiler work. The active C manifest
 contains 397 roots: 156 in `KERNEL`, 108 in `CUPID_RUNTIME`, 35 in
 `HOSTED_I386_LINUX`, and 6 in `HOSTED_I386_WINDOWS`. Its conditional contract
-records 29 rows, 135 `#if` directives, 9 `#elif` directives, and 31 probes.
+records 30 rows, 136 `#if` directives, 9 `#elif` directives, and 32 probes.
 The shared x86 manifest contributes 189 macros alongside 129 inline-assembly
 macros.
 
