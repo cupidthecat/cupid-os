@@ -39,6 +39,18 @@ _Avoid_: decoded instruction boundary, assumed local target
 The narrow allocator, whole-file, and text-output capabilities that connect the shared Cupid Toolchain core to a hosted runtime or the Cupid OS kernel.
 _Avoid_: tool backend, giant platform vtable
 
+**Guarded build transaction**:
+A hosted CupidBuild operation that freezes its source and checked tool cohort,
+uses a private candidate, validates and inspects that candidate, rechecks live
+inputs and publication identities, retains its owner-lock snapshot, rechecks
+that lock at the final publication boundaries, serializes cooperating
+publishers, and
+replaces the destination through a pinned parent only after every check
+passes. The source-head CupidASM object operation implements this boundary on
+Linux and Windows. It is not a production owner until a promoted checked seed
+contains CupidBuild and a normal Make recipe invokes it.
+_Avoid_: command wrapper, unchecked tool launch, production ownership from source presence
+
 **External executable arena**:
 The permanently reserved identity-mapped range `[0x01C00000, 0x01E00000)` leased exclusively to one ordinary fixed-address ELF process at a time.
 _Avoid_: dynamically allocated user memory, CupidC region, CupidASM region
@@ -478,8 +490,8 @@ four OS outputs, five Linux seed images, and five Windows seed images.
 The source-current three-root graph records 452 transforms, including 443
 under root `all`. CupidC participates in 250, CupidObj in 192, CupidASM in nine,
 CupidLD in nine, and CupidDis in nine. Four transforms run Cupid-built semantic
-contracts. Its assembly ownership contract covers all 31 active assembly
-sources, including four Toolchain startup sources, with no ownerless input.
+contracts. Its assembly ownership contract covers all 32 active assembly
+sources, including five Toolchain startup sources, with no ownerless input.
 Python participates in all 452 for coordination and safety, but no transform is
 Python-only. The Toolchain publisher now gives a checked strict
 C11 author its artifact and source facts plus 58 raw stage pairs through
@@ -624,7 +636,7 @@ _Avoid_: every external program, hosted GCC examples, user-mode isolation
 
 **Active assembly ownership**:
 The generated contract covering every active assembly input. The current graph
-contains 31 assembly sources, all owned by CupidASM. Four enter through the
+contains 32 assembly sources, all owned by CupidASM. Five enter through the
 Toolchain fixed-point startup cohort, five are production image inputs, and 22
 are demos or includes. An ownerless source fails unless it has a reviewed
 `host_fixture` or `host_oracle` classification with a reason. ADR 0327 records

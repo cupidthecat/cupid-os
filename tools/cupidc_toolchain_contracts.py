@@ -117,6 +117,7 @@ BOOTSTRAP_OBJECT_NAMES = (
 )
 WINDOWS_RUNTIME_INPUTS = (
     "toolchain/hosted/i386-linux/include/windows.h",
+    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",

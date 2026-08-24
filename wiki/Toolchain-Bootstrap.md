@@ -1,5 +1,21 @@
 # Toolchain Bootstrap
 
+CupidBuild is now present at source head. Its first hosted command performs a
+guarded CupidASM relocatable-object transaction: it freezes the source and
+checked seed, runs private checked tools, validates and inspects the candidate,
+rechecks every live boundary, and publishes through pinned Linux or Windows
+directories. It records the owner lock created during acquisition, rejects a
+replacement found at either final boundary, and quarantines the lock path so
+cleanup can restore a successor instead of deleting it. The check and object
+rename remain separate operations; the protocol serializes cooperating
+CupidBuild publishers. The initial checked standalone forms built and ran.
+The lock follow-up passes native Windows and WSL behavior plus the checked
+Linux object contract; fresh checked standalone execution remains open. The
+current seeds
+still contain the original five tools, and normal object publication still
+uses Python, so this is the implementation checkpoint before a six-tool
+promotion rather than a production cutover. ADR 0339 records the boundary.
+
 Cupid OS carries a checked static i386 Linux seed for its five hosted tools:
 CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The seed starts a complete
 toolchain rebuild without GCC, Clang, NASM, a host linker, `nm`, or `objcopy`.
@@ -1496,14 +1512,14 @@ frozen captures. It rechecks the complete live seed cohort after each command.
 Make passes wildcard-discovered output sources through `$(sort ...)`
 before generation or link. Windows and Linux therefore consume the same root
 order across host locales.
-The stable audit counts record 739 active language inputs, 452 transforms, 255
+The stable audit counts record 745 active language inputs, 452 transforms, 255
 features, and 25 unreachable inputs across the three roots. It includes 443
 transforms under root `all`. Four transforms use Cupid-built semantic
 contracts, and no transform is Python-only. Python participates in all 452 as
 orchestrator.
 
-The assembly ownership contract covers all 31 active assembly sources. All are
-owned by CupidASM, including four Toolchain startup inputs. An ownerless source
+The assembly ownership contract covers all 32 active assembly sources. All are
+owned by CupidASM, including five Toolchain startup inputs. An ownerless source
 fails unless it has a reviewed host-only classification. ADR 0327 records the
 complete ownership rule.
 
@@ -2143,7 +2159,7 @@ The [current production checkpoint](#current-production-checkpoint) records the
 latest schema v3 publication, settled audit, definitive poisoned build, final
 artifact identities, and strong full private frontier smoke. Earlier build and
 guest results on this page remain dated checkpoints.
-The stable audit counts are 739 active language inputs, 452 transforms, 255
+The stable audit counts are 745 active language inputs, 452 transforms, 255
 feature requirements, six CupidDis production checks, and no active
 CupidC-owned `.c` source.
 

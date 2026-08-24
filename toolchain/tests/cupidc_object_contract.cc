@@ -33837,6 +33837,7 @@ static int run_self_host_link_tools(const char *host_root,
                                     const char *cupidld_output,
                                     const char *cupidobj_output,
                                     const char *cupidc_output,
+                                    const char *cupidbuild_output,
                                     const char *runtime_output) {
   static const host_tool_source_case_t source_cases[] = {
       {"/toolchain/hosted/i386-linux/start.asm",
@@ -33884,6 +33885,12 @@ static int run_self_host_link_tools(const char *host_root,
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/cupidc_main.cc", "/toolchain/cupidc_main.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild.cc", "/toolchain/cupidbuild.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_host.cc", "/toolchain/cupidbuild_host.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/cupidbuild_main.cc", "/toolchain/cupidbuild_main.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/hosted/i386-windows/runtime.cc",
        "/toolchain/hosted/i386-windows/runtime.o", HOST_TOOL_SOURCE_C,
        CTOOL_TRUE},
@@ -33900,6 +33907,8 @@ static int run_self_host_link_tools(const char *host_root,
       0u, 11u, 10u, 3u, 2u, 4u, 1u};
   static const ctool_u32 cupidc_objects[] = {
       0u, 20u, 19u, 18u, 17u, 16u, 15u, 3u, 2u, 4u, 5u, 1u};
+  static const ctool_u32 cupidbuild_objects[] = {
+      0u, 23u, 21u, 22u, 3u, 2u, 4u, 1u};
   static const ctool_u32 runtime_objects[] = {0u, 14u, 1u};
   ctool_host_adapter_t adapter;
   ctool_limits_t limits = ctool_default_limits();
@@ -34056,6 +34065,13 @@ static int run_self_host_link_tools(const char *host_root,
                       sizeof(cupidc_objects[0])),
           "/hosted/cupid-built-cupidc", "ctool_c_emit_object",
           cupidc_output) == 0 ||
+      link_host_tool(
+          job, limits.output_bytes, source_cases, compiled_objects,
+          cupidbuild_objects,
+          (ctool_u32)(sizeof(cupidbuild_objects) /
+                      sizeof(cupidbuild_objects[0])),
+          "/hosted/cupid-built-cupidbuild", "cupidbuild_assemble_object",
+          cupidbuild_output) == 0 ||
       link_host_tool(
           job, limits.output_bytes, source_cases, compiled_objects,
           runtime_objects,
@@ -52480,9 +52496,9 @@ int main(int argc, char **argv) {
   if (argc == 4 && strcmp(argv[1], "self-host-link-ctool-host") == 0) {
     return run_self_host_link_ctool_host(argv[2], argv[3]);
   }
-  if (argc == 9 && strcmp(argv[1], "self-host-link-tools") == 0) {
+  if (argc == 10 && strcmp(argv[1], "self-host-link-tools") == 0) {
     return run_self_host_link_tools(argv[2], argv[3], argv[4], argv[5],
-                                    argv[6], argv[7], argv[8]);
+                                    argv[6], argv[7], argv[8], argv[9]);
   }
   (void)fprintf(stderr,
                 "usage: cupidc-object-contract "
@@ -52542,6 +52558,6 @@ int main(int argc, char **argv) {
                 "self-host-link-ctool-host HOST_ROOT OUTPUT|"
                 "self-host-link-tools HOST_ROOT CUPIDASM_OUTPUT "
                 "CUPIDDIS_OUTPUT CUPIDLD_OUTPUT CUPIDOBJ_OUTPUT "
-                "CUPIDC_OUTPUT RUNTIME_OUTPUT\n");
+                "CUPIDC_OUTPUT CUPIDBUILD_OUTPUT RUNTIME_OUTPUT\n");
   return 2;
 }

@@ -1,5 +1,13 @@
 # CupidC Compiler
 
+The initial checked proof accepted the Linux and Windows source profiles for
+the first CupidBuild command, its policy module, and its hosted transaction
+module. Those standalone ELF32 and PE32 tools ran the guarded ISR object path.
+The lock follow-up passes the checked Linux object contract and native host
+behavior; fresh checked standalone execution remains open. CupidBuild is not
+part of the promoted seed, so this proves source buildability rather than
+self-hosting or production ownership. ADR 0339 records that distinction.
+
 CupidC is a HolyC-inspired C compiler built into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code. Programs run directly in ring 0 without a virtual machine or interpreter.
 
 ---
@@ -1651,7 +1659,7 @@ SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. The stable
-audit counts cover 739 active language inputs, 452 transforms, 255 features, and
+audit counts cover 745 active language inputs, 452 transforms, 255 features, and
 25 unreachable inputs. Python participates in all 452 transforms as orchestrator.
 CupidC participates in 250, CupidObj in 192, CupidASM in nine, CupidLD in nine,
 and CupidDis in nine. Four transforms use Cupid-built semantic contracts, and no

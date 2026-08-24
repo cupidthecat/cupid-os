@@ -13,6 +13,18 @@ Verified against source on: 2026-08-24
 >style linkhover #0B3AA8
 >rule
 
+>h2 CupidBuild Object Transaction
+>tree open CupidBuild Object Transaction
+The source-head CupidBuild command can assemble a private CupidASM ET_REL
+object and require strict CupidDis decode and local-target checks before
+publication. Its Linux and Windows hosted layers reject links, hardlink
+aliases, drift, competing publishers, and changed output parents. A replaced
+owner lock found at a final boundary blocks publication. Cleanup quarantines
+the path and restores a successor instead of deleting it. Every failure
+preserves the previous object. Static code anchors remain a linked
+ET_EXEC rule and are not applied to relocatable objects.
+>endtree
+
 >h2 Overview
 >tree open Overview
 CupidASM is CupidOS's shared freestanding 16/32-bit x86 assembler. The same
@@ -32,8 +44,8 @@ Source architecture:
 
 The normal image runs CupidASM from a checked five-tool seed. It owns five
 production assembly transforms without first building a native hosted
-command. The complete ownership audit assigns all 31 active assembly sources
-to CupidASM, including four Toolchain startup inputs, and rejects ownerless
+command. The complete ownership audit assigns all 32 active assembly sources
+to CupidASM, including five Toolchain startup inputs, and rejects ownerless
 additions. ADR 0327 records that rule. The same checked trust unit supplies CupidObj for 192 transforms,
 CupidLD for three root links, and CupidDis for six root inspections. Three
 additional CupidDis inspections guard the user ELFs. Python verifies

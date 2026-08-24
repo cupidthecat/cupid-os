@@ -9,6 +9,7 @@ EXE := .exe
 # LLD's default PE/COFF timestamp changes on every link. Keep /Brepro
 # link-only: Clang rejects an unused -Wl option on compile steps under -Werror.
 HOST_REPRO_LDFLAGS ?= -Wl,/Brepro
+CUPIDBUILD_HOST_LIBS ?= -lntdll
 TOOLCHAIN_MANIFEST_EXECUTION_MANIFEST ?= \
 	bootstrap/seeds/i386-windows/manifest.json
 TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX := exe
@@ -19,6 +20,7 @@ CC := gcc
 endif
 EXE :=
 HOST_REPRO_LDFLAGS ?=
+CUPIDBUILD_HOST_LIBS ?=
 TOOLCHAIN_MANIFEST_EXECUTION_MANIFEST ?= \
 	bootstrap/seeds/i386-linux/manifest.json
 TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX := elf
@@ -162,6 +164,7 @@ CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.cc \
                               tests/hosted_i386_runtime_contract.cc
 CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc \
                                       hosted/i386-windows/publication_start.asm \
+                                      hosted/i386-windows/cupidbuild_start.asm \
                                       hosted/i386-windows/runtime.cc \
                                       hosted/i386-windows/start.asm \
                                       hosted/i386-windows/tool_start.asm \
@@ -169,6 +172,9 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       tests/hosted_i386_windows_runtime_contract.cc
 CUPIDC_HOSTED_I386_CLOSURE := ctool.cc ctool.h ctool_host.cc ctool_host.h \
                               elf32.cc elf32.h x86.cc x86.h \
+                              cupidbuild.cc cupidbuild.h \
+                              cupidbuild_host.cc cupidbuild_host.h \
+                              cupidbuild_main.cc \
                               cupidc_pp.cc cupidc_pp.h \
                               cupidc_type.cc cupidc_type.h \
                               cupidc_frontend.cc cupidc_frontend.h \
@@ -200,7 +206,8 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	$(CUPIDC_HOSTED_I386_HEADERS) \
 	$(CUPIDC_HOSTED_I386_WINDOWS_RUNTIME) \
 	$(USER_SYSCALL_ABI_INPUTS) \
-	ctool.h ctool_host.h cupidasm.h cupidc_emit.h \
+	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h \
+	cupidc_emit.h \
 	cupidc_frontend.h cupidc_ir.h cupidc_pp.h cupidc_type.h \
 	cupiddis.h cupidld.h cupidobj.h elf32.h x86.h \
 	x86.cc \
@@ -236,6 +243,7 @@ CUPIDDIS := $(BUILD_DIR)/cupiddis$(EXE)
 CUPIDASM := $(BUILD_DIR)/cupidasm$(EXE)
 CUPIDOBJ := $(BUILD_DIR)/cupidobj$(EXE)
 CUPIDLD := $(BUILD_DIR)/cupidld$(EXE)
+CUPIDBUILD := $(BUILD_DIR)/cupidbuild$(EXE)
 CORE_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                 $(BUILD_DIR)/core_contract.o
 CUPIDC_PP_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
@@ -326,6 +334,10 @@ CUPIDLD_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
 CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                    $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidld.o \
                    $(BUILD_DIR)/cupidld_main.o
+CUPIDBUILD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
+                      $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidbuild_host.o \
+                      $(BUILD_DIR)/cupidbuild.o \
+                      $(BUILD_DIR)/cupidbuild_main.o
 NATIVE_ORACLE_ARTIFACTS := $(NATIVE_CONTRACT) \
 	$(NATIVE_CUPIDC_PP_CONTRACT) $(NATIVE_CUPIDC_TYPE_CONTRACT) \
 	$(NATIVE_CUPIDC_FRONTEND_CONTRACT) $(NATIVE_CUPIDC_IR_CONTRACT) \
@@ -336,7 +348,7 @@ NATIVE_ORACLE_ARTIFACTS := $(NATIVE_CONTRACT) \
 	$(NATIVE_CUPIDASM_CONTRACT) $(NATIVE_CUPIDASM_DEMOS_CONTRACT) \
 	$(NATIVE_CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) \
 	$(NATIVE_CUPIDOBJ_CONTRACT) $(CUPIDOBJ) \
-	$(NATIVE_CUPIDLD_CONTRACT) $(CUPIDLD)
+	$(NATIVE_CUPIDLD_CONTRACT) $(CUPIDLD) $(CUPIDBUILD)
 BOOTSTRAP_ARTIFACTS := $(CUPIDC_CONTRACT_ARTIFACTS) \
 	$(CUPIDC_HOSTED_I386_ARTIFACTS)
 CFLAGS ?= -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow \
@@ -415,6 +427,16 @@ $(BUILD_DIR)/cupidld.o: cupidld.cc cupidld.h elf32.h ctool.h | $(BUILD_DIR)
 $(BUILD_DIR)/cupidld_main.o: cupidld_main.cc cupidld.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
+$(BUILD_DIR)/cupidbuild_host.o: cupidbuild_host.cc cupidbuild_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild.o: cupidbuild.cc cupidbuild.h cupidbuild_host.h \
+                          ctool.h ctool_host.h elf32.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild_main.o: cupidbuild_main.cc cupidbuild.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
 $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.cc ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -x c -c $< -o $@
 
@@ -449,6 +471,8 @@ $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.cc \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.cc \
+    cupidbuild.cc cupidbuild.h cupidbuild_host.cc cupidbuild_host.h \
+    cupidbuild_main.cc \
     tests/cupidc_kernel_simd_fixture.h \
     tests/cupidc_static_long_double_arithmetic_fixture.h \
     tests/cupidc_static_long_double_control_fixture.h \
@@ -570,6 +594,10 @@ $(NATIVE_CUPIDLD_CONTRACT): $(CUPIDLD_CONTRACT_OBJECTS)
 
 $(CUPIDLD): $(CUPIDLD_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDLD_OBJECTS) -o $@
+
+$(CUPIDBUILD): $(CUPIDBUILD_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDBUILD_OBJECTS) \
+		$(CUPIDBUILD_HOST_LIBS) -o $@
 
 test: $(CONTRACT_MANIFEST) \
       $(X86_CONTRACT_SUPPORT) \

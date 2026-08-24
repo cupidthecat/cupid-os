@@ -162,6 +162,8 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/ctool.h",
     "toolchain/ctool_host.h",
     "toolchain/cupidasm.h",
+    "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_host.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
     "toolchain/cupidc_ir.h",
@@ -180,6 +182,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-linux/include/string.h",
     "toolchain/hosted/i386-linux/include/unistd.h",
     "toolchain/hosted/i386-linux/include/windows.h",
+    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -231,6 +234,11 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/cupidasm.cc",
     "toolchain/cupidasm.h",
     "toolchain/cupidasm_main.cc",
+    "toolchain/cupidbuild.cc",
+    "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_host.cc",
+    "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_main.cc",
     "toolchain/cupidc_emit.cc",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.cc",
@@ -266,6 +274,7 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/hosted/i386-linux/start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
+    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
@@ -391,6 +400,8 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/ctool.h",
     "toolchain/ctool_host.h",
     "toolchain/cupidasm.h",
+    "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_host.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
     "toolchain/cupidc_ir.h",
@@ -409,6 +420,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-linux/include/string.h",
     "toolchain/hosted/i386-linux/include/unistd.h",
     "toolchain/hosted/i386-linux/include/windows.h",
+    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -460,6 +472,11 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/cupidasm.cc",
     "toolchain/cupidasm.h",
     "toolchain/cupidasm_main.cc",
+    "toolchain/cupidbuild.cc",
+    "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_host.cc",
+    "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_main.cc",
     "toolchain/cupidc_emit.cc",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.cc",
@@ -495,6 +512,7 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/hosted/i386-linux/start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
+    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
@@ -848,14 +866,17 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 35,
-    "HOSTED_I386_WINDOWS": 6,
+    "HOSTED_I386_LINUX": 38,
+    "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
 }
 _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/ctool.cc",
     "/toolchain/ctool_host.cc",
+    "/toolchain/cupidbuild.cc",
+    "/toolchain/cupidbuild_host.cc",
+    "/toolchain/cupidbuild_main.cc",
     "/toolchain/cupidasm.cc",
     "/toolchain/cupidasm_main.cc",
     "/toolchain/cupidc_emit.cc",
@@ -881,6 +902,9 @@ _C_PP_HOSTED_I386_GNU_CASES = (
 )
 _C_PP_HOSTED_I386_WINDOWS_CASES = (
     "/toolchain/ctool_host.cc",
+    "/toolchain/cupidbuild.cc",
+    "/toolchain/cupidbuild_host.cc",
+    "/toolchain/cupidbuild_main.cc",
     "/toolchain/cupidasm_main.cc",
     "/toolchain/cupidc_main.cc",
     "/toolchain/cupidld_main.cc",
@@ -7211,7 +7235,7 @@ def _cupid_toolchain_fixed_point_contract(
                 windows_publication_header_path,
             )
         )
-        == "dfc9c2f28b18c3bf3176271557f5cce3f24373733d01ff71b4a5b3487e342be0"
+        == "813ffb624fc3ed5ff84bd837895c3a04886c5f80a10f403ef2510b0df1d1c423"
         and token_digest(
             c_tokens(
                 active_windows_publication_runtime,
@@ -11824,6 +11848,7 @@ def _cupid_toolchain_fixed_point_contract(
         else []
     )
     required_windows_source_inputs = (
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/runtime.cc",
@@ -12348,6 +12373,7 @@ return tuple(
         "windows_failure_behavior_cases": 9,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
+            "cupid.cupidbuild_guarded_object_transaction",
             "cupiddis.elf32_code_anchors",
             "cupidld.pe32_fixed_image",
             "cupidld.pe32_imports",
@@ -12589,6 +12615,9 @@ def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
 def _c_preprocessor_deferred_reason(path: str) -> str:
     external_header_units = {
         "/toolchain/ctool_host.cc",
+        "/toolchain/cupidbuild.cc",
+        "/toolchain/cupidbuild_host.cc",
+        "/toolchain/cupidbuild_main.cc",
         "/toolchain/cupidasm_main.cc",
         "/toolchain/cupiddis_main.cc",
         "/toolchain/cupidc_main.cc",

@@ -510,6 +510,9 @@ def _source_input_paths(
         / "toolchain/hosted/i386-windows/publication_start.asm"
     )
     paths.append(
+        source_root / "toolchain/hosted/i386-windows/cupidbuild_start.asm"
+    )
+    paths.append(
         source_root / "toolchain/tests/hosted_i386_windows_contract.cc"
     )
     paths.append(

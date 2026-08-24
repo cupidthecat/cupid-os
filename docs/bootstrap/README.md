@@ -43,6 +43,21 @@ signatures. ADR 0340 records source-resolved raw control edges.
 
 ## 2026-08-24 source-current checkpoint
 
+CupidBuild now exists at source head as a CupidC-buildable hosted command. Its
+first operation owns the guarded mechanics for one CupidASM relocatable-object
+publication: complete seed and source freezing, private tool execution,
+structural `ET_REL` validation, strict CupidDis inspection, live-boundary
+rechecks, serialization, rollback, cleanup, and parent-relative replacement
+on Linux and Windows. Lock acquisition records the exact owner file. A
+replacement present at either final boundary blocks publication, and cleanup
+quarantines the path before deciding whether to delete or restore it.
+The initial checked ELF32 and PE32 builds both published the real ISR source.
+The lock follow-up passes the checked Linux object contract and native Windows
+and WSL behavior cases; fresh checked standalone execution remains open. This
+is not a seed or Make cutover. The promoted
+cohorts still contain five tools, and both normal object recipes still enter
+the Python transaction. ADR 0339 records the split.
+
 Checked CupidDis now validates unrelocated direct relative targets in static
 ELF32 relocatable objects. It gives each executable `PROGBITS` section its own
 instruction-start map, excludes relocated operand fields, and reports
@@ -227,7 +242,7 @@ installed packages. The direct module passes 40 tests in 54.623 seconds, the
 publisher passes 64 tests in 12.144 seconds, and the pinned verifier runner
 executes 25 tests in 32.773 seconds with three POSIX-only skips on Windows. The
 direct suite includes a checked stage-four build and run of the author. The
-source graph retains 739
+source graph retains 745
 active inputs, 452 transforms,
 255 feature requirements, and 25 accounted unreachable files. Participation
 is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and four
@@ -2549,12 +2564,12 @@ The preprocessing module owns translation-phase tokenization, ordered
 object, function, and variadic macros, C11 conditionals and predefined macros,
 `#line` locations, direct and macro-expanded includes, forced inputs,
 guarded traversal, canonical once identity, pack metadata, and typed Cupid
-`#exe` markers. Checked manifests classify all 2,461 include operands as
-2,204 direct quoted plus 257 direct angle forms with zero macro operands
-across 704 active C-family inputs. The generated manifest drives 397 tracked
+`#exe` markers. Checked manifests classify all 2,487 include operands as
+2,211 direct quoted plus 276 direct angle forms with zero macro operands
+across 709 active C-family inputs. The generated manifest drives 403 tracked
 profile runs under twelve profiles plus four generated kernel roots. The
 profile counts are 156 kernel, three Doom compatibility, 80 Doom tree, three
-user, 108 Cupid programs, 35 strict hosted i386 Linux, four strict hosted i386
+user, 108 Cupid programs, 38 strict hosted i386 Linux, seven strict hosted i386
 Windows tool drivers, two other strict hosted i386 Windows roots, one
 freestanding i386 Windows probe, two hosted i386 kernel
 bridge, and three GNU hosted i386 runtime roots. Both 64-bit hosted profiles
@@ -2628,15 +2643,15 @@ failures there. The checked seed parses all
 29 declarations in `simd_intrin.h` under the Cupid profile. That mode now
 maps `U0`, the signed and unsigned sized integer spellings, `Bool`, `bool`,
 `float4`, and `double2` directly into the shared type graph. C11 continues to
-treat those spellings as ordinary identifiers. The graph contains 739 active
-language inputs: 31 assembly files, 297 headers, and 411 Cupid C files. No
+treat those spellings as ordinary identifiers. The graph contains 745 active
+language inputs: 32 assembly files, 299 headers, and 414 Cupid C files. No
 ordinary C translation unit remains in the supported roots. The assembly
-ownership contract assigns all 31 active assembly sources to CupidASM,
-including four Toolchain startup inputs, and rejects any ownerless addition.
+ownership contract assigns all 32 active assembly sources to CupidASM,
+including five Toolchain startup inputs, and rejects any ownerless addition.
 ADR 0327 records this complete assembly inventory. The audit records 255
 feature IDs, 452 transforms, and 25 accounted unreachable files. The preprocessor
-inventory covers 704 files and 2,461 include occurrences, split into 2,204
-quoted and 257 angle forms. Its active roots contain 397 tracked and four
+inventory covers 709 files and 2,487 include occurrences, split into 2,211
+quoted and 276 angle forms. Its active roots contain 403 tracked and four
 generated translation units.
 
 The ADR 0302 audit remains historical. Its active-source digest is
@@ -3304,7 +3319,7 @@ Progress means transferring ownership without reducing Cupid OS behavior:
 
 The [source-current checkpoint](#2026-08-21-source-current-checkpoint) records
 the current focused results, schema v3 publication, final post-CTXT audit,
-fully poisoned OS build, and strong full private guest frontier. The audit has 739
+fully poisoned OS build, and strong full private guest frontier. The audit has 745
 active language inputs, 452
 reachable transforms, and 255 feature requirements. It records six production
 CupidDis participation points and no active CupidC-owned `.c` source.

@@ -205,6 +205,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         cls.cupid_cupidld_path = build_path / "cupid-built-cupidld.elf"
         cls.cupid_cupidobj_path = build_path / "cupid-built-cupidobj.elf"
         cls.cupid_cupidc_path = build_path / "cupid-built-cupidc.elf"
+        cls.cupid_cupidbuild_path = build_path / "cupid-built-cupidbuild.elf"
         cls.cupid_runtime_path = build_path / "cupid-built-runtime.elf"
         cls._cupid_tool_link = None
         target = f"{relative_build}/cupidc-object-contract{suffix}"
@@ -263,6 +264,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     str(cls.cupid_cupidld_path),
                     str(cls.cupid_cupidobj_path),
                     str(cls.cupid_cupidc_path),
+                    str(cls.cupid_cupidbuild_path),
                     str(cls.cupid_runtime_path),
                 ],
                 cwd=TOOLCHAIN_ROOT,
@@ -2280,6 +2282,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.cupid_cupidld_path,
             self.cupid_cupidobj_path,
             self.cupid_cupidc_path,
+            self.cupid_cupidbuild_path,
             self.cupid_runtime_path,
         ):
             image = executable.read_bytes()

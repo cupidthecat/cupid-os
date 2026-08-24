@@ -229,7 +229,7 @@ Audit ownership for author generation stops at the 20 direct build inputs. The
 70 publication and 50 bootstrap inputs are observations and do not inherit
 compiler or assembler ownership from that transform.
 
-The stable audit counts cover 739 active language inputs, 452 transforms, 255
+The stable audit counts cover 745 active language inputs, 452 transforms, 255
 features, and 25 unreachable inputs. CupidC participates in 250 transforms,
 CupidObj in 192, CupidASM in nine, CupidLD in nine, and CupidDis in nine. Four
 transforms use Cupid-built semantic contracts. Python participates in all 452

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-08-22
+Verified against source on: 2026-08-24
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -12,6 +12,15 @@ Verified against source on: 2026-08-22
 >style link #1D4ED8
 >style linkhover #0B3AA8
 >rule
+
+>h2 Hosted Bootstrap Use
+>tree open Hosted Bootstrap Use
+The first CupidBuild implementation stays within the represented hosted C
+profile. Checked CupidC builds its Linux and Windows command, policy, and
+transaction modules in the initial proof. The current checked Linux object
+contract still accepts the follow-up. This adds no new HolyC-style syntax and
+does not change the in-OS language surface.
+>endtree
 
 >h2 Purpose
 >tree open Purpose
@@ -679,7 +688,7 @@ contract passes 40 tests in 54.623 seconds, the publisher passes 64 in 12.144
 seconds, and the pinned runner passes 25 in 32.773 seconds. The host bootstrap
 log records the exact publication identity and completion evidence.
 
-Audit generation and checked reproduction pass. The audit records 739 active
+Audit generation and checked reproduction pass. The audit records 745 active
 inputs, 452 transforms, 255 feature requirements,
 and 25 accounted unreachable files. Ownership participation is CupidC 250,
 CupidObj 192, CupidASM 9, CupidLD 9, and CupidDis 9. Four transforms run

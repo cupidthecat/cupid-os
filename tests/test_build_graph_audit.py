@@ -2483,11 +2483,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 136)
+            self.assertEqual(contract["if_occurrences"], 153)
             self.assertEqual(contract["elif_occurrences"], 9)
-            self.assertEqual(contract["expression_occurrences"], 145)
-            self.assertEqual(contract["unique_expressions"], 30)
-            self.assertEqual(contract["directive_expression_pairs"], 32)
+            self.assertEqual(contract["expression_occurrences"], 162)
+            self.assertEqual(contract["unique_expressions"], 35)
+            self.assertEqual(contract["directive_expression_pairs"], 37)
             self.assertTrue(
                 all(
                     not item["path"].casefold().startswith("templeos/")
@@ -2516,6 +2516,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "! defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 1,
                     "! defined ( CUPID_RUNTIME_WINDOWS )": 1,
+                    "! defined ( _POSIX_C_SOURCE )": 1,
+                    "! defined ( _WIN32 )": 1,
                     "! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && "
                     "! defined ( __DJGPP__ )": 1,
                     "! defined ( __SIZEOF_POINTER__ ) || "
@@ -2523,6 +2525,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "! defined ( __STDC_VERSION__ ) || "
                     "( __STDC_VERSION__ < 202311L )": 1,
                     "! defined ( __cplusplus )": 1,
+                    "! defined ( CUPID_HOSTED_SIZE_T_DEFINED )": 1,
                     "( CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE + "
                     "CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES ) > 128": 0,
                     "( __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ )": 0,
@@ -2542,8 +2545,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "defined ( _WIN32 )": 0,
                     "defined ( _WIN32 ) && ! defined ( _WIN32_WCE )": 0,
                     "defined ( _WIN32 ) || defined ( __DJGPP__ )": 0,
+                    "defined ( _WIN64 )": 0,
                     "defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 0,
                     "defined ( CUPID_RUNTIME_WINDOWS )": 0,
+                    "defined ( CUPIDBUILD_CUSTOM_LINUX )": 0,
                     "defined ( CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL )": 0,
                     "defined ( __DJGPP__ )": 0,
                     "defined ( __MACOSX__ )": 0,
@@ -4516,8 +4521,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CUPID_RUNTIME": 108,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
-                "HOSTED_I386_LINUX": 35,
-                "HOSTED_I386_WINDOWS": 6,
+                "HOSTED_I386_LINUX": 38,
+                "HOSTED_I386_WINDOWS": 9,
                 "HOSTED_I386_KERNEL_BRIDGE": 2,
                 "HOSTED_I386_LINUX_GNU": 3,
             },
@@ -6012,15 +6017,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["windows_help_cases"], 5)
         self.assertEqual(contract["windows_success_behavior_cases"], 8)
         self.assertEqual(contract["windows_failure_behavior_cases"], 9)
-        self.assertEqual(contract["contract_manifest_inputs"], 70)
+        self.assertEqual(contract["contract_manifest_inputs"], 73)
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 70
+            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 73
         )
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 96)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 102)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -6033,6 +6038,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(
             contract["source_head_capabilities"],
             [
+                "cupid.cupidbuild_guarded_object_transaction",
                 "cupiddis.elf32_code_anchors",
                 "cupidld.pe32_fixed_image",
                 "cupidld.pe32_imports",
@@ -8574,8 +8580,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("CUPID_RUNTIME", 108, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
-                    ("HOSTED_I386_LINUX", 35, 0),
-                    ("HOSTED_I386_WINDOWS", 6, 0),
+                    ("HOSTED_I386_LINUX", 38, 0),
+                    ("HOSTED_I386_WINDOWS", 9, 0),
                     ("HOSTED_I386_KERNEL_BRIDGE", 2, 0),
                     ("HOSTED_I386_LINUX_GNU", 3, 0),
                 ],

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-08-22
+Verified against source on: 2026-08-24
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -12,6 +12,21 @@ Verified against source on: 2026-08-22
 >style link #1D4ED8
 >style linkhover #0B3AA8
 >rule
+
+>h2 Guarded Object Publication
+>tree open Guarded Object Publication
+CupidBuild now has a hosted transaction for CupidASM ELF32 relocatable
+objects. It freezes the source and checked seed, validates a private ET_REL
+candidate through the shared ELF32 reader, runs strict CupidDis inspection,
+rechecks the live boundaries, and publishes through a pinned parent. The
+transaction records its acquired owner lock, checks it at both final
+boundaries, and quarantines the path before cleanup. A successor lock is
+restored instead of deleted.
+The initial Linux and Windows standalone builds passed the real ISR object
+path. The lock follow-up passes native host behavior and the checked Linux
+object contract; fresh checked standalone execution remains open. The normal
+build still uses the five-tool seed and Python publisher.
+>endtree
 
 >h2 Overview
 >tree open Overview

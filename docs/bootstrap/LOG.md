@@ -30621,3 +30621,71 @@ checked seeds, production owner counts, object formats, and host dependencies
 do not change. No source reached a new ownership boundary, so no suffix rename
 is due. `TempleOS/` remains read-only reference material. ADR 0334 records the
 request boundary.
+
+## 2026-08-24: start CupidBuild with a guarded object transaction
+
+CupidBuild now has a narrow public command for publishing one CupidASM
+relocatable object. The command reads a checked seed manifest, freezes the
+complete tool cohort and source into a private directory, runs the frozen
+CupidASM and CupidDis images, and accepts only an i386 `ET_REL` object with an
+executable `PROGBITS` section. Strict inspection requires known instructions
+and local direct targets. Static code anchors remain an `ET_EXEC` rule and do
+not apply to unlinked objects.
+
+The hosted transaction keeps the policy independent of Linux and Windows
+filesystem details. Both implementations reject links, reparse points,
+hardlink aliases, unsafe paths, changing inputs, destination drift, and output
+parent replacement. An adjacent owner lock serializes publishers and is
+reclaimed only after its recorded process is gone. Acquisition records the
+created file's identity and bytes. Publication checks that snapshot at both
+final boundaries. Cleanup quarantines the current path, deletes it only when
+it matches the acquired snapshot, and restores a successor otherwise. Linux
+uses a private hard link so the comparison also works on Windows-backed WSL
+mounts; Windows uses a same-volume move.
+Checked tools run with
+private standard-output and standard-error files and must stay silent on
+success. Publication uses `renameat` between pinned Linux directories or
+`NtSetInformationFile` with a pinned Windows parent. Every failure removes the
+private files and leaves the previous destination untouched.
+
+For the initial transaction snapshot, checked CupidC compiled the command,
+policy, and transaction modules for both host profiles. The existing five-tool
+producer cohorts then built standalone CupidBuild images. The 217,324-byte
+Linux ELF had SHA-256
+`1b80ecb733d19aadca3d4cfe19103f73ec2f9e6c02a4922a8602123284234c0e`;
+the 203,776-byte Windows PE had SHA-256
+`7cc2536877d6c2dbf1f212ed87270dc1982bc0a1e911093dfc529203015ee110`.
+Both images ran `--help` and published `kernel/cpu/isr.asm`. Their 1,892-byte
+objects were byte-identical, with SHA-256
+`caa8e1974fbf06857263a743661aae3318abb0b4e10fa154e4ac4994f32464e6`.
+
+The public CLI suite contains 27 cases. Windows and Linux each pass 26 and
+skip the other host's replacement-specific case. The suite covers the real
+success path,
+malformed assembly, a checked-tool digest mismatch, an assembler failure, an
+inspector failure, successful tools that write unexpected output, unknown
+instructions, nonlocal targets, source, manifest, and tool drift, destination
+and parent drift, symbolic links, a hardlink alias, occupied private roots,
+live, stale, and malformed locks, occupied recovery and Linux commit names,
+replacement rollback and recovery, cleanup, help, and usage errors. Its
+concurrent lock-replacement case preserves the previous object and the
+successor's owner file. The checked object contract also compiles the three
+modules and links CupidBuild as the sixth static i386 ELF image. The complete
+native Windows suite passes in 46.031 seconds, and the complete native Linux
+suite passes through WSL in 50.813 seconds. The checked object contract passes
+in 30.477 seconds.
+
+The lock checks and object rename remain separate filesystem operations. The
+contract serializes cooperating CupidBuild publishers and detects replacement
+at the named boundaries; it does not claim atomic exclusion against arbitrary
+path mutation inside the final check-to-rename interval.
+
+This is a source-head checkpoint, not a production cutover. The promoted
+Linux and Windows manifests still list five tools, and the active ISR and
+context-switch recipes still enter `tools/hostbuild.py`. Python remains the
+publisher and parity oracle until a complete six-tool fixed point is proved
+and promoted. CupidBuild pins the named artifact bytes and digests, but the
+Python path still owns full manifest schema, provenance, target, and build-plan
+verification. No object owner or host-dependency count changes in this step.
+No `.c` file reached Cupid ownership, so no source rename is due. ADR 0339
+records this boundary, and `TempleOS/` remains untouched reference material.

@@ -3268,6 +3268,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -6358,6 +6360,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -6682,6 +6686,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -7006,6 +7012,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -7330,6 +7338,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -7654,6 +7664,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -7978,6 +7990,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -8302,6 +8316,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -8626,6 +8642,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -8950,6 +8968,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -9274,6 +9294,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -9598,6 +9620,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -9922,6 +9946,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -10246,6 +10272,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -10570,6 +10598,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -10894,6 +10924,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -11218,6 +11250,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -11542,6 +11576,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -11866,6 +11902,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -12190,6 +12228,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -12514,6 +12554,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -12838,6 +12880,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -13162,6 +13206,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -13486,6 +13532,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -13810,6 +13858,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -14134,6 +14184,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -14458,6 +14510,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -14782,6 +14836,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -15106,6 +15162,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -15430,6 +15488,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -15754,6 +15814,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -16078,6 +16140,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -16402,6 +16466,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -16726,6 +16792,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -17050,6 +17118,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -17374,6 +17444,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -17698,6 +17770,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -18022,6 +18096,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -18346,6 +18422,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -18670,6 +18748,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -18994,6 +19074,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -19318,6 +19400,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -19642,6 +19726,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -19966,6 +20052,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -20290,6 +20378,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -20614,6 +20704,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -20938,6 +21030,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -21262,6 +21356,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -21586,6 +21682,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -21910,6 +22008,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -22234,6 +22334,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -22558,6 +22660,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -22882,6 +22986,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -23206,6 +23312,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -23530,6 +23638,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -23854,6 +23964,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -24178,6 +24290,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -24502,6 +24616,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -24826,6 +24942,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -25150,6 +25268,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -25474,6 +25594,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -25798,6 +25920,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -26122,6 +26246,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -26446,6 +26572,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -26770,6 +26898,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -27094,6 +27224,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -27418,6 +27550,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -27742,6 +27876,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -28066,6 +28202,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -28390,6 +28528,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -28714,6 +28854,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -29038,6 +29180,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -29362,6 +29506,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -29686,6 +29832,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -30010,6 +30158,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -30334,6 +30484,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -30658,6 +30810,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -30982,6 +31136,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -31306,6 +31462,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -31630,6 +31788,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -31954,6 +32114,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -32278,6 +32440,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -32602,6 +32766,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -32926,6 +33092,8 @@
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
+          "toolchain/cupidbuild.h",
+          "toolchain/cupidbuild_host.h",
           "toolchain/cupidc_emit.h",
           "toolchain/cupidc_frontend.h",
           "toolchain/cupidc_ir.h",
@@ -38514,13 +38682,13 @@
   },
   "contracts": {
     "assembly_source_ownership": {
-      "active_sources": 31,
-      "cupidasm_owned_sources": 31,
+      "active_sources": 32,
+      "cupidasm_owned_sources": 32,
       "explicit_classifications": [],
       "other_owned_sources": 0,
       "ownerless_sources": 0,
       "status": "pass",
-      "toolchain_startup_sources": 4
+      "toolchain_startup_sources": 5
     },
     "bootstrap_artifact_coverage": {
       "declared_artifacts": 436,
@@ -38529,13 +38697,25 @@
       "status": "pass"
     },
     "c_preprocessor_conditionals": {
-      "directive_expression_pairs": 32,
+      "directive_expression_pairs": 37,
       "elif_occurrences": 9,
-      "expression_occurrences": 145,
+      "expression_occurrences": 162,
       "expressions": [
         {
           "elif_occurrences": 0,
           "evidence": [
+            {
+              "directive": "if",
+              "line": 17,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if !defined(CUPID_HOSTED_I386_LINUX_ABI_H)"
+            },
+            {
+              "directive": "if",
+              "line": 670,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if !defined(CUPID_HOSTED_I386_LINUX_ABI_H)"
+            },
             {
               "directive": "if",
               "line": 16,
@@ -38545,7 +38725,25 @@
           ],
           "expression": "! defined ( CUPID_HOSTED_I386_LINUX_ABI_H )",
           "files": [
+            "toolchain/cupidbuild_host.cc",
             "toolchain/cupidld_main.cc"
+          ],
+          "if_occurrences": 3,
+          "occurrences": 3
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 5,
+              "path": "toolchain/cupidbuild_host.h",
+              "text": "#if !defined(CUPID_HOSTED_SIZE_T_DEFINED)"
+            }
+          ],
+          "expression": "! defined ( CUPID_HOSTED_SIZE_T_DEFINED )",
+          "files": [
+            "toolchain/cupidbuild_host.h"
           ],
           "if_occurrences": 1,
           "occurrences": 1
@@ -38572,6 +38770,52 @@
           ],
           "if_occurrences": 2,
           "occurrences": 2
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 1,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if !defined(_POSIX_C_SOURCE)"
+            }
+          ],
+          "expression": "! defined ( _POSIX_C_SOURCE )",
+          "files": [
+            "toolchain/cupidbuild_host.cc"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 1768,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if !defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 1831,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if !defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 1838,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if !defined(_WIN32)"
+            }
+          ],
+          "expression": "! defined ( _WIN32 )",
+          "files": [
+            "toolchain/cupidbuild_host.cc"
+          ],
+          "if_occurrences": 3,
+          "occurrences": 3
         },
         {
           "elif_occurrences": 0,
@@ -39199,6 +39443,23 @@
           "occurrences": 1
         },
         {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 748,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
+            }
+          ],
+          "expression": "defined ( CUPIDBUILD_CUSTOM_LINUX )",
+          "files": [
+            "toolchain/cupidbuild_host.cc"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
           "elif_occurrences": 5,
           "evidence": [
             {
@@ -39473,6 +39734,48 @@
             },
             {
               "directive": "if",
+              "line": 70,
+              "path": "toolchain/cupidbuild.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 96,
+              "path": "toolchain/cupidbuild.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 12,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 73,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 317,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 1797,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 1891,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
               "line": 10,
               "path": "toolchain/cupidc_main.cc",
               "text": "#if defined(_WIN32)"
@@ -39638,14 +39941,16 @@
           "files": [
             "toolchain/ctool_host.cc",
             "toolchain/cupidasm_main.cc",
+            "toolchain/cupidbuild.cc",
+            "toolchain/cupidbuild_host.cc",
             "toolchain/cupidc_main.cc",
             "toolchain/cupiddis_main.cc",
             "toolchain/cupidld_main.cc",
             "toolchain/cupidobj_main.cc",
             "toolchain/tests/cupidc_object_contract.cc"
           ],
-          "if_occurrences": 33,
-          "occurrences": 33
+          "if_occurrences": 40,
+          "occurrences": 40
         },
         {
           "elif_occurrences": 0,
@@ -39684,6 +39989,29 @@
           "files": [
             "kernel/doom/src/doomtype.h",
             "kernel/doom/src/m_misc.cc"
+          ],
+          "if_occurrences": 2,
+          "occurrences": 2
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 650,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN64)"
+            },
+            {
+              "directive": "if",
+              "line": 660,
+              "path": "toolchain/cupidbuild_host.cc",
+              "text": "#if defined(_WIN64)"
+            }
+          ],
+          "expression": "defined ( _WIN64 )",
+          "files": [
+            "toolchain/cupidbuild_host.cc"
           ],
           "if_occurrences": 2,
           "occurrences": 2
@@ -39764,9 +40092,9 @@
           "occurrences": 1
         }
       ],
-      "if_occurrences": 136,
+      "if_occurrences": 153,
       "status": "pass",
-      "unique_expressions": 30
+      "unique_expressions": 35
     },
     "c_preprocessor_cupid_exe": {
       "block_occurrences": 1,
@@ -39796,13 +40124,13 @@
     },
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
-      "direct_angle_occurrences": 257,
-      "direct_quoted_occurrences": 2205,
-      "include_occurrences": 2462,
+      "direct_angle_occurrences": 277,
+      "direct_quoted_occurrences": 2212,
+      "include_occurrences": 2489,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2462,
+      "ordinary_marker_occurrences": 2489,
       "pp_token_operand_occurrences": 0,
-      "source_files": 704,
+      "source_files": 709,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -39815,7 +40143,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 704,
+      "source_files": 709,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -40424,7 +40752,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "HOSTED_I386_LINUX",
-          "tracked_translation_units": 35
+          "tracked_translation_units": 38
         },
         {
           "compatibility_pointer_conversions": false,
@@ -40455,7 +40783,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "HOSTED_I386_WINDOWS",
-          "tracked_translation_units": 6
+          "tracked_translation_units": 9
         },
         {
           "compatibility_pointer_conversions": false,
@@ -40517,16 +40845,16 @@
         }
       ],
       "status": "pass",
-      "total_translation_units": 401,
-      "tracked_translation_units": 397
+      "total_translation_units": 407,
+      "tracked_translation_units": 403
     },
     "c_source_ownership": {
       "active": [],
       "active_tracked_c_sources": 0,
-      "active_tracked_cupid_c_sources": 407,
+      "active_tracked_cupid_c_sources": 410,
       "cupid_c_ownership_evidence": {
         "checked_cupidc_compile": 248,
-        "checked_cupidc_contract": 29,
+        "checked_cupidc_contract": 32,
         "explicit_runtime_delivery_policy": 130
       },
       "cupidc_owned_tracked_c_sources": 0,
@@ -40537,10 +40865,10 @@
         "sha256": "05330a6a19c2529df0c3831b3c8c606b0ee4b572563f6f6c7ad35e49a30b96bc",
         "unreachable_cupid_c_sources": 4
       },
-      "proven_cupidc_owned_tracked_cupid_c_sources": 407,
+      "proven_cupidc_owned_tracked_cupid_c_sources": 410,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 411,
+      "tracked_cupid_c_sources": 414,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -40644,7 +40972,7 @@
       "compared_startup_objects": 1,
       "compared_tool_images": 5,
       "compiler_c_sources": 11,
-      "contract_manifest_inputs": 70,
+      "contract_manifest_inputs": 73,
       "executed_tools": [
         "cupidasm",
         "cupiddis",
@@ -40699,6 +41027,7 @@
         "cupidld"
       ],
       "source_head_capabilities": [
+        "cupid.cupidbuild_guarded_object_transaction",
         "cupiddis.elf32_code_anchors",
         "cupidld.pe32_fixed_image",
         "cupidld.pe32_imports",
@@ -40782,12 +41111,13 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.addressing.memory",
-      "occurrences": 176
+      "occurrences": 223
     },
     {
       "category": "addressing",
@@ -40858,12 +41188,13 @@
         "boot/boot.asm",
         "demos/parity_priv.asm",
         "kernel/core/context_switch.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.addressing.size.dword",
-      "occurrences": 73
+      "occurrences": 114
     },
     {
       "category": "addressing",
@@ -40977,12 +41308,13 @@
         "kernel/smp/smp_trampoline.S",
         "test_iso/big_pattern.asm",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.directive.bits",
-      "occurrences": 12
+      "occurrences": 13
     },
     {
       "category": "directive",
@@ -41165,12 +41497,13 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.directive.extern",
-      "occurrences": 31
+      "occurrences": 42
     },
     {
       "category": "directive",
@@ -41195,12 +41528,13 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.directive.global",
-      "occurrences": 54
+      "occurrences": 67
     },
     {
       "category": "directive",
@@ -41377,12 +41711,13 @@
         "demos/syscall_vfs_extended_demo.asm",
         "kernel/core/context_switch.asm",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.directive.section",
-      "occurrences": 47
+      "occurrences": 48
     },
     {
       "category": "directive",
@@ -41658,12 +41993,13 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.call",
-      "occurrences": 218
+      "occurrences": 229
     },
     {
       "category": "instruction",
@@ -42108,7 +42444,7 @@
         "toolchain/hosted/i386-linux/start.asm"
       ],
       "id": "asm.instruction.int",
-      "occurrences": 8
+      "occurrences": 10
     },
     {
       "category": "instruction",
@@ -42541,7 +42877,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 15,
+          "line": 17,
           "path": "toolchain/hosted/i386-linux/start.asm",
           "text": "lea edx, [esi + 4]"
         },
@@ -42677,12 +43013,13 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.mov",
-      "occurrences": 220
+      "occurrences": 246
     },
     {
       "category": "instruction",
@@ -42871,12 +43208,13 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.pop",
-      "occurrences": 46
+      "occurrences": 58
     },
     {
       "category": "instruction",
@@ -42963,12 +43301,13 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.push",
-      "occurrences": 346
+      "occurrences": 388
     },
     {
       "category": "instruction",
@@ -43069,12 +43408,13 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.ret",
-      "occurrences": 59
+      "occurrences": 72
     },
     {
       "category": "instruction",
@@ -43503,12 +43843,13 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.label.global",
-      "occurrences": 134
+      "occurrences": 147
     },
     {
       "category": "label",
@@ -43962,7 +44303,7 @@
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.register.eax",
-      "occurrences": 198
+      "occurrences": 200
     },
     {
       "category": "register",
@@ -43989,12 +44330,13 @@
         "demos/factorial.asm",
         "demos/stack.asm",
         "kernel/core/context_switch.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.register.ebp",
-      "occurrences": 125
+      "occurrences": 195
     },
     {
       "category": "register",
@@ -44029,7 +44371,7 @@
         "toolchain/hosted/i386-linux/start.asm"
       ],
       "id": "asm.register.ebx",
-      "occurrences": 46
+      "occurrences": 49
     },
     {
       "category": "register",
@@ -44066,7 +44408,7 @@
         "toolchain/hosted/i386-windows/start.asm"
       ],
       "id": "asm.register.ecx",
-      "occurrences": 50
+      "occurrences": 51
     },
     {
       "category": "register",
@@ -44123,7 +44465,7 @@
         "toolchain/hosted/i386-linux/start.asm"
       ],
       "id": "asm.register.edx",
-      "occurrences": 18
+      "occurrences": 19
     },
     {
       "category": "register",
@@ -44181,7 +44523,7 @@
         "toolchain/hosted/i386-linux/start.asm"
       ],
       "id": "asm.register.esi",
-      "occurrences": 33
+      "occurrences": 36
     },
     {
       "category": "register",
@@ -44229,12 +44571,13 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.register.esp",
-      "occurrences": 229
+      "occurrences": 255
     },
     {
       "category": "register",
@@ -44466,12 +44809,13 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.relocation.pc_relative_external",
-      "occurrences": 34
+      "occurrences": 45
     },
     {
       "category": "control",
@@ -44654,6 +44998,7 @@
         "toolchain/ctool.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild_host.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -44676,7 +45021,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2084
+      "occurrences": 2086
     },
     {
       "category": "control",
@@ -45368,6 +45713,8 @@
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -45403,7 +45750,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5185
+      "occurrences": 5204
     },
     {
       "category": "control",
@@ -45643,6 +45990,9 @@
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -45679,7 +46029,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4563
+      "occurrences": 4585
     },
     {
       "category": "control",
@@ -45715,6 +46065,7 @@
         "kernel/lang/shell.cc",
         "kernel/network/sshd.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
         "toolchain/cupidc_main.cc",
         "toolchain/cupiddis_main.cc",
         "toolchain/cupidld.cc",
@@ -45731,7 +46082,7 @@
         "toolchain/tests/elf32_contract.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 3159
+      "occurrences": 3177
     },
     {
       "category": "control",
@@ -46091,6 +46442,10 @@
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_frontend.h",
@@ -46132,7 +46487,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 40870
+      "occurrences": 41126
     },
     {
       "category": "control",
@@ -46465,6 +46820,9 @@
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_frontend.h",
@@ -46505,7 +46863,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 25176
+      "occurrences": 25411
     },
     {
       "category": "control",
@@ -46861,6 +47219,8 @@
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_frontend.h",
@@ -46892,7 +47252,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2879
+      "occurrences": 2902
     },
     {
       "category": "declaration",
@@ -47135,6 +47495,7 @@
         "kernel/tls/tls_selftest.cc",
         "kernel/util/calendar.cc",
         "toolchain/ctool.cc",
+        "toolchain/cupidbuild.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -47171,7 +47532,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2888
+      "occurrences": 2890
     },
     {
       "category": "declarator",
@@ -47408,6 +47769,9 @@
         "toolchain/ctool.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -47446,7 +47810,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6416
+      "occurrences": 6492
     },
     {
       "category": "extension",
@@ -48435,6 +48799,10 @@
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm.h",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -48490,7 +48858,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3141
+      "occurrences": 3224
     },
     {
       "category": "preprocessor",
@@ -48560,6 +48928,8 @@
         "toolchain/ctool.cc",
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
         "toolchain/cupidc_main.cc",
         "toolchain/cupiddis_main.cc",
         "toolchain/cupidld_main.cc",
@@ -48568,7 +48938,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.else",
-      "occurrences": 76
+      "occurrences": 86
     },
     {
       "category": "preprocessor",
@@ -48889,6 +49259,10 @@
         "toolchain/ctool_host.h",
         "toolchain/cupidasm.h",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.h",
         "toolchain/cupidc_ir.h",
@@ -48921,7 +49295,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 545
+      "occurrences": 564
     },
     {
       "category": "preprocessor",
@@ -49100,6 +49474,9 @@
         "toolchain/ctool.cc",
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
         "toolchain/cupidc_frontend.h",
         "toolchain/cupidc_main.cc",
         "toolchain/cupiddis_main.cc",
@@ -49110,7 +49487,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.if",
-      "occurrences": 136
+      "occurrences": 153
     },
     {
       "category": "preprocessor",
@@ -49448,6 +49825,8 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
         "toolchain/cupidasm.h",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.h",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.h",
         "toolchain/cupidc_ir.h",
@@ -49474,7 +49853,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 307
+      "occurrences": 309
     },
     {
       "category": "preprocessor",
@@ -49949,6 +50328,10 @@
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm.h",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -50011,7 +50394,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2462
+      "occurrences": 2489
     },
     {
       "category": "preprocessor",
@@ -50520,6 +50903,11 @@
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm.h",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -50580,7 +50968,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 16406
+      "occurrences": 16640
     },
     {
       "category": "qualifier",
@@ -51076,6 +51464,9 @@
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_frontend.h",
@@ -51121,7 +51512,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 9857
+      "occurrences": 9943
     },
     {
       "category": "type",
@@ -51513,6 +51904,11 @@
         "toolchain/ctool_host.h",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -51564,7 +51960,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 9574
+      "occurrences": 9913
     },
     {
       "category": "type",
@@ -52287,6 +52683,11 @@
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_main.cc",
         "toolchain/cupiddis_main.cc",
         "toolchain/cupidld_main.cc",
@@ -52327,7 +52728,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 23722
+      "occurrences": 24020
     },
     {
       "category": "type",
@@ -52369,10 +52770,13 @@
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/ctool_host.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
         "toolchain/cupiddis_main.cc",
         "toolchain/cupidld_main.cc",
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
+        "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
@@ -52385,7 +52789,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.long",
-      "occurrences": 449
+      "occurrences": 490
     },
     {
       "category": "type",
@@ -52413,6 +52817,7 @@
         "kernel/doom/doom_libc_stubs.cc",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
+        "toolchain/cupidbuild_host.cc",
         "toolchain/cupiddis_main.cc",
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/runtime.cc",
@@ -52424,7 +52829,7 @@
         "toolchain/tests/toolchain_manifest_contract.cc"
       ],
       "id": "c.type.long_long",
-      "occurrences": 118
+      "occurrences": 134
     },
     {
       "category": "type",
@@ -52475,11 +52880,13 @@
         "kernel/doom/src/v_patch.h",
         "kernel/doom/src/v_video.cc",
         "toolchain/ctool.h",
+        "toolchain/cupidbuild_host.cc",
         "toolchain/hosted/i386-linux/include/stdint.h",
+        "toolchain/hosted/i386-linux/include/windows.h",
         "user/cupid.h"
       ],
       "id": "c.type.short",
-      "occurrences": 177
+      "occurrences": 182
     },
     {
       "category": "type",
@@ -52741,6 +53148,10 @@
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm.h",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_frontend.h",
@@ -52763,6 +53174,7 @@
         "toolchain/elf32.cc",
         "toolchain/elf32.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
+        "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
@@ -52786,7 +53198,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 962
+      "occurrences": 982
     },
     {
       "category": "type",
@@ -53014,6 +53426,10 @@
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm.h",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -53064,7 +53480,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1046
+      "occurrences": 1061
     },
     {
       "category": "type",
@@ -53238,6 +53654,9 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
         "toolchain/cupiddis_main.cc",
         "toolchain/cupidld_main.cc",
         "toolchain/cupidobj.cc",
@@ -53266,7 +53685,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 2766
+      "occurrences": 3044
     },
     {
       "category": "type",
@@ -53824,6 +54243,10 @@
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild_host.cc",
+        "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
         "toolchain/cupidc_ir.cc",
@@ -53874,7 +54297,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 15123
+      "occurrences": 15289
     },
     {
       "category": "declaration",
@@ -54788,7 +55211,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "7b676e93b97d769d9b1b753c97b364b2cf4752502c5266df3db1f3ae439ab74c",
+    "active_source_digest": "316683a187770576b7c88d551d92a7ff78874f81f206eb79ffbf155dcea73921",
     "control_files": [
       {
         "path": "Makefile",
@@ -54800,7 +55223,7 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "323427880b8d4ff9d15ff72e3344470b9556f92930b0d1647474d237bc12abd8"
+        "sha256": "3919dde7e847a7b8785913279fcc5a05a9e881127eb31fcf005659d311a79d91"
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
@@ -54816,7 +55239,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "180ede0c113389747583ba8aca54eabb9e0ed665f8579925ff8c3e61d550777e"
+        "sha256": "da30c0cd0e7dc610327126e16994a356c36d53f485a06ceb5c967c84f15d440d"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -54841,7 +55264,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "7d5fff9d0b6a62d36717c275a314c1937df246f91deb69d3415be856d07dbc8f"
+      "sha256": "036e2a315921db2f9c48fbef215f8eefd9b640be2cbe9d732ca5ba37e69219a2"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -54875,7 +55298,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 88,
+        "source_count": 94,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -55049,7 +55472,7 @@
           "demos/fs_syscalls.asm",
           "demos/hello.asm"
         ],
-        "source_count": 71,
+        "source_count": 72,
         "title": "Share one i386 ABI and instruction model"
       },
       {
@@ -55076,9 +55499,9 @@
           "toolchain/cupiddis.h",
           "toolchain/cupiddis_main.cc",
           "toolchain/hosted/i386-linux/start.asm",
-          "toolchain/hosted/i386-windows/publication_start.asm"
+          "toolchain/hosted/i386-windows/cupidbuild_start.asm"
         ],
-        "source_count": 14,
+        "source_count": 15,
         "title": "Make CupidDis inspect raw and ELF32 relocatable output"
       },
       {
@@ -55129,7 +55552,7 @@
           "demos/include_helper.asm",
           "demos/jcc_aliases.asm"
         ],
-        "source_count": 31,
+        "source_count": 32,
         "title": "Implement the active Cupid ASM directives and expression language"
       },
       {
@@ -55165,7 +55588,7 @@
           "demos/syscall_vfs_extended_demo.asm",
           "kernel/core/context_switch.asm"
         ],
-        "source_count": 19,
+        "source_count": 20,
         "title": "Reach byte parity for boot and trampoline binaries"
       },
       {
@@ -55185,11 +55608,12 @@
           "kernel/cpu/isr.asm",
           "kernel/smp/smp_trampoline.S",
           "toolchain/hosted/i386-linux/start.asm",
+          "toolchain/hosted/i386-windows/cupidbuild_start.asm",
           "toolchain/hosted/i386-windows/publication_start.asm",
           "toolchain/hosted/i386-windows/start.asm",
           "toolchain/hosted/i386-windows/tool_start.asm"
         ],
-        "source_count": 7,
+        "source_count": 8,
         "title": "Emit ELF32 sections, symbols, and i386 relocations"
       },
       {
@@ -55232,7 +55656,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 562,
+        "source_count": 567,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -55278,7 +55702,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 668,
+        "source_count": 673,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -55421,7 +55845,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 88
+        "source_count": 94
       },
       {
         "cohorts": [
@@ -79543,6 +79967,196 @@
       ],
       "cohort": "toolchain_core",
       "features": [
+        "c.control.else",
+        "c.control.for",
+        "c.control.goto",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.declarator.unsized_array",
+        "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.else",
+        "c.preprocessor.endif",
+        "c.preprocessor.if",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.long",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/ctool.h",
+        "toolchain/ctool_host.h",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.h",
+        "toolchain/elf32.h"
+      ],
+      "language": "cupid_c",
+      "lines": 516,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "3569078a84ce51054e40a67c8d15b946273202d763e77a7ce54c489a91dd6041"
+    },
+    {
+      "build_owners": [
+        "cupid_c_compiler",
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef"
+      ],
+      "includes": [],
+      "language": "c_header",
+      "lines": 13,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "74427bd369a325bbd41f85e74098d9a95707fcb613aa944d937fba8a813a5061"
+    },
+    {
+      "build_owners": [
+        "cupid_c_contract"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.break",
+        "c.control.else",
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.else",
+        "c.preprocessor.endif",
+        "c.preprocessor.if",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.long",
+        "c.type.long_long",
+        "c.type.short",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/cupidbuild_host.h"
+      ],
+      "language": "cupid_c",
+      "lines": 2081,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild_host.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "9b113085607eae54d06fdc171fd36fa38c551a47c065c3144ad936dc9c9dff70"
+    },
+    {
+      "build_owners": [
+        "cupid_c_compiler",
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.if",
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.if",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "kernel/doom/src/include_stubs/stddef.h",
+        "kernel/doom/src/include_stubs/stdint.h"
+      ],
+      "language": "c_header",
+      "lines": 56,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild_host.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "3579062146cdd7bf7caf1ac942b805d6876f8721467c529f386d16ffcb161e63"
+    },
+    {
+      "build_owners": [
+        "cupid_c_contract"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.expression.sizeof",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/cupidbuild.h"
+      ],
+      "language": "cupid_c",
+      "lines": 67,
+      "origin": "tracked",
+      "path": "toolchain/cupidbuild_main.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "1fd5e38d7a92b9d135a3290347b2bec60b7dd91fd12f437a29ba47675bc82172"
+    },
+    {
+      "build_owners": [
+        "cupid_c_contract"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
         "c.control.break",
         "c.control.case",
         "c.control.continue",
@@ -80718,18 +81332,21 @@
         "c.qualifier.const",
         "c.type.char",
         "c.type.int",
+        "c.type.long",
+        "c.type.short",
+        "c.type.struct",
         "c.type.typedef",
         "c.type.unsigned",
         "c.type.void"
       ],
       "includes": [],
       "language": "c_header",
-      "lines": 45,
+      "lines": 161,
       "origin": "tracked",
       "path": "toolchain/hosted/i386-linux/include/windows.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "1b07a67005336beb2057ef61141863f2302cf61c9eebd350b518c4efed6b7377"
+      "sha256": "e4eeb7322232ca5389b6c76aa3876899dcc2fb88aac0dcb6fbaa41a48a635413"
     },
     {
       "build_owners": [
@@ -80831,12 +81448,46 @@
       ],
       "includes": [],
       "language": "assembly",
-      "lines": 50,
+      "lines": 70,
       "origin": "tracked",
       "path": "toolchain/hosted/i386-linux/start.asm",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "a9bd408bb5b0e35a374821d7940a12a5deff172922181ab13c2e1272a537d1af"
+      "sha256": "0700cf01a79eb4d563c5f1ae3d3fa65e9a44effb67e67496a141a6a40d9e4aa8"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "asm.addressing.memory",
+        "asm.addressing.size.dword",
+        "asm.directive.bits",
+        "asm.directive.extern",
+        "asm.directive.global",
+        "asm.directive.section",
+        "asm.instruction.call",
+        "asm.instruction.mov",
+        "asm.instruction.pop",
+        "asm.instruction.push",
+        "asm.instruction.ret",
+        "asm.label.global",
+        "asm.register.ebp",
+        "asm.register.esp",
+        "asm.relocation.pc_relative_external"
+      ],
+      "includes": [],
+      "language": "assembly",
+      "lines": 141,
+      "origin": "tracked",
+      "path": "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidASM",
+      "sha256": "75dbe643a6f67cf4319aace00e4ab5f885726729b4a8a0754572e3024c58ca6e"
     },
     {
       "build_owners": [
@@ -81466,12 +82117,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 52547,
+      "lines": 52563,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b21b733818d8c1dda786d78dec331dc586f693f6627aa0febd0bab9839a88c20"
+      "sha256": "48138210f14c4e366054f6cf34e9bc1691e5ce1fe3570e795364d8ad4f71d045"
     },
     {
       "build_owners": [
@@ -82290,7 +82941,7 @@
     }
   ],
   "summary": {
-    "active_sources": 739,
+    "active_sources": 745,
     "features": 255,
     "transforms": 452,
     "unreachable_sources": 26
@@ -82606,6 +83257,7 @@
             "kernel/lang/as_elf.h",
             "toolchain/hosted/i386-windows/publication_runtime.cc",
             "toolchain/hosted/i386-windows/publication_start.asm",
+            "toolchain/hosted/i386-windows/cupidbuild_start.asm",
             "toolchain/hosted/i386-windows/start.asm",
             "toolchain/tests/hosted_i386_windows_contract.cc",
             "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
@@ -82619,6 +83271,8 @@
             "toolchain/ctool.h",
             "toolchain/ctool_host.h",
             "toolchain/cupidasm.h",
+            "toolchain/cupidbuild.h",
+            "toolchain/cupidbuild_host.h",
             "toolchain/cupidc_emit.h",
             "toolchain/cupidc_frontend.h",
             "toolchain/cupidc_ir.h",
@@ -82635,6 +83289,9 @@
             "toolchain/ctool.cc",
             "toolchain/ctool_host.cc",
             "toolchain/elf32.cc",
+            "toolchain/cupidbuild.cc",
+            "toolchain/cupidbuild_host.cc",
+            "toolchain/cupidbuild_main.cc",
             "toolchain/cupidc_pp.cc",
             "toolchain/cupidc_type.cc",
             "toolchain/cupidc_frontend.cc",
@@ -82709,6 +83366,7 @@
             "toolchain/hosted/i386-linux/include/windows.h",
             "toolchain/hosted/i386-windows/publication_runtime.cc",
             "toolchain/hosted/i386-windows/publication_start.asm",
+            "toolchain/hosted/i386-windows/cupidbuild_start.asm",
             "toolchain/hosted/i386-windows/runtime.cc",
             "toolchain/hosted/i386-windows/start.asm",
             "toolchain/hosted/i386-windows/tool_start.asm",
@@ -82724,6 +83382,8 @@
             "toolchain/ctool.h",
             "toolchain/ctool_host.h",
             "toolchain/cupidasm.h",
+            "toolchain/cupidbuild.h",
+            "toolchain/cupidbuild_host.h",
             "toolchain/cupidc_emit.h",
             "toolchain/cupidc_frontend.h",
             "toolchain/cupidc_ir.h",
@@ -82745,6 +83405,9 @@
             "toolchain/ctool.cc",
             "toolchain/ctool_host.cc",
             "toolchain/elf32.cc",
+            "toolchain/cupidbuild.cc",
+            "toolchain/cupidbuild_host.cc",
+            "toolchain/cupidbuild_main.cc",
             "toolchain/cupidc_pp.cc",
             "toolchain/cupidc_type.cc",
             "toolchain/cupidc_frontend.cc",

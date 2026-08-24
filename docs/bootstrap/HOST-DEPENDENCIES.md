@@ -1,5 +1,14 @@
 # Host dependency inventory
 
+CupidBuild is now a source-head hosted tool, but it does not reduce the active
+host-dependency count yet. The command can assemble and certify a private
+i386 relocatable object on Linux and Windows without Python inside the
+transaction. The checked manifests still contain five tools, and the normal
+ISR and context-switch recipes still use `tools/hostbuild.py`. Python remains
+the production coordinator, full manifest verifier, and parity oracle until a
+six-tool fixed point is promoted and one recipe changes owners. ADR 0339
+records the current limit.
+
 The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
@@ -7,14 +16,14 @@ stable shape, then covers the Linux branch with direct build tests.
 The user Makefile explicitly selects `all` as the default goal, including on
 Windows where the optional native-driver oracle is declared earlier in the
 file. Plain `make -C user` therefore enters the supported `user:all` graph.
-The final post-CTXT checkpoint records 739 inputs and 452 transforms. An earlier
+The final source-head checkpoint records 745 inputs and 452 transforms. An earlier
 audit run failed after 65.183 seconds because the artifact-size recipe lock
 omitted the Windows seed verifier. The current recipe uses one
 `$(ARTIFACT_SIZE_CONTRACT)` command with `--checked-manifest`.
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. Its AST behavior locks
 ignore empty interpreter-specific fields, so Python 3.12 and 3.14 check the
-same semantic shapes. The audit records 31
-assembly inputs, 297 headers, 411 Cupid C
+same semantic shapes. The audit records 32
+assembly inputs, 299 headers, 414 Cupid C
 files, 255 feature requirements, and 25 accounted unreachable files. No
 ordinary C translation unit remained in a supported root. Its active-source
 audit records failure, help, and success counts of 21/5/22 for Linux and
@@ -1388,8 +1397,8 @@ ELFs before CupidObj flattening. ADR 0314 records the decoder boundary, and ADR
 The current source graph records 452 transforms across the three supported
 roots and 443 under root `all`. Its tool participation totals are Python 452,
 CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, and CupidDis nine. Four
-Cupid-built semantic contracts participate. All 31 active assembly sources are
-CupidASM-owned, including four Toolchain startup sources. The audit rejects an
+Cupid-built semantic contracts participate. All 32 active assembly sources are
+CupidASM-owned, including five Toolchain startup sources. The audit rejects an
 ownerless assembly input unless it carries a reviewed host-only classification.
 It retains the 5/22/21 Linux fixed-point matrix and records strict validation
 plus flat extraction together on `kernel.bin`, with all 431 code inputs
@@ -1629,9 +1638,9 @@ the next entry before further recursion, and restores both counters after a
 failed REPL evaluation. This changes embedded JIT safety without retiring or
 adding a host dependency.
 
-The hosted preprocessor contract runs 397 tracked profile executions through
+The hosted preprocessor contract runs 403 tracked profile executions through
 the repository file adapter. This covers 239 root-kernel and Doom C inputs,
-three user inputs, 108 Cupid programs, 35 strict hosted i386 Linux roots, four
+three user inputs, 108 Cupid programs, 38 strict hosted i386 Linux roots, seven
 strict hosted i386 Windows tool drivers, two other strict hosted i386 Windows
 roots, one freestanding i386 Windows root, two
 strict hosted i386 kernel-bridge roots, and three GNU runtime roots. Only
