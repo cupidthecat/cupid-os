@@ -30388,3 +30388,38 @@ at this checkpoint still contain the preceding inspector, so active assembly
 and production publication do not select the new object policy yet. ADR 0335
 records the boundary. No source suffix or build owner changes, and
 `TempleOS/` remains untouched reference material.
+## 2026-08-24: bind raw transfers to resolved source targets
+
+Raw CupidASM results now retain one ordered control-edge row for each
+represented direct relative transfer, immediate far call or jump, and indirect
+call or jump. The row keeps the source instruction offset and distinguishes a
+local target, a resolved external target, and a runtime-dependent target that
+cannot be proved statically. Local rows include the image offset, absolute
+address, and target mode. Far rows also keep the segment. Register- and
+memory-indirect rows leave every target field unknown.
+
+The hosted map writer advances to `cupid.raw-map.v2` and writes an exact edge
+count. CupidDis still accepts v1 maps. Its new `--require-source-edges` policy
+requires strict known decoding and explicit v2 range-map metadata. Public
+request validation rejects malformed classes, duplicate or unordered source
+offsets, rows outside the image or inside data, inconsistent local addresses,
+and target modes that disagree with the range map. The semantic pass rejects
+missing and extra rows, changed destinations, far segment changes, target-mode
+changes, and local targets in the middle of an instruction. Failed inspection
+publishes a zero report, and a later valid request succeeds in the same job.
+
+The unchanged 2,560-byte bootloader publishes twelve rows: nine local relative
+transfers, two local far transitions, and the intentional external far jump to
+`0x00100000`. The unchanged 4,096-byte SMP trampoline publishes six: four
+local relative transfers, one local far transition, and the register-indirect
+handoff recorded as unprovable. A changed SMP far pointer still passed the old
+known and local-relative checks, then failed the source-edge target and mode
+checks. A changed external boot target likewise passed the old checks and
+failed the new target binding.
+
+The assembler, disassembler, and active-source Python modules passed 52 tests
+with one platform skip. The warning-clean native raw-source contract passed
+separately. The checked Linux and Windows seeds still carry v1, so the guarded
+boot and SMP publishers have not adopted this rule yet. This source commit
+moves no build owner, removes no host dependency, and changes no source suffix.
+ADR 0340 records the decision.

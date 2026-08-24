@@ -17,6 +17,7 @@ typedef struct {
   ctool_bool have_views;
   ctool_bool require_known;
   ctool_bool require_local_targets;
+  ctool_bool require_source_edges;
   ctool_bool require_code_anchors;
   ctool_x86_mode_t mode;
   ctool_u32 base_address;
@@ -25,6 +26,9 @@ typedef struct {
   ctool_u32 range_boundary_count;
   ctool_u32 range_capacity;
   ctool_bool mapped_ranges;
+  ctool_dis_raw_edge_t *raw_edges;
+  ctool_u32 raw_edge_count;
+  ctool_bool raw_edge_metadata_present;
   const char *range_map;
   ctool_u32 range_map_size;
   const char *input;
@@ -39,7 +43,7 @@ static void cupiddis_usage(FILE *stream) {
       "usage: cupiddis [--headers] [--sections] [--symbols] "
       "[--relocations] [--disassemble] [--all] [--nm] FILE\n"
       "       cupiddis --require-known [--require-local-targets] "
-      "[--require-code-anchors] "
+      "[--require-source-edges] [--require-code-anchors] "
       "[--headers] [--sections] "
       "[--symbols] [--relocations] [--disassemble] [--all] "
       "FILE [FILE...]\n"
@@ -52,7 +56,7 @@ static void cupiddis_usage(FILE *stream) {
       "[--range-at OFFSET:16|32|data]... "
       "[--mode-at OFFSET:16|32]... --base ADDRESS FILE [FILE...]\n"
       "       cupiddis --require-known --raw --range-map MAP "
-      "[--require-local-targets] "
+      "[--require-local-targets] [--require-source-edges] "
       "FILE [FILE...]\n");
 }
 
@@ -344,19 +348,83 @@ static int cupiddis_map_kind(cupiddis_span_t token,
   return 0;
 }
 
+static int cupiddis_map_edge_kind(cupiddis_span_t token,
+                                  ctool_dis_raw_edge_kind_t *kind_out) {
+  if (cupiddis_span_equal(token, "relative")) {
+    *kind_out = CTOOL_DIS_RAW_EDGE_RELATIVE;
+    return 1;
+  }
+  if (cupiddis_span_equal(token, "far")) {
+    *kind_out = CTOOL_DIS_RAW_EDGE_FAR;
+    return 1;
+  }
+  if (cupiddis_span_equal(token, "indirect")) {
+    *kind_out = CTOOL_DIS_RAW_EDGE_INDIRECT;
+    return 1;
+  }
+  return 0;
+}
+
+static int cupiddis_map_edge_class(
+    cupiddis_span_t token, ctool_dis_raw_edge_class_t *class_out) {
+  if (cupiddis_span_equal(token, "local")) {
+    *class_out = CTOOL_DIS_RAW_EDGE_LOCAL;
+    return 1;
+  }
+  if (cupiddis_span_equal(token, "external")) {
+    *class_out = CTOOL_DIS_RAW_EDGE_EXTERNAL;
+    return 1;
+  }
+  if (cupiddis_span_equal(token, "unprovable")) {
+    *class_out = CTOOL_DIS_RAW_EDGE_UNPROVABLE;
+    return 1;
+  }
+  return 0;
+}
+
+static int cupiddis_map_u32_or_none(cupiddis_span_t token,
+                                    ctool_u32 *value_out) {
+  if (cupiddis_span_equal(token, "-")) {
+    *value_out = CTOOL_DIS_RAW_EDGE_NO_TARGET;
+    return 1;
+  }
+  return cupiddis_parse_u32_span(token.data, token.size, value_out);
+}
+
+static int cupiddis_map_mode_or_unknown(cupiddis_span_t token,
+                                        ctool_x86_mode_t *mode_out) {
+  ctool_u32 value;
+  if (cupiddis_span_equal(token, "unknown")) {
+    *mode_out = (ctool_x86_mode_t)0;
+    return 1;
+  }
+  if (!cupiddis_parse_u32_span(token.data, token.size, &value) ||
+      (value != 16u && value != 32u)) {
+    return 0;
+  }
+  *mode_out = (ctool_x86_mode_t)value;
+  return 1;
+}
+
 static int cupiddis_load_range_map(cupiddis_cli_t *cli,
                                    const char **message_out) {
   char *contents = (char *)0;
   size_t contents_size = 0u;
   size_t cursor = 0u;
   ctool_bool have_schema = CTOOL_FALSE;
+  ctool_bool schema_v2 = CTOOL_FALSE;
   ctool_bool have_size = CTOOL_FALSE;
   ctool_bool have_base = CTOOL_FALSE;
+  ctool_bool have_edge_count = CTOOL_FALSE;
   ctool_u32 expected_size = 0u;
+  ctool_u32 expected_edge_count = 0u;
   ctool_u32 base = 0u;
   ctool_dis_raw_range_t *ranges = (ctool_dis_raw_range_t *)0;
   ctool_u32 range_count = 0u;
   ctool_u32 range_capacity = 0u;
+  ctool_dis_raw_edge_t *edges = (ctool_dis_raw_edge_t *)0;
+  ctool_u32 edge_count = 0u;
+  ctool_u32 edge_capacity = 0u;
   int success = 0;
   *message_out = "raw range map could not be read";
   if (!cupiddis_read_range_map(cli->range_map, &contents,
@@ -366,7 +434,7 @@ static int cupiddis_load_range_map(cupiddis_cli_t *cli,
   while (cursor < contents_size) {
     size_t line_start = cursor;
     size_t line_size;
-    cupiddis_span_t tokens[4];
+    cupiddis_span_t tokens[8];
     size_t token_count = 0u;
     while (cursor < contents_size && contents[cursor] != '\n') {
       cursor++;
@@ -379,16 +447,20 @@ static int cupiddis_load_range_map(cupiddis_cli_t *cli,
       cursor++;
     }
     if (!cupiddis_tokenize_line(contents + line_start, line_size, tokens,
-                                4u, &token_count) || token_count == 0u) {
+                                8u, &token_count) || token_count == 0u) {
       *message_out = "raw range map contains an invalid line";
       goto done;
     }
     if (have_schema == CTOOL_FALSE) {
       if (token_count != 1u ||
-          !cupiddis_span_equal(tokens[0], "cupid.raw-map.v1")) {
+          (!cupiddis_span_equal(tokens[0], "cupid.raw-map.v1") &&
+           !cupiddis_span_equal(tokens[0], "cupid.raw-map.v2"))) {
         *message_out = "raw range map has an unsupported schema";
         goto done;
       }
+      schema_v2 = cupiddis_span_equal(tokens[0], "cupid.raw-map.v2")
+                      ? CTOOL_TRUE
+                      : CTOOL_FALSE;
       have_schema = CTOOL_TRUE;
       continue;
     }
@@ -411,6 +483,17 @@ static int cupiddis_load_range_map(cupiddis_cli_t *cli,
         goto done;
       }
       have_base = CTOOL_TRUE;
+      continue;
+    }
+    if (cupiddis_span_equal(tokens[0], "edges")) {
+      if (schema_v2 == CTOOL_FALSE || token_count != 2u ||
+          have_edge_count == CTOOL_TRUE ||
+          !cupiddis_parse_u32_span(tokens[1].data, tokens[1].size,
+                                   &expected_edge_count)) {
+        *message_out = "raw range map v2 requires one edge count";
+        goto done;
+      }
+      have_edge_count = CTOOL_TRUE;
       continue;
     }
     if (cupiddis_span_equal(tokens[0], "range")) {
@@ -462,6 +545,84 @@ static int cupiddis_load_range_map(cupiddis_cli_t *cli,
       ranges[range_count++] = range;
       continue;
     }
+    if (cupiddis_span_equal(tokens[0], "edge")) {
+      ctool_dis_raw_edge_t edge;
+      ctool_dis_raw_edge_t *resized;
+      ctool_u32 capacity;
+      size_t allocation_size;
+      if (schema_v2 == CTOOL_FALSE || token_count != 8u ||
+          !cupiddis_parse_u32_span(tokens[1].data, tokens[1].size,
+                                   &edge.source_offset)) {
+        *message_out = "raw range map contains an invalid edge source";
+        goto done;
+      }
+      if (!cupiddis_map_edge_kind(tokens[2], &edge.kind)) {
+        *message_out = "raw edge kind must be relative, far, or indirect";
+        goto done;
+      }
+      if (!cupiddis_map_edge_class(tokens[3], &edge.class_id)) {
+        *message_out =
+            "raw edge class must be local, external, or unprovable";
+        goto done;
+      }
+      if (!cupiddis_map_u32_or_none(tokens[4], &edge.target_offset) ||
+          !cupiddis_map_u32_or_none(tokens[5], &edge.target_address) ||
+          !cupiddis_map_mode_or_unknown(tokens[6], &edge.target_mode) ||
+          !cupiddis_map_u32_or_none(tokens[7], &edge.target_segment)) {
+        *message_out = "raw range map contains an invalid edge target";
+        goto done;
+      }
+      if ((edge.class_id == CTOOL_DIS_RAW_EDGE_LOCAL &&
+           (cupiddis_span_equal(tokens[4], "-") ||
+            cupiddis_span_equal(tokens[5], "-") ||
+            cupiddis_span_equal(tokens[6], "unknown") ||
+            cupiddis_span_equal(tokens[7], "-"))) ||
+          (edge.class_id == CTOOL_DIS_RAW_EDGE_EXTERNAL &&
+           (!cupiddis_span_equal(tokens[4], "-") ||
+            cupiddis_span_equal(tokens[5], "-") ||
+            cupiddis_span_equal(tokens[6], "unknown") ||
+            cupiddis_span_equal(tokens[7], "-"))) ||
+          (edge.class_id == CTOOL_DIS_RAW_EDGE_UNPROVABLE &&
+           (!cupiddis_span_equal(tokens[4], "-") ||
+            !cupiddis_span_equal(tokens[5], "-") ||
+            !cupiddis_span_equal(tokens[6], "unknown") ||
+            !cupiddis_span_equal(tokens[7], "-")))) {
+        *message_out =
+            "raw range map edge fields disagree with their class";
+        goto done;
+      }
+      if (edge_count != 0u &&
+          edge.source_offset <= edges[edge_count - 1u].source_offset) {
+        *message_out = "raw edge sources must increase without overlap";
+        goto done;
+      }
+      if (edge_count == 4294967295u) {
+        *message_out = "raw range map has too many edges";
+        goto done;
+      }
+      if (edge_count == edge_capacity) {
+        capacity = edge_capacity == 0u ? 4u : edge_capacity;
+        if (capacity > 2147483647u) {
+          capacity = edge_count + 1u;
+        } else {
+          capacity *= 2u;
+        }
+        allocation_size = (size_t)capacity * sizeof(*resized);
+        if (allocation_size / sizeof(*resized) != (size_t)capacity) {
+          *message_out = "raw range map has too many edges";
+          goto done;
+        }
+        resized = (ctool_dis_raw_edge_t *)realloc(edges, allocation_size);
+        if (resized == (ctool_dis_raw_edge_t *)0) {
+          *message_out = "raw range map exceeds the host limit";
+          goto done;
+        }
+        edges = resized;
+        edge_capacity = capacity;
+      }
+      edges[edge_count++] = edge;
+      continue;
+    }
     *message_out = "raw range map contains an unknown record";
     goto done;
   }
@@ -477,6 +638,18 @@ static int cupiddis_load_range_map(cupiddis_cli_t *cli,
     *message_out = "raw range map requires one base address";
     goto done;
   }
+  if (schema_v2 == CTOOL_TRUE && have_edge_count == CTOOL_FALSE) {
+    *message_out = "raw range map v2 requires one edge count";
+    goto done;
+  }
+  if (schema_v2 == CTOOL_FALSE && edge_count != 0u) {
+    *message_out = "raw range map v1 cannot contain edge records";
+    goto done;
+  }
+  if (schema_v2 == CTOOL_TRUE && edge_count != expected_edge_count) {
+    *message_out = "raw range map edge count does not match its records";
+    goto done;
+  }
   if (range_count == 0u) {
     *message_out = "raw range map requires at least one range";
     goto done;
@@ -489,17 +662,100 @@ static int cupiddis_load_range_map(cupiddis_cli_t *cli,
     *message_out = "raw range start is outside the mapped image";
     goto done;
   }
+  {
+    ctool_u32 edge_index;
+    for (edge_index = 0u; edge_index < edge_count; edge_index++) {
+      const ctool_dis_raw_edge_t *edge = &edges[edge_index];
+      ctool_dis_raw_range_kind_t source_kind = CTOOL_DIS_RAW_RANGE_DATA;
+      ctool_u32 range_index;
+      if (edge->source_offset >= expected_size) {
+        *message_out = "raw edge source is outside the mapped image";
+        goto done;
+      }
+      for (range_index = 0u; range_index < range_count; range_index++) {
+        if (ranges[range_index].offset > edge->source_offset) {
+          break;
+        }
+        source_kind = ranges[range_index].kind;
+      }
+      if (source_kind == CTOOL_DIS_RAW_RANGE_DATA) {
+        *message_out = "raw edge source must be inside code";
+        goto done;
+      }
+      if (edge->class_id == CTOOL_DIS_RAW_EDGE_LOCAL) {
+        ctool_dis_raw_range_kind_t target_kind = CTOOL_DIS_RAW_RANGE_DATA;
+        if (edge->kind == CTOOL_DIS_RAW_EDGE_INDIRECT ||
+            edge->target_offset == CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+            (edge->target_mode != CTOOL_X86_MODE_16 &&
+             edge->target_mode != CTOOL_X86_MODE_32) ||
+            edge->target_offset >= expected_size ||
+            base > 4294967295u - edge->target_offset ||
+            base + edge->target_offset != edge->target_address) {
+          *message_out = "raw local edge target is inconsistent";
+          goto done;
+        }
+        for (range_index = 0u; range_index < range_count; range_index++) {
+          if (ranges[range_index].offset > edge->target_offset) {
+            break;
+          }
+          target_kind = ranges[range_index].kind;
+        }
+        if (target_kind == CTOOL_DIS_RAW_RANGE_DATA ||
+            (target_kind == CTOOL_DIS_RAW_RANGE_CODE16
+                 ? CTOOL_X86_MODE_16
+                 : CTOOL_X86_MODE_32) != edge->target_mode) {
+          *message_out = "raw local edge target mode disagrees with ranges";
+          goto done;
+        }
+        if ((edge->kind == CTOOL_DIS_RAW_EDGE_RELATIVE &&
+             edge->target_segment != 0u) ||
+            edge->target_segment == CTOOL_DIS_RAW_EDGE_NO_TARGET) {
+          *message_out = "raw local edge segment is inconsistent";
+          goto done;
+        }
+      } else if (edge->class_id == CTOOL_DIS_RAW_EDGE_EXTERNAL) {
+        if (edge->kind == CTOOL_DIS_RAW_EDGE_INDIRECT ||
+            edge->target_offset != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+            (edge->target_mode != CTOOL_X86_MODE_16 &&
+             edge->target_mode != CTOOL_X86_MODE_32) ||
+            edge->target_segment == CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+            (edge->kind == CTOOL_DIS_RAW_EDGE_RELATIVE &&
+             edge->target_segment != 0u)) {
+          *message_out = "raw external edge target is inconsistent";
+          goto done;
+        }
+        if (edge->target_address >= base &&
+            edge->target_address - base < expected_size) {
+          *message_out =
+              "raw external edge target is inside the mapped image";
+          goto done;
+        }
+      } else if (edge->kind != CTOOL_DIS_RAW_EDGE_INDIRECT ||
+                 edge->target_offset != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+                 edge->target_address != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+                 edge->target_mode != (ctool_x86_mode_t)0 ||
+                 edge->target_segment != CTOOL_DIS_RAW_EDGE_NO_TARGET) {
+        *message_out = "raw unprovable edge target must be unknown";
+        goto done;
+      }
+    }
+  }
   cli->raw_ranges = ranges;
   cli->range_capacity = range_capacity;
   cli->range_boundary_count = range_count - 1u;
   cli->mapped_ranges = CTOOL_TRUE;
   cli->range_map_size = expected_size;
   cli->base_address = base;
+  cli->raw_edges = edges;
+  cli->raw_edge_count = edge_count;
+  cli->raw_edge_metadata_present = schema_v2;
   ranges = (ctool_dis_raw_range_t *)0;
+  edges = (ctool_dis_raw_edge_t *)0;
   success = 1;
 
 done:
   free(ranges);
+  free(edges);
   free(contents);
   return success;
 }
@@ -548,6 +804,10 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
     }
     if (strcmp(argument, "--require-local-targets") == 0) {
       cli->require_local_targets = CTOOL_TRUE;
+      continue;
+    }
+    if (strcmp(argument, "--require-source-edges") == 0) {
+      cli->require_source_edges = CTOOL_TRUE;
       continue;
     }
     if (strcmp(argument, "--require-code-anchors") == 0) {
@@ -649,6 +909,11 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
   }
   if (cli->require_local_targets == CTOOL_TRUE &&
       cli->require_known == CTOOL_FALSE) {
+    return 0;
+  }
+  if (cli->require_source_edges == CTOOL_TRUE &&
+      (cli->require_known == CTOOL_FALSE || cli->raw == CTOOL_FALSE ||
+       cli->range_map == (const char *)0)) {
     return 0;
   }
   if (cli->require_code_anchors == CTOOL_TRUE &&
@@ -790,6 +1055,9 @@ static void cupiddis_make_request(const cupiddis_cli_t *cli,
   if (cli->require_local_targets == CTOOL_TRUE) {
     request->policies |= CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS;
   }
+  if (cli->require_source_edges == CTOOL_TRUE) {
+    request->policies |= CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES;
+  }
   if (cli->require_code_anchors == CTOOL_TRUE) {
     request->policies |= CTOOL_DIS_POLICY_CODE_ANCHORS;
   }
@@ -801,6 +1069,9 @@ static void cupiddis_make_request(const cupiddis_cli_t *cli,
     request->raw_ranges = cli->raw_ranges;
     request->raw_range_count = cli->range_boundary_count + 1u;
   }
+  request->raw_edges = cli->raw_edges;
+  request->raw_edge_count = cli->raw_edge_count;
+  request->raw_edge_metadata_present = cli->raw_edge_metadata_present;
 }
 
 static int cupiddis_range_map_matches(const cupiddis_cli_t *cli,
@@ -982,6 +1253,29 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
       failed = 1;
     }
   }
+  if (cli->require_source_edges == CTOOL_TRUE) {
+    ctool_u64 invalid_edges =
+        report.decode_summary.source_control_edge_invalid_count;
+    if (invalid_edges != 0u) {
+      (void)fprintf(
+          stderr,
+          "cupiddis: %s: source control-edge check failed: %llu of %llu "
+          "edges invalid (%llu source mismatch, %llu target mismatch, "
+          "%llu target-mode mismatch, %llu explicitly unprovable)\n",
+          input, (unsigned long long)invalid_edges,
+          (unsigned long long)
+              report.decode_summary.source_control_edge_count,
+          (unsigned long long)
+              report.decode_summary.source_control_edge_source_mismatch_count,
+          (unsigned long long)
+              report.decode_summary.source_control_edge_target_mismatch_count,
+          (unsigned long long)
+              report.decode_summary.source_control_edge_target_mode_mismatch_count,
+          (unsigned long long)
+              report.decode_summary.source_control_edge_unprovable_count);
+      failed = 1;
+    }
+  }
   if (cli->require_code_anchors == CTOOL_TRUE) {
     ctool_u64 invalid_anchors =
         report.decode_summary.code_anchor_outside_executable_count +
@@ -1034,12 +1328,14 @@ int main(int argc, char **argv) {
   if (parsed < 0) {
     cupiddis_usage(stdout);
     free(cli.raw_ranges);
+    free(cli.raw_edges);
     free(cli.inputs);
     return 0;
   }
   if (parsed == 0) {
     cupiddis_usage(stderr);
     free(cli.raw_ranges);
+    free(cli.raw_edges);
     free(cli.inputs);
     return 2;
   }
@@ -1048,6 +1344,7 @@ int main(int argc, char **argv) {
     if (!cupiddis_load_range_map(&cli, &message)) {
       (void)fprintf(stderr, "cupiddis: %s: %s\n", cli.range_map, message);
       free(cli.raw_ranges);
+      free(cli.raw_edges);
       free(cli.inputs);
       return 1;
     }
@@ -1082,12 +1379,14 @@ int main(int argc, char **argv) {
       ctool_job_close(job);
     }
     free(cli.raw_ranges);
+    free(cli.raw_edges);
     free(cli.inputs);
     return failed;
   }
   if (!cupiddis_split_path(cli.input, &native_root, &logical_name)) {
     (void)fprintf(stderr, "cupiddis: invalid input path\n");
     free(cli.raw_ranges);
+    free(cli.raw_edges);
     free(cli.inputs);
     return 1;
   }
@@ -1152,6 +1451,7 @@ done:
   }
   free(native_root);
   free(cli.raw_ranges);
+  free(cli.raw_edges);
   free(cli.inputs);
   return exit_code;
 }

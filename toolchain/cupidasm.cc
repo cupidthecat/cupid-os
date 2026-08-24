@@ -233,6 +233,8 @@ static void asm_zero_result(ctool_asm_result_t *result) {
   result->entry_address = 0u;
   result->raw_ranges = (const ctool_asm_raw_range_t *)0;
   result->raw_range_count = 0u;
+  result->raw_edges = (const ctool_asm_raw_edge_t *)0;
+  result->raw_edge_count = 0u;
   result->raw_origin = 0u;
 }
 
@@ -3512,6 +3514,160 @@ static ctool_status_t asm_publish_raw_ranges(asm_context_t *context,
   return CTOOL_OK;
 }
 
+static ctool_bool asm_statement_has_raw_control_edge(
+    const asm_statement_t *statement) {
+  const asm_operand_t *operand;
+  if (statement->kind != ASM_STATEMENT_INSTRUCTION ||
+      statement->as.instruction.operand_count == 0u) {
+    return CTOOL_FALSE;
+  }
+  operand = &statement->as.instruction.operands[0];
+  if (operand->kind == ASM_OPERAND_EXPRESSION &&
+      asm_mnemonic_is_direct_branch(statement->as.instruction.mnemonic) ==
+          CTOOL_TRUE) {
+    return CTOOL_TRUE;
+  }
+  if (statement->as.instruction.mnemonic != CTOOL_X86_MN_CALL &&
+      statement->as.instruction.mnemonic != CTOOL_X86_MN_JMP) {
+    return CTOOL_FALSE;
+  }
+  return operand->kind == ASM_OPERAND_FAR_POINTER ||
+                 operand->kind == ASM_OPERAND_REGISTER ||
+                 operand->kind == ASM_OPERAND_MEMORY
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_x86_mode_t asm_raw_target_mode(
+    const ctool_asm_result_t *result, ctool_u32 target_offset) {
+  ctool_u32 index;
+  ctool_asm_raw_range_kind_t kind = CTOOL_ASM_RAW_RANGE_DATA;
+  for (index = 0u; index < result->raw_range_count; index++) {
+    if (result->raw_ranges[index].offset > target_offset) {
+      break;
+    }
+    kind = result->raw_ranges[index].kind;
+  }
+  if (kind == CTOOL_ASM_RAW_RANGE_CODE16) {
+    return CTOOL_X86_MODE_16;
+  }
+  if (kind == CTOOL_ASM_RAW_RANGE_CODE32) {
+    return CTOOL_X86_MODE_32;
+  }
+  return (ctool_x86_mode_t)0;
+}
+
+static void asm_set_raw_edge_target(asm_context_t *context,
+                                    ctool_asm_result_t *result,
+                                    ctool_u32 source_size,
+                                    ctool_u32 target_address,
+                                    ctool_x86_mode_t external_mode,
+                                    ctool_asm_raw_edge_t *edge) {
+  if (target_address >= context->origin &&
+      target_address - context->origin < source_size) {
+    edge->class_id = CTOOL_ASM_RAW_EDGE_LOCAL;
+    edge->target_offset = target_address - context->origin;
+    edge->target_mode =
+        asm_raw_target_mode(result, edge->target_offset);
+  } else {
+    edge->class_id = CTOOL_ASM_RAW_EDGE_EXTERNAL;
+    edge->target_offset = CTOOL_ASM_RAW_EDGE_NO_TARGET;
+    edge->target_mode = external_mode;
+  }
+  edge->target_address = target_address;
+}
+
+static ctool_status_t asm_publish_raw_edges(asm_context_t *context,
+                                            ctool_u32 source_size,
+                                            ctool_asm_result_t *result) {
+  asm_statement_t *statement = context->statements;
+  ctool_u32 count = 0u;
+  ctool_asm_raw_edge_t *edges;
+  ctool_status_t status;
+  while (statement != (asm_statement_t *)0) {
+    if (asm_statement_has_raw_control_edge(statement) == CTOOL_TRUE) {
+      if (count == ASM_U32_MAX) {
+        asm_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_ASM_DIAG_LIMIT,
+                 statement->line, statement->column,
+                 "raw control-edge metadata exceeds the 32-bit limit");
+        return CTOOL_ERR_OVERFLOW;
+      }
+      count++;
+    }
+    statement = statement->next;
+  }
+  if (count == 0u) {
+    result->raw_edges = (const ctool_asm_raw_edge_t *)0;
+    result->raw_edge_count = 0u;
+    return CTOOL_OK;
+  }
+  status = ctool_arena_alloc_zero(
+      ctool_job_arena(context->job), count, (ctool_u32)sizeof(*edges),
+      (ctool_u32)sizeof(void *), (void **)&edges);
+  if (status != CTOOL_OK) {
+    asm_fail(context, status, CTOOL_ASM_DIAG_LIMIT, 0u, 0u,
+             "raw control-edge metadata exceeds the job limit");
+    return status;
+  }
+  statement = context->statements;
+  count = 0u;
+  while (statement != (asm_statement_t *)0) {
+    const asm_operand_t *operand;
+    ctool_asm_raw_edge_t *edge;
+    ctool_u32 target_address;
+    if (asm_statement_has_raw_control_edge(statement) == CTOOL_FALSE) {
+      statement = statement->next;
+      continue;
+    }
+    operand = &statement->as.instruction.operands[0];
+    edge = &edges[count++];
+    edge->source_offset = statement->offset;
+    edge->target_offset = CTOOL_ASM_RAW_EDGE_NO_TARGET;
+    edge->target_address = CTOOL_ASM_RAW_EDGE_NO_TARGET;
+    edge->target_mode = (ctool_x86_mode_t)0;
+    edge->target_segment = CTOOL_ASM_RAW_EDGE_NO_TARGET;
+    if (operand->kind == ASM_OPERAND_EXPRESSION) {
+      status = asm_expression_raw_value(context, operand->expression,
+                                        statement->offset,
+                                        &target_address);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      edge->kind = CTOOL_ASM_RAW_EDGE_RELATIVE;
+      edge->target_segment = 0u;
+      asm_set_raw_edge_target(context, result, source_size,
+                              target_address, statement->mode, edge);
+    } else if (operand->kind == ASM_OPERAND_FAR_POINTER) {
+      ctool_u32 segment;
+      status = asm_expression_raw_value(context, operand->second_expression,
+                                        statement->offset,
+                                        &target_address);
+      if (status == CTOOL_OK) {
+        status = asm_expression_raw_value(context, operand->expression,
+                                          statement->offset, &segment);
+      }
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      edge->kind = CTOOL_ASM_RAW_EDGE_FAR;
+      edge->target_segment = segment;
+      asm_set_raw_edge_target(
+          context, result, source_size, target_address,
+          operand->width_bits != 0u
+              ? (ctool_x86_mode_t)operand->width_bits
+              : statement->mode,
+          edge);
+    } else {
+      edge->kind = CTOOL_ASM_RAW_EDGE_INDIRECT;
+      edge->class_id = CTOOL_ASM_RAW_EDGE_UNPROVABLE;
+    }
+    statement = statement->next;
+  }
+  result->raw_edges = edges;
+  result->raw_edge_count = count;
+  return CTOOL_OK;
+}
+
 static ctool_status_t asm_object_counts(
     asm_context_t *context, ctool_u32 *symbol_count_out,
     ctool_u32 *relocation_capacity_out) {
@@ -4437,6 +4593,10 @@ ctool_status_t ctool_asm_assemble(ctool_job_t *job,
       if (status == CTOOL_OK) {
         status = asm_publish_raw_ranges(&context, result_out);
       }
+      if (status == CTOOL_OK) {
+        status = asm_publish_raw_edges(
+            &context, ctool_buffer_view(output).size, result_out);
+      }
     } else if (request->artifact == CTOOL_ASM_ARTIFACT_ELF32_REL) {
       status = asm_emit_object(&context, output, result_out);
     } else {
@@ -4463,6 +4623,8 @@ ctool_status_t ctool_asm_assemble(ctool_job_t *job,
   } else {
     result_out->raw_ranges = (const ctool_asm_raw_range_t *)0;
     result_out->raw_range_count = 0u;
+    result_out->raw_edges = (const ctool_asm_raw_edge_t *)0;
+    result_out->raw_edge_count = 0u;
     result_out->raw_origin = 0u;
   }
   return CTOOL_OK;

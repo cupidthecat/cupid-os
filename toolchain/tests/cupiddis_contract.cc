@@ -285,7 +285,23 @@ static int summaries_equal(const ctool_dis_decode_summary_t *left,
                   left->code_anchor_outside_executable_count ==
                       right->code_anchor_outside_executable_count &&
                   left->code_anchor_mid_instruction_count ==
-                      right->code_anchor_mid_instruction_count
+                      right->code_anchor_mid_instruction_count &&
+                  left->source_control_edge_count ==
+                      right->source_control_edge_count &&
+                  left->source_control_edge_local_count ==
+                      right->source_control_edge_local_count &&
+                  left->source_control_edge_external_count ==
+                      right->source_control_edge_external_count &&
+                  left->source_control_edge_unprovable_count ==
+                      right->source_control_edge_unprovable_count &&
+                  left->source_control_edge_invalid_count ==
+                      right->source_control_edge_invalid_count &&
+                  left->source_control_edge_source_mismatch_count ==
+                      right->source_control_edge_source_mismatch_count &&
+                  left->source_control_edge_target_mismatch_count ==
+                      right->source_control_edge_target_mismatch_count &&
+                  left->source_control_edge_target_mode_mismatch_count ==
+                      right->source_control_edge_target_mode_mismatch_count
              ? 1
              : 0;
 }
@@ -638,6 +654,16 @@ static int run_targets(void) {
       0x74u, 0x00u,
       0x0fu, 0x85u, 0x00u, 0x00u, 0x00u, 0x00u,
       0xc3u};
+  static const ctool_u8 source_edge_valid[] = {
+      0xebu, 0x00u, 0xc3u, 0xc3u};
+  static const ctool_u8 source_edge_changed[] = {
+      0xebu, 0x01u, 0xc3u, 0xc3u};
+  static const ctool_u8 source_edge_middle[] = {
+      0xebu, 0x01u, 0xb8u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 source_edge_cross_mode[] = {
+      0x66u, 0xeau, 0x00u, 0x00u, 0x10u, 0x00u, 0x08u, 0x00u};
+  static const ctool_u8 source_edge_maximum[] = {
+      0xeau, 0xffu, 0xffu, 0xffu, 0xffu, 0x08u, 0x00u};
   static ctool_u8 oversized_code16[65537];
   static ctool_u8 elf_code_fixture[16384];
   static ctool_u8 elf_allocation_fixture[24576];
@@ -652,6 +678,33 @@ static int run_targets(void) {
       {0u, CTOOL_DIS_RAW_RANGE_CODE32},
       {2u, CTOOL_DIS_RAW_RANGE_DATA},
       {4u, CTOOL_DIS_RAW_RANGE_CODE32}};
+  static const ctool_dis_raw_range_t source_edge_ranges[] = {
+      {0u, CTOOL_DIS_RAW_RANGE_CODE32}};
+  static const ctool_dis_raw_range_t source_edge_ranges16[] = {
+      {0u, CTOOL_DIS_RAW_RANGE_CODE16}};
+  static const ctool_dis_raw_edge_t source_edges[] = {
+      {0u, CTOOL_DIS_RAW_EDGE_RELATIVE, CTOOL_DIS_RAW_EDGE_LOCAL,
+       2u, 0x1002u, CTOOL_X86_MODE_32, 0u}};
+  static const ctool_dis_raw_edge_t middle_edges[] = {
+      {0u, CTOOL_DIS_RAW_EDGE_RELATIVE, CTOOL_DIS_RAW_EDGE_LOCAL,
+       3u, 0x1003u, CTOOL_X86_MODE_32, 0u}};
+  static const ctool_dis_raw_edge_t duplicate_edges[] = {
+      {0u, CTOOL_DIS_RAW_EDGE_RELATIVE, CTOOL_DIS_RAW_EDGE_LOCAL,
+       2u, 0x1002u, CTOOL_X86_MODE_32, 0u},
+      {0u, CTOOL_DIS_RAW_EDGE_RELATIVE, CTOOL_DIS_RAW_EDGE_LOCAL,
+       2u, 0x1002u, CTOOL_X86_MODE_32, 0u}};
+  static const ctool_dis_raw_edge_t inside_external_edge[] = {
+      {0u, CTOOL_DIS_RAW_EDGE_RELATIVE, CTOOL_DIS_RAW_EDGE_EXTERNAL,
+       CTOOL_DIS_RAW_EDGE_NO_TARGET, 0x1002u, CTOOL_X86_MODE_32, 0u}};
+  static const ctool_dis_raw_edge_t wrapped_edge[] = {
+      {0u, CTOOL_DIS_RAW_EDGE_RELATIVE, CTOOL_DIS_RAW_EDGE_LOCAL,
+       2u, 0x10001u, CTOOL_X86_MODE_16, 0u}};
+  static const ctool_dis_raw_edge_t cross_mode_edge[] = {
+      {0u, CTOOL_DIS_RAW_EDGE_FAR, CTOOL_DIS_RAW_EDGE_EXTERNAL,
+       CTOOL_DIS_RAW_EDGE_NO_TARGET, 0x00100000u, CTOOL_X86_MODE_32, 8u}};
+  static const ctool_dis_raw_edge_t maximum_edge[] = {
+      {0u, CTOOL_DIS_RAW_EDGE_FAR, CTOOL_DIS_RAW_EDGE_EXTERNAL,
+       CTOOL_DIS_RAW_EDGE_NO_TARGET, 0xffffffffu, CTOOL_X86_MODE_32, 8u}};
   static const struct {
     const char *path;
     const ctool_u8 *bytes;
@@ -723,6 +776,160 @@ static int run_targets(void) {
       ctool_job_close(job);
       return 1;
     }
+  }
+  {
+    ctool_host_adapter_t edge_adapter;
+    ctool_job_t *edge_job;
+    ctool_source_t source;
+    ctool_dis_request_t request =
+        raw_request(CTOOL_DIS_RAW_RANGE_MAP, 0x1000u);
+    ctool_dis_report_t report;
+    ctool_status_t status;
+    if (!open_job(&edge_adapter, &edge_job)) {
+      ctool_job_close(job);
+      return 1;
+    }
+    request.policies = CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES;
+    request.raw_ranges = source_edge_ranges;
+    request.raw_range_count = 1u;
+    request.raw_edges = source_edges;
+    request.raw_edge_count = 1u;
+    request.raw_edge_metadata_present = CTOOL_TRUE;
+    source.path.text = ctool_string("/source-edge.bin");
+    source.contents = ctool_bytes(source_edge_valid,
+                                  (ctool_u32)sizeof(source_edge_valid));
+    status = ctool_dis_inspect(edge_job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK, "valid source control edge") ||
+        report.decode_summary.source_control_edge_count != 1u ||
+        report.decode_summary.source_control_edge_local_count != 1u ||
+        report.decode_summary.source_control_edge_invalid_count != 0u) {
+      (void)fprintf(stderr, "valid source control-edge summary differs\n");
+      ctool_job_close(edge_job);
+      ctool_job_close(job);
+      return 1;
+    }
+
+    source.contents = ctool_bytes(source_edge_changed,
+                                  (ctool_u32)sizeof(source_edge_changed));
+    status = ctool_dis_inspect(edge_job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK,
+                      "changed source control edge") ||
+        report.decode_summary.source_control_edge_invalid_count != 1u ||
+        report.decode_summary.source_control_edge_target_mismatch_count !=
+            1u) {
+      (void)fprintf(stderr, "changed source control-edge summary differs\n");
+      ctool_job_close(edge_job);
+      ctool_job_close(job);
+      return 1;
+    }
+
+    source.contents = ctool_bytes(source_edge_middle,
+                                  (ctool_u32)sizeof(source_edge_middle));
+    request.raw_edges = middle_edges;
+    status = ctool_dis_inspect(edge_job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK,
+                      "middle-instruction source edge") ||
+        report.decode_summary.source_control_edge_invalid_count != 1u ||
+        report.decode_summary.source_control_edge_target_mismatch_count !=
+            1u) {
+      (void)fprintf(stderr,
+                    "middle-instruction source control edge differs\n");
+      ctool_job_close(edge_job);
+      ctool_job_close(job);
+      return 1;
+    }
+
+    source.contents = ctool_bytes(source_edge_valid,
+                                  (ctool_u32)sizeof(source_edge_valid));
+    request.raw_edges = duplicate_edges;
+    request.raw_edge_count = 2u;
+    (void)memset(&report, 0xa5, sizeof(report));
+    status = ctool_dis_inspect(edge_job, &source, &request, &report);
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "duplicate source control edges") ||
+        report.source != (const ctool_source_t *)0) {
+      (void)fprintf(stderr, "duplicate source control-edge check differs\n");
+      ctool_job_close(edge_job);
+      ctool_job_close(job);
+      return 1;
+    }
+
+    request.raw_edges = inside_external_edge;
+    request.raw_edge_count = 1u;
+    status = ctool_dis_inspect(edge_job, &source, &request, &report);
+    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                      "in-image external source control edge") ||
+        report.source != (const ctool_source_t *)0) {
+      (void)fprintf(stderr, "in-image external edge check differs\n");
+      ctool_job_close(edge_job);
+      ctool_job_close(job);
+      return 1;
+    }
+
+    source.path.text = ctool_string("/wrapped-source-edge.bin");
+    source.contents = ctool_bytes(wrap16, (ctool_u32)sizeof(wrap16));
+    request.raw_base_address = 0xffffu;
+    request.raw_ranges = source_edge_ranges16;
+    request.raw_edges = wrapped_edge;
+    status = ctool_dis_inspect(edge_job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK, "wrapped source control edge") ||
+        report.decode_summary.source_control_edge_invalid_count != 0u) {
+      (void)fprintf(stderr, "wrapped source control edge differs\n");
+      ctool_job_close(edge_job);
+      ctool_job_close(job);
+      return 1;
+    }
+
+    source.path.text = ctool_string("/cross-mode-source-edge.bin");
+    source.contents = ctool_bytes(
+        source_edge_cross_mode,
+        (ctool_u32)sizeof(source_edge_cross_mode));
+    request.raw_base_address = 0x8000u;
+    request.raw_edges = cross_mode_edge;
+    status = ctool_dis_inspect(edge_job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK,
+                      "cross-mode external source edge") ||
+        report.decode_summary.source_control_edge_invalid_count != 0u) {
+      (void)fprintf(stderr, "cross-mode external source edge differs\n");
+      ctool_job_close(edge_job);
+      ctool_job_close(job);
+      return 1;
+    }
+
+    source.path.text = ctool_string("/maximum-source-edge.bin");
+    source.contents = ctool_bytes(
+        source_edge_maximum,
+        (ctool_u32)sizeof(source_edge_maximum));
+    request.raw_base_address = 0u;
+    request.raw_ranges = source_edge_ranges;
+    request.raw_edges = maximum_edge;
+    status = ctool_dis_inspect(edge_job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK,
+                      "maximum external source edge") ||
+        report.decode_summary.source_control_edge_invalid_count != 0u) {
+      (void)fprintf(stderr, "maximum external source edge differs\n");
+      ctool_job_close(edge_job);
+      ctool_job_close(job);
+      return 1;
+    }
+
+    source.path.text = ctool_string("/source-edge.bin");
+    source.contents = ctool_bytes(source_edge_valid,
+                                  (ctool_u32)sizeof(source_edge_valid));
+    request.raw_base_address = 0x1000u;
+    request.raw_edges = source_edges;
+    request.raw_edge_count = 1u;
+    status = ctool_dis_inspect(edge_job, &source, &request, &report);
+    if (!check_status(status, CTOOL_OK,
+                      "source control-edge same-job recovery") ||
+        report.decode_summary.source_control_edge_invalid_count != 0u) {
+      (void)fprintf(stderr,
+                    "source control-edge same-job recovery differs\n");
+      ctool_job_close(edge_job);
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_job_close(edge_job);
   }
   {
     ctool_buffer_t *object_bytes = (ctool_buffer_t *)0;

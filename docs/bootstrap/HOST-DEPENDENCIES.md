@@ -36,6 +36,14 @@ and final ELFs before CupidObj flattening. Minimal DWARF source information
 remains missing and does not block this placement check. ADR 0320 records the
 source rule, and ADR 0323 records seed carriage and production adoption.
 
+Source-head raw-map v2 metadata binds represented calls and jumps to the
+addresses CupidASM resolved. CupidDis can validate those rows, including local
+and external far transfers, while recording register- and memory-indirect
+destinations as unprovable. This is shared tool capability, not a new host
+transform. The checked seeds and production raw-image transactions still use
+v1 until promotion and adoption, so this step removes no dependency and
+changes no participation count. ADR 0340 records the source boundary.
+
 Active dglibc now consumes the checked seed's `returns_twice` support. This
 changes no build owner or host dependency. Native Clang still builds the
 optional decoder-driven oracle, while the asset-free QEMU self-test executes

@@ -56,6 +56,17 @@ targets stay outside the policy. Both checked seeds carry the raw form, and
 the bootloader and SMP transactions select it before atomic publication. ADR
 0300 records the source rule, and ADR 0305 records carriage and adoption.
 
+Source-head CupidASM now retains the resolved destination for raw calls and
+jumps beside the range map. Its v2 rows distinguish local, external, and
+unprovable transfers. Source-head CupidDis can require those rows and compare
+them with decoded relative and immediate far destinations. This closes the
+valid-but-wrong instruction-boundary gap without weakening the existing local
+target rule. The active boot source contributes nine local relative rows, two
+local far rows, and one external far row. The SMP source contributes four
+local relative rows, one local far row, and one indirect unprovable row. The
+checked seeds and production transactions remain on v1 pending promotion, so
+this source change moves no transform or owner. ADR 0340 records the boundary.
+
 CupidDis applies the explicit policy to static ELF32 relocatable objects too.
 It checks unrelocated direct targets against starts in
 their own executable section and leaves relocated operands to link-time

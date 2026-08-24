@@ -92,7 +92,9 @@ static int contract_result_is_zero(const ctool_asm_result_t *result) {
                  result->entry_symbol.size == 0u &&
                  result->raw_ranges ==
                      (const ctool_asm_raw_range_t *)0 &&
-                 result->raw_range_count == 0u && result->raw_origin == 0u
+                 result->raw_range_count == 0u &&
+                 result->raw_edges == (const ctool_asm_raw_edge_t *)0 &&
+                 result->raw_edge_count == 0u && result->raw_origin == 0u
              ? 1
              : 0;
 }
@@ -1435,6 +1437,14 @@ static int run_raw_source_contracts(void) {
       "db 0x11\n"
       "section .payload\n"
       "ret\n";
+  static const char control_edge_source[] =
+      "BITS 16\n"
+      "ORG 0x8000\n"
+      "start: jmp next\n"
+      "next: jmp dword 0x08:pm32\n"
+      "BITS 32\n"
+      "pm32: call eax\n"
+      "jmp 0x08:0x00100000\n";
   static const char multi_section_source[] =
       "BITS 32\n"
       "section .text\n"
@@ -1563,6 +1573,55 @@ static int run_raw_source_contracts(void) {
       result.raw_origin != 0x100u ||
       ctool_job_diagnostic_count(job) != 1u) {
     (void)fprintf(stderr, "raw source deterministic repeat differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_buffer_rewind(output, 0u);
+  source.path.text = ctool_string("/raw-control-edges.asm");
+  source.contents = ctool_bytes(
+      control_edge_source,
+      (ctool_u32)(sizeof(control_edge_source) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  if (status == CTOOL_OK) {
+    status = ctool_asm_assemble(job, &source, &request, output, &result);
+  }
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "raw control-edge metadata") ||
+      bytes.size != 19u || result.raw_origin != 0x8000u ||
+      result.raw_range_count != 2u || result.raw_edge_count != 4u ||
+      result.raw_edges[0].source_offset != 0u ||
+      result.raw_edges[0].kind != CTOOL_ASM_RAW_EDGE_RELATIVE ||
+      result.raw_edges[0].class_id != CTOOL_ASM_RAW_EDGE_LOCAL ||
+      result.raw_edges[0].target_offset != 2u ||
+      result.raw_edges[0].target_address != 0x8002u ||
+      result.raw_edges[0].target_mode != CTOOL_X86_MODE_16 ||
+      result.raw_edges[0].target_segment != 0u ||
+      result.raw_edges[1].source_offset != 2u ||
+      result.raw_edges[1].kind != CTOOL_ASM_RAW_EDGE_FAR ||
+      result.raw_edges[1].class_id != CTOOL_ASM_RAW_EDGE_LOCAL ||
+      result.raw_edges[1].target_offset != 10u ||
+      result.raw_edges[1].target_address != 0x800au ||
+      result.raw_edges[1].target_mode != CTOOL_X86_MODE_32 ||
+      result.raw_edges[1].target_segment != 8u ||
+      result.raw_edges[2].source_offset != 10u ||
+      result.raw_edges[2].kind != CTOOL_ASM_RAW_EDGE_INDIRECT ||
+      result.raw_edges[2].class_id != CTOOL_ASM_RAW_EDGE_UNPROVABLE ||
+      result.raw_edges[2].target_offset != CTOOL_ASM_RAW_EDGE_NO_TARGET ||
+      result.raw_edges[2].target_address != CTOOL_ASM_RAW_EDGE_NO_TARGET ||
+      result.raw_edges[2].target_mode != 0 ||
+      result.raw_edges[2].target_segment != CTOOL_ASM_RAW_EDGE_NO_TARGET ||
+      result.raw_edges[3].source_offset != 12u ||
+      result.raw_edges[3].kind != CTOOL_ASM_RAW_EDGE_FAR ||
+      result.raw_edges[3].class_id != CTOOL_ASM_RAW_EDGE_EXTERNAL ||
+      result.raw_edges[3].target_offset != CTOOL_ASM_RAW_EDGE_NO_TARGET ||
+      result.raw_edges[3].target_address != 0x00100000u ||
+      result.raw_edges[3].target_mode != CTOOL_X86_MODE_32 ||
+      result.raw_edges[3].target_segment != 8u ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr, "raw control-edge metadata differs\n");
     (void)ctool_job_render_diagnostics(job);
     ctool_buffer_close(output);
     ctool_job_close(job);

@@ -249,6 +249,123 @@ static const char *dis_raw_map_message(dis_raw_map_issue_t issue) {
   }
 }
 
+static ctool_dis_raw_range_kind_t dis_request_raw_kind_at_offset(
+    const ctool_dis_request_t *request, ctool_u32 offset) {
+  ctool_u32 index;
+  ctool_dis_raw_range_kind_t kind = CTOOL_DIS_RAW_RANGE_DATA;
+  for (index = 0u; index < request->raw_range_count; index++) {
+    if (request->raw_ranges[index].offset > offset) {
+      break;
+    }
+    kind = request->raw_ranges[index].kind;
+  }
+  return kind;
+}
+
+static ctool_bool dis_raw_address_inside_image(const ctool_source_t *source,
+                                                ctool_u32 base_address,
+                                                ctool_u32 address) {
+  return address >= base_address &&
+                 address - base_address < source->contents.size
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static const char *dis_raw_edge_issue(const ctool_source_t *source,
+                                      const ctool_dis_request_t *request) {
+  ctool_u32 index;
+  if (request->raw_edge_metadata_present == CTOOL_FALSE) {
+    if (request->raw_edges != (const ctool_dis_raw_edge_t *)0 ||
+        request->raw_edge_count != 0u) {
+      return "raw control-edge storage requires explicit metadata";
+    }
+    if ((request->policies & CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES) != 0u) {
+      return "source control-edge checks require v2 raw metadata";
+    }
+    return (const char *)0;
+  }
+  if (request->raw_mode != CTOOL_DIS_RAW_RANGE_MAP) {
+    return "raw control-edge metadata requires a range map";
+  }
+  if (request->raw_edge_count != 0u &&
+      request->raw_edges == (const ctool_dis_raw_edge_t *)0) {
+    return "raw control-edge metadata storage is missing";
+  }
+  if (request->raw_edge_count > source->contents.size) {
+    return "raw control-edge metadata has too many rows";
+  }
+  for (index = 0u; index < request->raw_edge_count; index++) {
+    const ctool_dis_raw_edge_t *edge = &request->raw_edges[index];
+    ctool_dis_raw_range_kind_t source_kind;
+    if (edge->source_offset >= source->contents.size) {
+      return "raw control-edge source is outside input";
+    }
+    if (index != 0u &&
+        edge->source_offset <= request->raw_edges[index - 1u].source_offset) {
+      return "raw control-edge sources must increase without overlap";
+    }
+    source_kind = dis_request_raw_kind_at_offset(request,
+                                                 edge->source_offset);
+    if (source_kind == CTOOL_DIS_RAW_RANGE_DATA) {
+      return "raw control-edge source must be inside code";
+    }
+    if (edge->kind != CTOOL_DIS_RAW_EDGE_RELATIVE &&
+        edge->kind != CTOOL_DIS_RAW_EDGE_FAR &&
+        edge->kind != CTOOL_DIS_RAW_EDGE_INDIRECT) {
+      return "raw control-edge kind is invalid";
+    }
+    if (edge->class_id != CTOOL_DIS_RAW_EDGE_LOCAL &&
+        edge->class_id != CTOOL_DIS_RAW_EDGE_EXTERNAL &&
+        edge->class_id != CTOOL_DIS_RAW_EDGE_UNPROVABLE) {
+      return "raw control-edge class is invalid";
+    }
+    if (edge->class_id == CTOOL_DIS_RAW_EDGE_LOCAL) {
+      ctool_dis_raw_range_kind_t target_kind;
+      if (edge->kind == CTOOL_DIS_RAW_EDGE_INDIRECT ||
+          edge->target_offset == CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+          dis_x86_mode_valid(edge->target_mode) == CTOOL_FALSE ||
+          edge->target_offset >= source->contents.size ||
+          request->raw_base_address >
+              DIS_U32_MAX - edge->target_offset ||
+          request->raw_base_address + edge->target_offset !=
+              edge->target_address) {
+        return "raw local control-edge target is inconsistent";
+      }
+      target_kind =
+          dis_request_raw_kind_at_offset(request, edge->target_offset);
+      if (target_kind == CTOOL_DIS_RAW_RANGE_DATA ||
+          dis_raw_range_mode(target_kind) != edge->target_mode) {
+        return "raw local control-edge mode disagrees with the range map";
+      }
+      if ((edge->kind == CTOOL_DIS_RAW_EDGE_RELATIVE &&
+           edge->target_segment != 0u) ||
+          edge->target_segment == CTOOL_DIS_RAW_EDGE_NO_TARGET) {
+        return "raw local control-edge segment is inconsistent";
+      }
+    } else if (edge->class_id == CTOOL_DIS_RAW_EDGE_EXTERNAL) {
+      if (edge->kind == CTOOL_DIS_RAW_EDGE_INDIRECT ||
+          edge->target_offset != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+          dis_x86_mode_valid(edge->target_mode) == CTOOL_FALSE ||
+          edge->target_segment == CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+          (edge->kind == CTOOL_DIS_RAW_EDGE_RELATIVE &&
+           edge->target_segment != 0u)) {
+        return "raw external control-edge target is inconsistent";
+      }
+      if (dis_raw_address_inside_image(source, request->raw_base_address,
+                                       edge->target_address) == CTOOL_TRUE) {
+        return "raw external control-edge target is inside the image";
+      }
+    } else if (edge->kind != CTOOL_DIS_RAW_EDGE_INDIRECT ||
+               edge->target_offset != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+               edge->target_address != CTOOL_DIS_RAW_EDGE_NO_TARGET ||
+               edge->target_mode != (ctool_x86_mode_t)0 ||
+               edge->target_segment != CTOOL_DIS_RAW_EDGE_NO_TARGET) {
+      return "raw unprovable control-edge target must stay unknown";
+    }
+  }
+  return (const char *)0;
+}
+
 static ctool_i32 dis_signed_bits(ctool_u32 value) {
   if (value <= 0x7fffffffu) {
     return (ctool_i32)value;
@@ -433,6 +550,297 @@ static ctool_status_t dis_prepare_raw_local_target_summary(
           job, decoder, report, first, last,
           dis_raw_range_mode(report->raw_ranges[index].kind),
           instruction_starts, pass == 0u ? CTOOL_TRUE : CTOOL_FALSE);
+    }
+  }
+  rewind_status = ctool_arena_rewind(arena, mark);
+  return status == CTOOL_OK ? rewind_status : status;
+}
+
+static ctool_bool dis_decoded_raw_edge(
+    const ctool_x86_decoded_t *decoded, ctool_dis_raw_edge_kind_t *kind_out,
+    const ctool_x86_operand_t **operand_out) {
+  ctool_u32 index;
+  if (decoded->kind != CTOOL_X86_DECODE_KNOWN) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u;
+       index < (ctool_u32)decoded->instruction.operand_count; index++) {
+    const ctool_x86_operand_t *operand =
+        &decoded->instruction.operands[index];
+    if (operand->kind == CTOOL_X86_OPERAND_RELATIVE &&
+        operand->as.value.kind == CTOOL_X86_VALUE_CONSTANT) {
+      *kind_out = CTOOL_DIS_RAW_EDGE_RELATIVE;
+      *operand_out = operand;
+      return CTOOL_TRUE;
+    }
+  }
+  if (decoded->instruction.mnemonic != CTOOL_X86_MN_CALL &&
+      decoded->instruction.mnemonic != CTOOL_X86_MN_JMP) {
+    return CTOOL_FALSE;
+  }
+  if (decoded->instruction.operand_count == 0u) {
+    return CTOOL_FALSE;
+  }
+  if (decoded->instruction.operands[0].kind ==
+      CTOOL_X86_OPERAND_FAR_POINTER) {
+    *kind_out = CTOOL_DIS_RAW_EDGE_FAR;
+    *operand_out = &decoded->instruction.operands[0];
+    return CTOOL_TRUE;
+  }
+  if (decoded->instruction.operands[0].kind ==
+          CTOOL_X86_OPERAND_REGISTER ||
+      decoded->instruction.operands[0].kind == CTOOL_X86_OPERAND_MEMORY) {
+    *kind_out = CTOOL_DIS_RAW_EDGE_INDIRECT;
+    *operand_out = &decoded->instruction.operands[0];
+    return CTOOL_TRUE;
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_u32 dis_raw_edge_index(const ctool_dis_report_t *report,
+                                    ctool_u32 source_offset) {
+  ctool_u32 first = 0u;
+  ctool_u32 last = report->raw_edge_count;
+  while (first < last) {
+    ctool_u32 middle = first + (last - first) / 2u;
+    if (report->raw_edges[middle].source_offset < source_offset) {
+      first = middle + 1u;
+    } else {
+      last = middle;
+    }
+  }
+  if (first < report->raw_edge_count &&
+      report->raw_edges[first].source_offset == source_offset) {
+    return first;
+  }
+  return DIS_U32_MAX;
+}
+
+static ctool_bool dis_raw_target_offset(const ctool_dis_report_t *report,
+                                        ctool_u32 target_address,
+                                        ctool_u16 operand_bits,
+                                        ctool_u32 *offset_out) {
+  ctool_u32 offset;
+  if (operand_bits == 16u) {
+    offset = (target_address - (report->base_address & 0xffffu)) & 0xffffu;
+    if (offset >= report->source->contents.size) {
+      return CTOOL_FALSE;
+    }
+  } else {
+    if (target_address < report->base_address ||
+        target_address - report->base_address >=
+            report->source->contents.size) {
+      return CTOOL_FALSE;
+    }
+    offset = target_address - report->base_address;
+  }
+  *offset_out = offset;
+  return CTOOL_TRUE;
+}
+
+static void dis_validate_raw_edge_target(
+    ctool_dis_report_t *report, const ctool_dis_raw_edge_t *edge,
+    ctool_x86_mode_t source_mode, ctool_u32 actual_address,
+    ctool_u16 actual_bits, const ctool_u8 *instruction_starts,
+    ctool_bool *invalid_out) {
+  ctool_bool target_mismatch =
+      actual_bits == 16u
+          ? ((actual_address & 0xffffu) !=
+                     (edge->target_address & 0xffffu)
+                 ? CTOOL_TRUE
+                 : CTOOL_FALSE)
+          : (actual_address != edge->target_address ? CTOOL_TRUE
+                                                     : CTOOL_FALSE);
+  ctool_bool mode_mismatch = CTOOL_FALSE;
+  if (edge->class_id == CTOOL_DIS_RAW_EDGE_LOCAL) {
+    ctool_u32 actual_offset;
+    if (dis_raw_target_offset(report, actual_address, actual_bits,
+                              &actual_offset) == CTOOL_FALSE ||
+        actual_offset != edge->target_offset ||
+        dis_instruction_start_get(instruction_starts,
+                                  edge->target_offset) == CTOOL_FALSE) {
+      target_mismatch = CTOOL_TRUE;
+    }
+    if (dis_raw_target_offset(report, actual_address, actual_bits,
+                              &actual_offset) == CTOOL_FALSE ||
+        dis_raw_range_mode(dis_raw_kind_at_offset(report, actual_offset)) !=
+            edge->target_mode) {
+      mode_mismatch = CTOOL_TRUE;
+    }
+  } else {
+    ctool_x86_mode_t actual_mode =
+        edge->kind == CTOOL_DIS_RAW_EDGE_FAR
+            ? (ctool_x86_mode_t)actual_bits
+            : source_mode;
+    if (actual_mode != edge->target_mode) {
+      mode_mismatch = CTOOL_TRUE;
+    }
+  }
+  if (target_mismatch == CTOOL_TRUE) {
+    report->decode_summary.source_control_edge_target_mismatch_count++;
+    *invalid_out = CTOOL_TRUE;
+  }
+  if (mode_mismatch == CTOOL_TRUE) {
+    report->decode_summary.source_control_edge_target_mode_mismatch_count++;
+    *invalid_out = CTOOL_TRUE;
+  }
+}
+
+static ctool_status_t dis_scan_raw_source_edge_region(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_dis_report_t *report, ctool_u32 first, ctool_u32 last,
+    ctool_x86_mode_t mode, ctool_u8 *instruction_starts,
+    ctool_u8 *matched_edges, ctool_bool mark_starts) {
+  ctool_bytes_t bytes;
+  ctool_u32 offset = 0u;
+  if (first == last) {
+    return CTOOL_OK;
+  }
+  bytes = ctool_bytes(report->source->contents.data + first, last - first);
+  while (offset < bytes.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_status_t status =
+        decoder == (const ctool_x86_decoder_t *)0
+            ? ctool_x86_decode(job, mode, bytes, offset, &decoded)
+            : ctool_x86_decode_indexed(job, decoder, mode, bytes, offset,
+                                       &decoded);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (decoded.kind == CTOOL_X86_DECODE_KNOWN) {
+      ctool_u32 source_offset = first + offset;
+      if (mark_starts == CTOOL_TRUE) {
+        dis_instruction_start_set(instruction_starts, source_offset);
+      } else {
+        ctool_dis_raw_edge_kind_t decoded_kind;
+        const ctool_x86_operand_t *operand =
+            (const ctool_x86_operand_t *)0;
+        if (dis_decoded_raw_edge(&decoded, &decoded_kind, &operand) ==
+            CTOOL_TRUE) {
+          ctool_u32 edge_index =
+              dis_raw_edge_index(report, source_offset);
+          if (edge_index == DIS_U32_MAX) {
+            report->decode_summary.source_control_edge_count++;
+            report->decode_summary.source_control_edge_invalid_count++;
+            report->decode_summary
+                .source_control_edge_source_mismatch_count++;
+          } else {
+            const ctool_dis_raw_edge_t *edge =
+                &report->raw_edges[edge_index];
+            ctool_bool invalid = CTOOL_FALSE;
+            dis_instruction_start_set(matched_edges, edge_index);
+            if (edge->kind != decoded_kind) {
+              report->decode_summary
+                  .source_control_edge_source_mismatch_count++;
+              invalid = CTOOL_TRUE;
+            } else if (decoded_kind == CTOOL_DIS_RAW_EDGE_INDIRECT) {
+              if (edge->class_id != CTOOL_DIS_RAW_EDGE_UNPROVABLE) {
+                report->decode_summary
+                    .source_control_edge_source_mismatch_count++;
+                invalid = CTOOL_TRUE;
+              }
+            } else if (decoded_kind == CTOOL_DIS_RAW_EDGE_RELATIVE) {
+              ctool_u32 target = dis_relative_target(
+                  report->base_address + source_offset, &decoded, operand);
+              dis_validate_raw_edge_target(
+                  report, edge, mode, target,
+                  decoded.instruction.operand_bits, instruction_starts,
+                  &invalid);
+            } else {
+              const ctool_x86_far_pointer_t *far =
+                  &operand->as.far_pointer;
+              if (far->offset.kind != CTOOL_X86_VALUE_CONSTANT ||
+                  far->segment.kind != CTOOL_X86_VALUE_CONSTANT ||
+                  far->segment.bits != edge->target_segment) {
+                report->decode_summary
+                    .source_control_edge_target_mismatch_count++;
+                invalid = CTOOL_TRUE;
+              }
+              dis_validate_raw_edge_target(
+                  report, edge, mode, far->offset.bits,
+                  decoded.instruction.operand_bits, instruction_starts,
+                  &invalid);
+            }
+            if (invalid == CTOOL_TRUE) {
+              report->decode_summary.source_control_edge_invalid_count++;
+            }
+          }
+        }
+      }
+    } else if (decoded.kind == CTOOL_X86_DECODE_TRUNCATED) {
+      decoded.consumed = decoded.encoding.size;
+    }
+    if (decoded.consumed == 0u || decoded.consumed > bytes.size - offset) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    offset += (ctool_u32)decoded.consumed;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t dis_prepare_raw_source_edge_summary(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_dis_report_t *report) {
+  ctool_arena_t *arena = ctool_job_arena(job);
+  ctool_arena_mark_t mark = ctool_arena_mark(arena);
+  ctool_u32 start_bytes = report->source->contents.size / 8u;
+  ctool_u32 matched_bytes = report->raw_edge_count / 8u;
+  ctool_u8 *instruction_starts = (ctool_u8 *)0;
+  ctool_u8 *matched_edges = (ctool_u8 *)0;
+  ctool_u32 pass;
+  ctool_u32 index;
+  ctool_status_t status = CTOOL_OK;
+  ctool_status_t rewind_status;
+  if (report->source->contents.size % 8u != 0u) {
+    start_bytes++;
+  }
+  if (report->raw_edge_count % 8u != 0u) {
+    matched_bytes++;
+  }
+  if (start_bytes != 0u) {
+    status = ctool_arena_alloc_zero(
+        arena, start_bytes, (ctool_u32)sizeof(ctool_u8),
+        (ctool_u32)sizeof(ctool_u8), (void **)&instruction_starts);
+  }
+  if (status == CTOOL_OK && matched_bytes != 0u) {
+    status = ctool_arena_alloc_zero(
+        arena, matched_bytes, (ctool_u32)sizeof(ctool_u8),
+        (ctool_u32)sizeof(ctool_u8), (void **)&matched_edges);
+  }
+  report->decode_summary.source_control_edge_count =
+      report->raw_edge_count;
+  for (index = 0u; index < report->raw_edge_count; index++) {
+    if (report->raw_edges[index].class_id == CTOOL_DIS_RAW_EDGE_LOCAL) {
+      report->decode_summary.source_control_edge_local_count++;
+    } else if (report->raw_edges[index].class_id ==
+               CTOOL_DIS_RAW_EDGE_EXTERNAL) {
+      report->decode_summary.source_control_edge_external_count++;
+    } else {
+      report->decode_summary.source_control_edge_unprovable_count++;
+    }
+  }
+  for (pass = 0u; status == CTOOL_OK && pass < 2u; pass++) {
+    for (index = 0u;
+         status == CTOOL_OK && index < report->raw_range_count; index++) {
+      ctool_u32 first = report->raw_ranges[index].offset;
+      ctool_u32 last = index + 1u < report->raw_range_count
+                           ? report->raw_ranges[index + 1u].offset
+                           : report->source->contents.size;
+      if (report->raw_ranges[index].kind == CTOOL_DIS_RAW_RANGE_DATA) {
+        continue;
+      }
+      status = dis_scan_raw_source_edge_region(
+          job, decoder, report, first, last,
+          dis_raw_range_mode(report->raw_ranges[index].kind),
+          instruction_starts, matched_edges,
+          pass == 0u ? CTOOL_TRUE : CTOOL_FALSE);
+    }
+  }
+  for (index = 0u; status == CTOOL_OK && index < report->raw_edge_count;
+       index++) {
+    if (dis_instruction_start_get(matched_edges, index) == CTOOL_FALSE) {
+      report->decode_summary.source_control_edge_invalid_count++;
+      report->decode_summary.source_control_edge_source_mismatch_count++;
     }
   }
   rewind_status = ctool_arena_rewind(arena, mark);
@@ -1067,6 +1475,7 @@ static ctool_status_t dis_inspect(
   }
   if (request->input == CTOOL_DIS_INPUT_RAW) {
     dis_raw_map_issue_t map_issue = DIS_RAW_MAP_VALID;
+    const char *edge_issue;
     ctool_bool has_code16 = CTOOL_FALSE;
     if ((request->policies & CTOOL_DIS_POLICY_CODE_ANCHORS) != 0u) {
       return dis_bad_request(
@@ -1091,6 +1500,10 @@ static ctool_status_t dis_inspect(
                    (const ctool_dis_raw_range_t *)0 ||
                request->raw_range_count != 0u) {
       return dis_bad_request(job, source, "raw ranges require mapped mode");
+    }
+    edge_issue = dis_raw_edge_issue(source, request);
+    if (edge_issue != (const char *)0) {
+      return dis_bad_request(job, source, edge_issue);
     }
     if (request->raw_mode == CTOOL_X86_MODE_16) {
       has_code16 = CTOOL_TRUE;
@@ -1136,6 +1549,10 @@ static ctool_status_t dis_inspect(
       report_out->raw_ranges = request->raw_ranges;
       report_out->raw_range_count = request->raw_range_count;
     }
+    report_out->raw_edges = request->raw_edges;
+    report_out->raw_edge_count = request->raw_edge_count;
+    report_out->raw_edge_metadata_present =
+        request->raw_edge_metadata_present;
     report_out->labels = request->labels;
     report_out->label_count = request->label_count;
     arena = ctool_job_arena(job);
@@ -1150,6 +1567,12 @@ static ctool_status_t dis_inspect(
       status =
           dis_prepare_raw_local_target_summary(job, decoder, report_out);
     }
+    if (status == CTOOL_OK &&
+        (report_out->policies &
+         CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES) != 0u) {
+      status =
+          dis_prepare_raw_source_edge_summary(job, decoder, report_out);
+    }
     if (status != CTOOL_OK) {
       (void)ctool_arena_rewind(arena, mark);
       dis_zero_report(report_out);
@@ -1158,6 +1581,14 @@ static ctool_status_t dis_inspect(
   }
   if (request->input != CTOOL_DIS_INPUT_ELF32) {
     return dis_bad_request(job, source, "CupidDis input kind is invalid");
+  }
+  if ((request->policies & CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES) != 0u ||
+      request->raw_edge_metadata_present == CTOOL_TRUE ||
+      request->raw_edges != (const ctool_dis_raw_edge_t *)0 ||
+      request->raw_edge_count != 0u) {
+    return dis_bad_request(
+        job, source,
+        "source control-edge checks require raw range-map input");
   }
   if ((request->policies &
        CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u &&
@@ -2898,6 +3329,7 @@ static ctool_bool dis_report_shape_valid(const ctool_dis_report_t *report) {
     return CTOOL_FALSE;
   }
   if (report->input == CTOOL_DIS_INPUT_RAW) {
+    ctool_dis_request_t edge_request;
     if ((report->policies & CTOOL_DIS_POLICY_CODE_ANCHORS) != 0u ||
         report->views != CTOOL_DIS_VIEW_DISASSEMBLY ||
         (report->label_count != 0u &&
@@ -2916,6 +3348,26 @@ static ctool_bool dis_report_shape_valid(const ctool_dis_report_t *report) {
     } else if (dis_x86_mode_valid(report->mode) == CTOOL_FALSE ||
                report->raw_ranges != (const ctool_dis_raw_range_t *)0 ||
                report->raw_range_count != 0u) {
+      return CTOOL_FALSE;
+    }
+    {
+      ctool_u8 *request_bytes = (ctool_u8 *)&edge_request;
+      for (index = 0u; index < (ctool_u32)sizeof(edge_request); index++) {
+        request_bytes[index] = 0u;
+      }
+    }
+    edge_request.input = CTOOL_DIS_INPUT_RAW;
+    edge_request.policies = report->policies;
+    edge_request.raw_mode = report->mode;
+    edge_request.raw_base_address = report->base_address;
+    edge_request.raw_ranges = report->raw_ranges;
+    edge_request.raw_range_count = report->raw_range_count;
+    edge_request.raw_edges = report->raw_edges;
+    edge_request.raw_edge_count = report->raw_edge_count;
+    edge_request.raw_edge_metadata_present =
+        report->raw_edge_metadata_present;
+    if (dis_raw_edge_issue(report->source, &edge_request) !=
+        (const char *)0) {
       return CTOOL_FALSE;
     }
     if ((report->policies & CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u &&
@@ -2949,6 +3401,9 @@ static ctool_bool dis_report_shape_valid(const ctool_dis_report_t *report) {
     return CTOOL_TRUE;
   }
   if (report->input != CTOOL_DIS_INPUT_ELF32 ||
+      report->raw_edge_metadata_present == CTOOL_TRUE ||
+      report->raw_edges != (const ctool_dis_raw_edge_t *)0 ||
+      report->raw_edge_count != 0u ||
       (report->policies != 0u &&
        (report->views & CTOOL_DIS_VIEW_DISASSEMBLY) == 0u) ||
       report->mode != CTOOL_X86_MODE_32 ||

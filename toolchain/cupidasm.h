@@ -40,6 +40,30 @@ typedef struct {
   ctool_asm_raw_range_kind_t kind;
 } ctool_asm_raw_range_t;
 
+typedef enum {
+  CTOOL_ASM_RAW_EDGE_RELATIVE = 1,
+  CTOOL_ASM_RAW_EDGE_FAR,
+  CTOOL_ASM_RAW_EDGE_INDIRECT
+} ctool_asm_raw_edge_kind_t;
+
+typedef enum {
+  CTOOL_ASM_RAW_EDGE_LOCAL = 1,
+  CTOOL_ASM_RAW_EDGE_EXTERNAL,
+  CTOOL_ASM_RAW_EDGE_UNPROVABLE
+} ctool_asm_raw_edge_class_t;
+
+#define CTOOL_ASM_RAW_EDGE_NO_TARGET 0xffffffffu
+
+typedef struct {
+  ctool_u32 source_offset;
+  ctool_asm_raw_edge_kind_t kind;
+  ctool_asm_raw_edge_class_t class_id;
+  ctool_u32 target_offset;
+  ctool_u32 target_address;
+  ctool_x86_mode_t target_mode;
+  ctool_u32 target_segment;
+} ctool_asm_raw_edge_t;
+
 typedef struct {
   ctool_asm_artifact_kind_t artifact;
   ctool_x86_mode_t initial_mode;
@@ -93,6 +117,10 @@ typedef struct {
    * Adjacent statements of the same kind are coalesced. */
   const ctool_asm_raw_range_t *raw_ranges;
   ctool_u32 raw_range_count;
+  /* Source-resolved direct transfers and explicit indirect transfers, in
+   * instruction order.  NO_TARGET marks fields that runtime state owns. */
+  const ctool_asm_raw_edge_t *raw_edges;
+  ctool_u32 raw_edge_count;
   ctool_u32 raw_origin;
 } ctool_asm_result_t;
 

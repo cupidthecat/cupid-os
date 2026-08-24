@@ -298,6 +298,27 @@ static const char *cupidasm_range_kind_name(ctool_asm_raw_range_kind_t kind) {
   return "data";
 }
 
+static const char *cupidasm_edge_kind_name(ctool_asm_raw_edge_kind_t kind) {
+  if (kind == CTOOL_ASM_RAW_EDGE_RELATIVE) {
+    return "relative";
+  }
+  if (kind == CTOOL_ASM_RAW_EDGE_FAR) {
+    return "far";
+  }
+  return "indirect";
+}
+
+static const char *cupidasm_edge_class_name(
+    ctool_asm_raw_edge_class_t class_id) {
+  if (class_id == CTOOL_ASM_RAW_EDGE_LOCAL) {
+    return "local";
+  }
+  if (class_id == CTOOL_ASM_RAW_EDGE_EXTERNAL) {
+    return "external";
+  }
+  return "unprovable";
+}
+
 static ctool_status_t cupidasm_write_range_map(
     const char *path, const ctool_asm_result_t *result,
     ctool_u32 base_address) {
@@ -306,9 +327,11 @@ static ctool_status_t cupidasm_write_range_map(
   if (file == (FILE *)0) {
     return CTOOL_ERR_IO;
   }
-  if (fprintf(file, "cupid.raw-map.v1\nsize %u\nbase 0x%08x\n",
+  if (fprintf(file,
+              "cupid.raw-map.v2\nsize %u\nbase 0x%08x\nedges %u\n",
               (unsigned int)result->bytes.size,
-              (unsigned int)base_address) < 0) {
+              (unsigned int)base_address,
+              (unsigned int)result->raw_edge_count) < 0) {
     (void)fclose(file);
     return CTOOL_ERR_IO;
   }
@@ -317,6 +340,41 @@ static ctool_status_t cupidasm_write_range_map(
     if (fprintf(file, "range 0x%08x %s\n",
                 (unsigned int)range->offset,
                 cupidasm_range_kind_name(range->kind)) < 0) {
+      (void)fclose(file);
+      return CTOOL_ERR_IO;
+    }
+  }
+  for (index = 0u; index < result->raw_edge_count; index++) {
+    const ctool_asm_raw_edge_t *edge = &result->raw_edges[index];
+    if (edge->class_id == CTOOL_ASM_RAW_EDGE_UNPROVABLE) {
+      if (fprintf(file, "edge 0x%08x %s %s - - unknown -\n",
+                  (unsigned int)edge->source_offset,
+                  cupidasm_edge_kind_name(edge->kind),
+                  cupidasm_edge_class_name(edge->class_id)) < 0) {
+        (void)fclose(file);
+        return CTOOL_ERR_IO;
+      }
+    } else if (edge->class_id == CTOOL_ASM_RAW_EDGE_EXTERNAL) {
+      if (fprintf(file, "edge 0x%08x %s %s - 0x%08x %u 0x%08x\n",
+                  (unsigned int)edge->source_offset,
+                  cupidasm_edge_kind_name(edge->kind),
+                  cupidasm_edge_class_name(edge->class_id),
+                  (unsigned int)edge->target_address,
+                  (unsigned int)edge->target_mode,
+                  (unsigned int)edge->target_segment) < 0) {
+        (void)fclose(file);
+        return CTOOL_ERR_IO;
+      }
+    } else if (fprintf(
+                   file,
+                   "edge 0x%08x %s %s 0x%08x 0x%08x %u 0x%08x\n",
+                   (unsigned int)edge->source_offset,
+                   cupidasm_edge_kind_name(edge->kind),
+                   cupidasm_edge_class_name(edge->class_id),
+                   (unsigned int)edge->target_offset,
+                   (unsigned int)edge->target_address,
+                   (unsigned int)edge->target_mode,
+                   (unsigned int)edge->target_segment) < 0) {
       (void)fclose(file);
       return CTOOL_ERR_IO;
     }

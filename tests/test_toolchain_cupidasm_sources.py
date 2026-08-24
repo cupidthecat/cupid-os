@@ -12,13 +12,20 @@ from tools import bootstrap_baseline
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
 SMP_RAW_MAP = (
-    b"cupid.raw-map.v1\n"
+    b"cupid.raw-map.v2\n"
     b"size 4096\n"
     b"base 0x00008000\n"
+    b"edges 6\n"
     b"range 0x00000000 code16\n"
     b"range 0x0000001f data\n"
     b"range 0x00000210 code32\n"
     b"range 0x00000254 data\n"
+    b"edge 0x00000017 far local 0x00000210 0x00008210 32 0x00000008\n"
+    b"edge 0x0000022f relative local 0x0000023a 0x0000823a 32 0x00000000\n"
+    b"edge 0x00000235 relative local 0x00000229 0x00008229 32 0x00000000\n"
+    b"edge 0x00000238 relative local 0x00000237 0x00008237 32 0x00000000\n"
+    b"edge 0x00000250 indirect unprovable - - unknown -\n"
+    b"edge 0x00000252 relative local 0x00000237 0x00008237 32 0x00000000\n"
 )
 
 
@@ -367,6 +374,7 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                     str(root / "smp-0.cupidmap"),
                     "--require-known",
                     "--require-local-targets",
+                    "--require-source-edges",
                     str(root / "smp-0.bin"),
                 ],
                 cwd=REPO_ROOT,
@@ -404,6 +412,49 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
             )
             self.assertIn("1 mid-instruction", rejected.stderr)
 
+            wrong_mode_far = bytearray(images[0])
+            self.assertEqual(wrong_mode_far[0x17:0x1F], bytes.fromhex(
+                "66 ea 10 82 00 00 08 00"
+            ))
+            wrong_mode_far[0x19] = 0x00
+            wrong_mode_far[0x1A] = 0x80
+            wrong_mode_path = root / "smp.wrong-mode-far.bin"
+            wrong_mode_path.write_bytes(wrong_mode_far)
+            structural_only = subprocess.run(
+                [
+                    str(self.dis_path),
+                    "--raw",
+                    "--range-map",
+                    str(root / "smp-0.cupidmap"),
+                    "--require-known",
+                    "--require-local-targets",
+                    str(wrong_mode_path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            source_checked = subprocess.run(
+                [
+                    str(self.dis_path),
+                    "--raw",
+                    "--range-map",
+                    str(root / "smp-0.cupidmap"),
+                    "--require-known",
+                    "--require-local-targets",
+                    "--require-source-edges",
+                    str(wrong_mode_path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(structural_only.returncode, 0,
+                             structural_only.stderr)
+            self.assertEqual(source_checked.returncode, 1)
+            self.assertIn("1 target mismatch", source_checked.stderr)
+            self.assertIn("1 target-mode mismatch", source_checked.stderr)
+
     def test_boot_map_drives_strict_source_derived_inspection(self):
         with tempfile.TemporaryDirectory(
             prefix="cupidasm-active-boot-map-"
@@ -429,20 +480,26 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
             self.assertEqual(assembled.returncode, 0, assembled.stderr)
             self.assertEqual(len(image.read_bytes()), 2560)
             lines = range_map.read_text(encoding="ascii").splitlines()
-            self.assertEqual(lines[:3], [
-                "cupid.raw-map.v1",
+            self.assertEqual(lines[:4], [
+                "cupid.raw-map.v2",
                 "size 2560",
                 "base 0x00007c00",
+                "edges 12",
             ])
-            self.assertEqual(lines[3], "range 0x00000000 code16")
-            self.assertIn("code32", {line.rsplit(" ", 1)[-1] for line in lines[3:]})
-            self.assertIn("data", {line.rsplit(" ", 1)[-1] for line in lines[3:]})
+            self.assertEqual(lines[4], "range 0x00000000 code16")
+            self.assertIn("code32", {line.rsplit(" ", 1)[-1] for line in lines[4:]})
+            self.assertIn("data", {line.rsplit(" ", 1)[-1] for line in lines[4:]})
+            self.assertIn(
+                "edge 0x0000037d far external - 0x00100000 32 0x00000008",
+                lines,
+            )
 
             checked = subprocess.run(
                 [
                     str(self.dis_path),
                     "--require-known",
                     "--require-local-targets",
+                    "--require-source-edges",
                     "--raw",
                     "--range-map",
                     str(range_map),
@@ -481,6 +538,47 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                 "1 of 9 direct relative targets invalid", rejected.stderr
             )
             self.assertIn("1 in data", rejected.stderr)
+
+            external_far = bytearray(image.read_bytes())
+            self.assertEqual(
+                external_far[0x37D:0x384], bytes.fromhex("ea 00 00 10 00 08 00")
+            )
+            external_far[0x37E] = 0x01
+            external_path = root / "boot.changed-external-far.bin"
+            external_path.write_bytes(external_far)
+            structural_only = subprocess.run(
+                [
+                    str(self.dis_path),
+                    "--require-known",
+                    "--require-local-targets",
+                    "--raw",
+                    "--range-map",
+                    str(range_map),
+                    str(external_path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            source_checked = subprocess.run(
+                [
+                    str(self.dis_path),
+                    "--require-known",
+                    "--require-local-targets",
+                    "--require-source-edges",
+                    "--raw",
+                    "--range-map",
+                    str(range_map),
+                    str(external_path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(structural_only.returncode, 0,
+                             structural_only.stderr)
+            self.assertEqual(source_checked.returncode, 1)
+            self.assertIn("1 target mismatch", source_checked.stderr)
 
     def test_active_elf32_sources_match_oracle_semantics(self):
         with tempfile.TemporaryDirectory(prefix="cupidasm-active-elf-") as directory:

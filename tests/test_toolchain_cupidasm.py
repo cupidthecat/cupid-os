@@ -277,9 +277,10 @@ class CupidAsmCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 first_map,
-                b"cupid.raw-map.v1\n"
+                b"cupid.raw-map.v2\n"
                 b"size 17\n"
                 b"base 0x00007c00\n"
+                b"edges 0\n"
                 b"range 0x00000000 code16\n"
                 b"range 0x00000003 data\n"
                 b"range 0x00000007 code32\n"
@@ -333,6 +334,62 @@ class CupidAsmCliTests(unittest.TestCase):
             self.assertIn("usage: cupidasm", collision.stderr)
             self.assertFalse(output.exists())
             self.assertFalse(range_map.exists())
+
+    def test_cli_publishes_source_resolved_raw_control_edges(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "edges.asm"
+            output = root / "edges.bin"
+            range_map = root / "edges.cupidmap"
+            source.write_text(
+                "BITS 16\n"
+                "ORG 0x8000\n"
+                "start:\n"
+                "    jmp next\n"
+                "next:\n"
+                "    jmp dword 0x08:pm32\n"
+                "BITS 32\n"
+                "pm32:\n"
+                "    call eax\n"
+                "    jmp 0x08:0x00100000\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    "--map",
+                    str(range_map),
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                range_map.read_text(encoding="ascii").splitlines(),
+                [
+                    "cupid.raw-map.v2",
+                    "size 19",
+                    "base 0x00008000",
+                    "edges 4",
+                    "range 0x00000000 code16",
+                    "range 0x0000000a code32",
+                    "edge 0x00000000 relative local 0x00000002 "
+                    "0x00008002 16 0x00000000",
+                    "edge 0x00000002 far local 0x0000000a "
+                    "0x0000800a 32 0x00000008",
+                    "edge 0x0000000a indirect unprovable - - unknown -",
+                    "edge 0x0000000c far external - 0x00100000 "
+                    "32 0x00000008",
+                ],
+            )
 
     def test_cli_assembles_padding_nops_in_both_modes(self):
         with tempfile.TemporaryDirectory() as directory:

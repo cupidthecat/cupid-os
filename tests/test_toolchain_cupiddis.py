@@ -1593,12 +1593,230 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertEqual(checked.stdout, "")
         self.assertEqual(checked.stderr, "")
 
+    def test_cli_binds_a_valid_boundary_target_to_the_source_resolved_edge(self):
+        fixture_root = Path(self._fixture_directory.name)
+        image = fixture_root / "source-edge.bin"
+        changed = fixture_root / "source-edge-changed.bin"
+        range_map = fixture_root / "source-edge.cupidmap"
+        image.write_bytes(bytes.fromhex("eb 00 c3 c3"))
+        changed.write_bytes(bytes.fromhex("eb 01 c3 c3"))
+        range_map.write_text(
+            "cupid.raw-map.v2\n"
+            "size 4\n"
+            "base 0x1000\n"
+            "edges 1\n"
+            "range 0 code32\n"
+            "edge 0 relative local 2 0x1002 32 0\n",
+            encoding="ascii",
+        )
+        policy = [
+            str(self.cli_path),
+            "--require-known",
+            "--require-local-targets",
+            "--require-source-edges",
+            "--raw",
+            "--range-map",
+            str(range_map),
+        ]
+
+        valid = subprocess.run(
+            [*policy, str(image)], cwd=REPO_ROOT, text=True, capture_output=True
+        )
+        structural_only = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--require-local-targets",
+                "--raw",
+                "--range-map",
+                str(range_map),
+                str(changed),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        rejected = subprocess.run(
+            [*policy, str(changed)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(valid.returncode, 0, valid.stderr)
+        self.assertEqual(valid.stdout, "")
+        self.assertEqual(structural_only.returncode, 0, structural_only.stderr)
+        self.assertEqual(rejected.returncode, 1)
+        self.assertEqual(rejected.stdout, "")
+        self.assertIn(
+            "source control-edge check failed: 1 of 1 edges invalid",
+            rejected.stderr,
+        )
+        self.assertIn("1 target mismatch", rejected.stderr)
+
+    def test_cli_rejects_malformed_and_instruction_mismatched_edge_rows(self):
+        fixture_root = Path(self._fixture_directory.name)
+        image = fixture_root / "edge-map-errors.bin"
+        image.write_bytes(bytes.fromhex("eb 00 c3 c3"))
+        parse_cases = (
+            (
+                "missing count",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\n"
+                "range 0 code32\n",
+                "raw range map v2 requires one edge count",
+            ),
+            (
+                "count mismatch",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 2\n"
+                "range 0 code32\n"
+                "edge 0 relative local 2 0x1002 32 0\n",
+                "raw range map edge count does not match its records",
+            ),
+            (
+                "duplicate source",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 2\n"
+                "range 0 code32\n"
+                "edge 0 relative local 2 0x1002 32 0\n"
+                "edge 0 relative local 2 0x1002 32 0\n",
+                "raw edge sources must increase without overlap",
+            ),
+            (
+                "outside source",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 1\n"
+                "range 0 code32\n"
+                "edge 4 relative local 2 0x1002 32 0\n",
+                "raw edge source is outside the mapped image",
+            ),
+            (
+                "wrong target mode",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 1\n"
+                "range 0 code32\n"
+                "edge 0 relative local 2 0x1002 16 0\n",
+                "raw local edge target mode disagrees with ranges",
+            ),
+            (
+                "external target inside image",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 1\n"
+                "range 0 code32\n"
+                "edge 0 relative external - 0x1002 32 0\n",
+                "raw external edge target is inside the mapped image",
+            ),
+        )
+        for name, contents, expected in parse_cases:
+            with self.subTest(name=name):
+                range_map = fixture_root / f"edge-{name.replace(' ', '-')}.map"
+                range_map.write_text(contents, encoding="ascii")
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-source-edges",
+                        "--raw",
+                        "--range-map",
+                        str(range_map),
+                        str(image),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(expected, result.stderr)
+
+        semantic_cases = (
+            (
+                "missing row",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 0\n"
+                "range 0 code32\n",
+                "1 of 1 edges invalid",
+            ),
+            (
+                "middle source",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 1\n"
+                "range 0 code32\n"
+                "edge 1 relative local 2 0x1002 32 0\n",
+                "2 of 2 edges invalid",
+            ),
+        )
+        for name, contents, expected in semantic_cases:
+            with self.subTest(name=name):
+                range_map = fixture_root / f"edge-{name.replace(' ', '-')}.map"
+                range_map.write_text(contents, encoding="ascii")
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-source-edges",
+                        "--raw",
+                        "--range-map",
+                        str(range_map),
+                        str(image),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(expected, result.stderr)
+                self.assertIn("source mismatch", result.stderr)
+
+    def test_cli_accepts_cross_mode_external_wrapping_and_maximum_targets(self):
+        fixture_root = Path(self._fixture_directory.name)
+        cases = (
+            (
+                "cross-mode-external",
+                bytes.fromhex("66 ea 00 00 10 00 08 00"),
+                "cupid.raw-map.v2\nsize 8\nbase 0x8000\nedges 1\n"
+                "range 0 code16\n"
+                "edge 0 far external - 0x00100000 32 8\n",
+            ),
+            (
+                "wrapped-local",
+                bytes.fromhex("eb 00 c3"),
+                "cupid.raw-map.v2\nsize 3\nbase 0xffff\nedges 1\n"
+                "range 0 code16\n"
+                "edge 0 relative local 2 0x10001 16 0\n",
+            ),
+            (
+                "maximum-external",
+                bytes.fromhex("ea ff ff ff ff 08 00"),
+                "cupid.raw-map.v2\nsize 7\nbase 0\nedges 1\n"
+                "range 0 code32\n"
+                "edge 0 far external - 0xffffffff 32 8\n",
+            ),
+        )
+        for name, contents, raw_map in cases:
+            with self.subTest(name=name):
+                image = fixture_root / f"{name}.bin"
+                range_map = fixture_root / f"{name}.map"
+                image.write_bytes(contents)
+                range_map.write_text(raw_map, encoding="ascii")
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-source-edges",
+                        "--raw",
+                        "--range-map",
+                        str(range_map),
+                        str(image),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+
     def test_cli_rejects_stale_and_malformed_raw_range_maps(self):
         fixture_root = Path(self._fixture_directory.name)
         cases = (
             (
                 "unknown schema",
-                "cupid.raw-map.v2\nsize 16\nbase 0\nrange 0 code16\n",
+                "cupid.raw-map.v3\nsize 16\nbase 0\nrange 0 code16\n",
                 "raw range map has an unsupported schema",
             ),
             (

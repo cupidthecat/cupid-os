@@ -218,6 +218,25 @@ size, repeated or missing fields, invalid kinds, and unordered starts before
 decoding. The map option cannot be combined with manual mode, base, or range
 options. ADR 0277 records the schema.
 
+Source-head CupidASM writes `cupid.raw-map.v2`. It adds an exact list of
+source-resolved calls and jumps without changing the image bytes. A row records
+its instruction offset, relative, far, or indirect kind, local, external, or
+unprovable class, resolved destination, target mode, and far segment when one
+is encoded. CupidDis accepts both schemas. Add `--require-source-edges` to bind
+decoded bytes to the v2 destinations:
+
+```text
+cupiddis --require-known --require-local-targets \
+    --require-source-edges --raw --range-map boot.map boot.bin
+```
+
+The extra rule catches a branch redirected to a different valid instruction
+start and checks immediate far mode transitions. It records indirect register
+or memory transfers as unprovable because their destination comes from runtime
+state. The checked production seeds still use v1 until the source capability
+is promoted and the guarded boot transactions adopt it. ADR 0340 records the
+v2 contract.
+
 One checked raw-image transaction serves the SMP and bootloader callers. It
 owns output locking, source and seed freezing, drift checks, private candidates,
 and atomic publication. Each caller retains its image-size and map policy. The
@@ -263,7 +282,9 @@ inside data, in the wrong mode, or in the middle of an instruction. Far
 pointers and indirect register or memory targets remain outside the rule. A
 displacement can still pass if it reaches a different valid
 instruction start in same-mode code, because raw decoding does not preserve
-source-label identity. ADR 0300 records this boundary.
+source-label identity. Source-head v2 maps close that gap, but the checked
+production transactions have not adopted them yet. ADR 0300 records the older
+boundary, and ADR 0340 records the source-resolved rule.
 ADR 0305 records raw-image carriage. ADR 0312 records the relocatable-object
 promotion and production adoption. ADR 0318 records the preceding linked-image
 promotion, and ADR 0323 records the current code-anchor promotion.
