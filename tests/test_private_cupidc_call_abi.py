@@ -814,6 +814,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 str(cls.driver_root),
                 "-I",
                 str(KERNEL_LANG),
+                "-I",
+                str(REPO_ROOT / "toolchain"),
                 str(LEXER_SOURCE),
                 str(PARSER_SOURCE),
                 str(ELF_SOURCE),

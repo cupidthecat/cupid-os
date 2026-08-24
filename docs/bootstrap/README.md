@@ -234,6 +234,11 @@ runtime proof remains the in-OS JIT smoke. The production
 `kernel/doom/src/f_wipe.cc` object remains owned by checked-seed hosted CupidC,
 so this private compiler change does not move an object, checked seed, or host
 dependency.
+
+The private call-ABI oracle now declares the Toolchain include root used by
+`kernel/lang/dis.h` for the public CupidDis seam. The binding and call-ABI
+modules pass all 327 tests from this merged source head. This only repairs the
+native oracle's include closure; it does not change the kernel or compiler ABI.
 ADR 0306 records global storage, ADR 0310 records automatic objects and method
 parameters, ADR 0313 records initialized-data function-address patches, ADR
 0315 records the raw forms, ADR 0319 records direct explicit function

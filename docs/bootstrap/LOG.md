@@ -30820,3 +30820,16 @@ integration. The capability stays Partial until those gates pass. No normal
 build owner or host dependency moved, and no source suffix changed. No `.c`
 file reached Cupid ownership, so no rename is due. `TempleOS/` remains
 untouched reference material. ADR 0337 records the boundary.
+
+## 2026-08-24: restore the private call-ABI oracle include closure
+
+`kernel/lang/dis.h` now reaches the shared disassembler through the public
+`toolchain/cupiddis.h` interface. Production recipes already supplied that
+include root, but the private call-ABI driver compiled the same kernel headers
+with only its temporary and `kernel/lang` roots. The native oracle therefore
+stopped at header lookup before it could exercise the ABI cases.
+
+The driver now declares `/toolchain` as part of its compile boundary. The
+private binding and call-ABI modules pass all 327 tests in 67.324 seconds,
+including the fixed and nested callback cases. No production source, object,
+seed, ownership claim, or source suffix changes in this repair.
