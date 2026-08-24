@@ -615,7 +615,8 @@ class CupidAsmCliTests(unittest.TestCase):
             source.write_text(
                 "BITS 32\n"
                 "extern target\n"
-                "global entry\n"
+                "extern callback:function\n"
+                "global entry:function\n"
                 "section .text\n"
                 "entry:\n"
                 "    call target\n"
@@ -654,11 +655,26 @@ class CupidAsmCliTests(unittest.TestCase):
                 row = struct.unpack_from("<IIIBBH", symtab["data"], offset)
                 name = "" if row[0] == 0 else _elf_string(strtab["data"], row[0])
                 symbols.append({"name": name, "row": row})
-            named_symbols = {symbol["name"]: symbol for symbol in symbols if symbol["name"]}
+            named_symbols = {
+                symbol["name"]: symbol
+                for symbol in symbols
+                if symbol["name"]
+            }
             entry = named_symbols["entry"]["row"]
             target = named_symbols["target"]["row"]
-            self.assertEqual((entry[1], entry[3] >> 4, entry[5]), (0, 1, text["index"]))
-            self.assertEqual((target[3] >> 4, target[5]), (1, 0))
+            callback = named_symbols["callback"]["row"]
+            self.assertEqual(
+                (entry[1], entry[3] >> 4, entry[3] & 0xF, entry[5]),
+                (0, 1, 2, text["index"]),
+            )
+            self.assertEqual(
+                (target[3] >> 4, target[3] & 0xF, target[5]),
+                (1, 0, 0),
+            )
+            self.assertEqual(
+                (callback[3] >> 4, callback[3] & 0xF, callback[5]),
+                (1, 2, 0),
+            )
 
             relocations = by_name[".rel.text"]
             self.assertEqual(relocations["row"][7], text["index"])
@@ -669,6 +685,46 @@ class CupidAsmCliTests(unittest.TestCase):
             self.assertEqual((relocation_offset, relocation_info & 0xFF), (1, 2))
             self.assertEqual(symbols[relocation_info >> 8]["name"], "target")
             self.assertEqual(struct.unpack_from("<i", text["data"], 1)[0], -4)
+
+    def test_cli_rejects_invalid_function_symbol_types_without_publishing(self):
+        cases = (
+            (
+                "missing",
+                "global entry:\nentry: ret\n",
+                "symbol type requires a name after colon",
+            ),
+            (
+                "unsupported",
+                "global entry:object\nentry: ret\n",
+                "Cupid ASM supports only the function symbol type",
+            ),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, source_text, diagnostic in cases:
+                with self.subTest(name=name):
+                    source = root / f"{name}.asm"
+                    output = root / f"{name}.o"
+                    source.write_text(source_text, encoding="utf-8")
+                    output.write_bytes(b"last known good object")
+                    result = subprocess.run(
+                        [
+                            str(self.cli_path),
+                            "-f",
+                            "elf32",
+                            str(source),
+                            "-o",
+                            str(output),
+                        ],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(result.stdout, "")
+                    self.assertIn("error CT6000018", result.stderr)
+                    self.assertIn(diagnostic, result.stderr)
+                    self.assertEqual(output.read_bytes(), b"last known good object")
 
     def test_cli_absolute_input_keeps_working_directory_include_root(self):
         with tempfile.TemporaryDirectory(

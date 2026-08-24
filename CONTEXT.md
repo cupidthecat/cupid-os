@@ -1302,17 +1302,24 @@ _Avoid_: source-label proof, automatic code discovery, overlapping executable
 load regions
 
 **Static ELF code anchor**:
-The `e_entry` address or one defined `STT_FUNC` symbol in an i386 ELF32
-`ET_EXEC` image. CupidDis's explicit checked-seed policy requires each anchor
-to equal a decoded instruction start in file-backed executable code. Function
-aliases count separately. Undefined functions, absolute functions, and other
-symbol types do not count. The report separates anchors outside file-backed
-executable code from anchors in the middle of an instruction. The policy
-shares one instruction-start map with linked local-target validation when both
-are selected. The normal kernel publisher applies both policies to its frozen
-pass-one and final ELFs. ADR 0320 records the source rule, and ADR 0323 records
-seed carriage and production adoption.
+The `e_entry` address or one defined `STT_FUNC` symbol in a static i386 ELF32
+image. In `ET_REL`, the function must start at a decoded instruction in its
+executable `PROGBITS` section. In `ET_EXEC`, the anchor must start in
+file-backed executable code. Function aliases count separately. Undefined
+functions and other symbol types do not count. Absolute functions are outside
+the linked-image count. The report separates anchors outside executable code
+from anchors in the middle of an instruction. The policy shares an
+instruction-start map with local-target validation when both are selected.
+ADR 0320 records the linked source rule, ADR 0323 records its seed carriage and
+production adoption, and ADR 0335 records the relocatable form.
 _Avoid_: debug-line entry, inferred instruction start, unchecked production input
+
+**Explicit assembly function symbol**:
+An assembly symbol declared as `global name:function` or
+`extern name:function`. CupidASM records it as `STT_FUNC` without inferring a
+function from global binding. An unannotated assembly symbol remains
+`STT_NOTYPE`.
+_Avoid_: treating every global as code, disassembly-inferred function
 
 **Relocatable entry symbol**:
 The caller-priority code label selected by CupidASM for an ELF32 relocatable

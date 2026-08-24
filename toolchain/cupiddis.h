@@ -28,8 +28,10 @@ typedef enum {
  * enforces this policy rejects a report when the input-specific invalid target
  * counters below are nonzero. */
 #define CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS 0x00000001u
-/* Static linked ELF32 callers can also ask CupidDis to classify the entry
- * point and each defined function symbol against decoded instruction starts.
+/* Static ELF32 callers can also ask CupidDis to classify code anchors against
+ * decoded instruction starts.  Relocatable input checks every defined
+ * function symbol in an executable PROGBITS section.  Linked input also
+ * checks the entry point and uses file-backed executable load regions.
  * Invalid anchors are reported through the typed counters below. */
 #define CTOOL_DIS_POLICY_CODE_ANCHORS 0x00000002u
 #define CTOOL_DIS_POLICY_ALL                                               \

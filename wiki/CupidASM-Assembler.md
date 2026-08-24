@@ -133,6 +133,23 @@ main:
     ret
 ```
 
+An exported or imported function can carry its ELF type in the declaration:
+
+```asm
+global dispatch:function
+extern scheduler_resume:function
+
+dispatch:
+    call scheduler_resume
+    ret
+```
+
+CupidASM writes these symbols as `STT_FUNC`. A declaration without
+`:function` remains `STT_NOTYPE`, so exported data is not mistaken for code.
+The type name is case-insensitive. A missing type name or any type other than
+`function` reports `CT6000018` and leaves the prior output untouched. ADR 0335
+records this boundary.
+
 ### Constants
 
 Use `equ` to define numeric constants:

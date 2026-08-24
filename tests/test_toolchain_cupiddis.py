@@ -447,6 +447,43 @@ class CupidDisContractTests(unittest.TestCase):
                 "BITS 32\nsection .text\n"
                 "db 0xeb, 0x01, 0xb8, 0, 0, 0, 0, 0xc3\n",
             ),
+            (
+                "valid_object_anchor_path",
+                "valid-object-anchor.asm",
+                "valid-object-anchor.o",
+                "BITS 32\n"
+                "extern external:function\n"
+                "global entry:function, done:function\n"
+                "section .text\n"
+                "entry:\n"
+                "    call external\n"
+                "done:\n"
+                "    ret\n",
+            ),
+            (
+                "middle_object_anchor_path",
+                "middle-object-anchor.asm",
+                "middle-object-anchor.o",
+                "BITS 32\n"
+                "global entry:function, bad:function\n"
+                "section .text\n"
+                "entry:\n"
+                "    db 0xb8\n"
+                "bad:\n"
+                "    dd 0\n"
+                "    ret\n",
+            ),
+            (
+                "data_object_anchor_path",
+                "data-object-anchor.asm",
+                "data-object-anchor.o",
+                "BITS 32\n"
+                "global entry:function, bad:function\n"
+                "section .text\n"
+                "entry: ret\n"
+                "section .data\n"
+                "bad: db 0xc3\n",
+            ),
         )
         for attribute, source_name, object_name, source_text in (
             local_object_sources
@@ -1176,13 +1213,35 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertEqual(raw.returncode, 2)
         self.assertIn("usage: cupiddis", raw.stderr)
 
-        relocatable = run(self.object_path)
-        self.assertEqual(relocatable.returncode, 1)
-        self.assertEqual(relocatable.stdout, "")
-        self.assertIn(
-            "code anchor checks require static ELF32 ET_EXEC input",
-            relocatable.stderr,
+        for path in (self.object_path, self.valid_object_anchor_path):
+            with self.subTest(path=path.name):
+                relocatable = run(path)
+                self.assertEqual(relocatable.returncode, 0, relocatable.stderr)
+                self.assertEqual(relocatable.stdout, "")
+                self.assertEqual(relocatable.stderr, "")
+
+        relocatable_failures = (
+            (
+                self.middle_object_anchor_path,
+                "1 of 2 code anchors invalid (0 outside executable "
+                "PROGBITS, 1 mid-instruction)",
+            ),
+            (
+                self.data_object_anchor_path,
+                "1 of 2 code anchors invalid (1 outside executable "
+                "PROGBITS, 0 mid-instruction)",
+            ),
         )
+        for path, diagnostic in relocatable_failures:
+            with self.subTest(path=path.name):
+                relocatable = run(path)
+                self.assertEqual(relocatable.returncode, 1)
+                self.assertEqual(relocatable.stdout, "")
+                self.assertEqual(
+                    relocatable.stderr,
+                    f"cupiddis: {path}: code anchor check failed: "
+                    f"{diagnostic}\n",
+                )
 
         overlap = run(self.overlapping_exec_target_path)
         self.assertEqual(overlap.returncode, 1)

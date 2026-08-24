@@ -987,17 +987,21 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
         report.decode_summary.code_anchor_outside_executable_count +
         report.decode_summary.code_anchor_mid_instruction_count;
     if (invalid_anchors != 0u) {
-      (void)fprintf(
-          stderr,
-          "cupiddis: %s: code anchor check failed: %llu of %llu code "
-          "anchors invalid (%llu outside file-backed executable code, "
-          "%llu mid-instruction)\n",
-          input, (unsigned long long)invalid_anchors,
-          (unsigned long long)report.decode_summary.code_anchor_count,
-          (unsigned long long)
-              report.decode_summary.code_anchor_outside_executable_count,
-          (unsigned long long)
-              report.decode_summary.code_anchor_mid_instruction_count);
+      const char *outside =
+          report.elf32.file_type == CTOOL_ELF32_ET_REL
+              ? "outside executable PROGBITS"
+              : "outside file-backed executable code";
+      (void)fprintf(stderr,
+                    "cupiddis: %s: code anchor check failed: %llu of %llu "
+                    "code anchors invalid (%llu %s, %llu mid-instruction)\n",
+                    input, (unsigned long long)invalid_anchors,
+                    (unsigned long long)
+                        report.decode_summary.code_anchor_count,
+                    (unsigned long long)report.decode_summary
+                        .code_anchor_outside_executable_count,
+                    outside,
+                    (unsigned long long)report.decode_summary
+                        .code_anchor_mid_instruction_count);
       failed = 1;
     }
   }

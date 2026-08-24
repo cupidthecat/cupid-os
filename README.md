@@ -294,17 +294,26 @@ checked comparison both pass. Candidate and promoted-seed fixed-point proofs
 cover the preceding complete five-tool cohorts.
 
 Checked CupidDis provides `--require-code-anchors` for static i386 ELF32
-executables. With `--require-known`, it checks the ELF entry and every defined
-function symbol against decoded starts in file-backed executable code.
-Function aliases count separately, while undefined, absolute, and non-function
-symbols do not count. Failures distinguish an address outside that code from
-one in the middle of an instruction. The option composes with linked
-local-target validation and reuses its instruction-start map. The fixed-point
-drivers cover one valid and one invalid executable on Linux and Windows. Both
-promoted seeds carry the option, and the normal kernel publisher selects it for
-the pass-one and final ELFs. [ADR 0320](docs/adr/0320-validate-static-elf32-code-anchors.md)
-records the source boundary. [ADR 0323](docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
-records carriage and production adoption.
+objects. Source head checks every defined `STT_FUNC` in an `ET_REL` object
+against decoded starts in executable `PROGBITS`. The assembler publishes that
+intent through `global name:function` or `extern name:function` and leaves an
+unannotated symbol as `STT_NOTYPE`. Missing and unsupported type names fail
+without publishing an object. Undefined functions and non-function symbols do
+not enter the relocatable count.
+
+For `ET_EXEC`, CupidDis checks the ELF entry and every defined function symbol
+against decoded starts in file-backed executable code. Function aliases count
+separately, while undefined, absolute, and non-function symbols do not count.
+Both forms distinguish an address outside executable code from one in the
+middle of an instruction. The option composes with local-target validation and
+reuses its instruction-start map. The fixed-point drivers cover one valid and
+one invalid executable on Linux and Windows. Both promoted seeds carry the
+linked-image option, and the normal kernel publisher selects it for the
+pass-one and final ELFs. The relocatable form remains source-only until the
+next seed promotion. [ADR 0320](docs/adr/0320-validate-static-elf32-code-anchors.md)
+records the linked source boundary. [ADR 0323](docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
+records its carriage and production adoption. [ADR 0335](docs/adr/0335-type-assembly-functions-and-certify-relocatable-code-anchors.md)
+records explicit assembly functions and relocatable anchors.
 
 The historical ADR 0312 checked-seed bootstrap module passed all 89 tests in
 3,145.502 seconds. It covered the Linux and Windows fixed-point matrices,
