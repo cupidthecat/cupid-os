@@ -30833,3 +30833,20 @@ The driver now declares `/toolchain` as part of its compile boundary. The
 private binding and call-ABI modules pass all 327 tests in 67.324 seconds,
 including the fixed and nested callback cases. No production source, object,
 seed, ownership claim, or source suffix changes in this repair.
+
+## 2026-08-24: align the combined build-graph locks
+
+The PE32 reader, CupidBuild command, and Windows startup path expand the live
+Toolchain closure beyond the baselines used by their independent branches. The
+checked audit assertions now match the merged graph: 403 tracked preprocessing
+roots plus four generated roots, 75 publication inputs, 104 Linux contract
+inputs, and 32 CupidASM-owned assembly sources including five Toolchain startup
+files.
+
+Five focused ownership, preprocessing-manifest, fixed-point, renderer, and
+conditional-manifest checks pass in 243.570 seconds. An earlier 111-test run
+found the same stale counts, then Windows exhausted its paging-file commit and
+reported unrelated `MemoryError` failures. Those resource failures are not
+recorded as graph evidence; the final complete gate must run with adequate
+commit space or under the isolated Linux environment. No build owner, artifact,
+seed, host dependency, or source suffix changes with this lock refresh.

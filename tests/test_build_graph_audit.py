@@ -118,6 +118,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
         for path in (
             "toolchain/hosted/i386-linux/start.asm",
+            "toolchain/hosted/i386-windows/cupidbuild_start.asm",
             "toolchain/hosted/i386-windows/publication_start.asm",
             "toolchain/hosted/i386-windows/start.asm",
             "toolchain/hosted/i386-windows/tool_start.asm",
@@ -129,18 +130,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             audit["contracts"]["assembly_source_ownership"],
             {
                 "status": "pass",
-                "active_sources": 31,
-                "cupidasm_owned_sources": 31,
+                "active_sources": 32,
+                "cupidasm_owned_sources": 32,
                 "other_owned_sources": 0,
                 "ownerless_sources": 0,
                 "explicit_classifications": [],
-                "toolchain_startup_sources": 4,
+                "toolchain_startup_sources": 5,
             },
         )
         markdown = _load_audit_module()._render_markdown(audit)
         self.assertIn(
-            "31 active assembly sources; 31 CupidASM-owned; "
-            "4 Toolchain startup; 0 other-owned; 0 ownerless; "
+            "32 active assembly sources; 32 CupidASM-owned; "
+            "5 Toolchain startup; 0 other-owned; 0 ownerless; "
             "0 explicit host-only classifications",
             markdown,
         )
@@ -4527,7 +4528,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "HOSTED_I386_LINUX_GNU": 3,
             },
         )
-        self.assertEqual(len(active), 397)
+        self.assertEqual(len(active), 403)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -6017,15 +6018,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["windows_help_cases"], 5)
         self.assertEqual(contract["windows_success_behavior_cases"], 8)
         self.assertEqual(contract["windows_failure_behavior_cases"], 9)
-        self.assertEqual(contract["contract_manifest_inputs"], 73)
+        self.assertEqual(contract["contract_manifest_inputs"], 75)
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 73
+            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 75
         )
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 102)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 104)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -8552,9 +8553,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 397,
+                    "tracked_translation_units": 403,
                     "generated_translation_units": 4,
-                    "total_translation_units": 401,
+                    "total_translation_units": 407,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -9421,7 +9422,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "397 tracked + 4 generated",
+                "403 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(
