@@ -2186,6 +2186,18 @@ cover that separate boundary. Exact seed identities and dated proof evidence
 are kept in the host bootstrap log.
 >endtree
 
+>h2 Checked Windows Tool Cleanup
+>tree
+The host bootstrap runner launches each native checked tool from a private
+copy. Windows may keep a completed executable mapped for a short time. Cleanup
+therefore retries sharing violation 32 for up to two seconds after the tool
+runs. Every other cleanup error fails immediately, and a persistent lock still
+stops the build.
+
+This retry does not change the checked seed, tool arguments, timeout, exit
+status, output bytes, live five-tool recheck, or atomic publication rules.
+>endtree
+
 >h2 See Also
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)

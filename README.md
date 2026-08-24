@@ -2796,6 +2796,14 @@ relocation checks, corrected raw `EQU` handling, local-target policies for all
 three supported layouts, and static ELF code-anchor checks. ADR 0323 records
 their promotion and the linked-kernel adoption.
 
+### Windows checked-tool cleanup
+
+Each native checked tool runs from a private copy. Windows can keep that image
+mapped briefly after the process exits, so deletion retries sharing violation
+32 for up to two seconds. Other cleanup failures remain immediate, and a lock
+that outlives the bound still fails the build. This does not relax manifest,
+output, timeout, or publication checks.
+
 ---
 
 ## License

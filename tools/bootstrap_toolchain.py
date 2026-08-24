@@ -13,6 +13,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,6 +54,27 @@ EXPECTED_WINDOWS_TARGET = {
     "operating_system": "windows",
     "pe_class": 32,
 }
+
+PRIVATE_TOOL_CLEANUP_RETRIES = 40
+PRIVATE_TOOL_CLEANUP_DELAY_SECONDS = 0.05
+
+
+def _remove_private_tool_directory(directory: Path) -> None:
+    """Remove a staged native tool after transient Windows locks clear."""
+    for attempt in range(PRIVATE_TOOL_CLEANUP_RETRIES + 1):
+        try:
+            shutil.rmtree(directory)
+        except OSError as error:
+            if (
+                getattr(error, "winerror", None) != 32
+                or attempt >= PRIVATE_TOOL_CLEANUP_RETRIES
+            ):
+                raise
+            time.sleep(PRIVATE_TOOL_CLEANUP_DELAY_SECONDS)
+        else:
+            return
+
+
 EXPECTED_PRODUCER_LINEAGE = {
     "assembly": "stage-three CupidASM from the checked-seed bootstrap",
     "c": "stage-three CupidC from the checked-seed bootstrap",
@@ -357,22 +379,46 @@ class ToolRunner:
                 timeout=timeout,
             )
 
-        with tempfile.TemporaryDirectory(
-            prefix="cupid-bootstrap-tool-"
-        ) as temporary:
-            staged_executable = Path(temporary) / executable.name
+        temporary = Path(tempfile.mkdtemp(prefix="cupid-bootstrap-tool-"))
+        native_image_ran = False
+        operation_error: BaseException | None = None
+        try:
+            staged_executable = temporary / executable.name
             shutil.copyfile(executable, staged_executable)
             staged_executable.chmod(0o700)
-            return subprocess.run(
-                [
-                    str(staged_executable),
-                    *[str(argument) for argument in arguments],
-                ],
-                cwd=self.working_directory,
-                text=True,
-                capture_output=True,
-                timeout=timeout,
-            )
+            try:
+                result = subprocess.run(
+                    [
+                        str(staged_executable),
+                        *[str(argument) for argument in arguments],
+                    ],
+                    cwd=self.working_directory,
+                    text=True,
+                    capture_output=True,
+                    timeout=timeout,
+                )
+            except subprocess.TimeoutExpired:
+                native_image_ran = True
+                raise
+            else:
+                native_image_ran = True
+                return result
+        except BaseException as error:
+            operation_error = error
+            raise
+        finally:
+            try:
+                if native_image_ran:
+                    _remove_private_tool_directory(temporary)
+                else:
+                    shutil.rmtree(temporary)
+            except OSError as cleanup_error:
+                if operation_error is None:
+                    raise
+                if hasattr(operation_error, "add_note"):
+                    operation_error.add_note(
+                        f"private checked-tool cleanup also failed: {cleanup_error}"
+                    )
 
 
 class BootstrapError(RuntimeError):

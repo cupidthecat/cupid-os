@@ -30,6 +30,7 @@ from tools.bootstrap_toolchain import (
     _code_anchor_executable_payload,
     _local_target_executable_payload,
     _local_target_object_payload,
+    _remove_private_tool_directory,
     _profile_snapshot_payload,
     _unowned_relocation_object_payload,
     _windows_build_plan,
@@ -5965,6 +5966,137 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "unknown",
                 (),
             )
+
+    def test_private_tool_cleanup_retries_only_windows_sharing_violations(self):
+        def sharing_violation() -> OSError:
+            error = OSError("private executable remains locked")
+            error.winerror = 32
+            return error
+
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-private-tool-cleanup-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            transient = root / "transient"
+            transient.mkdir()
+            (transient / "cupidc.exe").write_bytes(b"MZ")
+            real_rmtree = shutil.rmtree
+            attempts = 0
+
+            def remove_after_two_locks(path):
+                nonlocal attempts
+                attempts += 1
+                if attempts <= 2:
+                    raise sharing_violation()
+                return real_rmtree(path)
+
+            with (
+                mock.patch(
+                    "tools.bootstrap_toolchain.shutil.rmtree",
+                    side_effect=remove_after_two_locks,
+                ),
+                mock.patch("tools.bootstrap_toolchain.time.sleep") as pause,
+            ):
+                _remove_private_tool_directory(transient)
+
+            self.assertEqual(attempts, 3)
+            self.assertFalse(transient.exists())
+            self.assertEqual(pause.call_count, 2)
+
+            unrelated = root / "unrelated"
+            unrelated.mkdir()
+            unrelated_error = OSError("unrelated cleanup failure")
+            unrelated_error.winerror = 5
+            with (
+                mock.patch(
+                    "tools.bootstrap_toolchain.shutil.rmtree",
+                    side_effect=unrelated_error,
+                ) as remove,
+                mock.patch("tools.bootstrap_toolchain.time.sleep") as pause,
+                self.assertRaisesRegex(OSError, "unrelated cleanup failure"),
+            ):
+                _remove_private_tool_directory(unrelated)
+            remove.assert_called_once_with(unrelated)
+            pause.assert_not_called()
+            real_rmtree(unrelated)
+
+            persistent = root / "persistent"
+            persistent.mkdir()
+            with (
+                mock.patch(
+                    "tools.bootstrap_toolchain.shutil.rmtree",
+                    side_effect=sharing_violation(),
+                ) as remove,
+                mock.patch("tools.bootstrap_toolchain.time.sleep") as pause,
+                self.assertRaisesRegex(OSError, "private executable remains locked"),
+            ):
+                _remove_private_tool_directory(persistent)
+            self.assertEqual(remove.call_count, 41)
+            self.assertEqual(pause.call_count, 40)
+            real_rmtree(persistent)
+
+    def test_private_tool_cleanup_preserves_native_tool_failures(self):
+        def sharing_violation() -> OSError:
+            error = OSError("private executable remains locked")
+            error.winerror = 32
+            return error
+
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-private-tool-failure-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            executable = root / "cupidc.exe"
+            executable.write_bytes(b"MZ" if os.name == "nt" else b"\x7fELF")
+            runner = ToolRunner(root)
+
+            timeout_stage = root / "timeout-stage"
+            timeout_stage.mkdir()
+            timeout_error = subprocess.TimeoutExpired(["cupidc"], 1)
+            with (
+                mock.patch(
+                    "tools.bootstrap_toolchain.tempfile.mkdtemp",
+                    return_value=str(timeout_stage),
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain.subprocess.run",
+                    side_effect=timeout_error,
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain._remove_private_tool_directory",
+                    side_effect=sharing_violation(),
+                ) as remove,
+                self.assertRaises(subprocess.TimeoutExpired) as raised,
+            ):
+                runner.run(executable, (), timeout=1)
+            remove.assert_called_once_with(timeout_stage)
+            if hasattr(raised.exception, "add_note"):
+                self.assertIn(
+                    "private checked-tool cleanup also failed",
+                    "\n".join(raised.exception.__notes__),
+                )
+            shutil.rmtree(timeout_stage)
+
+            launch_stage = root / "launch-stage"
+            launch_stage.mkdir()
+            with (
+                mock.patch(
+                    "tools.bootstrap_toolchain.tempfile.mkdtemp",
+                    return_value=str(launch_stage),
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain.subprocess.run",
+                    side_effect=OSError("native tool launch failed"),
+                ),
+                mock.patch(
+                    "tools.bootstrap_toolchain._remove_private_tool_directory"
+                ) as remove,
+                self.assertRaisesRegex(OSError, "native tool launch failed"),
+            ):
+                runner.run(executable, (), timeout=1)
+            remove.assert_not_called()
+            self.assertFalse(launch_stage.exists())
 
     def test_checked_seed_run_forwards_exact_tool_streams_and_status(self):
         completed = subprocess.CompletedProcess(

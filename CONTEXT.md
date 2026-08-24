@@ -1598,3 +1598,11 @@ _Avoid_: normal build
 **Host toolchain**:
 External compilers, assemblers, linkers, and binary utilities confined to explicit development and oracle paths. They do not produce normal Cupid OS or Toolchain artifacts. Host Python still coordinates the checked build. Windows runs output-bearing production tools, the user syscall ABI contract, the artifact-size contract, and the Toolchain manifest verifier from the native checked execution seed. The manifest verifier also checks the Linux publication seed. Source head can reconstruct native Windows stages two through four from that execution seed and the Linux plan seed. Linux fixed-point reconstruction and the full published Toolchain contract cohort still use WSL on Windows. Preliminary native and Linux convergence proofs passed on one frozen uncommitted snapshot. Both platforms now have a clean stage-four proof, seed promotion, and promoted-seed reproof. Python-free coordination remains open at this boundary.
 _Avoid_: build orchestrator
+
+**Checked native-tool cleanup**:
+The Windows checked-seed runner stages each native tool in a private directory.
+After the child exits, cleanup retries only sharing violation 32 for up to two
+seconds. Other filesystem errors fail immediately, and a persistent lock still
+stops the build. Seed capture, the live five-tool recheck, and atomic output
+publication are unchanged. ADR 0329 records this boundary.
+_Avoid_: unbounded retry, retrying unrelated cleanup errors

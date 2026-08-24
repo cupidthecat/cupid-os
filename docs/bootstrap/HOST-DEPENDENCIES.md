@@ -1741,3 +1741,11 @@ its remaining metadata-free call limits.
 ## Removal gate
 
 A code-producing host dependency leaves the normal build only after the Cupid replacement has positive and negative tests, matches required object/ABI/layout behavior, builds its assigned active-source cohort, and passes the relevant OS boot or runtime smoke. The legacy host path remains available as an oracle until fixed-point bootstrap and behavior gates are reliable.
+
+### Windows private-image cleanup
+
+Host Python still launches private checked tools. On Windows it retries a
+transient sharing violation while deleting the completed private executable,
+with a two-second bound. Persistent locks and every other cleanup error remain
+fatal. This reliability change removes no host dependency and transfers no
+build owner.

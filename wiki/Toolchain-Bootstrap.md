@@ -2073,3 +2073,12 @@ guest results on this page remain dated checkpoints.
 The stable audit counts are 739 active language inputs, 452 transforms, 255
 feature requirements, six CupidDis production checks, and no active
 CupidC-owned `.c` source.
+
+### Windows private-tool cleanup
+
+The checked runner gives every native tool invocation its own private copy.
+After the process exits, Windows sharing violation 32 is retried for up to two
+seconds because the executable image may still be mapped. Other cleanup errors
+are not retried, and a persistent lock still stops the build. The seed,
+arguments, timeout, output validation, live cohort check, and atomic publisher
+keep their existing behavior.

@@ -30113,3 +30113,59 @@ The private smoke left `cupidos.img` unchanged.
 ADR 0328 records the typed array boundary. The checked standalone seeds do not
 contain this private parser, and no owner, object format, host dependency, or
 source suffix changes. `TempleOS/` remains read-only reference material.
+
+## 2026-08-24: retry transient Windows private-tool locks
+
+The checked runner copies every native executable into a private directory.
+Windows sometimes returns sharing violation 32 when that directory is removed
+immediately after the child exits, even though the tool finished successfully.
+The failure appeared in both serial and parallel production builds and moved
+between tools when the build was retried.
+
+Cleanup now makes one initial removal attempt followed by at most 40 retries,
+waiting 50 milliseconds after each sharing violation. Every other filesystem
+error fails immediately. The retry is used only after a native image completed
+or timed out; copy, permission, and launch failures use ordinary cleanup. If a
+timeout and cleanup failure happen together, the timeout remains the primary
+exception and the cleanup error is attached as a note.
+
+The first draft had 40 total removal attempts and 39 waits, and its cleanup
+exception could replace a timeout. It could also enter the special retry path
+before a native image ran. Review probes caught all three cases. The final
+contract requires 41 attempts and 40 waits for a persistent lock, preserves
+the pending tool error, and proves that a launch failure never calls the
+special retry helper.
+
+The focused cleanup and error-precedence tests pass under WSL and native
+Windows. The complete checked-seed module passes 101 tests with 14 expected
+platform skips in 1,291.810 seconds.
+
+A fully poisoned `make -j4 all` rebuilt the kernel and all active Doom roots,
+then passed the strict CupidDis gate. It stopped at the exact-size contract
+because the new embedded manual moved `kernel/kernel.bin` from 9,291,944 to
+9,292,472 bytes. Updating that measured row let all 14 checks pass, and the
+image builder published this final cohort:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,387,712 | `c05364d4c64b4f63a5bd56fa19e878ed78c1f8ea072340293a1f747607e4b182` |
+| `kernel/kernel.elf` | 9,514,688 | `cafc2c06a334b66394b92e11083d2e440e9869a1963cb8e96197d36cb4d3982d` |
+| `kernel/kernel.bin` | 9,292,472 | `5694f90aaf5d43d50fd4fd228dcf5afb5278a672e1de079b49e3f6a74ab6104c` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `6441bd5b2c880433a0ba6e76f5e5a5f653e0f08296b2d4df33c365589e750522` |
+| `bootstrap/artifact-size-policy.json` | 2,960 | `ed2ea027a1a80a62dad47b728806f56ae2e321a41fe07827939df564e9fd047e` |
+
+The final private-image smoke booted four `max` i386 CPUs, ran
+`/bin/feature14_simd.cc`, printed the callback-array marker at serial line 717,
+passed the feature at line 720, and completed JIT execution at line 721. The
+36,243-byte log at `build/bootstrap/feature14-cleanup-final-qemu.log` has
+SHA-256
+`2c76360719e8dee771bc105b605c8e011dcf8ab74bb80cc44ac5169703f560f6`.
+The private smoke left `cupidos.img` unchanged.
+
+Seed capture, fixed-point comparison, live five-tool rechecks, and atomic
+publication are unchanged. ADR 0329 records the decision. Python remains the
+checked runner, so this step transfers no tool owner or host dependency and
+changes no source suffix. `TempleOS/` remains untouched reference material.

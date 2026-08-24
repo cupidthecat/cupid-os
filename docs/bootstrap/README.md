@@ -3139,6 +3139,16 @@ retains native-path safety, drift checks, the per-output lock, and atomic
 replacement. ADR 0239 records the source boundary, ADR 0240 records seed
 carriage, and ADR 0241 records production ownership.
 
+### Native Windows private-tool cleanup
+
+The checked runner copies a native tool into a private directory before every
+launch. After a completed or timed-out Windows process, deletion retries only
+sharing violation 32, with 40 waits of 50 milliseconds. Other filesystem
+errors fail immediately. A persistent lock remains fatal, and an existing
+timeout remains the primary error if cleanup also fails. Copy and launch
+failures use ordinary cleanup because no native image completed. ADR 0329
+records the exact boundary.
+
 A block type name or record member may either reuse a visible enum tag or define a new one. New enumerators keep their exact lexical activation point through ADR 0062 ownership records.
 
 ## Records
