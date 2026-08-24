@@ -456,6 +456,95 @@ static int build_local_target_object(ctool_job_t *job,
   return 1;
 }
 
+static int build_code_anchor_object(
+    ctool_job_t *job, ctool_elf32_symbol_placement_t candidate_placement,
+    ctool_u32 candidate_section,
+    ctool_u32 candidate_value, ctool_buffer_t **buffer_out) {
+  static const ctool_u8 text[] = {
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0xc3u};
+  static const ctool_u8 data[] = {0xc3u};
+  ctool_elf32_section_spec_t sections[2];
+  ctool_elf32_symbol_spec_t symbols[5];
+  ctool_elf32_relocation_spec_t relocation;
+  ctool_elf32_object_spec_t object;
+  ctool_status_t status =
+      ctool_job_open_buffer(job, 256u, ctool_default_limits().output_bytes,
+                            buffer_out);
+  if (status != CTOOL_OK) {
+    return 0;
+  }
+  (void)memset(sections, 0, sizeof(sections));
+  sections[0].name = ctool_string(".text");
+  sections[0].type = CTOOL_ELF32_SHT_PROGBITS;
+  sections[0].flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR;
+  sections[0].alignment = 1u;
+  sections[0].size = (ctool_u32)sizeof(text);
+  sections[0].contents = ctool_bytes(text, (ctool_u32)sizeof(text));
+  sections[1].name = ctool_string(".data");
+  sections[1].type = CTOOL_ELF32_SHT_PROGBITS;
+  sections[1].flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;
+  sections[1].alignment = 1u;
+  sections[1].size = (ctool_u32)sizeof(data);
+  sections[1].contents = ctool_bytes(data, (ctool_u32)sizeof(data));
+
+  (void)memset(symbols, 0, sizeof(symbols));
+  symbols[0].name = ctool_string("entry");
+  symbols[0].binding = CTOOL_ELF32_BIND_GLOBAL;
+  symbols[0].type = CTOOL_ELF32_SYMBOL_FUNCTION;
+  symbols[0].visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbols[0].placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  symbols[0].section = 0u;
+  symbols[0].value = 0u;
+  symbols[1].name = ctool_string("tail");
+  symbols[1].binding = CTOOL_ELF32_BIND_LOCAL;
+  symbols[1].type = CTOOL_ELF32_SYMBOL_FUNCTION;
+  symbols[1].visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbols[1].placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  symbols[1].section = 0u;
+  symbols[1].value = 5u;
+  symbols[2].name = ctool_string("external");
+  symbols[2].binding = CTOOL_ELF32_BIND_GLOBAL;
+  symbols[2].type = CTOOL_ELF32_SYMBOL_FUNCTION;
+  symbols[2].visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbols[2].placement = CTOOL_ELF32_SYMBOL_UNDEFINED;
+  symbols[2].section = CTOOL_ELF32_NO_SECTION;
+  symbols[3].name = ctool_string("ordinary");
+  symbols[3].binding = CTOOL_ELF32_BIND_GLOBAL;
+  symbols[3].type = CTOOL_ELF32_SYMBOL_NOTYPE;
+  symbols[3].visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbols[3].placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  symbols[3].section = 0u;
+  symbols[3].value = 1u;
+  symbols[4].name = ctool_string("candidate");
+  symbols[4].binding = CTOOL_ELF32_BIND_GLOBAL;
+  symbols[4].type = CTOOL_ELF32_SYMBOL_FUNCTION;
+  symbols[4].visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbols[4].placement = candidate_placement;
+  symbols[4].section = candidate_placement == CTOOL_ELF32_SYMBOL_DEFINED
+                           ? candidate_section
+                           : CTOOL_ELF32_NO_SECTION;
+  symbols[4].value = candidate_value;
+
+  relocation.target_section = 0u;
+  relocation.offset = 1u;
+  relocation.symbol = 2u;
+  relocation.type = CTOOL_ELF32_R_386_PC32;
+  relocation.addend = -4;
+  object.sections = sections;
+  object.section_count = 2u;
+  object.symbols = symbols;
+  object.symbol_count = 5u;
+  object.relocations = &relocation;
+  object.relocation_count = 1u;
+  status = ctool_elf32_write(job, &object, *buffer_out);
+  if (status != CTOOL_OK) {
+    ctool_buffer_close(*buffer_out);
+    *buffer_out = (ctool_buffer_t *)0;
+    return 0;
+  }
+  return 1;
+}
+
 static int build_relocated_local_target_object(
     ctool_job_t *job, ctool_buffer_t **buffer_out) {
   static const ctool_u8 text[] = {
@@ -2793,7 +2882,10 @@ static int run_anchors(void) {
   ctool_job_close(job);
   {
     static const ctool_u8 text[] = {0xc3u};
-    ctool_buffer_t *object = (ctool_buffer_t *)0;
+    ctool_buffer_t *valid_object = (ctool_buffer_t *)0;
+    ctool_buffer_t *middle_object = (ctool_buffer_t *)0;
+    ctool_buffer_t *outside_object = (ctool_buffer_t *)0;
+    ctool_buffer_t *absolute_object = (ctool_buffer_t *)0;
     ctool_dis_request_t invalid_request =
         raw_request(CTOOL_X86_MODE_32, 0u);
     if (!open_job(&adapter, &job)) {
@@ -2810,37 +2902,108 @@ static int run_anchors(void) {
         ctool_job_diagnostic_count(job) != 1u ||
         !check_diagnostic(
             job, 0u, CTOOL_DIS_DIAG_INVALID_REQUEST,
-            "code anchor checks require static ELF32 ET_EXEC input",
+            "code anchor checks require ELF32 ET_REL or ET_EXEC input",
             "raw code anchor diagnostic")) {
       ctool_job_close(job);
       return 1;
     }
-    if (!build_local_target_object(
-            job, text, (ctool_u32)sizeof(text), &object)) {
+    if (!build_code_anchor_object(
+            job, CTOOL_ELF32_SYMBOL_DEFINED, 0u, 0u, &valid_object) ||
+        !build_code_anchor_object(
+            job, CTOOL_ELF32_SYMBOL_DEFINED, 0u, 1u, &middle_object) ||
+        !build_code_anchor_object(
+            job, CTOOL_ELF32_SYMBOL_DEFINED, 1u, 0u, &outside_object) ||
+        !build_code_anchor_object(
+            job, CTOOL_ELF32_SYMBOL_ABSOLUTE, 0u, 0u, &absolute_object)) {
       ctool_job_close(job);
       return 1;
     }
     source.path.text = ctool_string("/relocatable-code-anchor.o");
-    source.contents = ctool_buffer_view(object);
+    source.contents = ctool_buffer_view(valid_object);
     (void)memset(&invalid_request, 0, sizeof(invalid_request));
     invalid_request.input = CTOOL_DIS_INPUT_ELF32;
     invalid_request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
-    invalid_request.policies = CTOOL_DIS_POLICY_CODE_ANCHORS;
-    (void)memset(&report, 0xa5, sizeof(report));
+    invalid_request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
+                               CTOOL_DIS_POLICY_CODE_ANCHORS;
     status = ctool_dis_inspect(job, &source, &invalid_request, &report);
-    if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
-                      "relocatable code anchor policy") ||
-        !is_zeroed(&report, sizeof(report)) ||
-        ctool_job_diagnostic_count(job) != 2u ||
-        !check_diagnostic(
-            job, 1u, CTOOL_DIS_DIAG_INVALID_REQUEST,
-            "code anchor checks require static ELF32 ET_EXEC input",
-            "relocatable code anchor diagnostic")) {
-      ctool_buffer_close(object);
+    if (!check_status(status, CTOOL_OK, "relocatable code anchors") ||
+        report.decode_summary.code_anchor_count != 3u ||
+        report.decode_summary.code_anchor_outside_executable_count != 0u ||
+        report.decode_summary.code_anchor_mid_instruction_count != 0u ||
+        report.decode_summary.direct_relative_target_count != 0u ||
+        report.decode_summary.executable_relocation_count != 1u ||
+        report.decode_summary.unmatched_executable_relocation_count != 0u ||
+        ctool_job_diagnostic_count(job) != 1u) {
+      ctool_buffer_close(absolute_object);
+      ctool_buffer_close(outside_object);
+      ctool_buffer_close(middle_object);
+      ctool_buffer_close(valid_object);
       ctool_job_close(job);
       return 1;
     }
-    ctool_buffer_close(object);
+    status = ctool_x86_decoder_prepare(job, &decoder);
+    if (status == CTOOL_OK) {
+      status = ctool_dis_inspect_indexed(
+          job, decoder, &source, &invalid_request, &indexed_report);
+    }
+    if (!check_status(status, CTOOL_OK,
+                      "indexed relocatable code anchors") ||
+        !summaries_equal(&report.decode_summary,
+                         &indexed_report.decode_summary)) {
+      ctool_buffer_close(absolute_object);
+      ctool_buffer_close(outside_object);
+      ctool_buffer_close(middle_object);
+      ctool_buffer_close(valid_object);
+      ctool_job_close(job);
+      return 1;
+    }
+    invalid_request.policies = CTOOL_DIS_POLICY_CODE_ANCHORS;
+    source.path.text = ctool_string("/relocated-field-anchor.o");
+    source.contents = ctool_buffer_view(middle_object);
+    status = ctool_dis_inspect(job, &source, &invalid_request, &report);
+    if (!check_status(status, CTOOL_OK, "relocated field code anchor") ||
+        report.decode_summary.code_anchor_count != 3u ||
+        report.decode_summary.code_anchor_outside_executable_count != 0u ||
+        report.decode_summary.code_anchor_mid_instruction_count != 1u) {
+      ctool_buffer_close(absolute_object);
+      ctool_buffer_close(outside_object);
+      ctool_buffer_close(middle_object);
+      ctool_buffer_close(valid_object);
+      ctool_job_close(job);
+      return 1;
+    }
+    source.path.text = ctool_string("/data-function-anchor.o");
+    source.contents = ctool_buffer_view(outside_object);
+    status = ctool_dis_inspect(job, &source, &invalid_request, &report);
+    if (!check_status(status, CTOOL_OK, "data function code anchor") ||
+        report.decode_summary.code_anchor_count != 3u ||
+        report.decode_summary.code_anchor_outside_executable_count != 1u ||
+        report.decode_summary.code_anchor_mid_instruction_count != 0u) {
+      ctool_buffer_close(absolute_object);
+      ctool_buffer_close(outside_object);
+      ctool_buffer_close(middle_object);
+      ctool_buffer_close(valid_object);
+      ctool_job_close(job);
+      return 1;
+    }
+    source.path.text = ctool_string("/absolute-function-anchor.o");
+    source.contents = ctool_buffer_view(absolute_object);
+    status = ctool_dis_inspect(job, &source, &invalid_request, &report);
+    if (!check_status(status, CTOOL_OK, "absolute function code anchor") ||
+        report.decode_summary.code_anchor_count != 3u ||
+        report.decode_summary.code_anchor_outside_executable_count != 1u ||
+        report.decode_summary.code_anchor_mid_instruction_count != 0u) {
+      ctool_buffer_close(absolute_object);
+      ctool_buffer_close(outside_object);
+      ctool_buffer_close(middle_object);
+      ctool_buffer_close(valid_object);
+      ctool_job_close(job);
+      return 1;
+    }
+    ctool_buffer_close(absolute_object);
+    ctool_buffer_close(outside_object);
+    ctool_buffer_close(middle_object);
+    ctool_buffer_close(valid_object);
     ctool_job_close(job);
   }
   {

@@ -471,7 +471,8 @@ static int run_object_basic(void) {
       "[BITS 32]\n"
       "extern target\n"
       "extern slot\n"
-      "global entry\n"
+      "extern callback:function\n"
+      "global entry:function\n"
       "section .text\n"
       "entry:\n"
       " call target\n"
@@ -500,6 +501,7 @@ static int run_object_basic(void) {
   const ctool_elf32_symbol_t *value;
   const ctool_elf32_symbol_t *target;
   const ctool_elf32_symbol_t *slot;
+  const ctool_elf32_symbol_t *callback;
   ctool_bytes_t bytes;
   ctool_status_t status;
 
@@ -540,6 +542,7 @@ static int run_object_basic(void) {
   value = find_symbol(&object, "value");
   target = find_symbol(&object, "target");
   slot = find_symbol(&object, "slot");
+  callback = find_symbol(&object, "callback");
   if (!check_status(status, CTOOL_OK, "basic ELF32 object assembly") ||
       result.artifact != CTOOL_ASM_ARTIFACT_ELF32_REL ||
       result.bytes.data != bytes.data || result.bytes.size != bytes.size ||
@@ -576,21 +579,30 @@ static int run_object_basic(void) {
   }
   if (entry == (const ctool_elf32_symbol_t *)0 ||
       entry->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      entry->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
       entry->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
       entry->section_file_index != text->file_index || entry->value != 0u ||
       value == (const ctool_elf32_symbol_t *)0 ||
       value->binding != CTOOL_ELF32_BIND_LOCAL ||
+      value->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
       value->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
       value->section_file_index != data->file_index || value->value != 0u ||
       target == (const ctool_elf32_symbol_t *)0 ||
       target->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      target->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
       target->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
       target->section_file_index != CTOOL_ELF32_NO_SECTION ||
       target->value != 0u || slot == (const ctool_elf32_symbol_t *)0 ||
       slot->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      slot->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
       slot->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
       slot->section_file_index != CTOOL_ELF32_NO_SECTION ||
-      slot->value != 0u) {
+      slot->value != 0u || callback == (const ctool_elf32_symbol_t *)0 ||
+      callback->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      callback->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      callback->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      callback->section_file_index != CTOOL_ELF32_NO_SECTION ||
+      callback->value != 0u) {
     (void)fprintf(stderr, "basic ELF32 object symbols differ\n");
     ctool_buffer_close(output);
     ctool_job_close(job);
@@ -2157,6 +2169,14 @@ static int run_error_contracts(void) {
           "invalid object origin", config, "/object-org.asm", "ORG 1\n",
           &object, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_INVALID_ORIGIN,
           "/object-org.asm") ||
+      !expect_assembly_failure(
+          "missing symbol type", config, "/missing-symbol-type.asm",
+          "global entry:\nentry: ret\n", &object, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_INVALID_SYMBOL_TYPE, "/missing-symbol-type.asm") ||
+      !expect_assembly_failure(
+          "unsupported symbol type", config, "/object-symbol-type.asm",
+          "global entry:object\nentry: ret\n", &object, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_INVALID_SYMBOL_TYPE, "/object-symbol-type.asm") ||
       !expect_assembly_failure(
           "invalid bits mode", config, "/bits.asm", "BITS 64\n", &raw,
           CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_INVALID_MODE, "/bits.asm") ||

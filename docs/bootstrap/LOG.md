@@ -30397,3 +30397,34 @@ separately. The checked Linux and Windows seeds still carry v1, so the guarded
 boot and SMP publishers have not adopted this rule yet. This source commit
 moves no build owner, removes no host dependency, and changes no source suffix.
 ADR 0340 records the decision.
+
+## 2026-08-24: type assembly functions and certify relocatable anchors
+
+CupidASM now accepts `global name:function` and `extern name:function`.
+Annotated symbols enter ELF32 objects as `STT_FUNC`; ordinary declarations
+remain `STT_NOTYPE`. Missing and unsupported type names report `CT6000018`.
+The output transaction keeps an existing object unchanged on either failure,
+and the same process can assemble a valid object afterward.
+
+CupidDis now applies `--require-code-anchors` to static i386 `ET_REL` input.
+Every defined `STT_FUNC` must name a decoded instruction start in executable
+`PROGBITS`. A defined function in another section or beyond its section is
+reported outside the executable domain. A function inside an instruction is
+reported separately. Undefined functions and non-function symbols do not
+enter the count. When local targets and anchors are requested together, each
+executable section is decoded once to make its instruction-start map. A
+relocated operand stays outside the local-target count and remains subject to
+relocation ownership.
+
+The public C and Python contracts cover accepted function declarations,
+ordinary symbols, exact symbol types, malformed type annotations, valid and
+invalid relocatable anchors, a relocated call field, indexed decoding,
+bounded storage, rollback, and recovery. The focused CupidASM and CupidDis
+Python suites pass 44 tests with one platform skip. The two native CupidDis
+contract groups also pass.
+
+This is source-head capability evidence. The checked Linux and Windows seeds
+at this checkpoint still contain the preceding inspector, so active assembly
+and production publication do not select the new object policy yet. ADR 0335
+records the boundary. No source suffix or build owner changes, and
+`TempleOS/` remains untouched reference material.

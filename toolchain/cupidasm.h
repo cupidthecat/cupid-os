@@ -147,7 +147,8 @@ typedef enum {
   CTOOL_ASM_DIAG_LAYOUT = 0x06000014u,
   CTOOL_ASM_DIAG_ENTRY = 0x06000015u,
   CTOOL_ASM_DIAG_OUTPUT = 0x06000016u,
-  CTOOL_ASM_DIAG_LIMIT = 0x06000017u
+  CTOOL_ASM_DIAG_LIMIT = 0x06000017u,
+  CTOOL_ASM_DIAG_INVALID_SYMBOL_TYPE = 0x06000018u
 } ctool_asm_diag_code_t;
 
 ctool_status_t ctool_asm_assemble(ctool_job_t *job,

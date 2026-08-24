@@ -917,17 +917,49 @@ static ctool_status_t dis_scan_elf_local_target_section(
   return CTOOL_OK;
 }
 
-static ctool_status_t dis_prepare_rel_local_target_summary(
+static ctool_bool dis_rel_symbol_has_executable_section(
+    const ctool_dis_report_t *report, const ctool_elf32_symbol_t *symbol,
+    const ctool_elf32_section_t **section_out) {
+  const ctool_elf32_section_t *section;
+  if (symbol->section_file_index >= report->elf32.section_count) {
+    return CTOOL_FALSE;
+  }
+  section = &report->elf32.sections[symbol->section_file_index];
+  if (section->type != CTOOL_ELF32_SHT_PROGBITS ||
+      (section->flags & CTOOL_ELF32_SHF_EXECINSTR) == 0u ||
+      symbol->value >= section->contents.size) {
+    return CTOOL_FALSE;
+  }
+  *section_out = section;
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t dis_prepare_rel_policy_summaries(
     ctool_job_t *job, const ctool_x86_decoder_t *decoder,
     ctool_dis_report_t *report) {
   ctool_arena_t *arena = ctool_job_arena(job);
   ctool_u32 index;
+  if ((report->policies & CTOOL_DIS_POLICY_CODE_ANCHORS) != 0u) {
+    for (index = 0u; index < report->elf32.symbol_count; index++) {
+      const ctool_elf32_symbol_t *symbol = &report->elf32.symbols[index];
+      const ctool_elf32_section_t *section =
+          (const ctool_elf32_section_t *)0;
+      if (symbol->placement == CTOOL_ELF32_SYMBOL_UNDEFINED ||
+          symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION) {
+        continue;
+      }
+      report->decode_summary.code_anchor_count++;
+      if (dis_rel_symbol_has_executable_section(report, symbol, &section) ==
+          CTOOL_FALSE) {
+        report->decode_summary.code_anchor_outside_executable_count++;
+      }
+    }
+  }
   for (index = 0u; index < report->elf32.section_count; index++) {
     const ctool_elf32_section_t *section = &report->elf32.sections[index];
     ctool_arena_mark_t mark;
     ctool_u8 *instruction_starts = (ctool_u8 *)0;
     ctool_u32 bitset_size;
-    ctool_u32 pass;
     ctool_status_t status = CTOOL_OK;
     ctool_status_t rewind_status;
     if (section->type != CTOOL_ELF32_SHT_PROGBITS ||
@@ -943,10 +975,36 @@ static ctool_status_t dis_prepare_rel_local_target_summary(
     status = ctool_arena_alloc_zero(
         arena, bitset_size, (ctool_u32)sizeof(ctool_u8),
         (ctool_u32)sizeof(ctool_u8), (void **)&instruction_starts);
-    for (pass = 0u; status == CTOOL_OK && pass < 2u; pass++) {
+    if (status == CTOOL_OK) {
       status = dis_scan_elf_local_target_section(
-          job, decoder, report, section, instruction_starts,
-          pass == 0u ? CTOOL_TRUE : CTOOL_FALSE);
+          job, decoder, report, section, instruction_starts, CTOOL_TRUE);
+    }
+    if (status == CTOOL_OK &&
+        (report->policies & CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u) {
+      status = dis_scan_elf_local_target_section(
+          job, decoder, report, section, instruction_starts, CTOOL_FALSE);
+    }
+    if (status == CTOOL_OK &&
+        (report->policies & CTOOL_DIS_POLICY_CODE_ANCHORS) != 0u) {
+      ctool_u32 symbol_index;
+      for (symbol_index = 0u;
+           symbol_index < report->elf32.symbol_count; symbol_index++) {
+        const ctool_elf32_symbol_t *symbol =
+            &report->elf32.symbols[symbol_index];
+        const ctool_elf32_section_t *symbol_section =
+            (const ctool_elf32_section_t *)0;
+        if (symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+            symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+            dis_rel_symbol_has_executable_section(
+                report, symbol, &symbol_section) == CTOOL_FALSE ||
+            symbol_section != section) {
+          continue;
+        }
+        if (dis_instruction_start_get(instruction_starts, symbol->value) ==
+            CTOOL_FALSE) {
+          report->decode_summary.code_anchor_mid_instruction_count++;
+        }
+      }
     }
     rewind_status = ctool_arena_rewind(arena, mark);
     if (status != CTOOL_OK) {
@@ -1217,12 +1275,6 @@ static ctool_status_t dis_prepare_exec_policy_summaries(
   return status == CTOOL_OK ? rewind_status : status;
 }
 
-static ctool_status_t dis_prepare_elf_local_target_summary(
-    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
-    ctool_dis_report_t *report) {
-  return dis_prepare_rel_local_target_summary(job, decoder, report);
-}
-
 static ctool_status_t
 dis_summarize_region(ctool_job_t *job, const ctool_x86_decoder_t *decoder,
                      ctool_bytes_t bytes,
@@ -1428,7 +1480,7 @@ static ctool_status_t dis_inspect(
     if ((request->policies & CTOOL_DIS_POLICY_CODE_ANCHORS) != 0u) {
       return dis_bad_request(
           job, source,
-          "code anchor checks require static ELF32 ET_EXEC input");
+          "code anchor checks require ELF32 ET_REL or ET_EXEC input");
     }
     if (request->views != CTOOL_DIS_VIEW_DISASSEMBLY) {
       return dis_bad_request(job, source,
@@ -1563,14 +1615,6 @@ static ctool_status_t dis_inspect(
     dis_zero_report(report_out);
     return status;
   }
-  if ((request->policies & CTOOL_DIS_POLICY_CODE_ANCHORS) != 0u &&
-      report_out->elf32.file_type != CTOOL_ELF32_ET_EXEC) {
-    (void)ctool_arena_rewind(arena, mark);
-    dis_zero_report(report_out);
-    return dis_bad_request(
-        job, source,
-        "code anchor checks require static ELF32 ET_EXEC input");
-  }
   if ((request->policies &
        CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u &&
       report_out->elf32.file_type == CTOOL_ELF32_ET_EXEC &&
@@ -1649,8 +1693,9 @@ static ctool_status_t dis_inspect(
   if (status == CTOOL_OK &&
       report_out->elf32.file_type == CTOOL_ELF32_ET_REL &&
       (report_out->policies &
-       CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u) {
-    status = dis_prepare_elf_local_target_summary(job, decoder, report_out);
+       (CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
+        CTOOL_DIS_POLICY_CODE_ANCHORS)) != 0u) {
+    status = dis_prepare_rel_policy_summaries(job, decoder, report_out);
   }
   if (status == CTOOL_OK &&
       report_out->elf32.file_type == CTOOL_ELF32_ET_EXEC &&

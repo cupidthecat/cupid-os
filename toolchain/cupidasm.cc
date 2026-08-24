@@ -68,6 +68,7 @@ struct asm_symbol {
   ctool_bool resolving;
   ctool_bool global;
   ctool_bool external;
+  ctool_bool function;
   asm_section_t *section;
   ctool_u32 object_index;
   asm_symbol_t *next;
@@ -2134,6 +2135,27 @@ static ctool_status_t asm_parse_line(asm_context_t *context,
         symbol->external = CTOOL_TRUE;
       }
       index++;
+      if (index < end && tokens[index].kind == ASM_TOKEN_COLON) {
+        ctool_u32 colon = index;
+        index++;
+        if (index == end || tokens[index].kind != ASM_TOKEN_IDENT) {
+          asm_fail(context, CTOOL_ERR_INPUT,
+                   CTOOL_ASM_DIAG_INVALID_SYMBOL_TYPE,
+                   tokens[colon].line, tokens[colon].column,
+                   "symbol type requires a name after colon");
+          return CTOOL_ERR_INPUT;
+        }
+        if (asm_string_equal_case(tokens[index].text, "function") ==
+            CTOOL_FALSE) {
+          asm_fail(context, CTOOL_ERR_INPUT,
+                   CTOOL_ASM_DIAG_INVALID_SYMBOL_TYPE,
+                   tokens[index].line, tokens[index].column,
+                   "Cupid ASM supports only the function symbol type");
+          return CTOOL_ERR_INPUT;
+        }
+        symbol->function = CTOOL_TRUE;
+        index++;
+      }
       if (index == end) {
         break;
       }
@@ -3768,7 +3790,9 @@ static ctool_status_t asm_object_prepare_symbols(
       spec->binding = symbol->global == CTOOL_TRUE
                           ? CTOOL_ELF32_BIND_GLOBAL
                           : CTOOL_ELF32_BIND_LOCAL;
-      spec->type = CTOOL_ELF32_SYMBOL_NOTYPE;
+      spec->type = symbol->function == CTOOL_TRUE
+                       ? CTOOL_ELF32_SYMBOL_FUNCTION
+                       : CTOOL_ELF32_SYMBOL_NOTYPE;
       spec->visibility = CTOOL_ELF32_VIS_DEFAULT;
       spec->section = CTOOL_ELF32_NO_SECTION;
       spec->size = 0u;
