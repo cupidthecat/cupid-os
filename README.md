@@ -60,11 +60,12 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 
 CupidBuild now treats the checked seed as a complete five-image trust unit. It
 rejects unlisted `.elf` or `.exe` peers before tool execution and repeats the
-directory check after CupidASM and CupidDis. It freezes all five listed tools
-and validates the static i386 ELF32 profile on Linux or the strict CupidLD PE32
-profile on Windows before either checked command runs. The positive and
-failure cases pass on both hosts, and every rejected transaction preserves the
-previous object.
+directory check after every attempted CupidASM and CupidDis launch, including
+failure and timeout paths. It freezes all five listed tools and validates the
+static i386 ELF32 profile on Linux or the strict CupidLD PE32 profile on
+Windows before either checked command runs. The positive and failure cases
+pass on both hosts, and every rejected transaction preserves the previous
+object.
 
 This is a source-head trust-boundary improvement, not a production cutover.
 The promoted seeds still contain CupidASM, CupidC, CupidDis, CupidLD, and

@@ -68,11 +68,12 @@ code-anchor requirements used by the Python-owned ISR and context-switch
 publisher. A defined function inside an instruction is rejected. The complete
 CupidBuild transaction suite passes on native Windows and Linux. CupidBuild
 also rejects an unlisted `.elf` or `.exe` peer before tool execution and after
-each checked command. It freezes all five listed tools and validates their
-static i386 ELF32 or strict CupidLD PE32 execution profiles before either tool
-runs. Unrelated directory entries remain legal, while membership or profile
-drift preserves the previous object. The seeds still contain five tools, so
-Make ownership and the Python dependency are unchanged.
+each attempted checked command, even when that command fails or times out. It
+freezes all five listed tools and validates their static i386 ELF32 or strict
+CupidLD PE32 execution profiles before either tool runs. Unrelated directory
+entries remain legal, while membership or profile drift preserves the previous
+object. The seeds still contain five tools, so Make ownership and the Python
+dependency are unchanged.
 
 The Linux fixed-point coordinator now reads four bytes when it identifies a
 checked executable. It no longer allocates the full multi-megabyte image for

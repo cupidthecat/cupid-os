@@ -16,8 +16,8 @@ contract drift before tool execution. Artifact bytes remain bound by size and
 SHA-256 after they are frozen. It also requires the exact case-sensitive five
 manifest names to be the complete case-insensitive `.elf` or `.exe` directory
 membership. The command repeats that check after each tool runs. All five
-frozen images must match the static i386 ELF32 or strict CupidLD PE32 profile
-before execution.
+attempts, including a nonzero exit or timeout. All five frozen images must
+match the static i386 ELF32 or strict CupidLD PE32 profile before execution.
 
 The object gate requires known instruction coverage, local targets, and
 defined function anchors at instruction starts. Public rollback tests cover

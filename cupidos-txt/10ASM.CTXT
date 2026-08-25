@@ -26,7 +26,8 @@ preserves the previous object. The command remains a source-head proof until a
 checked seed contains CupidBuild and a normal Make recipe invokes it.
 Before CupidASM runs, CupidBuild rejects any unlisted `.elf` or `.exe` peer and
 validates all five frozen tool images against the selected host profile. It
-checks directory membership again after CupidASM and CupidDis.
+checks directory membership again after every attempted CupidASM and CupidDis
+launch, including failure and timeout paths.
 The source-head hosted link also builds CupidBuild beside CupidASM and the
 other five production tools. This proves the command closure but does not add
 CupidBuild to a checked seed.

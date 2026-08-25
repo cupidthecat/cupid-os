@@ -25,8 +25,8 @@ Make the five listed executables one complete trust unit inside CupidBuild.
 Before freezing a tool, enumerate the manifest directory and reject any
 case-insensitive `.elf` or `.exe` peer that is not one of the five exact
 manifest file names. Unrelated files remain legal. Repeat the membership check
-after CupidASM and after CupidDis so a tool cannot add a new executable peer
-during the transaction.
+after every attempted CupidASM and CupidDis launch, including a failed command
+or timeout, so a tool cannot add a new executable peer during the transaction.
 
 Freeze all five images even though this command runs only CupidASM and
 CupidDis. Check every frozen image against the host profile before either tool
@@ -44,11 +44,13 @@ startup bridge. Keep the typed ELF32 and PE32 readers as the format authority.
 
 ## Evidence
 
-The public CupidBuild suite passes 39 tests on native Windows and 39 through
+The public CupidBuild suite passes 40 tests on native Windows and 40 through
 Linux, with two Windows skips and one Linux skip. It covers a valid five-tool
 directory, an unrelated text file, uppercase unlisted executable suffixes, an
 executable-shaped directory, pre-execution profile drift, and membership drift
-while a checked tool runs. Every rejected case preserves the previous object.
+while a checked tool runs. A separate case makes CupidASM fail after the peer
+appears and proves that the post-run check still takes place. Every rejected
+case preserves the previous object.
 
 The checked CupidC host-adapter, static-link, and wrong-ABI selectors pass for
 the expanded hosted source. The existing Linux and Windows manifests and tool

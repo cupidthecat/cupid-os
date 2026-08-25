@@ -23,7 +23,8 @@ fresh checked standalone execution remains open. CupidBuild is not part of the
 promoted seed, so this is source buildability rather than a fixed-point claim.
 The command now rejects unlisted executable-shaped seed peers and validates all
 five frozen tools against the host ELF32 or PE32 execution profile before use.
-It repeats the membership check after each checked command.
+It repeats the membership check after each attempted checked command, including
+failure and timeout paths.
 >endtree
 
 >h2 What Is CupidC

@@ -31285,3 +31285,17 @@ skips.
   five seed manifest, capture, schema, ELF32, and PE32 checks passed in 1.634
   seconds. The complete Toolchain manifest contract passed all 40 tests in
   52.166 seconds.
+
+### Review follow-up
+
+The spec review found that a nonzero CupidASM or CupidDis exit returned before
+the new post-run checks. A checked tool could therefore add an executable peer
+and fail, leaving the directory mutation with only the generic tool diagnostic.
+A new regression reproduced that ordering on native Windows. CupidBuild now
+retains the command status, rechecks live inputs and seed membership, and only
+then reports the command failure. The same ordering covers timeouts. The
+focused native regression passes and preserves the prior object.
+
+The complete follow-up suite passes 40 tests in 57.730 seconds on native
+Windows with two expected skips and 40 tests in 68.531 seconds through Linux
+with one expected skip.

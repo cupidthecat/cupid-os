@@ -24,7 +24,8 @@ boundaries, and quarantines the path before cleanup. A successor lock is
 restored instead of deleted.
 The seed directory must contain exactly the five listed `.elf` or `.exe`
 peers. All five frozen images must match the selected static ELF32 or strict
-PE32 execution profile, and membership is checked again after both tools run.
+PE32 execution profile, and membership is checked again after both attempted
+tool launches, including failure and timeout paths.
 The initial Linux and Windows standalone builds passed the real ISR object
 path. The lock follow-up passes native host behavior and the checked Linux
 object contract; fresh checked standalone execution remains open. The normal

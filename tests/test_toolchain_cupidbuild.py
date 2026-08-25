@@ -1052,6 +1052,48 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertIn("directory membership changed", result.stderr)
             self.assertEqual(output.read_bytes(), b"last known good object")
 
+    def test_failed_tool_still_rechecks_seed_membership(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-failed-tool-membership-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            seed = root / "seed"
+            manifest = self._copy_checked_assembly_seed(seed)
+            suffix = ".exe" if os.name == "nt" else ".elf"
+            assembler = seed / f"cupidasm{suffix}"
+            unlisted = seed / f"unlisted{suffix}"
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text(
+                "bits 32\nsection .text\n"
+                + "nop\n" * 10000
+                + "not_an_instruction\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"last known good object")
+            before = self._private_roots()
+            changed = threading.Event()
+
+            def add_peer_after_freeze():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    new_roots = self._private_roots() - before
+                    if any((path / assembler.name).is_file() for path in new_roots):
+                        unlisted.write_bytes(b"not trusted")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(target=add_peer_after_freeze, daemon=True)
+            mutator.start()
+            result = self._run_object(source, output, manifest)
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "frozen checked tool was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("directory membership changed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good object")
+
     def test_seed_manifest_drift_after_freeze_preserves_the_previous_object(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-manifest-drift-", dir=REPO_ROOT

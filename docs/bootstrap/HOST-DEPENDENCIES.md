@@ -9,9 +9,10 @@ the production coordinator and parity oracle until a six-tool fixed point is
 promoted and one recipe changes owners. CupidBuild now checks the current host
 schema, target, provenance, artifact inventory, producer roles, and Linux
 build plan itself. It also enforces the complete executable-shaped directory
-membership before and after checked commands, freezes all five images, and
-validates their static ELF32 or strict PE32 execution profiles before use.
-ADRs 0339, 0342, and 0344 record the boundary.
+membership before and after every attempted checked command, including failure
+and timeout paths. It freezes all five images and validates their static ELF32
+or strict PE32 execution profiles before use. ADRs 0339, 0342, and 0344 record
+the boundary.
 
 The source-head self-link now produces a separate CupidBuild image beside the
 five seed tools and the static runtime contract. The hosted runtime supplies

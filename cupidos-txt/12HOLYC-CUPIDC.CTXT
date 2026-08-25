@@ -23,8 +23,8 @@ current Windows and Linux command suites accept the expanded source. This adds
 no new HolyC-style syntax and does not change the in-OS language surface.
 The same hosted source now enumerates the seed directory, rejects unlisted
 executable-shaped peers, and checks every frozen image against the selected
-ELF32 or PE32 execution profile. It repeats membership checks after the two
-checked commands.
+ELF32 or PE32 execution profile. It repeats membership checks after both
+attempted checked commands, including failure and timeout paths.
 The hosted i386 string runtime now supplies standard binary memchr so the same
 CupidBuild source compiles and links through CupidC. The runtime probe checks
 matching, absent, embedded-zero, unsigned-byte, and empty-range searches.

@@ -1275,6 +1275,8 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
   const char *assembler_arguments[6];
   const char *inspector_arguments[5];
   const char *expected_seed_files[5];
+  int assembler_status;
+  int inspector_status;
   int result = 1;
   if (request == (const cupidbuild_object_request_t *)0 ||
       !cupidbuild_path_safe(request->repository_root, 0) ||
@@ -1418,11 +1420,8 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
   assembler_arguments[3] = cupidbuild_host_candidate(transaction);
   assembler_arguments[4] = cupidbuild_host_frozen_source(transaction);
   assembler_arguments[5] = (const char *)0;
-  if (cupidbuild_host_run(transaction, frozen_assembler, assembler_arguments,
-                          60000u) != 0) {
-    (void)fprintf(stderr, "cupidbuild: checked CupidASM failed\n");
-    goto done;
-  }
+  assembler_status = cupidbuild_host_run(
+      transaction, frozen_assembler, assembler_arguments, 60000u);
   if (!cupidbuild_host_require_inputs(transaction)) {
     (void)fprintf(stderr, "cupidbuild: %s\n",
                   cupidbuild_host_error(transaction));
@@ -1439,6 +1438,10 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
     (void)fprintf(stderr,
                   "cupidbuild: checked seed directory membership changed "
                   "while checked tools ran\n");
+    goto done;
+  }
+  if (assembler_status != 0) {
+    (void)fprintf(stderr, "cupidbuild: checked CupidASM failed\n");
     goto done;
   }
   if (!cupidbuild_host_capture_candidate(transaction, &candidate_snapshot,
@@ -1461,11 +1464,8 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
   inspector_arguments[2] = "--require-code-anchors";
   inspector_arguments[3] = cupidbuild_host_candidate(transaction);
   inspector_arguments[4] = (const char *)0;
-  if (cupidbuild_host_run(transaction, frozen_inspector, inspector_arguments,
-                          60000u) != 0) {
-    (void)fprintf(stderr, "cupidbuild: checked CupidDis failed\n");
-    goto done;
-  }
+  inspector_status = cupidbuild_host_run(
+      transaction, frozen_inspector, inspector_arguments, 60000u);
   if (!cupidbuild_host_seed_members_exact(
           manifest_directory,
 #if defined(_WIN32)
@@ -1480,8 +1480,16 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
     goto done;
   }
   if (!cupidbuild_host_require_inputs(transaction) ||
-      !cupidbuild_host_require_candidate(transaction, &candidate_snapshot) ||
-      !cupidbuild_host_require_publication_boundary(transaction) ||
+      !cupidbuild_host_require_candidate(transaction, &candidate_snapshot)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (inspector_status != 0) {
+    (void)fprintf(stderr, "cupidbuild: checked CupidDis failed\n");
+    goto done;
+  }
+  if (!cupidbuild_host_require_publication_boundary(transaction) ||
       !cupidbuild_host_publish(transaction)) {
     (void)fprintf(stderr, "cupidbuild: %s\n",
                   cupidbuild_host_error(transaction));
