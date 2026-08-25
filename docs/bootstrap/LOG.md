@@ -31077,3 +31077,147 @@ QEMU, and the boot harness remain host orchestration or test dependencies;
 GCC and NASM do not own a normal OS source transform. No `.c` file gained
 Cupid ownership, so no suffix rename is due. `TempleOS/` remains untouched
 reference material.
+
+## 2026-08-25: validate the seed contract inside CupidBuild
+
+CupidBuild's guarded object command now parses the frozen seed manifest as
+JSON. It accepts compact or reordered fields, then requires the exact schema,
+target, fixed-point provenance, five artifact records, file names, producer
+roles, positive sizes, and lowercase SHA-256 values for the current host. The
+Linux path also requires the checked include arguments, source list, startup,
+link order, producer order, worker count, and build-plan digest. Malformed or
+trailing JSON, duplicate or unknown fields, an incomplete inventory, and
+contract drift fail before a checked tool runs.
+
+The same command now asks CupidDis for known instructions, local targets, and
+code anchors. A real CupidASM fixture places a defined function one byte into
+a five-byte `mov`; the inspector rejects it and the previous object remains
+unchanged. This corrects the earlier source-head difference from the active
+Python publisher.
+
+The complete 35-test CupidBuild suite passed in 46.892 seconds on native
+Windows with two host-specific skips. The same 35 tests passed through Linux
+in 53.643 seconds with one Windows-only skip. Those suites include the older
+locking, drift, rollback, cleanup, alias, and publication-boundary cases.
+ADR 0342 records the parser and object-gate decision.
+
+This is not a production transfer. Seed-directory membership and independent
+ELF32 or PE32 execution-profile checks still belong to the Python verifier.
+The promoted manifests still contain five tools, and both normal object
+recipes still enter Python.
+
+## 2026-08-25: bound Linux executable probing
+
+The fixed-point coordinator used `Path.read_bytes()[:4]` at two launch sites.
+That expression allocated the complete checked image before slicing out its
+signature. It was the direct cause of the 1,335.446-second source-head run
+ending in `MemoryError`.
+
+Both call sites now share a four-byte binary stream read. A focused test makes
+whole-file reads fail, records both requested read sizes, and confirms that
+display and execution probing each request four bytes. The focused five-test
+coordinator set passed in 0.763 seconds. The source-head oracle now also expects
+all five stage-two tools to differ from the older promoted seed and records
+the current 55-source closure instead of 50. The uncapped fixed-point rerun is
+green: all stage-two, stage-three, and stage-four builds, fixed-point
+comparisons, behavior cases, and native Windows evidence passed in 1,295.031
+seconds.
+
+The first complete 106-test coordinator suite finished in 2,521.111 seconds.
+Its fixed-point cases passed, but a retained-seed unit fixture still supplied
+the pre-ADR 0341 empty Linux tool map and raised `KeyError` when the Windows
+stage-two bridge selected Linux CupidC. That result is not counted as a suite
+pass. The fixture now retains the Linux plan compiler beside the Windows seed
+images. The Windows and Linux retained-byte cases pass together in 0.058
+seconds. The corrected complete suite then passed all 106 tests in 2,600.923
+seconds.
+
+The residual suffix audit found 17 tracked `.c` files outside `TempleOS/` and
+no safe rename. Seven are historical `bin/` copies, three are superseded, one
+is dormant, five are host fixtures, and one is the host ELF oracle. None is an
+active CupidC-owned translation unit. The tracked active graph remains 414
+`.cc` files, with 410 active and independently proved; the other four are
+accounted unreachable contract sources. No suffix-only ownership change was
+made.
+
+The first complete hosted Toolchain contract run rebuilt and linked all 21
+stage-four artifacts, matched the Cupid-authored and Python-authored evidence
+across all 58 stage pairs, and passed the hosted runtime, preprocessor, type,
+frontend, and IR cases. Its object frontier then exposed three stale exact
+locks. The current CupidDis source produces 130 functions, 189,888 text bytes,
+a 215,592-byte object, and fingerprint `345bf679`. CupidASM produces 88
+functions, 153,631 text bytes, a 174,068-byte object, and fingerprint
+`6b129b78`. The in-OS ELF assembler bridge produces 34 functions, 49,696 text
+bytes, a 54,184-byte object, and fingerprint `0fd35d9b`.
+
+Those three sources grew in earlier source-head work, not in this change. The
+checked stage-four contract emitted each object twice with identical bytes;
+the other ten frontier inventories still matched. The stored function, text,
+object, and fingerprint tuples are now refreshed together. The native full
+frontier selector passed after the relock. The initial canonical run remains a
+recorded failure rather than test evidence for the final tree.
+
+The corrected canonical rerun rebuilt the full cohort and passed the refreshed
+thirteen-source frontier. It then failed after 5,820.216 seconds because the
+hosted driver locks still described older CupidASM and CupidDis command
+surfaces. Current `cupidasm_main.cc` produces 17 functions, 12,557 text bytes,
+a 16,572-byte object, fingerprint `64d33b82`, 75 symbols, and 125 relocations,
+split into 94 PC-relative and 31 absolute fields. Current `cupiddis_main.cc`
+produces 28 functions, 46,249 text bytes, a 58,720-byte object, fingerprint
+`81c4a4c0`, 186 symbols, and 358 relocations, split into 216 PC-relative and
+142 absolute fields. Their 31-entry and 39-entry undefined-symbol sets did not
+change. Both objects repeated byte for byte. The complete native adapter and
+profile-error selectors pass with the refreshed tuples.
+
+The proactive native tail then found a build-graph error before a third
+checked rebuild. The `self-host-link-tools` contract already required a
+separate CupidBuild output, but the Toolchain Make recipe still supplied the
+older output list. The recipe now passes `cupidc-cupidbuild.elf` between the
+CupidC and runtime outputs.
+
+That seven-output link reached CupidBuild and found one real hosted runtime
+gap: the JSON parser uses standard C `memchr`, while the static i386
+`string.h` and runtime did not provide it. The hosted runtime now implements
+the byte search and declares it. Its executable contract checks the first
+match, conversion of `0x15a` to an unsigned byte, an embedded zero, an absent
+byte, and a zero-length range. Native CupidC compiles the runtime, the complete
+self-host link builds CupidASM, CupidDis, CupidLD, CupidObj, CupidC, CupidBuild,
+and the runtime contract, and the linked static runtime prints `runtime-ok`.
+The native ELF32, x86, CupidDis, CupidASM, 22-demo, kernel-ELF, CupidObj, and
+CupidLD tail also passes. ADR 0343 records this closure.
+
+The final checked `make -C toolchain test` rebuilt the complete 21-artifact
+cohort, matched all 58 Cupid-author and Python-oracle stage pairs, ran the
+hosted runtime, and passed every contract selector in 7,586.378 seconds. The
+source-head link produced CupidASM, CupidDis, CupidLD, CupidObj, CupidC,
+CupidBuild, and the runtime contract. The runtime executable passed with the
+new `memchr` cases, all 22 assembler demos passed, and the x86 inventory
+remained 604 forms, 249 mnemonics, 64 registers, and fingerprint `55A8970F`.
+
+The runtime addition changed the current Windows tool images carried through
+the Linux fixed-point behavior report. The first fresh run completed the
+fixed point, then exposed the older CupidLD runtime-image lock after 1,266.417
+seconds. A focused reconstruction fixed its new 32,768-byte image at SHA-256
+`ef2fbefdcc83482a84d4514e40f078fa72f0d91efedb8ef592f0bd02c9764661`.
+A second run reached the older CupidDis and native-tool image locks after
+1,270.291 seconds. One retained bootstrap then passed in 1,251.045 seconds
+with host compiler, assembler, linker, and binary-tool variables poisoned.
+Its complete report refreshed the related source-head evidence together. A
+following run reached the final stale 55-source snapshot digest after
+1,255.871 seconds. The definitive assertion-complete fixed-point test passed
+in 1,241.572 seconds, or 1,241.938 seconds including its command wrapper.
+Stages three and four match across 19 C objects, one startup object, and all
+five tool images. The current snapshot digest is
+`fca7f65463e26d48159e8e71be68c8b35aa56a2215ec8b572116f773c21a694c`.
+
+These refreshed hashes describe current reconstructed outputs, not a seed
+promotion. The checked manifests and their historical artifact records remain
+unchanged. Python still owns the fixed-point coordinator, seed-directory
+membership, independent execution-profile checks, and normal publication.
+
+The final CupidBuild reruns passed all 35 tests on native Windows in 47.578
+seconds with two expected skips and all 35 tests through Linux in 53.898
+seconds with one expected skip. The first WSL command used a dotted unittest
+module name that this checkout layout did not import, so it discovered no
+product tests and is not counted as evidence. Unittest discovery against the
+same test file produced the passing Linux result.

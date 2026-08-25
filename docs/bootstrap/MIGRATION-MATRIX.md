@@ -3,13 +3,21 @@
 `TempleOS/` is excluded: it is reference material, not a source cohort. Statuses describe ownership, not how much code exists.
 
 CupidBuild is the source-head candidate for removing Python from build
-coordination. Its first command implements the full guarded CupidASM object
-transaction on Linux and Windows. The initial standalone checked images passed
-the real ISR lane; the lock follow-up passes native host behavior and the
-checked Linux object contract, while fresh checked standalone execution remains
-open. No production row has moved yet: both active objects still use the
-Python publisher, and the checked cohorts still contain five tools. A later
-promotion must prove six-tool fixed points before one recipe can transfer.
+coordination. Its first command implements the guarded CupidASM object
+transaction on Linux and Windows. The command now validates the current
+five-tool manifest contract before execution and applies the same relocatable
+code-anchor rule as the Python publisher. The complete public suite passes on
+both hosts. No production row has moved: both active objects still use the
+Python publisher, and the checked cohorts still contain five tools. Seed
+directory membership, independent tool-image profile checks, six-tool fixed
+points, and one recipe transfer remain before ownership can move.
+
+The source-head self-link contract now gives CupidBuild its own output beside
+the five seed tools and the runtime probe. CupidBuild compiles through the
+hosted profile and links against the static i386 runtime. That runtime now
+provides standard `memchr`, with direct behavior coverage. This proves the
+source closure without changing the five-tool seed inventory or a production
+owner.
 
 Root `all` now runs CupidASM, CupidObj, CupidLD, and CupidDis from a
 manifest-bound five-tool seed selected for the host. Linux uses the static
@@ -845,6 +853,8 @@ CupidDis, CupidLD, and CupidObj on i386 Linux or through WSL. The Linux seed
 binds the static images to the target ABI, source revision, producer lineage,
 and complete build plan. Windows output-bearing production work runs checked
 PE copies directly.
+The string interface includes binary `memchr`; the hosted runtime probe checks
+first-match, unsigned-byte, embedded-zero, absent-byte, and empty-range cases.
 
 The harness freezes the verified Linux seed and copies 50 current inputs into
 a private compiler root. These include `link.ld`, the small Windows probe,

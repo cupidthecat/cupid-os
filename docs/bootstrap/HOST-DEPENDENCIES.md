@@ -5,9 +5,25 @@ host-dependency count yet. The command can assemble and certify a private
 i386 relocatable object on Linux and Windows without Python inside the
 transaction. The checked manifests still contain five tools, and the normal
 ISR and context-switch recipes still use `tools/hostbuild.py`. Python remains
-the production coordinator, full manifest verifier, and parity oracle until a
-six-tool fixed point is promoted and one recipe changes owners. ADR 0339
-records the current limit.
+the production coordinator and parity oracle until a six-tool fixed point is
+promoted and one recipe changes owners. CupidBuild now checks the current host
+schema, target, provenance, artifact inventory, producer roles, and Linux
+build plan itself. Seed-directory membership and independent ELF32 or PE32
+execution-profile checks still remain in Python. ADRs 0339 and 0342 record the
+boundary.
+
+The source-head self-link now produces a separate CupidBuild image beside the
+five seed tools and the static runtime contract. The hosted runtime supplies
+CupidBuild's standard `memchr` dependency, so this link does not import a host
+libc. The promoted seed still has five tools, and Python ownership is
+unchanged. ADR 0343 records the source closure.
+
+The Linux fixed-point coordinator reads only the four-byte executable
+signature when it chooses a native or cross-host runner. Earlier code loaded
+the full checked image at both probe sites and exhausted coordinator memory in
+a source-head run. Python still launches the tools, but its format probe is
+now bounded independently of tool size. The uncapped source-head Linux fixed
+point passed in 1,295.031 seconds after this change.
 
 The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals

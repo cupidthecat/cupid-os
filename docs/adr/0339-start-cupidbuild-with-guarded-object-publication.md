@@ -85,6 +85,9 @@ boundary moves into Cupid tooling and the six-tool seeds are promoted.
 The object lane does not select `--require-code-anchors`. That rule describes
 static linked `ET_EXEC` images; relocatable objects use executable-section
 structure, strict decode, relocation ownership, and local-target checks.
+ADR 0342 supersedes this initial limit for the active relocatable object lanes.
+CupidBuild now applies the `ET_REL` code-anchor rule defined by ADR 0335 and
+already adopted by ADR 0336.
 
 Lock checks and object replacement are separate filesystem operations. The
 protocol prevents overlap between cooperating CupidBuild publishers, which

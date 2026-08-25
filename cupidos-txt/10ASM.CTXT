@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-08-24
+Verified against source on: 2026-08-25
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -16,13 +16,20 @@ Verified against source on: 2026-08-24
 >h2 CupidBuild Object Transaction
 >tree open CupidBuild Object Transaction
 The source-head CupidBuild command can assemble a private CupidASM ET_REL
-object and require strict CupidDis decode and local-target checks before
-publication. Its Linux and Windows hosted layers reject links, hardlink
+object after it parses the frozen five-tool seed contract. CupidDis requires
+complete known decoding, local targets, and function anchors at instruction
+starts before publication. The Linux and Windows hosted layers reject links, hardlink
 aliases, drift, competing publishers, and changed output parents. A replaced
 owner lock found at a final boundary blocks publication. Cleanup quarantines
 the path and restores a successor instead of deleting it. Every failure
-preserves the previous object. Static code anchors remain a linked
-ET_EXEC rule and are not applied to relocatable objects.
+preserves the previous object. The command remains a source-head proof until a
+checked seed contains CupidBuild and a normal Make recipe invokes it.
+The source-head hosted link also builds CupidBuild beside CupidASM and the
+other five production tools. This proves the command closure but does not add
+CupidBuild to a checked seed.
+The checked Toolchain gate passed the complete 21-artifact cohort and all 22
+assembler demos. The following 55-source fixed point matched its assembler
+objects and all five final tool images between consecutive generations.
 >endtree
 
 >h2 Overview

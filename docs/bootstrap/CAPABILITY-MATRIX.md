@@ -7,23 +7,34 @@ The matrix uses these statuses:
 - **Missing**: no implementation satisfying the bootstrap contract was found.
 - **Required**: the checked active-source audit proves the capability is exercised, but the Cupid implementation does not yet satisfy it.
 
-CupidBuild guarded object publication is **Observed at source head**. Checked
-CupidC builds the hosted source profiles, the initial standalone images
-published the real ISR object, and the public rollback suite covers malformed
-input, strict-inspector failures, links, aliases, drift, locks, cleanup, and
-replacement recovery. The lock cases include concurrent replacement before a
-final boundary: the transaction rejects publication and leaves the successor's
-owner file alone. The check and object rename are separate operations, so this
-is a cooperative publisher protocol rather than protection from arbitrary
-path mutation.
-The lock follow-up passes the checked Linux object contract and native Windows
-and WSL behavior cases. Fresh checked standalone execution remains open.
-Production ownership is still **Missing** because the
-promoted seeds have five tools and Make still enters Python for both object
-lanes. CupidBuild pins the named artifact cohort but does not yet enforce the
-full manifest schema and provenance contract. The `ET_REL` operation uses
-strict decode and local-target checks; static code anchors remain a linked
-`ET_EXEC` policy.
+CupidBuild guarded object publication is **Observed at source head**. It now
+parses the frozen manifest and enforces exact JSON fields, the host schema and
+target, fixed-point provenance, the five artifact records and producer roles,
+and the full Linux build plan. It accepts whitespace and field-order changes
+while rejecting malformed or trailing JSON, duplicate or unknown fields, and
+contract drift before tool execution. Artifact bytes remain bound by size and
+SHA-256 after they are frozen.
+
+The object gate requires known instruction coverage, local targets, and
+defined function anchors at instruction starts. Public rollback tests cover
+those failures as well as links, aliases, input drift, locks, cleanup, and
+replacement recovery. The full suite passes on native Windows and Linux. The
+check and object rename are separate operations, so lock ownership remains a
+cooperative publisher protocol rather than protection from arbitrary path
+mutation.
+
+Production ownership is still **Missing**. The promoted seeds have five tools
+and Make still enters Python for both object lanes. CupidBuild does not yet
+reject an unlisted peer image in the seed directory or independently classify
+the ELF32 and PE32 execution profiles. Fresh six-tool fixed-point evidence and
+a recipe transfer also remain open.
+
+The source-head hosted self-link is **Observed** for CupidBuild. The exact link
+contract now receives a separate CupidBuild output and links it beside the five
+seed tools and the static runtime probe. That closure added standard binary
+`memchr` to the hosted i386 `string.h` and runtime. The runtime behavior probe
+covers matches, unsigned-byte conversion, embedded zero, absence, and an empty
+range. This source-head link is not a promoted six-tool fixed point.
 
 The final post-CTXT capability inventory is backed by `ACTIVE-SOURCE-AUDIT.md`
 and `audits/active-build.json`: 747 active language inputs across root, user, and

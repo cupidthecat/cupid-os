@@ -845,6 +845,7 @@ test: $(CONTRACT_MANIFEST) \
 		$(BUILD_DIR)/cupidc-cupidld.elf \
 		$(BUILD_DIR)/cupidc-cupidobj.elf \
 		$(BUILD_DIR)/cupidc-cupidc.elf \
+		$(BUILD_DIR)/cupidc-cupidbuild.elf \
 		$(BUILD_DIR)/cupidc-runtime-contract.elf
 	$(ELF32_CONTRACT) writer-basic
 	$(ELF32_CONTRACT) writer-model

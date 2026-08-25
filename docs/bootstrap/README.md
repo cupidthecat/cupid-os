@@ -45,7 +45,77 @@ raw-map v2 and production adoption, ADR 0337 records the in-OS CupidASM
 artifact boundary, ADR 0338 records bounded PE32 inspection, ADR 0339 records
 the first CupidBuild publication seam, ADR 0340 records source-resolved raw
 control edges, and ADR 0341 records the checked Linux CupidC bridge for
-Windows source growth.
+Windows source growth. ADR 0342 records strict seed-contract parsing inside
+CupidBuild and parity with the active relocatable code-anchor gate. ADR 0343
+records the complete source-head CupidBuild link closure and the hosted
+`memchr` dependency that closure exposed.
+
+## 2026-08-25 source-current checkpoint
+
+CupidBuild now parses its frozen seed manifest instead of searching its text
+for tool records. The current host schema must contain the exact five-tool
+inventory, target, fixed-point provenance, file names, producer roles, sizes,
+and lowercase hashes. The Linux schema must also carry the exact checked
+source list, link order, worker count, include arguments, startup source, and
+build-plan digest. Field order and insignificant whitespace do not matter.
+Malformed JSON, duplicate or unknown fields, an incomplete inventory, or
+contract drift fails before CupidASM runs and leaves the previous object
+alone.
+
+The command now gives CupidDis the same known-instruction, local-target, and
+code-anchor requirements used by the Python-owned ISR and context-switch
+publisher. A defined function inside an instruction is rejected. The complete
+CupidBuild transaction suite passes on native Windows and Linux. The seeds
+still contain five tools, so Make ownership and the Python dependency are
+unchanged. Seed-directory membership and independent ELF32 or PE32 execution
+profile checks remain on the Python side of this boundary.
+
+The Linux fixed-point coordinator now reads four bytes when it identifies a
+checked executable. It no longer allocates the full multi-megabyte image for
+that format probe. The source-head oracle expects the current five-tool drift
+from the promoted seed and the 55-source closure. A
+focused runner test proves that both launch paths use bounded reads. The full
+Linux source-head fixed point then passed all generation, comparison, behavior,
+and native evidence gates in 1,295.031 seconds. After correcting the retained
+Linux plan-compiler fixture exposed by the wider run, the complete bootstrap
+coordinator suite passed all 106 tests in 2,600.923 seconds.
+
+The wider hosted Toolchain gate also found stale self-host frontier locks for
+the expanded CupidDis, CupidASM, and in-OS ELF assembler bridge sources. The
+checked compiler emitted each current object twice with identical bytes, while
+the other ten frontier inventories still matched. All four exact measurements
+for each changed cohort are refreshed together, and the native full frontier
+selector passes with the new locks.
+
+The next checked run passed that frontier and exposed two stale hosted-adapter
+locks for the expanded CupidASM and CupidDis drivers. Their complete function,
+text, object, fingerprint, symbol, relocation, and relocation-kind inventories
+are refreshed. A native sweep then found that the Make test still omitted the
+required CupidBuild output from its self-host link call. That edge is now
+present. The link proof also exposed the missing standard `memchr` declaration
+and implementation in the static i386 hosted runtime. The runtime contract
+checks first-match, unsigned-character conversion, embedded zero, absent-byte,
+and zero-length behavior. The source-head link proof now builds all five seed
+tools, CupidBuild, and the runtime contract together. This is still not a seed
+promotion or a normal recipe transfer.
+
+The final checked Toolchain target passed in 7,586.378 seconds. It rebuilt and
+verified 21 artifacts, matched all 58 Cupid-author and Python-oracle stage
+pairs, ran the hosted runtime, and passed the complete compiler, assembler,
+disassembler, object, and linker contract surface. A fresh Linux fixed-point
+unittest then passed in 1,241.572 seconds. It froze the 55-source closure and
+matched stages three and four across 19 C objects, one startup object, and all
+five tool images. The source-head snapshot digest is
+`fca7f65463e26d48159e8e71be68c8b35aa56a2215ec8b572116f773c21a694c`.
+These are reconstruction results; the promoted five-tool seeds remain
+unchanged.
+
+The residual source-suffix audit still finds no safe `.c` rename. All active
+CupidC-owned translation units already use `.cc`. The remaining 17 tracked
+`.c` files outside `TempleOS/` are historical copies, superseded or dormant
+implementations, host fixtures, or the host ELF oracle. Renaming them would
+either select stale code through a wildcard or imply ownership that has not
+been proved.
 
 ## 2026-08-24 source-current checkpoint
 
@@ -2010,7 +2080,7 @@ inputs remain valid. The contract does not assign CupidC ownership from the
 `.cc` suffix. It requires a checked compile edge, the checked Toolchain
 contract, or an exact runtime-delivery policy entry backed by a CupidObj edge.
 The policy fixes all seventeen residual `.c` paths, all 130 source-text
-deliveries, and the three unreachable `.cc` paths. A stale path, unknown
+deliveries, and the four unreachable `.cc` paths. A stale path, unknown
 `.cc`, or host-owned `.cc` fails before publication. Active evidence remains
 mandatory when an audited tree has no policy file. A nonproduction audit
 accepts policy, a recorded source relation, or an explicit Make exclusion for

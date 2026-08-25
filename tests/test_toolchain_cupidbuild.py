@@ -172,6 +172,31 @@ class CupidBuildCliTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def _rewrite_manifest(self, manifest, change, *, compact=False):
+        document = json.loads(manifest.read_text(encoding="utf-8"))
+        changed = change(document)
+        if changed is not None:
+            document = changed
+        if compact:
+            encoded = json.dumps(document, separators=(",", ":")) + "\n"
+        else:
+            encoded = json.dumps(document, indent=2, sort_keys=True) + "\n"
+        manifest.write_text(encoded, encoding="utf-8")
+
+    @staticmethod
+    def _reverse_object_fields(value):
+        if isinstance(value, dict):
+            return {
+                key: CupidBuildCliTests._reverse_object_fields(value[key])
+                for key in reversed(value)
+            }
+        if isinstance(value, list):
+            return [
+                CupidBuildCliTests._reverse_object_fields(item)
+                for item in value
+            ]
+        return value
+
     def test_checked_tools_publish_a_guarded_relocatable_object(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-success-", dir=REPO_ROOT
@@ -191,6 +216,276 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertEqual(result.stdout, "")
             self.assertEqual(result.stderr, "")
             self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
+    def test_reordered_compact_seed_manifest_keeps_the_same_contract(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-compact-manifest-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text(
+                "bits 32\nsection .text\nglobal entry:function\nentry: ret\n",
+                encoding="utf-8",
+            )
+            self._rewrite_manifest(
+                manifest, self._reverse_object_fields, compact=True
+            )
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+            self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
+    def test_unsupported_seed_schema_is_rejected_before_assembly(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-schema-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
+            output.write_bytes(b"last known good object")
+            original = output.read_bytes()
+            self._rewrite_manifest(
+                manifest,
+                lambda document: document.__setitem__("schema", "cupid.seed.v0"),
+            )
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("checked seed manifest is invalid", result.stderr)
+            self.assertIn("schema differs", result.stderr)
+            self.assertEqual(output.read_bytes(), original)
+
+    def test_seed_target_drift_is_rejected_before_assembly(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-target-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
+            output.write_bytes(b"last known good object")
+            original = output.read_bytes()
+            self._rewrite_manifest(
+                manifest,
+                lambda document: document["target"].__setitem__(
+                    "architecture", "x86_64"
+                ),
+            )
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("checked seed manifest is invalid", result.stderr)
+            self.assertIn("target contract differs", result.stderr)
+            self.assertEqual(output.read_bytes(), original)
+
+    def test_seed_provenance_failure_is_rejected_before_assembly(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-provenance-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
+            output.write_bytes(b"last known good object")
+            original = output.read_bytes()
+            self._rewrite_manifest(
+                manifest,
+                lambda document: document["provenance"].__setitem__(
+                    "fixed_point_result", "fail"
+                ),
+            )
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("checked seed manifest is invalid", result.stderr)
+            self.assertIn("fixed-point provenance differs", result.stderr)
+            self.assertEqual(output.read_bytes(), original)
+
+    def test_seed_producer_role_drift_is_rejected_before_assembly(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-producer-role-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
+            output.write_bytes(b"last known good object")
+            original = output.read_bytes()
+
+            def change_role(document):
+                artifact = next(
+                    item for item in document["artifacts"]
+                    if item["name"] == "cupiddis"
+                )
+                artifact["producer"] = True
+
+            self._rewrite_manifest(manifest, change_role)
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("checked seed manifest is invalid", result.stderr)
+            self.assertIn("artifact inventory differs", result.stderr)
+            self.assertEqual(output.read_bytes(), original)
+
+    def test_malformed_or_incomplete_seed_contract_is_rejected(self):
+        mutations = {
+            "trailing document": lambda document: (
+                json.dumps(document, indent=2, sort_keys=True) + "\n{}\n"
+            ),
+            "duplicate schema": lambda document: (
+                json.dumps(document, indent=2, sort_keys=True).replace(
+                    '  "schema":',
+                    f'  "schema": {json.dumps(document["schema"])},\n'
+                    '  "schema":',
+                    1,
+                )
+                + "\n"
+            ),
+            "missing artifact": lambda document: (
+                json.dumps(
+                    {**document, "artifacts": document["artifacts"][:-1]},
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            ),
+            "unknown artifact": lambda document: (
+                json.dumps(
+                    {
+                        **document,
+                        "artifacts": [
+                            (
+                                {**artifact, "name": "unknown"}
+                                if index == 0
+                                else artifact
+                            )
+                            for index, artifact in enumerate(document["artifacts"])
+                        ],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            ),
+            "extra artifact field": lambda document: (
+                json.dumps(
+                    {
+                        **document,
+                        "artifacts": [
+                            (
+                                {**artifact, "note": "unchecked"}
+                                if index == 0
+                                else artifact
+                            )
+                            for index, artifact in enumerate(document["artifacts"])
+                        ],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            ),
+            "extra top-level field": lambda document: (
+                json.dumps(
+                    {**document, "unchecked": True}, indent=2, sort_keys=True
+                )
+                + "\n"
+            ),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory(
+                prefix=".cupidbuild-object-manifest-contract-", dir=REPO_ROOT
+            ) as temporary:
+                root = Path(temporary)
+                manifest = self._copy_checked_assembly_seed(root / "seed")
+                source = root / "input.asm"
+                output = root / "output.o"
+                source.write_text(
+                    "bits 32\nsection .text\nret\n", encoding="utf-8"
+                )
+                output.write_bytes(b"last known good object")
+                original = output.read_bytes()
+                document = json.loads(manifest.read_text(encoding="utf-8"))
+                manifest.write_text(mutate(document), encoding="utf-8")
+
+                result = self._run_object(source, output, manifest)
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("checked seed manifest is invalid", result.stderr)
+                self.assertEqual(output.read_bytes(), original)
+
+    @unittest.skipIf(os.name == "nt", "Linux build-plan contract")
+    def test_linux_build_plan_drift_is_rejected_before_assembly(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-build-plan-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
+            output.write_bytes(b"last known good object")
+            original = output.read_bytes()
+            self._rewrite_manifest(
+                manifest,
+                lambda document: document["build_plan"].__setitem__(
+                    "workers", 1
+                ),
+            )
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("checked seed manifest is invalid", result.stderr)
+            self.assertIn("build plan differs", result.stderr)
+            self.assertEqual(output.read_bytes(), original)
+
+    def test_function_anchor_inside_an_instruction_is_rejected(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-code-anchor-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text(
+                "bits 32\n"
+                "section .text\n"
+                "global entry:function\n"
+                "global inside:function\n"
+                "entry: db 0xb8\n"
+                "inside: dd 0\n"
+                "ret\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"last known good object")
+            original = output.read_bytes()
+
+            result = self._run_object(source, output)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("checked CupidDis failed", result.stderr)
+            self.assertEqual(output.read_bytes(), original)
 
     def test_success_and_failure_remove_every_new_private_candidate(self):
         before = self._private_roots()

@@ -149,6 +149,13 @@ static int string_contract(void) {
       memcmp(destination, source, 0u) != 0) {
     return 201;
   }
+  if (memchr(destination, 0x5a, sizeof(destination)) != destination ||
+      memchr(destination, 0x15a, sizeof(destination)) != destination ||
+      memchr(destination, 0, sizeof(destination)) != destination + 11u ||
+      memchr(destination, 'x', sizeof(destination)) != (void *)0 ||
+      memchr(destination, 0x5a, 0u) != (void *)0) {
+    return 207;
+  }
   for (index = 0u; index < sizeof(source); index++) {
     if (destination[index] != source[index]) {
       return 202;

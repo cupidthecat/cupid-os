@@ -47,9 +47,16 @@ that lock at the final publication boundaries, serializes cooperating
 publishers, and
 replaces the destination through a pinned parent only after every check
 passes. The source-head CupidASM object operation implements this boundary on
-Linux and Windows. It is not a production owner until a promoted checked seed
-contains CupidBuild and a normal Make recipe invokes it.
+Linux and Windows. It parses the frozen five-tool seed contract, including the
+host target and provenance, before it runs CupidASM, then requires known
+instructions, local targets, and relocatable code anchors from CupidDis. It is
+not a production owner until a promoted checked seed contains CupidBuild and a
+normal Make recipe invokes it.
 _Avoid_: command wrapper, unchecked tool launch, production ownership from source presence
+
+**Hosted bootstrap runtime**:
+The static i386 C runtime linked into source-head Cupid tool and contract images. It supplies the represented heap, file, memory, string, error, and working-directory interfaces without a host libc. Its string boundary includes binary `memchr`, which CupidBuild uses while validating frozen JSON. The source-head link proof builds CupidBuild beside CupidC, CupidASM, CupidDis, CupidLD, CupidObj, and the runtime contract; this proof does not promote a six-tool seed.
+_Avoid_: host libc, production ownership from a source-head link
 
 **External executable arena**:
 The permanently reserved identity-mapped range `[0x01C00000, 0x01E00000)` leased exclusively to one ordinary fixed-address ELF process at a time.
@@ -450,7 +457,7 @@ misstate its owner. The audit rejects any active tracked `.c` source owned by
 CupidC. It does not infer the reverse claim from `.cc`. A checked compile edge,
 the checked Toolchain contract, or an exact runtime-delivery policy entry with
 a CupidObj edge supplies independent ownership evidence. The policy also locks
-the seventeen residual `.c` paths and three unreachable `.cc` paths, so a host
+the seventeen residual `.c` paths and four unreachable `.cc` paths, so a host
 or inactive source cannot leave the census through a suffix-only rename. The
 active evidence rule applies even when an audited tree has no policy file. An
 unreferenced `.cc` in a nonproduction audit needs policy, a recorded source
@@ -729,7 +736,7 @@ A compiler process compiling unchanged source from its complete implementation. 
 _Avoid_: checked seed, complete self-hosting
 
 **Static i386 Toolchain fixed point**:
-A stage boundary where one generation of CupidC, CupidASM, and CupidLD builds complete Linux images for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The checked seed builds stage two, stage two builds stage three, and stage three builds stage four. The gate compares all 19 C objects, the independently assembled Linux startup object, and all five linked images between stages three and four. Both compared stages execute the five tools through real success and failure cases. The same convergence relationship applies to the native Windows runtime, startup, publication objects, tool images, and behavior checks. The Linux driver revalidates its live seed manifest and artifacts at every generation boundary and before publication. The Windows driver checks its PE execution seed and Linux plan seed independently at the same boundaries. Both current seeds bind the 50-input snapshot with SHA-256 `46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`. The Linux candidate proof passed cleanly, with every stage-three and stage-four image equal and 5/22/21 behavior. The Windows candidate proof passed cleanly with the same convergence and 5/8/9 behavior. Both matrices reject unmatched executable relocations, validate unrelocated local targets while excluding relocated operands, require every static ELF code anchor to begin at a decoded instruction, and validate source-resolved raw control edges. ADR 0279 records the convergence rule, and ADR 0336 records the current promotion.
+A stage boundary where one generation of CupidC, CupidASM, and CupidLD builds complete Linux images for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The checked seed builds stage two, stage two builds stage three, and stage three builds stage four. The gate compares all 19 C objects, the independently assembled Linux startup object, and all five linked images between stages three and four. Both compared stages execute the five tools through real success and failure cases. The same convergence relationship applies to the native Windows runtime, startup, publication objects, tool images, and behavior checks. The Linux driver revalidates its live seed manifest and artifacts at every generation boundary and before publication. The Windows driver checks its PE execution seed and Linux plan seed independently at the same boundaries. Both current seeds bind the 50-input snapshot with SHA-256 `46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`. The Linux candidate proof passed cleanly, with every stage-three and stage-four image equal and 5/22/21 behavior. The Windows candidate proof passed cleanly with the same convergence and 5/8/9 behavior. Both matrices reject unmatched executable relocations, validate unrelocated local targets while excluding relocated operands, require every static ELF code anchor to begin at a decoded instruction, and validate source-resolved raw control edges. ADR 0279 records the convergence rule, and ADR 0336 records the current promotion. The later 55-source Linux proof also passes after the coordinator's executable-format probe was bounded to four bytes. It covers all three build generations, exact fixed-point comparisons, behavior cases, and native Windows evidence without loading complete tool images just to choose a runner.
 The current fixed points bind snapshot
 `46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
 Their behavior inventories are 21/5/22 on Linux and 9/5/8 on Windows for

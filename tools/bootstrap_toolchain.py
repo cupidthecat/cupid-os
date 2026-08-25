@@ -335,16 +335,21 @@ class ToolRunner:
             return self._wsl_path(Path(argument))
         return argument
 
-    def display_argument(
-        self, executable: Path, argument: str | Path
-    ) -> str:
-        """Render an argument as the selected tool receives it."""
+    @staticmethod
+    def _read_executable_signature(executable: Path) -> bytes:
         try:
-            signature = executable.read_bytes()[:4]
+            with executable.open("rb") as source:
+                return source.read(4)
         except OSError as error:
             raise BootstrapError(
                 f"cannot read checked tool {executable}: {error}"
             ) from error
+
+    def display_argument(
+        self, executable: Path, argument: str | Path
+    ) -> str:
+        """Render an argument as the selected tool receives it."""
+        signature = self._read_executable_signature(executable)
         if os.name == "nt" and signature == b"\x7fELF":
             return self._wsl_argument(argument)
         return str(argument)
@@ -355,12 +360,7 @@ class ToolRunner:
         arguments: Sequence[str | Path],
         timeout: int,
     ) -> subprocess.CompletedProcess[str]:
-        try:
-            signature = executable.read_bytes()[:4]
-        except OSError as error:
-            raise BootstrapError(
-                f"cannot read checked tool {executable}: {error}"
-            ) from error
+        signature = self._read_executable_signature(executable)
         is_linux_elf = signature == b"\x7fELF"
         is_windows_pe = signature[:2] == b"MZ"
         if not is_linux_elf and not is_windows_pe:

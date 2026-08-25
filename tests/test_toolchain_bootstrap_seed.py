@@ -72,7 +72,7 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "8bf242a67510fb5ee572d91d2a7f32a969cc0752c7bf2ae55ce8a8df745eb417"
+    "fca7f65463e26d48159e8e71be68c8b35aa56a2215ec8b572116f773c21a694c"
 )
 
 
@@ -1800,6 +1800,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             }
             for path in seed_tools.values():
                 path.write_bytes(b"retained Windows seed image")
+            plan_compiler = removed_seed / "cupidc.elf"
+            plan_compiler.write_bytes(b"retained Linux plan compiler")
             seed_inputs = SeedInputs(
                 manifest={},
                 manifest_bytes=b"{}",
@@ -1816,8 +1818,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 manifest_bytes=b"{}",
                 manifest_sha256="2" * 64,
                 live_manifest_path=root / "linux-manifest.json",
-                artifact_bytes=(),
-                tools={},
+                artifact_bytes=(
+                    ("cupidc", b"retained Linux plan compiler"),
+                ),
+                tools={"cupidc": plan_compiler},
             )
             shutil.rmtree(removed_seed)
 
@@ -2124,6 +2128,46 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertIn('probe="$private/tool"', WSL_PRIVATE_RUN_SCRIPT)
         self.assertIn('rm -rf -- "$private"', WSL_PRIVATE_RUN_SCRIPT)
         self.assertNotIn("$$", WSL_PRIVATE_RUN_SCRIPT)
+
+    def test_tool_runner_reads_only_the_executable_format_signature(self):
+        reads: list[int] = []
+        signature = b"MZ\0\0" if os.name == "nt" else b"\x7fELF"
+
+        class SignatureReader(io.BytesIO):
+            def read(self, size: int = -1) -> bytes:
+                reads.append(size)
+                return super().read(size)
+
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-format-probe-"
+        ) as temporary:
+            root = Path(temporary)
+            executable = root / "checked-tool"
+            executable.write_bytes(signature + b"fixture payload")
+            runner = ToolRunner(root)
+
+            with mock.patch.object(
+                Path,
+                "read_bytes",
+                side_effect=AssertionError("whole-file read is forbidden"),
+            ), mock.patch.object(
+                Path,
+                "open",
+                side_effect=lambda *_args, **_kwargs: SignatureReader(
+                    signature
+                ),
+            ), mock.patch(
+                "tools.bootstrap_toolchain.subprocess.run",
+                return_value=subprocess.CompletedProcess([], 0, "", ""),
+            ):
+                self.assertEqual(
+                    runner.display_argument(executable, "--version"),
+                    "--version",
+                )
+                result = runner.run(executable, ["--version"], timeout=1)
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(reads, [4, 4])
 
     @unittest.skipUnless(os.name == "nt", "Windows WSL resolution")
     def test_wsl_runner_uses_the_system_copy_with_a_poisoned_path(self):
@@ -7207,9 +7251,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "20323a24be105b1b519962994b8e4e6a7f8e3cd0d005b8ee10c9aeb66da5d40a"
                             ),
                             "output_sha256": (
-                                "7dfac81591d58ec4b79cf0cc82ca95595394a1f9dc4a5150d4b0c1fe0237c87c"
+                                "ef2fbefdcc83482a84d4514e40f078fa72f0d91efedb8ef592f0bd02c9764661"
                             ),
-                            "output_size": 32256,
+                            "output_size": 32768,
                             "return_code": 0,
                             "status": "pass",
                         }
@@ -7347,9 +7391,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "205e851ec7c7532f8f9e6b738f5f52932618edce4c4fe3223f87ea461f4af3f6"
+                        "522e188b884c8cdabaf0fc638681f5783c57ec0c427d14c1491559fb28f15c69"
                     ),
-                    "size": 517632,
+                    "size": 518144,
                 },
             )
             self.assertEqual(
@@ -7407,25 +7451,25 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             expected_native_images = {
                 "cupidasm": {
                     "sha256": (
-                        "5c21d79b1822831e5d81359fa2b31d85b731ead5a88c6596ced38585e64b87cb"
+                        "90247714a1476e1fe59c69dfa7839e036617935a3b3930d0bb1a3fe7f1857a6c"
                     ),
                     "size": 444928,
                 },
                 "cupidc": {
                     "sha256": (
-                        "c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002"
+                        "6609bf0c29859e626a52d7591afda9a09b91808598550a1bd43327df1c6dae5c"
                     ),
-                    "size": 2613760,
+                    "size": 2614272,
                 },
                 "cupidld": {
                     "sha256": (
-                        "9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02"
+                        "aaa7b51a290646ef1d972f4904b1ed176a4dc912e53c1bc4cbdd8d1e39d8495f"
                     ),
-                    "size": 296448,
+                    "size": 296960,
                 },
                 "cupidobj": {
                     "sha256": (
-                        "079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79"
+                        "b6f6a5b66f8e2bcb4b779a16428d7b77a956113c5ca301344537b35839611572"
                     ),
                     "size": 375808,
                 },
@@ -7508,11 +7552,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 initial_matches,
                 {
-                    "cupidasm": True,
-                    "cupidc": True,
-                    "cupiddis": True,
-                    "cupidld": True,
-                    "cupidobj": True,
+                    "cupidasm": False,
+                    "cupidc": False,
+                    "cupiddis": False,
+                    "cupidld": False,
+                    "cupidobj": False,
                 },
             )
             self.assertEqual(report["source_inputs"]["count"], 55)
@@ -7526,7 +7570,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                50,
+                55,
             )
             for tool_name in (
                 "cupidasm",

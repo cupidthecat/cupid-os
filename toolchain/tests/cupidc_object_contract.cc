@@ -32945,21 +32945,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 77u, 82u, 140u, 31u, 143u, 270u, 368u, 461u, 84u, 37u, 65u,
-      7u};
+      65u, 130u, 82u, 140u, 31u, 143u, 270u, 368u, 461u, 88u, 37u, 65u,
+      34u};
   static const ctool_u32 expected_text_sizes[] = {
-      42118u, 86698u, 118477u, 183181u, 42212u,
-      190304u, 505711u, 579035u, 910526u, 149793u, 70368u, 85466u,
-      10180u};
+      42118u, 189888u, 118477u, 183181u, 42212u,
+      190304u, 505711u, 579035u, 910526u, 153631u, 70368u, 85466u,
+      49696u};
   static const ctool_u32 expected_object_sizes[] = {
-      46720u, 99752u, 137444u, 220508u, 49484u,
-      226668u, 544716u, 649488u, 1077988u, 169568u, 79348u, 141560u,
-      11624u};
+      46720u, 215592u, 137444u, 220508u, 49484u,
+      226668u, 544716u, 649488u, 1077988u, 174068u, 79348u, 141560u,
+      54184u};
   static const ctool_u32 expected_text_fingerprints[] = {
-      0x6bff5a25u, 0xcf28439bu, 0x3e007f3eu,
+      0x6bff5a25u, 0x345bf679u, 0x3e007f3eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0xefb1c487u, 0x788cef1du, 0xcad8d595u, 0xf03475fdu,
-      0x34558a49u, 0x4285e204u, 0xe3ce519eu};
+      0xefb1c487u, 0x788cef1du, 0xcad8d595u, 0x6b129b78u,
+      0x34558a49u, 0x4285e204u, 0x0fd35d9bu};
   ctool_u32 index;
   int all_matched = 1;
   if (first_index > past_last_index ||
@@ -33308,10 +33308,10 @@ static int run_self_host_hosted_adapters(const char *host_root) {
   static const hosted_adapter_case_t cases[] = {
       {"/toolchain/ctool_host.cc", 11u, 5522u, 6944u, 0x28739c3fu,
        ctool_host_undefined, 10u, 25u, 38u, 28u, 10u},
-      {"/toolchain/cupidasm_main.cc", 15u, 11170u, 14568u, 0x067ef556u,
-       cupidasm_undefined, 31u, 64u, 104u, 82u, 22u},
-      {"/toolchain/cupiddis_main.cc", 23u, 29466u, 37380u, 0x39ec6f50u,
-       cupiddis_undefined, 39u, 125u, 243u, 162u, 81u}};
+      {"/toolchain/cupidasm_main.cc", 17u, 12557u, 16572u, 0x64d33b82u,
+       cupidasm_undefined, 31u, 75u, 125u, 94u, 31u},
+      {"/toolchain/cupiddis_main.cc", 28u, 46249u, 58720u, 0x81c4a4c0u,
+       cupiddis_undefined, 39u, 186u, 358u, 216u, 142u}};
   ctool_u32 index;
   for (index = 0u; index <
                        (ctool_u32)(sizeof(cases) / sizeof(cases[0]));

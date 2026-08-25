@@ -206,6 +206,18 @@ int memcmp(const void *left, const void *right, size_t bytes) {
   return 0;
 }
 
+void *memchr(const void *memory, int value, size_t bytes) {
+  const unsigned char *input = (const unsigned char *)memory;
+  unsigned char wanted = (unsigned char)value;
+  size_t index;
+  for (index = 0u; index < bytes; index++) {
+    if (input[index] == wanted) {
+      return (void *)(input + index);
+    }
+  }
+  return (void *)0;
+}
+
 void *memset(void *destination, int value, size_t bytes) {
   unsigned char *target = (unsigned char *)destination;
   unsigned char byte = (unsigned char)value;

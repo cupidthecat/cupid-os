@@ -1,20 +1,38 @@
 # Toolchain Bootstrap
 
-CupidBuild is now present at source head. Its first hosted command performs a
+CupidBuild is present at source head. Its first hosted command performs a
 guarded CupidASM relocatable-object transaction: it freezes the source and
-checked seed, runs private checked tools, validates and inspects the candidate,
+checked seed, parses the exact host schema, target, provenance, artifact
+inventory, producer roles, and Linux build plan, then runs private checked
+tools. It validates and inspects the candidate,
 rechecks every live boundary, and publishes through pinned Linux or Windows
 directories. It records the owner lock created during acquisition, rejects a
 replacement found at either final boundary, and quarantines the lock path so
 cleanup can restore a successor instead of deleting it. The check and object
 rename remain separate operations; the protocol serializes cooperating
-CupidBuild publishers. The initial checked standalone forms built and ran.
-The lock follow-up passes native Windows and WSL behavior plus the checked
-Linux object contract; fresh checked standalone execution remains open. The
-current seeds
-still contain the original five tools, and normal object publication still
-uses Python, so this is the implementation checkpoint before a six-tool
-promotion rather than a production cutover. ADR 0339 records the boundary.
+CupidBuild publishers. CupidDis now requires known instructions, local targets,
+and function anchors at instruction starts. The complete command suite passes
+on Windows and Linux. The current seeds still contain the original five tools,
+and normal object publication still uses Python. Seed-directory membership,
+tool-image profile checks, and a six-tool promotion remain before production
+cutover. ADRs 0339 and 0342 record the boundary.
+
+The source-head Linux fixed point now completes with the 55-source closure.
+Its coordinator reads only four bytes when it selects the runner for a checked
+tool, so tool-image size no longer controls probe memory. All generation,
+comparison, behavior, and native evidence gates passed in 1,295.031 seconds.
+After the hosted runtime and source-head link grew, a fresh reconstruction
+refreshed the affected current-image locks without changing either promoted
+seed. The definitive fixed-point unittest passed in 1,241.572 seconds with 19
+C objects, one startup object, and all five tool images equal between stages
+three and four. The complete checked Toolchain target also passed all 21
+artifacts and 58 author-oracle stage pairs in 7,586.378 seconds.
+
+The source-head hosted link now builds CupidBuild beside CupidC, CupidASM,
+CupidDis, CupidLD, CupidObj, and the static runtime contract. The link exposed
+and closed a missing standard `memchr` boundary in the hosted i386 runtime.
+This is source-closure evidence only; the checked production seeds still have
+five tools.
 
 Cupid OS carries a checked static i386 Linux seed for its five hosted tools:
 CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The seed starts a complete
