@@ -229,6 +229,7 @@ CUPIDC_HOSTED_I386_ARTIFACTS := $(CONTRACT_DIR)/cupidc-cupidasm.elf \
 	$(CONTRACT_DIR)/cupidc-cupidld.elf \
 	$(CONTRACT_DIR)/cupidc-cupidobj.elf \
 	$(CONTRACT_DIR)/cupidc-cupidc.elf \
+	$(CONTRACT_DIR)/cupidc-cupidbuild.elf \
 	$(CONTRACT_DIR)/cupidc-runtime-contract.elf
 CUPIDC_CONTRACT_ARTIFACTS := $(CONTRACT_ARTIFACT) \
 	$(CUPIDC_PP_CONTRACT_ARTIFACT) $(CUPIDC_TYPE_CONTRACT_ARTIFACT) \

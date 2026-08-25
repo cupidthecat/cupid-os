@@ -180,7 +180,7 @@ private, and newly discovered contract inventories catch additions, removals,
 and restored edits that changed a copied input. Every contract run derives the
 cohort from its executable, requires a named manifest artifact, and verifies
 all artifact hashes, the current 75-input publication set, the checked seed
-manifest, and the 55-file fixed-point source inventory before execution. The
+manifest, and the 58-file candidate source inventory before execution. The
 contract inventory includes the small Windows probe, the native Windows tool
 runtime and startup, CupidLD publication runtime and bridge, direct contract,
 `direct.h`, `windows.h`, both PE32 reader headers, the CupidBuild declarations
@@ -188,7 +188,7 @@ and Windows startup, the user syscall ABI contract and its six declarations,
 the Toolchain Makefile, the publisher, and the independent Python ABI oracle.
 One captured seed-manifest byte sequence supplies the digest, decoded data, schema
 checks, and build plan. Seventeen objects and sixteen executables must match
-across stages before the 21-artifact cohort can be published. Contract runs
+across stages before the 22-artifact candidate cohort can be published. Contract runs
 use a private copy of the verified cohort. The user ABI check also gives the
 Cupid contract and Python oracle one shared six-file snapshot. Linux runs the
 published ELF contract. Windows freezes a separate 26-file closure, builds a
@@ -198,13 +198,13 @@ Linux publication. For publication, the checked stage-four Linux tools build
 the manifest author from its direct inputs. Linux runs a static ELF. Windows
 runs a validated native PE built from the same author source, checked Windows
 runtime, startup, and exact imports. Its framed `CUPMAN4` request binds the
-publication facts and raw stage-three and stage-four bytes for 58 fixed-point pairs: 17 contract
-objects, 16 contract executables, 19 bootstrap C objects, one startup object,
-and five tool images. The author requires regular, nonempty, byte-identical
+publication facts and raw stage-three and stage-four bytes for 62 fixed-point pairs: 17 contract
+objects, 16 contract executables, 22 bootstrap C objects, one startup object,
+and six tool images. The author requires regular, nonempty, byte-identical
 streams and hashes both sides independently. It derives the 17 schema-v3
 object records, checks executable pairs against their artifact facts, and
 derives the fixed-point summary from the exact pair inventories. The request
-has no caller `all_equal` field. Python repeats all 58 comparisons after author
+has no caller `all_equal` field. Python repeats all 62 comparisons after author
 acceptance and retains no-follow capture, launch, drift checks, private
 staging, rollback, and atomic replacement. A failure preserves the prior
 publication. The host-selected checked
@@ -213,13 +213,12 @@ PE on Windows. ADR 0302 records the verifier boundary, ADR 0304 records the
 author split, ADR 0307 records raw stage-pair evidence, and ADR 0322 records
 native Windows author execution.
 
-The latest complete schema v3 `CUPMAN4` publication passed and
-wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
-inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
-Its 27,071-byte manifest has SHA-256
-`02408d9d541de1454e2f0888cff501bc755964448d0f177a4162bcebdcaf178b`.
-Its final verifier reported
-`Cupid Toolchain manifest: ok (21 artifacts)`.
+The latest complete schema v3 `CUPMAN4` publication passed and wrote 22
+artifacts from 75 publication inputs and the exact 58-file bootstrap
+inventory. The Cupid author and Python oracle agreed on all 62 stage pairs.
+Its 29,270-byte manifest has SHA-256
+`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+Its final verifier accepted all 22 artifacts.
 Both checked Python contract launchers resolve `tools` from this checkout. The
 direct contract suite passes 40 tests in 54.623 seconds. The publisher suite
 passes 64 tests in 12.144 seconds, and the pinned verifier runner passes 25 tests
@@ -230,8 +229,9 @@ Audit ownership for author generation stops at the 20 direct build inputs. The
 historical 70 publication and 50 bootstrap inputs are observations and do not inherit
 compiler or assembler ownership from that transform.
 
-Source head now requires 75 publication inputs and 55 bootstrap inputs; no
-larger publication is claimed. The stable audit counts cover 747 active
+The publication now records 75 publication inputs, 58 candidate inputs, 22
+artifacts, and 62 stage pairs. It carries CupidBuild as a candidate output
+without adding it to the checked seed. The stable audit counts cover 747 active
 language inputs, 452 transforms, 255 features, and 26 unreachable inputs.
 CupidC participates in 250 transforms,
 CupidObj in 192, CupidASM in nine, CupidLD in nine, and CupidDis in nine. Four

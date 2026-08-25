@@ -149,6 +149,7 @@ TOOLCHAIN_MANIFEST_CONTRACT_ARTIFACT_INPUTS = (
     "toolchain/build/cupidc-contracts/cupidc-cupidld.elf",
     "toolchain/build/cupidc-contracts/cupidc-cupidobj.elf",
     "toolchain/build/cupidc-contracts/cupidc-cupidc.elf",
+    "toolchain/build/cupidc-contracts/cupidc-cupidbuild.elf",
 )
 TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "kernel/core/syscall.cc",
@@ -9066,6 +9067,27 @@ def _cupid_toolchain_fixed_point_contract(
                 f"{name}"
             )
 
+    candidate_toolchain_sources = expected_toolchain_sources + (
+        ("cupidbuild", "/toolchain/cupidbuild.cc", False),
+        ("cupidbuild_host", "/toolchain/cupidbuild_host.cc", False),
+        ("cupidbuild_main", "/toolchain/cupidbuild_main.cc", False),
+    )
+    candidate_toolchain_links = expected_toolchain_links + (
+        (
+            "cupidbuild",
+            (
+                "start",
+                "cupidbuild_main",
+                "cupidbuild",
+                "cupidbuild_host",
+                "ctool_host",
+                "ctool",
+                "elf32",
+                "runtime",
+            ),
+        ),
+    )
+
     required_driver_fragments = (
         "[--include-angle PATH]",
         "[-include FILE]",
@@ -9182,9 +9204,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 21,
-        "help_cases": 5,
-        "success_cases": 22,
+        "failure_cases": 22,
+        "help_cases": 6,
+        "success_cases": 23,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -9245,6 +9267,55 @@ def _cupid_toolchain_fixed_point_contract(
         raise AuditError(
             "Cupid Toolchain fixed-point linked-code policy calls "
             "differ: _run_behavior_checks must call all three helpers once"
+        )
+    cupidbuild_behavior_helpers = [
+        node
+        for node in bootstrap_tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_check_cupidbuild_guarded_object_behavior"
+    ]
+    if (
+        len(cupidbuild_behavior_helpers) != 1
+        or live_linked_code_policy_call_count(
+            behavior_function,
+            "_check_cupidbuild_guarded_object_behavior",
+        )
+        != 1
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point CupidBuild behavior differs: "
+            "Linux must call the guarded object helper once"
+        )
+    cupidbuild_behavior_source = (
+        ast.get_source_segment(
+            bootstrap_source, cupidbuild_behavior_helpers[0]
+        )
+        or ""
+    )
+    required_cupidbuild_behavior_fragments = (
+        'source_name = "toolchain/hosted/i386-linux/start.asm"',
+        "success_result = _run_stage_pair(",
+        "stage_two_output.read_bytes() != stage_three_output.read_bytes()",
+        "_validate_i386_relocatable(stage_two_output)",
+        "stage_two_failure.write_bytes(sentinel)",
+        "stage_three_failure.write_bytes(sentinel)",
+        '        "toolchain/missing-candidate-source.asm",',
+        "failure_result = _run_stage_pair(",
+        "stage_two_failure.read_bytes() != sentinel",
+        "stage_three_failure.read_bytes() != sentinel",
+    )
+    missing_cupidbuild_behavior_fragments = [
+        fragment
+        for fragment in required_cupidbuild_behavior_fragments
+        if cupidbuild_behavior_source.count(fragment) != 1
+    ]
+    if (
+        missing_cupidbuild_behavior_fragments
+        or cupidbuild_behavior_source.count('        "cupidbuild",') != 2
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point CupidBuild behavior differs: "
+            f"{missing_cupidbuild_behavior_fragments!r}"
         )
     behavior_source = (
         ast.get_source_segment(bootstrap_source, behavior_function) or ""
@@ -9349,7 +9420,39 @@ def _cupid_toolchain_fixed_point_contract(
             try:
                 behavior_returns.append(ast.literal_eval(statement.value))
             except (TypeError, ValueError):
-                behavior_returns.append(None)
+                resolved_return: dict[str, object] | None = None
+                if isinstance(statement.value, ast.Dict):
+                    resolved_return = {}
+                    for key, value in zip(
+                        statement.value.keys, statement.value.values
+                    ):
+                        if not (
+                            isinstance(key, ast.Constant)
+                            and isinstance(key.value, str)
+                        ):
+                            resolved_return = None
+                            break
+                        if (
+                            isinstance(value, ast.Call)
+                            and isinstance(value.func, ast.Name)
+                            and value.func.id == "len"
+                            and len(value.args) == 1
+                            and isinstance(value.args[0], ast.Name)
+                            and value.args[0].id == "tool_names"
+                            and not value.keywords
+                        ):
+                            resolved_return[key.value] = len(
+                                candidate_toolchain_links
+                            )
+                            continue
+                        try:
+                            resolved_return[key.value] = ast.literal_eval(
+                                value
+                            )
+                        except (TypeError, ValueError):
+                            resolved_return = None
+                            break
+                behavior_returns.append(resolved_return)
 
     if behavior_returns != [expected_behavior_matrix]:
         raise AuditError(
@@ -11337,16 +11440,60 @@ def _cupid_toolchain_fixed_point_contract(
         if bootstrap_source.count(fragment) != 1
     ]
 
+    bootstrap_parents = {
+        child: parent
+        for parent in ast.walk(bootstrap_tree)
+        for child in ast.iter_child_nodes(parent)
+    }
+
+    def is_live_module_node(node: ast.AST) -> bool:
+        current = node
+        while current is not bootstrap_tree and current in bootstrap_parents:
+            parent = bootstrap_parents[current]
+            if isinstance(
+                parent,
+                (
+                    ast.FunctionDef,
+                    ast.AsyncFunctionDef,
+                    ast.Lambda,
+                    ast.ClassDef,
+                ),
+            ):
+                return False
+            current = parent
+        return not _ast_node_is_statically_dead(
+            node, bootstrap_tree, bootstrap_parents
+        )
+
     def bootstrap_assignment(name: str) -> object | None:
-        matches = [
-            statement.value
-            for statement in bootstrap_tree.body
-            if isinstance(statement, ast.Assign)
-            and len(statement.targets) == 1
-            and isinstance(statement.targets[0], ast.Name)
-            and statement.targets[0].id == name
+        live_nodes = [
+            node
+            for node in ast.walk(bootstrap_tree)
+            if is_live_module_node(node)
         ]
-        if len(matches) != 1:
+        writes = [
+            node
+            for node in live_nodes
+            if isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Store)
+            and node.id == name
+        ]
+        matches = [
+            node.value
+            for node in live_nodes
+            if isinstance(node, (ast.Assign, ast.AnnAssign))
+            and (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.target.id == name
+                and node.value is not None
+                or isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == name
+            )
+        ]
+        if len(writes) != 1 or len(matches) != 1:
             return None
         value = matches[0]
         try:
@@ -11372,6 +11519,18 @@ def _cupid_toolchain_fixed_point_contract(
         missing_bootstrap_fragments.append(
             "publication must carry stages two through four"
         )
+    if bootstrap_assignment("CANDIDATE_SOURCES") != tuple(
+        candidate_toolchain_sources[-3:]
+    ):
+        missing_bootstrap_fragments.append(
+            "candidate source constants must match the audited inventory"
+        )
+    if bootstrap_assignment("CANDIDATE_CUPIDBUILD_LINK") != (
+        candidate_toolchain_links[-1][1]
+    ):
+        missing_bootstrap_fragments.append(
+            "CupidBuild link constants must match the audited plan"
+        )
     if bootstrap_assignment("WINDOWS_COMPILE_DEFINES") != frozenset(
         {
             "ctool_host",
@@ -11380,6 +11539,8 @@ def _cupid_toolchain_fixed_point_contract(
             "cupiddis_main",
             "cupidld_main",
             "cupidobj_main",
+            "cupidbuild",
+            "cupidbuild_host",
             "publication_runtime",
         }
     ):
@@ -11427,7 +11588,357 @@ def _cupid_toolchain_fixed_point_contract(
             )
             or ""
         )
+
+    def live_function_nodes(
+        function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+    ) -> tuple[list[ast.AST], dict[ast.AST, ast.AST]]:
+        if function is None:
+            return [], {}
+        parents = {
+            child: parent
+            for parent in ast.walk(function)
+            for child in ast.iter_child_nodes(parent)
+        }
+        return [
+            node
+            for node in ast.walk(function)
+            if not _ast_node_is_statically_dead(node, function, parents)
+        ], parents
+
+    def live_name_writes(
+        function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+        name: str,
+    ) -> list[ast.Name]:
+        nodes, _parents = live_function_nodes(function)
+        return [
+            node
+            for node in nodes
+            if isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Store)
+            and node.id == name
+        ]
+
+    def live_name_assignment_values(
+        function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+        name: str,
+    ) -> list[ast.expr]:
+        nodes, _parents = live_function_nodes(function)
+        values: list[ast.expr] = []
+        for node in nodes:
+            if (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == name
+            ):
+                values.append(node.value)
+            elif (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.target.id == name
+                and node.value is not None
+            ):
+                values.append(node.value)
+        return values
+
+    def direct_name_call(
+        value: ast.AST,
+        function_name: str,
+        argument_names: tuple[str, ...],
+    ) -> bool:
+        return (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id == function_name
+            and not value.keywords
+            and len(value.args) == len(argument_names)
+            and all(
+                isinstance(argument, ast.Name)
+                and argument.id == expected
+                for argument, expected in zip(
+                    value.args, argument_names
+                )
+            )
+        )
+
+    def has_exact_live_call_assignment(
+        function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+        target_name: str,
+        function_name: str,
+        argument_names: tuple[str, ...],
+    ) -> bool:
+        values = live_name_assignment_values(function, target_name)
+        return (
+            len(live_name_writes(function, target_name)) == 1
+            and len(values) == 1
+            and direct_name_call(
+                values[0], function_name, argument_names
+            )
+        )
+
+    def has_exact_live_expression_assignment(
+        function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+        target_name: str,
+        expression_source: str,
+    ) -> bool:
+        values = live_name_assignment_values(function, target_name)
+        expected = ast.parse(expression_source, mode="eval").body
+        return (
+            len(live_name_writes(function, target_name)) == 1
+            and len(values) == 1
+            and ast.dump(values[0], include_attributes=False)
+            == ast.dump(expected, include_attributes=False)
+        )
+
+    def live_calls(
+        function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+        function_name: str,
+    ) -> list[ast.Call]:
+        nodes, _parents = live_function_nodes(function)
+        return [
+            node
+            for node in nodes
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == function_name
+        ]
+
+    def calls_use_named_argument(
+        function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+        function_name: str,
+        argument_index: int,
+        argument_name: str,
+        expected_count: int,
+    ) -> bool:
+        calls = live_calls(function, function_name)
+        return len(calls) == expected_count and all(
+            len(call.args) > argument_index
+            and isinstance(call.args[argument_index], ast.Name)
+            and call.args[argument_index].id == argument_name
+            for call in calls
+        )
+
+    if not has_exact_live_call_assignment(
+        linux_bootstrap_function,
+        "plan",
+        "_candidate_build_plan",
+        ("checked_plan",),
+    ):
+        missing_bootstrap_fragments.append(
+            "Linux driver: one live candidate-plan assignment"
+        )
+    if not calls_use_named_argument(
+        linux_bootstrap_function,
+        "freeze_source_inputs",
+        1,
+        "plan",
+        1,
+    ) or not calls_use_named_argument(
+        linux_bootstrap_function,
+        "_build_stage",
+        4,
+        "plan",
+        3,
+    ):
+        missing_bootstrap_fragments.append(
+            "Linux driver: candidate plan must reach freezing and all stages"
+        )
+    if not has_exact_live_call_assignment(
+        windows_bootstrap_function,
+        "linux_plan",
+        "_candidate_build_plan",
+        ("checked_linux_plan",),
+    ) or not has_exact_live_call_assignment(
+        windows_bootstrap_function,
+        "native_plan",
+        "_windows_build_plan",
+        ("linux_plan",),
+    ):
+        missing_bootstrap_fragments.append(
+            "Windows driver: one live candidate and native plan chain"
+        )
+    if not calls_use_named_argument(
+        windows_bootstrap_function,
+        "freeze_source_inputs",
+        1,
+        "linux_plan",
+        1,
+    ) or not calls_use_named_argument(
+        windows_bootstrap_function,
+        "_build_windows_stage",
+        4,
+        "native_plan",
+        3,
+    ):
+        missing_bootstrap_fragments.append(
+            "Windows driver: candidate plan must reach freezing and all stages"
+        )
+
+    candidate_helpers = [
+        statement
+        for statement in bootstrap_tree.body
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and statement.name == "_candidate_build_plan"
+    ]
+    if len(candidate_helpers) != 1:
+        missing_bootstrap_fragments.append(
+            "candidate-plan helper must be unique"
+        )
+    else:
+        candidate_helper = candidate_helpers[0]
+        helper_nodes, helper_parents = live_function_nodes(candidate_helper)
+        candidate_loops = [
+            node
+            for node in helper_nodes
+            if isinstance(node, ast.For)
+            and isinstance(node.target, ast.Tuple)
+            and [
+                item.id if isinstance(item, ast.Name) else None
+                for item in node.target.elts
+            ]
+            == ["name", "path", "gnu_extensions"]
+            and isinstance(node.iter, ast.Name)
+            and node.iter.id == "CANDIDATE_SOURCES"
+        ]
+        expected_append = ast.parse(
+            "sources.append({"
+            "'gnu_extensions': gnu_extensions, "
+            "'name': name, 'path': path})",
+            mode="eval",
+        ).body
+        append_calls = [
+            node
+            for node in helper_nodes
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "sources"
+            and node.func.attr == "append"
+            and len(candidate_loops) == 1
+            and _ast_contains(candidate_loops[0], node)
+        ]
+        link_assignments = [
+            node
+            for node in helper_nodes
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Subscript)
+            and isinstance(node.targets[0].value, ast.Name)
+            and node.targets[0].value.id == "links"
+            and isinstance(node.targets[0].slice, ast.Constant)
+            and node.targets[0].slice.value == "cupidbuild"
+            and direct_name_call(
+                node.value,
+                "list",
+                ("CANDIDATE_CUPIDBUILD_LINK",),
+            )
+        ]
+
+        def candidate_field_assignments(
+            field: str,
+            value_name: str,
+        ) -> list[ast.Assign]:
+            return [
+                node
+                for node in helper_nodes
+                if isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Subscript)
+                and isinstance(node.targets[0].value, ast.Name)
+                and node.targets[0].value.id == "candidate"
+                and isinstance(node.targets[0].slice, ast.Constant)
+                and node.targets[0].slice.value == field
+                and isinstance(node.value, ast.Name)
+                and node.value.id == value_name
+            ]
+
+        def candidate_field_writes(field: str) -> list[ast.AST]:
+            writes: list[ast.AST] = []
+            for node in helper_nodes:
+                targets: list[ast.expr] = []
+                if isinstance(node, ast.Assign):
+                    targets = node.targets
+                elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+                    targets = [node.target]
+                if any(
+                    isinstance(target, ast.Subscript)
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id == "candidate"
+                    and isinstance(target.slice, ast.Constant)
+                    and target.slice.value == field
+                    for target in targets
+                ):
+                    writes.append(node)
+            return writes
+
+        helper_returns = [
+            node
+            for node in helper_nodes
+            if isinstance(node, ast.Return)
+        ]
+        helper_is_exact = (
+            has_exact_live_expression_assignment(
+                candidate_helper,
+                "raw_sources",
+                "_require_list("
+                "checked_plan.get('sources'), 'build_plan.sources')",
+            )
+            and has_exact_live_expression_assignment(
+                candidate_helper,
+                "sources",
+                "[dict(_require_object(source, 'build source')) "
+                "for source in raw_sources]",
+            )
+            and has_exact_live_expression_assignment(
+                candidate_helper,
+                "raw_links",
+                "_require_object("
+                "checked_plan.get('links'), 'build_plan.links')",
+            )
+            and has_exact_live_expression_assignment(
+                candidate_helper,
+                "links",
+                "{name: [str(item) for item in _require_list("
+                "raw_links.get(name), f'build_plan.links.{name}')] "
+                "for name in TOOL_NAMES}",
+            )
+            and len(candidate_loops) == 1
+            and len(append_calls) == 1
+            and ast.dump(append_calls[0], include_attributes=False)
+            == ast.dump(expected_append, include_attributes=False)
+            and len(link_assignments) == 1
+            and has_exact_live_call_assignment(
+                candidate_helper,
+                "candidate",
+                "dict",
+                ("checked_plan",),
+            )
+            and len(candidate_field_writes("sources")) == 1
+            and len(candidate_field_assignments("sources", "sources")) == 1
+            and len(candidate_field_writes("links")) == 1
+            and len(candidate_field_assignments("links", "links")) == 1
+            and len(helper_returns) == 1
+            and isinstance(helper_returns[0].value, ast.Name)
+            and helper_returns[0].value.id == "candidate"
+            and all(
+                not _ast_node_is_statically_dead(
+                    node, candidate_helper, helper_parents
+                )
+                for node in (
+                    *append_calls,
+                    *link_assignments,
+                    *candidate_field_assignments("sources", "sources"),
+                    *candidate_field_assignments("links", "links"),
+                    *helper_returns,
+                )
+            )
+        )
+        if not helper_is_exact:
+            missing_bootstrap_fragments.append(
+                "candidate-plan helper must append and return the audited plan"
+            )
     required_linux_bootstrap_fragments = (
+        "plan = _candidate_build_plan(checked_plan)",
         "source_inputs = freeze_source_inputs(",
         "private_source_root = source_inputs.root",
         "runner = ToolRunner(private_source_root)",
@@ -11455,6 +11966,7 @@ def _cupid_toolchain_fixed_point_contract(
         "            private_source_root,\n"
         "            stage_three,\n"
         "            stage_four,",
+        "            seed_inputs,\n",
         "            behavior_evidence,\n"
         "        )",
         '"behavior_generations": ["stage-three", "stage-four"],',
@@ -11492,6 +12004,7 @@ def _cupid_toolchain_fixed_point_contract(
         if linux_bootstrap_source.count(fragment) != 1
     )
     required_windows_bootstrap_fragments = (
+        "linux_plan = _candidate_build_plan(checked_linux_plan)",
         "source_inputs = freeze_source_inputs(",
         "private_source_root = source_inputs.root",
         "runner = ToolRunner(private_source_root)",
@@ -11535,6 +12048,7 @@ def _cupid_toolchain_fixed_point_contract(
         "            stage_three,\n"
         "            stage_four,\n"
         "            native_plan,\n"
+        "            seed_inputs,\n"
         "        )",
         '"stage-four": {\n'
         '                    "objects": _artifact_inventory(stage_four.objects),\n'
@@ -11805,8 +12319,9 @@ def _cupid_toolchain_fixed_point_contract(
             '"build_plan.links")',
             'known_linux_objects = {"start", *source_names}',
             "native_order = list(linux_order)",
-            'native_order.index("start") + 1',
-            'native_order.index("runtime")',
+            'if tool_name == "cupidld":',
+            'elif tool_name == "cupidbuild":',
+            '"cupidbuild_start.asm"',
             'linux_plan.get("include_arguments")',
             '"links": links',
         ),
@@ -11845,7 +12360,8 @@ def _cupid_toolchain_fixed_point_contract(
             '"compared_generations": ["stage-three", "stage-four"]',
         ),
         "_run_native_windows_behavior_checks": (
-            "for tool_name in TOOL_NAMES:",
+            "for tool_name in tool_names:",
+            "_check_cupidbuild_guarded_object_behavior(",
             "failure_result = _run_stage_pair(",
             '"--definitely-invalid-option"',
             "stage_two_object.read_bytes()",
@@ -11898,9 +12414,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(TOOL_NAMES) + 4, "
-            "'help_cases': len(TOOL_NAMES), "
-            "'success_cases': len(TOOL_NAMES) + 3"
+            "'failure_cases': len(tool_names) + 5, "
+            "'help_cases': len(tool_names), "
+            "'success_cases': len(tool_names) + 4"
             "}",
             mode="eval",
         ).body
@@ -11920,8 +12436,19 @@ def _cupid_toolchain_fixed_point_contract(
             )
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return 9 failure, "
-                "5 help, and 8 success cases"
+                "_run_native_windows_behavior_checks: return eleven failure, "
+                "six help, and ten success cases"
+            )
+        if (
+            live_linked_code_policy_call_count(
+                behavior_function,
+                "_check_cupidbuild_guarded_object_behavior",
+            )
+            != 1
+        ):
+            missing_native_windows_fragments.append(
+                "_run_native_windows_behavior_checks: one guarded "
+                "CupidBuild object call"
             )
         behavior_parents = {
             child: parent
@@ -12145,6 +12672,7 @@ return tuple(
             "_capture_regular_stage_file",
             "_stage_file_identity",
             "build_contracts",
+            "verify_publication_inputs",
         )
     }
     if any(len(functions) != 1 for functions in publisher_functions.values()):
@@ -12178,6 +12706,34 @@ return tuple(
         if len(bootstrap_calls) != 1 or public_bootstrap_calls:
             publisher_protocol_errors.append(
                 "publisher must use the private pending bootstrap"
+            )
+
+        verify_inputs_function = publisher_functions[
+            "verify_publication_inputs"
+        ][0]
+        recapture_values = live_name_assignment_values(
+            verify_inputs_function, "live_bootstrap_inputs"
+        )
+        expected_recapture = ast.parse(
+            "capture_source_snapshot("
+            "root, _candidate_build_plan(build_plan))",
+            mode="eval",
+        ).body
+        if (
+            len(
+                live_name_writes(
+                    verify_inputs_function, "live_bootstrap_inputs"
+                )
+            )
+            != 1
+            or len(recapture_values) != 1
+            or ast.dump(
+                recapture_values[0], include_attributes=False
+            )
+            != ast.dump(expected_recapture, include_attributes=False)
+        ):
+            publisher_protocol_errors.append(
+                "publication verification must recapture the candidate plan"
             )
 
         author_calls = live_build_calls("_checked_manifest_author_bytes")
@@ -12462,16 +13018,16 @@ return tuple(
     return {
         "status": "pass",
         "platform": "i386-linux",
-        "tool_c_sources": len(expected_toolchain_sources),
+        "tool_c_sources": len(candidate_toolchain_sources),
         "compiler_c_sources": len(expected_compiler_sources),
         "strict_c_sources": sum(
             1
-            for _name, _path, gnu in expected_toolchain_sources
+            for _name, _path, gnu in candidate_toolchain_sources
             if not gnu
         ),
         "gnu_c_sources": sum(
             1
-            for _name, _path, gnu in expected_toolchain_sources
+            for _name, _path, gnu in candidate_toolchain_sources
             if gnu
         ),
         "include_roots": [
@@ -12486,22 +13042,22 @@ return tuple(
         ],
         "link_objects": [
             {"tool": name, "objects": len(objects)}
-            for name, objects in expected_toolchain_links
+            for name, objects in candidate_toolchain_links
         ],
-        "tool_images": len(expected_toolchain_links),
+        "tool_images": len(candidate_toolchain_links),
         "producer_tools": ["cupidc", "cupidasm", "cupidld"],
         "executed_tools": [
-            name for name, _objects in expected_toolchain_links
+            name for name, _objects in candidate_toolchain_links
         ],
-        "compared_c_objects": len(expected_toolchain_sources),
+        "compared_c_objects": len(candidate_toolchain_sources),
         "compared_startup_objects": 1,
-        "compared_tool_images": len(expected_toolchain_links),
-        "help_cases": len(expected_toolchain_links),
+        "compared_tool_images": len(candidate_toolchain_links),
+        "help_cases": len(candidate_toolchain_links),
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
-        "windows_help_cases": 5,
-        "windows_success_behavior_cases": 8,
-        "windows_failure_behavior_cases": 9,
+        "windows_help_cases": 6,
+        "windows_success_behavior_cases": 10,
+        "windows_failure_behavior_cases": 11,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_guarded_object_transaction",

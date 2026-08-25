@@ -39960,13 +39960,13 @@
             },
             {
               "directive": "if",
-              "line": 1352,
+              "line": 1354,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1433,
+              "line": 1432,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -41212,9 +41212,9 @@
       "checked_seed_publication": "complete-bundle",
       "checked_seed_source_boundary_checks": 5,
       "checked_seed_source_root": "private-captured",
-      "compared_c_objects": 19,
+      "compared_c_objects": 22,
       "compared_startup_objects": 1,
-      "compared_tool_images": 5,
+      "compared_tool_images": 6,
       "compiler_c_sources": 11,
       "contract_manifest_inputs": 75,
       "executed_tools": [
@@ -41222,11 +41222,12 @@
         "cupiddis",
         "cupidld",
         "cupidobj",
-        "cupidc"
+        "cupidc",
+        "cupidbuild"
       ],
-      "failure_behavior_cases": 21,
+      "failure_behavior_cases": 22,
       "gnu_c_sources": 1,
-      "help_cases": 5,
+      "help_cases": 6,
       "include_roots": [
         {
           "forms": [
@@ -41262,6 +41263,10 @@
         {
           "objects": 12,
           "tool": "cupidc"
+        },
+        {
+          "objects": 8,
+          "tool": "cupidbuild"
         }
       ],
       "platform": "i386-linux",
@@ -41290,13 +41295,13 @@
         "stage-four"
       ],
       "status": "pass",
-      "strict_c_sources": 18,
-      "success_behavior_cases": 22,
-      "tool_c_sources": 19,
-      "tool_images": 5,
-      "windows_failure_behavior_cases": 9,
-      "windows_help_cases": 5,
-      "windows_success_behavior_cases": 8
+      "strict_c_sources": 21,
+      "success_behavior_cases": 23,
+      "tool_c_sources": 22,
+      "tool_images": 6,
+      "windows_failure_behavior_cases": 11,
+      "windows_help_cases": 6,
+      "windows_success_behavior_cases": 10
     }
   },
   "features": [
@@ -46337,7 +46342,7 @@
         "toolchain/tests/elf32_contract.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 3200
+      "occurrences": 3201
     },
     {
       "category": "control",
@@ -46743,7 +46748,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 41703
+      "occurrences": 41704
     },
     {
       "category": "control",
@@ -53006,7 +53011,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 24103
+      "occurrences": 24105
     },
     {
       "category": "type",
@@ -54585,7 +54590,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 15466
+      "occurrences": 15467
     },
     {
       "category": "declaration",
@@ -55499,7 +55504,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "9f805f9a37c92d02542cd20f38f8bf340e684951113545ed24cb8384f5e23cb0",
+    "active_source_digest": "69a00942e9aa0c14c9c0b5cac3f82bc1e0988cca49d3ea1bb62531877411b846",
     "control_files": [
       {
         "path": "Makefile",
@@ -55511,7 +55516,7 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "6b7f441d15c6d6344a90956d7269bc2761f27478e5f328fe4d0df3c7d586b3d3"
+        "sha256": "62704f8843a26e84d00f47d111dc38149e9a53909695a05eb8b0c464ba08cdae"
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
@@ -55527,7 +55532,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "3776944621ef0b683dd051dd60f0e78bd0b120df2b820c1058a89a854b709ae7"
+        "sha256": "26f4803563509e195016f6249668efd05d46a542a3c92d19df2765c7e724f60d"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -55552,7 +55557,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "ce4de0d0288dcff657d133ed22e871682e6e49b69c44dfe860271745e1c769ed"
+      "sha256": "54deb0950339a25122af79c5cb8fa0e6f8705308e81493f5bfe985b6e421aebd"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -80306,12 +80311,12 @@
         "toolchain/pe32_impl.h"
       ],
       "language": "cupid_c",
-      "lines": 1497,
+      "lines": 1505,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "47598469b64a905bc89ccc4cbf8c3f36d627be78a7910c00c93e5809dd284f71"
+      "sha256": "e69bebe9d5dd3537fcbe25947bae55c103a59b1949ac109dbe7f7b5429eeb535"
     },
     {
       "build_owners": [
@@ -83008,12 +83013,12 @@
         "toolchain/tests/artifact_size_policy_contract.cc"
       ],
       "language": "cupid_c",
-      "lines": 2769,
+      "lines": 2777,
       "origin": "tracked",
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c63d98964d9d30ed2cedd43876c3a2dc4b3cfc09f22b2f61d5b8ea257d023e2c"
+      "sha256": "68a84c51328cdb1b2a10f7256dc372ddd0e42cc3638172f74ca28971a792150d"
     },
     {
       "build_owners": [
@@ -83586,6 +83591,7 @@
             "toolchain/build/cupidc-contracts/cupidc-cupidld.elf",
             "toolchain/build/cupidc-contracts/cupidc-cupidobj.elf",
             "toolchain/build/cupidc-contracts/cupidc-cupidc.elf",
+            "toolchain/build/cupidc-contracts/cupidc-cupidbuild.elf",
             "toolchain/build/cupidc-contracts/cupidc-runtime-contract.elf",
             "toolchain/Makefile",
             "toolchain/hosted/i386-linux/include/cupid_host_abi.h",

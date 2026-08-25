@@ -28,10 +28,13 @@ attempted checked commands, including failure and timeout paths.
 The hosted i386 string runtime now supplies standard binary memchr so the same
 CupidBuild source compiles and links through CupidC. The runtime probe checks
 matching, absent, embedded-zero, unsigned-byte, and empty-range searches.
-The checked Toolchain run rebuilt all 21 hosted artifacts and passed the full
-contract surface. A fresh 55-source fixed point then matched 19 C objects, one
-startup object, and all five tool images between stages three and four. This
-proves source-head closure but does not promote CupidBuild into the seed.
+The current checked Toolchain run rebuilt all 22 hosted artifacts and passed
+the full contract surface. It derives a separate six-tool candidate from the
+five-tool seed. Its Linux proof freezes 58 inputs and matches 22 C
+objects, one startup object, and all six tool images between stages three and
+four. Both CupidBuild images also pass the guarded object command and its
+missing-source rollback. This changes hosted bootstrap evidence, not CupidC
+language behavior, and does not promote CupidBuild into the seed.
 >endtree
 
 >h2 Purpose
@@ -691,12 +694,12 @@ descriptor-pinned filesystem capture and atomic publication. Linux runs the
 author as a static ELF. Windows runs a validated native PE built by the same
 Linux stage-four CupidC, CupidASM, and CupidLD producers with the checked
 Windows runtime, startup, and exact imports. The publisher uses
-a private pending bootstrap path and gives the author all 58 raw stage pairs
+a private pending bootstrap path and gives the author all 62 raw stage pairs
 before Python performs its independent comparisons. A valid schema-v3
-publication binds exactly 21 artifacts, 75 publication inputs, 55 bootstrap
+publication binds exactly 22 artifacts, 75 publication inputs, 58 bootstrap
 inputs, and 17 object comparisons. Both checked Python contract launchers put
 this checkout ahead of installed packages before importing `tools`. The direct
-contract passes 40 tests in 54.623 seconds, the publisher passes 64 in 12.144
+contract passes 40 tests in 51.723 seconds, the publisher passes 65 in 7.258
 seconds, and the pinned runner passes 25 in 32.773 seconds. The host bootstrap
 log records the exact publication identity and completion evidence.
 

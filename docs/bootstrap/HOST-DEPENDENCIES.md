@@ -14,11 +14,25 @@ and timeout paths. It freezes all five images and validates their static ELF32
 or strict PE32 execution profiles before use. ADRs 0339, 0342, and 0344 record
 the boundary.
 
+The fixed-point coordinator derives a six-tool candidate plan from the
+unchanged five-tool Linux manifest. Linux freezes 58 inputs and builds 22 C
+objects, startup, and six tools. The native Windows plan adds its publication
+runtime and three startup objects. CupidBuild links with 29 exact
+`KERNEL32.dll` imports and `NtSetInformationFile` from `NTDLL.dll`. Host Python
+still freezes inputs, launches the checked tools, compares stages, and
+publishes the evidence. ADR 0345 records this separation.
+
 The source-head self-link now produces a separate CupidBuild image beside the
 five seed tools and the static runtime contract. The hosted runtime supplies
 CupidBuild's standard `memchr` dependency, so this link does not import a host
 libc. The promoted seed still has five tools, and Python ownership is
 unchanged. ADR 0343 records the source closure.
+
+The Toolchain publication includes `cupidc-cupidbuild.elf` among its 22
+artifacts. Its paired evidence covers 17 contract objects, 16
+contract executables, 23 bootstrap objects, and six bootstrap tools, for 62
+stage pairs. Publication verification recreates the candidate plan before it
+recaptures the 58-file live source inventory.
 
 The Linux fixed-point coordinator reads only the four-byte executable
 signature when it chooses a native or cross-host runner. Earlier code loaded
@@ -44,9 +58,10 @@ same semantic shapes. The audit records 32
 assembly inputs, 301 headers, 414 Cupid C
 files, 255 feature requirements, and 26 accounted unreachable files. No
 ordinary C translation unit remained in a supported root. Its active-source
-audit records failure, help, and success counts of 21/5/22 for Linux and
-9/5/8 for Windows. Each promoted host cohort includes one successful and one
-failing static code-anchor case. Generation and checked comparison both pass.
+audit records failure, help, and success counts of 22/6/23 for Linux and
+11/6/10 for Windows. The source-head figures include CupidBuild; each promoted
+host cohort still includes one successful and one failing static code-anchor
+case. Generation and checked comparison both pass.
 The poisoned OS build reaches the exact-size gate after the complete compile,
 link, and strict-disassembly path. The repeated exact verifier, image
 publisher, and strong full private guest frontier pass.
@@ -223,16 +238,16 @@ and no rejection markers. The source image stayed unchanged at SHA-256
 The Toolchain `all` target uses two checked contracts for its published
 manifest. Verify mode consumes `CUPMAN2`; it is the only Toolchain manifest
 contract selected for the host, so Windows builds and runs its native PE.
-Author mode consumes independent `CUPMAN4` facts for 21 artifacts, 75
-publication inputs, 55 bootstrap sources, the static Linux publication seed,
-and 58 paired stage byte streams. The pairs cover 17 contract objects, 16
-contract executables, 19 bootstrap C objects, one startup object, and five
+Author mode consumes independent `CUPMAN4` facts for 22 artifacts, 75
+publication inputs, 58 candidate sources, the static Linux publication seed,
+and 62 paired stage byte streams. The pairs cover 17 contract objects, 16
+contract executables, 22 bootstrap C objects, one startup object, and six
 tool images. The Cupid-built author requires regular, nonempty,
 byte-identical streams, hashes both sides, derives the 17 schema-v3 object
 records, checks executable pairs against their artifact facts, and derives the
 fixed-point summary from the exact pair inventories. No caller `all_equal`
 field follows the pair lanes. Python
-repeats all 58 comparisons only after author acceptance. It also owns the live
+repeats all 62 comparisons only after author acceptance. It also owns the live
 no-follow boundary before and after execution, process launch, drift checks,
 rollback, and atomic publication. The converged stage-four Linux tools remain
 the author producers. Linux runs a static ELF. Windows runs a validated native
@@ -245,25 +260,24 @@ author execution.
 
 Both checked Python contract launchers resolve `tools` from this checkout before
 consulting installed packages. The standalone manifest contract passes all 40
-tests in 54.623 seconds. The publisher passes all 64 in 12.144 seconds. The
+tests. The publisher passes all 65. The
 pinned verifier runner executes 25 tests in 32.773 seconds, with three
 POSIX-only cases skipped on Windows. ADR 0311 records the import boundary.
 
-The latest complete schema v3 `CUPMAN4` `make -C toolchain all` passed.
-The Cupid author and Python oracle agreed on all 58 stage pairs. Every
+The latest complete schema v3 `CUPMAN4` publication passed. The Cupid author
+and Python oracle agreed on all 62 stage pairs. Every
 stage-three object and executable matched its stage-four counterpart. The
-hosted runtime passed, and live inputs stayed frozen. The publisher wrote 21
-artifacts and a 27,071-byte manifest with SHA-256
-`02408d9d541de1454e2f0888cff501bc755964448d0f177a4162bcebdcaf178b`.
-It records 70 inputs, 50 bootstrap files, 17 object comparisons, and Linux seed
-manifest
-`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
-Its final `CUPMAN2` verifier printed
-`Cupid Toolchain manifest: ok (21 artifacts)`. The first corrected attempt
+hosted runtime passed, and live inputs stayed frozen. The publisher wrote 22
+artifacts and a 29,270-byte manifest with SHA-256
+`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+It records 75 inputs, 58 bootstrap files, 17 object comparisons, and Linux seed
+manifest SHA-256
+`b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
+Its final `CUPMAN2` verifier accepted all 22 artifacts. The first corrected attempt
 published a valid cohort but failed this last read-only step after WSL imported
 an unrelated installed `tools` package. The checkout-local launcher rule closed
-that host-resolution gap. The audit confirms the same
-70-input publication closure and records no Python-only transform.
+that host-resolution gap. The audit confirms the same 75-input publication
+closure and records no Python-only transform.
 
 The first checked PE boundary built one deterministic imported i386 command
 without a host compiler, assembler, linker, import library, or C runtime.
@@ -672,8 +686,8 @@ contract, `direct.h`, `windows.h`, both PE32 reader headers, the CupidBuild
 declarations and Windows startup, the user syscall ABI contract and its six
 declarations, the Toolchain Makefile, both strict C11 contract sources, the
 publisher, and the independent Python ABI oracle. It separately binds the
-checked seed and 55-file fixed-point source inventory. The last complete
-publication remains the historical 70-input, 50-file checkpoint. Each run
+checked seed and 58-file candidate source inventory. The latest complete
+publication records those 75/58 inventories and 22 artifacts. Each run
 derives its cohort from the requested executable and verifies all artifact
 hashes and both
 live inventories. Hashing, decoding,
@@ -1202,7 +1216,7 @@ records the ownership transfer.
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
 | Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal five-tool build and sixteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime. All five native Windows tools use the repository runtime and twelve shared CupidASM API bridges; CupidLD adds four publication bridges | Not required by root `all`, `user:all`, `toolchain:all`, or the checked Windows commands; required only by native oracle and development targets | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |
 | GNU Make | Declares the root, user, and toolchain-contract build graphs and invokes tools | Required; the graph uses portable ordinary/stamp targets rather than GNU Make 4.3 grouped-target syntax | May remain as host orchestration; it must invoke Cupid code-producing tools on the normal path |
-| Python 3 | Launches the host-selected checked execution cohort for output-bearing work, the Windows user ABI contract, the artifact-size contract, and the Toolchain manifest verifier, and launches the Linux bootstrap seed for fixed-point and full published Toolchain contract work; pins the size-policy and manifest requests; independently repeats the Cupid author's 58 stage-pair comparisons; compares Cupid-built reports with independent oracles; coordinates kernel-symbol and trampoline validation; parity-checks accepted JPEG, ISO, and profile-manifest bytes; builds independent template oracles; preserves FAT contents and stages files; validates, locks, and atomically publishes outputs; builds fixtures; and drives QEMU tests | Required | May remain for tests and packaging, but removing it from the staged fixed point and checked-tool launch path is the open Python-free bootstrap gate |
+| Python 3 | Launches the host-selected checked execution cohort for output-bearing work, the Windows user ABI contract, the artifact-size contract, and the Toolchain manifest verifier, and launches the Linux bootstrap seed for fixed-point and full published Toolchain contract work; pins the size-policy and manifest requests; independently repeats the Cupid author's 62 stage-pair comparisons; compares Cupid-built reports with independent oracles; coordinates kernel-symbol and trampoline validation; parity-checks accepted JPEG, ISO, and profile-manifest bytes; builds independent template oracles; preserves FAT contents and stages files; validates, locks, and atomically publishes outputs; builds fixtures; and drives QEMU tests | Required | May remain for tests and packaging, but removing it from the staged fixed point and checked-tool launch path is the open Python-free bootstrap gate |
 | WSL on Windows | Runs the checked static i386 Linux seed for Linux fixed-point reconstruction, the stage-two Windows CupidC bridge, and the remaining Linux Toolchain contract cohort | Required for those checked Linux executable paths on Windows; native stages three and four, output-bearing production tools, the user ABI gate, artifact-size verification, `CUPMAN4` author execution, and `CUPMAN2` verification run without WSL | Remove the Windows bridge after a promoted native CupidC carries the 64 KiB arena-block policy, then remove WSL after the remaining Linux paths no longer depend on Linux executable semantics |
 | Git | Enumerates the tracked audit universe and creates detached baseline worktrees | Required for development/audit workflows, not image production | Retain as source-control orchestration, never as a code-producing dependency |
 | `link.ld` and its documented GNU-script subset | Defines kernel memory and section layout; CupidLD parses the exercised `ENTRY`, `SECTIONS`, location-counter, wildcard, alignment, symbol, `COMMON`, and `ASSERT` forms | Required input to both kernel link passes; host-linker interpretation is oracle-only | Keep the script as the source-owned layout contract and deepen CupidLD when the active script needs more semantics |

@@ -12,18 +12,18 @@ static const char manifest_schema[] = "cupid.toolchain-contracts.v3";
 static const char manifest_report_schema[] =
     "cupid.toolchain-manifest-verification.v1";
 
-#define MANIFEST_ARTIFACT_COUNT 21u
+#define MANIFEST_ARTIFACT_COUNT 22u
 #define MANIFEST_INPUT_LIMIT 256u
 #define MANIFEST_EXPECTED_INPUT_COUNT 75u
-#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 55u
+#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 58u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
-#define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 19u
+#define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 22u
 #define MANIFEST_BOOTSTRAP_STARTUP_OBJECT_COUNT 1u
 #define MANIFEST_BOOTSTRAP_OBJECT_COUNT                                      \
   (MANIFEST_BOOTSTRAP_C_OBJECT_COUNT +                                      \
    MANIFEST_BOOTSTRAP_STARTUP_OBJECT_COUNT)
-#define MANIFEST_BOOTSTRAP_TOOL_COUNT 5u
+#define MANIFEST_BOOTSTRAP_TOOL_COUNT 6u
 
 static const char manifest_expected_seed_path[] =
     "bootstrap/seeds/i386-linux/manifest.json";
@@ -121,8 +121,11 @@ static const char *const manifest_expected_bootstrap_paths
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm.h",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.cc",
         "toolchain/cupidbuild_host.h",
+        "toolchain/cupidbuild_main.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -237,12 +240,13 @@ static const char *const manifest_artifact_names[MANIFEST_ARTIFACT_COUNT] = {
     "cupidc-cupidld.elf",
     "cupidc-cupidobj.elf",
     "cupidc-cupidc.elf",
+    "cupidc-cupidbuild.elf",
 };
 
 static const unsigned int
     manifest_artifact_output_order[MANIFEST_ARTIFACT_COUNT] = {
-        0u, 10u, 11u, 12u, 16u, 20u, 17u, 18u, 19u, 4u, 5u,
-        6u, 2u,  15u, 3u,  9u,  14u, 13u, 7u,  1u, 8u,
+        0u, 10u, 11u, 12u, 16u, 21u, 20u, 17u, 18u, 19u, 4u,
+        5u, 6u,  2u,  15u, 3u,  9u,  14u, 13u, 7u,  1u,  8u,
 };
 
 static const char *const manifest_comparison_names[MANIFEST_COMPARISON_COUNT] = {
@@ -288,12 +292,14 @@ static const char *const
         "x86",           "cupidasm",      "cupidasm_main",  "cupiddis",
         "cupiddis_main", "cupidobj",      "cupidobj_main",  "cupidld",
         "cupidld_main",  "cupidc_pp",     "cupidc_type",    "cupidc_frontend",
-        "cupidc_ir",     "cupidc_emit",   "cupidc_main",    "start",
+        "cupidc_ir",     "cupidc_emit",   "cupidc_main",    "cupidbuild",
+        "cupidbuild_host", "cupidbuild_main", "start",
 };
 
 static const char *const
     manifest_bootstrap_tool_names[MANIFEST_BOOTSTRAP_TOOL_COUNT] = {
         "cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc",
+        "cupidbuild",
 };
 
 static const unsigned int
@@ -1821,7 +1827,8 @@ static int manifest_parse_fixed_point(json_reader_t *reader) {
     } else if (text_equals_literal(&key, "c_objects")) {
       field = 2u;
       ok = manifest_parse_expected_u64(
-          reader, 19u, "manifest fixed-point C object count differs");
+          reader, MANIFEST_BOOTSTRAP_C_OBJECT_COUNT,
+          "manifest fixed-point C object count differs");
     } else if (text_equals_literal(&key, "compared_generations")) {
       field = 4u;
       ok = manifest_parse_generations(reader);
@@ -1832,7 +1839,8 @@ static int manifest_parse_fixed_point(json_reader_t *reader) {
     } else if (text_equals_literal(&key, "tool_images")) {
       field = 16u;
       ok = manifest_parse_expected_u64(
-          reader, 5u, "manifest tool image count differs");
+          reader, MANIFEST_BOOTSTRAP_TOOL_COUNT,
+          "manifest tool image count differs");
     } else {
       text_release(&key);
       return set_error("manifest fixed-point record has an unknown field");

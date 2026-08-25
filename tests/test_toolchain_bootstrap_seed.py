@@ -16,24 +16,29 @@ from unittest import mock
 from tools import hostbuild
 from tools.bootstrap_toolchain import (
     BootstrapError,
+    CANDIDATE_TOOL_NAMES,
     SeedInputs,
     Stage,
     TOOL_NAMES,
     ToolRunner,
     WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256,
     WSL_PRIVATE_RUN_SCRIPT,
+    _build_plan_sha256,
     _compare_stages,
     _compare_windows_stages,
     _build_stage,
     _build_windows_stage,
     _bootstrap_from_frozen_seed,
     _bootstrap_windows_from_frozen_seed,
+    _candidate_build_plan,
     _check_executable_code_anchor_behavior,
     _code_anchor_executable_payload,
     _local_target_executable_payload,
     _local_target_object_payload,
     _remove_private_tool_directory,
     _profile_snapshot_payload,
+    _run_behavior_checks,
+    _run_native_windows_behavior_checks,
     _unowned_relocation_object_payload,
     _windows_build_plan,
     _validate_static_i386_pe32,
@@ -71,12 +76,242 @@ WINDOWS_SEED_MANIFEST = (
     / "i386-windows"
     / "manifest.json"
 )
-SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "fca7f65463e26d48159e8e71be68c8b35aa56a2215ec8b572116f773c21a694c"
-)
-
-
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    def test_candidate_plan_adds_cupidbuild_without_changing_the_v1_plan(self):
+        checked_plan = json.loads(
+            SEED_MANIFEST.read_text(encoding="utf-8")
+        )["build_plan"]
+        original_plan = json.loads(json.dumps(checked_plan))
+
+        candidate_plan = _candidate_build_plan(checked_plan)
+
+        self.assertEqual(
+            TOOL_NAMES,
+            ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc"),
+        )
+        self.assertEqual(
+            CANDIDATE_TOOL_NAMES,
+            (
+                "cupidasm",
+                "cupiddis",
+                "cupidld",
+                "cupidobj",
+                "cupidc",
+                "cupidbuild",
+            ),
+        )
+        self.assertEqual(checked_plan, original_plan)
+        self.assertEqual(
+            candidate_plan["sources"][-3:],
+            [
+                {
+                    "gnu_extensions": False,
+                    "name": "cupidbuild",
+                    "path": "/toolchain/cupidbuild.cc",
+                },
+                {
+                    "gnu_extensions": False,
+                    "name": "cupidbuild_host",
+                    "path": "/toolchain/cupidbuild_host.cc",
+                },
+                {
+                    "gnu_extensions": False,
+                    "name": "cupidbuild_main",
+                    "path": "/toolchain/cupidbuild_main.cc",
+                },
+            ],
+        )
+        self.assertEqual(
+            candidate_plan["links"]["cupidbuild"],
+            [
+                "start",
+                "cupidbuild_main",
+                "cupidbuild",
+                "cupidbuild_host",
+                "ctool_host",
+                "ctool",
+                "elf32",
+                "runtime",
+            ],
+        )
+        self.assertNotEqual(
+            _build_plan_sha256(candidate_plan),
+            _build_plan_sha256(checked_plan),
+        )
+        source_inventory = capture_source_snapshot(REPO_ROOT, candidate_plan)
+        self.assertEqual(len(source_inventory), 58)
+        for path in (
+            "toolchain/cupidbuild.cc",
+            "toolchain/cupidbuild_host.cc",
+            "toolchain/cupidbuild_main.cc",
+        ):
+            self.assertIn(path, source_inventory)
+
+    def test_candidate_plan_rejects_a_reserved_cupidbuild_source(self):
+        checked_plan = json.loads(
+            SEED_MANIFEST.read_text(encoding="utf-8")
+        )["build_plan"]
+        checked_plan["sources"].append(
+            {
+                "gnu_extensions": False,
+                "name": "cupidbuild",
+                "path": "/toolchain/untrusted-cupidbuild.cc",
+            }
+        )
+
+        with self.assertRaisesRegex(
+            BootstrapError,
+            "^Linux build plan uses the reserved candidate source name: "
+            "cupidbuild$",
+        ):
+            _candidate_build_plan(checked_plan)
+
+    def test_native_windows_candidate_plan_has_exact_cupidbuild_profile(self):
+        checked_plan = json.loads(
+            SEED_MANIFEST.read_text(encoding="utf-8")
+        )["build_plan"]
+
+        native_plan = _windows_build_plan(
+            _candidate_build_plan(checked_plan)
+        )
+
+        self.assertEqual(
+            [source["name"] for source in native_plan["assembly_sources"]],
+            ["start", "publication_start", "cupidbuild_start"],
+        )
+        native_sources = {
+            source["name"]: source for source in native_plan["sources"]
+        }
+        self.assertEqual(
+            native_sources["cupidbuild"]["definitions"], ["_WIN32=1"]
+        )
+        self.assertEqual(
+            native_sources["cupidbuild_host"]["definitions"], ["_WIN32=1"]
+        )
+        self.assertEqual(native_sources["cupidbuild_main"]["definitions"], [])
+        self.assertEqual(
+            native_plan["links"]["cupidbuild"],
+            [
+                "start",
+                "publication_start",
+                "cupidbuild_start",
+                "cupidbuild_main",
+                "cupidbuild",
+                "cupidbuild_host",
+                "ctool_host",
+                "ctool",
+                "elf32",
+                "publication_runtime",
+                "runtime",
+            ],
+        )
+        self.assertEqual(
+            [
+                (record["library"], record["procedure"], record["slot"])
+                for record in native_plan["imports"]["cupidbuild"]
+            ],
+            [
+                ("KERNEL32.dll", "CloseHandle", "__imp_CloseHandle"),
+                (
+                    "KERNEL32.dll",
+                    "CreateDirectoryA",
+                    "__imp_CreateDirectoryA",
+                ),
+                ("KERNEL32.dll", "CreateFileA", "__imp_CreateFileA"),
+                (
+                    "KERNEL32.dll",
+                    "CreateProcessA",
+                    "__imp_CreateProcessA",
+                ),
+                ("KERNEL32.dll", "DeleteFileA", "__imp_DeleteFileA"),
+                ("KERNEL32.dll", "ExitProcess", "__imp_ExitProcess"),
+                ("KERNEL32.dll", "FindClose", "__imp_FindClose"),
+                (
+                    "KERNEL32.dll",
+                    "FindFirstFileA",
+                    "__imp_FindFirstFileA",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "FindNextFileA",
+                    "__imp_FindNextFileA",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "FlushFileBuffers",
+                    "__imp_FlushFileBuffers",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "GetCommandLineA",
+                    "__imp_GetCommandLineA",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "GetCurrentDirectoryA",
+                    "__imp_GetCurrentDirectoryA",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "GetCurrentProcessId",
+                    "__imp_GetCurrentProcessId",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "GetExitCodeProcess",
+                    "__imp_GetExitCodeProcess",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "GetFileAttributesA",
+                    "__imp_GetFileAttributesA",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "GetFileInformationByHandle",
+                    "__imp_GetFileInformationByHandle",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "GetFullPathNameA",
+                    "__imp_GetFullPathNameA",
+                ),
+                ("KERNEL32.dll", "GetLastError", "__imp_GetLastError"),
+                ("KERNEL32.dll", "GetStdHandle", "__imp_GetStdHandle"),
+                ("KERNEL32.dll", "MoveFileExA", "__imp_MoveFileExA"),
+                ("KERNEL32.dll", "OpenProcess", "__imp_OpenProcess"),
+                ("KERNEL32.dll", "ReadFile", "__imp_ReadFile"),
+                (
+                    "KERNEL32.dll",
+                    "RemoveDirectoryA",
+                    "__imp_RemoveDirectoryA",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "SetFilePointer",
+                    "__imp_SetFilePointer",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "TerminateProcess",
+                    "__imp_TerminateProcess",
+                ),
+                ("KERNEL32.dll", "VirtualAlloc", "__imp_VirtualAlloc"),
+                ("KERNEL32.dll", "VirtualFree", "__imp_VirtualFree"),
+                (
+                    "KERNEL32.dll",
+                    "WaitForSingleObject",
+                    "__imp_WaitForSingleObject",
+                ),
+                ("KERNEL32.dll", "WriteFile", "__imp_WriteFile"),
+                (
+                    "NTDLL.dll",
+                    "NtSetInformationFile",
+                    "__imp_NtSetInformationFile",
+                ),
+            ],
+        )
+
     def test_fixed_point_stages_certify_startups_before_linking(self):
         class RecordingRunner:
             def __init__(self, *, reject_code_anchors: bool = False):
@@ -177,6 +412,172 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 windows_order[4:], ["cupidld"] * len(TOOL_NAMES)
+            )
+
+    def test_candidate_stages_link_all_six_tools(self):
+        class RecordingRunner:
+            def __init__(self):
+                self.calls: list[tuple[str, tuple[str, ...]]] = []
+
+            def run(self, executable, arguments, _timeout):
+                name = Path(executable).name
+                rendered = tuple(str(argument) for argument in arguments)
+                self.calls.append((name, rendered))
+                if name == "cupidasm":
+                    Path(arguments[4]).write_bytes(
+                        _local_target_object_payload(0)
+                    )
+                elif name == "cupidld":
+                    output_index = list(arguments).index("-o") + 1
+                    Path(arguments[output_index]).write_bytes(b"linked")
+                return subprocess.CompletedProcess(rendered, 0, "", "")
+
+        with tempfile.TemporaryDirectory(
+            prefix=".candidate-stage-inventory-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            startup = root / "start.asm"
+            startup.write_text("bits 32\nret\n", encoding="utf-8")
+            publication_start = root / "publication_start.asm"
+            publication_start.write_text(
+                "bits 32\nret\n", encoding="utf-8"
+            )
+            cupidbuild_start = root / "cupidbuild_start.asm"
+            cupidbuild_start.write_text(
+                "bits 32\nret\n", encoding="utf-8"
+            )
+            producers = {
+                name: root / name
+                for name in ("cupidasm", "cupiddis", "cupidld")
+            }
+            linux_plan = {
+                "sources": [],
+                "include_arguments": [],
+                "workers": 1,
+                "startup": str(startup),
+                "links": {
+                    name: ["start"] for name in CANDIDATE_TOOL_NAMES
+                },
+            }
+            linux_runner = RecordingRunner()
+            with mock.patch(
+                "tools.bootstrap_toolchain._validate_static_i386_elf"
+            ):
+                linux_stage = _build_stage(
+                    linux_runner,
+                    root,
+                    root / "linux-stage",
+                    producers,
+                    linux_plan,
+                    "candidate",
+                )
+
+            self.assertEqual(
+                tuple(linux_stage.tools), CANDIDATE_TOOL_NAMES
+            )
+
+            windows_plan = {
+                "sources": [],
+                "include_arguments": [],
+                "workers": 1,
+                "assembly_sources": [
+                    {"name": "start", "path": str(startup)},
+                    {
+                        "name": "publication_start",
+                        "path": str(publication_start),
+                    },
+                    {
+                        "name": "cupidbuild_start",
+                        "path": str(cupidbuild_start),
+                    },
+                ],
+                "links": {
+                    name: ["start"] for name in CANDIDATE_TOOL_NAMES
+                },
+            }
+            windows_runner = RecordingRunner()
+            with mock.patch(
+                "tools.bootstrap_toolchain._validate_static_i386_pe32"
+            ):
+                windows_stage = _build_windows_stage(
+                    windows_runner,
+                    root,
+                    root / "windows-stage",
+                    producers,
+                    windows_plan,
+                    "candidate",
+                )
+
+            self.assertEqual(
+                tuple(windows_stage.tools), CANDIDATE_TOOL_NAMES
+            )
+            assembled_sources = [
+                arguments[2]
+                for executable, arguments in windows_runner.calls
+                if executable == "cupidasm"
+            ]
+            self.assertEqual(
+                assembled_sources,
+                [
+                    str(startup),
+                    str(publication_start),
+                    str(cupidbuild_start),
+                ],
+            )
+            cupidbuild_link = next(
+                arguments
+                for executable, arguments in windows_runner.calls
+                if executable == "cupidld"
+                and any(item.endswith("cupidbuild.exe") for item in arguments)
+            )
+            import_selectors = [
+                cupidbuild_link[index + 1]
+                for index, item in enumerate(cupidbuild_link[:-1])
+                if item == "--import"
+            ]
+            self.assertEqual(
+                import_selectors,
+                [
+                    f"__imp_{procedure}={library}:{procedure}"
+                    for library, procedures in (
+                        (
+                            "KERNEL32.dll",
+                            (
+                                "CloseHandle",
+                                "CreateDirectoryA",
+                                "CreateFileA",
+                                "CreateProcessA",
+                                "DeleteFileA",
+                                "ExitProcess",
+                                "FindClose",
+                                "FindFirstFileA",
+                                "FindNextFileA",
+                                "FlushFileBuffers",
+                                "GetCommandLineA",
+                                "GetCurrentDirectoryA",
+                                "GetCurrentProcessId",
+                                "GetExitCodeProcess",
+                                "GetFileAttributesA",
+                                "GetFileInformationByHandle",
+                                "GetFullPathNameA",
+                                "GetLastError",
+                                "GetStdHandle",
+                                "MoveFileExA",
+                                "OpenProcess",
+                                "ReadFile",
+                                "RemoveDirectoryA",
+                                "SetFilePointer",
+                                "TerminateProcess",
+                                "VirtualAlloc",
+                                "VirtualFree",
+                                "WaitForSingleObject",
+                                "WriteFile",
+                            ),
+                        ),
+                        ("NTDLL.dll", ("NtSetInformationFile",)),
+                    )
+                    for procedure in procedures
+                ],
             )
 
     def test_fixed_point_stage_stops_before_link_on_anchor_failure(self):
@@ -1672,7 +2073,184 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ):
                 _compare_stages(stage_three, stage_four, ["source"])
 
-    def test_linux_report_compares_stage_two_with_retained_seed_bytes(self):
+    def test_candidate_fixed_point_rejects_a_cupidbuild_image_mismatch(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-candidate-stage-mismatch-",
+            dir=REPO_ROOT,
+        ) as temporary:
+            root = Path(temporary)
+            common = root / "common"
+            changed = root / "changed"
+            common.write_bytes(b"stable")
+            changed.write_bytes(b"different")
+            objects = {"source": common, "start": common}
+            stage_three = Stage(
+                objects=objects,
+                tools={name: common for name in CANDIDATE_TOOL_NAMES},
+            )
+            stage_four_tools = {
+                name: common for name in CANDIDATE_TOOL_NAMES
+            }
+            stage_four_tools["cupidbuild"] = changed
+            stage_four = Stage(objects=objects, tools=stage_four_tools)
+
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "^tool image differs between stage three and stage four: "
+                "cupidbuild$",
+            ):
+                _compare_stages(stage_three, stage_four, ["source"])
+
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "^native Windows tool image differs between stage three "
+                "and stage four: cupidbuild$",
+            ):
+                _compare_windows_stages(
+                    stage_three,
+                    stage_four,
+                    ["source"],
+                    ["start"],
+                )
+
+    def test_candidate_behavior_checks_run_cupidbuild_on_both_targets(self):
+        class BehaviorBoundaryReached(Exception):
+            pass
+
+        with tempfile.TemporaryDirectory(
+            prefix=".candidate-behavior-inventory-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            tool = root / "tool"
+            tool.write_bytes(b"tool")
+            stage = Stage(
+                objects={},
+                tools={name: tool for name in CANDIDATE_TOOL_NAMES},
+            )
+            seed_inputs = SeedInputs(
+                manifest={},
+                manifest_bytes=b"{}\n",
+                manifest_sha256="1" * 64,
+                live_manifest_path=root / "manifest.json",
+                artifact_bytes=tuple(
+                    (name, b"seed") for name in TOOL_NAMES
+                ),
+                tools={name: root / f"{name}.elf" for name in TOOL_NAMES},
+            )
+            linux_output = root / "linux"
+            linux_output.mkdir()
+            windows_output = root / "windows"
+            windows_output.mkdir()
+
+            linux_calls: list[tuple[str, tuple[str, ...]]] = []
+
+            def linux_pair(
+                _runner,
+                _stage_two,
+                _stage_three,
+                tool_name,
+                stage_two_arguments,
+                *_args,
+            ):
+                arguments = tuple(str(item) for item in stage_two_arguments)
+                linux_calls.append((tool_name, arguments))
+                if arguments != ("--help",):
+                    raise BehaviorBoundaryReached
+                output = "usage: candidate\n"
+                if tool_name == "cupidobj":
+                    output += (
+                        "wrap-jpeg disk-template iso-fixture "
+                        "profile-manifest\n"
+                    )
+                if tool_name == "cupidld":
+                    output += "i386pe\n"
+                return subprocess.CompletedProcess([], 0, output, "")
+
+            with mock.patch(
+                "tools.bootstrap_toolchain._run_stage_pair",
+                side_effect=linux_pair,
+            ), self.assertRaises(BehaviorBoundaryReached):
+                _run_behavior_checks(
+                    ToolRunner(root),
+                    root,
+                    linux_output,
+                    stage,
+                    stage,
+                    seed_inputs,
+                )
+
+            self.assertEqual(
+                linux_calls[: len(CANDIDATE_TOOL_NAMES)],
+                [
+                    (name, ("--help",))
+                    for name in CANDIDATE_TOOL_NAMES
+                ],
+            )
+            self.assertEqual(
+                linux_calls[len(CANDIDATE_TOOL_NAMES)][0], "cupidbuild"
+            )
+            self.assertEqual(
+                linux_calls[len(CANDIDATE_TOOL_NAMES)][1][0],
+                "assemble-cupidasm-object",
+            )
+
+            windows_calls: list[tuple[str, tuple[str, ...]]] = []
+
+            def windows_pair(
+                _runner,
+                _stage_two,
+                _stage_three,
+                tool_name,
+                stage_two_arguments,
+                *_args,
+            ):
+                arguments = tuple(str(item) for item in stage_two_arguments)
+                windows_calls.append((tool_name, arguments))
+                if arguments == ("--help",):
+                    return subprocess.CompletedProcess(
+                        [], 0, "usage: candidate\n", ""
+                    )
+                if arguments == ("--definitely-invalid-option",):
+                    return subprocess.CompletedProcess(
+                        [], 2, "", "usage: candidate\n"
+                    )
+                raise BehaviorBoundaryReached
+
+            with mock.patch(
+                "tools.bootstrap_toolchain._run_stage_pair",
+                side_effect=windows_pair,
+            ), self.assertRaises(BehaviorBoundaryReached):
+                _run_native_windows_behavior_checks(
+                    ToolRunner(root),
+                    windows_output,
+                    stage,
+                    stage,
+                    {},
+                    seed_inputs,
+                )
+
+            expected_windows_calls = []
+            for name in CANDIDATE_TOOL_NAMES:
+                expected_windows_calls.extend(
+                    [
+                        (name, ("--help",)),
+                        (name, ("--definitely-invalid-option",)),
+                    ]
+                )
+            self.assertEqual(
+                windows_calls[: len(expected_windows_calls)],
+                expected_windows_calls,
+            )
+            self.assertEqual(
+                windows_calls[len(expected_windows_calls)][0],
+                "cupidbuild",
+            )
+            self.assertEqual(
+                windows_calls[len(expected_windows_calls)][1][0],
+                "assemble-cupidasm-object",
+            )
+
+    def test_manifest_author_uses_the_six_tool_candidate_plan(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupid-bootstrap-retained-seed-", dir=REPO_ROOT
         ) as temporary:
@@ -1686,10 +2264,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             }
             for path in seed_tools.values():
                 path.write_bytes(b"retained seed image")
+            checked_plan = json.loads(
+                SEED_MANIFEST.read_text(encoding="utf-8")
+            )["build_plan"]
             seed_inputs = SeedInputs(
                 manifest={
-                    "build_plan": {"sources": []},
-                    "build_plan_sha256": "0" * 64,
+                    "build_plan": checked_plan,
+                    "build_plan_sha256": _build_plan_sha256(checked_plan),
                 },
                 manifest_bytes=b"{}",
                 manifest_sha256="1" * 64,
@@ -1700,6 +2281,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 tools=seed_tools,
             )
             shutil.rmtree(removed_seed)
+            observed_plans: list[dict[str, object]] = []
 
             def freeze_sources(_root, _plan, destination):
                 destination.mkdir()
@@ -1710,14 +2292,19 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _source_root,
                 stage_directory,
                 _producers,
-                _plan,
+                plan,
                 _stage_name,
             ):
                 stage_directory.mkdir()
+                observed_plans.append(plan)
                 tools = {}
-                for name in TOOL_NAMES:
+                for name in CANDIDATE_TOOL_NAMES:
                     tool = stage_directory / f"{name}.elf"
-                    tool.write_bytes(b"retained seed image")
+                    tool.write_bytes(
+                        b"retained seed image"
+                        if name in TOOL_NAMES
+                        else b"candidate CupidBuild image"
+                    )
                     tools[name] = tool
                 return Stage(objects={}, tools=tools)
 
@@ -1727,6 +2314,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _behavior_root,
                 _stage_three,
                 _stage_four,
+                _seed_inputs,
                 evidence,
             ):
                 (private_source_root / "behavior").mkdir()
@@ -1778,13 +2366,36 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     seed_inputs,
                     source_root,
                     source_root / "published",
-                    compare_fixed_point=True,
+                    compare_fixed_point=False,
                 )
 
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
                 {name: True for name in TOOL_NAMES},
             )
+            self.assertEqual(len(observed_plans), 3)
+            for plan in observed_plans:
+                self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
+                self.assertEqual(len(plan["sources"]), 22)
+            self.assertEqual(
+                report["build_plan_sha256"], _build_plan_sha256(checked_plan)
+            )
+            self.assertEqual(
+                report["candidate_build_plan"], observed_plans[0]
+            )
+            self.assertEqual(
+                report["candidate_build_plan_sha256"],
+                _build_plan_sha256(observed_plans[0]),
+            )
+            self.assertEqual(
+                report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
+            )
+            self.assertEqual(report["status"], "pending-fixed-point-author")
+            self.assertNotIn("comparisons", report)
+            for stage in report["stages"].values():
+                self.assertEqual(
+                    set(stage["tools"]), set(CANDIDATE_TOOL_NAMES)
+                )
 
     def test_windows_report_compares_stage_two_with_retained_seed_bytes(self):
         with tempfile.TemporaryDirectory(
@@ -1813,8 +2424,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 tools=seed_tools,
             )
+            checked_plan = json.loads(
+                SEED_MANIFEST.read_text(encoding="utf-8")
+            )["build_plan"]
             plan_inputs = SeedInputs(
-                manifest={"build_plan": {}},
+                manifest={"build_plan": checked_plan},
                 manifest_bytes=b"{}",
                 manifest_sha256="2" * 64,
                 live_manifest_path=root / "linux-manifest.json",
@@ -1824,6 +2438,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 tools={"cupidc": plan_compiler},
             )
             shutil.rmtree(removed_seed)
+            observed_plans: list[dict[str, object]] = []
 
             def freeze_sources(_root, _plan, destination):
                 destination.mkdir()
@@ -1834,14 +2449,19 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _source_root,
                 stage_directory,
                 _producers,
-                _plan,
+                plan,
                 _stage_name,
             ):
                 stage_directory.mkdir()
+                observed_plans.append(plan)
                 tools = {}
-                for name in TOOL_NAMES:
+                for name in CANDIDATE_TOOL_NAMES:
                     tool = stage_directory / f"{name}.exe"
-                    tool.write_bytes(b"retained Windows seed image")
+                    tool.write_bytes(
+                        b"retained Windows seed image"
+                        if name in TOOL_NAMES
+                        else b"candidate Windows CupidBuild image"
+                    )
                     tools[name] = tool
                 return Stage(objects={}, tools=tools)
 
@@ -1851,15 +2471,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _stage_three,
                 _stage_four,
                 _native_plan,
+                _seed_inputs,
             ):
                 (private_source_root / "behavior").mkdir()
                 return {"success_cases": 0}
 
             with (
-                mock.patch(
-                    "tools.bootstrap_toolchain._windows_build_plan",
-                    return_value={"assembly_sources": [], "sources": []},
-                ),
                 mock.patch(
                     "tools.bootstrap_toolchain.freeze_source_inputs",
                     side_effect=freeze_sources,
@@ -1879,7 +2496,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     return_value={"all_equal": True},
                 ),
                 mock.patch(
-                    "tools.bootstrap_toolchain._run_native_windows_behavior_checks",
+                    "tools.bootstrap_toolchain."
+                    "_run_native_windows_behavior_checks",
                     side_effect=run_behavior,
                 ),
                 mock.patch(
@@ -1897,6 +2515,18 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["initial_seed_matches_stage_two"],
                 {name: True for name in TOOL_NAMES},
             )
+            self.assertEqual(len(observed_plans), 3)
+            for plan in observed_plans:
+                self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
+                self.assertEqual(len(plan["sources"]), 23)
+                self.assertEqual(len(plan["assembly_sources"]), 3)
+            self.assertEqual(
+                report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
+            )
+            for stage in report["stages"].values():
+                self.assertEqual(
+                    set(stage["tools"]), set(CANDIDATE_TOOL_NAMES)
+                )
 
     def test_windows_fixed_point_rejects_a_stage_four_tool_mismatch(self):
         with tempfile.TemporaryDirectory(
@@ -3058,13 +3688,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["comparisons"],
                 {
                     "all_equal": True,
-                    "assembly_objects": 2,
-                    "c_objects": 20,
+                    "assembly_objects": 3,
+                    "c_objects": 23,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",
                     ],
-                    "tool_images": 5,
+                    "tool_images": 6,
                 },
             )
             self.assertEqual(
@@ -3086,16 +3716,32 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 9,
-                    "help_cases": 5,
-                    "success_cases": 8,
+                    "failure_cases": 11,
+                    "help_cases": 6,
+                    "success_cases": 10,
                 },
             )
+            candidate_linux_plan = _candidate_build_plan(
+                json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))[
+                    "build_plan"
+                ]
+            )
+            candidate_inventory = capture_source_snapshot(
+                REPO_ROOT, candidate_linux_plan
+            )
+            candidate_snapshot = hashlib.sha256(
+                json.dumps(
+                    candidate_inventory,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=True,
+                ).encode("ascii")
+            ).hexdigest()
             self.assertEqual(
                 report["source_snapshot_sha256"],
-                SOURCE_HEAD_SNAPSHOT_SHA256,
+                candidate_snapshot,
             )
-            self.assertEqual(report["source_inputs"]["count"], 55)
+            self.assertEqual(report["source_inputs"]["count"], 58)
             self.assertEqual(
                 report["source_inputs"]["sha256"],
                 report["source_snapshot_sha256"],
@@ -3103,11 +3749,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
                 {
-                    "cupidasm": True,
+                    "cupidasm": False,
                     "cupidc": False,
                     "cupiddis": False,
-                    "cupidld": True,
-                    "cupidobj": True,
+                    "cupidld": False,
+                    "cupidobj": False,
                 },
             )
             for stage_name in (
@@ -3116,9 +3762,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "stage-four",
             ):
                 stage = report["stages"][stage_name]
-                self.assertEqual(len(stage["objects"]), 22)
-                self.assertEqual(set(stage["tools"]), set(TOOL_NAMES))
-                for tool_name in TOOL_NAMES:
+                self.assertEqual(len(stage["objects"]), 26)
+                self.assertEqual(
+                    set(stage["tools"]), set(CANDIDATE_TOOL_NAMES)
+                )
+                for tool_name in CANDIDATE_TOOL_NAMES:
                     self.assertTrue(
                         (output / stage_name / f"{tool_name}.exe").is_file()
                     )
@@ -3127,7 +3775,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     (output / "stage-three" / f"{name}.o").read_bytes(),
                     (output / "stage-four" / f"{name}.o").read_bytes(),
                 )
-            for tool_name in TOOL_NAMES:
+            for tool_name in CANDIDATE_TOOL_NAMES:
                 self.assertEqual(
                     (output / "stage-three" / f"{tool_name}.exe").read_bytes(),
                     (output / "stage-four" / f"{tool_name}.exe").read_bytes(),
@@ -3643,14 +4291,20 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             if isinstance(node, ast.Return)
         ]
         self.assertEqual(len(returns), 1)
+        return_value = returns[0].value
+        self.assertIsInstance(return_value, ast.Dict)
+        returned = {
+            key.value: value
+            for key, value in zip(return_value.keys, return_value.values)
+        }
         self.assertEqual(
-            ast.literal_eval(returns[0].value),
-            {
-                "failure_cases": 21,
-                "help_cases": 5,
-                "success_cases": 22,
-            },
+            returned["failure_cases"].value,
+            22,
         )
+        self.assertEqual(returned["success_cases"].value, 23)
+        self.assertIsInstance(returned["help_cases"], ast.Call)
+        self.assertEqual(returned["help_cases"].func.id, "len")
+        self.assertEqual(returned["help_cases"].args[0].id, "tool_names")
 
         self.assertIn(
             "1 of 1 direct relative targets invalid",
@@ -7162,13 +7816,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["comparisons"],
                 {
                     "all_equal": True,
-                    "c_objects": 19,
+                    "c_objects": 22,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",
                     ],
                     "startup_objects": 1,
-                    "tool_images": 5,
+                    "tool_images": 6,
                 },
             )
             self.assertEqual(
@@ -7190,9 +7844,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 21,
-                    "help_cases": 5,
-                    "success_cases": 22,
+                    "failure_cases": 22,
+                    "help_cases": 6,
+                    "success_cases": 23,
                 },
             )
             self.assertEqual(
@@ -7545,7 +8199,22 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidobj",
                 },
             )
-            source_head_snapshot = SOURCE_HEAD_SNAPSHOT_SHA256
+            candidate_plan = _candidate_build_plan(
+                json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))[
+                    "build_plan"
+                ]
+            )
+            candidate_inventory = capture_source_snapshot(
+                REPO_ROOT, candidate_plan
+            )
+            source_head_snapshot = hashlib.sha256(
+                json.dumps(
+                    candidate_inventory,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=True,
+                ).encode("ascii")
+            ).hexdigest()
             self.assertEqual(
                 report["source_snapshot_sha256"], source_head_snapshot
             )
@@ -7559,7 +8228,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidobj": False,
                 },
             )
-            self.assertEqual(report["source_inputs"]["count"], 55)
+            self.assertEqual(report["source_inputs"]["count"], 58)
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
                 64,
@@ -7570,15 +8239,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                55,
+                58,
             )
-            for tool_name in (
-                "cupidasm",
-                "cupiddis",
-                "cupidld",
-                "cupidobj",
-                "cupidc",
-            ):
+            for tool_name in CANDIDATE_TOOL_NAMES:
                 stage_three = output / "stage-three" / f"{tool_name}.elf"
                 stage_four = output / "stage-four" / f"{tool_name}.elf"
                 self.assertEqual(

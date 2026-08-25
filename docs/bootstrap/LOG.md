@@ -31299,3 +31299,165 @@ focused native regression passes and preserves the prior object.
 The complete follow-up suite passes 40 tests in 57.730 seconds on native
 Windows with two expected skips and 40 tests in 68.531 seconds through Linux
 with one expected skip.
+
+## 2026-08-25: separate six-tool bootstrap candidates from checked seeds
+
+### Implementation and decisions
+
+- Kept v1 seed verification and direct checked-tool execution exact at five
+  tools. A verified plan now derives a separate candidate that adds
+  `cupidbuild.cc`, `cupidbuild_host.cc`, and `cupidbuild_main.cc`.
+- Linux candidate stages compile 22 C objects and one startup object, then link
+  CupidASM, CupidDis, CupidLD, CupidObj, CupidC, and CupidBuild. Native Windows
+  compiles 23 C objects and three startup objects before linking the same six
+  PE images.
+- The candidate freezes 58 source inputs. Its initial seed comparison remains
+  limited to the five images in the checked manifest, while stage-three and
+  stage-four comparisons and behavior checks cover all six images.
+- CupidBuild's native link has 29 exact `KERNEL32.dll` imports and
+  `NtSetInformationFile` from `NTDLL.dll`. The first import draft omitted the
+  three directory-enumeration procedures. Review caught that gap before the
+  complete proof, and both an exact import test and a real candidate link now
+  cover it.
+- The Toolchain publication contract adds `cupidc-cupidbuild.elf`. It expects
+  22 artifacts and 62 stage pairs: 17 contract objects, 16 contract
+  executables, 23 bootstrap objects, and six tool images. Live publication
+  verification derives the candidate plan before it recaptures the 58-file
+  closure.
+- This is not a seed promotion. Both checked manifests, the v1 schema,
+  artifact-size policy, and normal OS recipes remain unchanged. Python still
+  coordinates the fixed point and guards normal object publication.
+- No active `.c` source became eligible for renaming. The candidate additions
+  already use `.cc`, and `TempleOS/` remained untouched.
+
+### Red and green checks
+
+- A focused publication test first failed because live verification recaptured
+  the old five-tool source plan. Deriving the candidate plan made the live
+  source, retained-manifest, and backdated-drift cases pass.
+- `make bootstrap-audit` first rejected the old five-help behavior lock. After
+  that update, it rejected the old 21-artifact transform closure. The graph now
+  requires the CupidBuild publication image, and a negative test proves that
+  removing the image from the transform fails closed.
+- The fixed-point mutation sweep passes in 142.645 seconds. The candidate
+  publication-closure test passes in 1.237 seconds. `make bootstrap-audit` and
+  `make check-bootstrap-audit` both pass.
+- The generated report remains at 747 active inputs, 452 transforms, 255
+  features, and 26 accounted unreachable inputs. It now records 22 candidate C
+  objects, startup, six tool images, Linux behavior of 22/6/23, and Windows
+  behavior of 11/6/10. The final audit file identity appears with the review
+  follow-up below.
+
+### Fixed-point evidence
+
+- The Linux candidate matches stages three and four across 22 C objects, one
+  startup object, and six tools. Its earlier proof passed 21 failures, six help
+  cases, and 22 successes. The frozen source digest is
+  `497cd80f8491d6952ae6c86c12f4838db05b4a4f9a542d3bfd5755be21304878`,
+  the candidate-plan digest is
+  `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`,
+  and the report digest is
+  `382f81574d57442c796f926123ab85468d1765d5fea18c90180ab88d6f3f8312`.
+  The final CupidBuild ELF is 260,064 bytes.
+- The native Windows candidate matches stages three and four across 23 C
+  objects, three assembly objects, and six PE images. Its earlier proof passed
+  ten failures, six help cases, and nine successes. It binds the same source
+  digest. Its candidate-plan digest is
+  `7a2122156d60d4dfc67319018e6ae922b117a7fa135224e86e4f9a912228bed9`,
+  and its report digest is
+  `722b615a6ec5c237668ed05dcb6e8b32b016ba215c988906d2cda77509b2ca97`.
+  The final CupidBuild PE is 280,576 bytes.
+- Both reports retain exactly five initial seed keys. Their false comparisons
+  are expected source-head drift from the promoted images, not a claim that a
+  sixth seed artifact exists.
+- The publication coordinator passes 65 tests in 7.258 seconds, and the Cupid
+  Toolchain manifest contract passes 40 tests in 51.723 seconds.
+
+### Review follow-up
+
+The spec review found that the candidate matrices compared CupidBuild images
+and ran their CLI checks but did not execute the guarded object command. A
+broken `assemble-cupidasm-object` implementation could therefore pass the
+behavior record. A focused test reproduced the gap: CupidC was the first
+functional call on both hosts.
+
+Both behavior gates now run the guarded object transaction with the compared
+CupidBuild images. They assemble the frozen Linux startup into separate
+outputs, require identical relocatable bytes, then retry with a missing source
+and require both prior outputs to survive. Direct runs against the existing
+stage-three and stage-four images pass on Linux and native Windows. The
+expanded inventories are 22/6/23 on Linux and 11/6/10 on Windows for failure,
+help, and success cases.
+
+Fresh complete fixed points also pass with the guarded operation in their
+recorded behavior matrices. The 50,082-byte Linux report has SHA-256
+`3a606c9daa865c610f2e07ce9bf77c60bd6ac884b0cc223d4f2e557dae353bc3`.
+It compares 22 C objects, one startup object, and six tools. The 63,124-byte
+Windows report has SHA-256
+`6023b001f1e9441db44b0b988e22b1ead69cb484a2d640d0dea1054c88afcbae`.
+It compares 23 C objects, three assembly objects, and six tools. Both reports
+bind the same 58-file source digest and the candidate-plan digests recorded
+above, retain exactly five initial seed comparisons, and report every
+stage-three/stage-four comparison equal.
+
+The standards review found that the generated audit reported the candidate
+inventory without binding the three calls that derive it. The audit now
+requires candidate-plan derivation in the Linux driver, the Windows driver,
+and live publication recapture. Three negative mutations replace each call
+with the checked five-tool plan and must fail. The audit also requires one
+live module-scope definition for each candidate source and link constant. A
+conditional reassignment after the correct definition now fails closed. The
+complete fixed-point mutation sweep passes in 175.442 seconds.
+
+The candidate helper is locked to a defensive copy of every checked source
+and to the retained link lists for all five checked tools. It may append only
+the three audited CupidBuild sources and the audited CupidBuild link. The
+audit counts every live write to the candidate's `sources` and `links` fields,
+so replacing either initializer or overwriting either completed field fails.
+
+The regenerated audit and deterministic check both pass. The 2,738,344-byte
+JSON has SHA-256
+`4a2c2e1911fe9a0cee7b3f61f148c39bc2aeac74c3e25ebc6f6c7e15db5b8943`,
+and the 12,856-byte Markdown summary has SHA-256
+`28e23447dd2142f202f53ee605bb15f00fb2a0ae9ccccf3c7584e07a20711499`.
+
+### Toolchain publication
+
+The complete schema-v3 Toolchain publication passed after the guarded
+fixed-point reruns. The Cupid author and Python oracle agreed on all 62 stage
+pairs, the publisher installed the complete cohort atomically, and the final
+verifier accepted all 22 artifacts. The manifest records 75 publication
+inputs, 58 bootstrap inputs, 17 contract-object comparisons, 16
+contract-executable comparisons, 22 bootstrap C objects, one startup object,
+and six tool images. It includes `cupidc-cupidbuild.elf`.
+
+The 29,270-byte manifest has SHA-256
+`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+Its bootstrap source digest is
+`497cd80f8491d6952ae6c86c12f4838db05b4a4f9a542d3bfd5755be21304878`,
+and its Linux checked-seed manifest digest is
+`b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
+The publication carries the six-tool candidate but does not promote a
+six-tool seed or change the normal OS recipes.
+
+The complete `make -C toolchain test` target also passes. It repeats the
+22-artifact publication and 62 stage-pair agreement, self-links CupidASM,
+CupidDis, CupidLD, CupidObj, CupidC, CupidBuild, and the hosted runtime
+contract, then passes the runtime and object-format selectors. All 22 assembly
+demos pass through the Cupid-built contracts. The 65 publication tests pass in
+8.303 seconds, and the 40 manifest-contract tests pass in 50.867 seconds.
+
+This slice does not change a normal OS recipe, output format, ABI, kernel
+image, or boot path, so it does not claim a new OS boot smoke. Its runtime
+evidence belongs to the hosted tool cohort; the existing production boot gate
+remains attached to later normal-build transfer work.
+
+The first complete coordinator launch was stopped after review found two mock
+callbacks with the old behavior-check arity. Adding the ignored frozen-seed
+argument made both focused report-author tests pass in 0.073 seconds. The
+restarted module ran all 112 tests in 2,479.198 seconds. Its Linux and Windows
+fixed points passed, but the final Windows assertion still expected three
+source-head stage-two images to equal their older promoted counterparts. The
+report correctly marked all five comparisons false. After updating that stale
+expectation, the exact native-Windows fixed-point test passed in 1,026.105
+seconds. The other 111 tests had already passed in the complete run.

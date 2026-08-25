@@ -20,7 +20,24 @@ original five tools, and normal object publication still uses Python. A
 six-tool promotion remains before production cutover. ADRs 0339, 0342, and
 0344 record the boundary.
 
-The source-head Linux fixed point now completes with the 55-source closure.
+Source head keeps that five-tool trust unit separate from a six-tool candidate
+plan. Linux candidate stages freeze 58 source inputs and build 22 C objects,
+one startup object, and all six tools. Native Windows adds its publication
+runtime and CupidBuild startup bridge, with the exact `KERNEL32.dll` and
+`NTDLL.dll` imports. Both final-stage comparisons and behavior gates include
+CupidBuild. The Toolchain publication contract carries the sixth tool and
+publishes 22 artifacts across 62 stage pairs. The checked seeds and normal OS
+recipes remain unchanged. ADR 0345 records the candidate boundary.
+
+Both candidate proofs pass. Linux matches 22 C objects, startup, and six tools
+with 22/6/23 failure, help, and success cases. Native Windows matches 23 C
+objects, three assembly objects, and six tools with 11/6/10 behavior. Both
+freeze the same 58-file source digest,
+`497cd80f8491d6952ae6c86c12f4838db05b4a4f9a542d3bfd5755be21304878`.
+Each gate also runs both CupidBuild images through the guarded object command,
+requires equal relocatable output, and proves missing-source rollback.
+
+The preceding five-tool Linux fixed point completed with the 55-source closure.
 Its coordinator reads only four bytes when it selects the runner for a checked
 tool, so tool-image size no longer controls probe memory. All generation,
 comparison, behavior, and native evidence gates passed in 1,295.031 seconds.
@@ -143,7 +160,7 @@ startup, the PE32 reader, Toolchain Makefile, publisher, and independent Python
 ABI oracle.
 Newly discovered contract inventories catch additions, removals, and a
 transient edit copied before the live file is restored. The public manifest
-also binds the checked seed, build plan, and 55-file fixed-point source
+also binds the checked seed, build plan, and 58-file candidate source
 inventory. Verify and run reconstruct both inventories before execution.
 Hashing, JSON decoding, schema checks, and build-plan use share one captured
 seed-manifest byte sequence. Replacing the file during validation cannot mix
@@ -152,20 +169,20 @@ facts from separate reads. The publisher accepts only a dedicated
 source tree. It validates that target before work and again before promotion,
 and an existing destination must already verify as a complete cohort.
 Arbitrary directories, source trees, files, and symbolic links remain
-untouched. It publishes all sixteen contract executables, five refreshed
+untouched. It publishes all sixteen contract executables, six candidate
 tools, and a manifest together. A separate Toolchain contract source implements
 the author and verifier modes. The checked stage-four Linux CupidC, CupidASM,
 and CupidLD build the author from its direct inputs. Linux runs a static ELF.
 Windows runs a validated native PE made from the same author source, checked
 Windows runtime, startup, and exact imports. Its framed `CUPMAN4` request carries
-the publication facts and raw stage-three and stage-four bytes for 58 fixed-point
-pairs: 17 contract objects, 16 contract executables, 19 bootstrap C objects,
-one startup object, and five tool images. The author requires regular,
+the publication facts and raw stage-three and stage-four bytes for 62 fixed-point
+pairs: 17 contract objects, 16 contract executables, 22 bootstrap C objects,
+one startup object, and six tool images. The author requires regular,
 nonempty, byte-identical streams and hashes both sides independently. It
 derives the 17 schema-v3 object records, checks executable pairs against their
 artifact facts, and derives the fixed-point summary from the exact pair
 inventories. The protocol has no caller `all_equal` field. Python repeats all
-58 comparisons after author acceptance and keeps no-follow capture, private
+62 comparisons after author acceptance and keeps no-follow capture, private
 staging, process launch, drift checks, rollback, and atomic replacement. The
 complete cohort must verify before one directory replacement, and any failure
 preserves the prior publication. The
@@ -176,31 +193,28 @@ records the runtime probe rename, ADR 0196 records the complete transfer, ADR
 records the manifest author, ADR 0307 records raw stage-pair evidence, and ADR
 0322 records native Windows author execution.
 
-The latest complete schema v3 `CUPMAN4` publication passed and
-wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
-inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
-Its 27,071-byte manifest has SHA-256
-`02408d9d541de1454e2f0888cff501bc755964448d0f177a4162bcebdcaf178b`.
-Its final verifier reported
-`Cupid Toolchain manifest: ok (21 artifacts)`.
+The latest complete schema v3 `CUPMAN4` publication passed and wrote 22
+artifacts from 75 publication inputs and the exact 58-file bootstrap
+inventory. The Cupid author and Python oracle agreed on all 62 stage pairs.
+Its 29,270-byte manifest has SHA-256
+`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+Its final verifier accepted all 22 artifacts.
 Both checked Python contract launchers resolve `tools` from this checkout. The
-direct contract suite passes 40 tests in 54.623 seconds, the publisher suite
-passes 64 tests in 12.144 seconds, and the pinned verifier runner passes 25 tests
+direct contract suite passes 40 tests, the publisher suite passes 65 tests,
+and the pinned verifier runner passes 25 tests
 in 32.773 seconds with three POSIX-only Windows skips. ADR 0311 records this
 host import boundary.
 The final poisoned build and private guest results are in the latest complete
 production checkpoint.
 
 The audit assigns generation ownership for the author only to those 20 build inputs.
-The 70 publication inputs and 50 bootstrap inputs are observed facts, so they
+The 75 publication inputs and 58 bootstrap inputs are observed facts, so they
 do not inherit compiler or assembler ownership from the author transform.
 
 Source head adds the PE32 reader, CupidBuild publication surface, and their
 private implementation headers to the checked Toolchain source closure. The
-live inventories therefore contain 75 publication inputs and 55 bootstrap
-files, while the latest complete
-publication remains the historical 70-input, 50-file checkpoint above. The
-compiled fixed-point plan still contains 19 C objects. Hosted CupidDis uses
+published inventories contain 75 publication inputs and 58 candidate files.
+The compiled candidate plan contains 22 C objects. Hosted CupidDis uses
 the new reader to inspect the deterministic static i386 PE32 profile emitted
 by CupidLD. It reports headers, sections, and named imports, decodes every
 executable section, and can require valid entry and direct-local-target

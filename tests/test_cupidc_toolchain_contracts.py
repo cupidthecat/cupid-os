@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from tools import cupidc_toolchain_contracts
+from tools.bootstrap_toolchain import _candidate_build_plan
 
 
 EXPECTED_CONTRACTS = {
@@ -253,7 +254,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             },
             "tool_fixed_point": {
                 "all_equal": True,
-                "c_objects": 19,
+                "c_objects": 22,
                 "compared_generations": list(
                     cupidc_toolchain_contracts.CONVERGED_GENERATIONS
                 ),
@@ -327,6 +328,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         logical_inputs = {
             "link.ld": "SECTIONS {}\n",
             "toolchain/ctool.h": "int ctool;\n",
+            "toolchain/cupidbuild.cc": "int cupidbuild;\n",
+            "toolchain/cupidbuild_host.cc": "int cupidbuild_host;\n",
+            "toolchain/cupidbuild_main.cc": "int cupidbuild_main;\n",
             "toolchain/cupidc_emit.cc": "int emit;\n",
             "toolchain/hosted/i386-linux/include/stdio.h": "int stdio;\n",
             "toolchain/hosted/i386-linux/runtime.cc": "int runtime;\n",
@@ -338,10 +342,28 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             path.write_text(text, encoding="ascii")
         build_plan = {
             "sources": [
-                {"path": "/toolchain/cupidc_emit.cc"},
-                {"path": "/toolchain/hosted/i386-linux/runtime.cc"},
+                {
+                    "gnu_extensions": False,
+                    "name": "cupidc_emit",
+                    "path": "/toolchain/cupidc_emit.cc",
+                },
+                {
+                    "gnu_extensions": True,
+                    "name": "runtime",
+                    "path": "/toolchain/hosted/i386-linux/runtime.cc",
+                },
             ],
             "startup": "/toolchain/hosted/i386-linux/start.asm",
+            "links": {
+                name: []
+                for name in (
+                    "cupidasm",
+                    "cupiddis",
+                    "cupidld",
+                    "cupidobj",
+                    "cupidc",
+                )
+            },
         }
         build_plan_sha256 = "6" * 64
         seed_data = {
@@ -357,7 +379,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             encoding="ascii",
         )
         files = cupidc_toolchain_contracts.capture_source_snapshot(
-            root, build_plan
+            root, _candidate_build_plan(build_plan)
         )
         return {
             "build_plan_sha256": build_plan_sha256,
@@ -637,6 +659,51 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 with self.subTest(source=plan.source, retired=retired):
                     self.assertNotIn(retired, text)
 
+    def test_source_head_publication_inventory_includes_cupidbuild(self):
+        makefile = (
+            Path(__file__).resolve().parents[1] / "toolchain/Makefile"
+        ).read_text(encoding="utf-8")
+        hosted_artifacts = makefile.split(
+            "CUPIDC_HOSTED_I386_ARTIFACTS :=", 1
+        )[1].split("CUPIDC_CONTRACT_ARTIFACTS :=", 1)[0]
+
+        self.assertIn(
+            "$(CONTRACT_DIR)/cupidc-cupidbuild.elf", hosted_artifacts
+        )
+        self.assertEqual(
+            cupidc_toolchain_contracts.TOOL_NAMES,
+            (
+                "cupidasm",
+                "cupiddis",
+                "cupidld",
+                "cupidobj",
+                "cupidc",
+                "cupidbuild",
+            ),
+        )
+        self.assertEqual(
+            cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES[-4:],
+            (
+                "cupidbuild",
+                "cupidbuild_host",
+                "cupidbuild_main",
+                "start",
+            ),
+        )
+        self.assertEqual(
+            len(cupidc_toolchain_contracts._expected_artifact_names()), 22
+        )
+        self.assertEqual(
+            cupidc_toolchain_contracts._tool_fixed_point_record(),
+            {
+                "all_equal": True,
+                "c_objects": 22,
+                "compared_generations": ["stage-three", "stage-four"],
+                "startup_objects": 1,
+                "tool_images": 6,
+            },
+        )
+
     def test_contract_input_inventory_includes_build_control_files(self):
         root = Path(__file__).resolve().parents[1]
         inputs = cupidc_toolchain_contracts._snapshot_contract_inputs(
@@ -644,7 +711,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 70)
+        self.assertEqual(len(inputs), 75)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)

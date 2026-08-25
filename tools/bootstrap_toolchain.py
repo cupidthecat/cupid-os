@@ -28,6 +28,7 @@ SEED_SOURCE_SNAPSHOT_SHA256 = (
     "46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67"
 )
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
+CANDIDATE_TOOL_NAMES = (*TOOL_NAMES, "cupidbuild")
 TOOL_DISPLAY_NAMES = {
     "cupidasm": "CupidASM",
     "cupiddis": "CupidDis",
@@ -143,6 +144,43 @@ WINDOWS_LINKER_IMPORTS = (
         ),
     ),
 )
+WINDOWS_CUPIDBUILD_IMPORTS = (
+    (
+        "KERNEL32.dll",
+        (
+            "CloseHandle",
+            "CreateDirectoryA",
+            "CreateFileA",
+            "CreateProcessA",
+            "DeleteFileA",
+            "ExitProcess",
+            "FindClose",
+            "FindFirstFileA",
+            "FindNextFileA",
+            "FlushFileBuffers",
+            "GetCommandLineA",
+            "GetCurrentDirectoryA",
+            "GetCurrentProcessId",
+            "GetExitCodeProcess",
+            "GetFileAttributesA",
+            "GetFileInformationByHandle",
+            "GetFullPathNameA",
+            "GetLastError",
+            "GetStdHandle",
+            "MoveFileExA",
+            "OpenProcess",
+            "ReadFile",
+            "RemoveDirectoryA",
+            "SetFilePointer",
+            "TerminateProcess",
+            "VirtualAlloc",
+            "VirtualFree",
+            "WaitForSingleObject",
+            "WriteFile",
+        ),
+    ),
+    ("NTDLL.dll", ("NtSetInformationFile",)),
+)
 EXPECTED_LINUX_FIXED_POINT_COMMAND = "make bootstrap-from-seed"
 EXPECTED_WINDOWS_FIXED_POINT_COMMAND = "make bootstrap-windows-from-seed"
 EXPECTED_INCLUDE_ARGUMENTS = (
@@ -227,6 +265,21 @@ EXPECTED_LINKS = {
         "runtime",
     ),
 }
+CANDIDATE_SOURCES = (
+    ("cupidbuild", "/toolchain/cupidbuild.cc", False),
+    ("cupidbuild_host", "/toolchain/cupidbuild_host.cc", False),
+    ("cupidbuild_main", "/toolchain/cupidbuild_main.cc", False),
+)
+CANDIDATE_CUPIDBUILD_LINK = (
+    "start",
+    "cupidbuild_main",
+    "cupidbuild",
+    "cupidbuild_host",
+    "ctool_host",
+    "ctool",
+    "elf32",
+    "runtime",
+)
 REPORT_SCHEMA = "cupid.bootstrap-report.v1"
 WINDOWS_REPORT_SCHEMA = "cupid.windows-bootstrap-report.v1"
 BOOTSTRAP_PUBLICATION_NAMES = (
@@ -244,6 +297,8 @@ WINDOWS_COMPILE_DEFINES = frozenset(
         "cupiddis_main",
         "cupidld_main",
         "cupidobj_main",
+        "cupidbuild",
+        "cupidbuild_host",
         "publication_runtime",
     }
 )
@@ -494,6 +549,65 @@ def _build_plan_sha256(plan: dict[str, object]) -> str:
         plan, sort_keys=True, separators=(",", ":"), ensure_ascii=True
     ).encode("ascii")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _candidate_build_plan(
+    checked_plan: dict[str, object],
+) -> dict[str, object]:
+    """Derive the six-tool candidate plan from an unchanged v1 plan."""
+    raw_sources = _require_list(
+        checked_plan.get("sources"), "build_plan.sources"
+    )
+    sources = [
+        dict(_require_object(source, "build source"))
+        for source in raw_sources
+    ]
+    source_names = {str(source.get("name")) for source in sources}
+    for name, path, gnu_extensions in CANDIDATE_SOURCES:
+        if name in source_names:
+            raise BootstrapError(
+                "Linux build plan uses the reserved candidate source "
+                f"name: {name}"
+            )
+        sources.append(
+            {
+                "gnu_extensions": gnu_extensions,
+                "name": name,
+                "path": path,
+            }
+        )
+
+    raw_links = _require_object(
+        checked_plan.get("links"), "build_plan.links"
+    )
+    if set(raw_links) != set(TOOL_NAMES):
+        raise BootstrapError("checked build plan tool links differ")
+    links = {
+        name: [
+            str(item)
+            for item in _require_list(
+                raw_links.get(name), f"build_plan.links.{name}"
+            )
+        ]
+        for name in TOOL_NAMES
+    }
+    links["cupidbuild"] = list(CANDIDATE_CUPIDBUILD_LINK)
+
+    candidate = dict(checked_plan)
+    candidate["sources"] = sources
+    candidate["links"] = links
+    return candidate
+
+
+def _plan_tool_names(
+    raw_links: dict[str, object], label: str
+) -> tuple[str, ...]:
+    names = set(raw_links)
+    if names == set(CANDIDATE_TOOL_NAMES):
+        return CANDIDATE_TOOL_NAMES
+    if names == set(TOOL_NAMES):
+        return TOOL_NAMES
+    raise BootstrapError(f"{label} tool links differ")
 
 
 def _source_input_paths(
@@ -1966,8 +2080,9 @@ def _build_stage(
     objects["start"] = startup_object
 
     raw_links = _require_object(plan.get("links"), "build_plan.links")
+    tool_names = _plan_tool_names(raw_links, "build plan")
     tools: dict[str, Path] = {}
-    for tool_name in TOOL_NAMES:
+    for tool_name in tool_names:
         order = [
             str(name)
             for name in _require_list(
@@ -2003,11 +2118,11 @@ def _build_stage(
 def _windows_imports(
     tool_name: str,
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
-    return (
-        WINDOWS_LINKER_IMPORTS
-        if tool_name == "cupidld"
-        else WINDOWS_TOOL_IMPORTS
-    )
+    if tool_name == "cupidbuild":
+        return WINDOWS_CUPIDBUILD_IMPORTS
+    if tool_name == "cupidld":
+        return WINDOWS_LINKER_IMPORTS
+    return WINDOWS_TOOL_IMPORTS
 
 
 def _windows_import_selectors(tool_name: str) -> tuple[str, ...]:
@@ -2071,11 +2186,10 @@ def _windows_build_plan(
         raise BootstrapError("Linux build plan omits its runtime source")
 
     raw_links = _require_object(linux_plan.get("links"), "build_plan.links")
-    if set(raw_links) != set(TOOL_NAMES):
-        raise BootstrapError("Linux build plan tool links differ")
+    tool_names = _plan_tool_names(raw_links, "Linux build plan")
     known_linux_objects = {"start", *source_names}
     links: dict[str, list[str]] = {}
-    for tool_name in TOOL_NAMES:
+    for tool_name in tool_names:
         linux_order = [
             str(name)
             for name in _require_list(
@@ -2107,6 +2221,19 @@ def _windows_build_plan(
                 native_order.index("runtime"),
                 "publication_runtime",
             )
+        elif tool_name == "cupidbuild":
+            native_order.insert(
+                native_order.index("start") + 1,
+                "publication_start",
+            )
+            native_order.insert(
+                native_order.index("publication_start") + 1,
+                "cupidbuild_start",
+            )
+            native_order.insert(
+                native_order.index("runtime"),
+                "publication_runtime",
+            )
         links[tool_name] = native_order
 
     include_arguments = [
@@ -2116,22 +2243,33 @@ def _windows_build_plan(
             "build_plan.include_arguments",
         )
     ]
-    return {
-        "assembly_sources": [
+    assembly_sources = [
+        {
+            "name": "start",
+            "path": (
+                "/toolchain/hosted/i386-windows/tool_start.asm"
+            ),
+        },
+        {
+            "name": "publication_start",
+            "path": (
+                "/toolchain/hosted/i386-windows/"
+                "publication_start.asm"
+            ),
+        },
+    ]
+    if "cupidbuild" in tool_names:
+        assembly_sources.append(
             {
-                "name": "start",
-                "path": (
-                    "/toolchain/hosted/i386-windows/tool_start.asm"
-                ),
-            },
-            {
-                "name": "publication_start",
+                "name": "cupidbuild_start",
                 "path": (
                     "/toolchain/hosted/i386-windows/"
-                    "publication_start.asm"
+                    "cupidbuild_start.asm"
                 ),
-            },
-        ],
+            }
+        )
+    return {
+        "assembly_sources": assembly_sources,
         "include_arguments": include_arguments,
         "imports": {
             name: [
@@ -2143,7 +2281,7 @@ def _windows_build_plan(
                 for library, procedures in _windows_imports(name)
                 for procedure in procedures
             ]
-            for name in TOOL_NAMES
+            for name in tool_names
         },
         "links": links,
         "producer_tools": list(PRODUCER_NAMES),
@@ -2256,9 +2394,8 @@ def _build_windows_stage(
     raw_links = _require_object(
         native_plan.get("links"), "Windows build plan links"
     )
-    if set(raw_links) != set(TOOL_NAMES):
-        raise BootstrapError("Windows build plan tool links differ")
-    for tool_name in TOOL_NAMES:
+    tool_names = _plan_tool_names(raw_links, "Windows build plan")
+    for tool_name in tool_names:
         link_order = [
             str(name)
             for name in _require_list(
@@ -2297,6 +2434,13 @@ def _compare_windows_stages(
     c_source_names: Sequence[str],
     assembly_names: Sequence[str],
 ) -> dict[str, object]:
+    tool_names = _plan_tool_names(
+        stage_three.tools, "native Windows stage-three"
+    )
+    if set(stage_four.tools) != set(tool_names):
+        raise BootstrapError(
+            "native Windows stage-four tool inventory differs"
+        )
     for name in (*c_source_names, *assembly_names):
         if (
             stage_three.objects[name].read_bytes()
@@ -2308,7 +2452,7 @@ def _compare_windows_stages(
                 "three and stage four: "
                 f"{name}"
             )
-    for name in TOOL_NAMES:
+    for name in tool_names:
         if (
             stage_three.tools[name].read_bytes()
             != stage_four.tools[name].read_bytes()
@@ -2322,7 +2466,7 @@ def _compare_windows_stages(
         "assembly_objects": len(assembly_names),
         "c_objects": len(c_source_names),
         "compared_generations": ["stage-three", "stage-four"],
-        "tool_images": len(TOOL_NAMES),
+        "tool_images": len(tool_names),
     }
 
 
@@ -2331,6 +2475,9 @@ def _compare_stages(
     stage_four: Stage,
     source_names: Sequence[str],
 ) -> dict[str, object]:
+    tool_names = _plan_tool_names(stage_three.tools, "stage-three")
+    if set(stage_four.tools) != set(tool_names):
+        raise BootstrapError("stage-four tool inventory differs")
     for name in source_names:
         if (
             stage_three.objects[name].read_bytes()
@@ -2346,7 +2493,7 @@ def _compare_stages(
         raise BootstrapError(
             "startup object differs between stage three and stage four"
         )
-    for name in TOOL_NAMES:
+    for name in tool_names:
         if (
             stage_three.tools[name].read_bytes()
             != stage_four.tools[name].read_bytes()
@@ -2360,7 +2507,7 @@ def _compare_stages(
         "c_objects": len(source_names),
         "compared_generations": ["stage-three", "stage-four"],
         "startup_objects": 1,
-        "tool_images": len(TOOL_NAMES),
+        "tool_images": len(tool_names),
     }
 
 
@@ -2443,17 +2590,132 @@ def _expect_status(
         )
 
 
+def _materialize_behavior_seed(
+    seed_inputs: SeedInputs, behavior_root: Path
+) -> Path:
+    seed_root = behavior_root / "cupidbuild-seed"
+    seed_root.mkdir()
+    manifest_path = seed_root / seed_inputs.live_manifest_path.name
+    manifest_path.write_bytes(seed_inputs.manifest_bytes)
+    for tool_name, contents in seed_inputs.artifact_bytes:
+        artifact_path = seed_root / seed_inputs.tools[tool_name].name
+        artifact_path.write_bytes(contents)
+        artifact_path.chmod(0o700)
+    return manifest_path
+
+
+def _check_cupidbuild_guarded_object_behavior(
+    runner: ToolRunner,
+    source_root: Path,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    label_prefix: str,
+) -> None:
+    manifest_path = _materialize_behavior_seed(seed_inputs, behavior_root)
+    source_name = "toolchain/hosted/i386-linux/start.asm"
+    stage_two_output = behavior_root / "stage-three-cupidbuild.o"
+    stage_three_output = behavior_root / "stage-four-cupidbuild.o"
+    common_arguments: list[str | Path] = [
+        "assemble-cupidasm-object",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        source_root,
+        "--source",
+        source_name,
+    ]
+    success_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *common_arguments,
+            "--output",
+            stage_two_output.relative_to(source_root).as_posix(),
+        ],
+        [
+            *common_arguments,
+            "--output",
+            stage_three_output.relative_to(source_root).as_posix(),
+        ],
+        180,
+    )
+    _expect_status(success_result, 0, f"{label_prefix}CupidBuild object")
+    if (
+        success_result.stdout
+        or success_result.stderr
+        or stage_two_output.read_bytes() != stage_three_output.read_bytes()
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild object output differs"
+        )
+    _validate_i386_relocatable(stage_two_output)
+
+    sentinel = b"preserved CupidBuild output\n"
+    stage_two_failure = behavior_root / "stage-three-cupidbuild-failure.o"
+    stage_three_failure = behavior_root / "stage-four-cupidbuild-failure.o"
+    stage_two_failure.write_bytes(sentinel)
+    stage_three_failure.write_bytes(sentinel)
+    failure_arguments: list[str | Path] = [
+        "assemble-cupidasm-object",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        source_root,
+        "--source",
+        "toolchain/missing-candidate-source.asm",
+    ]
+    failure_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *failure_arguments,
+            "--output",
+            stage_two_failure.relative_to(source_root).as_posix(),
+        ],
+        [
+            *failure_arguments,
+            "--output",
+            stage_three_failure.relative_to(source_root).as_posix(),
+        ],
+        180,
+    )
+    _expect_status(failure_result, 1, f"{label_prefix}CupidBuild missing input")
+    if (
+        failure_result.stdout
+        or "cupidbuild:" not in failure_result.stderr
+        or stage_two_failure.read_bytes() != sentinel
+        or stage_three_failure.read_bytes() != sentinel
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild failure behavior differs"
+        )
+
+
 def _run_native_windows_behavior_checks(
     runner: ToolRunner,
     output_root: Path,
     stage_two: Stage,
     stage_three: Stage,
     native_plan: dict[str, object],
+    seed_inputs: SeedInputs,
 ) -> dict[str, int]:
     behavior_root = output_root / "behavior"
     behavior_root.mkdir()
+    tool_names = _plan_tool_names(
+        stage_two.tools, "native Windows behavior stage-two"
+    )
+    if set(stage_three.tools) != set(tool_names):
+        raise BootstrapError(
+            "native Windows behavior stage-three tool inventory differs"
+        )
 
-    for tool_name in TOOL_NAMES:
+    for tool_name in tool_names:
         help_result = _run_stage_pair(
             runner,
             stage_two,
@@ -2491,6 +2753,16 @@ def _run_native_windows_behavior_checks(
             raise BootstrapError(
                 f"native Windows {tool_name} failure output differs"
             )
+
+    _check_cupidbuild_guarded_object_behavior(
+        runner,
+        output_root,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "native Windows ",
+    )
 
     valid_source = behavior_root / "valid.cc"
     valid_source.write_text(
@@ -2709,9 +2981,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(TOOL_NAMES) + 4,
-        "help_cases": len(TOOL_NAMES),
-        "success_cases": len(TOOL_NAMES) + 3,
+        "failure_cases": len(tool_names) + 5,
+        "help_cases": len(tool_names),
+        "success_cases": len(tool_names) + 4,
     }
 
 
@@ -3396,11 +3668,15 @@ def _run_behavior_checks(
     output_root: Path,
     stage_two: Stage,
     stage_three: Stage,
+    seed_inputs: SeedInputs,
     evidence_out: dict[str, object] | None = None,
 ) -> dict[str, int]:
     behavior_root = output_root / "behavior"
     behavior_root.mkdir()
-    for tool_name in TOOL_NAMES:
+    tool_names = _plan_tool_names(stage_two.tools, "behavior stage-two")
+    if set(stage_three.tools) != set(tool_names):
+        raise BootstrapError("behavior stage-three tool inventory differs")
+    for tool_name in tool_names:
         help_result = _run_stage_pair(
             runner,
             stage_two,
@@ -3424,6 +3700,16 @@ def _run_behavior_checks(
                     )
         if tool_name == "cupidld" and "i386pe" not in help_result.stdout:
             raise BootstrapError("cupidld help omits i386pe")
+
+    _check_cupidbuild_guarded_object_behavior(
+        runner,
+        source_root,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "",
+    )
 
     valid_source = behavior_root / "valid.c"
     invalid_source = behavior_root / "invalid.c"
@@ -6142,9 +6428,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 21,
-        "help_cases": 5,
-        "success_cases": 22,
+        "failure_cases": 22,
+        "help_cases": len(tool_names),
+        "success_cases": 23,
     }
 
 
@@ -6249,7 +6535,10 @@ def _bootstrap_from_frozen_seed(
 ) -> dict[str, object]:
     seed_tools = seed_inputs.tools
     manifest = seed_inputs.manifest
-    plan = _require_object(manifest.get("build_plan"), "build_plan")
+    checked_plan = _require_object(
+        manifest.get("build_plan"), "build_plan"
+    )
+    plan = _candidate_build_plan(checked_plan)
     source_root = source_root.resolve()
     if output_root.is_symlink():
         raise BootstrapError("bootstrap output may not be a symlink")
@@ -6342,6 +6631,7 @@ def _bootstrap_from_frozen_seed(
             private_source_root,
             stage_three,
             stage_four,
+            seed_inputs,
             behavior_evidence,
         )
         windows_runtime = behavior_evidence.get("windows_runtime")
@@ -6385,6 +6675,9 @@ def _bootstrap_from_frozen_seed(
             "behavior": behavior,
             "behavior_generations": ["stage-three", "stage-four"],
             "build_plan_sha256": manifest["build_plan_sha256"],
+            "candidate_build_plan": plan,
+            "candidate_build_plan_sha256": _build_plan_sha256(plan),
+            "candidate_tools": list(CANDIDATE_TOOL_NAMES),
             "host_execution": {
                 "windows_cupidasm": windows_native_tools["cupidasm"][
                     "loader"
@@ -6472,9 +6765,10 @@ def _bootstrap_windows_from_frozen_seed(
     output_root: Path,
 ) -> dict[str, object]:
     seed_tools = seed_inputs.tools
-    linux_plan = _require_object(
+    checked_linux_plan = _require_object(
         plan_inputs.manifest.get("build_plan"), "build_plan"
     )
+    linux_plan = _candidate_build_plan(checked_linux_plan)
     native_plan = _windows_build_plan(linux_plan)
     source_root = source_root.resolve()
     if output_root.is_symlink():
@@ -6593,6 +6887,7 @@ def _bootstrap_windows_from_frozen_seed(
             stage_three,
             stage_four,
             native_plan,
+            seed_inputs,
         )
         seed_matches_stage_two = _compare_seed_with_stage_two(
             seed_inputs, stage_two
@@ -6602,6 +6897,11 @@ def _bootstrap_windows_from_frozen_seed(
             "behavior_generations": ["stage-three", "stage-four"],
             "build_plan": native_plan,
             "build_plan_sha256": _build_plan_sha256(native_plan),
+            "candidate_build_plan": native_plan,
+            "candidate_build_plan_sha256": _build_plan_sha256(
+                native_plan
+            ),
+            "candidate_tools": list(CANDIDATE_TOOL_NAMES),
             "comparisons": comparisons,
             "initial_seed_matches_stage_two": seed_matches_stage_two,
             "plan_manifest_sha256": plan_inputs.manifest_sha256,

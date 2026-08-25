@@ -884,7 +884,7 @@ private, and newly discovered contract inventories must match exactly, which
 catches added or removed inputs and restored edits that changed a copied
 file. Every run derives its cohort from the requested executable, requires a
 named manifest artifact, and verifies the complete cohort, live 75-input
-publication set, checked seed manifest, and 55-file fixed-point source
+publication set, checked seed manifest, and 58-file candidate source
 inventory before execution. The publication set includes the user syscall ABI
 contract and its six declarations, both PE32 reader headers, the CupidBuild
 declarations and Windows startup, the Toolchain Makefile, the publisher, and
@@ -895,32 +895,34 @@ replacement. The user ABI contract and Python oracle inspect one shared
 six-file snapshot, while the contract also rereads the live source tree. For
 publication, the checked stage-four tools build a strict-C11 manifest author
 from its 20 direct build inputs. Its framed `CUPMAN4` request carries the
-publication facts and raw stage-three and stage-four bytes for 58 fixed-point
-pairs: 17 contract objects, 16 contract executables, 19 bootstrap C objects,
-one startup object, and five tool images. The author requires regular,
+publication facts and raw stage-three and stage-four bytes for 62 fixed-point
+pairs: 17 contract objects, 16 contract executables, 22 bootstrap C objects,
+one startup object, and six tool images. The author requires regular,
 nonempty, byte-identical streams and hashes both sides independently. It
 derives the 17 schema-v3 object records, checks executable pairs against their
 artifact facts, and derives the fixed-point summary from the exact pair
 inventories. The protocol has no caller `all_equal` field. Python repeats all
-58 comparisons after author acceptance and retains no-follow capture, process
+62 comparisons after author acceptance and retains no-follow capture, process
 launch, drift checks, private staging, rollback, and atomic replacement. A
 failed author or verification preserves the prior publication. A separate checked
 `CUPMAN2` contract verifies the authored publication. ADR 0302 records the
 verifier boundary, ADR 0304 records the author split, and ADR 0307 records raw
 stage-pair evidence.
 
-The latest complete schema v3 `CUPMAN4` publication passed and
-wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
-inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
-Its 27,071-byte manifest has SHA-256
-`02408d9d541de1454e2f0888cff501bc755964448d0f177a4162bcebdcaf178b`.
-Its final verifier reported
-`Cupid Toolchain manifest: ok (21 artifacts)`.
+The latest complete schema v3 `CUPMAN4` publication passed and wrote 22
+artifacts from 75 publication inputs and the exact 58-file bootstrap
+inventory. The Cupid author and Python oracle agreed on all 62 stage pairs.
+Its 29,270-byte manifest has SHA-256
+`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+Its final verifier accepted all 22 artifacts.
 Both checked Python contract launchers resolve `tools` from this checkout. The
 direct contract suite passes 40 tests in 54.623 seconds, the publisher suite
 passes 64 tests in 12.144 seconds, and the pinned verifier runner passes 25 tests
 in 32.773 seconds with three POSIX-only Windows skips. ADR 0311 records this
 host import boundary.
+The published cohort keeps the promoted five-tool seed separate from its
+six-tool candidate. The candidate adds CupidBuild and freezes 58 inputs. ADR
+0345 records that boundary.
 The settled audit is recorded in the
 build-graph evidence below. The final poisoned build and private guest evidence
 appear in the current checked-seed proof.

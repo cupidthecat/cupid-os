@@ -30,6 +30,7 @@ try:
         _validate_static_i386_elf,
         _validate_static_i386_pe32,
         _bootstrap_for_manifest_author,
+        _candidate_build_plan,
         capture_source_snapshot,
         freeze_seed_inputs,
         require_live_seed_inputs,
@@ -47,6 +48,7 @@ except ModuleNotFoundError:
         _validate_static_i386_elf,
         _validate_static_i386_pe32,
         _bootstrap_for_manifest_author,
+        _candidate_build_plan,
         capture_source_snapshot,
         freeze_seed_inputs,
         require_live_seed_inputs,
@@ -67,7 +69,14 @@ LEGACY_REPORT_SCHEMAS = ("cupid.toolchain-contracts.v2",)
 TARGET_ENTRY = 0x08048000
 ORDINARY_COMPILE_TIMEOUT = 900
 CONVERGED_GENERATIONS = ("stage-three", "stage-four")
-TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
+TOOL_NAMES = (
+    "cupidasm",
+    "cupiddis",
+    "cupidld",
+    "cupidobj",
+    "cupidc",
+    "cupidbuild",
+)
 TOOL_PUBLIC_NAMES = {
     name: f"cupidc-{name}.elf" for name in TOOL_NAMES
 }
@@ -113,6 +122,9 @@ BOOTSTRAP_OBJECT_NAMES = (
     "cupidc_ir",
     "cupidc_emit",
     "cupidc_main",
+    "cupidbuild",
+    "cupidbuild_host",
+    "cupidbuild_main",
     "start",
 )
 WINDOWS_RUNTIME_INPUTS = (
@@ -1790,7 +1802,9 @@ def verify_publication_inputs(
             raise ContractError(
                 "published bootstrap build plan differs from the live seed"
             )
-        live_bootstrap_inputs = capture_source_snapshot(root, build_plan)
+        live_bootstrap_inputs = capture_source_snapshot(
+            root, _candidate_build_plan(build_plan)
+        )
     except (
         BootstrapError,
         OSError,
@@ -2189,8 +2203,15 @@ def build_contracts(
                 "Toolchain manifest evidence differs from the "
                 "independent Python comparison"
             )
+        stage_pair_count = (
+            len(object_comparisons)
+            + len(comparisons)
+            + len(BOOTSTRAP_OBJECT_NAMES)
+            + len(TOOL_NAMES)
+        )
         _announce(
-            "Cupid author and Python oracle agree on all 58 stage pairs"
+            "Cupid author and Python oracle agree on all "
+            f"{stage_pair_count} stage pairs"
         )
         oracle_report = (
             json.dumps(report, indent=2, sort_keys=True) + "\n"

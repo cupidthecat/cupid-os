@@ -6038,12 +6038,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
     def test_cupid_toolchain_fixed_point_contract_fails_closed(self):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
-        self.assertEqual(contract["help_cases"], 5)
-        self.assertEqual(contract["success_behavior_cases"], 22)
-        self.assertEqual(contract["failure_behavior_cases"], 21)
-        self.assertEqual(contract["windows_help_cases"], 5)
-        self.assertEqual(contract["windows_success_behavior_cases"], 8)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 9)
+        self.assertEqual(contract["help_cases"], 6)
+        self.assertEqual(contract["success_behavior_cases"], 23)
+        self.assertEqual(contract["failure_behavior_cases"], 22)
+        self.assertEqual(contract["tool_c_sources"], 22)
+        self.assertEqual(contract["tool_images"], 6)
+        self.assertEqual(contract["compared_c_objects"], 22)
+        self.assertEqual(contract["compared_tool_images"], 6)
+        self.assertEqual(contract["windows_help_cases"], 6)
+        self.assertEqual(contract["windows_success_behavior_cases"], 10)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 11)
         self.assertEqual(contract["contract_manifest_inputs"], 75)
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 75
@@ -6544,20 +6548,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 23,\n',
                 '        "success_cases": 22,\n',
-                '        "success_cases": 21,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 22,\n',
                 '        "failure_cases": 21,\n',
-                '        "failure_cases": 20,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
-                '        "failure_cases": len(TOOL_NAMES) + 4,\n',
-                '        "failure_cases": len(TOOL_NAMES) + 3,\n',
+                '        "failure_cases": len(tool_names) + 5,\n',
+                '        "failure_cases": len(tool_names) + 4,\n',
                 r"native Windows fixed-point behavior differs",
             ),
             "linked-target behavior helper disappears": (
@@ -6615,6 +6619,115 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 'source_root / "toolchain/hosted/i386-windows/start.asm"',
                 'source_root / "toolchain/hosted/i386-linux/start.asm"',
                 r"fixed-point source freeze differs",
+            ),
+            "Linux bootstrap bypasses the candidate plan": (
+                "bootstrap",
+                "    plan = _candidate_build_plan(checked_plan)\n",
+                "    plan = checked_plan\n",
+                r"fixed-point source freeze differs",
+            ),
+            "Linux candidate call is hidden in a false conditional": (
+                "bootstrap",
+                "    plan = _candidate_build_plan(checked_plan)\n",
+                "    plan = (\n"
+                "        _candidate_build_plan(checked_plan)\n"
+                "        if False\n"
+                "        else checked_plan\n"
+                "    )\n",
+                r"fixed-point source freeze differs",
+            ),
+            "Linux candidate plan is reassigned before freezing": (
+                "bootstrap",
+                "    plan = _candidate_build_plan(checked_plan)\n",
+                "    plan = _candidate_build_plan(checked_plan)\n"
+                "    plan = checked_plan\n",
+                r"fixed-point source freeze differs",
+            ),
+            "Windows bootstrap bypasses the candidate plan": (
+                "bootstrap",
+                "    linux_plan = _candidate_build_plan(checked_linux_plan)\n",
+                "    linux_plan = checked_linux_plan\n",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate helper returns the checked source list": (
+                "bootstrap",
+                '    candidate["sources"] = sources\n',
+                '    candidate["sources"] = raw_sources\n',
+                r"fixed-point source freeze differs",
+            ),
+            "candidate helper overwrites its checked source list": (
+                "bootstrap",
+                '    candidate["links"] = links\n'
+                "    return candidate\n",
+                '    candidate["links"] = links\n'
+                '    candidate["sources"] = []\n'
+                "    return candidate\n",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate helper overwrites its retained five links": (
+                "bootstrap",
+                '    candidate["links"] = links\n'
+                "    return candidate\n",
+                '    candidate["links"] = links\n'
+                '    candidate["links"] = {}\n'
+                "    return candidate\n",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate helper drops the checked source copy": (
+                "bootstrap",
+                "    sources = [\n"
+                '        dict(_require_object(source, "build source"))\n'
+                "        for source in raw_sources\n"
+                "    ]\n",
+                "    sources = []\n",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate helper empties the retained five links": (
+                "bootstrap",
+                "    links = {\n"
+                "        name: [\n"
+                "            str(item)\n"
+                "            for item in _require_list(\n"
+                "                raw_links.get(name), "
+                'f"build_plan.links.{name}"\n'
+                "            )\n"
+                "        ]\n"
+                "        for name in TOOL_NAMES\n"
+                "    }\n",
+                "    links = {name: [] for name in TOOL_NAMES}\n",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate source constant is reassigned in a live branch": (
+                "bootstrap",
+                "CANDIDATE_CUPIDBUILD_LINK = (\n",
+                "if True:\n"
+                "    CANDIDATE_SOURCES = ()\n"
+                "CANDIDATE_CUPIDBUILD_LINK = (\n",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate source constant drops CupidBuild main": (
+                "bootstrap",
+                '    ("cupidbuild_main", '
+                '"/toolchain/cupidbuild_main.cc", False),\n',
+                '    ("cupidbuild_main", '
+                '"/toolchain/cupidbuild_main-x.cc", False),\n',
+                r"fixed-point source freeze differs",
+            ),
+            "publication recaptures the checked plan": (
+                "contract_publisher",
+                "            root, _candidate_build_plan(build_plan)\n",
+                "            root, build_plan\n",
+                r"manifest author decision order differs",
+            ),
+            "publication candidate call is hidden in a false conditional": (
+                "contract_publisher",
+                "            root, _candidate_build_plan(build_plan)\n",
+                "            root, (\n"
+                "                _candidate_build_plan(build_plan)\n"
+                "                if False\n"
+                "                else build_plan\n"
+                "            )\n",
+                r"manifest author decision order differs",
             ),
             "PE32 Windows startup leaves the contract manifest": (
                 "contract_publisher",
@@ -7452,10 +7565,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            private_source_root,\n"
                 "            stage_three,\n"
                 "            stage_four,\n"
+                "            seed_inputs,\n"
                 "            behavior_evidence,\n",
                 "            private_source_root,\n"
                 "            stage_two,\n"
                 "            stage_three,\n"
+                "            seed_inputs,\n"
                 "            behavior_evidence,\n",
                 r"fixed-point source freeze differs",
             ),
@@ -7574,6 +7689,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            stage_three,\n"
                 "            stage_four,\n"
                 "            native_plan,\n"
+                "            seed_inputs,\n"
                 "        )\n",
                 "        behavior = _run_native_windows_behavior_checks(\n"
                 "            runner,\n"
@@ -7581,6 +7697,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            stage_two,\n"
                 "            stage_three,\n"
                 "            native_plan,\n"
+                "            seed_inputs,\n"
                 "        )\n",
                 r"fixed-point source freeze differs",
             ),
@@ -10162,6 +10279,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             (
                 "build Makefile removed",
                 "toolchain/Makefile",
+                None,
+            ),
+            (
+                "candidate tool removed",
+                "toolchain/build/cupidc-contracts/cupidc-cupidbuild.elf",
                 None,
             ),
         )

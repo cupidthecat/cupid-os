@@ -31,9 +31,13 @@ launch, including failure and timeout paths.
 The source-head hosted link also builds CupidBuild beside CupidASM and the
 other five production tools. This proves the command closure but does not add
 CupidBuild to a checked seed.
-The checked Toolchain gate passed the complete 21-artifact cohort and all 22
-assembler demos. The following 55-source fixed point matched its assembler
-objects and all five final tool images between consecutive generations.
+The current checked Toolchain gate publishes 22 artifacts and passes all 22
+assembler demos. It derives a separate six-tool candidate from the unchanged
+five-tool seed. Its Linux proof freezes 58 sources and matches
+22 C objects, startup, and all six final tool images between consecutive
+generations. Both CupidBuild images assemble the checked startup into equal
+relocatables and preserve prior output on a missing-source failure. The
+candidate is not a promoted seed.
 >endtree
 
 >h2 Overview
@@ -74,25 +78,25 @@ regardless of host locale. ADR 0246 records this checked invocation boundary.
 
 The Toolchain manifest includes a Cupid-built author stage. Python freezes the
 publication facts, then frames a CUPMAN4 request with raw stage-three and
-stage-four bytes for 58 pairs: 17 contract objects, 16 contract executables, 19
-bootstrap C objects, one startup object, and five tool images. Stage-four
+stage-four bytes for 62 pairs: 17 contract objects, 16 contract executables, 22
+bootstrap C objects, one startup object, and six tool images. Stage-four
 checked Linux CupidC compiles the C author, CupidASM supplies host startup, and
 CupidLD links a static ELF on Linux or a validated native PE on Windows. The
 PE uses the checked Windows runtime and exact imports. The author requires
 regular, nonempty, byte-identical streams, hashes both sides, derives the 17 schema-v3 object
 records, and checks executable pairs against artifact facts. It derives the
 fixed-point summary from the exact pair inventories, so the request has no
-caller all_equal field. Python repeats all 58 comparisons after author
+caller all_equal field. Python repeats all 62 comparisons after author
 acceptance and still owns filesystem capture, drift checks, rollback, and
 atomic publication. It captures each side from a regular file through a
 descriptor whose identity is checked before and after the read. CUPMAN2
 remains the verifier.
 
-A valid schema-v3 publication records exactly 21 artifacts, 75 publication
-inputs, 55 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
+A valid schema-v3 publication records exactly 22 artifacts, 75 publication
+inputs, 58 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
 it. Both checked Python contract launchers put this checkout ahead of installed
 packages before importing `tools`. The direct contract passes 40 tests in
-59.844 seconds, the publisher passes 64 in 12.144 seconds, and the pinned runner
+51.723 seconds, the publisher passes 65 in 7.258 seconds, and the pinned runner
 passes 25 in 32.773 seconds. The host bootstrap log records the exact
 publication identity and completion evidence.
 

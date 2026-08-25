@@ -16,11 +16,13 @@ Verified against source on: 2026-08-25
 
 >h2 Hosted CupidBuild Source
 >tree open Hosted CupidBuild Source
-The initial checked proof accepted the Linux and Windows profiles for
-CupidBuild's command, policy, and hosted transaction modules. The lock
-follow-up passes the checked Linux object contract and native host behavior;
-fresh checked standalone execution remains open. CupidBuild is not part of the
-promoted seed, so this is source buildability rather than a fixed-point claim.
+The checked Linux and Windows command suites cover CupidBuild's policy and
+hosted transaction modules, including the real guarded object path. CupidBuild
+is not part of the promoted seed. A separate source-head candidate includes
+its three `.cc` roots, and the Linux fixed point matches all six tool images.
+Both compared CupidBuild images run the guarded object command, require the
+same relocatable output, and preserve an existing object when the source is
+missing. This is candidate evidence rather than seed carriage.
 The command now rejects unlisted executable-shaped seed peers and validates all
 five frozen tools against the host ELF32 or PE32 execution profile before use.
 It repeats the membership check after each attempted checked command, including
@@ -280,7 +282,7 @@ input. Every run derives the cohort from its requested executable, requires a
 named manifest artifact, and verifies the manifest, target, fixed-point
 record, filenames, sizes, artifact hashes, 75 publication-input digest and
 size records, the
-checked seed manifest, and the 55-file fixed-point source inventory before
+checked seed manifest, and the 58-file candidate source inventory before
 execution. The publication inventory contains 75 files, including both
 manifest contract sources, the small Windows probe, the native Windows tool
 runtime and startup, CupidLD publication runtime and bridge, direct contract,
@@ -320,20 +322,20 @@ CUPMAN4 request. Stage-four checked Linux CupidC compiles the C author from its
 direct build inputs, CupidASM supplies host startup, and CupidLD links a static
 ELF on Linux or a validated PE on Windows. The PE uses the checked Windows
 runtime and exact imports, and it runs without WSL. The request carries
-raw stage-three and stage-four bytes for 58 fixed-point pairs: 17 contract
-objects, 16 contract executables, 19 bootstrap C objects, one startup object,
-and five tool images. The author requires regular, nonempty, byte-identical
+raw stage-three and stage-four bytes for 62 fixed-point pairs: 17 contract
+objects, 16 contract executables, 22 bootstrap C objects, one startup object,
+and six tool images. The author requires regular, nonempty, byte-identical
 streams and hashes both sides. It derives the 17 schema-v3 object records,
 checks executable pairs against their artifact facts, and derives the
 fixed-point summary from its exact inventories. No caller all_equal field is
-part of the protocol. Python repeats all 58 comparisons after author acceptance
+part of the protocol. Python repeats all 62 comparisons after author acceptance
 and remains responsible for filesystem traversal, live rechecks, rollback, and
 the publication transaction. It captures each pair from a regular file through
 a descriptor whose identity is checked before and after the read.
 
 The same contract source handles CUPMAN2 verification in check mode. Its
-request carries the publication manifest, all 21 artifact observations, the
-exact 75-file publication inventory, the 55-file bootstrap inventory, the Linux
+request carries the publication manifest, all 22 artifact observations, the
+exact 75-file publication inventory, the 58-file bootstrap inventory, the Linux
 publication seed, and its five tool images. Checked CupidC compiles the
 verifier, CupidASM supplies startup, and CupidLD links a static ELF on Linux or
 native PE on Windows. Python keeps the no-follow filesystem capture, launch,
@@ -344,14 +346,14 @@ and restore cannot redirect the pinned reads. The build audit records 126 direct
 inputs for this transform on Windows. Provenance-only sources do not inherit a
 compiler or assembler owner.
 
-The CUPMAN4 publication gate makes all 58 stage-pair decisions before Python's
+The CUPMAN4 publication gate makes all 62 stage-pair decisions before Python's
 independent comparisons. It also checks the hosted runtime, live inputs, and
 the native Windows CUPMAN2 verifier. The source audit enforces the graph and
-ownership counts above. A valid schema-v3 publication still records exactly 21
-artifacts, 75 publication inputs, 55 bootstrap inputs, and 17 object
+ownership counts above. A valid schema-v3 publication records exactly 22
+artifacts, 75 publication inputs, 58 bootstrap inputs, and 17 object
 comparisons, and CUPMAN2 must accept it. Both checked Python launchers resolve
-`tools` from this checkout. The direct module passes 40 tests in 59.844 seconds,
-the publisher passes 64 in 12.144 seconds, and the pinned runner passes 25 in
+`tools` from this checkout. The direct module passes 40 tests in 51.723 seconds,
+the publisher passes 65 tests in 7.258 seconds, and the pinned runner passes 25 in
 32.773 seconds. The host bootstrap log records exact publication
 and OS artifact identities because putting them in this image manual would
 alter an image input.
@@ -414,7 +416,7 @@ snapshot. Linux runs the executable from a private copy of the verified
 publication, then rechecks the live cohort and source inputs. Windows builds a
 temporary PE from a separately frozen source and execution-seed closure, runs
 it directly, and rechecks both live closures. The complete Linux publication
-contains sixteen contract executables and five tools, for 21 artifacts.
+contains sixteen contract executables and six tools, for 22 artifacts.
 
 `verify-artifact-sizes` is a direct prerequisite of cupidos.img. One Python
 wrapper pins the raw policy, the Linux bootstrap manifest, the complete Windows

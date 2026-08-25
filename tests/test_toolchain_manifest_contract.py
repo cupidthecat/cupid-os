@@ -38,7 +38,14 @@ CONTRACT_ARTIFACTS = tuple(
 )
 TOOL_ARTIFACTS = tuple(
     f"cupidc-{name}.elf"
-    for name in ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
+    for name in (
+        "cupidasm",
+        "cupiddis",
+        "cupidld",
+        "cupidobj",
+        "cupidc",
+        "cupidbuild",
+    )
 )
 ARTIFACT_NAMES = (
     *CONTRACT_ARTIFACTS,
@@ -70,6 +77,9 @@ BOOTSTRAP_OBJECT_NAMES = (
     "cupidc_ir",
     "cupidc_emit",
     "cupidc_main",
+    "cupidbuild",
+    "cupidbuild_host",
+    "cupidbuild_main",
     "start",
 )
 BOOTSTRAP_TOOL_NAMES = (
@@ -78,6 +88,7 @@ BOOTSTRAP_TOOL_NAMES = (
     "cupidld",
     "cupidobj",
     "cupidc",
+    "cupidbuild",
 )
 BUILD_PLAN_SHA256 = (
     "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc"
@@ -171,8 +182,11 @@ BOOTSTRAP_PATHS = (
     "toolchain/cupidasm.cc",
     "toolchain/cupidasm.h",
     "toolchain/cupidasm_main.cc",
+    "toolchain/cupidbuild.cc",
     "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_host.cc",
     "toolchain/cupidbuild_host.h",
+    "toolchain/cupidbuild_main.cc",
     "toolchain/cupidc_emit.cc",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.cc",
@@ -347,10 +361,10 @@ def _fixture():
         },
         "tool_fixed_point": {
             "all_equal": True,
-            "c_objects": 19,
+            "c_objects": 22,
             "compared_generations": ["stage-three", "stage-four"],
             "startup_objects": 1,
-            "tool_images": 5,
+            "tool_images": 6,
         },
     }
     observations = [
@@ -661,8 +675,8 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            '{"artifact_count":21,"artifact_total_bytes":652,'
-            '"bootstrap_source_input_count":55,"input_count":75,'
+            '{"artifact_count":22,"artifact_total_bytes":682,'
+            '"bootstrap_source_input_count":58,"input_count":75,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -818,7 +832,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         )
         self.assertEqual(result.stderr, "")
 
-    def test_author_decides_all_fifty_eight_stage_pairs(self):
+    def test_author_decides_all_sixty_two_stage_pairs(self):
         manifest, observations = _fixture()
         object_pairs = _matching_object_pairs(manifest)
         executable_pairs = _matching_executable_pairs(manifest)
@@ -855,7 +869,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     bootstrap_tool_pairs,
                 )
             ),
-            58,
+            62,
         )
 
     def test_author_rejects_mismatch_in_each_remaining_pair_lane(self):
@@ -1386,10 +1400,10 @@ class ToolchainManifestContractTests(unittest.TestCase):
             json.loads(result.stdout)["tool_fixed_point"],
             {
                 "all_equal": True,
-                "c_objects": 19,
+                "c_objects": 22,
                 "compared_generations": ["stage-three", "stage-four"],
                 "startup_objects": 1,
-                "tool_images": 5,
+                "tool_images": 6,
             },
         )
 
@@ -1584,7 +1598,12 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_current_publication_inventory_counts_are_exact(self):
+        self.assertEqual(len(ARTIFACT_NAMES), 22)
         self.assertEqual(len(INPUT_PATHS), 75)
+        self.assertEqual(len(BOOTSTRAP_PATHS), 58)
+        self.assertEqual(len(OBJECT_COMPARISON_NAMES), 17)
+        self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 23)
+        self.assertEqual(len(BOOTSTRAP_TOOL_NAMES), 6)
         for input_count in (74, 76):
             with self.subTest(input_count=input_count):
                 manifest, observations = _fixture()
@@ -1601,7 +1620,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     _request(manifest=manifest, observations=observations)
                 )
 
-        for source_count in (54, 56):
+        for source_count in (57, 59):
             with self.subTest(source_count=source_count):
                 manifest, observations = _fixture()
                 bootstrap_files = {

@@ -26,10 +26,12 @@ The seed directory must contain exactly the five listed `.elf` or `.exe`
 peers. All five frozen images must match the selected static ELF32 or strict
 PE32 execution profile, and membership is checked again after both attempted
 tool launches, including failure and timeout paths.
-The initial Linux and Windows standalone builds passed the real ISR object
-path. The lock follow-up passes native host behavior and the checked Linux
-object contract; fresh checked standalone execution remains open. The normal
-build still uses the five-tool seed and Python publisher.
+The Linux and Windows standalone builds pass the real ISR object path and the
+complete transaction suites. A separate Linux candidate fixed point includes
+CupidBuild and matches all six final tool images. Its behavior gate also runs
+the guarded object command with both images, compares the relocatable output,
+and checks missing-source rollback. The normal build still uses the five-tool
+seed and Python publisher.
 >endtree
 
 >h2 Overview
@@ -304,24 +306,24 @@ gate.
 
 The Toolchain publication manifest includes a Cupid-built author stage. Python
 freezes the publication facts, then frames a CUPMAN4 request with raw
-stage-three and stage-four bytes for 58 pairs: 17 contract objects, 16 contract
-executables, 19 bootstrap C objects, one startup object, and five tool images.
+stage-three and stage-four bytes for 62 pairs: 17 contract objects, 16 contract
+executables, 22 bootstrap C objects, one startup object, and six tool images.
 Stage-four checked Linux CupidC compiles the author, CupidASM builds its host
 startup, and CupidLD links a static ELF on Linux or a validated PE on Windows.
 The native PE uses the checked Windows runtime and exact imports. The author
 requires regular, nonempty, byte-identical streams, hashes both sides, derives the 17 schema-v3
 object records, and checks executable pairs against their artifact facts. It
 derives the fixed-point summary from the exact pair inventories, so the request
-has no caller all_equal field. Python repeats all 58 comparisons after author
+has no caller all_equal field. Python repeats all 62 comparisons after author
 acceptance and still owns filesystem traversal, drift checks, rollback, and
 atomic publication. It captures each side from a regular file through a
 descriptor whose identity is checked before and after the read. CUPMAN2
 remains the publication verifier.
 
-A valid schema-v3 publication binds exactly 21 artifacts, 75 publication
-inputs, 55 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
+A valid schema-v3 publication binds exactly 22 artifacts, 75 publication
+inputs, 58 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
 the published cohort. Focused evidence passes 40 direct contract tests in
-43.226 seconds, 62 publisher tests in 7.266 seconds, and 25 pinned runner tests
+51.723 seconds, 65 publisher tests in 7.258 seconds, and 25 pinned runner tests
 in 32.773 seconds. Both checked Python launchers resolve `tools` from this
 checkout. The host bootstrap log records the exact publication
 identity and completion evidence.
