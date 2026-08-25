@@ -1580,9 +1580,9 @@ fixtures, and one optional host oracle. Renaming a `bin/*.c` copy would activate
 it through wildcard discovery. Renaming a fixture would silently select C++
 semantics. The audit rejects an active tracked `.c` source owned by CupidC. A
 `.cc` suffix does not supply the opposite ownership claim. Checked compile
-and Toolchain contract edges prove 277 active sources. An exact policy names
+and Toolchain contract edges prove 280 active sources. An exact policy names
 the other 130 sources delivered as text by CupidObj, all seventeen residual
-`.c` paths, and the three unreachable `.cc` paths. A host or inactive source
+`.c` paths, and the four unreachable `.cc` paths. A host or inactive source
 therefore cannot claim CupidC ownership through a suffix-only rename. The safe
 rename set is empty. ADR 0284 records the first gate, and ADR 0291 records the
 independent provenance rule. Every audit requires active ownership evidence,

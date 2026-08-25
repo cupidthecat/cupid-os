@@ -57,7 +57,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
 | `toolchain_contract` | 25 | 170029 |
-| `toolchain_core` | 47 | 94231 |
+| `toolchain_core` | 47 | 94232 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 577 |
 | `user_program` | 3 | 139 |

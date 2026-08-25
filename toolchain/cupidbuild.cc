@@ -508,9 +508,9 @@ static size_t cupidbuild_json_required(const unsigned char *bytes,
   return matches == 1u ? value : count;
 }
 
-static int cupidbuild_json_u64(const unsigned char *bytes,
-                               const cupidbuild_json_token_t *token,
-                               size_t *value_out) {
+static int cupidbuild_json_size(const unsigned char *bytes,
+                                const cupidbuild_json_token_t *token,
+                                size_t *value_out) {
   size_t value = 0u;
   size_t position;
   if (token->type != CUPIDBUILD_JSON_PRIMITIVE || token->start == token->end) {
@@ -577,7 +577,8 @@ static int cupidbuild_json_number_field(const unsigned char *bytes,
                                         const char *name, size_t expected) {
   size_t value = cupidbuild_json_required(bytes, tokens, count, object, name);
   size_t actual;
-  return value < count && cupidbuild_json_u64(bytes, &tokens[value], &actual) &&
+  return value < count &&
+         cupidbuild_json_size(bytes, &tokens[value], &actual) &&
          actual == expected;
 }
 
@@ -938,7 +939,7 @@ static int cupidbuild_json_artifacts(const unsigned char *bytes,
         !cupidbuild_json_boolean(bytes, &tokens[producer_token],
                                  &actual_producer) ||
         actual_producer != producers[index] ||
-        !cupidbuild_json_u64(bytes, &tokens[size_token], &actual_size) ||
+        !cupidbuild_json_size(bytes, &tokens[size_token], &actual_size) ||
         actual_size == 0u) {
       return 0;
     }

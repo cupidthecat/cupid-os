@@ -57,9 +57,9 @@ contracts change no Cupid capability, ownership count, or output transform.
 The `c_source_ownership` audit contract enforces the source suffix at the
 checked graph boundary. An active tracked `.c` source may remain host-owned,
 but CupidC ownership requires `.cc` plus independent evidence. Checked compile
-and Toolchain contract edges prove 277 active sources. A reviewed policy names
+and Toolchain contract edges prove 280 active sources. A reviewed policy names
 the other 130 active sources delivered as text by CupidObj. The same policy
-locks seventeen unreachable `.c` files and three unreachable `.cc` files. A
+locks seventeen unreachable `.c` files and four unreachable `.cc` files. A
 host-owned or inactive source cannot change its reported owner by changing its
 suffix. No audit mode derives active ownership from `.cc`, including a tree
 without the repository policy. A nonproduction audit accepts policy, a recorded

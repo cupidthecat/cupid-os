@@ -473,8 +473,8 @@ drain. All 20 process cases pass. The combined native C evidence covers 56
 kernel, USB, and ELF32 oracle cases and passes without changing fixture
 language mode.
 
-The repository also tracks 410 `.cc` files outside `TempleOS/`. The active
-graph reaches 407 of them and four generated `.cc` sources, for 411 active
+The repository also tracks 414 `.cc` files outside `TempleOS/`. The active
+graph reaches 410 of them and four generated `.cc` sources, for 414 active
 Cupid C inputs. The generated sources are `kernel/cpu/ksyms_data.cc`,
 `kernel/util/bin_programs_gen.cc`, `kernel/util/demos_programs_gen.cc`, and
 `kernel/util/docs_programs_gen.cc`. The eleven legacy, superseded, or dormant
@@ -485,10 +485,10 @@ A `.cc` rename follows a real CupidC build and behavior proof; it does not stand
 in for one. The audit rejects an active tracked `.c` source owned by CupidC,
 while preserving native C semantics for host fixtures. It also requires
 independent ownership evidence for active `.cc` sources. Direct checked compile
-and Toolchain contract edges prove 277 sources. An exact policy and CupidObj
+and Toolchain contract edges prove 280 sources. An exact policy and CupidObj
 delivery edge prove the remaining 130 runtime sources. That policy keeps all
 seventeen residual `.c`
-paths and three unreachable `.cc` paths visible. The safe suffix-only rename
+paths and four unreachable `.cc` paths visible. The safe suffix-only rename
 set is empty. Every audit requires independent evidence for an active `.cc`,
 even if the audited tree has no policy. A nonproduction audit accepts policy,
 a recorded relation, or an explicit Make exclusion for an unreachable `.cc`.

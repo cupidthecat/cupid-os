@@ -38964,19 +38964,19 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 584,
+              "line": 585,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 734,
+              "line": 735,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1027,
+              "line": 1028,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
@@ -39936,7 +39936,7 @@
             },
             {
               "directive": "if",
-              "line": 968,
+              "line": 969,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -55461,7 +55461,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "a6bf2eb4d814207d2e7fa86058481d63ab4e49501d70d1245879acd7c212f460",
+    "active_source_digest": "4b4adf003c39dc5eafa84755f994b4d40c9b0a11f4b03a120caddb87b3bf0462",
     "control_files": [
       {
         "path": "Makefile",
@@ -80266,12 +80266,12 @@
         "toolchain/elf32.h"
       ],
       "language": "cupid_c",
-      "lines": 1316,
+      "lines": 1317,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "fd3bc76dca345b9cd0a514a9f356cc6877e5eadc509e889f2f51579b824ba8d3"
+      "sha256": "c655ef2aa77978149fbc48b971bfff70f82a0aeab13eedb0cc0b1df443108f8d"
     },
     {
       "build_owners": [

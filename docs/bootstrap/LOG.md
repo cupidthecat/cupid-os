@@ -31221,3 +31221,21 @@ seconds with one expected skip. The first WSL command used a dotted unittest
 module name that this checkout layout did not import, so it discovered no
 product tests and is not counted as evidence. Unittest discovery against the
 same test file produced the passing Linux result.
+
+The post-commit standards and spec reviews found no implementation defect.
+The standards review did find one imprecise private name: the JSON number
+helper accepts values representable by hosted `size_t`, so it is now named
+`cupidbuild_json_size` rather than `cupidbuild_json_u64`. The spec review found
+four ownership records still using the preceding 277-plus-130 census. The
+capability, migration, host-dependency, and wiki records now match the
+generated audit: 280 active sources have direct checked or Toolchain contract
+edges, 130 are policy-backed CupidObj deliveries, 410 of 414 tracked `.cc`
+files are active, and four are unreachable.
+
+The renamed helper passed the seven-output source-head self-link in 8.751
+seconds and the complete Linux CupidBuild suite in 56.339 seconds. A native
+suite launched beside those two checks hit a Windows sharing denial in the
+test thread that replaces a temporary publication lock, so the intended race
+was never installed and that run is not counted as product evidence. The
+isolated native rerun passed all 35 tests in 45.915 seconds with two expected
+skips.

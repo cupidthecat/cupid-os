@@ -363,9 +363,9 @@ fixtures, and one optional host oracle. No active Cupid-built source needs a
 build inventory, while renaming a host fixture would silently select C++
 semantics. The build audit rejects an active tracked `.c` source if the graph
 assigns it to CupidC, and it does not treat `.cc` as proof of the reverse
-claim. Checked compile or Toolchain contract edges prove 277 active sources.
+claim. Checked compile or Toolchain contract edges prove 280 active sources.
 An exact policy records the other 130 source-text deliveries, all seventeen
-residual `.c` paths, and the three unreachable `.cc` paths. A `.cc` rename
+residual `.c` paths, and the four unreachable `.cc` paths. A `.cc` rename
 still follows a checked build and behavior proof. Active evidence is mandatory
 in every audit, including trees without a policy file. A nonproduction audit
 accepts policy, a recorded source relation, or an explicit Make exclusion for
