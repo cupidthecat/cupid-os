@@ -83,7 +83,7 @@ BUILD_PLAN_SHA256 = (
     "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc"
 )
 SEED_MANIFEST_SHA256 = (
-    "9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540"
+    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
 )
 INPUT_PATHS = (
     "kernel/core/syscall.cc",
@@ -97,6 +97,8 @@ INPUT_PATHS = (
     "toolchain/ctool.h",
     "toolchain/ctool_host.h",
     "toolchain/cupidasm.h",
+    "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_host.h",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.h",
     "toolchain/cupidc_ir.h",
@@ -115,6 +117,7 @@ INPUT_PATHS = (
     "toolchain/hosted/i386-linux/include/string.h",
     "toolchain/hosted/i386-linux/include/unistd.h",
     "toolchain/hosted/i386-linux/include/windows.h",
+    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -168,6 +171,8 @@ BOOTSTRAP_PATHS = (
     "toolchain/cupidasm.cc",
     "toolchain/cupidasm.h",
     "toolchain/cupidasm_main.cc",
+    "toolchain/cupidbuild.h",
+    "toolchain/cupidbuild_host.h",
     "toolchain/cupidc_emit.cc",
     "toolchain/cupidc_emit.h",
     "toolchain/cupidc_frontend.cc",
@@ -201,6 +206,7 @@ BOOTSTRAP_PATHS = (
     "toolchain/hosted/i386-linux/include/windows.h",
     "toolchain/hosted/i386-linux/runtime.cc",
     "toolchain/hosted/i386-linux/start.asm",
+    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
@@ -656,7 +662,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             '{"artifact_count":21,"artifact_total_bytes":652,'
-            '"bootstrap_source_input_count":52,"input_count":72,'
+            '"bootstrap_source_input_count":55,"input_count":75,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -1578,8 +1584,8 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_current_publication_inventory_counts_are_exact(self):
-        self.assertEqual(len(INPUT_PATHS), 72)
-        for input_count in (71, 73):
+        self.assertEqual(len(INPUT_PATHS), 75)
+        for input_count in (74, 76):
             with self.subTest(input_count=input_count):
                 manifest, observations = _fixture()
                 manifest["inputs"] = {
@@ -1595,7 +1601,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     _request(manifest=manifest, observations=observations)
                 )
 
-        for source_count in (51, 53):
+        for source_count in (54, 56):
             with self.subTest(source_count=source_count):
                 manifest, observations = _fixture()
                 bootstrap_files = {

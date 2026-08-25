@@ -2113,7 +2113,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 704)
+            self.assertEqual(contract["source_files"], 711)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -2134,7 +2134,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 704 source files; max conditional depth 0",
+                "0 numeric markers; 711 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2484,9 +2484,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 153)
+            self.assertEqual(contract["if_occurrences"], 155)
             self.assertEqual(contract["elif_occurrences"], 9)
-            self.assertEqual(contract["expression_occurrences"], 162)
+            self.assertEqual(contract["expression_occurrences"], 164)
             self.assertEqual(contract["unique_expressions"], 35)
             self.assertEqual(contract["directive_expression_pairs"], 37)
             self.assertTrue(
@@ -2649,7 +2649,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             audit = json.loads(output.read_text(encoding="utf-8"))
             features = {entry["id"]: entry for entry in audit["features"]}
-            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 156)
+            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 162)
             self.assertEqual(features["asm.directive.bits"]["occurrences"], 10)
             self.assertEqual(features["asm.directive.org"]["occurrences"], 3)
             transforms = {
@@ -3900,10 +3900,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 704)
-            self.assertEqual(contract["include_occurrences"], 2461)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2204)
-            self.assertEqual(contract["direct_angle_occurrences"], 257)
+            self.assertEqual(contract["source_files"], 711)
+            self.assertEqual(contract["include_occurrences"], 2495)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2218)
+            self.assertEqual(contract["direct_angle_occurrences"], 277)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -5247,9 +5247,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "linked kernel local-target validation removed",
                 "tools/hostbuild.py",
                 '                        "--require-local-targets",\n'
-                '                        "--require-code-anchors",',
+                '                        "--require-code-anchors",\n'
+                '                        "kernel/kernel.elf.pass1",',
                 '                        "--require-local-targets-removed",\n'
-                '                        "--require-code-anchors",',
+                '                        "--require-code-anchors",\n'
+                '                        "kernel/kernel.elf.pass1",',
             ),
             (
                 "linked kernel code-anchor validation removed",
@@ -5258,6 +5260,30 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '                        "kernel/kernel.elf.pass1",',
                 '                        "--require-code-anchors-removed",\n'
                 '                        "kernel/kernel.elf.pass1",',
+            ),
+            (
+                "CupidASM object code-anchor validation removed",
+                "tools/hostbuild.py",
+                '                        "--require-code-anchors",\n'
+                "                        candidate_logical,",
+                '                        "--require-code-anchors-removed",\n'
+                "                        candidate_logical,",
+            ),
+            (
+                "SMP source-edge validation removed",
+                "tools/hostbuild.py",
+                '                        "--require-source-edges",\n'
+                "                        candidate_logical,",
+                '                        "--require-source-edges-removed",\n'
+                "                        candidate_logical,",
+            ),
+            (
+                "boot source-edge validation removed",
+                "tools/hostbuild.py",
+                '                        "--require-source-edges",\n'
+                '                        "--raw",',
+                '                        "--require-source-edges-removed",\n'
+                '                        "--raw",',
             ),
             (
                 "linked kernel code validation left in dead code",
@@ -8632,10 +8658,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 739,
+                    "active_sources": 747,
                     "features": 255,
                     "transforms": 452,
-                    "unreachable_sources": 25,
+                    "unreachable_sources": 26,
                 },
             )
             features = {
@@ -8643,7 +8669,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6377, 174),
+                "c.expression.sizeof": (6567, 179),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -9026,6 +9052,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/usb/usb.h",
                     "kernel/usb/usb_hc.h",
                     "kernel/util/calendar.h",
+                    "toolchain/ctool.h",
+                    "toolchain/cupiddis.h",
+                    "toolchain/elf32.h",
+                    "toolchain/x86.h",
                 ),
                 "kernel/usb/ehci.cc": (
                     "drivers/pci.h",
@@ -9207,7 +9237,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 88)
+            self.assertEqual(toolchain_cohort["source_count"], 96)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]

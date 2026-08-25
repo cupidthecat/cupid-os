@@ -883,10 +883,11 @@ source trees, files, and symbolic links remain untouched. The initial,
 private, and newly discovered contract inventories must match exactly, which
 catches added or removed inputs and restored edits that changed a copied
 file. Every run derives its cohort from the requested executable, requires a
-named manifest artifact, and verifies the complete cohort, live 70-input
-publication set, checked seed manifest, and 50-file fixed-point source
+named manifest artifact, and verifies the complete cohort, live 75-input
+publication set, checked seed manifest, and 55-file fixed-point source
 inventory before execution. The publication set includes the user syscall ABI
-contract and its six declarations, the Toolchain Makefile, the publisher, and
+contract and its six declarations, both PE32 reader headers, the CupidBuild
+declarations and Windows startup, the Toolchain Makefile, the publisher, and
 the independent Python ABI oracle. Seed-manifest hashing, JSON decoding,
 schema validation, and build-plan use share one captured byte sequence.
 The runner copies the verified cohort before execution and rejects later live
@@ -908,7 +909,7 @@ failed author or verification preserves the prior publication. A separate checke
 verifier boundary, ADR 0304 records the author split, and ADR 0307 records raw
 stage-pair evidence.
 
-The final source-current schema v3 `CUPMAN4` publication passed and
+The latest complete schema v3 `CUPMAN4` publication passed and
 wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
 Its 27,071-byte manifest has SHA-256
@@ -1123,15 +1124,16 @@ preceding Windows promotion, and ADR 0292 records that promotion.
 The current promoted Linux CupidC image is 2,687,436 bytes with SHA-256
 `273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094`.
 Its 5,573-byte manifest has SHA-256
-`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
+`b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
 The current promoted Windows CupidC image is 2,613,760 bytes with SHA-256
 `c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002`.
 Its 2,118-byte manifest has SHA-256
-`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`.
-Both manifests bind revision `b3f0910f84ba182d0882fc67b5983b49e9627482`
+`751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`.
+Both manifests bind revision `a17c9465911da41d59b7ada71733d36c39faa5ea`
 and exact 50-input snapshot
-`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`.
-The Windows manifest names the Linux manifest as its parent.
+`46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
+The Windows manifest names the Linux manifest as its parent. ADR 0336 records
+the current promotion.
 The normal kernel path runs strict checked-seed CupidDis and checked CupidObj
 flat extraction against one frozen cohort of all 429 audited root object
 outputs plus the pass-one and final kernel ELFs. Its 9,076-byte graph-ordered input manifest has SHA-256
@@ -1659,8 +1661,8 @@ SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. The stable
-audit counts cover 745 active language inputs, 452 transforms, 255 features, and
-25 unreachable inputs. Python participates in all 452 transforms as orchestrator.
+audit counts cover 747 active language inputs, 452 transforms, 255 features,
+and 26 unreachable inputs. Python participates in all 452 transforms as orchestrator.
 CupidC participates in 250, CupidObj in 192, CupidASM in nine, CupidLD in nine,
 and CupidDis in nine. Four transforms use Cupid-built semantic contracts, and no
 transform is Python-only. Root `all` has 443 transforms, and every one has a
@@ -1678,14 +1680,16 @@ and digests. The focused semantic-contract, checked-runner, and
 independent-policy modules contain 22, 16, and 13 tests, for 51 total. They
 pass with four existing platform-specific skips. The source-head artifact
 contract passes against all fourteen exact artifacts. The pass-one ELF is
-9,417,012 bytes with SHA-256
-`5d353af4f5de45ca47f4de4be51ef732db0b907125543cbebad4a9c19f166605`.
-The final ELF is 9,543,988 bytes with SHA-256
-`1dfcd029e9a31d6da949181b3e5c2654fb6ae064a826e05fa9438ae1f3d01472`.
-The raw kernel is 9,320,044 bytes with SHA-256
-`3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d`.
+9,580,120 bytes with SHA-256
+`3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8`.
+The final ELF is 9,711,192 bytes with SHA-256
+`394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337`.
+The raw kernel is 9,482,844 bytes with SHA-256
+`3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35`.
 The disk image is 209,715,200 bytes with SHA-256
-`acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43`.
+`797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612`.
+The normal build completed its 431-input code-anchor scan, and the image passed
+a private four-vCPU E1000 frontier smoke.
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The Linux
 audit records 21 failure groups, five help groups, and 22 success groups. The

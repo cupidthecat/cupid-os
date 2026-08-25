@@ -108,6 +108,7 @@ class HostbuildAssembleBootloaderTests(unittest.TestCase):
                         (
                             "--require-known",
                             "--require-local-targets",
+                            "--require-source-edges",
                             "--raw",
                             "--range-map",
                             ".cupid-output/boot.bin.cupidmap",

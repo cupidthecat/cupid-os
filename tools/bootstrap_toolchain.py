@@ -22,10 +22,10 @@ from typing import Sequence
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
 WINDOWS_SEED_SCHEMA = "cupid.execution-seed.v1"
-SEED_SOURCE_REVISION = "b3f0910f84ba182d0882fc67b5983b49e9627482"
+SEED_SOURCE_REVISION = "a17c9465911da41d59b7ada71733d36c39faa5ea"
 SEED_SOURCE_INPUT_COUNT = 50
 SEED_SOURCE_SNAPSHOT_SHA256 = (
-    "4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19"
+    "46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67"
 )
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
 TOOL_DISPLAY_NAMES = {
@@ -90,16 +90,16 @@ EXPECTED_WINDOWS_PRODUCER_LINEAGE = {
     ),
 }
 WINDOWS_SEED_SOURCE_REVISION = (
-    "b3f0910f84ba182d0882fc67b5983b49e9627482"
+    "a17c9465911da41d59b7ada71733d36c39faa5ea"
 )
 WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256 = (
-    "4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19"
+    "46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67"
 )
 WINDOWS_SEED_PARENT_MANIFEST_SHA256 = (
-    "9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540"
+    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
 )
 WINDOWS_SEED_PARENT_SOURCE_REVISION = (
-    "b3f0910f84ba182d0882fc67b5983b49e9627482"
+    "a17c9465911da41d59b7ada71733d36c39faa5ea"
 )
 WINDOWS_TOOL_IMPORTS = (
     (
@@ -294,9 +294,31 @@ class ToolRunner:
     def platform_name(self) -> str:
         return "windows-wsl" if self.uses_wsl else "linux"
 
+    @staticmethod
+    def _wsl_command() -> str:
+        if os.name == "nt":
+            system_root = os.environ.get("SystemRoot")
+            if system_root:
+                executable_path = Path(system_root) / "System32" / "wsl.exe"
+                if executable_path.is_file():
+                    return str(executable_path)
+        else:
+            executable = shutil.which("wsl")
+            if executable is not None:
+                return executable
+        raise BootstrapError(
+            "WSL is required to run the i386 Linux seed on Windows"
+        )
+
     def _wsl_path(self, path: Path) -> str:
         result = subprocess.run(
-            ["wsl", "-e", "wslpath", "-a", str(path.resolve())],
+            [
+                self._wsl_command(),
+                "-e",
+                "wslpath",
+                "-a",
+                str(path.resolve()),
+            ],
             text=True,
             capture_output=True,
         )
@@ -351,10 +373,7 @@ class ToolRunner:
                 "the i386 Windows seed requires a Windows host"
             )
         if os.name == "nt" and is_linux_elf:
-            if shutil.which("wsl") is None:
-                raise BootstrapError(
-                    "WSL is required to run the i386 Linux seed on Windows"
-                )
+            wsl_command = self._wsl_command()
             linux_executable = self._wsl_path(executable)
             linux_working_directory = self._wsl_path(
                 self.working_directory
@@ -364,7 +383,7 @@ class ToolRunner:
             ]
             return subprocess.run(
                 [
-                    "wsl",
+                    wsl_command,
                     "-e",
                     "sh",
                     "-c",
@@ -1323,6 +1342,26 @@ def _run_clean(
     return result
 
 
+def _certify_relocatable_code_anchors(
+    runner: ToolRunner,
+    cupiddis: Path,
+    object_path: Path,
+    label: str,
+) -> None:
+    _run_clean(
+        runner,
+        cupiddis,
+        (
+            "--require-known",
+            "--require-local-targets",
+            "--require-code-anchors",
+            object_path,
+        ),
+        f"{label} CupidDis code anchors",
+        120,
+    )
+
+
 def _logical_path(root: Path, path: Path) -> str:
     try:
         relative = path.resolve().relative_to(root.resolve())
@@ -1918,6 +1957,12 @@ def _build_stage(
         120,
     )
     _validate_i386_relocatable(startup_object)
+    _certify_relocatable_code_anchors(
+        runner,
+        producers["cupiddis"],
+        startup_object,
+        f"{stage_name} startup",
+    )
     objects["start"] = startup_object
 
     raw_links = _require_object(plan.get("links"), "build_plan.links")
@@ -2199,6 +2244,12 @@ def _build_windows_stage(
             120,
         )
         _validate_i386_relocatable(object_path)
+        _certify_relocatable_code_anchors(
+            runner,
+            producers["cupiddis"],
+            object_path,
+            f"{stage_name} native {name} startup",
+        )
         objects[name] = object_path
 
     tools: dict[str, Path] = {}
@@ -2344,6 +2395,38 @@ def _run_stage_pair(
             f"{tool_name} behavior differs across stages"
         )
     return stage_two_result
+
+
+def _certify_stage_pair_relocatable_code_anchors(
+    runner: ToolRunner,
+    stage_two: Stage,
+    stage_three: Stage,
+    stage_two_object: Path,
+    stage_three_object: Path,
+    label: str,
+) -> None:
+    result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        (
+            "--require-known",
+            "--require-local-targets",
+            "--require-code-anchors",
+            stage_two_object,
+        ),
+        (
+            "--require-known",
+            "--require-local-targets",
+            "--require-code-anchors",
+            stage_three_object,
+        ),
+        120,
+    )
+    _expect_status(result, 0, label)
+    if result.stdout or result.stderr:
+        raise BootstrapError(f"{label} produced unexpected command output")
 
 
 def _expect_status(
@@ -3977,7 +4060,7 @@ def _run_behavior_checks(
     stage_three_link_object = behavior_root / "stage-four-start.o"
     link_source.write_text(
         "BITS 32\n"
-        "global _start\n"
+        "global _start:function\n"
         "section .text\n"
         "_start:\n"
         "    mov eax, 1\n"
@@ -4005,6 +4088,14 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidASM relocatable output differs")
     _validate_i386_relocatable(stage_two_link_object)
+    _certify_stage_pair_relocatable_code_anchors(
+        runner,
+        stage_two,
+        stage_three,
+        stage_two_link_object,
+        stage_three_link_object,
+        "CupidDis fixed-address startup code anchors",
+    )
 
     stage_two_linked = behavior_root / "stage-three-linked.elf"
     stage_three_linked = behavior_root / "stage-four-linked.elf"
@@ -4114,6 +4205,14 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidASM Windows startup output differs")
     _validate_i386_relocatable(stage_two_windows_start)
+    _certify_stage_pair_relocatable_code_anchors(
+        runner,
+        stage_two,
+        stage_three,
+        stage_two_windows_start,
+        stage_three_windows_start,
+        "CupidDis Windows startup code anchors",
+    )
 
     local_windows_contract = behavior_root / "windows-contract.cc"
     local_windows_contract.write_bytes(windows_contract.read_bytes())
@@ -4336,6 +4435,14 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidASM Windows tool startup differs")
     _validate_i386_relocatable(stage_two_windows_tool_start)
+    _certify_stage_pair_relocatable_code_anchors(
+        runner,
+        stage_two,
+        stage_three,
+        stage_two_windows_tool_start,
+        stage_three_windows_tool_start,
+        "CupidDis Windows tool startup code anchors",
+    )
 
     stage_two_windows_host_adapter = (
         behavior_root / "stage-three-windows-ctool-host.o"
@@ -4488,6 +4595,14 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidASM Windows publication startup differs")
     _validate_i386_relocatable(stage_two_windows_publication_start)
+    _certify_stage_pair_relocatable_code_anchors(
+        runner,
+        stage_two,
+        stage_three,
+        stage_two_windows_publication_start,
+        stage_three_windows_publication_start,
+        "CupidDis Windows publication startup code anchors",
+    )
 
     windows_cupiddis_imports = (
         ("__imp_CloseHandle", "KERNEL32.dll", "CloseHandle"),
@@ -6168,7 +6283,7 @@ def _bootstrap_from_frozen_seed(
         )
         runner = ToolRunner(private_source_root)
         seed_producers = {
-            name: seed_tools[name] for name in PRODUCER_NAMES
+            name: seed_tools[name] for name in (*PRODUCER_NAMES, "cupiddis")
         }
         stage_two = _build_stage(
             runner,
@@ -6181,7 +6296,8 @@ def _bootstrap_from_frozen_seed(
         require_source_closures(source_inputs, source_root, plan)
         require_live_seed_inputs(seed_inputs)
         stage_two_producers = {
-            name: stage_two.tools[name] for name in PRODUCER_NAMES
+            name: stage_two.tools[name]
+            for name in (*PRODUCER_NAMES, "cupiddis")
         }
         stage_three = _build_stage(
             runner,
@@ -6194,7 +6310,8 @@ def _bootstrap_from_frozen_seed(
         require_source_closures(source_inputs, source_root, plan)
         require_live_seed_inputs(seed_inputs)
         stage_three_producers = {
-            name: stage_three.tools[name] for name in PRODUCER_NAMES
+            name: stage_three.tools[name]
+            for name in (*PRODUCER_NAMES, "cupiddis")
         }
         stage_four = _build_stage(
             runner,
@@ -6394,7 +6511,12 @@ def _bootstrap_windows_from_frozen_seed(
         )
         runner = ToolRunner(private_source_root)
         seed_producers = {
-            name: seed_tools[name] for name in PRODUCER_NAMES
+            name: (
+                plan_inputs.tools["cupidc"]
+                if name == "cupidc"
+                else seed_tools[name]
+            )
+            for name in (*PRODUCER_NAMES, "cupiddis")
         }
         stage_two = _build_windows_stage(
             runner,
@@ -6409,7 +6531,8 @@ def _bootstrap_windows_from_frozen_seed(
         )
         require_live_seed_inputs(seed_inputs, plan_inputs)
         stage_two_producers = {
-            name: stage_two.tools[name] for name in PRODUCER_NAMES
+            name: stage_two.tools[name]
+            for name in (*PRODUCER_NAMES, "cupiddis")
         }
         stage_three = _build_windows_stage(
             runner,
@@ -6424,7 +6547,8 @@ def _bootstrap_windows_from_frozen_seed(
         )
         require_live_seed_inputs(seed_inputs, plan_inputs)
         stage_three_producers = {
-            name: stage_three.tools[name] for name in PRODUCER_NAMES
+            name: stage_three.tools[name]
+            for name in (*PRODUCER_NAMES, "cupiddis")
         }
         stage_four = _build_windows_stage(
             runner,
@@ -6506,7 +6630,7 @@ def _bootstrap_windows_from_frozen_seed(
                 "stage-two": {
                     "objects": _artifact_inventory(stage_two.objects),
                     "producer_generation": (
-                        "checked-windows-execution-seed"
+                        "checked-linux-cupidc-and-windows-execution-seed"
                     ),
                     "tools": _artifact_inventory(stage_two.tools),
                 },

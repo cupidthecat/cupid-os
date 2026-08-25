@@ -7,7 +7,7 @@
       "reason": "The disk builder consumes exactly five boot sectors, so extra output would be ignored."
     },
     {
-      "exact_bytes": 458256,
+      "exact_bytes": 462600,
       "path": "bootstrap/seeds/i386-linux/cupidasm.elf",
       "producer": "CupidASM",
       "reason": "The checked seed is immutable between reviewed promotions."
@@ -19,7 +19,7 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 442780,
+      "exact_bytes": 476092,
       "path": "bootstrap/seeds/i386-linux/cupiddis.elf",
       "producer": "CupidDis",
       "reason": "The checked seed is immutable between reviewed promotions."
@@ -37,7 +37,7 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 438784,
+      "exact_bytes": 444928,
       "path": "bootstrap/seeds/i386-windows/cupidasm.exe",
       "producer": "CupidASM",
       "reason": "The checked seed is immutable between reviewed promotions."
@@ -49,7 +49,7 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 420352,
+      "exact_bytes": 452608,
       "path": "bootstrap/seeds/i386-windows/cupiddis.exe",
       "producer": "CupidDis",
       "reason": "The checked seed is immutable between reviewed promotions."
@@ -67,19 +67,19 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 9323140,
+      "exact_bytes": 9482844,
       "path": "kernel/kernel.bin",
       "producer": "CupidObj",
       "reason": "CupidObj emits deterministic bytes, and the disk image copies this output verbatim."
     },
     {
-      "exact_bytes": 9548120,
+      "exact_bytes": 9711192,
       "path": "kernel/kernel.elf",
       "producer": "CupidLD",
       "reason": "The final CupidLD link is deterministic for a fixed source and object cohort."
     },
     {
-      "exact_bytes": 9421144,
+      "exact_bytes": 9580120,
       "path": "kernel/kernel.elf.pass1",
       "producer": "CupidLD",
       "reason": "The pass-one CupidLD link is deterministic for a fixed source and object cohort."

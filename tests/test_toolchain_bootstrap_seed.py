@@ -24,6 +24,8 @@ from tools.bootstrap_toolchain import (
     WSL_PRIVATE_RUN_SCRIPT,
     _compare_stages,
     _compare_windows_stages,
+    _build_stage,
+    _build_windows_stage,
     _bootstrap_from_frozen_seed,
     _bootstrap_windows_from_frozen_seed,
     _check_executable_code_anchor_behavior,
@@ -70,11 +72,169 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19"
+    "8bf242a67510fb5ee572d91d2a7f32a969cc0752c7bf2ae55ce8a8df745eb417"
 )
 
 
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    def test_fixed_point_stages_certify_startups_before_linking(self):
+        class RecordingRunner:
+            def __init__(self, *, reject_code_anchors: bool = False):
+                self.calls: list[tuple[str, tuple[str, ...]]] = []
+                self.reject_code_anchors = reject_code_anchors
+
+            def run(self, executable, arguments, _timeout):
+                name = Path(executable).name
+                rendered = tuple(str(argument) for argument in arguments)
+                self.calls.append((name, rendered))
+                if name == "cupidasm":
+                    Path(arguments[4]).write_bytes(
+                        _local_target_object_payload(0)
+                    )
+                elif name == "cupiddis" and self.reject_code_anchors:
+                    return subprocess.CompletedProcess(
+                        rendered,
+                        1,
+                        "",
+                        "fixture code anchor rejection\n",
+                    )
+                elif name == "cupidld":
+                    output_index = list(arguments).index("-o") + 1
+                    Path(arguments[output_index]).write_bytes(b"linked")
+                return subprocess.CompletedProcess(rendered, 0, "", "")
+
+        with tempfile.TemporaryDirectory(
+            prefix=".fixed-point-startup-gate-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            startup = root / "start.asm"
+            startup.write_text(
+                "bits 32\nglobal _start:function\n_start: ret\n",
+                encoding="utf-8",
+            )
+            producers = {
+                name: root / name
+                for name in ("cupidasm", "cupiddis", "cupidld")
+            }
+            plan = {
+                "sources": [],
+                "include_arguments": [],
+                "workers": 1,
+                "startup": str(startup),
+                "links": {name: ["start"] for name in TOOL_NAMES},
+            }
+            runner = RecordingRunner()
+            with mock.patch(
+                "tools.bootstrap_toolchain._validate_static_i386_elf"
+            ):
+                _build_stage(
+                    runner,
+                    root,
+                    root / "linux-stage",
+                    producers,
+                    plan,
+                    "fixture",
+                )
+
+            tool_order = [name for name, _ in runner.calls]
+            self.assertEqual(tool_order[:2], ["cupidasm", "cupiddis"])
+            self.assertEqual(tool_order[2:], ["cupidld"] * len(TOOL_NAMES))
+            self.assertEqual(
+                runner.calls[1][1][:-1],
+                (
+                    "--require-known",
+                    "--require-local-targets",
+                    "--require-code-anchors",
+                ),
+            )
+
+            windows_plan = {
+                "sources": [],
+                "include_arguments": [],
+                "workers": 1,
+                "assembly_sources": [
+                    {"name": "start", "path": str(startup)},
+                    {"name": "publication_start", "path": str(startup)},
+                ],
+                "links": {name: ["start"] for name in TOOL_NAMES},
+            }
+            windows_runner = RecordingRunner()
+            with mock.patch(
+                "tools.bootstrap_toolchain._validate_static_i386_pe32"
+            ):
+                _build_windows_stage(
+                    windows_runner,
+                    root,
+                    root / "windows-stage",
+                    producers,
+                    windows_plan,
+                    "fixture",
+                )
+            windows_order = [name for name, _ in windows_runner.calls]
+            self.assertEqual(
+                windows_order[:4],
+                ["cupidasm", "cupiddis", "cupidasm", "cupiddis"],
+            )
+            self.assertEqual(
+                windows_order[4:], ["cupidld"] * len(TOOL_NAMES)
+            )
+
+    def test_fixed_point_stage_stops_before_link_on_anchor_failure(self):
+        class RejectingRunner:
+            def __init__(self):
+                self.calls: list[str] = []
+
+            def run(self, executable, arguments, _timeout):
+                name = Path(executable).name
+                self.calls.append(name)
+                if name == "cupidasm":
+                    Path(arguments[4]).write_bytes(
+                        _local_target_object_payload(0)
+                    )
+                    return subprocess.CompletedProcess(arguments, 0, "", "")
+                if name == "cupiddis":
+                    return subprocess.CompletedProcess(
+                        arguments,
+                        1,
+                        "",
+                        "fixture code anchor rejection\n",
+                    )
+                raise AssertionError(
+                    "CupidLD must not run after certification fails"
+                )
+
+        with tempfile.TemporaryDirectory(
+            prefix=".fixed-point-startup-rejection-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            startup = root / "start.asm"
+            startup.write_text("bits 32\nret\n", encoding="utf-8")
+            producers = {
+                name: root / name
+                for name in ("cupidasm", "cupiddis", "cupidld")
+            }
+            plan = {
+                "sources": [],
+                "include_arguments": [],
+                "workers": 1,
+                "startup": str(startup),
+                "links": {name: ["start"] for name in TOOL_NAMES},
+            }
+            runner = RejectingRunner()
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "fixture startup CupidDis code anchors failed with status 1",
+            ):
+                _build_stage(
+                    runner,
+                    root,
+                    root / "stage",
+                    producers,
+                    plan,
+                    "fixture",
+                )
+            self.assertEqual(runner.calls, ["cupidasm", "cupiddis"])
+
     def test_public_bootstrap_cannot_skip_the_fixed_point(self):
         with self.assertRaisesRegex(
             TypeError, "unexpected keyword argument 'compare_fixed_point'"
@@ -379,12 +539,29 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         if native_probe is not None and native_probe.returncode == 0:
             command_prefix = native_prefix
         elif os.name == "nt":
-            repository = ToolRunner(REPO_ROOT)._wsl_path(REPO_ROOT)
-            command_prefix = ["wsl", "-e", "git", "-C", repository]
+            runner = ToolRunner(REPO_ROOT)
+            wsl_command = runner._wsl_command()
+            repository = runner._wsl_path(REPO_ROOT)
+            command_prefix = [
+                wsl_command,
+                "-e",
+                "git",
+                "-C",
+                repository,
+            ]
         else:
             raise AssertionError(native_probe.stderr)
+        tree = subprocess.run(
+            [*command_prefix, "ls-tree", "-r", "--name-only", revision],
+            capture_output=True,
+        )
+        if tree.returncode != 0:
+            raise AssertionError(
+                tree.stderr.decode("utf-8", errors="replace")
+            )
+        committed_paths = set(tree.stdout.decode("utf-8").splitlines())
         inventory: dict[str, dict[str, object]] = {}
-        for logical_path in sorted(logical_paths):
+        for logical_path in sorted(set(logical_paths) & committed_paths):
             result = subprocess.run(
                 [*command_prefix, "show", f"{revision}:{logical_path}"],
                 capture_output=True,
@@ -407,19 +584,27 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         logical_path = "toolchain/ctool.cc"
         committed_source = b"named revision source\n"
         commands: list[list[str]] = []
+        wsl_command = str(Path("C:/Windows/System32/wsl.exe"))
 
         def run(command, *args, **kwargs):
             commands.append(command)
             if command[:3] == ["git", "-C", str(REPO_ROOT)]:
                 raise FileNotFoundError("git.exe is unavailable")
-            if command[:3] == ["wsl", "-e", "wslpath"]:
+            if command[:3] == [wsl_command, "-e", "wslpath"]:
                 return subprocess.CompletedProcess(
                     command,
                     0,
                     stdout="/mnt/c/cupid-os\n",
                     stderr="",
                 )
-            if command[:3] == ["wsl", "-e", "git"]:
+            if command[:3] == [wsl_command, "-e", "git"]:
+                if "ls-tree" in command:
+                    return subprocess.CompletedProcess(
+                        command,
+                        0,
+                        stdout=f"{logical_path}\n".encode("utf-8"),
+                        stderr=b"",
+                    )
                 return subprocess.CompletedProcess(
                     command,
                     0,
@@ -428,7 +613,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 )
             raise AssertionError(f"unexpected command: {command}")
 
-        with mock.patch.object(subprocess, "run", side_effect=run):
+        with mock.patch.object(
+            ToolRunner,
+            "_wsl_command",
+            return_value=wsl_command,
+        ), mock.patch.object(subprocess, "run", side_effect=run):
             inventory = self._committed_source_inventory(
                 revision,
                 {logical_path: object()},
@@ -447,7 +636,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             },
         )
         self.assertTrue(
-            any(command[:3] == ["wsl", "-e", "git"] for command in commands)
+            any(
+                command[:3] == [wsl_command, "-e", "git"]
+                for command in commands
+            )
         )
 
     @staticmethod
@@ -796,6 +988,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             encoding="utf-8",
             newline="\n",
         )
+        (windows / "cupidbuild_start.asm").write_text(
+            "bits 32\n",
+            encoding="utf-8",
+            newline="\n",
+        )
         (windows / "publication_runtime.cc").write_text(
             "int windows_publication_runtime(void) { return 1; }\n",
             encoding="utf-8",
@@ -854,6 +1051,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             (windows / "tool_start.asm").write_text("bits 32\n")
             (windows / "publication_start.asm").write_text("bits 32\n")
+            (windows / "cupidbuild_start.asm").write_text("bits 32\n")
             (windows / "publication_runtime.cc").write_text(
                 "int windows_publication_runtime(void) { return 1; }\n"
             )
@@ -1231,10 +1429,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 private_stage_directories.append(stage_directory)
                 return Stage(
                     objects={"marker": marker},
-                    tools={
-                        name: marker
-                        for name in ("cupidc", "cupidasm", "cupidld")
-                    },
+                    tools={name: marker for name in TOOL_NAMES},
                 )
 
             with mock.patch(
@@ -1284,10 +1479,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 private_stage_directories.append(stage_directory)
                 return Stage(
                     objects={"marker": marker},
-                    tools={
-                        name: marker
-                        for name in ("cupidasm", "cupidc", "cupidld")
-                    },
+                    tools={name: marker for name in TOOL_NAMES},
                 )
 
             with mock.patch(
@@ -1933,6 +2125,40 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertIn('rm -rf -- "$private"', WSL_PRIVATE_RUN_SCRIPT)
         self.assertNotIn("$$", WSL_PRIVATE_RUN_SCRIPT)
 
+    @unittest.skipUnless(os.name == "nt", "Windows WSL resolution")
+    def test_wsl_runner_uses_the_system_copy_with_a_poisoned_path(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-wsl-system-root-"
+        ) as temporary:
+            system_root = Path(temporary)
+            executable = system_root / "System32" / "wsl.exe"
+            executable.parent.mkdir()
+            executable.write_bytes(b"fixture")
+            with mock.patch(
+                "tools.bootstrap_toolchain.shutil.which",
+                return_value=str(Path(temporary) / "poison" / "wsl.exe"),
+            ), mock.patch.dict(
+                os.environ, {"SystemRoot": str(system_root)}, clear=False
+            ):
+                self.assertEqual(
+                    ToolRunner._wsl_command(), str(executable)
+                )
+
+    @unittest.skipUnless(os.name == "nt", "Windows WSL resolution")
+    def test_wsl_runner_rejects_a_missing_system_copy(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-wsl-missing-root-"
+        ) as temporary, mock.patch(
+            "tools.bootstrap_toolchain.shutil.which",
+            return_value=str(Path(temporary) / "poison" / "wsl.exe"),
+        ), mock.patch.dict(
+            os.environ, {"SystemRoot": temporary}, clear=False
+        ), self.assertRaisesRegex(
+            BootstrapError,
+            "^WSL is required to run the i386 Linux seed on Windows$",
+        ):
+            ToolRunner._wsl_command()
+
     def test_checked_i386_linux_seed_verifies(self):
         result = subprocess.run(
             [
@@ -2303,11 +2529,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "9c782ad63968d4942db6bae6debf6de5"
-                    "1910f733c8618caf1f4ab70458128540"
+                    "b6e34a2e18dd18aba91c6358116eafde"
+                    "39953566efeadb224575ac8c13ab2c1b"
                 ),
                 "parent_seed_source_revision": (
-                    "b3f0910f84ba182d0882fc67b5983b49e9627482"
+                    "a17c9465911da41d59b7ada71733d36c39faa5ea"
                 ),
                 "producer_lineage": {
                     "assembly": (
@@ -2325,7 +2551,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
                 "source_input_count": 50,
                 "source_revision": (
-                    "b3f0910f84ba182d0882fc67b5983b49e9627482"
+                    "a17c9465911da41d59b7ada71733d36c39faa5ea"
                 ),
                 "source_snapshot_sha256": (
                     WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256
@@ -2570,7 +2796,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             side_effect=accept_verified_inputs,
         ), mock.patch(
             "tools.bootstrap_toolchain.shutil.which",
-            side_effect=AssertionError("native bootstrap must not probe WSL"),
+            side_effect=AssertionError(
+                "input freezing must not probe WSL"
+            ),
         ):
             output = Path(temporary) / "published"
             report = bootstrap_windows_from_seed(
@@ -2638,15 +2866,23 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             output = root / "published"
             output.mkdir()
             private_stage_directories: list[Path] = []
+            stage_two_producer_suffixes: dict[str, str] = {}
 
             def fail_at_stage_four(
                 _runner: ToolRunner,
                 _source_root: Path,
                 stage_directory: Path,
-                _producers: dict[str, Path],
+                producers: dict[str, Path],
                 _plan: dict[str, object],
                 stage_name: str,
             ) -> Stage:
+                if stage_name == "stage two":
+                    stage_two_producer_suffixes.update(
+                        {
+                            name: producer.suffix
+                            for name, producer in producers.items()
+                        }
+                    )
                 if stage_name == "stage four":
                     raise BootstrapError("forced native stage-four failure")
                 stage_directory.mkdir()
@@ -2655,10 +2891,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 private_stage_directories.append(stage_directory)
                 return Stage(
                     objects={"marker": marker},
-                    tools={
-                        name: marker
-                        for name in ("cupidasm", "cupidc", "cupidld")
-                    },
+                    tools={name: marker for name in TOOL_NAMES},
                 )
 
             with mock.patch(
@@ -2683,6 +2916,15 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {"published"},
             )
             self.assertEqual(len(private_stage_directories), 2)
+            self.assertEqual(
+                stage_two_producer_suffixes,
+                {
+                    "cupidasm": ".exe",
+                    "cupidc": ".elf",
+                    "cupiddis": ".exe",
+                    "cupidld": ".exe",
+                },
+            )
             self.assertTrue(
                 all(
                     not path.exists()
@@ -2787,7 +3029,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["stages"]["stage-two"]["producer_generation"],
-                "checked-windows-execution-seed",
+                "checked-linux-cupidc-and-windows-execution-seed",
             )
             self.assertEqual(
                 report["stages"]["stage-three"]["producer_generation"],
@@ -2809,7 +3051,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["source_snapshot_sha256"],
                 SOURCE_HEAD_SNAPSHOT_SHA256,
             )
-            self.assertEqual(report["source_inputs"]["count"], 50)
+            self.assertEqual(report["source_inputs"]["count"], 55)
             self.assertEqual(
                 report["source_inputs"]["sha256"],
                 report["source_snapshot_sha256"],
@@ -2818,8 +3060,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["initial_seed_matches_stage_two"],
                 {
                     "cupidasm": True,
-                    "cupidc": True,
-                    "cupiddis": True,
+                    "cupidc": False,
+                    "cupiddis": False,
                     "cupidld": True,
                     "cupidobj": True,
                 },
@@ -6865,7 +7107,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "b3f0910f84ba182d0882fc67b5983b49e9627482",
+                "a17c9465911da41d59b7ada71733d36c39faa5ea",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -7105,9 +7347,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "18167d5ae7b86ad0edd332da2eaef292c718572c5c8eba5847e57f142cdd8e45"
+                        "205e851ec7c7532f8f9e6b738f5f52932618edce4c4fe3223f87ea461f4af3f6"
                     ),
-                    "size": 420352,
+                    "size": 517632,
                 },
             )
             self.assertEqual(
@@ -7165,9 +7407,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             expected_native_images = {
                 "cupidasm": {
                     "sha256": (
-                        "c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6"
+                        "5c21d79b1822831e5d81359fa2b31d85b731ead5a88c6596ced38585e64b87cb"
                     ),
-                    "size": 438784,
+                    "size": 444928,
                 },
                 "cupidc": {
                     "sha256": (
@@ -7273,7 +7515,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidobj": True,
                 },
             )
-            self.assertEqual(report["source_inputs"]["count"], 50)
+            self.assertEqual(report["source_inputs"]["count"], 55)
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
                 64,

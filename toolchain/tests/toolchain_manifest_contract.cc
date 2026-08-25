@@ -14,8 +14,8 @@ static const char manifest_report_schema[] =
 
 #define MANIFEST_ARTIFACT_COUNT 21u
 #define MANIFEST_INPUT_LIMIT 256u
-#define MANIFEST_EXPECTED_INPUT_COUNT 72u
-#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 52u
+#define MANIFEST_EXPECTED_INPUT_COUNT 75u
+#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 55u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
 #define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 19u
@@ -30,7 +30,7 @@ static const char manifest_expected_seed_path[] =
 static const char manifest_expected_build_plan_sha256[] =
     "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc";
 static const char manifest_expected_seed_manifest_sha256[] =
-    "9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540";
+    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b";
 
 static const char *const
     manifest_expected_input_paths[MANIFEST_EXPECTED_INPUT_COUNT] = {
@@ -45,6 +45,8 @@ static const char *const
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
         "toolchain/cupidasm.h",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.h",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.h",
         "toolchain/cupidc_ir.h",
@@ -63,6 +65,7 @@ static const char *const
         "toolchain/hosted/i386-linux/include/string.h",
         "toolchain/hosted/i386-linux/include/unistd.h",
         "toolchain/hosted/i386-linux/include/windows.h",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/runtime.cc",
@@ -118,6 +121,8 @@ static const char *const manifest_expected_bootstrap_paths
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm.h",
         "toolchain/cupidasm_main.cc",
+        "toolchain/cupidbuild.h",
+        "toolchain/cupidbuild_host.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -151,6 +156,7 @@ static const char *const manifest_expected_bootstrap_paths
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-linux/start.asm",
+        "toolchain/hosted/i386-windows/cupidbuild_start.asm",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/hosted/i386-windows/publication_start.asm",
         "toolchain/hosted/i386-windows/runtime.cc",

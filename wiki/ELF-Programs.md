@@ -112,12 +112,13 @@ old seed comparison was false for CupidASM, CupidC, and CupidDis and true for
 CupidLD and CupidObj. That promoted 2,118-byte manifest has SHA-256
 `ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e`.
 The current 2,118-byte Windows manifest has SHA-256
-`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`.
-It binds revision `b3f0910f84ba182d0882fc67b5983b49e9627482`, exact 50-input
+`751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`.
+It binds revision `a17c9465911da41d59b7ada71733d36c39faa5ea`, exact 50-input
 snapshot
-`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`,
+`46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`,
 and Linux parent manifest
-`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
+`b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
+ADR 0336 records the current pair.
 See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
@@ -878,16 +879,17 @@ The source-head artifact contract passes against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,417,012 | `5d353af4f5de45ca47f4de4be51ef732db0b907125543cbebad4a9c19f166605` |
-| `kernel/kernel.elf` | 9,543,988 | `1dfcd029e9a31d6da949181b3e5c2654fb6ae064a826e05fa9438ae1f3d01472` |
-| `kernel/kernel.bin` | 9,320,044 | `3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d` |
-| `cupidos.img` | 209,715,200 | `acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43` |
+| `kernel/kernel.elf.pass1` | 9,580,120 | `3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8` |
+| `kernel/kernel.elf` | 9,711,192 | `394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337` |
+| `kernel/kernel.bin` | 9,482,844 | `3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35` |
+| `cupidos.img` | 209,715,200 | `797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612` |
 
-Those output identities are source-head evidence. Both checked seeds now carry
-the same source snapshot. The normal kernel transaction selects linked local
-target and static code-anchor validation before flattening. ADR 0318 records
-the preceding linked-image promotion, and ADR 0323 records the current
-code-anchor promotion and adoption.
+Those output identities come from the completed normal build. Both checked
+seeds carry the same source snapshot. The kernel transaction passed linked
+local-target and static code-anchor validation before flattening, and the image
+passed a private four-vCPU E1000 frontier smoke. ADR 0318 records
+the preceding linked-image promotion, ADR 0323 records the preceding
+code-anchor promotion, and ADR 0336 records the current promotion and adoption.
 
 The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB

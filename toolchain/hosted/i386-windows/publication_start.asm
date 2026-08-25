@@ -5,10 +5,10 @@ extern __imp_FlushFileBuffers
 extern __imp_GetFullPathNameA
 extern __imp_MoveFileExA
 
-global cupid_windows_delete_file
-global cupid_windows_flush_file_buffers
-global cupid_windows_get_full_path_name
-global cupid_windows_move_file_ex
+global cupid_windows_delete_file:function
+global cupid_windows_flush_file_buffers:function
+global cupid_windows_get_full_path_name:function
+global cupid_windows_move_file_ex:function
 
 section .text
 

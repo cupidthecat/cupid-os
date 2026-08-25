@@ -16,12 +16,15 @@ def _relocatable_object(
     text: bytes = b"\x90\xc3",
     *,
     text_flags: int = 0x6,
+    function_offset: int | None = None,
 ) -> bytes:
     section_names = b"\0.text\0.symtab\0.strtab\0.shstrtab\0"
+    symbol_names = b"\0entry\0" if function_offset is not None else b"\0"
     text_offset = 64
     symbol_offset = (text_offset + len(text) + 3) & ~3
-    string_offset = symbol_offset + 16
-    names_offset = string_offset + 1
+    symbol_count = 2 if function_offset is not None else 1
+    string_offset = symbol_offset + symbol_count * 16
+    names_offset = string_offset + len(symbol_names)
     section_offset = (names_offset + len(section_names) + 3) & ~3
     image = bytearray(section_offset + 5 * 40)
     image[0:16] = b"\x7fELF\x01\x01\x01" + bytes(9)
@@ -44,13 +47,47 @@ def _relocatable_object(
         4,
     )
     image[text_offset : text_offset + len(text)] = text
-    image[string_offset] = 0
+    if function_offset is not None:
+        struct.pack_into(
+            "<IIIBBH",
+            image,
+            symbol_offset + 16,
+            1,
+            function_offset,
+            0,
+            0x12,
+            0,
+            1,
+        )
+    image[string_offset : string_offset + len(symbol_names)] = symbol_names
     image[names_offset : names_offset + len(section_names)] = section_names
     sections = (
         (0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
         (1, 1, text_flags, 0, text_offset, len(text), 0, 0, 16, 0),
-        (7, 2, 0, 0, symbol_offset, 16, 3, 1, 4, 16),
-        (15, 3, 0, 0, string_offset, 1, 0, 0, 1, 0),
+        (
+            7,
+            2,
+            0,
+            0,
+            symbol_offset,
+            symbol_count * 16,
+            3,
+            1,
+            4,
+            16,
+        ),
+        (
+            15,
+            3,
+            0,
+            0,
+            string_offset,
+            len(symbol_names),
+            0,
+            0,
+            1,
+            0,
+        ),
         (
             23,
             3,
@@ -236,6 +273,7 @@ class HostbuildAssembleCupidAsmObjectTests(unittest.TestCase):
                         (
                             "--require-known",
                             "--require-local-targets",
+                            "--require-code-anchors",
                             ".cupid-output/isr.o",
                         ),
                     )
@@ -262,6 +300,80 @@ class HostbuildAssembleCupidAsmObjectTests(unittest.TestCase):
             self.assertEqual(stdout, "")
             self.assertEqual(stderr, "")
             self.assertEqual(output.read_bytes(), candidate)
+
+    def test_production_seed_rejects_a_function_mid_instruction(self):
+        seed_name = "i386-windows" if os.name == "nt" else "i386-linux"
+        repository_root = Path(__file__).resolve().parents[1]
+        seed = (
+            repository_root
+            / "bootstrap"
+            / "seeds"
+            / seed_name
+            / "manifest.json"
+        )
+        real_run_seed_tool = hostbuild.run_seed_tool
+        candidate = _relocatable_object(
+            bytes.fromhex("b8 00 00 00 00 c3"),
+            function_offset=1,
+        )
+
+        with tempfile.TemporaryDirectory(
+            prefix=".production-seed-code-anchor-",
+            dir=repository_root,
+        ) as temporary:
+            fixture_root = Path(temporary)
+            source = fixture_root / "mid-instruction.asm"
+            output = fixture_root / "mid-instruction.o"
+            source.write_text(
+                "bits 32\nglobal entry:function\nentry: ret\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"last known good object")
+            original = output.read_bytes()
+
+            def run_checked(
+                seed_manifest,
+                working_directory,
+                tool_name,
+                arguments,
+                *,
+                timeout,
+                frozen_seed,
+            ):
+                if tool_name == "cupidasm":
+                    private_root = Path(working_directory)
+                    (private_root / str(arguments[3])).write_bytes(candidate)
+                    return subprocess.CompletedProcess(
+                        list(arguments), 0, "", ""
+                    )
+                return real_run_seed_tool(
+                    seed_manifest,
+                    working_directory,
+                    tool_name,
+                    arguments,
+                    timeout=timeout,
+                    frozen_seed=frozen_seed,
+                )
+
+            with mock.patch(
+                "tools.hostbuild.run_seed_tool",
+                side_effect=run_checked,
+            ):
+                result = hostbuild.assemble_cupidasm_object(
+                    seed,
+                    repository_root,
+                    source.relative_to(repository_root),
+                    output.relative_to(repository_root),
+                )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn(
+                "1 of 1 code anchors invalid "
+                "(0 outside executable PROGBITS, 1 mid-instruction)",
+                result.stderr,
+            )
+            self.assertEqual(output.read_bytes(), original)
 
     def test_production_seed_rejects_an_unowned_executable_relocation(self):
         seed_name = "i386-windows" if os.name == "nt" else "i386-linux"

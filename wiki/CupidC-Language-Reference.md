@@ -195,15 +195,16 @@ and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
 The source-head artifact contract passes against all fourteen exact artifacts.
-The raw kernel is 9,320,044 bytes with SHA-256
-`3cb8135aa9bb6cf068739aef31074e3e74363cc281c666184f93e5a1a1ed9d5d`.
+The raw kernel is 9,482,844 bytes with SHA-256
+`3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35`.
 The 209,715,200-byte disk image has SHA-256
-`acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43`.
-Those output identities are source-head evidence. Both checked seeds now carry
-the same source snapshot. The normal kernel transaction selects linked local
-target and static code-anchor validation before flattening. ADR 0318 records
-the preceding linked-image promotion, and ADR 0323 records the current
-code-anchor promotion and adoption.
+`797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612`.
+Those output identities come from the completed source-head normal build. Its
+431-input linked-image scan passed local-target and code-anchor validation, and
+the image passed a private four-vCPU E1000 frontier smoke. Both checked seeds
+carry the same source snapshot. ADR 0318 records
+the preceding linked-image promotion, ADR 0323 records the preceding
+code-anchor promotion, and ADR 0336 records the current promotion and adoption.
 
 The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB

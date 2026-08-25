@@ -62,6 +62,7 @@ OBJECT_FIXTURES = (
         "symbol_count": 41,
         "binding_counts": {0: 2, 1: 39},
         "placement_counts": {".text": 33, "UND": 8},
+        "function_count": 31,
         "relocations": (
             (".text", 0x12, 2, -4, "percpu_interrupt_enter"),
             (".text", 0x18, 2, -4, "isr_handler"),
@@ -84,9 +85,46 @@ OBJECT_FIXTURES = (
         "symbol_count": 6,
         "binding_counts": {0: 3, 1: 3},
         "placement_counts": {".text": 5, "UND": 1},
+        "function_count": 2,
         "relocations": (
             (".text", 0x21, 2, -4, "bkl_context_switch_release"),
         ),
+    },
+)
+
+
+STARTUP_OBJECT_FIXTURES = (
+    {
+        "name": "linux-start",
+        "source": REPO_ROOT
+        / "toolchain"
+        / "hosted"
+        / "i386-linux"
+        / "start.asm",
+        "function_count": 6,
+    },
+    {
+        "name": "windows-contract-start",
+        "source": REPO_ROOT / "toolchain" / "hosted" / "i386-windows" / "start.asm",
+        "function_count": 2,
+    },
+    {
+        "name": "windows-tool-start",
+        "source": REPO_ROOT
+        / "toolchain"
+        / "hosted"
+        / "i386-windows"
+        / "tool_start.asm",
+        "function_count": 11,
+    },
+    {
+        "name": "windows-publication-start",
+        "source": REPO_ROOT
+        / "toolchain"
+        / "hosted"
+        / "i386-windows"
+        / "publication_start.asm",
+        "function_count": 4,
     },
 )
 
@@ -201,6 +239,7 @@ def _parse_elf32_semantics(image):
                     raise AssertionError(f"duplicate named ELF symbol {name!r}")
                 symbols_by_name[name] = {
                     "binding": symbol["binding"],
+                    "type": symbol["type"],
                     "placement": placement,
                     "value": value,
                 }
@@ -277,6 +316,10 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
         cls._build_directory.cleanup()
 
     def _assemble(self, assembler, source, output, output_format):
+        try:
+            source_display = source.relative_to(REPO_ROOT)
+        except ValueError:
+            source_display = source
         result = subprocess.run(
             [*assembler, "-f", output_format, str(source), "-o", str(output)],
             cwd=REPO_ROOT,
@@ -286,12 +329,76 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
         self.assertEqual(
             result.returncode,
             0,
-            f"{Path(assembler[0]).name} failed to assemble {source.relative_to(REPO_ROOT)}\n"
+            f"{Path(assembler[0]).name} failed to assemble {source_display}\n"
             + result.stdout
             + result.stderr,
         )
         self.assertTrue(output.is_file(), f"assembler did not create {output.name}")
         return output.read_bytes()
+
+    def _assert_function_annotations_preserve_code(self, root, fixture):
+        source_text = fixture["source"].read_text(encoding="utf-8")
+        function_names = {
+            line.split()[1].removesuffix(":function")
+            for line in source_text.splitlines()
+            if line.strip().lower().startswith("global ")
+            and line.strip().lower().endswith(":function")
+        }
+        self.assertEqual(len(function_names), fixture["function_count"])
+        typed_path = root / f"{fixture['name']}.typed.o"
+        ordinary_source = root / f"{fixture['name']}.ordinary.asm"
+        ordinary_path = root / f"{fixture['name']}.ordinary.o"
+        ordinary_source.write_text(
+            source_text.replace(":function", ""), encoding="utf-8"
+        )
+        typed = _parse_elf32_semantics(
+            self._assemble(
+                (str(self.cli_path),), fixture["source"], typed_path, "elf32"
+            )
+        )
+        ordinary = _parse_elf32_semantics(
+            self._assemble(
+                (str(self.cli_path),), ordinary_source, ordinary_path, "elf32"
+            )
+        )
+        self.assertEqual(
+            {
+                name
+                for name, symbol in typed["symbols"].items()
+                if symbol["type"] == 2
+            },
+            function_names,
+        )
+        self.assertEqual(
+            typed["sections"][".text"]["data"],
+            ordinary["sections"][".text"]["data"],
+        )
+        self.assertEqual(typed["relocations"], ordinary["relocations"])
+        self.assertEqual(
+            {
+                name: (symbol["binding"], symbol["placement"], symbol["value"])
+                for name, symbol in typed["symbols"].items()
+            },
+            {
+                name: (symbol["binding"], symbol["placement"], symbol["value"])
+                for name, symbol in ordinary["symbols"].items()
+            },
+        )
+        inspected = subprocess.run(
+            [
+                str(self.dis_path),
+                "--require-known",
+                "--require-local-targets",
+                "--require-code-anchors",
+                str(typed_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(inspected.returncode, 0, inspected.stderr)
+        self.assertEqual(inspected.stdout, "")
+        self.assertEqual(inspected.stderr, "")
 
     def test_nasm_oracle_exception_is_limited_to_cupid_owned_fixture(self):
         exceptions = [
@@ -617,12 +724,20 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                         fixture["placement_counts"],
                     )
                     self.assertEqual(cupid["relocations"], fixture["relocations"])
+                    self.assertEqual(
+                        sum(
+                            symbol["type"] == 2
+                            for symbol in cupid["symbols"].values()
+                        ),
+                        fixture["function_count"],
+                    )
 
                     inspected = subprocess.run(
                         [
                             str(self.dis_path),
                             "--require-known",
                             "--require-local-targets",
+                            "--require-code-anchors",
                             str(object_path),
                         ],
                         cwd=REPO_ROOT,
@@ -687,6 +802,15 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                         self.assertEqual(
                             cupid["relocations"], oracle["relocations"]
                         )
+
+    def test_active_function_annotations_preserve_code_and_relocations(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupidasm-function-symbols-"
+        ) as directory:
+            root = Path(directory)
+            for fixture in (*OBJECT_FIXTURES, *STARTUP_OBJECT_FIXTURES):
+                with self.subTest(source=fixture["source"].relative_to(REPO_ROOT)):
+                    self._assert_function_annotations_preserve_code(root, fixture)
 
 
 if __name__ == "__main__":

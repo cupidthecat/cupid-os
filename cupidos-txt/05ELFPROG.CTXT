@@ -314,8 +314,8 @@ atomic publication. It captures each side from a regular file through a
 descriptor whose identity is checked before and after the read. CUPMAN2
 remains the publication verifier.
 
-A valid schema-v3 publication binds exactly 21 artifacts, 70 publication
-inputs, 50 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
+A valid schema-v3 publication binds exactly 21 artifacts, 75 publication
+inputs, 55 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
 the published cohort. Focused evidence passes 40 direct contract tests in
 43.226 seconds, 62 publisher tests in 7.266 seconds, and 25 pinned runner tests
 in 32.773 seconds. Both checked Python launchers resolve `tools` from this

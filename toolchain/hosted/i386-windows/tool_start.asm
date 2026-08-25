@@ -14,17 +14,17 @@ extern __imp_VirtualAlloc
 extern __imp_VirtualFree
 extern __imp_WriteFile
 
-global _start
-global cupid_windows_close_handle
-global cupid_windows_create_file
-global cupid_windows_get_current_directory
-global cupid_windows_get_last_error
-global cupid_windows_get_std_handle
-global cupid_windows_read_file
-global cupid_windows_set_file_pointer
-global cupid_windows_virtual_alloc
-global cupid_windows_virtual_free
-global cupid_windows_write_file
+global _start:function
+global cupid_windows_close_handle:function
+global cupid_windows_create_file:function
+global cupid_windows_get_current_directory:function
+global cupid_windows_get_last_error:function
+global cupid_windows_get_std_handle:function
+global cupid_windows_read_file:function
+global cupid_windows_set_file_pointer:function
+global cupid_windows_virtual_alloc:function
+global cupid_windows_virtual_free:function
+global cupid_windows_write_file:function
 
 section .text
 

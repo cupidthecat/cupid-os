@@ -5912,6 +5912,103 @@ def _validate_checked_code_publication(
         )
 
 
+def _validate_checked_assembly_publication(
+    tree: ast.Module,
+    relative: str,
+) -> None:
+    function = _checked_seed_function(
+        tree, "assemble_cupidasm_object", relative
+    )
+    tool_calls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and ast.unparse(node.func) == "transaction.run_tool"
+    ]
+    expected_calls = {
+        "cupidasm": [
+            "'cupidasm'",
+            "('-f', 'elf32', '-o', candidate_logical, source_logical)",
+        ],
+        "cupiddis": [
+            "'cupiddis'",
+            "('--require-known', '--require-local-targets', "
+            "'--require-code-anchors', candidate_logical)",
+        ],
+    }
+    calls_by_tool = {
+        ast.literal_eval(call.args[0]): call
+        for call in tool_calls
+        if len(call.args) == 2
+        and isinstance(call.args[0], ast.Constant)
+        and isinstance(call.args[0].value, str)
+    }
+    if set(calls_by_tool) != set(expected_calls) or len(tool_calls) != 2:
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "CupidASM object publication tool calls differ"
+        )
+    for tool_name, expected in expected_calls.items():
+        if [
+            ast.unparse(argument)
+            for argument in calls_by_tool[tool_name].args
+        ] != expected:
+            raise AuditError(
+                "checked-seed runner contract changed in "
+                "tools/hostbuild.py: CupidASM object publication "
+                f"{tool_name} arguments differ"
+            )
+    publication_calls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and ast.unparse(node) == "transaction.publish()"
+    ]
+    if (
+        len(publication_calls) != 1
+        or not calls_by_tool["cupidasm"].lineno
+        < calls_by_tool["cupiddis"].lineno
+        < publication_calls[0].lineno
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            "CupidASM object certification does not precede publication"
+        )
+
+
+def _validate_checked_raw_assembly_publication(
+    tree: ast.Module,
+    function_name: str,
+    expected_arguments: str,
+    relative: str,
+) -> None:
+    function = _checked_seed_function(tree, function_name, relative)
+    disassembly_calls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and ast.unparse(node.func) == "transaction.run_tool"
+        and len(node.args) == 2
+        and ast.unparse(node.args[0]) == "'cupiddis'"
+    ]
+    publication_calls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and ast.unparse(node) == "transaction.publish()"
+    ]
+    if (
+        len(disassembly_calls) != 1
+        or ast.unparse(disassembly_calls[0].args[1]) != expected_arguments
+        or len(publication_calls) != 1
+        or disassembly_calls[0].lineno >= publication_calls[0].lineno
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed in tools/hostbuild.py: "
+            f"{function_name} source-edge certification differs"
+        )
+
+
 def _validate_checked_seed_runner_contract(root: Path) -> None:
     missing = [
         relative
@@ -5960,6 +6057,26 @@ def _validate_checked_seed_runner_contract(root: Path) -> None:
     )
     _validate_checked_code_publication(
         trees["tools/hostbuild.py"],
+        "tools/hostbuild.py",
+    )
+    _validate_checked_assembly_publication(
+        trees["tools/hostbuild.py"],
+        "tools/hostbuild.py",
+    )
+    _validate_checked_raw_assembly_publication(
+        trees["tools/hostbuild.py"],
+        "assemble_smp_trampoline",
+        "('--raw', '--range-map', map_logical, '--require-known', "
+        "'--require-local-targets', '--require-source-edges', "
+        "candidate_logical)",
+        "tools/hostbuild.py",
+    )
+    _validate_checked_raw_assembly_publication(
+        trees["tools/hostbuild.py"],
+        "assemble_bootloader",
+        "('--require-known', '--require-local-targets', "
+        "'--require-source-edges', '--raw', '--range-map', map_logical, "
+        "candidate_logical)",
         "tools/hostbuild.py",
     )
 
@@ -7254,7 +7371,7 @@ def _cupid_toolchain_fixed_point_contract(
         and hashlib.sha256(
             "\n".join(windows_publication_asm_lines).encode("utf-8")
         ).hexdigest()
-        == "88a5d8973c1f08a655486f7a5daaa711128713202d257fc04872f58304712e80"
+        == "c2a891418d97f71b6a8aa42657aa683d578a7500f18a94e39bb7c522a0e6122b"
     )
     if not windows_publication_sources_match:
         raise AuditError(
@@ -11707,6 +11824,12 @@ def _cupid_toolchain_fixed_point_contract(
             "_validate_i386_relocatable(object_path)\n"
             "        return name, object_path",
             "_validate_i386_relocatable(object_path)\n"
+            "        _certify_relocatable_code_anchors(\n"
+            "            runner,\n"
+            "            producers[\"cupiddis\"],\n"
+            "            object_path,\n"
+            "            f\"{stage_name} native {name} startup\",\n"
+            "        )\n"
             "        objects[name] = object_path",
             'native_plan.get("links"), "Windows build plan links"',
             "tool_name, executable, objects, link_order",

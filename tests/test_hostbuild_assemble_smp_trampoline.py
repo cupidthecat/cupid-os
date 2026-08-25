@@ -11,13 +11,20 @@ from tools import hostbuild
 
 
 SMP_RAW_MAP = (
-    b"cupid.raw-map.v1\n"
+    b"cupid.raw-map.v2\n"
     b"size 4096\n"
     b"base 0x00008000\n"
+    b"edges 6\n"
     b"range 0x00000000 code16\n"
     b"range 0x0000001f data\n"
     b"range 0x00000210 code32\n"
     b"range 0x00000254 data\n"
+    b"edge 0x00000017 far local 0x00000210 0x00008210 32 0x00000008\n"
+    b"edge 0x0000022f relative local 0x0000023a 0x0000823a 32 0x00000000\n"
+    b"edge 0x00000235 relative local 0x00000229 0x00008229 32 0x00000000\n"
+    b"edge 0x00000238 relative local 0x00000237 0x00008237 32 0x00000000\n"
+    b"edge 0x00000250 indirect unprovable - - unknown -\n"
+    b"edge 0x00000252 relative local 0x00000237 0x00008237 32 0x00000000\n"
 )
 
 
@@ -134,6 +141,7 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                             ".cupid-output/smp_trampoline.bin.cupidmap",
                             "--require-known",
                             "--require-local-targets",
+                            "--require-source-edges",
                             ".cupid-output/smp_trampoline.bin",
                         ),
                     )

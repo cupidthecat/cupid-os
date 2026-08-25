@@ -77,11 +77,11 @@ atomic publication. It captures each side from a regular file through a
 descriptor whose identity is checked before and after the read. CUPMAN2
 remains the verifier.
 
-A valid schema-v3 publication records exactly 21 artifacts, 70 publication
-inputs, 50 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
+A valid schema-v3 publication records exactly 21 artifacts, 75 publication
+inputs, 55 bootstrap inputs, and 17 object comparisons, and CUPMAN2 must accept
 it. Both checked Python contract launchers put this checkout ahead of installed
 packages before importing `tools`. The direct contract passes 40 tests in
-54.623 seconds, the publisher passes 64 in 12.144 seconds, and the pinned runner
+59.844 seconds, the publisher passes 64 in 12.144 seconds, and the pinned runner
 passes 25 in 32.773 seconds. The host bootstrap log records the exact
 publication identity and completion evidence.
 
@@ -258,26 +258,28 @@ starts. Instructions use their active BITS mode. Data declarations, alignment,
 and reserved storage are data. CupidDis rejects stale sizes, missing or repeated
 fields, invalid kinds, and unordered starts before decoding.
 
-Source-head CupidASM writes cupid.raw-map.v2. It keeps the range records and
+Checked-seed CupidASM writes cupid.raw-map.v2. It keeps the range records and
 adds an exact list of source-resolved calls and jumps. Each row records the
 instruction offset, relative, far, or indirect kind, local, external, or
 unprovable class, resolved destination, target mode, and far segment when one
-is encoded. CupidDis still reads v1. Source-head validation can require v2:
+is encoded. CupidDis still reads v1. Strict validation can require v2:
   cupiddis --require-known --require-local-targets \
       --require-source-edges --raw --range-map boot.map boot.bin
 
 The added rule rejects a branch that reaches the wrong valid instruction
 start and checks immediate far mode transitions. Indirect register or memory
 targets remain explicitly unprovable because runtime state supplies their
-destination. The checked production seeds still use v1. ADR 0340 records the
-source contract.
+destination. The guarded boot and SMP transactions require this rule and keep
+the earlier image on failure. ADR 0340 records the source contract, and ADR
+0336 records seed carriage and adoption.
 
 The normal boot edge uses the shared map transaction. Hostbuild freezes the
 production manifest, five checked tools, source, and output boundary. CupidASM
 writes private image and map candidates. CupidDis requires complete known code
-coverage and validates nine constant direct relative targets before hostbuild
-atomically publishes the exact 2,560-byte image. Failures preserve the previous
-image and leave no public map. ADR 0283 records the Make graph cutover.
+coverage, validates nine constant direct relative targets, and binds every v2
+edge to its source-resolved destination before hostbuild atomically publishes
+the exact 2,560-byte image. Failures preserve the previous image and leave no
+public map. ADR 0283 records the Make graph cutover.
 
 Checked-seed CupidDis can validate one or more files without printing a
 listing:
@@ -357,7 +359,7 @@ These declarations write STT_FUNC symbols. An unannotated symbol remains
 STT_NOTYPE, so exported data is not treated as code. A missing or unsupported
 type reports CT6000018 without publishing a partial object.
 
-Source-head CupidDis validates code anchors in static ELF32 objects:
+Checked-seed CupidDis validates code anchors in static ELF32 objects:
   cupiddis --require-known --require-code-anchors program.o
   cupiddis --require-known --require-code-anchors program.elf
 
@@ -367,8 +369,9 @@ excluded. For ET_EXEC input, the rule also counts e_entry and requires every
 anchor to begin in file-backed executable code. Function aliases count
 separately. Failures distinguish anchors outside code from anchors in the
 middle of an instruction. ADR 0320 records the linked source boundary, ADR
-0323 records its promotion and adoption, and ADR 0335 records the relocatable
-form.
+0323 records its linked promotion and adoption, ADR 0335 records the
+relocatable form, and ADR 0336 records its promotion and active adoption. The
+ISR, context-switch, and hosted startup objects publish 54 typed functions.
 
 Source-head and checked-seed CupidDis also check relocations that target executable sections
 in ELF32 relocatable objects. R_386_PC32 must begin at a decoded four-byte

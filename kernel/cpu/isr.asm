@@ -11,39 +11,39 @@ extern fpu_mf_handler
 extern fpu_xf_handler
 
 ; Export symbols
-global isr0
-global isr1
-global load_idt
-global isr2
-global isr3
-global isr4
-global isr5
-global isr6
-global isr7
-global isr8
-global isr13
-global isr14
-global isr_fpu_nm
-global isr_fpu_mf
-global isr_fpu_xf
+global isr0:function
+global isr1:function
+global load_idt:function
+global isr2:function
+global isr3:function
+global isr4:function
+global isr5:function
+global isr6:function
+global isr7:function
+global isr8:function
+global isr13:function
+global isr14:function
+global isr_fpu_nm:function
+global isr_fpu_mf:function
+global isr_fpu_xf:function
 
 ; Export IRQ symbols
-global irq0
-global irq1
-global irq2
-global irq3
-global irq4
-global irq5
-global irq6
-global irq7
-global irq8
-global irq9
-global irq10
-global irq11
-global irq12
-global irq13
-global irq14
-global irq15
+global irq0:function
+global irq1:function
+global irq2:function
+global irq3:function
+global irq4:function
+global irq5:function
+global irq6:function
+global irq7:function
+global irq8:function
+global irq9:function
+global irq10:function
+global irq11:function
+global irq12:function
+global irq13:function
+global irq14:function
+global irq15:function
 
 ; Common ISR stub that saves processor state
 isr_common_stub:

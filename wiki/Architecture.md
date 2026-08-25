@@ -179,11 +179,12 @@ source trees, files, and symbolic links remain untouched. Exact initial,
 private, and newly discovered contract inventories catch additions, removals,
 and restored edits that changed a copied input. Every contract run derives the
 cohort from its executable, requires a named manifest artifact, and verifies
-all artifact hashes, the current 70-input publication set, the checked seed
-manifest, and the 50-file fixed-point source inventory before execution. The
+all artifact hashes, the current 75-input publication set, the checked seed
+manifest, and the 55-file fixed-point source inventory before execution. The
 contract inventory includes the small Windows probe, the native Windows tool
 runtime and startup, CupidLD publication runtime and bridge, direct contract,
-`direct.h`, `windows.h`, the user syscall ABI contract and its six declarations,
+`direct.h`, `windows.h`, both PE32 reader headers, the CupidBuild declarations
+and Windows startup, the user syscall ABI contract and its six declarations,
 the Toolchain Makefile, the publisher, and the independent Python ABI oracle.
 One captured seed-manifest byte sequence supplies the digest, decoded data, schema
 checks, and build plan. Seventeen objects and sixteen executables must match
@@ -212,7 +213,7 @@ PE on Windows. ADR 0302 records the verifier boundary, ADR 0304 records the
 author split, ADR 0307 records raw stage-pair evidence, and ADR 0322 records
 native Windows author execution.
 
-The final source-current schema v3 `CUPMAN4` publication passed and
+The latest complete schema v3 `CUPMAN4` publication passed and
 wrote 21 artifacts from 70 publication inputs and the exact 50-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 58 stage pairs.
 Its 27,071-byte manifest has SHA-256
@@ -226,11 +227,13 @@ in 32.773 seconds with three POSIX-only Windows skips. ADR 0311 records this
 host import boundary.
 
 Audit ownership for author generation stops at the 20 direct build inputs. The
-70 publication and 50 bootstrap inputs are observations and do not inherit
+historical 70 publication and 50 bootstrap inputs are observations and do not inherit
 compiler or assembler ownership from that transform.
 
-The stable audit counts cover 745 active language inputs, 452 transforms, 255
-features, and 25 unreachable inputs. CupidC participates in 250 transforms,
+Source head now requires 75 publication inputs and 55 bootstrap inputs; no
+larger publication is claimed. The stable audit counts cover 747 active
+language inputs, 452 transforms, 255 features, and 26 unreachable inputs.
+CupidC participates in 250 transforms,
 CupidObj in 192, CupidASM in nine, CupidLD in nine, and CupidDis in nine. Four
 transforms use Cupid-built semantic contracts. Python participates in all 452
 as orchestrator, but no transform is Python-only. All 443 transforms under root
@@ -249,10 +252,15 @@ against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,421,144 | `e8e35e976b60502f81cb5a1fa45cbe8b91fea19c7cbb688784139dc8d7d8110d` |
-| `kernel/kernel.elf` | 9,548,120 | `e7b0de94ad364f79c71b336790737d110b9250091a98ff57dadbaf60e04010a2` |
-| `kernel/kernel.bin` | 9,323,140 | `7e7cff0d2b15f0a233dbfdd8bfc7eeb918bc366c950c1c6a4d147a7ecaeea887` |
-| `cupidos.img` (last published) | 209,715,200 | `acf6885e474b17b8643ffa9ba28b050bd98010c3b7a2763fd91c57f0cc2b8f43` |
+| `kernel/kernel.elf.pass1` | 9,580,120 | `3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8` |
+| `kernel/kernel.elf` | 9,711,192 | `394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337` |
+| `kernel/kernel.bin` | 9,482,844 | `3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35` |
+| `cupidos.img` | 209,715,200 | `797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612` |
+
+The normal build completed the 431-input local-target and code-anchor scan,
+published this image, and passed a private four-vCPU E1000 frontier smoke. The
+smoke covered SMP, terminal startup, framebuffer output, AC97, and PC speaker
+audio while leaving the source image unchanged.
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated audit records 21 failure groups, five help groups, and 22 success
@@ -264,8 +272,8 @@ Linux seed executables, and five Windows seed executables. The wrapper passes
 the captured Linux manifest to the Cupid contract, validates the captured
 Windows manifest and five PE images, and rechecks both trust units before
 success. ADR 0305 established and first carried the fourteen-path closure.
-ADRs 0312 and 0318 preserve earlier promotions, and ADR 0323 records the
-current seed pair.
+ADRs 0312 and 0318 preserve earlier promotions, ADR 0323 records the preceding
+code-anchor pair, and ADR 0336 records the current seed pair.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260 seconds.
 All fourteen policy artifacts matched their exact sizes. The 2,960-byte policy
@@ -378,13 +386,13 @@ Both reproofs reject executable relocations without decoded field owners. ADRs
 strict-relocation promotion.
 
 The current promoted Linux and Windows seeds both bind revision
-`b3f0910f84ba182d0882fc67b5983b49e9627482` and exact 50-input snapshot
-`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`.
+`a17c9465911da41d59b7ada71733d36c39faa5ea` and exact 50-input snapshot
+`46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
 The 5,573-byte Linux manifest has SHA-256
-`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
+`b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
 The 2,118-byte Windows manifest has SHA-256
-`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`
-and names that Linux manifest as its parent. ADR 0323 records these identities.
+`751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`
+and names that Linux manifest as its parent. ADR 0336 records these identities.
 
 The first complete run of the intermediate 86-test seed suite took 2,394.660 seconds and reported
 failures from stale test data. The tiny source roots were

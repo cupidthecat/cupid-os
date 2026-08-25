@@ -30850,3 +30850,230 @@ reported unrelated `MemoryError` failures. Those resource failures are not
 recorded as graph evidence; the final complete gate must run with adequate
 commit space or under the isolated Linux environment. No build owner, artifact,
 seed, host dependency, or source suffix changes with this lock refresh.
+## 2026-08-24: promote assembly anchors and source-resolved raw edges
+
+One paired seed promotion carries the explicit assembly function and
+relocatable code-anchor work from ADR 0335 together with ADR 0340's raw-map v2
+control edges. The clean candidates came from revision
+`a17c9465911da41d59b7ada71733d36c39faa5ea` and the 50-input source snapshot
+`46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
+
+The Linux candidate matched 19 C objects, one startup object, and all five
+tools between stages three and four. It passed 5 help, 22 success, and 21
+failure cases. The report has SHA-256
+`e798158ff5f796d7c477eae4ad5e5fab8474143640fe2e9aa56c10b9b1541485`.
+The native Windows candidate matched 20 C objects, two assembly objects, and
+all five tools, then passed the 5/8/9 behavior matrix. Its report has SHA-256
+`c8ae74245097f5414c5e75c00df355c1e35344fc79ced26986f3e3e6aa96adba`.
+Only CupidASM and CupidDis differed from the preceding seeds.
+
+The promoted Linux tools are:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 462,600 | `a6c2f07e722fb4b5152326773a240722d1065785c1110d65c593445b0e88dc80` |
+| CupidC | 2,687,436 | `273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094` |
+| CupidDis | 476,092 | `2853dfa068af8716dde1e501fb5a6c11e73dcaae182fdba6ca45ef4f2a65fb89` |
+| CupidLD | 312,792 | `a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295` |
+| CupidObj | 392,688 | `99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a` |
+
+The promoted Windows tools are:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 444,928 | `5c21d79b1822831e5d81359fa2b31d85b731ead5a88c6596ced38585e64b87cb` |
+| CupidC | 2,613,760 | `c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002` |
+| CupidDis | 452,608 | `1e357223bfa0d967e5fe96ac180279f508271c4efed0f20d2c8d094726ff0eef` |
+| CupidLD | 296,448 | `9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02` |
+| CupidObj | 375,808 | `079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79` |
+
+The 5,573-byte Linux manifest has SHA-256
+`b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
+The 2,118-byte Windows manifest has SHA-256
+`751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`
+and names the Linux manifest as its parent. Both manifests verify all five
+artifacts. The updated 2,960-byte artifact-size policy has SHA-256
+`82cb543c530aa946466e8d59d1ea84f034f87e43ae90ce64cbbd22f04165e3d1`.
+
+Production marks 31 ISR entries, two context-switch entries, six Linux
+startup entries, and 17 Windows startup entries as functions. The source tests
+assemble typed and untyped copies and show that section bytes, offsets,
+bindings, symbol values, and relocations are unchanged. Hostbuild requires
+strict decode, relocation ownership, local targets, and code anchors before it
+publishes either object. Both fixed-point drivers apply the same code-anchor
+check to startup objects before linking. The boot and SMP publishers require
+v2 source-resolved control edges. A failed check preserves the prior artifact.
+
+The active adoption snapshot is
+`f7ac3fbf682bc7cc2a70f2aec8a3d5157cd79378937f9116bb0cf612ab5d1fc5`.
+Its promoted-seed Linux reproof matched stages three and four and passed the
+5/22/21 behavior matrix. The report has SHA-256
+`58cb7459b6f7c4918e24cbe717eb19803916696ef25e3ec7375207f6bbb4d5ed`.
+The native Windows reproof matched 20 C objects, two assembly objects, and all
+five tools, then passed 5/8/9 behavior. Its report has SHA-256
+`0812756b2a589693a4bb019eb82ef68e8cd2e149316e0a8916e857f3c35cf1dc`.
+
+The combined public assembler, disassembler, and active-source suite passes
+54 tests with one platform skip. Guarded object and raw-image publication
+passes 20 tests, and the updated artifact-size policy passes 35 tests. No
+source suffix or build owner changes. `TempleOS/` remains untouched reference
+material. ADR 0336 records the promotion and production adoption.
+
+The Toolchain manifest contract passes all 40 tests. Audit regeneration and
+deterministic checking pass on the adoption branch. The merged source head
+regenerates its larger source inventory separately rather than carrying the
+branch-local 739-input files forward.
+The first complete 111-test audit-contract run found one stale expected
+`sizeof` count: the regenerated inventory contains 6,400 occurrences across
+the same 174 files, rather than 6,370. After correcting that fixture, its
+isolated drift test passes under WSL in 350.172 seconds. A Windows rerun
+reached the later drift scan but could not allocate memory because an unrelated
+system process had exhausted commit space; no Windows rerun is counted as a
+pass.
+
+The normal WSL build passed the checked bootloader, ISR, context-switch, and
+SMP publications, then compiled the complete non-Doom kernel, in-kernel
+toolchain, TLS, and generated-install cohorts. The bounded run was stopped
+while the 83-source Doom cohort was still compiling. It did not reach final
+kernel or disk-image publication, so this checkpoint makes no new build or
+boot-smoke claim. Completing the normal image and running the private-image
+boot smoke remain integration gates.
+
+Independent Standards and Spec reviews found no production-code blocker.
+They did catch swapped historical/current seed rows and prose that collapsed
+the clean candidate, Linux adoption reproof, and Windows reproof into one
+comparison. Those records now preserve the three results separately. A
+suggested fixed-point driver naming cleanup remains deferred because changing
+the checked source after promotion would invalidate the exact snapshot and
+both fixed-point proofs.
+
+## 2026-08-24: bridge Windows fixed-point source growth with checked CupidC
+
+The merged PE32, callback, CupidBuild, and assembly work expands the frozen
+source-head closure from the promoted seed's historical 50 inputs to 55. The
+older Windows CupidC reached `CTD000008` while lowering the enlarged
+`cupidc_frontend.cc`. Its 16 KiB arena blocks each occupy a 64 KiB Windows
+virtual-allocation unit, so the 32-bit process exhausts address space well
+before the declared 512 MiB payload budget.
+
+The Windows fixed-point driver now uses the checked Linux seed's CupidC for
+stage-two C objects. The checked Windows execution seed still assembles,
+inspects, and links stage two. The resulting native compiler uses 64 KiB arena
+blocks. Native stage two builds stage three, native stage three builds stage
+four, and every final-pair object and PE image must still match. A poisoned
+`PATH` resolves only the known `System32\wsl.exe` fallback for the checked
+Linux compiler. A missing PATH entry and a missing system copy fail with the
+same bounded diagnostic.
+
+Historical seed reconstruction now intersects the current candidate inventory
+with the named commit's tracked tree. The promoted manifests therefore remain
+provable at their stored 50-input count and digest after source-head-only files
+appear. The exact commit is preserved on the remote archival branch
+`bootstrap/seed-provenance-a17c946`, so another checkout can fetch the object
+named by both manifests. Six focused snapshot, named-revision, rollback, and
+producer-role tests pass in 4.797 seconds. The assembler/disassembler lane
+passes 60 tests in
+20.085 seconds with one expected platform skip, and 138 x86, preprocessor, and
+frontend source-contract tests pass in 25.998 seconds. Deterministic audit
+comparison also passes at 747 active inputs, 452 transforms, and 255 feature
+requirements.
+
+The first bridged native reconstruction completed every build and behavior
+gate, then exposed one stale expectation: source-head CupidC and CupidDis no
+longer equal the older promoted images. After recording those two intentional
+deltas, the complete native fixed-point test passed in 1,126.471 seconds. It
+froze 55 inputs, rebuilt 20 C objects, two assembly objects, and five tools,
+matched every stage-three and stage-four artifact, and passed the 5/8/9
+behavior matrix. CupidASM, CupidLD, and CupidObj remain equal to the execution
+seed; CupidC carries the arena policy, and CupidDis carries PE32 inspection.
+
+Review of the enlarged manifest boundary found that the live publisher already
+supplied the two CupidBuild headers and its Windows startup, but the checked C
+contract and independent Python fixture still enforced the earlier 72/52
+inventories. Both expected-path tables now contain all three inputs, their
+limits are 75 publication inputs and 55 bootstrap inputs, and the negative
+tests reject the adjacent counts on either side. All 40 manifest verifier and
+author tests pass in 59.844 seconds, including checked stage-four author
+execution.
+
+A full Linux fixed-point rerun on the Windows host rebuilt every generation
+and entered the behavior matrix. The coordinating Windows Python process then
+raised `MemoryError` while reading a four-byte signature after 1,335.446
+seconds. A second run under the WSL Python coordinator ended without output
+after 38 seconds with Windows status `0x40010004`. Neither run is counted as a
+pass. The earlier promoted-seed Linux reproof remains the current complete
+Linux result; another source-head run is still required on a host that can
+finish the coordinator reliably.
+
+No normal Windows production owner changes. The bridge belongs only to
+fixed-point reconstruction and can be removed after the next Windows seed
+promotion. No `.c` file gained Cupid ownership, so no suffix rename is due.
+`TempleOS/` remains untouched reference material. ADR 0341 records the
+decision.
+
+## 2026-08-24: complete the anchored source-head build and boot gate
+
+The consolidated normal build now completes. `make -j2 all
+test_usb_partitioned.img` compiled the kernel and all 83 Doom sources with
+checked CupidC, assembled the boot, ISR, context-switch, and SMP inputs with
+checked CupidASM, linked both kernel passes with CupidLD, and inspected all 431
+production inputs with CupidDis. Local-target and code-anchor validation passed
+before the build flattened and published the kernel. The exact-size contract
+then accepted all fourteen policy paths, the ISO was retained, and the build
+published the 200 MiB FAT16 image and partitioned USB fixture.
+
+The final artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,580,120 | `3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8` |
+| `kernel/kernel.elf` | 9,711,192 | `394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337` |
+| `kernel/kernel.bin` | 9,482,844 | `3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35` |
+| `cupidos.img` | 209,715,200 | `797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612` |
+| `test_usb_partitioned.img` | 33,554,432 | `057e0c86874090c99095f0558e9fa604bd7f1929f4da357da2c1baca949bb2bb` |
+
+The 2,960-byte exact-size policy has SHA-256
+`27d681438764e51f823416822d328ee837b98c78beffe866694a2389888c3fea`.
+An independent checked CupidObj flatten reproduced `kernel/kernel.bin` from
+the final ELF. The three artifact-size modules passed 51 tests with four
+expected Windows-only skips. An early direct verifier ran beside tests that
+deliberately changed the repository view and correctly rejected that drift.
+It is not counted as a pass. The isolated rerun accepted all fourteen exact
+artifacts.
+
+A private four-vCPU E1000 frontier smoke booted the published image with
+`--cpu max`, SMP and frontier verification, and the existing 300-second phase
+budget. It passed at 640 by 480 with 72,264 changed pixels. AC97 produced
+32,400,852 stereo frames at 44.1 kHz with peak 25,600, and the PC speaker
+produced 76,657 stereo frames at 44.1 kHz with peak 32,025. The 133,968-byte
+log has SHA-256
+`f3167a97572d99550eaf942994e1ba3c98023fe376bd22eadb177fe3160017fe`.
+The harness used a private working copy and confirmed that the source image
+did not change.
+
+The final graph regeneration and deterministic check both pass at 747 active
+inputs, 452 reachable transforms, 255 feature requirements, and 26 accounted
+unreachable sources. The first complete 111-test audit run found five exact
+inventory locks left at the preceding source totals: assembly memory operands,
+conditional directives, include operands, line-directive source files, and
+`sizeof` evidence. The generated graph and checked manifest already agreed.
+After the assertions were moved to the current 711-source preprocessing
+inventory, 155 `#if` and nine `#elif` directives, 2,495 include operands, 162
+normal-build assembly memory operands, and 6,567 `sizeof` occurrences across
+179 files, the complete WSL suite passed all 111 tests in 1,303.471 seconds.
+The first executable preprocessor rerun then caught its own aggregate still at
+153 `#if` directives even though the per-expression fixture already totaled
+155. That red run is not accepted as evidence. After the aggregate moved with
+the fixture, all 39 CupidC preprocessor tests passed in 5.949 seconds.
+
+The Windows source-head fixed point remains the accepted 55-input result: 20 C
+objects, two assembly objects, and all five tools match between stages three
+and four, followed by the 5/8/9 behavior matrix. The Linux source-head runs
+still lack a reliable coordinator result on this host, so the promoted-seed
+Linux reproof remains the latest complete Linux evidence. The Windows bridge
+still uses checked Linux CupidC for stage-two C compilation and resolves WSL
+only through the known System32 path. Make, Python, image-packaging utilities,
+QEMU, and the boot harness remain host orchestration or test dependencies;
+GCC and NASM do not own a normal OS source transform. No `.c` file gained
+Cupid ownership, so no suffix rename is due. `TempleOS/` remains untouched
+reference material.

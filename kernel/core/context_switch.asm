@@ -24,8 +24,8 @@
 [BITS 32]
 section .text
 
-global context_switch
-global context_switch_resume
+global context_switch:function
+global context_switch_resume:function
 extern bkl_context_switch_release
 
 %define PCB_ESP_OFFSET      32

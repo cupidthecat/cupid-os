@@ -5,8 +5,8 @@ extern __imp_ExitProcess
 extern __imp_GetStdHandle
 extern __imp_WriteFile
 
-global _start
-global cupid_windows_write_stdout
+global _start:function
+global cupid_windows_write_stdout:function
 
 section .text
 

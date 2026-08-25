@@ -16,6 +16,9 @@
 #define CUPIDC_HOST_SOURCE_BYTES 67108864u
 #define CUPIDC_HOST_OUTPUT_BYTES 67108864u
 #define CUPIDC_HOST_ARENA_BYTES 536870912u
+#if defined(_WIN32)
+#define CUPIDC_HOST_ARENA_BLOCK_BYTES 65536u
+#endif
 
 typedef struct {
   const char *input;
@@ -633,6 +636,9 @@ int main(int argc, char **argv) {
   limits.source_bytes = CUPIDC_HOST_SOURCE_BYTES;
   limits.output_bytes = CUPIDC_HOST_OUTPUT_BYTES;
   limits.arena_bytes = CUPIDC_HOST_ARENA_BYTES;
+#if defined(_WIN32)
+  limits.arena_block_bytes = CUPIDC_HOST_ARENA_BLOCK_BYTES;
+#endif
   config = ctool_host_job_config(&adapter, limits);
   (void)memset(&context, 0, sizeof(context));
   context.include_paths = include_paths;

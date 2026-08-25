@@ -2,12 +2,12 @@
 
 extern main
 
-global _start
-global cupid_linux_syscall0
-global cupid_linux_syscall1
-global cupid_linux_syscall2
-global cupid_linux_syscall3
-global cupid_linux_syscall4
+global _start:function
+global cupid_linux_syscall0:function
+global cupid_linux_syscall1:function
+global cupid_linux_syscall2:function
+global cupid_linux_syscall3:function
+global cupid_linux_syscall4:function
 
 section .text
 

@@ -245,7 +245,7 @@ size, repeated or missing fields, invalid kinds, and unordered starts before
 decoding. The map option cannot be combined with manual mode, base, or range
 options. ADR 0277 records the schema.
 
-Source-head CupidASM writes `cupid.raw-map.v2`. It adds an exact list of
+Checked-seed CupidASM writes `cupid.raw-map.v2`. It adds an exact list of
 source-resolved calls and jumps without changing the image bytes. A row records
 its instruction offset, relative, far, or indirect kind, local, external, or
 unprovable class, resolved destination, target mode, and far segment when one
@@ -260,9 +260,9 @@ cupiddis --require-known --require-local-targets \
 The extra rule catches a branch redirected to a different valid instruction
 start and checks immediate far mode transitions. It records indirect register
 or memory transfers as unprovable because their destination comes from runtime
-state. The checked production seeds still use v1 until the source capability
-is promoted and the guarded boot transactions adopt it. ADR 0340 records the
-v2 contract.
+state. The guarded boot and SMP transactions require these rows before
+publication. ADR 0340 records the v2 contract, and ADR 0336 records seed
+carriage and adoption.
 
 One checked raw-image transaction serves the SMP and bootloader callers. It
 owns output locking, source and seed freezing, drift checks, private candidates,
@@ -290,31 +290,32 @@ boundary.
 The normal SMP trampoline recipe uses CupidASM's own map as a publication gate.
 Hostbuild freezes the selected seed and source, asks CupidASM for private image
 and map candidates, and requires the map to match the canonical 4 KiB policy.
-It then runs CupidDis with `--raw --range-map`, `--require-known`, and
-`--require-local-targets`. The local-target option always requires
+It then runs CupidDis with `--raw --range-map`, `--require-known`,
+`--require-local-targets`, and `--require-source-edges`. The local-target option always requires
 `--require-known`. This production call also supplies `--raw` and the exact map:
 code16
 `[0x000, 0x01f)`, data `[0x01f, 0x210)`, code32 `[0x210, 0x254)`, and data
 `[0x254, 0x1000)`. A local-target check on raw input that contains code16
 rejects images larger than 65,536 bytes because wrapped target mapping would
 be ambiguous. Four direct relative targets must land on instruction starts in
-the matching code mode. The far mode transition and indirect call are
-excluded. Only a validated candidate may replace the prior output. ADR 0271
-records the fixed map. ADR 0308 records the source-derived handoff.
+the matching code mode. The v2 map also binds the far mode transition and
+records the indirect call as unprovable. Only a validated candidate may
+replace the prior output. ADR 0271 records the fixed map. ADR 0308 records the
+source-derived handoff.
 
 The production boot transaction applies the same local-target rule to its
 2,560-byte candidate and range map. It checks nine direct relative targets and
-excludes three far jumps. Both callers distinguish a target outside the image,
+binds the far jumps through v2 source edges. Both callers distinguish a target outside the image,
 inside data, in the wrong mode, or in the middle of an instruction. Far
 pointers and indirect register or memory targets remain outside the rule. A
-displacement can still pass if it reaches a different valid
-instruction start in same-mode code, because raw decoding does not preserve
-source-label identity. Source-head v2 maps close that gap, but the checked
-production transactions have not adopted them yet. ADR 0300 records the older
-boundary, and ADR 0340 records the source-resolved rule.
+displacement that reaches a different valid instruction start fails when it
+does not match the source-resolved destination. ADR 0300 records the older
+boundary, ADR 0340 records the source-resolved rule, and ADR 0336 records its
+production adoption.
 ADR 0305 records raw-image carriage. ADR 0312 records the relocatable-object
 promotion and production adoption. ADR 0318 records the preceding linked-image
-promotion, and ADR 0323 records the current code-anchor promotion.
+promotion, ADR 0323 records the preceding code-anchor promotion, and ADR 0336
+records the current promotion.
 
 CupidDis can apply the same explicit option to a static ELF32
 relocatable object:
@@ -352,18 +353,20 @@ audit records nine failure groups, five help groups, and eight success groups.
 Both checked seeds now carry the linked-image rule. The normal kernel publisher
 uses it on the pass-one and final ELFs before flattening.
 
-Checked CupidDis also has a static executable code-anchor option:
+Checked CupidDis also has a static ELF code-anchor option:
 
 ```text
+cupiddis --require-known --require-code-anchors program.o
 cupiddis --require-known --require-code-anchors program.elf
 ```
 
-It checks the ELF entry and every defined function symbol against file-backed
-decoded instruction starts. Function aliases are separate anchors. Undefined,
-absolute, and non-function symbols stay outside the count. Both promoted seeds
-carry the option, and the production kernel call combines it with the linked
-local-target rule. ADR 0320 records the source rule, and ADR 0323 records its
-promotion and adoption.
+For an object, it checks every defined function against decoded starts in
+executable `PROGBITS`. For a linked image, it checks the ELF entry and defined
+functions against file-backed decoded starts. Function aliases are separate
+anchors. Both promoted seeds carry the option. Production checks the ISR,
+context-switch, hosted startup, and linked kernel boundaries. ADR 0320 records
+the linked source rule, ADR 0335 records the object rule, and ADR 0336 records
+its promotion and active adoption.
 
 ### Requiring complete code coverage
 
@@ -524,8 +527,9 @@ and passed a 1,061.3-second reproof with every initial seed comparison true.
 ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
 0272 records checked carriage and production selection, and ADRs 0278 and 0279
 record native reconstruction and convergence. ADRs 0280, 0281, and 0292
-record preceding Linux and Windows promotions. ADR 0318 records the preceding linked-image
-promotion, and ADR 0323 records the current code-anchor promotion.
+record preceding Linux and Windows promotions. ADR 0318 records the preceding
+linked-image promotion, ADR 0323 records the preceding code-anchor promotion,
+and ADR 0336 records the current promotion.
 
 ### Function Example
 
@@ -653,7 +657,9 @@ SHRD's first seed carriage. ADR 0243 records the preceding seed, ADR 0252
 records the x87 integer forms, ADR 0258 records the preceding promotion, ADR
 0259 records the parity predicates, ADR 0265 records their preceding seed
 carriage, and ADRs 0280 and 0292 record preceding seeds. ADR 0305 records raw
-local-target carriage, and ADR 0312 records the preceding local-target seed, and ADR 0318 records the preceding linked-image seed, and ADR 0323 records the current code-anchor seed.
+local-target carriage, ADR 0312 records the preceding local-target seed, ADR
+0318 records the preceding linked-image seed, ADR 0323 records the preceding
+code-anchor seed, and ADR 0336 records the current seed.
 
 `setp` and `setnp` accept one byte register or memory destination in either
 mode. They encode as `0F 9A /r` and `0F 9B /r`. Address-size overrides work
@@ -1577,17 +1583,17 @@ seconds, reached the full JIT completion marker, and found no reject marker.
 The source image was unchanged. Its 33,219-byte log has SHA-256
 `e39a1905002c2baa483c65eb6e763f4f62907c22f8954873dbb20f4ba5a53e93`.
 
-The promoted Linux CupidASM image is 458,256 bytes with SHA-256
-`1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e`.
+The promoted Linux CupidASM image is 462,600 bytes with SHA-256
+`a6c2f07e722fb4b5152326773a240722d1065785c1110d65c593445b0e88dc80`.
 Its 5,573-byte seed manifest has SHA-256
-`9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540`.
-The promoted Windows CupidASM image is 438,784 bytes with SHA-256
-`c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6`.
+`b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
+The promoted Windows CupidASM image is 444,928 bytes with SHA-256
+`5c21d79b1822831e5d81359fa2b31d85b731ead5a88c6596ced38585e64b87cb`.
 Its 2,118-byte manifest has SHA-256
-`cb4ee2dc9fe6d5e7fba69883d62dbd5288bb17c0d5c31135e9ab8ad817261c1a`.
-Both bind revision `b3f0910f84ba182d0882fc67b5983b49e9627482` and exact
+`751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`.
+Both bind revision `a17c9465911da41d59b7ada71733d36c39faa5ea` and exact
 50-input snapshot
-`4cc8183e1def88b33cec4b8b5f9111badb22999f27b9a48f54b991aad65e2c19`.
+`46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
 The Windows manifest names the Linux manifest as its parent. The 2026-08-14
 build and smoke evidence above predates this promotion; the later poisoned
 build and e1000 smoke followed it. The pre-documentation artifact gate then

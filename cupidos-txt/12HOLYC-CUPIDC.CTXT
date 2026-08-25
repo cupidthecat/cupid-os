@@ -681,16 +681,16 @@ Linux stage-four CupidC, CupidASM, and CupidLD producers with the checked
 Windows runtime, startup, and exact imports. The publisher uses
 a private pending bootstrap path and gives the author all 58 raw stage pairs
 before Python performs its independent comparisons. A valid schema-v3
-publication binds exactly 21 artifacts, 70 publication inputs, 50 bootstrap
+publication binds exactly 21 artifacts, 75 publication inputs, 55 bootstrap
 inputs, and 17 object comparisons. Both checked Python contract launchers put
 this checkout ahead of installed packages before importing `tools`. The direct
 contract passes 40 tests in 54.623 seconds, the publisher passes 64 in 12.144
 seconds, and the pinned runner passes 25 in 32.773 seconds. The host bootstrap
 log records the exact publication identity and completion evidence.
 
-Audit generation and checked reproduction pass. The audit records 745 active
+Audit generation and checked reproduction pass. The audit records 747 active
 inputs, 452 transforms, 255 feature requirements,
-and 25 accounted unreachable files. Ownership participation is CupidC 250,
+and 26 accounted unreachable files. Ownership participation is CupidC 250,
 CupidObj 192, CupidASM 9, CupidLD 9, and CupidDis 9. Four transforms run
 Cupid-built contracts, and none is Python-only. The host bootstrap log records
 the post-manual-freeze poisoned build and strong private four-vCPU e1000

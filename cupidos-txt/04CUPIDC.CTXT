@@ -249,8 +249,8 @@ The pass-one and final kernels project the same text symbols at the same
 addresses.
 
 Across root and supplemental builds, audit generation and checked reproduction
-pass. The audit covers 745 active language inputs,
-452 transforms, 255 feature requirements, and 25 accounted unreachable files.
+pass. The audit covers 747 active language inputs,
+452 transforms, 255 feature requirements, and 26 accounted unreachable files.
 It reports 250 CupidC participations and no host C transform. Of those, 246
 produce ordinary C outputs. The native Windows user ABI, artifact-size policy,
 Toolchain manifest author, and Toolchain manifest verifier supply the other four
@@ -274,13 +274,14 @@ Initial, private, and newly discovered contract inventories must match exactly,
 which catches additions, removals, and restored edits that changed a copied
 input. Every run derives the cohort from its requested executable, requires a
 named manifest artifact, and verifies the manifest, target, fixed-point
-record, filenames, sizes, artifact hashes, 70 publication-input digest and
+record, filenames, sizes, artifact hashes, 75 publication-input digest and
 size records, the
-checked seed manifest, and the 50-file fixed-point source inventory before
-execution. The publication inventory contains 70 files, including both
+checked seed manifest, and the 55-file fixed-point source inventory before
+execution. The publication inventory contains 75 files, including both
 manifest contract sources, the small Windows probe, the native Windows tool
 runtime and startup, CupidLD publication runtime and bridge, direct contract,
-direct.h, windows.h, the user syscall ABI contract and its six declarations,
+direct.h, windows.h, both PE32 reader headers, the CupidBuild declarations and
+Windows startup, the user syscall ABI contract and its six declarations,
 the Toolchain Makefile, the publisher, and the independent Python ABI oracle.
 The manifest digest, decoded data, schema checks, and build plan come from one
 captured byte sequence. All 443 audited root transforms have a
@@ -328,7 +329,7 @@ a descriptor whose identity is checked before and after the read.
 
 The same contract source handles CUPMAN2 verification in check mode. Its
 request carries the publication manifest, all 21 artifact observations, the
-exact 70-file publication inventory, the 50-file bootstrap inventory, the Linux
+exact 75-file publication inventory, the 55-file bootstrap inventory, the Linux
 publication seed, and its five tool images. Checked CupidC compiles the
 verifier, CupidASM supplies startup, and CupidLD links a static ELF on Linux or
 native PE on Windows. Python keeps the no-follow filesystem capture, launch,
@@ -343,9 +344,9 @@ The CUPMAN4 publication gate makes all 58 stage-pair decisions before Python's
 independent comparisons. It also checks the hosted runtime, live inputs, and
 the native Windows CUPMAN2 verifier. The source audit enforces the graph and
 ownership counts above. A valid schema-v3 publication still records exactly 21
-artifacts, 70 publication inputs, 50 bootstrap inputs, and 17 object
+artifacts, 75 publication inputs, 55 bootstrap inputs, and 17 object
 comparisons, and CUPMAN2 must accept it. Both checked Python launchers resolve
-`tools` from this checkout. The direct module passes 40 tests in 54.623 seconds,
+`tools` from this checkout. The direct module passes 40 tests in 59.844 seconds,
 the publisher passes 64 in 12.144 seconds, and the pinned runner passes 25 in
 32.773 seconds. The host bootstrap log records exact publication
 and OS artifact identities because putting them in this image manual would
@@ -1164,7 +1165,7 @@ lineage, exact source plan, startup, and five link orders before execution.
 The current CupidC image is the 2,687,436-byte stage-four output. Its SHA-256 is
 273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094,
 and its clean source revision is
-b3f0910f84ba182d0882fc67b5983b49e9627482.
+a17c9465911da41d59b7ada71733d36c39faa5ea.
 It retains the complete 83-root Doom frontier, current GNU entity metadata,
 x87 and SSE memory forms, descriptor and segment assembly, every unchanged
 libm assembly effect, the exact dglibc jump block, pointer-preserving static
@@ -1183,11 +1184,13 @@ CupidLD retains deterministic PE32 imports. CupidDis also carries typed raw
 code and data ranges, strict `--require-known` inspection, and an immutable
 first-opcode decoder index. CupidDis also requires every executable relocation
 to own a compatible decoded four-byte field. It also rejects invalid direct
-relative targets in mapped raw images. CupidASM is 458,256 bytes with
+relative targets in mapped raw images, binds v2 raw control edges, and checks
+defined function symbols in relocatable and linked ELF files. CupidASM writes
+the matching raw edges and explicit function types. CupidASM is 462,600 bytes with
 SHA-256
-1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e.
-CupidDis is 442,780 bytes with SHA-256
-1f4fade7dad85077b320d8ef51347eaaf2bef6510659e08be0980cabe5368569.
+a6c2f07e722fb4b5152326773a240722d1065785c1110d65c593445b0e88dc80.
+CupidDis is 476,092 bytes with SHA-256
+2853dfa068af8716dde1e501fb5a6c11e73dcaae182fdba6ca45ef4f2a65fb89.
 CupidLD is 312,792 bytes with SHA-256
 a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295.
 CupidObj carries
@@ -1201,10 +1204,11 @@ one overflow-safe 512-path request limit, preserves mixed home-asset order,
 rejects distinct paths that map to the same wrapped symbol, and renders the
 packed symbol source from canonical CupidDis text. The 5,573-byte seed manifest
 has SHA-256
-9c782ad63968d4942db6bae6debf6de51910f733c8618caf1f4ab70458128540.
+b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b.
 It binds generation four, the clean revision, the 50-input snapshot, and the
 stage-three producers. ADRs 0265, 0280, and 0292 preserve earlier promotion
-records. ADR 0312 records a preceding five-tool promotion, and ADR 0323 records the current promotion.
+records. ADRs 0312 and 0323 record preceding five-tool promotions. ADR 0336
+records the current promotion.
 Checked-seed CupidObj validates sequential SOF0 and SOF1 marker streams in its
 wrap-jpeg command, then applies the ordinary byte-exact wrapper. The normal
 JPEG recipe runs that checked command first on a private source snapshot.
@@ -1270,7 +1274,9 @@ KiB strict-decode case completed within its 30-second limit. The Windows
 runtime printed the exact success marker and returned 37. ADR 0266 records
 indexed decoding, and ADR 0265
 records that transition and promotion. ADRs 0280, 0281, 0292, and 0312 record
-preceding seeds, and ADR 0318 records the preceding linked-image seeds, and ADR 0323 records the current code-anchor seeds. The first
+preceding seeds, ADR 0318 records the preceding linked-image seeds, ADR 0323
+records the preceding code-anchor seeds, and ADR 0336 records the current
+seeds. The first
 separate gate covered 427 audited root objects and two kernel ELFs. Its
 9,028-byte, 429-path manifest had SHA-256
 48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e,
@@ -2265,6 +2271,22 @@ stops the build.
 
 This retry does not change the checked seed, tool arguments, timeout, exit
 status, output bytes, live five-tool recheck, or atomic publication rules.
+>endtree
+
+>h2 Windows Fixed-Point Bridge
+>tree
+The promoted Windows compiler uses 16 KiB arena blocks. Windows reserves each
+of those blocks in a 64 KiB allocation unit, so the older 32-bit image runs out
+of practical address space while compiling the enlarged hosted frontend.
+
+The host fixed-point driver uses checked Linux CupidC for stage-two Windows C
+objects. The checked Windows seed still assembles, inspects, and links that
+stage. The resulting native compiler uses 64 KiB arena blocks. Native stage two
+builds stage three, native stage three builds stage four, and the final objects
+and tools must match before the report is published.
+
+This bridge belongs only to host fixed-point reconstruction. Normal Windows
+production commands continue to use the native checked execution seed.
 >endtree
 
 >h2 See Also
