@@ -31239,3 +31239,49 @@ test thread that replaces a temporary publication lock, so the intended race
 was never installed and that run is not counted as product evidence. The
 isolated native rerun passed all 35 tests in 45.915 seconds with two expected
 skips.
+
+## 2026-08-25: validate the complete checked seed in CupidBuild
+
+### Implementation and decisions
+
+- Added a hosted directory-enumeration seam for the complete checked seed.
+  Native POSIX uses `readdir`, hosted i386 Linux uses `getdents64`, and Windows
+  uses `FindFirstFileA`, `FindNextFileA`, and `FindClose` through the checked
+  startup bridge.
+- CupidBuild now rejects any unlisted case-insensitive `.elf` or `.exe` peer
+  before it freezes the tool cohort. Unrelated files remain legal. It repeats
+  the membership check after CupidASM and after CupidDis so a checked command
+  cannot change the trusted directory unnoticed.
+- The transaction now freezes all five listed tools before execution. The
+  shared readers require the static i386 Linux ELF32 profile or the strict
+  CupidLD PE32 profile, including the existing ordinary and CupidLD import
+  sets, before CupidASM runs.
+- This closes the remaining semantic gap in the first CupidBuild transaction.
+  It does not promote a six-tool seed or transfer either Make recipe. A later
+  seed format must avoid making CupidBuild's binary depend on provenance that
+  can only be known after that same binary is built.
+- No `.c` rename is due. The changed hosted sources already use `.cc`, and the
+  Windows bridge remains `.asm`.
+
+### Test evidence
+
+- `python -m unittest tests.test_toolchain_cupidbuild` passed 39 tests in
+  56.326 seconds on native Windows with two expected skips.
+- `python3 tests/test_toolchain_cupidbuild.py` passed 39 tests in 65.257 seconds
+  through Linux with one expected skip.
+- The earlier focused checked-CupidC host-adapter, static-link, and wrong-ABI
+  selectors passed three tests in 28.157 seconds for the expanded hosted
+  source.
+- Positive coverage accepts the complete five-tool directory and an unrelated
+  text file. Negative coverage rejects an uppercase executable peer, an
+  executable-shaped directory, profile drift in an unselected tool, and a peer
+  added while a checked tool runs. Every failure preserves the prior output.
+- The first `make bootstrap-audit` run rejected the expanded Windows hosted
+  declarations because their normalized source lock still described the older
+  API set. After refreshing that one exact fingerprint, `make bootstrap-audit`
+  and `make check-bootstrap-audit` passed. The generated graph remains 747
+  active inputs and 452 transforms.
+- The focused fixed-point fail-closed graph test passed in 137.657 seconds, and
+  five seed manifest, capture, schema, ELF32, and PE32 checks passed in 1.634
+  seconds. The complete Toolchain manifest contract passed all 40 tests in
+  52.166 seconds.

@@ -433,7 +433,7 @@ $(BUILD_DIR)/cupidbuild_host.o: cupidbuild_host.cc cupidbuild_host.h | $(BUILD_D
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild.o: cupidbuild.cc cupidbuild.h cupidbuild_host.h \
-                          ctool.h ctool_host.h elf32.h | $(BUILD_DIR)
+                          ctool.h ctool_host.h elf32.h pe32.h pe32_impl.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild_main.o: cupidbuild_main.cc cupidbuild.h | $(BUILD_DIR)

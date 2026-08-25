@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-24
+Verified against source on: 2026-08-25
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -21,6 +21,9 @@ CupidBuild's command, policy, and hosted transaction modules. The lock
 follow-up passes the checked Linux object contract and native host behavior;
 fresh checked standalone execution remains open. CupidBuild is not part of the
 promoted seed, so this is source buildability rather than a fixed-point claim.
+The command now rejects unlisted executable-shaped seed peers and validates all
+five frozen tools against the host ELF32 or PE32 execution profile before use.
+It repeats the membership check after each checked command.
 >endtree
 
 >h2 What Is CupidC

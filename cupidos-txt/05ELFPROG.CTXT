@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-08-24
+Verified against source on: 2026-08-25
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -22,6 +22,9 @@ rechecks the live boundaries, and publishes through a pinned parent. The
 transaction records its acquired owner lock, checks it at both final
 boundaries, and quarantines the path before cleanup. A successor lock is
 restored instead of deleted.
+The seed directory must contain exactly the five listed `.elf` or `.exe`
+peers. All five frozen images must match the selected static ELF32 or strict
+PE32 execution profile, and membership is checked again after both tools run.
 The initial Linux and Windows standalone builds passed the real ISR object
 path. The lock follow-up passes native host behavior and the checked Linux
 object contract; fresh checked standalone execution remains open. The normal

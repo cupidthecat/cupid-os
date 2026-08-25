@@ -26,7 +26,6 @@ class CupidBuildCliTests(unittest.TestCase):
         relative_build = build_path.relative_to(TOOLCHAIN_ROOT)
         suffix = ".exe" if os.name == "nt" else ""
         cls.cli_path = build_path / ("cupidbuild" + suffix)
-        cls.fixture_path = build_path / ("cupidbuild-tool-fixture" + suffix)
         cli_target = relative_build.as_posix() + "/cupidbuild" + suffix
         result = subprocess.run(
             [
@@ -47,43 +46,6 @@ class CupidBuildCliTests(unittest.TestCase):
                 + result.stdout
                 + result.stderr
             )
-        fixture_source = build_path / "cupidbuild_tool_fixture.cc"
-        fixture_source.write_text(
-            "#include <stdio.h>\n"
-            "#include <string.h>\n"
-            "int main(int argc, char **argv) {\n"
-            "  if (argc > 1 && strcmp(argv[1], \"--require-known\") == 0) {\n"
-            "    (void)fputs(\"fixture inspector failure\\n\", stderr);\n"
-            "    return 43;\n"
-            "  }\n"
-            "  (void)puts(\"fixture unexpected output\");\n"
-            "  return 0;\n"
-            "}\n",
-            encoding="utf-8",
-        )
-        fixture_build = subprocess.run(
-            [
-                "clang" if os.name == "nt" else "cc",
-                "-std=c11",
-                "-Werror",
-                "-x",
-                "c",
-                str(fixture_source),
-                "-o",
-                str(cls.fixture_path),
-            ],
-            cwd=REPO_ROOT,
-            text=True,
-            capture_output=True,
-        )
-        if fixture_build.returncode != 0:
-            cls._build_directory.cleanup()
-            raise AssertionError(
-                "CupidBuild process fixture build failed\n"
-                + fixture_build.stdout
-                + fixture_build.stderr
-            )
-
     @classmethod
     def tearDownClass(cls):
         cls._build_directory.cleanup()
@@ -172,6 +134,22 @@ class CupidBuildCliTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def _replace_seed_tool_bytes(self, manifest, name, payload):
+        document = json.loads(manifest.read_text(encoding="utf-8"))
+        artifact = next(
+            artifact
+            for artifact in document["artifacts"]
+            if artifact["name"] == name
+        )
+        destination = manifest.parent / artifact["file"]
+        destination.write_bytes(payload)
+        artifact["size"] = len(payload)
+        artifact["sha256"] = hashlib.sha256(payload).hexdigest()
+        manifest.write_text(
+            json.dumps(document, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
     def _rewrite_manifest(self, manifest, change, *, compact=False):
         document = json.loads(manifest.read_text(encoding="utf-8"))
         changed = change(document)
@@ -216,6 +194,67 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertEqual(result.stdout, "")
             self.assertEqual(result.stderr, "")
             self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
+    def test_unlisted_executable_seed_peer_is_rejected_before_assembly(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-seed-membership-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            suffix = ".EXE" if os.name == "nt" else ".ELF"
+            (manifest.parent / f"unlisted{suffix}").write_bytes(b"not trusted")
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
+            output.write_bytes(b"last known good object")
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("unlisted executable file", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good object")
+
+    def test_unlisted_executable_shaped_directory_is_rejected(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-seed-directory-peer-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            suffix = ".EXE" if os.name == "nt" else ".ELF"
+            (manifest.parent / f"unlisted{suffix}").mkdir()
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
+            output.write_bytes(b"last known good object")
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("unlisted executable file", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good object")
+
+    def test_seed_execution_profile_drift_is_rejected_before_assembly(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-seed-execution-profile-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            suffix = ".exe" if os.name == "nt" else ".elf"
+            compiler = manifest.parent / f"cupidc{suffix}"
+            payload = bytearray(compiler.read_bytes())
+            entry_offset = 152 + 16 if os.name == "nt" else 24
+            payload[entry_offset] ^= 0x01
+            self._replace_seed_tool_bytes(manifest, "cupidc", payload)
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
+            output.write_bytes(b"last known good object")
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("execution profile mismatch", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good object")
 
     def test_reordered_compact_seed_manifest_keeps_the_same_contract(self):
         with tempfile.TemporaryDirectory(
@@ -521,14 +560,14 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertIn("CupidASM", result.stderr)
             self.assertEqual(output.read_bytes(), b"last known good object")
 
-    def test_successful_assembler_output_is_private_and_rejected(self):
+    def test_unrelated_seed_file_keeps_the_checked_contract(self):
         with tempfile.TemporaryDirectory(
-            prefix=".cupidbuild-object-noisy-assembler-", dir=REPO_ROOT
+            prefix=".cupidbuild-object-unrelated-seed-file-", dir=REPO_ROOT
         ) as temporary:
             root = Path(temporary)
             seed = root / "seed"
             manifest = self._copy_checked_assembly_seed(seed)
-            self._replace_seed_tool(manifest, "cupidasm", self.fixture_path)
+            (seed / "README.txt").write_text("not executable\n", encoding="utf-8")
             source = root / "input.asm"
             output = root / "output.o"
             source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
@@ -536,9 +575,8 @@ class CupidBuildCliTests(unittest.TestCase):
 
             result = self._run_object(source, output, manifest)
 
-            self.assertNotEqual(result.returncode, 0)
-            self.assertNotIn("fixture unexpected output", result.stdout)
-            self.assertEqual(output.read_bytes(), b"last known good object")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
 
     def test_inspector_failure_is_reported_and_preserves_the_previous_object(self):
         with tempfile.TemporaryDirectory(
@@ -547,7 +585,12 @@ class CupidBuildCliTests(unittest.TestCase):
             root = Path(temporary)
             seed = root / "seed"
             manifest = self._copy_checked_assembly_seed(seed)
-            self._replace_seed_tool(manifest, "cupiddis", self.fixture_path)
+            suffix = ".exe" if os.name == "nt" else ".elf"
+            self._replace_seed_tool(
+                manifest,
+                "cupiddis",
+                self._production_manifest().parent / f"cupidasm{suffix}",
+            )
             source = root / "input.asm"
             output = root / "output.o"
             source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
@@ -556,7 +599,6 @@ class CupidBuildCliTests(unittest.TestCase):
             result = self._run_object(source, output, manifest)
 
             self.assertEqual(result.returncode, 1)
-            self.assertIn("fixture inspector failure", result.stderr)
             self.assertIn("checked CupidDis failed", result.stderr)
             self.assertEqual(output.read_bytes(), b"last known good object")
 
@@ -968,6 +1010,46 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertTrue(changed.is_set(), "frozen checked tool was not observed")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("checked seed inputs changed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good object")
+
+    def test_seed_membership_drift_preserves_the_previous_object(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-seed-membership-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            seed = root / "seed"
+            manifest = self._copy_checked_assembly_seed(seed)
+            suffix = ".exe" if os.name == "nt" else ".elf"
+            assembler = seed / f"cupidasm{suffix}"
+            unlisted = seed / f"unlisted{suffix}"
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text(
+                "bits 32\nsection .text\n" + "nop\n" * 10000 + "ret\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"last known good object")
+            before = self._private_roots()
+            changed = threading.Event()
+
+            def add_peer_after_freeze():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    new_roots = self._private_roots() - before
+                    if any((path / assembler.name).is_file() for path in new_roots):
+                        unlisted.write_bytes(b"not trusted")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(target=add_peer_after_freeze, daemon=True)
+            mutator.start()
+            result = self._run_object(source, output, manifest)
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "frozen checked tool was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("directory membership changed", result.stderr)
             self.assertEqual(output.read_bytes(), b"last known good object")
 
     def test_seed_manifest_drift_after_freeze_preserves_the_previous_object(self):

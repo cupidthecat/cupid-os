@@ -15,6 +15,7 @@
 #include <windows.h>
 #else
 #if !defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+#include <dirent.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -41,6 +42,7 @@ int cupid_linux_syscall4(int number, unsigned int first,
 #define CUPIDBUILD_HOST_INPUTS 16u
 #define CUPIDBUILD_HOST_FILE_LIMIT 67108864u
 #define CUPIDBUILD_HOST_PRIVATE_ATTEMPTS 4096u
+#define CUPIDBUILD_HOST_DIRECTORY_BYTES 4096u
 
 typedef struct {
   char live_path[CUPIDBUILD_HOST_PATH_BYTES];
@@ -314,6 +316,39 @@ static int cupidbuild_host_basename(char *destination, size_t capacity,
   return cupidbuild_host_copy_text(destination, capacity, name);
 }
 
+static char cupidbuild_host_ascii_fold(char value) {
+  return value >= 'A' && value <= 'Z' ? (char)(value - 'A' + 'a') : value;
+}
+
+static int cupidbuild_host_name_has_suffix(const char *name,
+                                           const char *suffix) {
+  size_t name_size = strlen(name);
+  size_t suffix_size = strlen(suffix);
+  size_t index;
+  if (suffix_size > name_size) {
+    return 0;
+  }
+  for (index = 0u; index < suffix_size; index++) {
+    if (cupidbuild_host_ascii_fold(name[name_size - suffix_size + index]) !=
+        cupidbuild_host_ascii_fold(suffix[index])) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int cupidbuild_host_name_is_expected(const char *name,
+                                            const char *const *expected,
+                                            size_t expected_count) {
+  size_t index;
+  for (index = 0u; index < expected_count; index++) {
+    if (strcmp(name, expected[index]) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 #if defined(_WIN32)
 static int cupidbuild_host_path_has_link(const char *path) {
   char prefix[CUPIDBUILD_HOST_PATH_BYTES];
@@ -450,6 +485,37 @@ static int cupidbuild_host_directory_snapshot(
   snapshot->identity[2] = information.nFileIndexLow;
   (void)CloseHandle(handle);
   return 1;
+}
+
+static int cupidbuild_host_seed_members_platform(
+    const char *directory, const char *suffix, const char *const *expected,
+    size_t expected_count) {
+  char pattern[CUPIDBUILD_HOST_PATH_BYTES];
+  WIN32_FIND_DATAA entry;
+  HANDLE search;
+  int valid = 1;
+  if (!cupidbuild_host_join(pattern, sizeof(pattern), directory, "*")) {
+    return 0;
+  }
+  search = FindFirstFileA(pattern, &entry);
+  if (search == INVALID_HANDLE_VALUE) {
+    return 0;
+  }
+  do {
+    if (cupidbuild_host_name_has_suffix(entry.cFileName, suffix) &&
+        !cupidbuild_host_name_is_expected(entry.cFileName, expected,
+                                          expected_count)) {
+      valid = 0;
+      break;
+    }
+  } while (FindNextFileA(search, &entry));
+  if (valid != 0 && GetLastError() != ERROR_NO_MORE_FILES) {
+    valid = 0;
+  }
+  if (!FindClose(search)) {
+    valid = 0;
+  }
+  return valid;
 }
 
 static int cupidbuild_host_write_exclusive(const char *path,
@@ -767,6 +833,7 @@ static int cupidbuild_host_atomic_replace(
 #define CUPIDBUILD_LINUX_SYS_NANOSLEEP 162
 #define CUPIDBUILD_LINUX_SYS_LSTAT64 196
 #define CUPIDBUILD_LINUX_SYS_FSTAT64 197
+#define CUPIDBUILD_LINUX_SYS_GETDENTS64 220
 #define CUPIDBUILD_LINUX_SYS_RENAMEAT 302
 #define CUPIDBUILD_LINUX_O_WRONLY 1u
 #define CUPIDBUILD_LINUX_O_CREAT 64u
@@ -791,6 +858,10 @@ static unsigned int cupidbuild_linux_u32(const unsigned char *bytes) {
   return (unsigned int)bytes[0] | ((unsigned int)bytes[1] << 8u) |
          ((unsigned int)bytes[2] << 16u) |
          ((unsigned int)bytes[3] << 24u);
+}
+
+static unsigned int cupidbuild_linux_u16(const unsigned char *bytes) {
+  return (unsigned int)bytes[0] | ((unsigned int)bytes[1] << 8u);
 }
 
 static int cupidbuild_linux_stat(const char *path, unsigned char result[96]) {
@@ -924,6 +995,65 @@ static int cupidbuild_host_directory_snapshot(
   snapshot->identity[2] = cupidbuild_linux_u32(information + 88u);
   snapshot->identity[3] = cupidbuild_linux_u32(information + 92u);
   return 1;
+}
+
+static int cupidbuild_host_seed_members_platform(
+    const char *directory, const char *suffix, const char *const *expected,
+    size_t expected_count) {
+  unsigned char entries[CUPIDBUILD_HOST_DIRECTORY_BYTES];
+  int descriptor = cupid_linux_syscall3(
+      CUPIDBUILD_LINUX_SYS_OPEN, (unsigned int)directory,
+      CUPIDBUILD_LINUX_O_DIRECTORY | CUPIDBUILD_LINUX_O_NOFOLLOW, 0u);
+  int valid = descriptor >= 0;
+  while (valid != 0) {
+    int count = cupid_linux_syscall3(
+        CUPIDBUILD_LINUX_SYS_GETDENTS64, (unsigned int)descriptor,
+        (unsigned int)entries, (unsigned int)sizeof(entries));
+    size_t offset = 0u;
+    if (count == 0) {
+      break;
+    }
+    if (count < 0) {
+      valid = 0;
+      break;
+    }
+    while (offset < (size_t)count) {
+      unsigned int record_size;
+      const char *name;
+      size_t name_capacity;
+      size_t name_size = 0u;
+      if ((size_t)count - offset < 20u) {
+        valid = 0;
+        break;
+      }
+      record_size = cupidbuild_linux_u16(entries + offset + 16u);
+      if (record_size < 20u || (size_t)record_size > (size_t)count - offset) {
+        valid = 0;
+        break;
+      }
+      name = (const char *)(entries + offset + 19u);
+      name_capacity = (size_t)record_size - 19u;
+      while (name_size < name_capacity && name[name_size] != '\0') {
+        name_size++;
+      }
+      if (name_size == name_capacity) {
+        valid = 0;
+        break;
+      }
+      if (cupidbuild_host_name_has_suffix(name, suffix) &&
+          !cupidbuild_host_name_is_expected(name, expected, expected_count)) {
+        valid = 0;
+        break;
+      }
+      offset += (size_t)record_size;
+    }
+  }
+  if (descriptor >= 0 &&
+      cupid_linux_syscall1(CUPIDBUILD_LINUX_SYS_CLOSE,
+                           (unsigned int)descriptor) < 0) {
+    valid = 0;
+  }
+  return valid;
 }
 
 static int cupidbuild_host_write_exclusive(const char *path,
@@ -1287,6 +1417,34 @@ static int cupidbuild_host_directory_snapshot(
   return 1;
 }
 
+static int cupidbuild_host_seed_members_platform(
+    const char *directory, const char *suffix, const char *const *expected,
+    size_t expected_count) {
+  DIR *stream = opendir(directory);
+  struct dirent *entry;
+  int valid = stream != (DIR *)0;
+  if (stream == (DIR *)0) {
+    return 0;
+  }
+  errno = 0;
+  while ((entry = readdir(stream)) != (struct dirent *)0) {
+    if (cupidbuild_host_name_has_suffix(entry->d_name, suffix) &&
+        !cupidbuild_host_name_is_expected(entry->d_name, expected,
+                                          expected_count)) {
+      valid = 0;
+      break;
+    }
+    errno = 0;
+  }
+  if (entry == (struct dirent *)0 && errno != 0) {
+    valid = 0;
+  }
+  if (closedir(stream) != 0) {
+    valid = 0;
+  }
+  return valid;
+}
+
 static int cupidbuild_host_write_exclusive(const char *path,
                                            const unsigned char *bytes,
                                            size_t size,
@@ -1489,6 +1647,19 @@ static int cupidbuild_host_atomic_replace(
 }
 #endif
 #endif
+
+int cupidbuild_host_seed_members_exact(const char *directory,
+                                       const char *suffix,
+                                       const char *const *expected,
+                                       size_t expected_count) {
+  if (directory == (const char *)0 || directory[0] == '\0' ||
+      suffix == (const char *)0 || suffix[0] == '\0' ||
+      expected == (const char *const *)0 || expected_count == 0u) {
+    return 0;
+  }
+  return cupidbuild_host_seed_members_platform(directory, suffix, expected,
+                                                expected_count);
+}
 
 static int cupidbuild_host_read_owner(const char *path,
                                       unsigned int *owner_out,

@@ -6,11 +6,13 @@ CupidBuild is the source-head candidate for removing Python from build
 coordination. Its first command implements the guarded CupidASM object
 transaction on Linux and Windows. The command now validates the current
 five-tool manifest contract before execution and applies the same relocatable
-code-anchor rule as the Python publisher. The complete public suite passes on
-both hosts. No production row has moved: both active objects still use the
-Python publisher, and the checked cohorts still contain five tools. Seed
-directory membership, independent tool-image profile checks, six-tool fixed
-points, and one recipe transfer remain before ownership can move.
+code-anchor rule as the Python publisher. It now rejects unlisted executable
+peers, rechecks directory membership after both tools, and independently
+validates every frozen tool as static ELF32 or strict PE32 before execution.
+The complete public suite passes on both hosts. No production row has moved:
+both active objects still use the Python publisher, and the checked cohorts
+still contain five tools. Six-tool fixed points and one recipe transfer remain
+before ownership can move.
 
 The source-head self-link contract now gives CupidBuild its own output beside
 the five seed tools and the runtime probe. CupidBuild compiles through the

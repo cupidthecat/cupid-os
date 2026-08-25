@@ -13,7 +13,11 @@ target, fixed-point provenance, the five artifact records and producer roles,
 and the full Linux build plan. It accepts whitespace and field-order changes
 while rejecting malformed or trailing JSON, duplicate or unknown fields, and
 contract drift before tool execution. Artifact bytes remain bound by size and
-SHA-256 after they are frozen.
+SHA-256 after they are frozen. It also requires the exact case-sensitive five
+manifest names to be the complete case-insensitive `.elf` or `.exe` directory
+membership. The command repeats that check after each tool runs. All five
+frozen images must match the static i386 ELF32 or strict CupidLD PE32 profile
+before execution.
 
 The object gate requires known instruction coverage, local targets, and
 defined function anchors at instruction starts. Public rollback tests cover
@@ -24,10 +28,8 @@ cooperative publisher protocol rather than protection from arbitrary path
 mutation.
 
 Production ownership is still **Missing**. The promoted seeds have five tools
-and Make still enters Python for both object lanes. CupidBuild does not yet
-reject an unlisted peer image in the seed directory or independently classify
-the ELF32 and PE32 execution profiles. Fresh six-tool fixed-point evidence and
-a recipe transfer also remain open.
+and Make still enters Python for both object lanes. Fresh six-tool fixed-point
+evidence and a recipe transfer remain open.
 
 The source-head hosted self-link is **Observed** for CupidBuild. The exact link
 contract now receives a separate CupidBuild output and links it beside the five

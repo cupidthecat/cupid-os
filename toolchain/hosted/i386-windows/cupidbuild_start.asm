@@ -2,6 +2,9 @@
 
 extern __imp_CreateDirectoryA
 extern __imp_CreateProcessA
+extern __imp_FindClose
+extern __imp_FindFirstFileA
+extern __imp_FindNextFileA
 extern __imp_GetCurrentProcessId
 extern __imp_GetExitCodeProcess
 extern __imp_GetFileAttributesA
@@ -14,6 +17,9 @@ extern __imp_NtSetInformationFile
 
 global cupid_windows_create_directory
 global cupid_windows_create_process
+global cupid_windows_find_close
+global cupid_windows_find_first_file
+global cupid_windows_find_next_file
 global cupid_windows_get_current_process_id
 global cupid_windows_get_exit_code_process
 global cupid_windows_get_file_attributes
@@ -50,6 +56,35 @@ cupid_windows_create_process:
  push dword [ebp + 12]
  push dword [ebp + 8]
  call dword [__imp_CreateProcessA]
+ mov esp, ebp
+ pop ebp
+ ret
+
+cupid_windows_find_close:
+ push ebp
+ mov ebp, esp
+ push dword [ebp + 8]
+ call dword [__imp_FindClose]
+ mov esp, ebp
+ pop ebp
+ ret
+
+cupid_windows_find_first_file:
+ push ebp
+ mov ebp, esp
+ push dword [ebp + 12]
+ push dword [ebp + 8]
+ call dword [__imp_FindFirstFileA]
+ mov esp, ebp
+ pop ebp
+ ret
+
+cupid_windows_find_next_file:
+ push ebp
+ mov ebp, esp
+ push dword [ebp + 12]
+ push dword [ebp + 8]
+ call dword [__imp_FindNextFileA]
  mov esp, ebp
  pop ebp
  ret

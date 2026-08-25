@@ -62,6 +62,19 @@ typedef struct {
   DWORD dwThreadId;
 } PROCESS_INFORMATION;
 
+typedef struct {
+  DWORD dwFileAttributes;
+  FILETIME ftCreationTime;
+  FILETIME ftLastAccessTime;
+  FILETIME ftLastWriteTime;
+  DWORD nFileSizeHigh;
+  DWORD nFileSizeLow;
+  DWORD dwReserved0;
+  DWORD dwReserved1;
+  char cFileName[260];
+  char cAlternateFileName[14];
+} WIN32_FIND_DATAA;
+
 #define GENERIC_WRITE 0x40000000u
 #define GENERIC_READ 0x80000000u
 #define FILE_READ_ATTRIBUTES 0x00000080u
@@ -92,6 +105,7 @@ typedef struct {
 #define STARTF_USESTDHANDLES 0x00000100u
 #define ERROR_FILE_NOT_FOUND 2u
 #define ERROR_PATH_NOT_FOUND 3u
+#define ERROR_NO_MORE_FILES 18u
 
 unsigned int cupid_windows_close_handle(unsigned int handle);
 unsigned int cupid_windows_create_file(
@@ -107,6 +121,11 @@ unsigned int cupid_windows_create_process(
     const char *current_directory, STARTUPINFOA *startup,
     PROCESS_INFORMATION *process);
 unsigned int cupid_windows_flush_file_buffers(unsigned int handle);
+unsigned int cupid_windows_find_close(unsigned int handle);
+unsigned int cupid_windows_find_first_file(const char *pattern,
+                                           WIN32_FIND_DATAA *entry);
+unsigned int cupid_windows_find_next_file(unsigned int handle,
+                                          WIN32_FIND_DATAA *entry);
 unsigned int cupid_windows_get_current_process_id(void);
 unsigned int cupid_windows_get_exit_code_process(unsigned int process,
                                                  unsigned int *status);
@@ -144,6 +163,9 @@ unsigned int cupid_windows_write_file(
 #define CreateProcessA cupid_windows_create_process
 #define DeleteFileA cupid_windows_delete_file
 #define FlushFileBuffers cupid_windows_flush_file_buffers
+#define FindClose cupid_windows_find_close
+#define FindFirstFileA cupid_windows_find_first_file
+#define FindNextFileA cupid_windows_find_next_file
 #define GetCurrentProcessId cupid_windows_get_current_process_id
 #define GetExitCodeProcess cupid_windows_get_exit_code_process
 #define GetFileAttributesA cupid_windows_get_file_attributes

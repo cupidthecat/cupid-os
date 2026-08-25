@@ -56,6 +56,22 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 - System clipboard, x86-32 disassembler, BMP / PNG / JPEG image codecs, TrueType font system with bundled Liberation fonts and live `fontswitch`
 - Panic backtrace decoded against a kernel symbol table (`addr  function_name+offset` per frame)
 
+## 2026-08-25 source-current checkpoint
+
+CupidBuild now treats the checked seed as a complete five-image trust unit. It
+rejects unlisted `.elf` or `.exe` peers before tool execution and repeats the
+directory check after CupidASM and CupidDis. It freezes all five listed tools
+and validates the static i386 ELF32 profile on Linux or the strict CupidLD PE32
+profile on Windows before either checked command runs. The positive and
+failure cases pass on both hosts, and every rejected transaction preserves the
+previous object.
+
+This is a source-head trust-boundary improvement, not a production cutover.
+The promoted seeds still contain CupidASM, CupidC, CupidDis, CupidLD, and
+CupidObj only. The normal ISR and context-switch object recipes still use the
+Python publisher until CupidBuild reaches a non-self-referential six-tool fixed
+point. ADR 0344 records the decision.
+
 ## 2026-08-24 source-current checkpoint
 
 The private CupidC callback work, SMP raw-map handoff, relocatable-object local

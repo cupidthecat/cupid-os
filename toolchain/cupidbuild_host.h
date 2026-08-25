@@ -29,6 +29,10 @@ int cupidbuild_host_freeze_input(cupidbuild_host_transaction_t *transaction,
                                  cupidbuild_host_snapshot_t *snapshot_out);
 int cupidbuild_host_make_input_executable(
     cupidbuild_host_transaction_t *transaction, const char *frozen_path);
+int cupidbuild_host_seed_members_exact(const char *directory,
+                                       const char *suffix,
+                                       const char *const *expected,
+                                       size_t expected_count);
 const char *cupidbuild_host_frozen_source(
     const cupidbuild_host_transaction_t *transaction);
 const char *cupidbuild_host_candidate(

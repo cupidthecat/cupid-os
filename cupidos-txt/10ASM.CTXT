@@ -24,6 +24,9 @@ owner lock found at a final boundary blocks publication. Cleanup quarantines
 the path and restores a successor instead of deleting it. Every failure
 preserves the previous object. The command remains a source-head proof until a
 checked seed contains CupidBuild and a normal Make recipe invokes it.
+Before CupidASM runs, CupidBuild rejects any unlisted `.elf` or `.exe` peer and
+validates all five frozen tool images against the selected host profile. It
+checks directory membership again after CupidASM and CupidDis.
 The source-head hosted link also builds CupidBuild beside CupidASM and the
 other five production tools. This proves the command closure but does not add
 CupidBuild to a checked seed.

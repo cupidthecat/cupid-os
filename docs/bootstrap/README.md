@@ -48,7 +48,8 @@ control edges, and ADR 0341 records the checked Linux CupidC bridge for
 Windows source growth. ADR 0342 records strict seed-contract parsing inside
 CupidBuild and parity with the active relocatable code-anchor gate. ADR 0343
 records the complete source-head CupidBuild link closure and the hosted
-`memchr` dependency that closure exposed.
+`memchr` dependency that closure exposed. ADR 0344 records complete seed
+membership and execution-profile validation inside CupidBuild.
 
 ## 2026-08-25 source-current checkpoint
 
@@ -65,10 +66,13 @@ alone.
 The command now gives CupidDis the same known-instruction, local-target, and
 code-anchor requirements used by the Python-owned ISR and context-switch
 publisher. A defined function inside an instruction is rejected. The complete
-CupidBuild transaction suite passes on native Windows and Linux. The seeds
-still contain five tools, so Make ownership and the Python dependency are
-unchanged. Seed-directory membership and independent ELF32 or PE32 execution
-profile checks remain on the Python side of this boundary.
+CupidBuild transaction suite passes on native Windows and Linux. CupidBuild
+also rejects an unlisted `.elf` or `.exe` peer before tool execution and after
+each checked command. It freezes all five listed tools and validates their
+static i386 ELF32 or strict CupidLD PE32 execution profiles before either tool
+runs. Unrelated directory entries remain legal, while membership or profile
+drift preserves the previous object. The seeds still contain five tools, so
+Make ownership and the Python dependency are unchanged.
 
 The Linux fixed-point coordinator now reads four bytes when it identifies a
 checked executable. It no longer allocates the full multi-megabyte image for

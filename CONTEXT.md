@@ -48,10 +48,13 @@ publishers, and
 replaces the destination through a pinned parent only after every check
 passes. The source-head CupidASM object operation implements this boundary on
 Linux and Windows. It parses the frozen five-tool seed contract, including the
-host target and provenance, before it runs CupidASM, then requires known
-instructions, local targets, and relocatable code anchors from CupidDis. It is
-not a production owner until a promoted checked seed contains CupidBuild and a
-normal Make recipe invokes it.
+host target and provenance, before it runs CupidASM. The five exact manifest
+names must be the complete `.elf` or `.exe` membership, all five frozen images
+must match the selected static ELF32 or strict PE32 execution profile, and
+membership is checked again after both tools run. CupidDis then requires known
+instructions, local targets, and relocatable code anchors. CupidBuild is not a
+production owner until a promoted checked seed contains it and a normal Make
+recipe invokes it.
 _Avoid_: command wrapper, unchecked tool launch, production ownership from source presence
 
 **Hosted bootstrap runtime**:

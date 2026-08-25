@@ -12,10 +12,12 @@ cleanup can restore a successor instead of deleting it. The check and object
 rename remain separate operations; the protocol serializes cooperating
 CupidBuild publishers. CupidDis now requires known instructions, local targets,
 and function anchors at instruction starts. The complete command suite passes
-on Windows and Linux. The current seeds still contain the original five tools,
-and normal object publication still uses Python. Seed-directory membership,
-tool-image profile checks, and a six-tool promotion remain before production
-cutover. ADRs 0339 and 0342 record the boundary.
+on Windows and Linux. It also rejects unlisted `.elf` or `.exe` peers before
+execution and after each checked command. Every frozen tool must match the
+static i386 ELF32 or strict CupidLD PE32 profile before either tool runs. The
+current seeds still contain the original five tools, and normal object
+publication still uses Python. A six-tool promotion remains before production
+cutover. ADRs 0339, 0342, and 0344 record the boundary.
 
 The source-head Linux fixed point now completes with the 55-source closure.
 Its coordinator reads only four bytes when it selects the runner for a checked
