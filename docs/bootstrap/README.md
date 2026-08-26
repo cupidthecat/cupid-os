@@ -73,10 +73,23 @@ arena-sized claim array.
 Hosted and in-OS CupidASM now keep the same raw control-edge evidence. The
 kernel adapter validates and renders canonical `cupid.raw-map.v2` rows for
 local, external, and unprovable edges. The hosted CLI stages the raw image and
-map together and uses bounded backup, commit, and absent-file records to
-recover either the previous pair or a completed publication. Malformed or
-hostile recovery state fails before a public mutation. These changes do not
-alter successful raw image or map bytes.
+map together and uses bounded backup, pending, committed, and absent-file
+records to recover either the previous pair or a completed publication. Each
+member receives a linked v2 pending record before a public target moves. After
+both replacements succeed, records advance to v3 one at a time. One matching
+v3 record is the pair's commit witness. A v2 record stays pending, and a
+matching legacy v1 peer cannot commit it. Exact recovery evaluates both marker
+orders, removes the last valid witness only after private cleanup, and never
+uses a partial conversion to expose a mixed pair. Malformed or hostile state
+fails before an unsafe public mutation. A nonmatching record cannot clean
+unrelated private files, and a failed backup replacement leaves the readable
+public target in place. Successful hosted v2 image and map bytes stay unchanged. The
+in-OS map intentionally moves from v1 to v2 and adds the retained edge rows.
+The native Windows fixed-point plan now links CupidASM with
+the publication startup and runtime objects plus their four Kernel32 imports.
+Its behavior relink uses the same plan-derived import profile, so the validator
+cannot silently retain the smaller ordinary-tool table. The Linux fixed point's
+native Windows evidence plan carries the same publication closure and imports.
 
 Hosted CupidC now converts C99 hexadecimal `float`, `double`, and `long
 double` constants with target-only integer arithmetic, including normals,
@@ -92,10 +105,17 @@ before the nested callback marker.
 
 Focused assembler, disassembler, compiler, and fixed-point boundary tests are
 green. The generated audit, normal image build, and complete private guest
-frontier are also green. Fresh Linux and native Windows fixed points and the
-consolidated Toolchain gate remain required before any newer tool image can be
-promoted. The source-suffix audit still finds no safe `.c` rename because all
-active CupidC-owned translation units already use `.cc`.
+frontier are also green. Fresh Linux and native Windows fixed points pass from
+the same 58-input source snapshot. The consolidated Toolchain gate also passes
+with 22 published artifacts and all 62 stage pairs. A six-tool manifest and
+promotion are still required before any newer tool image becomes a checked
+seed. The source-suffix audit
+still finds no safe `.c` rename because all active CupidC-owned translation
+units already use `.cc`.
+
+Fixed-point stage-pair failures report the bounded status, standard output, and
+standard error observed from both generations. This keeps a convergence
+failure diagnosable without retaining a failed private cohort.
 
 CupidBuild now parses its frozen seed manifest instead of searching its text
 for tool records. The current host schema must contain the exact five-tool
@@ -261,16 +281,21 @@ fourteen exact artifacts. The current outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
-| `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
-| `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
-| `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
+| `kernel/kernel.elf.pass1` | 9,596,956 | `c871658c40304bfb5e7c61f2e7cc0479bb1bb7fe1c4af7835d119544d8034206` |
+| `kernel/kernel.elf` | 9,728,028 | `78bcce45f047c807aa798988606c363d0b51b6b48f6b1335cbd156a64a2ca1a0` |
+| `kernel/kernel.bin` | 9,500,284 | `f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873` |
+| `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The final normal build linked both kernel ELFs, passed the exact verifier, and
 completed strict CupidDis inspection of all 431 production inputs with local
 targets and code anchors enabled. It published the image above, and a private
 four-vCPU E1000 frontier smoke passed the SMP, terminal, framebuffer, and audio
-checks without changing the source image.
+checks without changing the source image. The framebuffer changed 101,335
+pixels. AC97 produced 36,533,414 stereo 44.1 kHz frames at peak 25,600, and the
+PC speaker produced 79,215 frames at peak 30,937. The guest reported
+`[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`.
+The 143,084-byte serial log has SHA-256
+`6b5c6a4ca5daf9f19ec099d45609f385e0cf983f945a40433ebc3f1921e8ffab`.
 
 Source-head bootstrap reporting now compares stage two with the verified bytes
 in `SeedInputs.artifact_bytes`. It no longer reopens ephemeral
@@ -296,20 +321,23 @@ a linked executable. Raw image and map publication prepares both candidates
 before moving a target and restores the previous pair when a command write or
 replacement fails. This is rollback within a running command, not a
 crash-atomic multi-file commit. A retained backup takes precedence over a
-partial target when the next command starts. Matching commit records beside
-the artifact and map name every private backup and marker. The next command
-can finish cleanup after reusing either member, even when the other path
-changes. The publisher reads back a marker whose write reported failure and
-accepts only the complete current record. An uncertain check leaves the
-targets and backups in place for the next command to resolve. The focused
-native contract is green, and the DEBUG kernel includes an exact mixed
-16/32-bit raw-map self-test. The merged adapter, preprocessor, frontend, and
-x86-source suites pass 145 tests. The checked production compiler also rebuilds
-`as.cc`, `as_elf.cc`, and `shell.cc` from this source head.
-The consolidated checked-seed build, final image publication, and guest
-exercise remain deferred until the shared seed lane finishes, so the capability
-stays Partial. ADR 0337 records the request, command, and publication
-boundaries.
+partial target when the next command starts. The kernel publisher writes
+matching v1 completion records only after both targets move. A later command
+can use a valid record to finish private cleanup; without one, retained backups
+are restored. The publisher reads back a marker whose write reported failure
+and accepts only the complete current record. An uncertain check leaves the
+targets and backups in place for the next command to resolve. This VFS path
+does not yet write a pending record or absence tombstone before mutation, and
+its recovery removes a readable target before backup restoration. The hosted
+CLI has the stronger linked v2/v3 protocol described above. The focused hosted
+and kernel contracts pass 41 tests, and the DEBUG kernel includes an exact
+mixed 16/32-bit raw-map self-test.
+The checked production compiler rebuilds `as.cc`, `as_elf.cc`, and `shell.cc`
+from this source head. The complete Toolchain gate and both fixed-point builds
+pass. Seed promotion and a repeated guest exercise remain open, so the
+capability stays Partial. ADR 0337 records the request, command, and kernel
+publication boundaries. ADR 0348 records v2 edge carriage and the hosted-only
+linked recovery protocol.
 
 Private CupidC carries a file-scope function-pointer typedef signature on direct
 free-function parameters, Cupid class method parameters,
@@ -455,8 +483,8 @@ Python-only. The latest complete schema v3 `CUPMAN4` publication passed. The
 Cupid author and Python oracle agreed on all 62 stage pairs. Every stage-three
 object and executable matched its stage-four counterpart. The hosted runtime
 passed, and live inputs stayed frozen. The publisher wrote 22 artifacts and a
-29,270-byte manifest with SHA-256
-`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+29,271-byte manifest with SHA-256
+`5fab9706abe6d938e9aa4a355ebbae293fee5404475d3d20d2591d6a9e464011`.
 It records 75 inputs, 58 bootstrap files, 17 object comparisons, and Linux seed
 manifest SHA-256
 `b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
@@ -2849,8 +2877,8 @@ repeats all 62 comparisons independently after the author accepts the request.
 Schema `cupid.toolchain-contracts.v3` does not change. Only
 actual contract build inputs receive compiler or assembler ownership; provenance-only
 observations do not. The latest complete schema v3 `CUPMAN4` publication
-passed and wrote 22 artifacts and a 29,270-byte manifest with SHA-256
-`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+passed and wrote 22 artifacts and a 29,271-byte manifest with SHA-256
+`5fab9706abe6d938e9aa4a355ebbae293fee5404475d3d20d2591d6a9e464011`.
 The Cupid author and Python oracle agreed on all 62 stage pairs. Every
 stage-three object and executable matched its stage-four counterpart. The
 hosted runtime passed, live inputs stayed frozen, and its final verifier

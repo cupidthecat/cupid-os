@@ -40,6 +40,7 @@ from tools.bootstrap_toolchain import (
     _profile_snapshot_payload,
     _run_behavior_checks,
     _run_native_windows_behavior_checks,
+    _run_stage_pair,
     _unowned_relocation_object_payload,
     _windows_build_plan,
     _validate_static_i386_pe32,
@@ -78,6 +79,34 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    def test_stage_pair_mismatch_reports_each_observed_result(self):
+        runner = mock.Mock()
+        runner.run.side_effect = [
+            subprocess.CompletedProcess(
+                ["stage-three"], 1, "first out", "first error"
+            ),
+            subprocess.CompletedProcess(
+                ["stage-four"], 2, "second out", "second error"
+            ),
+        ]
+        stage_three = Stage(objects={}, tools={"cupidld": Path("three")})
+        stage_four = Stage(objects={}, tools={"cupidld": Path("four")})
+
+        with self.assertRaisesRegex(
+            BootstrapError,
+            "^cupidld behavior differs across stages: "
+            "stage-three status 1, stdout 'first out', stderr "
+            "'first error'; stage-four status 2, stdout 'second out', "
+            "stderr 'second error'$",
+        ):
+            _run_stage_pair(
+                runner,
+                stage_three,
+                stage_four,
+                "cupidld",
+                ["--help"],
+            )
+
     def test_candidate_plan_adds_cupidbuild_without_changing_the_v1_plan(self):
         checked_plan = json.loads(
             SEED_MANIFEST.read_text(encoding="utf-8")
@@ -3773,12 +3802,22 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 expected_gnu,
             )
         for tool_name in TOOL_NAMES:
-            if tool_name == "cupidld":
+            if tool_name in ("cupidasm", "cupidld"):
                 continue
             self.assertEqual(
                 native_plan["links"][tool_name],
                 linux_plan["links"][tool_name],
             )
+        self.assertEqual(
+            native_plan["links"]["cupidasm"],
+            [
+                "start",
+                "publication_start",
+                *linux_plan["links"]["cupidasm"][1:-1],
+                "publication_runtime",
+                "runtime",
+            ],
+        )
         self.assertEqual(
             native_plan["links"]["cupidld"],
             [
@@ -3789,12 +3828,105 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "runtime",
             ],
         )
+        cupidasm_imports = {
+            imported["procedure"]
+            for imported in native_plan["imports"]["cupidasm"]
+        }
+        self.assertTrue(
+            {
+                "DeleteFileA",
+                "FlushFileBuffers",
+                "GetFullPathNameA",
+                "MoveFileExA",
+            }.issubset(cupidasm_imports)
+        )
         cupiddis_main = next(
             source
             for source in native_plan["sources"]
             if source["name"] == "cupiddis_main"
         )
         self.assertEqual(cupiddis_main["definitions"], ["_WIN32=1"])
+
+    def test_native_windows_relink_uses_the_planned_cupidasm_imports(self):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+        behavior = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_run_native_windows_behavior_checks"
+        )
+        validators = [
+            node
+            for node in ast.walk(behavior)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_validate_static_i386_pe32"
+        ]
+        self.assertEqual(len(validators), 1)
+        expected_imports = validators[0].args[2]
+        self.assertIsInstance(expected_imports, ast.Call)
+        self.assertIsInstance(expected_imports.func, ast.Name)
+        self.assertEqual(expected_imports.func.id, "_windows_imports")
+        self.assertEqual(
+            [argument.value for argument in expected_imports.args],
+            ["cupidasm"],
+        )
+
+    def test_linux_behavior_windows_cupidasm_uses_publication_closure(self):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+        behavior = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_run_behavior_checks"
+        )
+
+        def assigned_dict(name):
+            assignment = next(
+                node
+                for node in behavior.body
+                if isinstance(node, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == name
+                    for target in node.targets
+                )
+            )
+            return {
+                key.value: value
+                for key, value in zip(
+                    assignment.value.keys, assignment.value.values
+                )
+            }
+
+        plans = assigned_dict("windows_native_tool_plans")
+        self.assertEqual(
+            [item.value for item in plans["cupidasm"].elts],
+            [
+                "publication_start",
+                "cupidasm_main",
+                "cupidasm",
+                "ctool_host",
+                "ctool",
+                "elf32",
+                "x86",
+                "publication_runtime",
+            ],
+        )
+        imports = assigned_dict("windows_native_tool_imports")
+        self.assertIsInstance(imports["cupidasm"], ast.Name)
+        self.assertEqual(
+            imports["cupidasm"].id, "windows_cupidld_imports"
+        )
+        for extras_name in (
+            "windows_native_stage_two_extras",
+            "windows_native_stage_three_extras",
+        ):
+            extras = assigned_dict(extras_name)
+            self.assertIn("cupidasm", extras)
+            self.assertEqual(
+                [key.value for key in extras["cupidasm"].keys],
+                ["publication_runtime", "publication_start"],
+            )
 
     def test_native_windows_plan_rejects_an_unplanned_link_object(self):
         linux_plan = json.loads(

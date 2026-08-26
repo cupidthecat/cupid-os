@@ -819,7 +819,7 @@ unsupported. ADR 0315 records the raw scalar and parameter source rule.
 [ADR 0330](../docs/adr/0330-support-data-backed-raw-callback-arrays.md)
 records data-backed raw callback arrays and block-static scalar callbacks.
 
-The source-current private callback ABI module passes all 310 tests in 75.017
+The source-current private callback ABI module passes all 318 tests in 60.519
 seconds, and the full GUI module passes all 128 tests in 0.955 seconds. A
 private four-vCPU frontier boot records all four CPUs online,
 `[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,
@@ -881,10 +881,10 @@ The source-head artifact contract passes against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
-| `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
-| `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
-| `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
+| `kernel/kernel.elf.pass1` | 9,596,956 | `c871658c40304bfb5e7c61f2e7cc0479bb1bb7fe1c4af7835d119544d8034206` |
+| `kernel/kernel.elf` | 9,728,028 | `78bcce45f047c807aa798988606c363d0b51b6b48f6b1335cbd156a64a2ca1a0` |
+| `kernel/kernel.bin` | 9,500,284 | `f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873` |
+| `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 Those output identities come from the completed normal build. Both checked
 seeds carry the same source snapshot. The kernel transaction passed linked

@@ -81,7 +81,8 @@ static ctool_status_t as_artifact_validate_raw_edges(
     ctool_u32 range_count, ctool_u32 origin,
     const ctool_asm_raw_edge_t *edges, ctool_u32 edge_count) {
   ctool_u32 index;
-  if ((edge_count != 0u && edges == (const ctool_asm_raw_edge_t *)0) ||
+  if ((edge_count == 0u && edges != (const ctool_asm_raw_edge_t *)0) ||
+      (edge_count != 0u && edges == (const ctool_asm_raw_edge_t *)0) ||
       edge_count > bytes.size) {
     return CTOOL_ERR_INTERNAL;
   }

@@ -38868,9 +38868,9 @@
       "status": "pass"
     },
     "c_preprocessor_conditionals": {
-      "directive_expression_pairs": 37,
+      "directive_expression_pairs": 38,
       "elif_occurrences": 11,
-      "expression_occurrences": 181,
+      "expression_occurrences": 187,
       "expressions": [
         {
           "elif_occurrences": 0,
@@ -39637,6 +39637,53 @@
           "evidence": [
             {
               "directive": "if",
+              "line": 966,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(CUPIDASM_PUBLICATION_TESTING)"
+            },
+            {
+              "directive": "if",
+              "line": 1086,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(CUPIDASM_PUBLICATION_TESTING)"
+            },
+            {
+              "directive": "if",
+              "line": 1376,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(CUPIDASM_PUBLICATION_TESTING)"
+            },
+            {
+              "directive": "if",
+              "line": 1394,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(CUPIDASM_PUBLICATION_TESTING)"
+            },
+            {
+              "directive": "if",
+              "line": 1457,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(CUPIDASM_PUBLICATION_TESTING)"
+            },
+            {
+              "directive": "if",
+              "line": 1497,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(CUPIDASM_PUBLICATION_TESTING)"
+            }
+          ],
+          "expression": "defined ( CUPIDASM_PUBLICATION_TESTING )",
+          "files": [
+            "toolchain/cupidasm_main.cc"
+          ],
+          "if_occurrences": 6,
+          "occurrences": 6
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
               "line": 814,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if defined(CUPIDBUILD_CUSTOM_LINUX)"
@@ -39660,13 +39707,13 @@
             },
             {
               "directive": "elif",
-              "line": 697,
+              "line": 675,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#elif defined(CUPID_HOSTED_I386_LINUX_ABI_H)"
             },
             {
               "directive": "elif",
-              "line": 716,
+              "line": 694,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#elif defined(CUPID_HOSTED_I386_LINUX_ABI_H)"
             },
@@ -39925,43 +39972,43 @@
             },
             {
               "directive": "if",
-              "line": 244,
+              "line": 247,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 477,
+              "line": 455,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 514,
+              "line": 492,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 551,
+              "line": 529,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 695,
+              "line": 673,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 711,
+              "line": 689,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 734,
+              "line": 712,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -40379,9 +40426,9 @@
           "occurrences": 1
         }
       ],
-      "if_occurrences": 170,
+      "if_occurrences": 176,
       "status": "pass",
-      "unique_expressions": 35
+      "unique_expressions": 36
     },
     "c_preprocessor_cupid_exe": {
       "block_occurrences": 1,
@@ -45584,7 +45631,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1279
+      "occurrences": 1280
     },
     {
       "category": "control",
@@ -46051,7 +46098,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5250
+      "occurrences": 5257
     },
     {
       "category": "control",
@@ -46332,7 +46379,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4721
+      "occurrences": 4724
     },
     {
       "category": "control",
@@ -46386,7 +46433,7 @@
         "toolchain/tests/elf32_contract.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 3225
+      "occurrences": 3228
     },
     {
       "category": "control",
@@ -46792,7 +46839,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 41964
+      "occurrences": 42016
     },
     {
       "category": "control",
@@ -47169,7 +47216,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 26012
+      "occurrences": 26024
     },
     {
       "category": "control",
@@ -48124,7 +48171,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6626
+      "occurrences": 6628
     },
     {
       "category": "extension",
@@ -49614,7 +49661,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 582
+      "occurrences": 588
     },
     {
       "category": "preprocessor",
@@ -49806,7 +49853,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.if",
-      "occurrences": 170
+      "occurrences": 176
     },
     {
       "category": "preprocessor",
@@ -51292,7 +51339,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 17072
+      "occurrences": 17081
     },
     {
       "category": "qualifier",
@@ -51837,7 +51884,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10182
+      "occurrences": 10187
     },
     {
       "category": "type",
@@ -52286,7 +52333,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 10189
+      "occurrences": 10181
     },
     {
       "category": "type",
@@ -53057,7 +53104,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 24170
+      "occurrences": 24184
     },
     {
       "category": "type",
@@ -54639,7 +54686,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 15508
+      "occurrences": 15504
     },
     {
       "category": "declaration",
@@ -55553,7 +55600,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "97632e8b1b180bc470515d08e592f12b91b196d832d56f4963279233ffdaf3af",
+    "active_source_digest": "07af7324626571f0d11e457f8c6c922fc7d8edc7635e4896562559010bc46f3e",
     "control_files": [
       {
         "path": "Makefile",
@@ -55581,7 +55628,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "fc7c8ca8e56c28b77500c68f2e805ef3e997ac04f4b7b49a5865a5922054a2f7"
+        "sha256": "6a0b19a0a060655d1296f0e50b314758a5710331692b74849b46a5437b8acce2"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -55606,7 +55653,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "de380fc7aef3c74c36bf8cf1ce2d25feed1a6f444331bdc4fb0d9fd647836c60"
+      "sha256": "12b9640e269de8c32982cdf2fd042f2fe38815f6aee8c9a9417b295e3724b2c8"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -75947,12 +75994,12 @@
         "kernel/lang/as_elf.h"
       ],
       "language": "cupid_c",
-      "lines": 1372,
+      "lines": 1373,
       "origin": "tracked",
       "path": "kernel/lang/as_elf.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f4297dc4cd6f39727c4dc42218ef06d0c29ad6cda3561bc9ad846f941078808b"
+      "sha256": "dbf303963132a235e3abe52abe2441f006179abc649a609164b8f3fd76a99e06"
     },
     {
       "build_owners": [
@@ -80311,12 +80358,12 @@
         "toolchain/cupidasm.h"
       ],
       "language": "cupid_c",
-      "lines": 1433,
+      "lines": 1655,
       "origin": "tracked",
       "path": "toolchain/cupidasm_main.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ebfde7e77124689942aa4688df33070f18ac99a12632b3ccbe5669dc8ae04876"
+      "sha256": "68edcfa5bdfd2645c7ae58636f8d7def5f2d1ecc781d4277d16257427db7a605"
     },
     {
       "build_owners": [
@@ -82310,12 +82357,12 @@
         "toolchain/elf32.h"
       ],
       "language": "cupid_c",
-      "lines": 1906,
+      "lines": 1913,
       "origin": "tracked",
       "path": "toolchain/tests/cupidasm_kernel_elf_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "59fe41be63aeb927c3fcc3f2c47187dffb70ccb910bb36eaad812c7afdfccf00"
+      "sha256": "8c546b9fa3bea3cbfea4d7601f56222ae99732f7ee24269a8571f2f70748a7c8"
     },
     {
       "build_owners": [
@@ -82565,7 +82612,7 @@
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e8b60d2f7fb699c31f38b357107431baa02b35b16ea45f421fa9ddf101435d84"
+      "sha256": "5ddfdc0325f78bf2bfa558ce0362ca68f8472f972e39f17b4eaa90d912cb53ef"
     },
     {
       "build_owners": [

@@ -220,12 +220,18 @@ or _start. Exec output selects main or _start and links with in-kernel CupidLD.
 The raw image and map use one rollback publication. Both private candidates
 are written before either target moves. A failed write or later replacement
 restores the previous pair. If restoration fails, the backup stays available
-for the next command to recover. Matching commit records beside the image and
-map name the private backups and markers. Cleanup therefore remains safe when
-a later command reuses either path. Partial or unsafe records are rejected.
+for the next command to recover. Matching v1 completion records are written
+only after both public targets move. A later command can use a valid record to
+finish private cleanup; without one, retained backups are restored. This VFS
+path does not write a pending record or absence tombstone before mutation, and
+its recovery removes a readable target before replacing it from backup.
 This is command-level
 rollback, not a crash-atomic two-file VFS transaction or a concurrent-writer
-lock. ADR 0337 records the boundary.
+lock. Native Windows fixed-point CupidASM links the publication startup and
+runtime objects with their exact Kernel32 imports. Its behavior relink is
+validated against the same plan-derived import profile. Linux native Windows
+evidence reconstructs CupidASM with the same closure. ADR 0337 records the
+boundary.
 
 Source-backed limits:
 - code buffer: 1 MB
@@ -781,11 +787,13 @@ historical -o orders continue to mean EXEC.
 
 The publisher writes both raw candidates before moving either target. A write
 or later replacement failure restores the previous image and map. This is a
-running-command rollback boundary. Matching commit records beside both members
-name the old backups and markers from that publication. A later command can
-finish private cleanup without replacing completed output when it reuses
-either path. This is not a crash-atomic two-file transaction or a
-concurrent-writer lock.
+running-command rollback boundary. Matching v1 completion records are written
+only after both public targets move. A later command can use a valid record to
+finish private cleanup; without one, retained backups are restored. The VFS
+publisher has no pending record or absence tombstone before mutation, and its
+recovery removes a readable target before replacing it from backup. This is
+not a crash-atomic two-file transaction or a concurrent-writer lock. The
+hosted command uses a separate linked v2/v3 recovery protocol.
 
 The adapter accepts code-only and code/data/BSS objects and leaves its output
 empty when assembly, entry selection, linking, or validation fails. The loader

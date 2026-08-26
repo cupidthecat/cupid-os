@@ -33,7 +33,7 @@ Both candidate proofs pass. Linux matches 22 C objects, startup, and six tools
 with 23/6/29 failure, help, and success cases. Native Windows matches 23 C
 objects, three assembly objects, and six tools with 12/6/16 behavior. Both
 freeze the same 58-file source digest,
-`497cd80f8491d6952ae6c86c12f4838db05b4a4f9a542d3bfd5755be21304878`.
+`a24d048bf633003a25259884687d7461a145ded42371c5e6bb950b4f63d69603`.
 Each gate also runs both CupidBuild images through the guarded object command,
 requires equal relocatable output, and proves missing-source rollback. Each
 final-stage CupidDis strictly certifies the corresponding six images. Both
@@ -45,8 +45,8 @@ object before either fixed-point driver links it. The Windows CupidBuild
 startup marks all fourteen exports as functions, so its anchors participate in
 that proof. CupidDis reuses each executable section's instruction map for
 reporting, relocation ownership, anchors, and local-target setup. The source
-contracts are green; fresh Linux and Windows convergence remains required
-before these changes can support a six-tool promotion. ADR 0347 records object
+contracts and fresh Linux and Windows convergence are green. A checked
+six-tool manifest and promotion remain separate work. ADR 0347 records object
 certification and the startup closure, and ADR 0350 records decode-map reuse.
 
 The preceding five-tool Linux fixed point completed with the 55-source closure.
@@ -208,8 +208,8 @@ records the manifest author, ADR 0307 records raw stage-pair evidence, and ADR
 The latest complete schema v3 `CUPMAN4` publication passed and wrote 22
 artifacts from 75 publication inputs and the exact 58-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 62 stage pairs.
-Its 29,270-byte manifest has SHA-256
-`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+Its 29,271-byte manifest has SHA-256
+`5fab9706abe6d938e9aa4a355ebbae293fee5404475d3d20d2591d6a9e464011`.
 Its final verifier accepted all 22 artifacts.
 Both checked Python contract launchers resolve `tools` from this checkout. The
 direct contract suite passes 40 tests, the publisher suite passes 65 tests,
@@ -1100,8 +1100,8 @@ before CupidObj flattening. ADR 0314 records the decoder boundary, and ADR 0318
 records seed carriage and production adoption.
 
 The generated active-source audit and its check both pass. The Linux audit
-records 21 failure groups, five help groups, and 22 success groups. The Windows
-audit records nine failure groups, five help groups, and eight success groups.
+records 23 failure groups, six help groups, and 29 success groups. The Windows
+audit records 12 failure groups, six help groups, and 16 success groups.
 Candidate and promoted-seed fixed-point proofs cover the preceding linked-image
 behavior on Linux and Windows.
 
@@ -1251,18 +1251,20 @@ contract passes against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
-| `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
-| `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
-| `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
+| `kernel/kernel.elf.pass1` | 9,596,956 | `c871658c40304bfb5e7c61f2e7cc0479bb1bb7fe1c4af7835d119544d8034206` |
+| `kernel/kernel.elf` | 9,728,028 | `78bcce45f047c807aa798988606c363d0b51b6b48f6b1335cbd156a64a2ca1a0` |
+| `kernel/kernel.bin` | 9,500,284 | `f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873` |
+| `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The final normal build passed the exact policy and the strict 431-input
 local-target and code-anchor scan. A private four-vCPU E1000 frontier smoke
-then booted the published image without changing its source bytes.
+then booted the published image without changing its source bytes. The
+framebuffer changed 101,335 pixels. AC97 produced 36,533,414 stereo 44.1 kHz
+frames at peak 25,600, and the PC speaker produced 79,215 frames at peak 30,937.
 The guest reported
 `[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`.
-The 147,688-byte serial log has SHA-256
-`ae0ef6db543d9c046d3291488130407ae47541c329da258a00ef1600f9c0b3b1`.
+The 143,084-byte serial log has SHA-256
+`6b5c6a4ca5daf9f19ec099d45609f385e0cf983f945a40433ebc3f1921e8ffab`.
 
 The first nine-artifact checkpoint on this path guarded the normal boot edge
 with a CupidC-built artifact-size contract. All 443 root transforms had a
@@ -1604,8 +1606,8 @@ test still locked the old artifact-size recipe. The audit and its test now
 require one `$(ARTIFACT_SIZE_CONTRACT)` command with the Linux policy manifest,
 checked Windows manifest, and host-selected execution manifest.
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The Linux
-audit records 21 failure groups, five help groups, and 22 success groups. The
-Windows audit records nine failure groups, five help groups, and eight success
+audit records 23 failure groups, six help groups, and 29 success groups. The
+Windows audit records 12 failure groups, six help groups, and 16 success
 groups.
 
 The build audit finds seventeen tracked `.c` files outside `TempleOS/` and none
@@ -1787,7 +1789,7 @@ runtime addresses, ADR 0325 records raw fields and direct field calls, and ADR
 0328 records typedef-backed callback field arrays. ADR 0330 records data-backed
 raw callback arrays and block-static scalar callbacks.
 
-The source-current private callback ABI module passes all 310 tests in 75.017
+The source-current private callback ABI module passes all 318 tests in 60.519
 seconds, and the full GUI module passes all 128 tests in 0.955 seconds. A
 private four-vCPU frontier boot records all four CPUs online,
 `[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,

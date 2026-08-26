@@ -1155,6 +1155,13 @@ static int run_artifact_errors(void) {
   invalid_result.raw_range_count = 1u;
   invalid_result.raw_origin = 0x1000u;
 
+  invalid_result.raw_edges = edges;
+  invalid_result.raw_edge_count = 0u;
+  if (!expect_invalid_raw_map("unexpected edge storage", &invalid_result,
+                              map_output)) {
+    goto failed;
+  }
+  invalid_result.raw_edges = (const ctool_asm_raw_edge_t *)0;
   invalid_result.raw_edge_count = 1u;
   if (!expect_invalid_raw_map("missing edge storage", &invalid_result,
                               map_output)) {

@@ -68,8 +68,16 @@ CupidBuild startup. ADR 0347 records this boundary.
 Hosted and in-OS CupidASM now retain the same raw control-edge evidence. The
 kernel adapter validates and writes canonical `cupid.raw-map.v2`. The hosted
 CLI stages the image and map together and can recover an interrupted pair
-publication, including targets that did not exist before the command. ADR
-0348 records both changes.
+publication, including targets that did not exist before the command. It
+writes linked v2 pending records before either target moves, then advances
+both records to v3 after the replacements succeed. One matching v3 record is
+the commit witness. A v2 record remains pending even beside a legacy v1 peer,
+and recovery reaches the same result in either marker order. ADR 0348 records
+both changes. Native Windows fixed-point CupidASM links the
+publication wrapper and its exact Kernel32 imports, so reconstructed commands
+retain the same recovery path. Its behavior relink is checked against that same
+plan-derived import profile. Linux native Windows evidence reconstructs
+CupidASM with the same closure.
 
 Source-head hosted CupidC accepts C99 hexadecimal `float`, `double`, and `long
 double` constants. It uses bounded target-only integer arithmetic and rounds
@@ -112,6 +120,12 @@ tools. The native Windows candidate uses CupidBuild's full `KERNEL32.dll` and
 the compared CupidBuild images and check equal output plus rollback. Neither
 checked seed nor a normal OS recipe changes in this step. ADR 0345 records the
 boundary.
+
+Fresh Linux and native Windows reconstructions now pass from the same 58-input
+source snapshot. Linux matches 22 C objects, startup, and six tools with a
+23/6/29 behavior matrix. Windows matches 23 C objects, three startup objects,
+and six tools with a 12/6/16 matrix. The checked five-tool seeds remain
+unchanged.
 
 ## 2026-08-24 source-current checkpoint
 
@@ -158,7 +172,7 @@ scalar or SIMD results. Program and REPL failures restore the typedef metadata
 with the rest of the compiler transaction. Code-only AOT output still emits one
 program header with code at file offset `0x80`.
 
-The complete private callback ABI module passes all 310 tests in 75.017 seconds
+The complete private callback ABI module passes all 318 tests in 60.519 seconds
 at the current source head.
 Named raw callback file objects and direct free-function parameters retain
 their parsed signatures.
@@ -292,8 +306,8 @@ with a Cupid participant. The latest complete schema v3 `CUPMAN4`
 publication passed. The Cupid author and Python oracle agreed on all 62 stage
 pairs. Every stage-three object and executable matched its stage-four
 counterpart, the hosted runtime passed, and live inputs stayed frozen. The
-publisher wrote 22 artifacts and a 29,270-byte manifest with SHA-256
-`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+publisher wrote 22 artifacts and a 29,271-byte manifest with SHA-256
+`5fab9706abe6d938e9aa4a355ebbae293fee5404475d3d20d2591d6a9e464011`.
 It records 75 inputs, 58 bootstrap files, 17 object comparisons, and Linux seed
 manifest SHA-256
 `b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
@@ -347,21 +361,23 @@ kernel outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
-| `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
-| `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
-| `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
+| `kernel/kernel.elf.pass1` | 9,596,956 | `c871658c40304bfb5e7c61f2e7cc0479bb1bb7fe1c4af7835d119544d8034206` |
+| `kernel/kernel.elf` | 9,728,028 | `78bcce45f047c807aa798988606c363d0b51b6b48f6b1335cbd156a64a2ca1a0` |
+| `kernel/kernel.bin` | 9,500,284 | `f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873` |
+| `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The exact verifier accepts all fourteen current policy rows. The normal build
 compiled every kernel and Doom source with checked CupidC, linked both kernel
 ELFs with CupidLD, and passed the strict 431-input CupidDis scan with local
 targets and code anchors before publishing the image. A private four-vCPU E1000
 frontier smoke booted that image and passed the SMP, terminal, framebuffer, and
-audio checks without changing the source image.
+audio checks without changing the source image. The framebuffer changed
+101,335 pixels. AC97 produced 36,533,414 stereo 44.1 kHz frames at peak 25,600,
+and the PC speaker produced 79,215 frames at peak 30,937.
 The serial log contains
 `[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`.
-Its 147,688 bytes have SHA-256
-`ae0ef6db543d9c046d3291488130407ae47541c329da258a00ef1600f9c0b3b1`.
+Its 143,084 bytes have SHA-256
+`6b5c6a4ca5daf9f19ec099d45609f385e0cf983f945a40433ebc3f1921e8ffab`.
 The cross-platform seed fixtures combine a relocated external call with a
 resolved local branch, then corrupt the branch to land inside an instruction.
 Active-source tests prove all nine bootloader and four SMP targets. [ADR 0305](docs/adr/0305-promote-and-adopt-local-relative-target-checks.md)

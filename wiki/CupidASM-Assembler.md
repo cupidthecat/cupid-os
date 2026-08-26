@@ -83,14 +83,29 @@ The same options work with `cupidasm`. Source-only `cupidasm`, both historical
 prepared together. An explicit `-f` requires `-o`. A failed command write or
 replacement restores the previous pair. If restoration fails, the backup is
 kept for the next command to recover. This protects one running command; the
-pair writes the same commit record beside both outputs. That record names its
-private backups and markers, so failed cleanup remains safe when a later
-command reuses either path. Partial or unsafe records are rejected. The VFS
-does not yet provide a crash-atomic two-file transaction or a
-concurrent-writer lock. The hosted command uses the same recoverable pair
+kernel pair writes matching v1 completion records beside both outputs after
+both public replacements. Those records name its private backups and markers,
+so a later command can finish cleanup. Without a valid record, retained
+backups are restored. The VFS path has no pending record or absence tombstone
+before mutation, and its recovery removes a readable target before restoring
+the backup. The VFS does not yet provide a crash-atomic two-file transaction
+or a concurrent-writer lock. The hosted command uses a separate, stronger
 protocol, including absence markers for outputs that did not exist before the
-command. ADR 0337 records the kernel boundary, and ADR 0348 records the hosted
-pair protocol and kernel v2 edge retention.
+command. Each member receives a linked v2 pending record before either public
+target moves. After both replacements succeed, the records advance to v3 one
+at a time. One matching v3 record is the pair's commit witness. Recovery treats
+v2 as pending, does not let a legacy v1 peer commit it, and reaches the same
+decision regardless of marker order. It removes the final valid v3 witness
+only after private cleanup succeeds. A nonmatching record cannot clean an
+unrelated private pair. Recovery replaces a backup over its target without
+deleting the target first, so a failed replacement preserves the readable
+public file. ADR 0337 records the kernel boundary, and ADR 0348 records the
+hosted pair protocol and kernel v2 edge retention. Native Windows fixed-point CupidASM links the publication
+startup and runtime objects and imports DeleteFileA, FlushFileBuffers,
+GetFullPathNameA, and MoveFileExA for the same recovery path. The behavior
+relink validator reads that plan-derived profile rather than the smaller
+ordinary-tool table. Linux native Windows evidence uses the same publication
+objects and imports.
 
 For the in-kernel `as -o` path, CupidASM emits one ELF32 relocatable object.
 It applies the caller's ordered `main` and `_start` entry candidates, publishes
@@ -356,8 +371,8 @@ header rejects the image as outside the static certification domain. ADR 0314
 records the source boundary.
 
 The generated active-source audit and its check both pass. The Linux audit
-records 21 failure groups, five help groups, and 22 success groups. The Windows
-audit records nine failure groups, five help groups, and eight success groups.
+records 23 failure groups, six help groups, and 29 success groups. The Windows
+audit records 12 failure groups, six help groups, and 16 success groups.
 Both checked seeds now carry the linked-image rule. The normal kernel publisher
 uses it on the pass-one and final ELFs before flattening.
 

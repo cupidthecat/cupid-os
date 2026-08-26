@@ -216,8 +216,8 @@ native Windows author execution.
 The latest complete schema v3 `CUPMAN4` publication passed and wrote 22
 artifacts from 75 publication inputs and the exact 58-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 62 stage pairs.
-Its 29,270-byte manifest has SHA-256
-`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+Its 29,271-byte manifest has SHA-256
+`5fab9706abe6d938e9aa4a355ebbae293fee5404475d3d20d2591d6a9e464011`.
 Its final verifier accepted all 22 artifacts.
 Both checked Python contract launchers resolve `tools` from this checkout. The
 direct contract suite passes 40 tests in 54.623 seconds. The publisher suite
@@ -252,10 +252,10 @@ against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
-| `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
-| `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
-| `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
+| `kernel/kernel.elf.pass1` | 9,596,956 | `c871658c40304bfb5e7c61f2e7cc0479bb1bb7fe1c4af7835d119544d8034206` |
+| `kernel/kernel.elf` | 9,728,028 | `78bcce45f047c807aa798988606c363d0b51b6b48f6b1335cbd156a64a2ca1a0` |
+| `kernel/kernel.bin` | 9,500,284 | `f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873` |
+| `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The normal build completed the 431-input local-target and code-anchor scan,
 published this image, and passed a private four-vCPU E1000 frontier smoke. The
@@ -263,9 +263,9 @@ smoke covered SMP, terminal startup, framebuffer output, AC97, and PC speaker
 audio while leaving the source image unchanged.
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
-generated audit records 21 failure groups, five help groups, and 22 success
-groups on Linux. It records nine failure groups, five help groups, and eight
-success groups on Windows.
+generated audit records 23 failure groups, six help groups, and 29 success
+groups on Linux. It records 12 failure groups, six help groups, and 16 success
+groups on Windows.
 
 The exact artifact-size policy covers fourteen paths: four OS artifacts, five
 Linux seed executables, and five Windows seed executables. The wrapper passes

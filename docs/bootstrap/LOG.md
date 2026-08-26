@@ -31589,9 +31589,8 @@ not a completed capability.
 - The focused fixed-point object-certification tests pass for Linux, Windows,
   and an unmatched-relocation rejection. The complete active CupidASM source
   suite passes all six tests, including the fourteen startup annotations.
-- The hosted and kernel CupidASM modules pass 33 combined tests. The hosted
-  publication slice also passed its 41 focused tests, and the private kernel
-  raw adapter passed its direct artifact cases and object rebuild.
+- The hosted and kernel CupidASM modules pass 35 combined tests. The private
+  kernel raw adapter also passed its direct artifact cases and object rebuild.
 - CupidDis and shared-x86 tests pass 51 cases with one host-specific skip. All
   direct CupidDis modes and the strict warning-free host build pass.
 - The final hexadecimal literal focus passes three frontend, IR, and object
@@ -31638,9 +31637,183 @@ not a completed capability.
 - `make bootstrap-audit` and `make check-bootstrap-audit` both pass after the
   source and documentation changes.
 
+### Review repairs
+
+- A specification review found that a valid commit record could contain the
+  current marker beside an unrelated private pair. Cleanup now finds the exact
+  matching entry and leaves every unrelated backup and marker untouched. The
+  hostile regression failed before the repair and now passes.
+- The kernel adapter now rejects non-null edge storage paired with a zero edge
+  count, matching its existing rejection of a nonzero count without storage.
+  The negative contract failed before the repair and now passes.
+- A standards review found that interrupted recovery deleted a readable public
+  target before attempting to restore its backup. Recovery now replaces the
+  backup directly. A Windows regression locks the backup to force replacement
+  failure and proves that the public target remains intact. The final hosted
+  and kernel modules pass all 41 tests after the complete publication review.
+- Regenerating the audit after the publication review moved the current
+  `return`, `for`, `goto`, `if`, and `else` locks to 26,024, 4,724, 3,228,
+  42,016, and 5,257. The four focused inventory tests pass with those reviewed
+  counts.
+- The current documentation now distinguishes unchanged successful hosted v2
+  output from the intentional in-OS v1-to-v2 map change.
+- The first post-review `make -j4 all WAD_SRCS=` replay compiled the complete
+  active closure, linked both kernels with CupidLD, and passed the strict
+  431-input CupidDis transaction. The exact gate then reported the intentional
+  CTXT growth: `kernel/kernel.bin` was 9,499,820 bytes instead of the reviewed
+  9,499,524 bytes. The failure preserved the previous disk image. After the
+  single exact-size row moved to 9,499,820, a second source-consistent replay
+  passed all fourteen observations and published the image.
+- The final post-review artifacts are:
+
+  | Artifact | Bytes | SHA-256 |
+  | --- | ---: | --- |
+  | `kernel/kernel.elf.pass1` | 9,596,956 | `e90003d2c362f69ae0e2e0ae5fb1fbd7757eb6334773937946b6784e844613f8` |
+  | `kernel/kernel.elf` | 9,728,028 | `3738d03ae2024db3b5c3fff04330bd76f6d67f2eccb4909be16a172fbbe52cd4` |
+  | `kernel/kernel.bin` | 9,499,820 | `db547a4a6dccda9803f25e8ddb17f7a9577d5093d3784fc6758dfa538a06a2ef` |
+  | `cupidos.img` | 209,715,200 | `c7c6709239c5c1e7d2f76a4d72f5743a33580550181f98cf978c1835145f0288` |
+
+  The 2,960-byte policy has SHA-256
+  `d83561ec2dcedd5fc532da636bd0b1e2efa4b02825305db11d2ad9a5a87c7325`.
+- A private four-vCPU `max` and E1000 frontier passed against that exact image.
+  The 640 by 480 framebuffer changed 83,666 pixels. AC97 produced 32,101,627
+  stereo 44.1 kHz frames at peak 25,600, and the PC speaker produced 77,199
+  frames at peak 24,131. The callback-array proof retained its exact PASS
+  marker. The 141,929-byte serial log has SHA-256
+  `65c4697ccf375fd094f1631d2ee0e86058bed443ac2c230b046b81ed32fbeedb`.
+- The first fresh native Windows fixed point stopped at the stage-two CupidASM
+  link. CupidLD named symbol 111 from `cupidasm_main.o`; direct ELF inspection
+  identified it as `cupid_windows_delete_file`. The source-head raw publisher
+  used the Windows publication wrapper, but the derived plan still linked that
+  closure only into CupidLD and CupidBuild. No proof directory was published.
+- A plan contract now requires CupidASM's publication startup, runtime, and
+  DeleteFileA, FlushFileBuffers, GetFullPathNameA, and MoveFileExA imports. It
+  failed before the coordinator repair and passes afterward. The repeated
+  native fixed point uses a new private transaction.
+- That repeat built the expanded CupidASM image, then the behavior relink
+  rejected it as a noncanonical import-address layout. The image used the
+  correct sixteen-import plan, but the last validator still expected the old
+  twelve-import ordinary-tool profile. A focused policy test failed on that
+  stale constant. The validator now reads CupidASM's plan-derived import
+  profile, and the test passes.
+- The first fresh Linux fixed point completed its generation work but rejected
+  publication because CupidLD behavior differed between the compared stages.
+  The old diagnostic named only the tool. A new bounded diagnostic reports the
+  status and both streams from each generation. Its focused regression failed
+  before the change and passes afterward. The repeat confirmed that both
+  linkers rejected unresolved symbol 111 in the Windows CupidASM main object;
+  only the stage-specific object paths made their diagnostics differ. The
+  Linux behavior proof had a second native Windows tool plan that still omitted
+  the publication objects and imports. A focused policy test failed on that
+  closure. Both Linux evidence generations now link the publication startup
+  and runtime with the linker import profile, and the policy test passes. A new
+  private Linux transaction started without any retained failed output.
+- The repaired Linux transaction passes. Its 22 C objects, startup object, and
+  six tool images are byte-identical between stages three and four. All
+  23 failure, six help, and 29 success cases pass. The 51,370-byte report has
+  SHA-256
+  `1c9a6545d624fe89bde3b6f168251963d74424374ab8c4266bff4b33e8d33396`.
+- The repaired native Windows transaction also passes. Its 23 C objects,
+  three assembly objects, and six PE images are byte-identical between stages
+  three and four. All 12 failure, six help, and 16 success cases pass. The
+  64,356-byte report has SHA-256
+  `d049a25df32e6da558686acf53d03bd691fbc7894c1a61ddba32e25dd6ec840b`.
+  Both reports freeze the same 58 inputs with source snapshot SHA-256
+  `a24d048bf633003a25259884687d7461a145ded42371c5e6bb950b4f63d69603`.
+- The converged source-head tool images are:
+
+  | Tool | Linux bytes | Linux SHA-256 | Windows bytes | Windows SHA-256 |
+  | --- | ---: | --- | ---: | --- |
+  | CupidASM | 496,628 | `29b9673ca94bd4fa6c74b41f6ab31ca794665315ea0a2eff5735ffe9ad1cae44` | 479,744 | `9c50e204262a0b05b12d4fc0924670c66092d053ad12b99134ab79a254ef07ae` |
+  | CupidBuild | 260,064 | `49da8a6bb00ae1aab50d9ca65e6a735b8de4d1cc8987442f9584a464d741b317` | 280,576 | `b47e3c7723480a0740bdf214b5f0f70df4f2fe74caf8c44a18e1bc2d04621336` |
+  | CupidC | 2,691,720 | `fe0ed161a586b39544bd02018b1a288927b4fb7f6663a01f653dd5e0032670c8` | 2,620,416 | `73252f25a44ff0308f0a9403e942af0e582e9cac222e5738412af9c313f6d19c` |
+  | CupidDis | 538,516 | `24e231ffb05a507a49f65977ee628a2dd53b27991ed97f7ba6acc3c0367618c8` | 516,608 | `588485d496209eecf437e6f6fc9d02474d5c4ac1f236af86bdaad9f3f2d705ce` |
+  | CupidLD | 312,888 | `deea83b95c4c00746cee27d50ff31ae5734e45dd0f57a328630de010c26eedd9` | 296,960 | `aaa7b51a290646ef1d972f4904b1ed176a4dc912e53c1bc4cbdd8d1e39d8495f` |
+  | CupidObj | 392,784 | `79c7b58aee81cdf68526c645f74b3a28d1179b0f6c0d7a4744463d26e285a3ed` | 375,808 | `b6f6a5b66f8e2bcb4b779a16428d7b77a956113c5ca301344537b35839611572` |
+
+### Final source-current verification
+
+- Hosted publication records now have explicit states. Version 2 is linked and
+  pending. Version 3 is linked and committed. Each member receives its pending
+  record before either public target moves, and one matching v3 record is the
+  commit witness after both replacements succeed. Exact recovery evaluates the
+  pair as a whole, so mixed v1 and v2 records roll back in either marker order.
+  Committed cleanup removes nonwitness markers first and the last valid witness
+  only after backup and tombstone cleanup succeeds. Production builds omit the
+  test-only fault seams.
+- The hosted and kernel CupidASM modules pass all 41 tests in 6.709 seconds.
+  The final negative cases cover failures during publication, commit
+  conversion, cleanup, restoration, marker corruption, marker removal, and
+  both orderings of mixed legacy and pending evidence. The separate
+  specification review and standards review found no remaining code or test
+  issue.
+- Checked CupidC compiles the hosted adapter as 41 functions, 45,916 text
+  bytes, and a 53,300-byte object with fingerprint `B5D9BE67`. The object has
+  39 undefined symbols, 116 symbols in total, and 324 relocations split into
+  279 `R_386_PC32` and 45 `R_386_32` entries.
+- The source-current frontend suite passes all 97 tests in 14.792 seconds. The
+  generated audit records 747 active inputs, 452 reachable transforms, 255
+  feature requirements, and 26 accounted unreachable files. Its 2,741,839-byte
+  JSON has SHA-256
+  `b9d7b4de96ddf2a29cc36e443565eff20363d8d49fed942a988188427c4e27f1`.
+  The 12,858-byte summary has SHA-256
+  `27c28c0d3aa4d20e9680b8d5c180101b661ad6d1bb7d449d1054eb06f1494b05`.
+  Both audit generation and the fail-closed check pass.
+- The complete `make -C toolchain test` gate passes. Checked-seed bootstrap,
+  two generated compiler stages, the hosted runtime, the active self-host
+  frontier, exact hosted adapters, all six production tool links, and the full
+  executable contract matrix are green. Cupid and the Python oracle agree on
+  all 62 stage pairs. The gate publishes and rechecks 22 artifacts. Its
+  29,271-byte manifest has SHA-256
+  `5fab9706abe6d938e9aa4a355ebbae293fee5404475d3d20d2591d6a9e464011`.
+- Fresh Linux and native Windows fixed points pass from source snapshot
+  `a24d048bf633003a25259884687d7461a145ded42371c5e6bb950b4f63d69603`.
+  The report and tool table above records their source-current outputs. These
+  are candidate proofs, not promoted checked seeds.
+
+### Final image replay
+
+- The first source-current `make -j4 all WAD_SRCS=` replay rebuilt the complete
+  kernel, toolchain, installed-source, user-program, and Doom closure. Both
+  CupidLD links and the strict 431-input CupidDis scan passed. The exact-size
+  contract then rejected the intentional CTXT growth, preserving the previous
+  disk image. A second complete rebuild accepted the measured 9,500,664-byte
+  kernel and published its image.
+- The specification review then caught a documentation error: the hosted
+  publisher's linked pending and committed record protocol had been described
+  as though the kernel VFS publisher already shared it. The corrected CTXT now
+  describes the kernel's v1 completion records and older rollback boundary.
+  This removed 380 bytes from the raw kernel. The first corrected replay
+  measured 9,500,284 bytes and stopped because the provisional exact row was
+  one byte high. Updating the row to the measured value forced one more full
+  rebuild. Both CupidLD links, the complete CupidDis scan, and all fourteen
+  exact observations passed before image publication. The 2,960-byte policy
+  has SHA-256
+  `8585df5b3f6cb17e3dd1266501d2e1048a7723a28d0f7717177c43f26c44085c`.
+- The final artifacts are:
+
+  | Artifact | Bytes | SHA-256 |
+  | --- | ---: | --- |
+  | `kernel/kernel.elf.pass1` | 9,596,956 | `c871658c40304bfb5e7c61f2e7cc0479bb1bb7fe1c4af7835d119544d8034206` |
+  | `kernel/kernel.elf` | 9,728,028 | `78bcce45f047c807aa798988606c363d0b51b6b48f6b1335cbd156a64a2ca1a0` |
+  | `kernel/kernel.bin` | 9,500,284 | `f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873` |
+  | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
+
+- A private four-vCPU `max` and E1000 frontier passed against that exact
+  image. The 640 by 480 framebuffer changed 101,335 pixels. AC97 produced
+  36,533,414 stereo 44.1 kHz frames at peak 25,600, and the PC speaker produced
+  79,215 frames at peak 30,937. USB replug, SMP, TLS, terminal commands, and the
+  callback-array proof all passed without a panic. The 143,084-byte serial log
+  has SHA-256
+  `6b5c6a4ca5daf9f19ec099d45609f385e0cf983f945a40433ebc3f1921e8ffab`.
+- The final focused rerun passes 97 frontend tests in 14.792 seconds and 41
+  CupidASM hosted and kernel tests in 6.709 seconds. Audit generation and its
+  independent fail-closed check pass. The checked audit hashes remain the ones
+  recorded above because its normalized graph facts are unchanged.
+
 ### Remaining boundary
 
-Fresh Linux and native Windows fixed points and the consolidated Toolchain gate
-remain required for this source-head checkpoint. The six-tool candidate is not
-promoted, and the ISR and context-switch recipes remain on the checked Python
-publisher.
+The six-tool candidate is not promoted. The ISR and context-switch recipes and
+the fixed-point coordinators remain on the checked Python publisher. A
+non-self-referential six-tool manifest, seed promotion, and recipe transfer
+remain open.

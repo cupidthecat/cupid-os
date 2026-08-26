@@ -2159,7 +2159,7 @@ def _windows_imports(
 ) -> tuple[tuple[str, tuple[str, ...]], ...]:
     if tool_name == "cupidbuild":
         return WINDOWS_CUPIDBUILD_IMPORTS
-    if tool_name == "cupidld":
+    if tool_name in ("cupidasm", "cupidld"):
         return WINDOWS_LINKER_IMPORTS
     return WINDOWS_TOOL_IMPORTS
 
@@ -2251,7 +2251,7 @@ def _windows_build_plan(
                 f"Linux build plan must link one runtime: {tool_name}"
             )
         native_order = list(linux_order)
-        if tool_name == "cupidld":
+        if tool_name in ("cupidasm", "cupidld"):
             native_order.insert(
                 native_order.index("start") + 1,
                 "publication_start",
@@ -2583,8 +2583,23 @@ def _run_stage_pair(
         or stage_three_result.stdout != stage_two_result.stdout
         or stage_three_result.stderr != stage_two_result.stderr
     ):
+        def observed_text(value: str) -> str:
+            limit = 512
+            if len(value) > limit:
+                value = (
+                    value[:limit]
+                    + f"... ({len(value) - limit} characters omitted)"
+                )
+            return repr(value)
+
         raise BootstrapError(
-            f"{tool_name} behavior differs across stages"
+            f"{tool_name} behavior differs across stages: "
+            f"stage-three status {stage_two_result.returncode}, stdout "
+            f"{observed_text(stage_two_result.stdout)}, stderr "
+            f"{observed_text(stage_two_result.stderr)}; stage-four status "
+            f"{stage_three_result.returncode}, stdout "
+            f"{observed_text(stage_three_result.stdout)}, stderr "
+            f"{observed_text(stage_three_result.stderr)}"
         )
     return stage_two_result
 
@@ -3180,7 +3195,7 @@ def _run_native_windows_behavior_checks(
     _validate_static_i386_pe32(
         stage_two_linked,
         int(EXPECTED_WINDOWS_TARGET["entry"]),
-        WINDOWS_TOOL_IMPORTS,
+        _windows_imports("cupidasm"),
     )
 
     return {
@@ -5444,12 +5459,14 @@ def _run_behavior_checks(
 
     windows_native_tool_plans = {
         "cupidasm": (
+            "publication_start",
             "cupidasm_main",
             "cupidasm",
             "ctool_host",
             "ctool",
             "elf32",
             "x86",
+            "publication_runtime",
         ),
         "cupidc": (
             "cupidc_main",
@@ -5481,18 +5498,26 @@ def _run_behavior_checks(
         ),
     }
     windows_native_tool_imports = {
-        "cupidasm": windows_cupiddis_imports,
+        "cupidasm": windows_cupidld_imports,
         "cupidc": windows_cupiddis_imports,
         "cupidld": windows_cupidld_imports,
         "cupidobj": windows_cupiddis_imports,
     }
     windows_native_stage_two_extras = {
+        "cupidasm": {
+            "publication_runtime": stage_two_windows_publication_runtime,
+            "publication_start": stage_two_windows_publication_start,
+        },
         "cupidld": {
             "publication_runtime": stage_two_windows_publication_runtime,
             "publication_start": stage_two_windows_publication_start,
         },
     }
     windows_native_stage_three_extras = {
+        "cupidasm": {
+            "publication_runtime": stage_three_windows_publication_runtime,
+            "publication_start": stage_three_windows_publication_start,
+        },
         "cupidld": {
             "publication_runtime": stage_three_windows_publication_runtime,
             "publication_start": stage_three_windows_publication_start,

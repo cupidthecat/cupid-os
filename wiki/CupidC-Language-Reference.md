@@ -161,7 +161,7 @@ source or REPL transaction. [ADR 0330](../docs/adr/0330-support-data-backed-raw-
 records this boundary. Conditional field values, alias chains, aggregate
 results, and raw method parameters remain open.
 
-The source-current private callback ABI module passes all 310 tests in 75.017
+The source-current private callback ABI module passes all 318 tests in 60.519
 seconds, and the full GUI module passes all 128 tests in 0.955 seconds. A
 private four-vCPU frontier boot records all four CPUs online,
 `[feature14-callback-raw-array] PASS modes=2 phases=3 calls=12 stored=1 persistent=1`,
@@ -197,10 +197,10 @@ and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
 The source-head artifact contract passes against all fourteen exact artifacts.
-The raw kernel is 9,499,524 bytes with SHA-256
-`be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949`.
+The raw kernel is 9,500,284 bytes with SHA-256
+`f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873`.
 The 209,715,200-byte disk image has SHA-256
-`fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602`.
+`09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186`.
 Those output identities come from the completed source-head normal build. Its
 431-input linked-image scan passed local-target and code-anchor validation, and
 the image passed a private four-vCPU E1000 frontier smoke. Both checked seeds

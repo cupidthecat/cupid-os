@@ -59,6 +59,9 @@ typedef struct {
   char *backups[2];
   char *commits[2];
   ctool_u32 count;
+  ctool_u32 storage_size;
+  int committed;
+  int linked;
   ctool_u8 *storage;
 } cupidasm_publication_record_t;
 
@@ -413,31 +416,6 @@ static char *cupidasm_append_suffix(const char *path, const char *suffix) {
   return result;
 }
 
-static char *cupidasm_replace_private_suffix(const char *path,
-                                             const char *old_suffix,
-                                             const char *new_suffix) {
-  size_t path_size = strlen(path);
-  size_t old_size = strlen(old_suffix);
-  size_t new_size = strlen(new_suffix);
-  size_t stem_size;
-  char *result;
-  if (path_size <= old_size ||
-      memcmp(path + path_size - old_size, old_suffix, old_size) != 0) {
-    return (char *)0;
-  }
-  stem_size = path_size - old_size;
-  if (stem_size > (size_t)-1 - new_size - 1u) {
-    return (char *)0;
-  }
-  result = (char *)malloc(stem_size + new_size + 1u);
-  if (result == (char *)0) {
-    return (char *)0;
-  }
-  (void)memcpy(result, path, stem_size);
-  (void)memcpy(result + stem_size, new_suffix, new_size + 1u);
-  return result;
-}
-
 static void cupidasm_publication_path_close(
     cupidasm_publication_path_t *path) {
   free(path->target);
@@ -771,6 +749,7 @@ static ctool_status_t cupidasm_publication_read(
   }
   record_out->storage = storage;
   record_out->count = (ctool_u32)read_size;
+  record_out->storage_size = (ctool_u32)read_size;
   return CTOOL_OK;
 }
 
@@ -874,15 +853,19 @@ static int cupidasm_publication_private_pair_matches(const char *backup,
 
 static ctool_status_t cupidasm_publication_parse_record(
     cupidasm_publication_record_t *record) {
-  static const ctool_u8 magic[8] = {'C', 'U', 'P', 'I', 'D', 'A', 'S', 1u};
+  static const ctool_u8 magic[7] = {'C', 'U', 'P', 'I', 'D', 'A', 'S'};
   size_t size = (size_t)record->count;
   size_t cursor = 12u;
   ctool_u32 count;
   ctool_u32 index;
   if (record->storage == (ctool_u8 *)0 || size < cursor ||
-      memcmp(record->storage, magic, sizeof(magic)) != 0) {
+      memcmp(record->storage, magic, sizeof(magic)) != 0 ||
+      (record->storage[7] != 1u && record->storage[7] != 2u &&
+       record->storage[7] != 3u)) {
     return CTOOL_ERR_INPUT;
   }
+  record->committed = record->storage[7] == 1u || record->storage[7] == 3u;
+  record->linked = record->storage[7] == 2u || record->storage[7] == 3u;
   count = cupidasm_publication_load_u32(record->storage + 8u);
   if (count == 0u || count > 2u) {
     return CTOOL_ERR_INPUT;
@@ -939,7 +922,7 @@ static ctool_status_t cupidasm_publication_parse_record(
 static ctool_status_t cupidasm_publication_render_record(
     const cupidasm_publication_path_t *paths, ctool_u32 count,
     ctool_bytes_t *bytes_out, ctool_u8 **storage_out) {
-  static const ctool_u8 magic[8] = {'C', 'U', 'P', 'I', 'D', 'A', 'S', 1u};
+  static const ctool_u8 magic[8] = {'C', 'U', 'P', 'I', 'D', 'A', 'S', 2u};
   size_t required = 12u;
   size_t cursor;
   ctool_u32 index;
@@ -980,6 +963,143 @@ static ctool_status_t cupidasm_publication_render_record(
   return CTOOL_OK;
 }
 
+#if defined(CUPIDASM_PUBLICATION_TESTING)
+static int cupidasm_publication_test_fails(const char *name,
+                                           ctool_u32 index) {
+  const char *value = getenv(name);
+  char expected[16];
+  int written;
+  if (value == (const char *)0) {
+    return 0;
+  }
+  written = snprintf(expected, sizeof(expected), "%u", index);
+  if (written <= 0 || (size_t)written >= sizeof(expected)) {
+    return 0;
+  }
+  return strcmp(value, expected) == 0 ? 1 : 0;
+}
+#endif
+
+static int cupidasm_publication_record_matches(
+    const cupidasm_publication_record_t *record,
+    const cupidasm_publication_path_t *paths, ctool_u32 count);
+
+static int cupidasm_publication_records_equal(
+    const cupidasm_publication_record_t *left,
+    const cupidasm_publication_record_t *right) {
+  ctool_u32 index;
+  if (left->count != right->count) {
+    return 0;
+  }
+  for (index = 0u; index < left->count; index++) {
+    if (cupidasm_publication_path_equal(left->backups[index],
+                                        right->backups[index]) == 0 ||
+        cupidasm_publication_path_equal(left->commits[index],
+                                        right->commits[index]) == 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static ctool_status_t cupidasm_publication_find_commit(
+    const cupidasm_publication_record_t *record, int inspect_linked_peers,
+    int *committed_out) {
+  ctool_u32 index;
+  int linked_committed = record->linked != 0 && record->committed != 0;
+  int pending = record->linked != 0 && record->committed == 0;
+  *committed_out = record->committed;
+  if ((record->linked == 0 && inspect_linked_peers == 0) ||
+      (record->linked != 0 && record->committed != 0)) {
+    return CTOOL_OK;
+  }
+  for (index = 0u; index < record->count; index++) {
+    int exists = 0;
+    ctool_status_t status =
+        cupidasm_publication_inspect(record->commits[index], &exists);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (exists != 0) {
+      cupidasm_publication_record_t peer;
+      status = cupidasm_publication_read(record->commits[index], &peer);
+      if (status == CTOOL_OK) {
+        status = cupidasm_publication_parse_record(&peer);
+      }
+      if (status == CTOOL_OK &&
+          cupidasm_publication_records_equal(record, &peer) != 0) {
+        if (peer.committed != 0 && peer.linked != 0) {
+          linked_committed = 1;
+          *committed_out = 1;
+        } else if (peer.committed == 0 && peer.linked != 0) {
+          pending = 1;
+        }
+      }
+      cupidasm_publication_record_close(&peer);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      if (linked_committed != 0) {
+        return CTOOL_OK;
+      }
+    }
+  }
+  if (pending != 0) {
+    *committed_out = 0;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cupidasm_publication_remove_commit_records(
+    const cupidasm_publication_path_t *paths, ctool_u32 count) {
+  ctool_u32 index;
+  ctool_u32 witness = count;
+  int exists[2] = {0, 0};
+  for (index = 0u; index < count; index++) {
+    ctool_status_t status =
+        cupidasm_publication_inspect(paths[index].commit, &exists[index]);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    if (exists[index] != 0) {
+      cupidasm_publication_record_t record;
+      status = cupidasm_publication_read(paths[index].commit, &record);
+      if (status == CTOOL_OK) {
+        status = cupidasm_publication_parse_record(&record);
+      }
+      if (status == CTOOL_OK && record.committed != 0 &&
+          cupidasm_publication_record_matches(&record, paths, count) != 0 &&
+          witness == count) {
+        witness = index;
+      }
+      cupidasm_publication_record_close(&record);
+    }
+  }
+  if (witness == count) {
+    return CTOOL_ERR_INPUT;
+  }
+  for (index = 0u; index < count; index++) {
+    ctool_status_t status = CTOOL_OK;
+    if (index == witness || exists[index] == 0) {
+      continue;
+    }
+#if defined(CUPIDASM_PUBLICATION_TESTING)
+    if (cupidasm_publication_test_fails(
+            "CUPIDASM_TEST_FAIL_COMMIT_REMOVE_INDEX", index) != 0) {
+      status = CTOOL_ERR_IO;
+    }
+#endif
+    if (status == CTOOL_OK) {
+      status =
+          cupidasm_publication_remove_if_present(paths[index].commit);
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  return cupidasm_publication_remove_if_present(paths[witness].commit);
+}
+
 static ctool_status_t cupidasm_publication_prepare(
     const cupidasm_publication_path_t *paths, ctool_u32 count) {
   ctool_u32 index;
@@ -993,7 +1113,9 @@ static ctool_status_t cupidasm_publication_prepare(
     if (commit_exists != 0) {
       cupidasm_publication_record_t record;
       ctool_u32 cleanup;
-      int marker_listed = 0;
+      ctool_u32 matched_entry;
+      int transaction_committed = 0;
+      int exact_scope;
       status = cupidasm_publication_read(paths[index].commit, &record);
       if (status == CTOOL_OK) {
         status = cupidasm_publication_parse_record(&record);
@@ -1002,37 +1124,74 @@ static ctool_status_t cupidasm_publication_prepare(
         cupidasm_publication_record_close(&record);
         return status;
       }
+      matched_entry = record.count;
       for (cleanup = 0u; cleanup < record.count; cleanup++) {
         if (cupidasm_publication_path_equal(record.commits[cleanup],
                                             paths[index].commit) != 0) {
-          marker_listed = 1;
-        }
-      }
-      if (marker_listed == 0) {
-        cupidasm_publication_record_close(&record);
-        return CTOOL_ERR_INPUT;
-      }
-      for (cleanup = 0u; cleanup < record.count; cleanup++) {
-        char *absent = cupidasm_replace_private_suffix(
-            record.backups[cleanup], cupidasm_backup_suffix,
-            cupidasm_absent_suffix);
-        status = absent == (char *)0 ? CTOOL_ERR_NO_MEMORY : CTOOL_OK;
-        if (status == CTOOL_OK) {
-          status = cupidasm_publication_remove_if_present(
-              record.backups[cleanup]);
-        }
-        if (status == CTOOL_OK) {
-          status = cupidasm_publication_remove_if_present(absent);
-        }
-        free(absent);
-        if (status != CTOOL_OK) {
+          matched_entry = cleanup;
           break;
         }
       }
-      for (cleanup = 0u; cleanup < record.count && status == CTOOL_OK;
-           cleanup++) {
+      if (matched_entry == record.count) {
+        cupidasm_publication_record_close(&record);
+        return CTOOL_ERR_INPUT;
+      }
+      exact_scope =
+          cupidasm_publication_record_matches(&record, paths, count);
+      status = cupidasm_publication_find_commit(
+          &record, exact_scope, &transaction_committed);
+      if (status != CTOOL_OK) {
+        cupidasm_publication_record_close(&record);
+        return status;
+      }
+      if (transaction_committed != 0 && exact_scope != 0) {
+        for (cleanup = 0u; cleanup < count && status == CTOOL_OK; cleanup++) {
+          status = cupidasm_publication_remove_if_present(
+              paths[cleanup].backup);
+          if (status == CTOOL_OK) {
+            status = cupidasm_publication_remove_if_present(
+                paths[cleanup].absent);
+          }
+        }
+        if (status == CTOOL_OK) {
+          status =
+              cupidasm_publication_remove_commit_records(paths, count);
+        }
+      } else if (transaction_committed != 0 && record.linked != 0) {
         status = cupidasm_publication_remove_if_present(
-            record.commits[cleanup]);
+            paths[index].backup);
+        if (status == CTOOL_OK) {
+          status = cupidasm_publication_remove_if_present(
+              paths[index].absent);
+        }
+        if (status == CTOOL_OK && record.committed == 0) {
+          record.storage[7] = 3u;
+          status = cupidasm_write_output(
+              paths[index].commit,
+              ctool_bytes(record.storage, record.storage_size));
+        }
+        if (status == CTOOL_OK) {
+          status = CTOOL_ERR_IO;
+        }
+      } else if (transaction_committed != 0) {
+        status = cupidasm_publication_remove_if_present(
+            paths[index].backup);
+        if (status == CTOOL_OK) {
+          status = cupidasm_publication_remove_if_present(
+              paths[index].absent);
+        }
+        if (status == CTOOL_OK) {
+          status = cupidasm_publication_remove_if_present(
+              paths[index].commit);
+        }
+      } else if (exact_scope != 0) {
+        for (cleanup = 0u; cleanup < count && status == CTOOL_OK; cleanup++) {
+          status = cupidasm_publication_remove_if_present(
+              paths[cleanup].commit);
+        }
+      } else {
+        status = cupidasm_publication_remove_if_present(
+            paths[index].commit);
       }
       cupidasm_publication_record_close(&record);
       if (status != CTOOL_OK) {
@@ -1063,23 +1222,24 @@ static ctool_status_t cupidasm_publication_prepare(
       }
     }
     for (index = 0u; index < count; index++) {
-      int target_exists = 0;
       ctool_status_t status;
       if (backup_exists[index] == 0 && absent_exists[index] == 0) {
         continue;
       }
-      status =
-          cupidasm_publication_inspect(paths[index].target, &target_exists);
-      if (status == CTOOL_OK && target_exists != 0) {
-        status = cupidasm_publication_remove_if_present(paths[index].target);
-      }
-      if (status == CTOOL_OK && backup_exists[index] != 0) {
+      if (backup_exists[index] != 0) {
         status = cupidasm_publication_replace(paths[index].backup,
                                               paths[index].target);
-      }
-      if (status == CTOOL_OK && absent_exists[index] != 0) {
+      } else {
+        int target_exists = 0;
         status =
-            cupidasm_publication_remove_if_present(paths[index].absent);
+            cupidasm_publication_inspect(paths[index].target, &target_exists);
+        if (status == CTOOL_OK && target_exists != 0) {
+          status = cupidasm_publication_remove_if_present(paths[index].target);
+        }
+        if (status == CTOOL_OK) {
+          status =
+              cupidasm_publication_remove_if_present(paths[index].absent);
+        }
       }
       if (status != CTOOL_OK) {
         return status;
@@ -1121,6 +1281,7 @@ static ctool_status_t cupidasm_publish(
   int backed_up[2] = {0, 0};
   int tombstoned[2] = {0, 0};
   int published[2] = {0, 0};
+  int committed = 0;
   const char *all_paths[10];
   ctool_u32 count = cli->range_map == (const char *)0 ? 1u : 2u;
   ctool_u32 path_count = count * 5u;
@@ -1176,6 +1337,12 @@ static ctool_status_t cupidasm_publish(
     }
   }
   for (index = 0u; index < count; index++) {
+    status = cupidasm_write_output(paths[index].commit, commit_record);
+    if (status != CTOOL_OK) {
+      goto rollback;
+    }
+  }
+  for (index = 0u; index < count; index++) {
     status = cupidasm_publication_inspect(paths[index].target,
                                           &existed[index]);
     if (status != CTOOL_OK) {
@@ -1205,15 +1372,43 @@ static ctool_status_t cupidasm_publish(
     }
   }
   for (index = 0u; index < count; index++) {
-    status = cupidasm_publication_replace(paths[index].candidate,
-                                          paths[index].target);
+    status = CTOOL_OK;
+#if defined(CUPIDASM_PUBLICATION_TESTING)
+    if (cupidasm_publication_test_fails(
+            "CUPIDASM_TEST_FAIL_PUBLISH_INDEX", index) != 0) {
+      status = CTOOL_ERR_IO;
+    }
+#endif
+    if (status == CTOOL_OK) {
+      status = cupidasm_publication_replace(paths[index].candidate,
+                                            paths[index].target);
+    }
     if (status != CTOOL_OK) {
       goto rollback;
     }
     published[index] = 1;
   }
+  commit_storage[7] = 3u;
   for (index = 0u; index < count; index++) {
-    status = cupidasm_write_output(paths[index].commit, commit_record);
+    status = CTOOL_OK;
+#if defined(CUPIDASM_PUBLICATION_TESTING)
+    if (cupidasm_publication_test_fails(
+            "CUPIDASM_TEST_FAIL_COMMIT_INDEX", index) != 0) {
+      status = CTOOL_ERR_IO;
+    }
+    if (cupidasm_publication_test_fails(
+            "CUPIDASM_TEST_CORRUPT_COMMIT_INDEX", index) != 0) {
+      static const ctool_u8 corrupt_record[4] = {'C', 'U', 'P', 'I'};
+      status = cupidasm_write_output(
+          paths[index].commit, ctool_bytes(corrupt_record, 4u));
+      if (status == CTOOL_OK) {
+        status = CTOOL_ERR_IO;
+      }
+    }
+#endif
+    if (status == CTOOL_OK) {
+      status = cupidasm_write_output(paths[index].commit, commit_record);
+    }
     if (status != CTOOL_OK) {
       int commit_exists = 0;
       ctool_status_t write_status = status;
@@ -1221,10 +1416,16 @@ static ctool_status_t cupidasm_publish(
           paths[index].commit, &commit_exists);
       if (inspect_status != CTOOL_OK) {
         status = inspect_status;
-        goto done;
+        if (committed != 0) {
+          goto committed_cleanup;
+        }
+        goto rollback;
       }
       if (commit_exists == 0) {
         status = write_status;
+        if (committed != 0) {
+          goto committed_cleanup;
+        }
         goto rollback;
       }
       {
@@ -1234,32 +1435,38 @@ static ctool_status_t cupidasm_publish(
         if (read_status == CTOOL_OK) {
           read_status = cupidasm_publication_parse_record(&observed);
         }
-        if (read_status == CTOOL_ERR_INPUT || read_status == CTOOL_ERR_LIMIT ||
-            (read_status == CTOOL_OK &&
-             cupidasm_publication_record_matches(&observed, paths, count) ==
-                 0)) {
-          ctool_status_t remove_status =
-              cupidasm_publication_remove_if_present(paths[index].commit);
-          cupidasm_publication_record_close(&observed);
-          if (remove_status != CTOOL_OK) {
-            status = remove_status;
-            goto done;
-          }
-          status = write_status;
-          goto rollback;
+        if (read_status == CTOOL_OK && observed.committed != 0 &&
+            cupidasm_publication_record_matches(&observed, paths, count) !=
+                0) {
+          committed = 1;
         }
         cupidasm_publication_record_close(&observed);
-        if (read_status != CTOOL_OK) {
-          status = read_status;
-          goto done;
-        }
       }
+      status = write_status;
+      if (committed != 0) {
+        goto committed_cleanup;
+      }
+      goto rollback;
     }
+    committed = 1;
   }
+committed_cleanup:
   for (index = 0u; index < count; index++) {
     if (backed_up[index] != 0) {
-      ctool_status_t cleanup =
-          cupidasm_publication_remove_if_present(paths[index].backup);
+      ctool_status_t cleanup = CTOOL_OK;
+#if defined(CUPIDASM_PUBLICATION_TESTING)
+      if (cupidasm_publication_test_fails(
+              "CUPIDASM_TEST_FAIL_BACKUP_CLEANUP_INDEX", index) != 0) {
+        cleanup = CTOOL_ERR_IO;
+      }
+#endif
+      if (cleanup == CTOOL_OK) {
+        cleanup =
+            cupidasm_publication_remove_if_present(paths[index].backup);
+        if (cleanup == CTOOL_OK) {
+          backed_up[index] = 0;
+        }
+      }
       if (cleanup_status == CTOOL_OK && cleanup != CTOOL_OK) {
         cleanup_status = cleanup;
       }
@@ -1267,40 +1474,51 @@ static ctool_status_t cupidasm_publish(
     if (tombstoned[index] != 0) {
       ctool_status_t cleanup =
           cupidasm_publication_remove_if_present(paths[index].absent);
+      if (cleanup == CTOOL_OK) {
+        tombstoned[index] = 0;
+      }
       if (cleanup_status == CTOOL_OK && cleanup != CTOOL_OK) {
         cleanup_status = cleanup;
       }
     }
   }
   if (cleanup_status == CTOOL_OK) {
-    for (index = 0u; index < count; index++) {
-      (void)cupidasm_publication_remove_if_present(paths[index].commit);
-    }
+    cleanup_status =
+        cupidasm_publication_remove_commit_records(paths, count);
   }
-  status = CTOOL_OK;
+  status = cleanup_status;
   goto done;
 
 rollback:
   for (index = 0u; index < count; index++) {
     ctool_status_t cleanup;
-    if (published[index] != 0) {
-      cleanup =
-          cupidasm_publication_remove_if_present(paths[index].target);
-      if (rollback_status == CTOOL_OK && cleanup != CTOOL_OK) {
-        rollback_status = cleanup;
-      }
-    }
-  }
-  for (index = 0u; index < count; index++) {
-    ctool_status_t cleanup;
     if (backed_up[index] != 0) {
-      cleanup = cupidasm_publication_replace(paths[index].backup,
-                                             paths[index].target);
+      cleanup = CTOOL_OK;
+#if defined(CUPIDASM_PUBLICATION_TESTING)
+      if (cupidasm_publication_test_fails(
+              "CUPIDASM_TEST_FAIL_ROLLBACK_RESTORE_INDEX", index) != 0) {
+        cleanup = CTOOL_ERR_IO;
+      }
+#endif
+      if (cleanup == CTOOL_OK) {
+        cleanup = cupidasm_publication_replace(paths[index].backup,
+                                               paths[index].target);
+      }
       if (rollback_status == CTOOL_OK && cleanup != CTOOL_OK) {
         rollback_status = cleanup;
       }
       if (cleanup == CTOOL_OK) {
         backed_up[index] = 0;
+        published[index] = 0;
+      }
+    } else if (published[index] != 0 && tombstoned[index] != 0) {
+      cleanup =
+          cupidasm_publication_remove_if_present(paths[index].target);
+      if (rollback_status == CTOOL_OK && cleanup != CTOOL_OK) {
+        rollback_status = cleanup;
+      }
+      if (cleanup == CTOOL_OK) {
+        published[index] = 0;
       }
     }
   }
@@ -1316,7 +1534,7 @@ rollback:
         rollback_status = cleanup;
       }
     }
-    if (tombstoned[index] != 0) {
+    if (tombstoned[index] != 0 && published[index] == 0) {
       cleanup =
           cupidasm_publication_remove_if_present(paths[index].absent);
       if (rollback_status == CTOOL_OK && cleanup != CTOOL_OK) {
@@ -1325,7 +1543,11 @@ rollback:
     }
   }
   for (index = 0u; index < count; index++) {
-    (void)cupidasm_publication_remove_if_present(paths[index].commit);
+    ctool_status_t cleanup =
+        cupidasm_publication_remove_if_present(paths[index].commit);
+    if (rollback_status == CTOOL_OK && cleanup != CTOOL_OK) {
+      rollback_status = cleanup;
+    }
   }
   if (rollback_status != CTOOL_OK) {
     status = rollback_status;

@@ -7027,6 +7027,34 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                or False\n",
                 r"fixed-point PE32 behavior differs",
             ),
+            "Windows native CupidASM drops its publication closure": (
+                "bootstrap",
+                '        "cupidasm": (\n'
+                '            "publication_start",\n'
+                '            "cupidasm_main",\n'
+                '            "cupidasm",\n'
+                '            "ctool_host",\n'
+                '            "ctool",\n'
+                '            "elf32",\n'
+                '            "x86",\n'
+                '            "publication_runtime",\n'
+                '        ),\n',
+                '        "cupidasm": (\n'
+                '            "cupidasm_main",\n'
+                '            "cupidasm",\n'
+                '            "ctool_host",\n'
+                '            "ctool",\n'
+                '            "elf32",\n'
+                '            "x86",\n'
+                '        ),\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows native CupidASM drops its publication imports": (
+                "bootstrap",
+                '    if tool_name in ("cupidasm", "cupidld"):\n',
+                '    if tool_name == "cupidld":\n',
+                r"native Windows fixed-point behavior differs",
+            ),
             "Windows CupidLD stops comparing published output": (
                 "bootstrap",
                 "            or native_cupidld_output.read_bytes()\n"

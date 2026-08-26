@@ -548,8 +548,8 @@ Windows author execution. The latest complete schema v3 `CUPMAN4`
 publication passed. The Cupid author and Python agreed on all 62 stage pairs.
 Every stage-three object and executable matched its stage-four counterpart,
 the hosted runtime passed, and live inputs stayed frozen. The publisher wrote
-22 artifacts and a 29,270-byte manifest with SHA-256
-`d2215c289025cf78cb36e6f309bca0f7aaa056ff844d607e665e20efa73d4d0e`.
+22 artifacts and a 29,271-byte manifest with SHA-256
+`5fab9706abe6d938e9aa4a355ebbae293fee5404475d3d20d2591d6a9e464011`.
 Its final `CUPMAN2` verifier accepted all 22 artifacts. The first corrected attempt had
 already published a valid cohort when that final read-only verifier found an
 unrelated installed `tools` package. The checkout-local launcher rule fixed the
@@ -757,6 +757,11 @@ _Avoid_: checked seed, complete self-hosting
 
 **Static i386 Toolchain fixed point**:
 A stage boundary where one generation of CupidC, CupidASM, and CupidLD builds complete Linux images for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The checked seed builds stage two, stage two builds stage three, and stage three builds stage four. The gate compares all 19 C objects, the independently assembled Linux startup object, and all five linked images between stages three and four. Both compared stages execute the five tools through real success and failure cases. The same convergence relationship applies to the native Windows runtime, startup, publication objects, tool images, and behavior checks. The Linux driver revalidates its live seed manifest and artifacts at every generation boundary and before publication. The Windows driver checks its PE execution seed and Linux plan seed independently at the same boundaries. Both current seeds bind the 50-input snapshot with SHA-256 `46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`. The Linux candidate proof passed cleanly, with every stage-three and stage-four image equal and 5/22/21 behavior. The Windows candidate proof passed cleanly with the same convergence and 5/8/9 behavior. Both matrices reject unmatched executable relocations, validate unrelocated local targets while excluding relocated operands, require every static ELF code anchor to begin at a decoded instruction, and validate source-resolved raw control edges. ADR 0279 records the convergence rule, and ADR 0336 records the current promotion. The later 55-source Linux proof also passes after the coordinator's executable-format probe was bounded to four bytes. It covers all three build generations, exact fixed-point comparisons, behavior cases, and native Windows evidence without loading complete tool images just to choose a runner.
+Native Windows CupidASM also links the publication startup and runtime closure
+with its exact Kernel32 imports, so raw-pair recovery remains present during
+reconstruction. Its behavior relink is validated against that same
+plan-derived import profile. Linux native Windows evidence reconstructs
+CupidASM with the same publication closure.
 The promoted fixed points above remain five-tool proofs. Source head derives a
 separate six-tool candidate from the same checked v1 plan. Its Linux proof
 freezes 58 inputs and matches 22 C objects, startup, and six tool images. The
@@ -764,9 +769,9 @@ candidate is not a checked seed, and its source snapshot does not replace the
 historical manifest snapshot. Source head now asks the preceding generation's
 CupidDis to certify every C object before linking, not only the startup object.
 The native Windows CupidBuild startup also types all fourteen exported entries
-as functions. Complete Linux and Windows fixed-point reruns remain the gate for
-promoting these newer source bytes. ADR 0347 records the stronger object
-boundary.
+as functions. Fresh Linux and Windows fixed-point reruns pass for these source
+bytes from one 58-input snapshot. That proof does not promote the six-tool
+candidate. ADR 0347 records the stronger object boundary.
 
 The current promoted fixed points bind snapshot
 `46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
@@ -1230,14 +1235,15 @@ keeps its sections, undefined symbols, and relocations for a later link. The
 executable form selects `main` or `_start` and passes the object to in-kernel
 CupidLD. Raw image and map publication writes both private candidates before
 moving either target and restores previous targets after a command failure.
-Matching pair-level commit records sit beside the artifact and map. Each names
-the exact backup and marker paths from the finished publication, so a later
-command can finish deferred cleanup after reusing either member. Without a
-valid record, retained backups belong to an interrupted publication and must
-be restored.
+The kernel publisher writes matching v1 completion records only after both
+public replacements. A later command can use a valid record to finish private
+cleanup; without one, retained backups belong to an interrupted publication
+and are restored. Unlike the hosted CLI, this VFS path has no pending record or
+absence tombstone before public mutation, and its recovery removes a readable
+target before replacing it from backup.
 This rollback pair is not crash-atomic and does not lock concurrent shell
-publishers. ADR 0337 records the artifact boundary, and ADR 0348 records v2
-edge carriage.
+publishers. ADR 0337 records the artifact boundary. ADR 0348 records v2 edge
+carriage and the stronger hosted-only v2/v3 recovery protocol.
 _Avoid_: separate kernel assembler, inferred byte-only mode map, durable pair
 
 **Cupid ASM alignment statement**:
@@ -1720,21 +1726,23 @@ were updated, its repeat passed in 874.531 seconds and checked all fourteen
 artifacts.
 The source-head kernel outputs are a 9,596,956-byte
 `kernel/kernel.elf.pass1` with SHA-256
-`fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1`, a
+`c871658c40304bfb5e7c61f2e7cc0479bb1bb7fe1c4af7835d119544d8034206`, a
 9,728,028-byte `kernel/kernel.elf` with SHA-256
-`18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e`,
-and a 9,499,524-byte `kernel/kernel.bin` with SHA-256
-`be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949`.
+`78bcce45f047c807aa798988606c363d0b51b6b48f6b1335cbd156a64a2ca1a0`,
+and a 9,500,284-byte `kernel/kernel.bin` with SHA-256
+`f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873`.
 The published 209,715,200-byte `cupidos.img` has SHA-256
-`fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602`.
+`09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186`.
 The normal build linked both ELFs and completed strict inspection of all 431
 production inputs with local-target and code-anchor checks. A private
 four-vCPU E1000 frontier smoke booted the image and passed its SMP, terminal,
-framebuffer, and audio checks.
+framebuffer, and audio checks. The framebuffer changed 101,335 pixels. AC97
+produced 36,533,414 stereo 44.1 kHz frames at peak 25,600, and the PC speaker
+produced 79,215 frames at peak 30,937.
 The guest reported
 `[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`.
-The 147,688-byte serial log has SHA-256
-`ae0ef6db543d9c046d3291488130407ae47541c329da258a00ef1600f9c0b3b1`.
+The 143,084-byte serial log has SHA-256
+`6b5c6a4ca5daf9f19ec099d45609f385e0cf983f945a40433ebc3f1921e8ffab`.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
 duplicate, linked, nonregular, or differently sized members fail. An
@@ -1771,7 +1779,13 @@ publish identical relocatable bytes and preserve existing outputs when the
 source is missing. Each final-stage CupidDis strictly inspects the corresponding
 six candidate images, and both generations reject an entry-corrupted
 CupidBuild copy. The behavior inventories are 23/6/29 on Linux and 12/6/16 on
-Windows for failure, help, and success cases.
+Windows for failure, help, and success cases. The source-current Linux and
+native Windows proofs freeze the same 58 inputs with SHA-256
+`a24d048bf633003a25259884687d7461a145ded42371c5e6bb950b4f63d69603`.
+Linux matches 22 C objects, one startup object, and six tool images. Windows
+matches 23 C objects, three assembly objects, and six tool images. The complete
+Toolchain publication gate also agrees on all 62 stage pairs and publishes 22
+artifacts.
 The candidate is not a trusted seed until a later manifest and promotion bind
 it without circular provenance. ADR 0345 records the boundary, and ADR 0346
 records the image-certification gate.

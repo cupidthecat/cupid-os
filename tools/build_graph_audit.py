@@ -10292,13 +10292,13 @@ def _cupid_toolchain_fixed_point_contract(
             "85333e6ef0dfa77ed7e1702ae797b7a7cd0fc792932728a13763720155fb6e7d"
         ),
         "windows_native_tool_imports": (
-            "8a35ff3c7fa095c80c59889ffd61235444bdf37bbc5f19d75b0845105ff9cfec"
+            "350eb3510dfbf09071b16acbfd6b07893841cdd27eb5753d810e7c11fe981296"
         ),
         "windows_native_stage_two_extras": (
-            "a1d98cbc8f08a7a48e0bda82ba1cf3b4a69ebbcd7b36d4bf04e6dd71ca86595b"
+            "f8aadcafe8a7ab01a19d7dd7dbd061af0f8ab4ce6492a7636a4c287156cb2242"
         ),
         "windows_native_stage_three_extras": (
-            "c54f05df4bc30c1664a0eaadd42479e756771a49eabd352245ed779b87d0f3f8"
+            "43867fd33b1d835eb1dde84ace50e4cd2005e82cc33bb20046559e71c6a6724e"
         ),
     }
     windows_publication_assignments_match = all(
@@ -10698,8 +10698,8 @@ def _cupid_toolchain_fixed_point_contract(
     )
     expected_native_plans = {
         "cupidasm": (
-            "cupidasm_main", "cupidasm", "ctool_host", "ctool", "elf32",
-            "x86",
+            "publication_start", "cupidasm_main", "cupidasm", "ctool_host",
+            "ctool", "elf32", "x86", "publication_runtime",
         ),
         "cupidc": (
             "cupidc_main", "cupidc_emit", "cupidc_ir", "cupidc_frontend",
@@ -12554,6 +12554,7 @@ def _cupid_toolchain_fixed_point_contract(
         )
 
     native_windows_function_names = (
+        "_windows_imports",
         "_windows_build_plan",
         "_windows_link_arguments",
         "_build_windows_stage",
@@ -12583,6 +12584,13 @@ def _cupid_toolchain_fixed_point_contract(
             )
 
     native_windows_fragment_contracts = {
+        "_windows_imports": (
+            'if tool_name == "cupidbuild":',
+            "return WINDOWS_CUPIDBUILD_IMPORTS",
+            'if tool_name in ("cupidasm", "cupidld"):',
+            "return WINDOWS_LINKER_IMPORTS",
+            "return WINDOWS_TOOL_IMPORTS",
+        ),
         "_windows_build_plan": (
             'path = "/toolchain/hosted/i386-windows/runtime.cc"',
             '"publication_runtime.cc"',
@@ -12592,7 +12600,7 @@ def _cupid_toolchain_fixed_point_contract(
             '"build_plan.links")',
             'known_linux_objects = {"start", *source_names}',
             "native_order = list(linux_order)",
-            'if tool_name == "cupidld":',
+            'if tool_name in ("cupidasm", "cupidld"):',
             'elif tool_name == "cupidbuild":',
             '"cupidbuild_start.asm"',
             'linux_plan.get("include_arguments")',
@@ -12659,6 +12667,7 @@ def _cupid_toolchain_fixed_point_contract(
             'stage_two.tools["cupidasm"].read_bytes()',
             'stage_three.tools["cupidasm"].read_bytes()',
             "_validate_static_i386_pe32(",
+            '_windows_imports("cupidasm")',
         ),
     }
     for name, fragments in native_windows_fragment_contracts.items():
