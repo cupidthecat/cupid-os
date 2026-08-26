@@ -2993,9 +2993,15 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 - GNU `nm` or `llvm-nm` (optional comparison oracle)
 - NASM (optional, for `make nasm-assembly-oracle` parity checks)
 - mtools (`mcopy` and `mdir`) is optional for manual FAT16 image inspection and copying
-- DOOM WADs (optional): the build picks up `freedoom1.wad` /
-  `freedoom2.wad` from `/usr/share/games/doom/` on the build host and
-  auto-copies them into `/disk/wads/` inside the image. On Ubuntu/Debian:
+- DOOM WADs (optional): the repository pins the official Freedoom 0.13.0
+  Phase 1 IWAD, license, credits, upstream checksum, and signature under
+  `third_party/freedoom/0.13.0/`. Build an IWAD-backed image with:
+  ```
+  make WAD_SRCS=third_party/freedoom/0.13.0/freedoom1.wad all
+  ```
+  The build copies it into `/disk/wads/` inside the image. The default build
+  also picks up `freedoom1.wad` / `freedoom2.wad` from
+  `/usr/share/games/doom/` on the build host. On Ubuntu/Debian:
   ```
   sudo apt install freedoom
   ```

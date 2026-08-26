@@ -2789,8 +2789,8 @@ Earlier private four-CPU e1000 and RTL8139 boots covered the complete runtime
 frontier. Each no-WAD boot returned from two consecutive missing-IWAD errors
 and then completed the expanded dglibc/storage diagnostic. Separate frontier boots passed
 after swap holds one FAT handle open; they also record framebuffer changes and
-both audio paths. The repository has no WAD, so gameplay, game input, game
-audio, menu-driven save/load, and persistence across reboot remain open. FAT
+both audio paths. The pinned Freedoom fixture has not yet passed gameplay,
+game input, game audio, menu-driven save/load, or reboot-persistence gates. FAT
 publication ordering has source and guest coverage but no injected power-cut
 proof.
 The fixed asset-free command sequence now runs `doom`, an explicit

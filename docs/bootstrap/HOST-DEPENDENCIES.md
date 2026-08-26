@@ -806,8 +806,8 @@ private boots returned from two consecutive missing-IWAD launches. The fixed
 frontier now runs normal WAD discovery, an explicit missing path, the
 shell-return marker, and a fresh CupidC-built `ls` after Doom recovery. The
 stateful frontier also passes after swap keeps one FAT handle open. No host C
-tool participates. The checkout has no WAD, so gameplay remains outside this
-host-dependency proof.
+tool participates. The pinned Freedoom fixture has not yet run through this
+gate, so gameplay remains outside this host-dependency proof.
 
 CupidC represents operand-free GNU assembly statements inside functions and
 emits their exact no-operand i386 instructions. The checked seed uses that
@@ -1133,9 +1133,9 @@ Repeated checked-seed compiles agree on the 93,332-byte, 17,084-byte, and
 the closed production wrapper. Native VFS rename, checked cache failure
 handling, FAT durable publication, HomeFS container ownership and batching,
 the repeated exit lifecycle, and production config helpers have asset-free
-guest coverage. A staged IWAD is still needed for gameplay, input, audio,
-menu-driven save/load, and persistence across reboot. QEMU remains a test
-dependency, not a normal build producer.
+guest coverage. The pinned Freedoom fixture is available for the remaining
+gameplay, input, audio, menu-driven save/load, and reboot-persistence runs.
+QEMU remains a test dependency, not a normal build producer.
 
 Eight-byte integer values cross the shared path through full-width constants, matching conditional results, fixed direct and indirect call results, object access, initialization, plain and chained assignment, declared parameters, named arguments, ellipsis and unprototyped call arguments, variadic reads, discard, returns, arithmetic, unary operations, shifts, bitwise operations, comparisons, logical operations, conditions, switch dispatch, and conversion to or from represented integer widths. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements use private eight-byte frame snapshots. The i386 emitter restores the low word to EAX and the high word to EDX on return. Calls publish packed post-conversion actual types in emitted instruction order, which gives an open-position wide integer two adjacent stack words and advances a wide variadic cursor by eight bytes. The CupidC-built socket and TCP objects use this production path. Both checked compiler stages build the deterministic result, object, parameter, operation, and call-position contracts; host-built copies are optional oracles.
 
@@ -1826,7 +1826,11 @@ The wide-mutation proof expands shared semantics. Fifteen functions publish 225 
 - The 22 `demos/*.asm` files are likewise embedded by CupidObj and assembled by CupidASM on demand.
 - Repository headers and compatibility code replace the host libc/header environment for root compilation (`-nostdlib -nostdinc -ffreestanding`). The checked i386 Linux profiles declare the command-facing ABI, and the repository supplies a matching narrow runtime. The normal OS and Toolchain builds use Cupid tools; only explicit native oracles use the host toolchain.
 - The normal hosted contracts link against Cupid's narrow i386 runtime. Optional native oracles use the host C runtime through the core adapter and thin CLI drivers. The shared arena, buffer, path, source, diagnostic, limit, object, instruction, assembly, and inspection behavior is freestanding, and the same CupidASM source is linked into the kernel.
-- Optional WAD discovery and test fixtures affect packaged/runtime content, not compiler ownership.
+- The official Freedoom 0.13.0 Phase 1 IWAD is pinned with its BSD 3-Clause
+  license, credits, release checksum, detached signature, and provenance under
+  `third_party/freedoom/0.13.0/`. It is an explicit runtime fixture, not a
+  compiler input. `WAD_SRCS=third_party/freedoom/0.13.0/freedoom1.wad` stages
+  it for IWAD-backed Doom tests. Host WAD discovery remains optional.
 
 ADR 0261 changes in-kernel graphics ownership only. The desktop, retained
 windows, legacy frame path, and fullscreen programs coordinate through a

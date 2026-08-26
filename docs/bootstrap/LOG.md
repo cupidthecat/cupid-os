@@ -31817,3 +31817,21 @@ The six-tool candidate is not promoted. The ISR and context-switch recipes and
 the fixed-point coordinators remain on the checked Python publisher. A
 non-self-referential six-tool manifest, seed promotion, and recipe transfer
 remain open.
+## 2026-08-26: pin the official Freedoom runtime fixture
+
+The official Freedoom v0.13.0 Phase 1 IWAD is now available at
+`third_party/freedoom/0.13.0/freedoom1.wad`. It was extracted unchanged from
+the pinned upstream `freedoom-0.13.0.zip` release archive after its SHA-256
+matched the upstream checksum file. The pinned directory also carries Freedoom's
+BSD 3-Clause license, general and music credits, release README, upstream
+checksum, detached archive signature, and a provenance record with hashes for
+every extracted file.
+
+The fixture is opt-in to preserve the established asset-free normal build.
+`make WAD_SRCS=third_party/freedoom/0.13.0/freedoom1.wad all` stages it as
+`/disk/wads/freedoom1.wad`. A focused test checks the IWAD marker, exact size
+and hash, every redistribution file, the license text, and both upstream
+release-authentication files. This pin makes the asset available; gameplay,
+input, audio, menu save/load, and reboot persistence still need executed guest
+evidence. `FREEDOOM-RUNTIME.md` records the initial build and boot commands and
+the ordered guest work for the next implementation slices.
