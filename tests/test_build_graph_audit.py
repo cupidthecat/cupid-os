@@ -6039,15 +6039,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 6)
-        self.assertEqual(contract["success_behavior_cases"], 23)
-        self.assertEqual(contract["failure_behavior_cases"], 22)
+        self.assertEqual(contract["success_behavior_cases"], 29)
+        self.assertEqual(contract["failure_behavior_cases"], 23)
         self.assertEqual(contract["tool_c_sources"], 22)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 22)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 6)
-        self.assertEqual(contract["windows_success_behavior_cases"], 10)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 11)
+        self.assertEqual(contract["windows_success_behavior_cases"], 16)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 12)
         self.assertEqual(contract["contract_manifest_inputs"], 75)
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 75
@@ -6070,6 +6070,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract["source_head_capabilities"],
             [
                 "cupid.cupidbuild_guarded_object_transaction",
+                "cupiddis.candidate_image_certification",
                 "cupiddis.elf32_code_anchors",
                 "cupidld.pe32_fixed_image",
                 "cupidld.pe32_imports",
@@ -6548,21 +6549,116 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
-                '        "success_cases": 23,\n',
-                '        "success_cases": 22,\n',
+                '        "success_cases": 29,\n',
+                '        "success_cases": 28,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 23,\n',
                 '        "failure_cases": 22,\n',
-                '        "failure_cases": 21,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": len(tool_names) + 6,\n',
                 '        "failure_cases": len(tool_names) + 5,\n',
-                '        "failure_cases": len(tool_names) + 4,\n',
                 r"native Windows fixed-point behavior differs",
+            ),
+            "candidate image certification helper disappears": (
+                "bootstrap",
+                "def _check_candidate_image_certification_behavior(\n",
+                "def _removed_candidate_image_certification_behavior(\n",
+                r"candidate image certification differs",
+            ),
+            "candidate image certification weakens strict decode": (
+                "bootstrap",
+                '        "--require-code-anchors",\n'
+                "    )\n"
+                "    for tool_name in CANDIDATE_TOOL_NAMES:\n",
+                '        "--skip-code-anchors",\n'
+                "    )\n"
+                "    for tool_name in CANDIDATE_TOOL_NAMES:\n",
+                r"candidate image certification differs",
+            ),
+            "candidate image certification stops corrupting CupidBuild": (
+                "bootstrap",
+                "        _corrupt_candidate_entry_instruction(\n"
+                "            source_image.read_bytes(), source_image.name\n"
+                "        )\n",
+                "        source_image.read_bytes()\n",
+                r"candidate image certification differs",
+            ),
+            "candidate image certification accepts negative stdout": (
+                "bootstrap",
+                "        failure_result.stdout\n"
+                '        or "code check failed" not in failure_result.stderr\n',
+                '        "code check failed" not in failure_result.stderr\n',
+                r"candidate image certification differs",
+            ),
+            "candidate image certification restores the short timeout": (
+                "bootstrap",
+                "(*strict_flags, stage_three.tools[tool_name]),\n"
+                "            360,\n",
+                "(*strict_flags, stage_three.tools[tool_name]),\n"
+                "            120,\n",
+                r"candidate image certification differs",
+            ),
+            "candidate image corruption drops PE32": (
+                "bootstrap",
+                '    elif image[:2] == b"MZ":\n',
+                "    elif False:\n",
+                r"candidate image certification differs",
+            ),
+            "candidate image corruption writes valid no-ops": (
+                "bootstrap",
+                '    image[entry_offset : entry_offset + 2] = b"\\x0f\\xff"\n',
+                '    image[entry_offset : entry_offset + 2] = b"\\x90\\x90"\n',
+                r"candidate image certification differs",
+            ),
+            "candidate image corruption ignores the PE virtual extent": (
+                "bootstrap",
+                "    file_backed_size = min(virtual_size, file_size)\n",
+                "    file_backed_size = file_size\n",
+                r"candidate image certification differs",
+            ),
+            "Linux candidate image certification moves under a dead block": (
+                "bootstrap",
+                "    _check_candidate_image_certification_behavior(\n"
+                "        runner,\n"
+                "        behavior_root,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                '        "",\n'
+                "    )\n",
+                "    if False:\n"
+                "        _check_candidate_image_certification_behavior(\n"
+                "            runner,\n"
+                "            behavior_root,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                '            "",\n'
+                "        )\n",
+                r"candidate image certification call",
+            ),
+            "Windows candidate image certification moves under a dead block": (
+                "bootstrap",
+                "    _check_candidate_image_certification_behavior(\n"
+                "        runner,\n"
+                "        behavior_root,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                '        "native Windows ",\n'
+                "    )\n",
+                "    if False:\n"
+                "        _check_candidate_image_certification_behavior(\n"
+                "            runner,\n"
+                "            behavior_root,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                '            "native Windows ",\n'
+                "        )\n",
+                r"candidate image certification call",
             ),
             "linked-target behavior helper disappears": (
                 "bootstrap",

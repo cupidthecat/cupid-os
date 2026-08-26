@@ -30,12 +30,15 @@ publishes 22 artifacts across 62 stage pairs. The checked seeds and normal OS
 recipes remain unchanged. ADR 0345 records the candidate boundary.
 
 Both candidate proofs pass. Linux matches 22 C objects, startup, and six tools
-with 22/6/23 failure, help, and success cases. Native Windows matches 23 C
-objects, three assembly objects, and six tools with 11/6/10 behavior. Both
+with 23/6/29 failure, help, and success cases. Native Windows matches 23 C
+objects, three assembly objects, and six tools with 12/6/16 behavior. Both
 freeze the same 58-file source digest,
 `497cd80f8491d6952ae6c86c12f4838db05b4a4f9a542d3bfd5755be21304878`.
 Each gate also runs both CupidBuild images through the guarded object command,
-requires equal relocatable output, and proves missing-source rollback.
+requires equal relocatable output, and proves missing-source rollback. Each
+final-stage CupidDis strictly certifies the corresponding six images. Both
+generations must also reject a private CupidBuild copy with an invalid
+file-backed entry instruction. ADR 0346 records this pre-promotion gate.
 
 The preceding five-tool Linux fixed point completed with the 55-source closure.
 Its coordinator reads only four bytes when it selects the runner for a checked

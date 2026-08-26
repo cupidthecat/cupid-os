@@ -33,6 +33,7 @@ from tools.bootstrap_toolchain import (
     _candidate_build_plan,
     _check_executable_code_anchor_behavior,
     _code_anchor_executable_payload,
+    _corrupt_candidate_entry_instruction,
     _local_target_executable_payload,
     _local_target_object_payload,
     _remove_private_tool_directory,
@@ -2169,6 +2170,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             with mock.patch(
                 "tools.bootstrap_toolchain._run_stage_pair",
                 side_effect=linux_pair,
+            ), mock.patch(
+                "tools.bootstrap_toolchain."
+                "_check_candidate_image_certification_behavior",
             ), self.assertRaises(BehaviorBoundaryReached):
                 _run_behavior_checks(
                     ToolRunner(root),
@@ -2219,6 +2223,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             with mock.patch(
                 "tools.bootstrap_toolchain._run_stage_pair",
                 side_effect=windows_pair,
+            ), mock.patch(
+                "tools.bootstrap_toolchain."
+                "_check_candidate_image_certification_behavior",
             ), self.assertRaises(BehaviorBoundaryReached):
                 _run_native_windows_behavior_checks(
                     ToolRunner(root),
@@ -2248,6 +2255,240 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 windows_calls[len(expected_windows_calls)][1][0],
                 "assemble-cupidasm-object",
+            )
+
+    def test_candidate_entry_corruption_requires_two_file_backed_pe_bytes(
+        self,
+    ):
+        with self.assertRaisesRegex(
+            BootstrapError,
+            "^cannot locate file-backed candidate entry: candidate.exe$",
+        ):
+            _corrupt_candidate_entry_instruction(
+                bytes(self._minimal_pe32()), "candidate.exe"
+            )
+
+    def test_candidate_behavior_certifies_each_compared_tool_image(self):
+        class BehaviorBoundaryReached(Exception):
+            pass
+
+        strict_flags = (
+            "--require-known",
+            "--require-local-targets",
+            "--require-code-anchors",
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".candidate-image-certification-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            linux_tools = {}
+            windows_tools = {}
+            linux_image = _local_target_executable_payload(5)
+            windows_image_buffer = self._minimal_pe32()
+            struct.pack_into(
+                "<I", windows_image_buffer, 0x98 + 0xE0 + 8, 2
+            )
+            windows_image = bytes(windows_image_buffer)
+            for name in CANDIDATE_TOOL_NAMES:
+                linux_path = root / "linux-tools" / f"{name}.elf"
+                linux_path.parent.mkdir(exist_ok=True)
+                linux_path.write_bytes(linux_image)
+                linux_tools[name] = linux_path
+                windows_path = root / "windows-tools" / f"{name}.exe"
+                windows_path.parent.mkdir(exist_ok=True)
+                windows_path.write_bytes(windows_image)
+                windows_tools[name] = windows_path
+            linux_stage = Stage(objects={}, tools=linux_tools)
+            windows_stage = Stage(objects={}, tools=windows_tools)
+            seed_inputs = SeedInputs(
+                manifest={},
+                manifest_bytes=b"{}\n",
+                manifest_sha256="1" * 64,
+                live_manifest_path=root / "manifest.json",
+                artifact_bytes=tuple(
+                    (name, b"seed") for name in TOOL_NAMES
+                ),
+                tools={name: root / f"{name}.elf" for name in TOOL_NAMES},
+            )
+
+            linux_calls = []
+            linux_strict_timeouts = []
+
+            def linux_pair(
+                _runner,
+                _stage_two,
+                _stage_three,
+                tool_name,
+                stage_two_arguments,
+                stage_three_arguments=None,
+                *_args,
+            ):
+                first = tuple(str(item) for item in stage_two_arguments)
+                second = tuple(
+                    str(item)
+                    for item in (
+                        stage_three_arguments
+                        if stage_three_arguments is not None
+                        else stage_two_arguments
+                    )
+                )
+                linux_calls.append((tool_name, first, second))
+                if first == ("--help",):
+                    output = "usage: candidate\n"
+                    if tool_name == "cupidobj":
+                        output += (
+                            "wrap-jpeg disk-template iso-fixture "
+                            "profile-manifest\n"
+                        )
+                    if tool_name == "cupidld":
+                        output += "i386pe\n"
+                    return subprocess.CompletedProcess([], 0, output, "")
+                if first[:3] == strict_flags:
+                    linux_strict_timeouts.append(_args)
+                    if Path(first[-1]).name == "corrupted-cupidbuild.elf":
+                        self.assertNotEqual(
+                            Path(first[-1]).read_bytes(),
+                            linux_tools["cupidbuild"].read_bytes(),
+                        )
+                        return subprocess.CompletedProcess(
+                            [], 1, "", "code check failed\n"
+                        )
+                    return subprocess.CompletedProcess([], 0, "", "")
+                raise AssertionError(f"unexpected Linux call: {first}")
+
+            linux_output = root / "linux"
+            linux_output.mkdir()
+            with mock.patch(
+                "tools.bootstrap_toolchain._run_stage_pair",
+                side_effect=linux_pair,
+            ), mock.patch(
+                "tools.bootstrap_toolchain."
+                "_check_cupidbuild_guarded_object_behavior",
+                side_effect=BehaviorBoundaryReached,
+            ), self.assertRaises(BehaviorBoundaryReached):
+                _run_behavior_checks(
+                    ToolRunner(root),
+                    root,
+                    linux_output,
+                    linux_stage,
+                    linux_stage,
+                    seed_inputs,
+                )
+
+            expected_linux_certifications = [
+                (
+                    "cupiddis",
+                    (*strict_flags, str(linux_tools[name])),
+                    (*strict_flags, str(linux_tools[name])),
+                )
+                for name in CANDIDATE_TOOL_NAMES
+            ]
+            corrupted_linux = linux_output / "behavior" / (
+                "corrupted-cupidbuild.elf"
+            )
+            expected_linux_certifications.append(
+                (
+                    "cupiddis",
+                    (*strict_flags, str(corrupted_linux)),
+                    (*strict_flags, str(corrupted_linux)),
+                )
+            )
+            self.assertEqual(
+                linux_calls[len(CANDIDATE_TOOL_NAMES) :],
+                expected_linux_certifications,
+            )
+            self.assertEqual(
+                linux_strict_timeouts,
+                [(360,)] * (len(CANDIDATE_TOOL_NAMES) + 1),
+            )
+
+            windows_calls = []
+            windows_strict_timeouts = []
+
+            def windows_pair(
+                _runner,
+                _stage_two,
+                _stage_three,
+                tool_name,
+                stage_two_arguments,
+                stage_three_arguments=None,
+                *_args,
+            ):
+                first = tuple(str(item) for item in stage_two_arguments)
+                second = tuple(
+                    str(item)
+                    for item in (
+                        stage_three_arguments
+                        if stage_three_arguments is not None
+                        else stage_two_arguments
+                    )
+                )
+                windows_calls.append((tool_name, first, second))
+                if first == ("--help",):
+                    return subprocess.CompletedProcess(
+                        [], 0, "usage: candidate\n", ""
+                    )
+                if first == ("--definitely-invalid-option",):
+                    return subprocess.CompletedProcess(
+                        [], 2, "", "usage: candidate\n"
+                    )
+                if first[:3] == strict_flags:
+                    windows_strict_timeouts.append(_args)
+                    if Path(first[-1]).name == "corrupted-cupidbuild.exe":
+                        self.assertNotEqual(
+                            Path(first[-1]).read_bytes(),
+                            windows_tools["cupidbuild"].read_bytes(),
+                        )
+                        return subprocess.CompletedProcess(
+                            [], 1, "", "code check failed\n"
+                        )
+                    return subprocess.CompletedProcess([], 0, "", "")
+                raise AssertionError(f"unexpected Windows call: {first}")
+
+            windows_output = root / "windows"
+            windows_output.mkdir()
+            with mock.patch(
+                "tools.bootstrap_toolchain._run_stage_pair",
+                side_effect=windows_pair,
+            ), mock.patch(
+                "tools.bootstrap_toolchain."
+                "_check_cupidbuild_guarded_object_behavior",
+                side_effect=BehaviorBoundaryReached,
+            ), self.assertRaises(BehaviorBoundaryReached):
+                _run_native_windows_behavior_checks(
+                    ToolRunner(root),
+                    windows_output,
+                    windows_stage,
+                    windows_stage,
+                    {},
+                    seed_inputs,
+                )
+
+            expected_windows_certifications = [
+                (
+                    "cupiddis",
+                    (*strict_flags, str(windows_tools[name])),
+                    (*strict_flags, str(windows_tools[name])),
+                )
+                for name in CANDIDATE_TOOL_NAMES
+            ]
+            corrupted_windows = windows_output / "behavior" / (
+                "corrupted-cupidbuild.exe"
+            )
+            expected_windows_certifications.append(
+                (
+                    "cupiddis",
+                    (*strict_flags, str(corrupted_windows)),
+                    (*strict_flags, str(corrupted_windows)),
+                )
+            )
+            self.assertEqual(
+                windows_calls[len(CANDIDATE_TOOL_NAMES) * 2 :],
+                expected_windows_certifications,
+            )
+            self.assertEqual(
+                windows_strict_timeouts,
+                [(360,)] * (len(CANDIDATE_TOOL_NAMES) + 1),
             )
 
     def test_manifest_author_uses_the_six_tool_candidate_plan(self):
@@ -3716,9 +3957,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 11,
+                    "failure_cases": 12,
                     "help_cases": 6,
-                    "success_cases": 10,
+                    "success_cases": 16,
                 },
             )
             candidate_linux_plan = _candidate_build_plan(
@@ -4299,9 +4540,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            22,
+            23,
         )
-        self.assertEqual(returned["success_cases"].value, 23)
+        self.assertEqual(returned["success_cases"].value, 29)
         self.assertIsInstance(returned["help_cases"], ast.Call)
         self.assertEqual(returned["help_cases"].func.id, "len")
         self.assertEqual(returned["help_cases"].args[0].id, "tool_names")
@@ -7844,9 +8085,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 22,
+                    "failure_cases": 23,
                     "help_cases": 6,
-                    "success_cases": 23,
+                    "success_cases": 29,
                 },
             )
             self.assertEqual(

@@ -93,13 +93,20 @@ publication verification recreates the candidate plan before checking the
 not promote that cohort or transfer a normal recipe.
 
 Both complete candidate proofs pass. Linux matches 22 C objects, startup, and
-six tools with 22/6/23 failure, help, and success cases. Native Windows matches
-23 C objects, three assembly objects, and six tools with 11/6/10 behavior. Both
+six tools with 23/6/29 failure, help, and success cases. Native Windows matches
+23 C objects, three assembly objects, and six tools with 12/6/16 behavior. Both
 bind source SHA-256
 `497cd80f8491d6952ae6c86c12f4838db05b4a4f9a542d3bfd5755be21304878`.
 Each gate runs the real CupidBuild object transaction with both final
 generations, compares the relocatable outputs, and proves missing-source
-rollback.
+rollback. Each final-stage CupidDis also applies known-decode, local-target,
+and code-anchor checks to the corresponding six candidate images. Both
+generations must reject a private CupidBuild copy whose file-backed entry
+instruction has been replaced with an invalid opcode. ADR 0346 records that
+certification gate. Each whole-image check has a 360-second budget. The first
+complete attempts reached the large CupidC image and proved that 120 seconds
+was too short on both host paths; neither failed attempt published its private
+cohort.
 
 The Linux fixed-point coordinator now reads four bytes when it identifies a
 checked executable. It no longer allocates the full multi-megabyte image for
@@ -432,7 +439,7 @@ locks one `$(ARTIFACT_SIZE_CONTRACT)` command with
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The final post-CTXT
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-22/6/23 for Linux and 11/6/10 for Windows.
+23/6/29 for Linux and 12/6/16 for Windows.
 
 A pre-final-CTXT build at the preceding integrated checkpoint reached the
 exact-size gate after 668.414 seconds. It
@@ -762,8 +769,8 @@ CLI negative cases cover both forms. Far and indirect transfers stay outside
 the count. The normal kernel transaction runs this rule over its frozen
 pass-one and final ELFs before CupidObj flattening. ADR 0314 records the
 decoder boundary, and ADR 0318 records carriage and production adoption.
-The generated audit reports failure, help, and success counts of 22/6/23 for
-Linux and 11/6/10 for Windows.
+The generated audit reports failure, help, and success counts of 23/6/29 for
+Linux and 12/6/16 for Windows.
 
 Checked CupidDis has an explicit static ELF code-anchor policy.
 `--require-code-anchors` requires `--require-known`. For `ET_REL`, it counts
@@ -778,7 +785,7 @@ relocatable and linked inputs, missing disassembly state, dynamic or
 interpreted images, overlapping executable loads, bounded map exhaustion, and
 recovery in the same job. The Linux and Windows fixed-point drivers each add a
 valid and an invalid executable behavior case. The source-current audit
-records 22/6/23 failure/help/success cases for Linux and 11/6/10 for Windows.
+records 23/6/29 failure/help/success cases for Linux and 12/6/16 for Windows.
 
 Both promoted seeds carry both forms. Production combines it with
 `--require-known --require-local-targets` for the ISR, context-switch, hosted
@@ -2845,7 +2852,7 @@ and the 12,856-byte summary has SHA-256
 
 The source-current generation and deterministic check mode both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-22/6/23 for Linux and 11/6/10 for Windows.
+23/6/29 for Linux and 12/6/16 for Windows.
 
 Across the three supported roots, CupidC participates in 250 transforms,
 CupidASM in nine, CupidLD in nine, and CupidObj in 192. Python participates in
@@ -3501,12 +3508,13 @@ Progress means transferring ownership without reducing Cupid OS behavior:
 
 ## Integrated source-head evidence
 
-The [source-current checkpoint](#2026-08-21-source-current-checkpoint) records
+The [source-current checkpoint](#2026-08-25-source-current-checkpoint) records
 the current focused results, schema v3 publication, final post-CTXT audit,
-fully poisoned OS build, and strong full private guest frontier. The audit has 745
+fully poisoned OS build, and strong full private guest frontier. The audit has 747
 active language inputs, 452
-reachable transforms, and 255 feature requirements. It records six production
-CupidDis participation points and no active CupidC-owned `.c` source.
+reachable transforms, and 255 feature requirements. It records nine CupidDis
+participation points across the supported roots and no active CupidC-owned `.c`
+source.
 
 The current checked execution seed carries wide integer conversion to
 `float` and `double` and executable relocation-field ownership. ADR 0292

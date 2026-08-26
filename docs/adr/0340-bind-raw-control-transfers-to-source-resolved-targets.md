@@ -98,3 +98,7 @@ policy until a later seed promotion and guarded adoption. Returns, interrupt
 returns, and other implicit runtime transfers have no static destination row.
 Register- and memory-indirect calls and jumps are recorded, but their runtime
 destination cannot be proved by this metadata.
+
+ADR 0336 supersedes the production-carriage statement above. Both checked
+seeds now carry v2, and the boot and SMP publishers require source-edge
+validation. The limits on implicit and indirect runtime transfers remain.

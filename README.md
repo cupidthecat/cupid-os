@@ -275,7 +275,7 @@ recipe has one `$(ARTIFACT_SIZE_CONTRACT)` command, and that command carries
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The source-current
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-22/6/23 for Linux and 11/6/10 for Windows. The audit records 747 active
+23/6/29 for Linux and 12/6/16 for Windows. The audit records 747 active
 sources, 452 transforms, 255 feature requirements, and 26 accounted unreachable
 files.
 [ADR 0304](docs/adr/0304-author-toolchain-publication-manifests-with-cupidc.md)
@@ -284,6 +284,11 @@ records this split.
 This publication carries the six-tool candidate, including
 `cupidc-cupidbuild.elf`. It does not promote a six-tool seed: the checked input
 manifest still names five tools, and the normal OS recipes remain unchanged.
+Each final-stage CupidDis now inspects the corresponding six candidate images
+with known-decode, local-target, and code-anchor checks. Both generations must
+also reject a private CupidBuild copy whose file-backed entry instruction was
+replaced with an invalid opcode. [ADR 0346](docs/adr/0346-certify-six-tool-candidate-images-with-cupiddis.md)
+records this pre-promotion gate.
 
 Both promoted seeds now carry the CupidDis local-target policy for raw images
 and static relocatable objects. The bootloader and SMP publishers pass
@@ -360,7 +365,7 @@ decode pass, then applies the linked rule to the pass-one and final ELFs before
 CupidObj flattens the final image.
 [ADR 0314](docs/adr/0314-validate-local-targets-in-linked-elf32-images.md)
 records the source boundary. The generated six-tool audit reports failure,
-help, and success counts of 22/6/23 for Linux and 11/6/10 for Windows.
+help, and success counts of 23/6/29 for Linux and 12/6/16 for Windows.
 Generation and checked comparison both pass. The promoted five-tool cohort
 remains a separate historical trust proof.
 

@@ -21,6 +21,10 @@ runtime and three startup objects. CupidBuild links with 29 exact
 `KERNEL32.dll` imports and `NtSetInformationFile` from `NTDLL.dll`. Host Python
 still freezes inputs, launches the checked tools, compares stages, and
 publishes the evidence. ADR 0345 records this separation.
+Both final-stage CupidDis images now inspect the corresponding six candidate
+images with known-decode, local-target, and code-anchor checks. The coordinator
+also makes an entry-corrupted CupidBuild copy and requires both generations to
+reject it without stdout. ADR 0346 records this gate. It changes no host owner.
 
 The source-head self-link now produces a separate CupidBuild image beside the
 five seed tools and the static runtime contract. The hosted runtime supplies
@@ -58,8 +62,8 @@ same semantic shapes. The audit records 32
 assembly inputs, 301 headers, 414 Cupid C
 files, 255 feature requirements, and 26 accounted unreachable files. No
 ordinary C translation unit remained in a supported root. Its active-source
-audit records failure, help, and success counts of 22/6/23 for Linux and
-11/6/10 for Windows. The source-head figures include CupidBuild; each promoted
+audit records failure, help, and success counts of 23/6/29 for Linux and
+12/6/16 for Windows. The source-head figures include CupidBuild; each promoted
 host cohort still includes one successful and one failing static code-anchor
 case. Generation and checked comparison both pass.
 The poisoned OS build reaches the exact-size gate after the complete compile,
@@ -139,8 +143,9 @@ The bridge exists because the promoted Windows compiler's 16 KiB arena blocks
 waste address space against Windows' 64 KiB allocation granularity. One
 complete stage-three-to-stage-four
 native convergence proof first passed on a frozen uncommitted snapshot. Those
-earlier proofs remain historical. The current Windows and Linux candidate
-proofs passed cleanly. Their behavior matrices are 5/8/9 and 5/22/21.
+earlier proofs remain historical. The current Windows and Linux six-tool
+candidate proofs passed cleanly. Their failure, help, and success inventories
+are 12/6/16 and 23/6/29, respectively.
 Python-free coordination remains open.
 
 The root Makefile forwards `FAT_START_LBA` to the disk-image helpers and has no

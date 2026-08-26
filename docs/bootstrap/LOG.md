@@ -31461,3 +31461,79 @@ source-head stage-two images to equal their older promoted counterparts. The
 report correctly marked all five comparisons false. After updating that stale
 expectation, the exact native-Windows fixed-point test passed in 1,026.105
 seconds. The other 111 tests had already passed in the complete run.
+
+## 2026-08-25: certify every six-tool candidate image with CupidDis
+
+### Implementation and decisions
+
+- Both source-head behavior gates now ask each final-stage CupidDis to inspect
+  the corresponding six candidate images with known-decode, local-target, and
+  code-anchor checks. Every accepted image must produce empty output.
+- Each gate copies the stage-three CupidBuild image, finds its file-backed ELF32
+  or PE32 entry instruction, and replaces its first two bytes with invalid
+  `0F FF`. Both CupidDis generations must reject that private copy with status
+  1, no stdout, and a `code check failed` diagnostic.
+- Linux now records 23 failures, six help cases, and 29 successes. Native
+  Windows records 12 failures, six help cases, and 16 successes.
+- The active-build audit locks the two format branches, invalid opcode, three
+  strict flags, seven stage-pair calls, diagnostic behavior, live calls from
+  both runners, 360-second whole-image budget, and exact counts. The generated
+  audit exposes `cupiddis.candidate_image_certification` as a source-head
+  capability.
+- This step does not change a seed, normal Make recipe, object format, ABI,
+  kernel image, or boot path. No active `.c` source is eligible for renaming.
+  `TempleOS/` remains untouched reference material.
+
+### Red and green checks
+
+- The public behavior test first expected six strict calls and observed none.
+  After those calls were added, it failed again because the corrupted
+  CupidBuild case was absent. The first completed focused set passed five tests
+  in 0.326 seconds.
+- The fail-closed build-graph test first rejected the old behavior counts. The
+  first expanded sweep passed in 201.931 seconds. The final sweep adds helper
+  removal, weakened policy, lost PE32 support, valid replacement bytes,
+  accepted negative stdout, the 360-second budget, dead runner calls, and stale
+  counts. It passes in 214.414 seconds.
+- The first complete Linux and Windows proofs built all twelve final images but
+  timed out while strictly inspecting their large stage-three CupidC image.
+  Both CupidDis processes were responsive and CPU-bound at 120 seconds. A new
+  focused assertion reproduced the short budget, then passed after the
+  certification-only timeout became 360 seconds. Neither failed transaction
+  published its private cohort.
+- The restarted complete Linux proof matches 22 C objects, startup, and six
+  images, then passes 23/6/29 behavior. Its 50,082-byte report has SHA-256
+  `ec25194a2c458541be2e1179283b2efaed0de827835fa665c7d42fe5f9938f78`.
+  The restarted native Windows proof matches 23 C objects, three assembly
+  objects, and six images, then passes 12/6/16 behavior. Its 63,124-byte report
+  has SHA-256
+  `e073a1ecb7fc34d2cdd60868a6a9daaba863f4c93f9797b18e894e9143340e8b`.
+  Both retain the 58-file source digest and report every final-stage comparison
+  equal. The final CupidBuild bytes remain unchanged.
+- `make bootstrap-audit` and `make check-bootstrap-audit` pass against the
+  final contract. The 2,738,394-byte JSON has SHA-256
+  `0c5828107e2714334cd7aef4ba0590b35beed6df900b85570bb1995d11c9141f`.
+  The 12,856-byte Markdown summary has SHA-256
+  `8ffe80bce9188c32cf4badbae9d7e67142e0981196c648cbca9e5cef9a863b25`.
+- Before the review hardening, the then-current complete
+  `tests.test_toolchain_bootstrap_seed` module passed all 113 tests in
+  3,752.741 seconds. It repeated independent Linux and native Windows fixed
+  points, the six-image checks, the corruption rejection, publication, and the
+  existing failure paths through the public coordinator interfaces.
+- The standards review found that PE32 corruption used the raw section extent
+  while validation bounded the file-backed entry by both virtual and raw size.
+  A focused negative first proved that a one-byte virtual extent still accepted
+  a two-byte replacement. ELF validation, PE32 validation, and corruption now
+  share one entry-offset rule. The audit requires all three users and rejects a
+  raw-size-only mutation. Its complete sweep passes in 208.541 seconds. The
+  13 affected candidate and entry tests pass. Direct reruns against the
+  retained final Linux and Windows cohorts pass all twelve positive image
+  checks and both corrupted-CupidBuild negatives. The separate specification
+  review found no findings.
+
+### Remaining boundary
+
+The six-tool candidate is still evidence, not a checked seed. Promotion needs
+a manifest contract that trusts CupidBuild without asking it to establish
+provenance that depends on the same image. The ISR and context-switch recipes
+remain on the guarded Python publisher until that promotion is complete.

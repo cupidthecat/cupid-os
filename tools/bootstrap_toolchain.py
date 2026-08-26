@@ -821,6 +821,25 @@ def require_source_closures(
     )
 
 
+def _file_backed_entry_offset(
+    entry: int,
+    virtual_address: int,
+    virtual_size: int,
+    file_offset: int,
+    file_size: int,
+    required_size: int,
+) -> int | None:
+    relative_entry = entry - virtual_address
+    file_backed_size = min(virtual_size, file_size)
+    if (
+        relative_entry < 0
+        or required_size < 0
+        or relative_entry > file_backed_size - required_size
+    ):
+        return None
+    return file_offset + relative_entry
+
+
 def _validate_static_i386_elf_bytes(
     data: bytes,
     name: str,
@@ -896,8 +915,15 @@ def _validate_static_i386_elf_bytes(
                 )
             if (
                 segment_flags & 0x1
-                and entry >= virtual_address
-                and entry - virtual_address < file_size
+                and _file_backed_entry_offset(
+                    entry,
+                    virtual_address,
+                    memory_size,
+                    file_offset,
+                    file_size,
+                    1,
+                )
+                is not None
             ):
                 entry_is_file_backed_executable = True
     if load_count == 0:
@@ -1183,8 +1209,15 @@ def _validate_static_i386_pe32_bytes(
                 expected_base_of_data = virtual_address
         if (
             section_characteristics & 0x20000000
-            and entry_rva >= virtual_address
-            and entry_rva - virtual_address < min(virtual_size, raw_size)
+            and _file_backed_entry_offset(
+                entry_rva,
+                virtual_address,
+                virtual_size,
+                raw_offset,
+                raw_size,
+                1,
+            )
+            is not None
         ):
             entry_is_file_backed_executable = True
     expected_image_size = (
@@ -2576,6 +2609,156 @@ def _certify_stage_pair_relocatable_code_anchors(
         raise BootstrapError(f"{label} produced unexpected command output")
 
 
+def _corrupt_candidate_entry_instruction(
+    contents: bytes, image_name: str
+) -> bytes:
+    image = bytearray(contents)
+    entry_offset: int | None = None
+    if image[:4] == b"\x7fELF":
+        if len(image) < 52:
+            raise BootstrapError(
+                f"cannot corrupt truncated candidate ELF image: {image_name}"
+            )
+        entry = struct.unpack_from("<I", image, 24)[0]
+        program_offset = struct.unpack_from("<I", image, 28)[0]
+        program_size = struct.unpack_from("<H", image, 42)[0]
+        program_count = struct.unpack_from("<H", image, 44)[0]
+        if program_size < 32:
+            raise BootstrapError(
+                f"cannot locate candidate ELF entry: {image_name}"
+            )
+        for index in range(program_count):
+            offset = program_offset + index * program_size
+            if offset + 32 > len(image):
+                raise BootstrapError(
+                    f"cannot locate candidate ELF entry: {image_name}"
+                )
+            program_type, file_offset, virtual_address = struct.unpack_from(
+                "<III", image, offset
+            )
+            file_size, memory_size = struct.unpack_from(
+                "<II", image, offset + 16
+            )
+            flags = struct.unpack_from("<I", image, offset + 24)[0]
+            if program_type == 1 and flags & 1:
+                entry_offset = _file_backed_entry_offset(
+                    entry,
+                    virtual_address,
+                    memory_size,
+                    file_offset,
+                    file_size,
+                    2,
+                )
+                if entry_offset is not None:
+                    break
+    elif image[:2] == b"MZ":
+        if len(image) < 0x40:
+            raise BootstrapError(
+                f"cannot corrupt truncated candidate PE32 image: {image_name}"
+            )
+        pe_offset = struct.unpack_from("<I", image, 0x3C)[0]
+        if pe_offset + 24 > len(image) or image[pe_offset : pe_offset + 4] != (
+            b"PE\0\0"
+        ):
+            raise BootstrapError(
+                f"cannot locate candidate PE32 entry: {image_name}"
+            )
+        section_count = struct.unpack_from("<H", image, pe_offset + 6)[0]
+        optional_size = struct.unpack_from("<H", image, pe_offset + 20)[0]
+        optional_offset = pe_offset + 24
+        if optional_offset + optional_size > len(image) or optional_size < 96:
+            raise BootstrapError(
+                f"cannot locate candidate PE32 entry: {image_name}"
+            )
+        entry_rva = struct.unpack_from("<I", image, optional_offset + 16)[0]
+        section_offset = optional_offset + optional_size
+        for index in range(section_count):
+            offset = section_offset + index * 40
+            if offset + 40 > len(image):
+                raise BootstrapError(
+                    f"cannot locate candidate PE32 entry: {image_name}"
+                )
+            virtual_size, virtual_address, raw_size, file_offset = (
+                struct.unpack_from("<IIII", image, offset + 8)
+            )
+            flags = struct.unpack_from("<I", image, offset + 36)[0]
+            if flags & 0x20000000:
+                entry_offset = _file_backed_entry_offset(
+                    entry_rva,
+                    virtual_address,
+                    virtual_size,
+                    file_offset,
+                    raw_size,
+                    2,
+                )
+                if entry_offset is not None:
+                    break
+    else:
+        raise BootstrapError(
+            f"cannot identify candidate image format: {image_name}"
+        )
+    if entry_offset is None or entry_offset + 2 > len(image):
+        raise BootstrapError(
+            f"cannot locate file-backed candidate entry: {image_name}"
+        )
+    image[entry_offset : entry_offset + 2] = b"\x0f\xff"
+    return bytes(image)
+
+
+def _check_candidate_image_certification_behavior(
+    runner: ToolRunner,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    label_prefix: str,
+) -> None:
+    strict_flags = (
+        "--require-known",
+        "--require-local-targets",
+        "--require-code-anchors",
+    )
+    for tool_name in CANDIDATE_TOOL_NAMES:
+        result = _run_stage_pair(
+            runner,
+            stage_two,
+            stage_three,
+            "cupiddis",
+            (*strict_flags, stage_two.tools[tool_name]),
+            (*strict_flags, stage_three.tools[tool_name]),
+            360,
+        )
+        label = f"{label_prefix}CupidDis {tool_name} image"
+        _expect_status(result, 0, label)
+        if result.stdout or result.stderr:
+            raise BootstrapError(f"{label} produced unexpected command output")
+
+    source_image = stage_two.tools["cupidbuild"]
+    corrupted_image = behavior_root / (
+        f"corrupted-cupidbuild{source_image.suffix}"
+    )
+    corrupted_image.write_bytes(
+        _corrupt_candidate_entry_instruction(
+            source_image.read_bytes(), source_image.name
+        )
+    )
+    failure_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        (*strict_flags, corrupted_image),
+        (*strict_flags, corrupted_image),
+        360,
+    )
+    label = f"{label_prefix}CupidDis corrupted CupidBuild image"
+    _expect_status(failure_result, 1, label)
+    if (
+        failure_result.stdout
+        or "code check failed" not in failure_result.stderr
+    ):
+        raise BootstrapError(f"{label} failure output differs")
+
+
 def _expect_status(
     result: subprocess.CompletedProcess[str],
     expected: int,
@@ -2753,6 +2936,14 @@ def _run_native_windows_behavior_checks(
             raise BootstrapError(
                 f"native Windows {tool_name} failure output differs"
             )
+
+    _check_candidate_image_certification_behavior(
+        runner,
+        behavior_root,
+        stage_two,
+        stage_three,
+        "native Windows ",
+    )
 
     _check_cupidbuild_guarded_object_behavior(
         runner,
@@ -2981,9 +3172,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 5,
+        "failure_cases": len(tool_names) + 6,
         "help_cases": len(tool_names),
-        "success_cases": len(tool_names) + 4,
+        "success_cases": len(tool_names) + 10,
     }
 
 
@@ -3700,6 +3891,14 @@ def _run_behavior_checks(
                     )
         if tool_name == "cupidld" and "i386pe" not in help_result.stdout:
             raise BootstrapError("cupidld help omits i386pe")
+
+    _check_candidate_image_certification_behavior(
+        runner,
+        behavior_root,
+        stage_two,
+        stage_three,
+        "",
+    )
 
     _check_cupidbuild_guarded_object_behavior(
         runner,
@@ -6428,9 +6627,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 22,
+        "failure_cases": 23,
         "help_cases": len(tool_names),
-        "success_cases": 23,
+        "success_cases": 29,
     }
 
 

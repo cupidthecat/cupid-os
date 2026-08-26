@@ -41225,7 +41225,7 @@
         "cupidc",
         "cupidbuild"
       ],
-      "failure_behavior_cases": 22,
+      "failure_behavior_cases": 23,
       "gnu_c_sources": 1,
       "help_cases": 6,
       "include_roots": [
@@ -41277,6 +41277,7 @@
       ],
       "source_head_capabilities": [
         "cupid.cupidbuild_guarded_object_transaction",
+        "cupiddis.candidate_image_certification",
         "cupiddis.elf32_code_anchors",
         "cupidld.pe32_fixed_image",
         "cupidld.pe32_imports",
@@ -41296,12 +41297,12 @@
       ],
       "status": "pass",
       "strict_c_sources": 21,
-      "success_behavior_cases": 23,
+      "success_behavior_cases": 29,
       "tool_c_sources": 22,
       "tool_images": 6,
-      "windows_failure_behavior_cases": 11,
+      "windows_failure_behavior_cases": 12,
       "windows_help_cases": 6,
-      "windows_success_behavior_cases": 10
+      "windows_success_behavior_cases": 16
     }
   },
   "features": [
@@ -55532,7 +55533,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "26f4803563509e195016f6249668efd05d46a542a3c92d19df2765c7e724f60d"
+        "sha256": "bdc8e1639d556f62d81aeeeda54190283693e55b3917885531968c1a875232d8"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -55557,7 +55558,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "54deb0950339a25122af79c5cb8fa0e6f8705308e81493f5bfe985b6e421aebd"
+      "sha256": "48657984b5331d5460a75916f554e7ad27d88ead4dcb47ea20a4c4745ba5abdd"
     },
     "text_hash_policy": "canonical_lf"
   },

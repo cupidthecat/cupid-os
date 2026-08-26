@@ -60,6 +60,10 @@ checks have not moved into CupidBuild yet. Python remains the production seed
 verifier and publisher until those checks, a six-tool promotion, and a normal
 recipe transfer are complete.
 
+ADR 0344 supersedes the first sentence above. CupidBuild now checks complete
+seed-directory membership and every frozen tool's execution profile. Six-tool
+promotion and a normal recipe transfer remain open.
+
 ADR 0339's earlier statement that relocatable objects do not select code
 anchors is superseded for the active object lanes. ADRs 0335 and 0336 define
 and adopt that `ET_REL` rule.

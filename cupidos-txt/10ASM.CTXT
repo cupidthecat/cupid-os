@@ -36,8 +36,12 @@ assembler demos. It derives a separate six-tool candidate from the unchanged
 five-tool seed. Its Linux proof freezes 58 sources and matches
 22 C objects, startup, and all six final tool images between consecutive
 generations. Both CupidBuild images assemble the checked startup into equal
-relocatables and preserve prior output on a missing-source failure. The
-candidate is not a promoted seed.
+relocatables and preserve prior output on a missing-source failure. Each
+final-stage CupidDis also checks all six corresponding images for known code,
+local targets, and code anchors. Both generations reject a private CupidBuild
+copy whose entry instruction was replaced with an invalid opcode. Linux now
+passes 23 failure, six help, and 29 success cases; Windows passes 12, six, and
+16. The candidate is not a promoted seed.
 >endtree
 
 >h2 Overview

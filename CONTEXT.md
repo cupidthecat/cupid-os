@@ -546,9 +546,11 @@ already published a valid cohort when that final read-only verifier found an
 unrelated installed `tools` package. The checkout-local launcher rule fixed the
 host import boundary. The source-current `make bootstrap-audit` and
 `make check-bootstrap-audit` both pass. The generated six-tool fixed-point
-inventory records failure, help, and success counts of 22/6/23 for Linux and
-11/6/10 for Windows. The extra cases cover CupidBuild's guarded object
-transaction as well as the source-head static ELF code anchors. The
+inventory records failure, help, and success counts of 23/6/29 for Linux and
+12/6/16 for Windows. The extra cases cover CupidBuild's guarded object
+transaction and strict CupidDis inspection of every final candidate image.
+Both generations also reject a private CupidBuild copy with an invalid
+file-backed entry instruction. The
 promoted seeds retain their five-tool behavior matrices but carry the same
 static ELF code-anchor check. The normal linked-kernel pass selects that rule
 before CupidObj flattening.
@@ -1744,10 +1746,13 @@ objects. Final-stage comparisons and behavior checks cover all six tools, while
 the initial seed comparison covers only the five images named by the manifest.
 Both compared CupidBuild images run the guarded object command. They must
 publish identical relocatable bytes and preserve existing outputs when the
-source is missing. The behavior inventories are 22/6/23 on Linux and 11/6/10
-on Windows for failure, help, and success cases.
+source is missing. Each final-stage CupidDis strictly inspects the corresponding
+six candidate images, and both generations reject an entry-corrupted
+CupidBuild copy. The behavior inventories are 23/6/29 on Linux and 12/6/16 on
+Windows for failure, help, and success cases.
 The candidate is not a trusted seed until a later manifest and promotion bind
-it without circular provenance. ADR 0345 records the boundary.
+it without circular provenance. ADR 0345 records the boundary, and ADR 0346
+records the image-certification gate.
 _Avoid_: six-tool seed, promoted CupidBuild, expanded v1 manifest
 
 **Native Windows fixed-point driver**:

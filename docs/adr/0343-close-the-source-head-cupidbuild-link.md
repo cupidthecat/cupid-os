@@ -62,4 +62,8 @@ This decision does not add CupidBuild to either checked seed, transfer a normal
 Make recipe, or remove Python from production coordination. Seed-directory
 membership and independent execution-profile checks remain open.
 
+ADR 0344 supersedes the final sentence above. CupidBuild now owns those checks
+inside its guarded object transaction. Seed promotion, recipe transfer, and
+Python-free production coordination remain open.
+
 `TempleOS/` remains untouched reference material.

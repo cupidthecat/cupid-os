@@ -9204,9 +9204,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 22,
+        "failure_cases": 23,
         "help_cases": 6,
-        "success_cases": 23,
+        "success_cases": 29,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -9219,6 +9219,133 @@ def _cupid_toolchain_fixed_point_contract(
             "_run_behavior_checks is not unique"
         )
     behavior_function = behavior_functions[0]
+    candidate_image_helper_names = (
+        "_file_backed_entry_offset",
+        "_corrupt_candidate_entry_instruction",
+        "_check_candidate_image_certification_behavior",
+    )
+    candidate_image_helpers = {
+        name: [
+            node
+            for node in bootstrap_tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == name
+        ]
+        for name in candidate_image_helper_names
+    }
+    if any(
+        len(functions) != 1
+        for functions in candidate_image_helpers.values()
+    ):
+        raise AuditError(
+            "Cupid Toolchain candidate image certification differs: "
+            "all three helpers must be unique"
+        )
+    candidate_entry_offset_source = ast.get_source_segment(
+        bootstrap_source,
+        candidate_image_helpers["_file_backed_entry_offset"][0],
+    ) or ""
+    required_candidate_entry_offset_fragments = (
+        "relative_entry = entry - virtual_address",
+        "file_backed_size = min(virtual_size, file_size)",
+        "relative_entry > file_backed_size - required_size",
+        "return file_offset + relative_entry",
+    )
+    missing_candidate_entry_offset_fragments = [
+        fragment
+        for fragment in required_candidate_entry_offset_fragments
+        if candidate_entry_offset_source.count(fragment) != 1
+    ]
+    candidate_entry_offset_users = (
+        "_validate_static_i386_elf_bytes",
+        "_validate_static_i386_pe32_bytes",
+    )
+    candidate_entry_offset_user_functions = {
+        name: [
+            node
+            for node in bootstrap_tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == name
+        ]
+        for name in candidate_entry_offset_users
+    }
+    missing_candidate_entry_offset_users = [
+        name
+        for name, functions in candidate_entry_offset_user_functions.items()
+        if len(functions) != 1
+        or (
+            ast.get_source_segment(bootstrap_source, functions[0]) or ""
+        ).count("_file_backed_entry_offset(")
+        != 1
+    ]
+    candidate_image_certification_source = ast.get_source_segment(
+        bootstrap_source,
+        candidate_image_helpers[
+            "_check_candidate_image_certification_behavior"
+        ][0],
+    ) or ""
+    required_candidate_image_certification_fragments = (
+        "for tool_name in CANDIDATE_TOOL_NAMES:",
+        '"--require-known",',
+        '"--require-local-targets",',
+        '"--require-code-anchors",',
+        "stage_two.tools[tool_name]",
+        "stage_three.tools[tool_name]",
+        "(*strict_flags, stage_three.tools[tool_name]),\n"
+        "            360,",
+        'source_image = stage_two.tools["cupidbuild"]',
+        "_corrupt_candidate_entry_instruction(",
+        "(*strict_flags, corrupted_image),\n        360,",
+        "_expect_status(result, 0, label)",
+        "_expect_status(failure_result, 1, label)",
+        "failure_result.stdout",
+        '"code check failed" not in failure_result.stderr',
+    )
+    missing_candidate_image_fragments = [
+        fragment
+        for fragment in required_candidate_image_certification_fragments
+        if candidate_image_certification_source.count(fragment) != 1
+    ]
+    corrupt_candidate_image_source = ast.get_source_segment(
+        bootstrap_source,
+        candidate_image_helpers["_corrupt_candidate_entry_instruction"][0],
+    ) or ""
+    required_corruption_fragments = (
+        'if image[:4] == b"\\x7fELF":',
+        'elif image[:2] == b"MZ":',
+        "and flags & 1",
+        "flags & 0x20000000",
+        'image[entry_offset : entry_offset + 2] = b"\\x0f\\xff"',
+    )
+    missing_corruption_fragments = [
+        fragment
+        for fragment in required_corruption_fragments
+        if corrupt_candidate_image_source.count(fragment) != 1
+    ]
+    if (
+        missing_candidate_entry_offset_fragments
+        or missing_candidate_entry_offset_users
+        or missing_candidate_image_fragments
+        or missing_corruption_fragments
+        or corrupt_candidate_image_source.count(
+            "_file_backed_entry_offset("
+        )
+        != 2
+        or candidate_image_certification_source.count('"cupiddis",') != 2
+        or candidate_image_certification_source.count(
+            "(*strict_flags, corrupted_image)"
+        )
+        != 2
+    ):
+        raise AuditError(
+            "Cupid Toolchain candidate image certification differs: "
+            "entry offset "
+            f"{missing_candidate_entry_offset_fragments!r}; "
+            "entry users "
+            f"{missing_candidate_entry_offset_users!r}; "
+            f"certification {missing_candidate_image_fragments!r}; "
+            f"corruption {missing_corruption_fragments!r}"
+        )
     linked_code_policy_helper_names = (
         "_check_relocatable_local_target_behavior",
         "_check_executable_local_target_behavior",
@@ -9241,7 +9368,6 @@ def _cupid_toolchain_fixed_point_contract(
             "Cupid Toolchain fixed-point linked-code policy helpers "
             "differ: all three helpers must be unique"
         )
-
     def live_linked_code_policy_call_count(
         function: ast.FunctionDef | ast.AsyncFunctionDef,
         helper_name: str,
@@ -9258,6 +9384,18 @@ def _cupid_toolchain_fixed_point_contract(
             and isinstance(node.func, ast.Name)
             and node.func.id == helper_name
             and not _ast_node_is_statically_dead(node, function, parents)
+        )
+
+    if (
+        live_linked_code_policy_call_count(
+            behavior_function,
+            "_check_candidate_image_certification_behavior",
+        )
+        != 1
+    ):
+        raise AuditError(
+            "Cupid Toolchain candidate image certification calls differ: "
+            "_run_behavior_checks must call the helper once"
         )
 
     if any(
@@ -12414,9 +12552,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 5, "
+            "'failure_cases': len(tool_names) + 6, "
             "'help_cases': len(tool_names), "
-            "'success_cases': len(tool_names) + 4"
+            "'success_cases': len(tool_names) + 10"
             "}",
             mode="eval",
         ).body
@@ -12436,8 +12574,19 @@ def _cupid_toolchain_fixed_point_contract(
             )
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return eleven failure, "
-                "six help, and ten success cases"
+                "_run_native_windows_behavior_checks: return twelve failure, "
+                "six help, and sixteen success cases"
+            )
+        if (
+            live_linked_code_policy_call_count(
+                behavior_function,
+                "_check_candidate_image_certification_behavior",
+            )
+            != 1
+        ):
+            missing_native_windows_fragments.append(
+                "_run_native_windows_behavior_checks: one candidate image "
+                "certification call"
             )
         if (
             live_linked_code_policy_call_count(
@@ -13056,11 +13205,12 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 6,
-        "windows_success_behavior_cases": 10,
-        "windows_failure_behavior_cases": 11,
+        "windows_success_behavior_cases": 16,
+        "windows_failure_behavior_cases": 12,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_guarded_object_transaction",
+            "cupiddis.candidate_image_certification",
             "cupiddis.elf32_code_anchors",
             "cupidld.pe32_fixed_image",
             "cupidld.pe32_imports",
