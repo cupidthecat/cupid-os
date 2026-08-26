@@ -5,7 +5,7 @@
 #include "cupidc_frontend.h"
 #include "cupidc_ir.h"
 #include "cupidc_pp.h"
-#include "cupidc_exact_decimal_literal_fixture.h"
+#include "cupidc_exact_floating_literal_fixture.h"
 #include "cupidc_static_long_double_arithmetic_fixture.h"
 #include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
@@ -29713,18 +29713,115 @@ static int little_u64_payload_matches(
   return 1;
 }
 
-static int validate_exact_decimal_literal_object(
-    const ctool_elf32_object_t *object) {
+static int exact_runtime_literal_object_matches(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text, const char *name,
+    const ctool_u32 *constant_words, ctool_u32 constant_word_count,
+    ctool_u16 load_width) {
+  const ctool_elf32_symbol_t *function = find_symbol(object, name);
+  ctool_u32 cursor = 0u;
+  ctool_u32 constant_index = 0u;
+  ctool_u32 load_count = 0u;
+  ctool_u32 return_count = 0u;
+  if (job == NULL || constant_words == NULL ||
+      !wide_function_symbol_is_valid(object, text, function)) {
+    return 0;
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "%s: decode failed at %u\n", name,
+                    (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (((instruction->mnemonic == CTOOL_X86_MN_MOV &&
+          instruction->operand_count == 2u &&
+          instruction->operands[1].kind == CTOOL_X86_OPERAND_IMMEDIATE &&
+          instruction->operands[1].as.value.kind ==
+              CTOOL_X86_VALUE_CONSTANT) ||
+         (instruction->mnemonic == CTOOL_X86_MN_PUSH &&
+          instruction->operand_count == 1u &&
+          instruction->operands[0].kind == CTOOL_X86_OPERAND_IMMEDIATE &&
+          instruction->operands[0].as.value.kind ==
+              CTOOL_X86_VALUE_CONSTANT))) {
+      const ctool_x86_value_t *constant =
+          instruction->mnemonic == CTOOL_X86_MN_MOV
+              ? &instruction->operands[1].as.value
+              : &instruction->operands[0].as.value;
+      if (constant_index >= constant_word_count ||
+          constant->bits != constant_words[constant_index]) {
+        (void)fprintf(
+            stderr,
+            "%s: constant word %u differs: got %08x\n", name,
+            (unsigned int)constant_index,
+            (unsigned int)constant->bits);
+        return 0;
+      }
+      constant_index++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FLD) {
+      if (instruction->operand_count != 1u ||
+          instruction->operands[0].kind != CTOOL_X86_OPERAND_MEMORY ||
+          instruction->operands[0].width_bits != load_width) {
+        (void)fprintf(stderr, "%s: floating load width differs\n", name);
+        return 0;
+      }
+      load_count++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_RET) {
+      return_count++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_CALL) {
+      (void)fprintf(stderr, "%s: unexpected helper call\n", name);
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != function->size || constant_index != constant_word_count ||
+      load_count != 1u || return_count != 1u) {
+    (void)fprintf(
+        stderr,
+        "%s: runtime literal inventory differs: words=%u loads=%u "
+        "returns=%u\n",
+        name, (unsigned int)constant_index, (unsigned int)load_count,
+        (unsigned int)return_count);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_exact_floating_literal_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u32 float_words[] = {0x3f800002u};
+  static const ctool_u32 double_words[] = {0x00000001u, 0x00000000u};
+  static const ctool_u32 long_double_words[] = {
+      0x00000001u, 0x00000000u, 0x00000000u};
   const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
+  const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_symbol_t *float_values =
       find_symbol(object, "exact_decimal_float");
   const ctool_elf32_symbol_t *double_values =
       find_symbol(object, "exact_decimal_double");
   const ctool_elf32_symbol_t *long_double_value =
       find_symbol(object, "exact_decimal_long_double");
+  const ctool_elf32_symbol_t *hex_float_values =
+      find_symbol(object, "exact_hex_float");
+  const ctool_elf32_symbol_t *hex_double_values =
+      find_symbol(object, "exact_hex_double");
+  const ctool_elf32_symbol_t *hex_long_double_values =
+      find_symbol(object, "exact_hex_long_double");
   ctool_u32 index;
-  if (rodata == NULL || float_values == NULL ||
+  if (rodata == NULL || text == NULL || float_values == NULL ||
       double_values == NULL || long_double_value == NULL ||
+      hex_float_values == NULL || hex_double_values == NULL ||
+      hex_long_double_values == NULL ||
       float_values->binding != CTOOL_ELF32_BIND_LOCAL ||
       float_values->type != CTOOL_ELF32_SYMBOL_OBJECT ||
       float_values->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
@@ -29739,7 +29836,35 @@ static int validate_exact_decimal_literal_object(
       long_double_value->type != CTOOL_ELF32_SYMBOL_OBJECT ||
       !long_double_symbol_payload_matches(
           rodata, long_double_value, 0x8000000000000000ull,
-          0x3fffu)) {
+          0x3fffu) ||
+      hex_float_values->binding != CTOOL_ELF32_BIND_LOCAL ||
+      hex_float_values->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      hex_float_values->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      hex_float_values->section_file_index != rodata->file_index ||
+      hex_float_values->size != 48u ||
+      hex_double_values->binding != CTOOL_ELF32_BIND_LOCAL ||
+      hex_double_values->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      hex_double_values->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      hex_double_values->section_file_index != rodata->file_index ||
+      hex_double_values->size != 96u ||
+      hex_long_double_values->binding != CTOOL_ELF32_BIND_LOCAL ||
+      hex_long_double_values->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      hex_long_double_values->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      hex_long_double_values->section_file_index != rodata->file_index ||
+      hex_long_double_values->size != 144u ||
+      !exact_runtime_literal_object_matches(
+          job, object, text, "exact_hex_runtime_float", float_words,
+          (ctool_u32)(sizeof(float_words) / sizeof(float_words[0])), 32u) ||
+      !exact_runtime_literal_object_matches(
+          job, object, text, "exact_hex_runtime_double", double_words,
+          (ctool_u32)(sizeof(double_words) / sizeof(double_words[0])),
+          64u) ||
+      !exact_runtime_literal_object_matches(
+          job, object, text, "exact_hex_runtime_long_double",
+          long_double_words,
+          (ctool_u32)(sizeof(long_double_words) /
+                      sizeof(long_double_words[0])),
+          80u)) {
     return 0;
   }
   for (index = 0u;
@@ -29759,6 +29884,38 @@ static int validate_exact_decimal_literal_object(
     if (!little_u64_payload_matches(
             rodata, double_values->value + index * 8u,
             cupidc_exact_decimal_double_bits[index])) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cupidc_exact_hex_float_bits) /
+                           sizeof(cupidc_exact_hex_float_bits[0]));
+       index++) {
+    if (!little_u32_payload_matches(
+            rodata, hex_float_values->value + index * 4u,
+            (ctool_u32)cupidc_exact_hex_float_bits[index])) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cupidc_exact_hex_double_bits) /
+                           sizeof(cupidc_exact_hex_double_bits[0]));
+       index++) {
+    if (!little_u64_payload_matches(
+            rodata, hex_double_values->value + index * 8u,
+            cupidc_exact_hex_double_bits[index])) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(cupidc_exact_hex_long_double_bits) /
+                       sizeof(cupidc_exact_hex_long_double_bits[0]));
+       index++) {
+    if (!long_double_payload_matches(
+            rodata, hex_long_double_values->value + index * 12u,
+            cupidc_exact_hex_long_double_bits[index].significand,
+            cupidc_exact_hex_long_double_bits[index].high_bits)) {
       return 0;
     }
   }
@@ -29949,8 +30106,8 @@ static int run_floating_scalar_object(const char *host_root) {
           job, "/block-static-floating.c", block_static_source,
           CTOOL_TRUE, &block_unit) ||
       !parse_source_mode(
-          job, "/exact-decimal-literals.c",
-          cupidc_exact_decimal_literal_source, CTOOL_TRUE,
+          job, "/exact-floating-literals.c",
+          cupidc_exact_floating_literal_source, CTOOL_TRUE,
           &exact_unit) ||
       unit.expression_count == 0u ||
       sizeof(*invalid_expressions) >
@@ -30251,10 +30408,10 @@ static int run_floating_scalar_object(const char *host_root) {
   }
   if (!expect_object_success_preserves_unit(
           job, &exact_unit, exact_first,
-          "exact decimal literal object") ||
+          "exact floating literal object") ||
       !expect_object_success_preserves_unit(
           job, &exact_unit, exact_second,
-          "repeat exact decimal literal object")) {
+          "repeat exact floating literal object")) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -30265,17 +30422,17 @@ static int run_floating_scalar_object(const char *host_root) {
              (size_t)exact_first_bytes.size) != 0) {
     (void)fprintf(
         stderr,
-        "exact decimal literal objects are not deterministic\n");
+        "exact floating literal objects are not deterministic\n");
     goto cleanup;
   }
   exact_object_source.path.text =
-      ctool_string("/exact-decimal-literals.o");
+      ctool_string("/exact-floating-literals.o");
   exact_object_source.contents = exact_second_bytes;
   (void)memset(&exact_object, 0xa5, sizeof(exact_object));
   status = ctool_elf32_read(job, &exact_object_source, &exact_object);
   if (!check_status(status, CTOOL_OK,
-                    "read exact decimal literal object") ||
-      !validate_exact_decimal_literal_object(&exact_object)) {
+                    "read exact floating literal object") ||
+      !validate_exact_floating_literal_object(job, &exact_object)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -32945,21 +33102,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 130u, 82u, 140u, 31u, 143u, 270u, 368u, 461u, 88u, 37u, 65u,
-      34u};
+      65u, 131u, 82u, 140u, 31u, 143u, 270u, 368u, 463u, 88u, 37u, 65u,
+      40u};
   static const ctool_u32 expected_text_sizes[] = {
-      42118u, 189888u, 118477u, 183181u, 42212u,
-      190304u, 505711u, 579035u, 910526u, 153631u, 70368u, 85466u,
-      49696u};
+      42118u, 188766u, 118477u, 183181u, 42212u,
+      190304u, 505711u, 579035u, 916371u, 153631u, 70368u, 85466u,
+      57233u};
   static const ctool_u32 expected_object_sizes[] = {
-      46720u, 215592u, 137444u, 220508u, 49484u,
-      226668u, 544716u, 649488u, 1077988u, 174068u, 79348u, 141560u,
-      54184u};
+      46720u, 214448u, 137444u, 220508u, 49484u,
+      226668u, 544716u, 649488u, 1084896u, 174068u, 79348u, 141560u,
+      62960u};
   static const ctool_u32 expected_text_fingerprints[] = {
-      0x6bff5a25u, 0x345bf679u, 0x3e007f3eu,
+      0x6bff5a25u, 0x08d1d4d1u, 0x3e007f3eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0xefb1c487u, 0x788cef1du, 0xcad8d595u, 0x6b129b78u,
-      0x34558a49u, 0x4285e204u, 0x0fd35d9bu};
+      0xefb1c487u, 0x788cef1du, 0xa080417fu, 0x6b129b78u,
+      0x34558a49u, 0x4285e204u, 0xee8562feu};
   ctool_u32 index;
   int all_matched = 1;
   if (first_index > past_last_index ||
@@ -33235,6 +33392,7 @@ static int run_self_host_hosted_adapters(const char *host_root) {
       "ftell", "fread", "fwrite", "malloc", "free"};
   static const char *const cupidasm_undefined[] = {
       "ctool_string",
+      "ctool_bytes",
       "ctool_default_limits",
       "ctool_status_name",
       "ctool_buffer_close",
@@ -33250,15 +33408,22 @@ static int run_self_host_hosted_adapters(const char *host_root) {
       "ctool_host_adapter_init",
       "ctool_host_job_config",
       "ctool_asm_assemble",
+      "cupid_linux_syscall1",
+      "cupid_linux_syscall2",
       "stdout",
       "stderr",
       "fopen",
       "fclose",
+      "ferror",
       "fprintf",
+      "fseek",
+      "ftell",
+      "fread",
       "fwrite",
       "malloc",
       "free",
       "memcpy",
+      "memcmp",
       "memset",
       "strcmp",
       "strncmp",
@@ -33308,8 +33473,8 @@ static int run_self_host_hosted_adapters(const char *host_root) {
   static const hosted_adapter_case_t cases[] = {
       {"/toolchain/ctool_host.cc", 11u, 5522u, 6944u, 0x28739c3fu,
        ctool_host_undefined, 10u, 25u, 38u, 28u, 10u},
-      {"/toolchain/cupidasm_main.cc", 17u, 12557u, 16572u, 0x64d33b82u,
-       cupidasm_undefined, 31u, 75u, 125u, 94u, 31u},
+      {"/toolchain/cupidasm_main.cc", 39u, 40731u, 47892u, 0x20c1c2ffu,
+       cupidasm_undefined, 39u, 114u, 310u, 263u, 47u},
       {"/toolchain/cupiddis_main.cc", 28u, 46249u, 58720u, 0x81c4a4c0u,
        cupiddis_undefined, 39u, 186u, 358u, 216u, 142u}};
   ctool_u32 index;

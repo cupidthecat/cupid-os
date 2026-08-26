@@ -141,7 +141,7 @@ INPUT_PATHS = (
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
     "toolchain/tests/cupidasm_kernel_elf_contract.cc",
-    "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+    "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
     "toolchain/tests/cupidc_frontend_contract.cc",
     "toolchain/tests/cupidc_ir_contract.cc",
     "toolchain/tests/cupidc_kernel_simd_fixture.h",

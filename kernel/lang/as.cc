@@ -2107,9 +2107,10 @@ static ctool_status_t as_raw_kernel_selftest(void) {
   static const ctool_u8 expected_bytes[] = {
       0xb8u, 0x34u, 0x12u, 0xaau, 0xbbu, 0xc3u};
   static const char expected_map[] =
-      "cupid.raw-map.v1\n"
+      "cupid.raw-map.v2\n"
       "size 6\n"
       "base 0x00008000\n"
+      "edges 0\n"
       "range 0x00000000 code16\n"
       "range 0x00000003 data\n"
       "range 0x00000005 code32\n";
@@ -2145,6 +2146,8 @@ static ctool_status_t as_raw_kernel_selftest(void) {
   if (status == CTOOL_OK &&
       (result.bytes.size != (ctool_u32)sizeof(expected_bytes) ||
        memcmp(result.bytes.data, expected_bytes, sizeof(expected_bytes)) != 0 ||
+       result.raw_edges != (const ctool_asm_raw_edge_t *)0 ||
+       result.raw_edge_count != 0u ||
        ctool_buffer_view(map).size !=
            (ctool_u32)(sizeof(expected_map) - 1u) ||
        memcmp(ctool_buffer_view(map).data, expected_map,

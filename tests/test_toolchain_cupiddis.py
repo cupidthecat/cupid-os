@@ -1249,6 +1249,75 @@ class CupidDisContractTests(unittest.TestCase):
             "ctool_dis_inspect_indexed(job, decoder,", helper
         )
 
+    def test_strict_policies_reuse_the_summary_decode_map(self):
+        source = (TOOLCHAIN_ROOT / "cupiddis.cc").read_text(
+            encoding="utf-8"
+        )
+
+        raw_start = source.index(
+            "static ctool_status_t dis_prepare_raw_policy_summaries("
+        )
+        raw_end = source.index(
+            "static ctool_status_t dis_scan_elf_local_target_section(",
+            raw_start,
+        )
+        raw_helper = source[raw_start:raw_end]
+        self.assertEqual(raw_helper.count("dis_summarize_region("), 2)
+        self.assertEqual(raw_helper.count("dis_scan_raw_policy_region("), 2)
+        self.assertNotIn("for (pass =", raw_helper)
+
+        rel_start = source.index(
+            "static ctool_status_t dis_prepare_rel_policy_summaries("
+        )
+        rel_end = source.index("typedef struct {", rel_start)
+        rel_helper = source[rel_start:rel_end]
+        self.assertEqual(rel_helper.count("dis_summarize_region("), 1)
+        self.assertEqual(
+            rel_helper.count("dis_scan_elf_local_target_section("), 1
+        )
+        self.assertNotIn("CTOOL_TRUE", rel_helper)
+
+        exec_start = source.index(
+            "static ctool_status_t dis_prepare_exec_policy_summaries("
+        )
+        exec_end = source.index(
+            "static ctool_status_t\ndis_summarize_region(", exec_start
+        )
+        exec_helper = source[exec_start:exec_end]
+        self.assertEqual(exec_helper.count("dis_summarize_region("), 1)
+        self.assertEqual(
+            exec_helper.count("dis_scan_exec_local_target_region("), 1
+        )
+        self.assertNotIn("CTOOL_TRUE", exec_helper)
+
+        ownership_start = source.index(
+            "typedef struct {\n  const ctool_dis_report_t *report;"
+        )
+        ownership_end = source.index(
+            "} dis_relocation_ownership_t;", ownership_start
+        )
+        ownership = source[ownership_start:ownership_end]
+        self.assertIn(
+            "claimed_indices[CTOOL_X86_MAX_FIELDS]", ownership
+        )
+        self.assertNotIn("relocation_claimed", ownership)
+
+        inspect_start = source.index("static ctool_status_t dis_inspect(")
+        inspect_end = source.index(
+            "ctool_status_t ctool_dis_inspect(", inspect_start
+        )
+        dispatch = source[inspect_start:inspect_end]
+        self.assertEqual(
+            dispatch.count("dis_prepare_raw_policy_summaries("), 1
+        )
+        self.assertEqual(
+            dispatch.count("dis_prepare_rel_policy_summaries("), 1
+        )
+        self.assertEqual(
+            dispatch.count("dis_prepare_exec_policy_summaries("), 2
+        )
+        self.assertEqual(dispatch.count("dis_prepare_decode_summary("), 3)
+
     def test_cli_requires_local_targets_on_raw_object_and_executable_code(self):
         def run(path, *options):
             return subprocess.run(

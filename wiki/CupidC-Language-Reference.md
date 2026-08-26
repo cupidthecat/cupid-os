@@ -151,9 +151,11 @@ signature and evaluate the index once.
 
 The active `kernel/doom/src/f_wipe.cc` declaration has six entries arranged as
 three callbacks per wipe. Its three call sites select `wipeno*3`,
-`wipeno*3+1`, and `wipeno*3+2`. Automatic raw callback arrays, raw callback
-array parameters, raw callback arrays in structures or classes, and
-multidimensional raw callback arrays remain unsupported. A failed initializer
+`wipeno*3+1`, and `wipeno*3+2`. Fixed-size automatic raw callback arrays use
+cleared four-byte frame slots and retain their signature through brace
+initialization, indexed stores, copies, and calls. Unsized automatic arrays,
+raw callback array parameters, raw callback arrays in structures or classes,
+and multidimensional raw callback arrays remain unsupported. A failed initializer
 restores its data, patches, signature entries, and symbols with the rest of the
 source or REPL transaction. [ADR 0330](../docs/adr/0330-support-data-backed-raw-callback-arrays.md)
 records this boundary. Conditional field values, alias chains, aggregate
@@ -195,10 +197,10 @@ and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
 The source-head artifact contract passes against all fourteen exact artifacts.
-The raw kernel is 9,482,844 bytes with SHA-256
-`3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35`.
+The raw kernel is 9,499,524 bytes with SHA-256
+`be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949`.
 The 209,715,200-byte disk image has SHA-256
-`797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612`.
+`fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602`.
 Those output identities come from the completed source-head normal build. Its
 431-input linked-image scan passed local-target and code-anchor validation, and
 the image passed a private four-vCPU E1000 frontier smoke. Both checked seeds
@@ -380,8 +382,9 @@ function-pointer declarator keeps the same signature for checked stores, named
 copies, null checks, clearing, and direct postfix calls. Nested record members
 and indexed record-array members use the same path and evaluate their designator
 once. Raw callback scalars and one-dimensional arrays in data-backed static
-storage keep the declared slots too. Automatic raw callback arrays, callback
-array parameters, raw array fields, multidimensional raw arrays, empty `()`,
+storage keep the declared slots too. Fixed-size automatic raw callback arrays
+use cleared local frame storage and keep the same signature. Unsized automatic
+arrays, callback array parameters, raw array fields, multidimensional raw arrays, empty `()`,
 callback alias chains, and `void *` forms remain
 unsupported or retain source-width slots.
 Direct structure and array callback results
@@ -527,10 +530,11 @@ folded result stays in the initializer forest and emits no runtime instruction.
 
 Ordinary non-atomic `float` and `double` lvalues support prefix and postfix
 increment and decrement. Atomic floating compound assignment, atomic floating
-updates, `long double` increment and decrement,
-hexadecimal floating constants, hexadecimal or subnormal long-double
-constants, long-double decimals beyond
+updates, `long double` increment and decrement, decimal long-double
+subnormals, long-double decimals beyond
 the bounded ratio parser, and SIMD remain unsupported.
+[ADR 0349](../docs/adr/0349-parse-exact-hexadecimal-floating-constants.md)
+records exact source-head hexadecimal conversion.
 [ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
 records the literal representation. ADR 0250 records runtime unsigned
 four-byte conversion, ADR 0251 records static long-double data, and ADR 0253

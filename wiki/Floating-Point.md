@@ -358,8 +358,7 @@ on modifiable non-atomic `float` and `double` lvalues. It evaluates the lvalue
 once and stores the result of adding or subtracting exact-width `1.0`.
 Postfix returns the original raw payload, including signed zero and NaN bits.
 Atomic floating compound assignment, atomic floating updates, `long double`
-increment and decrement, hexadecimal floating constants,
-hexadecimal or subnormal long-double literals, long-double ratios beyond the
+increment and decrement, decimal long-double subnormals, long-double ratios beyond the
 bounded parser, general SIMD value semantics, and atomic floating access
 remain unsupported. Static truth, comparison, arithmetic,
 short-circuit logic, conditional selection, and floating-width conversion fold
@@ -406,8 +405,9 @@ copies, null checks, clearing, and direct postfix calls. Direct members, nested
 records, and indexed record arrays share that path and evaluate the designator
 once. Raw callback scalars and one-dimensional arrays with static storage at
 file scope, block-static scope, or persistent REPL scope keep the signature as
-well. Automatic raw callback arrays, callback array parameters, raw array
-fields, multidimensional raw arrays, empty `()`, callback alias chains,
+well. Fixed-size automatic raw callback arrays use cleared local frame storage
+and keep the same signature. Unsized automatic arrays, callback array
+parameters, raw array fields, multidimensional raw arrays, empty `()`, callback alias chains,
 and `void *` forms remain unsupported or metadata-free.
 Kernel bindings and other calls without fixed metadata keep their source-width
 slots. A plain function initializer or direct callback argument must match the
@@ -551,8 +551,10 @@ use the normal 16-byte cdecl slot and return through XMM0. Empty `()`, callback
 arrays outside data-backed static storage, callback alias chains, and `void *`
 pointers do not retain the signature. Raw callback
 scalars and one-dimensional arrays at file scope, block-static scope, or
-persistent REPL scope do retain it. Automatic raw callback arrays, parameter
-arrays, raw array fields, and multidimensional raw arrays remain unsupported.
+persistent REPL scope do retain it. Fixed-size automatic raw callback arrays
+use cleared local frame storage and retain their signature through brace
+initialization, indexed stores, copies, and calls. Unsized automatic arrays,
+parameter arrays, raw array fields, and multidimensional raw arrays remain unsupported.
 Plain function initializers and direct callback arguments are checked before
 the call or store. Later definitions receive address fixups and must match a
 provisional signature. A compatible conditional checks all of its named arms.

@@ -51,6 +51,102 @@ static ctool_status_t as_artifact_validate_raw_ranges(
   return CTOOL_OK;
 }
 
+static ctool_asm_raw_range_kind_t as_artifact_raw_kind_at_offset(
+    const ctool_asm_raw_range_t *ranges, ctool_u32 range_count,
+    ctool_u32 offset) {
+  ctool_u32 index;
+  ctool_asm_raw_range_kind_t kind = CTOOL_ASM_RAW_RANGE_DATA;
+  for (index = 0u; index < range_count; index++) {
+    if (ranges[index].offset > offset) break;
+    kind = ranges[index].kind;
+  }
+  return kind;
+}
+
+static ctool_x86_mode_t as_artifact_raw_mode(
+    ctool_asm_raw_range_kind_t kind) {
+  return kind == CTOOL_ASM_RAW_RANGE_CODE16 ? CTOOL_X86_MODE_16
+                                             : CTOOL_X86_MODE_32;
+}
+
+static ctool_bool as_artifact_raw_address_inside(ctool_bytes_t bytes,
+                                                  ctool_u32 origin,
+                                                  ctool_u32 address) {
+  return address >= origin && address - origin < bytes.size ? CTOOL_TRUE
+                                                            : CTOOL_FALSE;
+}
+
+static ctool_status_t as_artifact_validate_raw_edges(
+    ctool_bytes_t bytes, const ctool_asm_raw_range_t *ranges,
+    ctool_u32 range_count, ctool_u32 origin,
+    const ctool_asm_raw_edge_t *edges, ctool_u32 edge_count) {
+  ctool_u32 index;
+  if ((edge_count != 0u && edges == (const ctool_asm_raw_edge_t *)0) ||
+      edge_count > bytes.size) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  for (index = 0u; index < edge_count; index++) {
+    const ctool_asm_raw_edge_t *edge = &edges[index];
+    ctool_asm_raw_range_kind_t source_kind;
+    if (edge->source_offset >= bytes.size ||
+        (index != 0u &&
+         edge->source_offset <= edges[index - 1u].source_offset)) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    source_kind = as_artifact_raw_kind_at_offset(
+        ranges, range_count, edge->source_offset);
+    if (source_kind == CTOOL_ASM_RAW_RANGE_DATA ||
+        (edge->kind != CTOOL_ASM_RAW_EDGE_RELATIVE &&
+         edge->kind != CTOOL_ASM_RAW_EDGE_FAR &&
+         edge->kind != CTOOL_ASM_RAW_EDGE_INDIRECT) ||
+        (edge->class_id != CTOOL_ASM_RAW_EDGE_LOCAL &&
+         edge->class_id != CTOOL_ASM_RAW_EDGE_EXTERNAL &&
+         edge->class_id != CTOOL_ASM_RAW_EDGE_UNPROVABLE)) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    if (edge->class_id == CTOOL_ASM_RAW_EDGE_LOCAL) {
+      ctool_asm_raw_range_kind_t target_kind;
+      if (edge->kind == CTOOL_ASM_RAW_EDGE_INDIRECT ||
+          edge->target_offset == CTOOL_ASM_RAW_EDGE_NO_TARGET ||
+          (edge->target_mode != CTOOL_X86_MODE_16 &&
+           edge->target_mode != CTOOL_X86_MODE_32) ||
+          edge->target_offset >= bytes.size ||
+          origin > AS_ELF32_U32_MAX - edge->target_offset ||
+          origin + edge->target_offset != edge->target_address) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      target_kind = as_artifact_raw_kind_at_offset(
+          ranges, range_count, edge->target_offset);
+      if (target_kind == CTOOL_ASM_RAW_RANGE_DATA ||
+          as_artifact_raw_mode(target_kind) != edge->target_mode ||
+          (edge->kind == CTOOL_ASM_RAW_EDGE_RELATIVE &&
+           edge->target_segment != 0u) ||
+          edge->target_segment == CTOOL_ASM_RAW_EDGE_NO_TARGET) {
+        return CTOOL_ERR_INTERNAL;
+      }
+    } else if (edge->class_id == CTOOL_ASM_RAW_EDGE_EXTERNAL) {
+      if (edge->kind == CTOOL_ASM_RAW_EDGE_INDIRECT ||
+          edge->target_offset != CTOOL_ASM_RAW_EDGE_NO_TARGET ||
+          (edge->target_mode != CTOOL_X86_MODE_16 &&
+           edge->target_mode != CTOOL_X86_MODE_32) ||
+          edge->target_segment == CTOOL_ASM_RAW_EDGE_NO_TARGET ||
+          (edge->kind == CTOOL_ASM_RAW_EDGE_RELATIVE &&
+           edge->target_segment != 0u) ||
+          as_artifact_raw_address_inside(bytes, origin,
+                                         edge->target_address) == CTOOL_TRUE) {
+        return CTOOL_ERR_INTERNAL;
+      }
+    } else if (edge->kind != CTOOL_ASM_RAW_EDGE_INDIRECT ||
+               edge->target_offset != CTOOL_ASM_RAW_EDGE_NO_TARGET ||
+               edge->target_address != CTOOL_ASM_RAW_EDGE_NO_TARGET ||
+               edge->target_mode != (ctool_x86_mode_t)0 ||
+               edge->target_segment != CTOOL_ASM_RAW_EDGE_NO_TARGET) {
+      return CTOOL_ERR_INTERNAL;
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t as_artifact_validate_raw(
     const ctool_asm_result_t *artifact, ctool_bytes_t bytes) {
   if (artifact->artifact != CTOOL_ASM_ARTIFACT_RAW ||
@@ -61,8 +157,15 @@ static ctool_status_t as_artifact_validate_raw(
       artifact->entry_symbol.size != 0u || artifact->entry_address != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
-  return as_artifact_validate_raw_ranges(
-      bytes, artifact->raw_ranges, artifact->raw_range_count);
+  if (as_artifact_validate_raw_ranges(
+          bytes, artifact->raw_ranges,
+          artifact->raw_range_count) != CTOOL_OK) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  return as_artifact_validate_raw_edges(
+      bytes, artifact->raw_ranges, artifact->raw_range_count,
+      artifact->raw_origin, artifact->raw_edges,
+      artifact->raw_edge_count);
 }
 
 static ctool_status_t as_artifact_validate_object(
@@ -73,7 +176,9 @@ static ctool_status_t as_artifact_validate_object(
       bytes.size == 0u || artifact->regions != (const ctool_asm_region_t *)0 ||
       artifact->region_count != 0u || artifact->entry_address != 0u ||
       artifact->raw_ranges != (const ctool_asm_raw_range_t *)0 ||
-      artifact->raw_range_count != 0u || artifact->raw_origin != 0u) {
+      artifact->raw_range_count != 0u ||
+      artifact->raw_edges != (const ctool_asm_raw_edge_t *)0 ||
+      artifact->raw_edge_count != 0u || artifact->raw_origin != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
   if ((artifact->has_entry == CTOOL_TRUE &&
@@ -183,6 +288,8 @@ ctool_status_t as_artifact_assemble(ctool_job_t *job,
   if (request->format == AS_ARTIFACT_FORMAT_BIN) {
     result_out->raw_ranges = assembly_result.raw_ranges;
     result_out->raw_range_count = assembly_result.raw_range_count;
+    result_out->raw_edges = assembly_result.raw_edges;
+    result_out->raw_edge_count = assembly_result.raw_edge_count;
     result_out->raw_origin = assembly_result.raw_origin;
   } else if (request->format == AS_ARTIFACT_FORMAT_EXEC) {
     result_out->entry_address = link_result.entry;
@@ -231,6 +338,20 @@ static ctool_status_t as_artifact_append_hex32(ctool_buffer_t *output,
   return status;
 }
 
+static const char *as_artifact_raw_edge_kind_name(
+    ctool_asm_raw_edge_kind_t kind) {
+  if (kind == CTOOL_ASM_RAW_EDGE_RELATIVE) return "relative";
+  if (kind == CTOOL_ASM_RAW_EDGE_FAR) return "far";
+  return "indirect";
+}
+
+static const char *as_artifact_raw_edge_class_name(
+    ctool_asm_raw_edge_class_t class_id) {
+  if (class_id == CTOOL_ASM_RAW_EDGE_LOCAL) return "local";
+  if (class_id == CTOOL_ASM_RAW_EDGE_EXTERNAL) return "external";
+  return "unprovable";
+}
+
 ctool_status_t as_artifact_render_raw_map(
     const as_artifact_result_t *result, ctool_buffer_t *output) {
   ctool_u32 mark;
@@ -246,17 +367,26 @@ ctool_status_t as_artifact_render_raw_map(
   }
   status = as_artifact_validate_raw_ranges(
       result->bytes, result->raw_ranges, result->raw_range_count);
+  if (status == CTOOL_OK) {
+    status = as_artifact_validate_raw_edges(
+        result->bytes, result->raw_ranges, result->raw_range_count,
+        result->raw_origin, result->raw_edges, result->raw_edge_count);
+  }
   if (status != CTOOL_OK) {
     return CTOOL_ERR_INVALID_ARGUMENT;
   }
   mark = ctool_buffer_mark(output);
-  status = as_artifact_append_text(output, "cupid.raw-map.v1\nsize ");
+  status = as_artifact_append_text(output, "cupid.raw-map.v2\nsize ");
   if (status == CTOOL_OK) {
     status = as_artifact_append_decimal(output, result->bytes.size);
   }
   if (status == CTOOL_OK) status = as_artifact_append_text(output, "\nbase ");
   if (status == CTOOL_OK) {
     status = as_artifact_append_hex32(output, result->raw_origin);
+  }
+  if (status == CTOOL_OK) status = as_artifact_append_text(output, "\nedges ");
+  if (status == CTOOL_OK) {
+    status = as_artifact_append_decimal(output, result->raw_edge_count);
   }
   if (status == CTOOL_OK) status = as_artifact_append_text(output, "\n");
   for (index = 0u; status == CTOOL_OK && index < result->raw_range_count;
@@ -274,6 +404,63 @@ ctool_status_t as_artifact_render_raw_map(
     if (status == CTOOL_OK) status = as_artifact_append_text(output, " ");
     if (status == CTOOL_OK) status = as_artifact_append_text(output, kind);
     if (status == CTOOL_OK) status = as_artifact_append_text(output, "\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < result->raw_edge_count;
+       index++) {
+    const ctool_asm_raw_edge_t *edge = &result->raw_edges[index];
+    status = as_artifact_append_text(output, "edge ");
+    if (status == CTOOL_OK) {
+      status = as_artifact_append_hex32(output, edge->source_offset);
+    }
+    if (status == CTOOL_OK) status = as_artifact_append_text(output, " ");
+    if (status == CTOOL_OK) {
+      status = as_artifact_append_text(
+          output, as_artifact_raw_edge_kind_name(edge->kind));
+    }
+    if (status == CTOOL_OK) status = as_artifact_append_text(output, " ");
+    if (status == CTOOL_OK) {
+      status = as_artifact_append_text(
+          output, as_artifact_raw_edge_class_name(edge->class_id));
+    }
+    if (edge->class_id == CTOOL_ASM_RAW_EDGE_UNPROVABLE) {
+      if (status == CTOOL_OK) {
+        status = as_artifact_append_text(output, " - - unknown -\n");
+      }
+    } else if (edge->class_id == CTOOL_ASM_RAW_EDGE_EXTERNAL) {
+      if (status == CTOOL_OK) status = as_artifact_append_text(output, " - ");
+      if (status == CTOOL_OK) {
+        status = as_artifact_append_hex32(output, edge->target_address);
+      }
+      if (status == CTOOL_OK) status = as_artifact_append_text(output, " ");
+      if (status == CTOOL_OK) {
+        status = as_artifact_append_decimal(
+            output, (ctool_u32)edge->target_mode);
+      }
+      if (status == CTOOL_OK) status = as_artifact_append_text(output, " ");
+      if (status == CTOOL_OK) {
+        status = as_artifact_append_hex32(output, edge->target_segment);
+      }
+      if (status == CTOOL_OK) status = as_artifact_append_text(output, "\n");
+    } else {
+      if (status == CTOOL_OK) status = as_artifact_append_text(output, " ");
+      if (status == CTOOL_OK) {
+        status = as_artifact_append_hex32(output, edge->target_offset);
+      }
+      if (status == CTOOL_OK) status = as_artifact_append_text(output, " ");
+      if (status == CTOOL_OK) {
+        status = as_artifact_append_hex32(output, edge->target_address);
+      }
+      if (status == CTOOL_OK) status = as_artifact_append_text(output, " ");
+      if (status == CTOOL_OK) {
+        status = as_artifact_append_decimal(
+            output, (ctool_u32)edge->target_mode);
+      }
+      if (status == CTOOL_OK) status = as_artifact_append_text(output, " ");
+      if (status == CTOOL_OK) {
+        status = as_artifact_append_hex32(output, edge->target_segment);
+      }
+      if (status == CTOOL_OK) status = as_artifact_append_text(output, "\n");
+    }
   }
   if (status != CTOOL_OK) {
     ctool_status_t rewind_status = ctool_buffer_rewind(output, mark);

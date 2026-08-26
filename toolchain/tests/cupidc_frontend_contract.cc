@@ -3,7 +3,7 @@
 #define CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 #include "cupidc_frontend.h"
 #undef CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
-#include "cupidc_exact_decimal_literal_fixture.h"
+#include "cupidc_exact_floating_literal_fixture.h"
 #include "cupidc_static_long_double_arithmetic_fixture.h"
 #include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
@@ -7764,8 +7764,8 @@ static int validate_toolchain_frontier(const char *host_root) {
   static const toolchain_frontier_case_t cases[] = {
       {"/toolchain/ctool.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u,
        5981u, 133u, 33u, 0u, 0u},
-      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 130u, 3446u,
-       24161u, 424u, 388u, 1u, 0u},
+      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 131u, 3424u,
+       24101u, 415u, 381u, 1u, 0u},
       {"/toolchain/cupidld.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 2875u,
        18200u, 369u, 337u, 0u, 2u},
       {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 140u, 3451u,
@@ -7778,8 +7778,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        70606u, 1004u, 369u, 0u, 0u},
       {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 368u, 9323u,
        77764u, 1132u, 755u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 461u,
-       17619u, 115690u, 2629u, 1584u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 463u,
+       17775u, 116566u, 2647u, 1597u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 88u, 3280u,
        21579u, 358u, 200u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -7858,7 +7858,7 @@ static int validate_toolchain_frontier(const char *host_root) {
                           "/toolchain/cupiddis.cc") == 0) {
           static_string_valid =
               validate_toolchain_static_string(
-                  &unit, "hex", "/toolchain/cupiddis.cc", 1925u) == 0;
+                  &unit, "hex", "/toolchain/cupiddis.cc", 1913u) == 0;
         }
         if (status == CTOOL_OK && ctool_job_diagnostic_count(job) == 0u &&
             unit.function_definition_count ==
@@ -16041,11 +16041,6 @@ static int run_scalar_returns(const char *host_root) {
       {{"malformed integer literal", "int bad(void) { return 09; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 24u, "integer constant suffix is invalid"},
-      {{"deferred hexadecimal floating literal",
-        "int bad(void) { return 0x1p0; }\n", CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 24u,
-       "hexadecimal floating constants are outside this decimal slice"},
       {{"malformed character literal",
         "int bad(void) { return '\\x'; }\n", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -26768,14 +26763,31 @@ static char *build_static_floating_chain_source(ctool_u32 operation_count) {
   return source;
 }
 
-static int validate_exact_decimal_literals(
+static int validate_exact_floating_literals(
     const ctool_c_translation_unit_t *unit) {
+  typedef struct {
+    ctool_c_type_kind_t kind;
+    ctool_u64 bits;
+    ctool_u32 high_bits;
+    ctool_u32 line;
+    ctool_u32 column;
+  } exact_runtime_literal_t;
+  static const exact_runtime_literal_t runtime_literals[] = {
+      {CTOOL_C_TYPE_FLOAT, 0x3f800002ull, 0u, 62u, 46u},
+      {CTOOL_C_TYPE_DOUBLE, 0x0000000000000001ull, 0u, 63u, 48u},
+      {CTOOL_C_TYPE_LONG_DOUBLE, 0x0000000000000001ull, 0u, 64u, 58u}};
   const ctool_c_object_definition_t *float_definition =
       find_object_definition(unit, "exact_decimal_float");
   const ctool_c_object_definition_t *double_definition =
       find_object_definition(unit, "exact_decimal_double");
   const ctool_c_object_definition_t *long_double_definition =
       find_object_definition(unit, "exact_decimal_long_double");
+  const ctool_c_object_definition_t *hex_float_definition =
+      find_object_definition(unit, "exact_hex_float");
+  const ctool_c_object_definition_t *hex_double_definition =
+      find_object_definition(unit, "exact_hex_double");
+  const ctool_c_object_definition_t *hex_long_double_definition =
+      find_object_definition(unit, "exact_hex_long_double");
   const ctool_c_initializer_t *float_values =
       float_definition != NULL
           ? initializer_node(unit, float_definition->initializer)
@@ -26788,15 +26800,43 @@ static int validate_exact_decimal_literals(
       long_double_definition != NULL
           ? initializer_node(unit, long_double_definition->initializer)
           : NULL;
+  const ctool_c_initializer_t *hex_float_values =
+      hex_float_definition != NULL
+          ? initializer_node(unit, hex_float_definition->initializer)
+          : NULL;
+  const ctool_c_initializer_t *hex_double_values =
+      hex_double_definition != NULL
+          ? initializer_node(unit, hex_double_definition->initializer)
+          : NULL;
+  const ctool_c_initializer_t *hex_long_double_values =
+      hex_long_double_definition != NULL
+          ? initializer_node(unit, hex_long_double_definition->initializer)
+          : NULL;
   ctool_u32 index;
-  if (float_values == NULL || double_values == NULL ||
-      long_double_value == NULL ||
+  ctool_u32 runtime_matches[ARRAY_COUNT(runtime_literals)] = {0u, 0u, 0u};
+  if (unit->function_definition_count != 3u ||
+      find_function_definition(unit, "exact_hex_runtime_float") == NULL ||
+      find_function_definition(unit, "exact_hex_runtime_double") == NULL ||
+      find_function_definition(
+          unit, "exact_hex_runtime_long_double") == NULL ||
+      float_values == NULL || double_values == NULL ||
+      long_double_value == NULL || hex_float_values == NULL ||
+      hex_double_values == NULL || hex_long_double_values == NULL ||
       float_values->kind != CTOOL_C_INITIALIZER_LIST ||
       double_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      hex_float_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      hex_double_values->kind != CTOOL_C_INITIALIZER_LIST ||
+      hex_long_double_values->kind != CTOOL_C_INITIALIZER_LIST ||
       float_values->element_count !=
           ARRAY_COUNT(cupidc_exact_decimal_float_bits) ||
       double_values->element_count !=
           ARRAY_COUNT(cupidc_exact_decimal_double_bits) ||
+      hex_float_values->element_count !=
+          ARRAY_COUNT(cupidc_exact_hex_float_bits) ||
+      hex_double_values->element_count !=
+          ARRAY_COUNT(cupidc_exact_hex_double_bits) ||
+      hex_long_double_values->element_count !=
+          ARRAY_COUNT(cupidc_exact_hex_long_double_bits) ||
       !initializer_is_static_long_double(
           unit, long_double_value, 0x8000000000000000ull, 0x3fffu)) {
     return 1;
@@ -26818,6 +26858,74 @@ static int validate_exact_decimal_literals(
             initializer_list_child(unit, double_values, index, index),
             CTOOL_C_TYPE_DOUBLE,
             cupidc_exact_decimal_double_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u;
+       index < ARRAY_COUNT(cupidc_exact_hex_float_bits); index++) {
+    if (!initializer_is_static_floating(
+            unit,
+            initializer_list_child(unit, hex_float_values, index, index),
+            CTOOL_C_TYPE_FLOAT,
+            cupidc_exact_hex_float_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u;
+       index < ARRAY_COUNT(cupidc_exact_hex_double_bits); index++) {
+    if (!initializer_is_static_floating(
+            unit,
+            initializer_list_child(unit, hex_double_values, index, index),
+            CTOOL_C_TYPE_DOUBLE,
+            cupidc_exact_hex_double_bits[index])) {
+      return 1;
+    }
+  }
+  for (index = 0u;
+       index < ARRAY_COUNT(cupidc_exact_hex_long_double_bits); index++) {
+    if (!initializer_is_static_long_double(
+            unit,
+            initializer_list_child(
+                unit, hex_long_double_values, index, index),
+            cupidc_exact_hex_long_double_bits[index].significand,
+            cupidc_exact_hex_long_double_bits[index].high_bits)) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    ctool_u32 oracle_index;
+    if (expression->kind != CTOOL_C_EXPRESSION_FLOATING_CONSTANT) {
+      continue;
+    }
+    for (oracle_index = 0u;
+         oracle_index < ARRAY_COUNT(runtime_literals); oracle_index++) {
+      const exact_runtime_literal_t *oracle =
+          &runtime_literals[oracle_index];
+      if (expression->location.line != oracle->line) {
+        continue;
+      }
+      if (underlying_type_kind(unit, expression->type, NULL) !=
+              oracle->kind ||
+          expression->integer_bits != oracle->bits ||
+          expression->floating_high_bits != oracle->high_bits ||
+          expression->child_count != 0u ||
+          expression->first_child != CTOOL_C_AST_NONE ||
+          expression->reference != CTOOL_C_AST_NONE ||
+          expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          expression->computation_type != CTOOL_C_TYPE_NONE ||
+          !dual_location_matches(
+              &expression->location, &expression->physical_location,
+              "/exact-floating-literals.c", oracle->line) ||
+          expression->location.column != oracle->column) {
+        return 1;
+      }
+      runtime_matches[oracle_index]++;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(runtime_matches); index++) {
+    if (runtime_matches[index] != 1u) {
       return 1;
     }
   }
@@ -26940,9 +27048,6 @@ static int run_floating_scalars(const char *host_root) {
       "  return local_table[0][index];\n"
       "}\n";
   static const frontend_failure_case_t failure_cases[] = {
-      {"hexadecimal floating literal",
-       "double bad(void) { return 0x1.8p+1; }\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       {"excess decimal precision",
        "long double bad(void) { return 1.23456789012345678901L; }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -27002,9 +27107,48 @@ static int run_floating_scalars(const char *host_root) {
       {{"decimal token beyond exact capacity",
         "double bad(void) { return "
         "1.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 27u,
+       "decimal floating constant exceeds 95 characters"},
+      {{"hexadecimal literal without binary exponent",
+        "double bad(void) { return 0x1.0; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 27u,
+       "hexadecimal floating constant requires a binary exponent"},
+      {{"hexadecimal literal without significand digits",
+        "double bad(void) { return 0x.p1; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 27u,
+       "hexadecimal floating constant requires a digit"},
+      {{"hexadecimal literal without exponent digits",
+        "double bad(void) { return 0x1p+; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 27u,
+       "hexadecimal floating constant exponent requires a digit"},
+      {{"hexadecimal literal with invalid suffix",
+        "double bad(void) { return 0x1p0ff; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 27u,
+       "hexadecimal floating constant has an invalid suffix"},
+      {{"hexadecimal literal with invalid digit",
+        "double bad(void) { return 0x1.gp0; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 27u,
+       "hexadecimal floating constant contains an invalid digit"},
+      {{"hexadecimal literal with multiple points",
+        "double bad(void) { return 0x1.2.3p0; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 27u,
+       "hexadecimal floating constant has more than one radix point"},
+      {{"hexadecimal token beyond exact capacity",
+        "double bad(void) { return 0x"
+        "11111111111111111111111111111111"
+        "11111111111111111111111111111111"
+        "11111111111111111111111111111111"
+        "p0; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 27u,
-       "decimal floating constant exceeds 95 characters"}};
+       "hexadecimal floating constant exceeds 95 characters"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t exact_unit;
@@ -27034,11 +27178,11 @@ static int run_floating_scalars(const char *host_root) {
     goto cleanup;
   }
   if (parse_valid_fixture(
-          &fixture, "/exact-decimal-literals.c",
-          cupidc_exact_decimal_literal_source, &exact_unit) != 0 ||
-      validate_exact_decimal_literals(&exact_unit) != 0) {
+          &fixture, "/exact-floating-literals.c",
+          cupidc_exact_floating_literal_source, &exact_unit) != 0 ||
+      validate_exact_floating_literals(&exact_unit) != 0) {
     (void)fprintf(
-        stderr, "floating-scalars: exact decimal literals differ\n");
+        stderr, "floating-scalars: exact floating literals differ\n");
     goto cleanup;
   }
   for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
@@ -27046,7 +27190,7 @@ static int run_floating_scalars(const char *host_root) {
             &fixture, &failure_cases[index],
             "/floating-scalars-failure.c") != 0 ||
         validate_floating_scalars(&unit) != 0 ||
-        validate_exact_decimal_literals(&exact_unit) != 0) {
+        validate_exact_floating_literals(&exact_unit) != 0) {
       goto cleanup;
     }
   }
@@ -27059,7 +27203,7 @@ static int run_floating_scalars(const char *host_root) {
             test_case->line, test_case->column,
             test_case->message) != 0 ||
         validate_floating_scalars(&unit) != 0 ||
-        validate_exact_decimal_literals(&exact_unit) != 0) {
+        validate_exact_floating_literals(&exact_unit) != 0) {
       goto cleanup;
     }
   }
@@ -27073,7 +27217,7 @@ static int run_floating_scalars(const char *host_root) {
           "static scalar expression exceeds the public nesting limit") !=
           0 ||
       validate_floating_scalars(&unit) != 0 ||
-      validate_exact_decimal_literals(&exact_unit) != 0) {
+      validate_exact_floating_literals(&exact_unit) != 0) {
     goto cleanup;
   }
   failed = 0;
@@ -28976,11 +29120,6 @@ static int run_floating_transport(const char *host_root) {
        1u, 41u,
        "atomic static scalar conversion is outside this constant-data "
        "slice"},
-      {{"static hexadecimal long double initializer",
-        "static long double bad = 0x1p0L;\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 26u,
-       "hexadecimal floating constants are outside this decimal slice"},
       {{"static subnormal long double initializer",
         "static long double bad = 1e-5000L;\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},

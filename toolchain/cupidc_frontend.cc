@@ -7688,34 +7688,13 @@ static ctool_bool cfront_body_floating_constant(ctool_string_t spelling) {
   ctool_bool has_exponent = CTOOL_FALSE;
   if (spelling.size >= 2u && spelling.data[0] == '0' &&
       (spelling.data[1] == 'x' || spelling.data[1] == 'X')) {
-    index = 2u;
-    while (index < spelling.size) {
-      ctool_u32 digit;
-      if (cfront_digit_value(spelling.data[index], &digit) == CTOOL_FALSE ||
-          digit >= 16u) {
-        break;
-      }
-      digit_count++;
-      index++;
-    }
-    if (index < spelling.size && spelling.data[index] == '.') {
-      index++;
-      while (index < spelling.size) {
-        ctool_u32 digit;
-        if (cfront_digit_value(spelling.data[index], &digit) == CTOOL_FALSE ||
-            digit >= 16u) {
-          break;
-        }
-        digit_count++;
-        index++;
+    for (index = 2u; index < spelling.size; index++) {
+      if (spelling.data[index] == '.' || spelling.data[index] == 'p' ||
+          spelling.data[index] == 'P') {
+        return CTOOL_TRUE;
       }
     }
-    if (digit_count == 0u || index >= spelling.size ||
-        (spelling.data[index] != 'p' && spelling.data[index] != 'P')) {
-      return CTOOL_FALSE;
-    }
-    has_exponent = CTOOL_TRUE;
-    index++;
+    return CTOOL_FALSE;
   } else {
     while (index < spelling.size &&
            cfront_decimal_digit(spelling.data[index]) == CTOOL_TRUE) {
@@ -7766,7 +7745,8 @@ static ctool_bool cfront_body_floating_constant(ctool_string_t spelling) {
 }
 
 /* A 1536-bit workspace carries every 95-character hosted decimal token
- * through binary64 subnormal rounding without host floating arithmetic. */
+ * through binary64 subnormal rounding. It also carries a complete bounded
+ * hexadecimal significand without host floating arithmetic. */
 #define CFRONT_DECIMAL_BIG_LIMBS 48u
 #define CFRONT_DECIMAL_TOKEN_LIMIT 95u
 
@@ -7980,7 +7960,8 @@ static ctool_bool cfront_big_binary_exponent(
 static ctool_bool cfront_big_round_ratio(
     const cfront_big_uint_t *numerator_source,
     const cfront_big_uint_t *denominator_source,
-    ctool_i32 binary_scale, ctool_u64 *rounded_out) {
+    ctool_i32 binary_scale, ctool_u64 *rounded_out,
+    ctool_bool *carry_out) {
   cfront_big_uint_t numerator = *numerator_source;
   cfront_big_uint_t denominator = *denominator_source;
   cfront_big_uint_t shifted;
@@ -7989,6 +7970,10 @@ static ctool_bool cfront_big_round_ratio(
   cfront_big_uint_t doubled;
   ctool_u64 quotient = 0ull;
   ctool_u32 quotient_shift;
+
+  if (carry_out != (ctool_bool *)0) {
+    *carry_out = CTOOL_FALSE;
+  }
 
   if (binary_scale >= 0) {
     if (cfront_big_shift_left_copy(
@@ -8035,7 +8020,14 @@ static ctool_bool cfront_big_round_ratio(
   if (cfront_big_compare(&doubled, &denominator) > 0 ||
       (cfront_big_compare(&doubled, &denominator) == 0 &&
        (quotient & 1ull) != 0ull)) {
-    quotient++;
+    if (quotient == 0xffffffffffffffffull) {
+      quotient = 0x8000000000000000ull;
+      if (carry_out != (ctool_bool *)0) {
+        *carry_out = CTOOL_TRUE;
+      }
+    } else {
+      quotient++;
+    }
   }
   *rounded_out = quotient;
   return CTOOL_TRUE;
@@ -8228,7 +8220,7 @@ static ctool_status_t cfront_decimal_ieee_bits(
     if (cfront_big_round_ratio(
             &numerator, &denominator,
             (ctool_i32)(precision - 1u) - binary_exponent,
-            &rounded) == CTOOL_FALSE) {
+            &rounded, (ctool_bool *)0) == CTOOL_FALSE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_PARSE_DIAG_EXPRESSION, token,
@@ -8259,7 +8251,8 @@ static ctool_status_t cfront_decimal_ieee_bits(
 
   if (cfront_big_round_ratio(
           &numerator, &denominator,
-          0 - minimum_subnormal_exponent, &rounded) == CTOOL_FALSE) {
+          0 - minimum_subnormal_exponent, &rounded,
+          (ctool_bool *)0) == CTOOL_FALSE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         token,
@@ -8416,13 +8409,6 @@ static ctool_status_t cfront_decimal_long_double_bits(
        spelling.data[end - 1u] == 'l' ||
        spelling.data[end - 1u] == 'L')) {
     end--;
-  }
-  if (spelling.size >= 2u && spelling.data[0] == '0' &&
-      (spelling.data[1] == 'x' || spelling.data[1] == 'X')) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        token,
-        "hexadecimal floating constants are outside this decimal slice");
   }
   while (index < end && spelling.data[index] != 'e' &&
          spelling.data[index] != 'E') {
@@ -8605,6 +8591,273 @@ static ctool_status_t cfront_decimal_long_double_bits(
   return CTOOL_OK;
 }
 
+#define CFRONT_HEXADECIMAL_TOKEN_LIMIT 95u
+
+typedef struct {
+  ctool_u32 precision;
+  ctool_i32 minimum_normal_exponent;
+  ctool_i32 minimum_subnormal_exponent;
+  ctool_i32 maximum_exponent;
+  ctool_u32 exponent_bias;
+  ctool_u32 mantissa_width;
+  ctool_u64 infinity_bits;
+  ctool_u32 infinity_high_bits;
+} cfront_hexadecimal_format_t;
+
+static ctool_bool cfront_hexadecimal_format(
+    ctool_c_type_kind_t kind, cfront_hexadecimal_format_t *format_out) {
+  if (format_out == (cfront_hexadecimal_format_t *)0) {
+    return CTOOL_FALSE;
+  }
+  if (kind == CTOOL_C_TYPE_FLOAT) {
+    format_out->precision = 24u;
+    format_out->minimum_normal_exponent = -126;
+    format_out->minimum_subnormal_exponent = -149;
+    format_out->maximum_exponent = 127;
+    format_out->exponent_bias = 127u;
+    format_out->mantissa_width = 23u;
+    format_out->infinity_bits = 0x7f800000ull;
+    format_out->infinity_high_bits = 0u;
+    return CTOOL_TRUE;
+  }
+  if (kind == CTOOL_C_TYPE_DOUBLE) {
+    format_out->precision = 53u;
+    format_out->minimum_normal_exponent = -1022;
+    format_out->minimum_subnormal_exponent = -1074;
+    format_out->maximum_exponent = 1023;
+    format_out->exponent_bias = 1023u;
+    format_out->mantissa_width = 52u;
+    format_out->infinity_bits = 0x7ff0000000000000ull;
+    format_out->infinity_high_bits = 0u;
+    return CTOOL_TRUE;
+  }
+  if (kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+    format_out->precision = 64u;
+    format_out->minimum_normal_exponent = -16382;
+    format_out->minimum_subnormal_exponent = -16445;
+    format_out->maximum_exponent = 16383;
+    format_out->exponent_bias = 16383u;
+    format_out->mantissa_width = 63u;
+    format_out->infinity_bits = 0x8000000000000000ull;
+    format_out->infinity_high_bits = 0x7fffu;
+    return CTOOL_TRUE;
+  }
+  return CTOOL_FALSE;
+}
+
+/* A hexadecimal significand is an integer times a power of two. The shared
+ * big-integer divider removes only the low significand bits, so conversion
+ * rounds once at the requested target width without host floating arithmetic. */
+static ctool_status_t cfront_hexadecimal_floating_bits(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_c_type_kind_t kind, ctool_u64 *bits_out,
+    ctool_u32 *high_bits_out) {
+  ctool_string_t spelling = token->spelling;
+  ctool_u32 end = spelling.size;
+  ctool_u32 index = 2u;
+  ctool_u32 digit_count = 0u;
+  ctool_u32 fractional_digits = 0u;
+  ctool_u32 exponent_digits = 0u;
+  ctool_u32 exponent_magnitude = 0u;
+  ctool_bool after_point = CTOOL_FALSE;
+  ctool_bool exponent_negative = CTOOL_FALSE;
+  cfront_big_uint_t significand;
+  cfront_big_uint_t one;
+  cfront_hexadecimal_format_t format;
+  ctool_i32 source_exponent;
+  ctool_i32 value_exponent;
+  ctool_u64 rounded = 0ull;
+  ctool_u64 normal_significand;
+  ctool_bool rounded_carry = CTOOL_FALSE;
+
+  if (bits_out == (ctool_u64 *)0 ||
+      high_bits_out == (ctool_u32 *)0 ||
+      cfront_hexadecimal_format(kind, &format) == CTOOL_FALSE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  *bits_out = 0ull;
+  *high_bits_out = 0u;
+  if (spelling.size > CFRONT_HEXADECIMAL_TOKEN_LIMIT) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token, "hexadecimal floating constant exceeds 95 characters");
+  }
+  if (end != 0u &&
+      (spelling.data[end - 1u] == 'f' ||
+       spelling.data[end - 1u] == 'F' ||
+       spelling.data[end - 1u] == 'l' ||
+       spelling.data[end - 1u] == 'L')) {
+    end--;
+  }
+
+  cfront_big_zero(&significand);
+  while (index < end && spelling.data[index] != 'p' &&
+         spelling.data[index] != 'P') {
+    char character = spelling.data[index++];
+    ctool_u32 digit;
+    if (character == '.') {
+      if (after_point == CTOOL_TRUE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+            token,
+            "hexadecimal floating constant has more than one radix point");
+      }
+      after_point = CTOOL_TRUE;
+      continue;
+    }
+    if (cfront_digit_value(character, &digit) == CTOOL_FALSE ||
+        digit >= 16u) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          token,
+          "hexadecimal floating constant contains an invalid digit");
+    }
+    if (cfront_big_multiply_add(&significand, 16u, digit) ==
+        CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "hexadecimal floating constant exceeds the exact conversion "
+          "capacity");
+    }
+    digit_count++;
+    if (after_point == CTOOL_TRUE) {
+      fractional_digits++;
+    }
+  }
+  if (digit_count == 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token, "hexadecimal floating constant requires a digit");
+  }
+  if (index >= end ||
+      (spelling.data[index] != 'p' && spelling.data[index] != 'P')) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token,
+        "hexadecimal floating constant requires a binary exponent");
+  }
+  index++;
+  if (index < end &&
+      (spelling.data[index] == '+' || spelling.data[index] == '-')) {
+    exponent_negative =
+        spelling.data[index] == '-' ? CTOOL_TRUE : CTOOL_FALSE;
+    index++;
+  }
+  while (index < end &&
+         cfront_decimal_digit(spelling.data[index]) == CTOOL_TRUE) {
+    ctool_u32 digit = (ctool_u32)(spelling.data[index] - '0');
+    if (exponent_magnitude > 10000u ||
+        exponent_magnitude * 10u + digit > 100000u) {
+      exponent_magnitude = 100000u;
+    } else {
+      exponent_magnitude = exponent_magnitude * 10u + digit;
+    }
+    exponent_digits++;
+    index++;
+  }
+  if (exponent_digits == 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token,
+        "hexadecimal floating constant exponent requires a digit");
+  }
+  if (index != end) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token, "hexadecimal floating constant has an invalid suffix");
+  }
+  if (cfront_big_is_zero(&significand) == CTOOL_TRUE) {
+    return CTOOL_OK;
+  }
+
+  normal_significand = 1ull << (format.precision - 1u);
+  source_exponent =
+      (exponent_negative == CTOOL_TRUE
+           ? 0 - (ctool_i32)exponent_magnitude
+           : (ctool_i32)exponent_magnitude) -
+      (ctool_i32)(fractional_digits * 4u);
+  value_exponent =
+      source_exponent + (ctool_i32)cfront_big_width(&significand) - 1;
+
+  if (value_exponent > format.maximum_exponent) {
+    *bits_out = format.infinity_bits;
+    *high_bits_out = format.infinity_high_bits;
+    return CTOOL_OK;
+  }
+
+  cfront_big_set_u32(&one, 1u);
+  if (value_exponent >= format.minimum_normal_exponent) {
+    if (cfront_big_round_ratio(
+            &significand, &one,
+            (ctool_i32)format.precision -
+                (ctool_i32)cfront_big_width(&significand),
+            &rounded, &rounded_carry) == CTOOL_FALSE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, token,
+          "hexadecimal floating constant exceeds the exact conversion "
+          "capacity");
+    }
+    if (rounded_carry == CTOOL_TRUE ||
+        (format.precision != 64u &&
+         rounded == (1ull << format.precision))) {
+      if (rounded_carry == CTOOL_FALSE) {
+        rounded >>= 1u;
+      }
+      value_exponent++;
+    }
+    if (value_exponent > format.maximum_exponent) {
+      *bits_out = format.infinity_bits;
+      *high_bits_out = format.infinity_high_bits;
+      return CTOOL_OK;
+    }
+    if (rounded < normal_significand ||
+        (format.precision != 64u &&
+         rounded >= (1ull << format.precision))) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          token,
+          "hexadecimal floating conversion produced an invalid encoding");
+    }
+    if (kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      *bits_out = rounded;
+      *high_bits_out =
+          (ctool_u32)(value_exponent +
+                      (ctool_i32)format.exponent_bias);
+    } else {
+      *bits_out =
+          ((ctool_u64)((ctool_u32)(value_exponent +
+                                  (ctool_i32)format.exponent_bias))
+           << format.mantissa_width) |
+          (rounded - normal_significand);
+    }
+    return CTOOL_OK;
+  }
+
+  if (value_exponent < format.minimum_subnormal_exponent - 1) {
+    return CTOOL_OK;
+  }
+  if (cfront_big_round_ratio(
+          &significand, &one,
+          source_exponent - format.minimum_subnormal_exponent,
+          &rounded, &rounded_carry) == CTOOL_FALSE ||
+      rounded_carry == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+        token,
+        "hexadecimal floating constant exceeds the exact conversion "
+        "capacity");
+  }
+  if (kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+    *bits_out = rounded;
+    *high_bits_out = rounded == normal_significand ? 1u : 0u;
+  } else {
+    *bits_out = rounded;
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_decimal_floating_bits(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
     ctool_c_type_kind_t kind, ctool_u64 *bits_out,
@@ -8622,10 +8875,8 @@ static ctool_status_t cfront_decimal_floating_bits(
   spelling = token->spelling;
   if (spelling.size >= 2u && spelling.data[0] == '0' &&
       (spelling.data[1] == 'x' || spelling.data[1] == 'X')) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        token,
-        "hexadecimal floating constants are outside this decimal slice");
+    return cfront_hexadecimal_floating_bits(
+        context, token, kind, bits_out, high_bits_out);
   }
   if (kind == CTOOL_C_TYPE_LONG_DOUBLE) {
     return cfront_decimal_long_double_bits(
@@ -26260,11 +26511,11 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
             (floating_type.kind != CTOOL_C_TYPE_LONG_DOUBLE &&
              expression->floating_high_bits != 0u) ||
             (floating_type.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
-             (expression->floating_high_bits > 0x7ffeu ||
-              (expression->floating_high_bits == 0u
-                   ? expression->integer_bits != 0ull
-                   : (expression->integer_bits &
-                      0x8000000000000000ull) == 0ull)))) {
+             cfront_decode_static_long_double_payload(
+                 expression->integer_bits,
+                 expression->floating_high_bits,
+                 (cfront_static_long_double_decoded_t *)0) ==
+                 CTOOL_FALSE)) {
           return cfront_emit_failure(
               context, CTOOL_ERR_INTERNAL,
               CTOOL_C_PARSE_DIAG_INTERNAL, cfront_peek(context),

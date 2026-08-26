@@ -3290,7 +3290,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -6384,7 +6384,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -6712,7 +6712,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -7040,7 +7040,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -7368,7 +7368,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -7696,7 +7696,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -8024,7 +8024,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -8352,7 +8352,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -8680,7 +8680,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -9008,7 +9008,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -9336,7 +9336,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -9664,7 +9664,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -9992,7 +9992,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -10320,7 +10320,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -10648,7 +10648,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -10976,7 +10976,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -11304,7 +11304,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -11632,7 +11632,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -11960,7 +11960,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -12288,7 +12288,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -12616,7 +12616,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -12944,7 +12944,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -13272,7 +13272,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -13600,7 +13600,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -13928,7 +13928,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -14256,7 +14256,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -14584,7 +14584,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -14912,7 +14912,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -15240,7 +15240,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -15568,7 +15568,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -15896,7 +15896,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -16224,7 +16224,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -16552,7 +16552,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -16880,7 +16880,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -17208,7 +17208,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -17536,7 +17536,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -17864,7 +17864,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -18192,7 +18192,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -18520,7 +18520,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -18848,7 +18848,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -19176,7 +19176,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -19504,7 +19504,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -19832,7 +19832,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -20160,7 +20160,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -20488,7 +20488,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -20816,7 +20816,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -21144,7 +21144,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -21472,7 +21472,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -21800,7 +21800,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -22128,7 +22128,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -22456,7 +22456,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -22784,7 +22784,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -23112,7 +23112,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -23440,7 +23440,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -23768,7 +23768,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -24096,7 +24096,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -24424,7 +24424,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -24752,7 +24752,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -25080,7 +25080,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -25408,7 +25408,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -25736,7 +25736,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -26064,7 +26064,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -26392,7 +26392,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -26720,7 +26720,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -27048,7 +27048,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -27376,7 +27376,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -27704,7 +27704,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -28032,7 +28032,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -28360,7 +28360,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -28688,7 +28688,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -29016,7 +29016,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -29344,7 +29344,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -29672,7 +29672,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -30000,7 +30000,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -30328,7 +30328,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -30656,7 +30656,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -30984,7 +30984,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -31312,7 +31312,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -31640,7 +31640,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -31968,7 +31968,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -32296,7 +32296,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -32624,7 +32624,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -32952,7 +32952,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -33280,7 +33280,7 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
-          "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+          "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
           "toolchain/tests/cupidc_pp_conditional_cases.inc",
@@ -38869,8 +38869,8 @@
     },
     "c_preprocessor_conditionals": {
       "directive_expression_pairs": 37,
-      "elif_occurrences": 9,
-      "expression_occurrences": 174,
+      "elif_occurrences": 11,
+      "expression_occurrences": 181,
       "expressions": [
         {
           "elif_occurrences": 0,
@@ -39650,8 +39650,26 @@
           "occurrences": 1
         },
         {
-          "elif_occurrences": 5,
+          "elif_occurrences": 7,
           "evidence": [
+            {
+              "directive": "if",
+              "line": 30,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(CUPID_HOSTED_I386_LINUX_ABI_H)"
+            },
+            {
+              "directive": "elif",
+              "line": 697,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#elif defined(CUPID_HOSTED_I386_LINUX_ABI_H)"
+            },
+            {
+              "directive": "elif",
+              "line": 716,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#elif defined(CUPID_HOSTED_I386_LINUX_ABI_H)"
+            },
             {
               "directive": "if",
               "line": 28,
@@ -39697,10 +39715,11 @@
           ],
           "expression": "defined ( CUPID_HOSTED_I386_LINUX_ABI_H )",
           "files": [
+            "toolchain/cupidasm_main.cc",
             "toolchain/cupidld_main.cc"
           ],
-          "if_occurrences": 2,
-          "occurrences": 7
+          "if_occurrences": 3,
+          "occurrences": 10
         },
         {
           "elif_occurrences": 0,
@@ -39900,25 +39919,49 @@
             },
             {
               "directive": "if",
-              "line": 9,
+              "line": 10,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 204,
+              "line": 244,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 227,
+              "line": 477,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 264,
+              "line": 514,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 551,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 695,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 711,
+              "path": "toolchain/cupidasm_main.cc",
+              "text": "#if defined(_WIN32)"
+            },
+            {
+              "directive": "if",
+              "line": 734,
               "path": "toolchain/cupidasm_main.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -40176,7 +40219,7 @@
             },
             {
               "directive": "if",
-              "line": 33570,
+              "line": 33735,
               "path": "toolchain/tests/cupidc_object_contract.cc",
               "text": "#if defined(_WIN32)"
             }
@@ -40193,8 +40236,8 @@
             "toolchain/cupidobj_main.cc",
             "toolchain/tests/cupidc_object_contract.cc"
           ],
-          "if_occurrences": 49,
-          "occurrences": 49
+          "if_occurrences": 53,
+          "occurrences": 53
         },
         {
           "elif_occurrences": 0,
@@ -40336,7 +40379,7 @@
           "occurrences": 1
         }
       ],
-      "if_occurrences": 165,
+      "if_occurrences": 170,
       "status": "pass",
       "unique_expressions": 35
     },
@@ -40368,11 +40411,11 @@
     },
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
-      "direct_angle_occurrences": 278,
+      "direct_angle_occurrences": 279,
       "direct_quoted_occurrences": 2219,
-      "include_occurrences": 2497,
+      "include_occurrences": 2498,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2497,
+      "ordinary_marker_occurrences": 2498,
       "pp_token_operand_occurrences": 0,
       "source_files": 711,
       "status": "pass"
@@ -45273,7 +45316,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2100
+      "occurrences": 2103
     },
     {
       "category": "control",
@@ -45541,7 +45584,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1273
+      "occurrences": 1279
     },
     {
       "category": "control",
@@ -46008,7 +46051,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5229
+      "occurrences": 5250
     },
     {
       "category": "control",
@@ -46289,7 +46332,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4675
+      "occurrences": 4721
     },
     {
       "category": "control",
@@ -46343,7 +46386,7 @@
         "toolchain/tests/elf32_contract.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 3201
+      "occurrences": 3225
     },
     {
       "category": "control",
@@ -46749,7 +46792,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 41704
+      "occurrences": 41964
     },
     {
       "category": "control",
@@ -47126,7 +47169,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 25846
+      "occurrences": 26012
     },
     {
       "category": "control",
@@ -47517,7 +47560,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2910
+      "occurrences": 2918
     },
     {
       "category": "declaration",
@@ -47677,7 +47720,7 @@
         "user/cupid.h"
       ],
       "id": "c.declarator.function_pointer",
-      "occurrences": 1020
+      "occurrences": 1021
     },
     {
       "category": "declarator",
@@ -47763,6 +47806,7 @@
         "kernel/tls/tls_selftest.cc",
         "kernel/util/calendar.cc",
         "toolchain/ctool.cc",
+        "toolchain/cupidasm_main.cc",
         "toolchain/cupidbuild.cc",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_frontend.cc",
@@ -47778,7 +47822,7 @@
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
-        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -47800,7 +47844,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2940
+      "occurrences": 2957
     },
     {
       "category": "declarator",
@@ -48080,7 +48124,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6583
+      "occurrences": 6626
     },
     {
       "category": "extension",
@@ -49112,7 +49156,7 @@
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
-        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -49131,7 +49175,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3258
+      "occurrences": 3263
     },
     {
       "category": "preprocessor",
@@ -49156,10 +49200,11 @@
         "kernel/doom/src/i_endoom.cc",
         "kernel/doom/src/i_swap.h",
         "kernel/doom/src/i_system.cc",
+        "toolchain/cupidasm_main.cc",
         "toolchain/cupidld_main.cc"
       ],
       "id": "c.preprocessor.elif",
-      "occurrences": 9
+      "occurrences": 11
     },
     {
       "category": "preprocessor",
@@ -49211,7 +49256,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.else",
-      "occurrences": 91
+      "occurrences": 95
     },
     {
       "category": "preprocessor",
@@ -49560,7 +49605,7 @@
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/pe32.h",
-        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_object_contract.cc",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
@@ -49569,7 +49614,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 577
+      "occurrences": 582
     },
     {
       "category": "preprocessor",
@@ -49761,7 +49806,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.if",
-      "occurrences": 165
+      "occurrences": 170
     },
     {
       "category": "preprocessor",
@@ -50120,7 +50165,7 @@
         "toolchain/hosted/i386-linux/include/unistd.h",
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/pe32.h",
-        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
@@ -50671,7 +50716,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2497
+      "occurrences": 2498
     },
     {
       "category": "preprocessor",
@@ -51220,7 +51265,7 @@
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
-        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_kernel_simd_fixture.h",
@@ -51247,7 +51292,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 16972
+      "occurrences": 17072
     },
     {
       "category": "qualifier",
@@ -51768,7 +51813,7 @@
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
-        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -51792,7 +51837,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10123
+      "occurrences": 10182
     },
     {
       "category": "type",
@@ -52216,7 +52261,7 @@
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
-        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -52241,7 +52286,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 10097
+      "occurrences": 10189
     },
     {
       "category": "type",
@@ -53012,7 +53057,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 24105
+      "occurrences": 24170
     },
     {
       "category": "type",
@@ -53054,6 +53099,7 @@
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/ctool_host.cc",
+        "toolchain/cupidasm_main.cc",
         "toolchain/cupidbuild.cc",
         "toolchain/cupidbuild_host.cc",
         "toolchain/cupiddis_main.cc",
@@ -53073,7 +53119,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.long",
-      "occurrences": 490
+      "occurrences": 495
     },
     {
       "category": "type",
@@ -53468,6 +53514,7 @@
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -53486,7 +53533,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1004
+      "occurrences": 1010
     },
     {
       "category": "type",
@@ -53753,6 +53800,7 @@
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_kernel_simd_fixture.h",
@@ -53772,7 +53820,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1086
+      "occurrences": 1092
     },
     {
       "category": "type",
@@ -53977,7 +54025,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 3093
+      "occurrences": 3108
     },
     {
       "category": "type",
@@ -54591,7 +54639,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 15467
+      "occurrences": 15508
     },
     {
       "category": "declaration",
@@ -55505,7 +55553,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "69a00942e9aa0c14c9c0b5cac3f82bc1e0988cca49d3ea1bb62531877411b846",
+    "active_source_digest": "97632e8b1b180bc470515d08e592f12b91b196d832d56f4963279233ffdaf3af",
     "control_files": [
       {
         "path": "Makefile",
@@ -55533,7 +55581,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "bdc8e1639d556f62d81aeeeda54190283693e55b3917885531968c1a875232d8"
+        "sha256": "fc7c8ca8e56c28b77500c68f2e805ef3e997ac04f4b7b49a5865a5922054a2f7"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
@@ -55558,7 +55606,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "48657984b5331d5460a75916f554e7ad27d88ead4dcb47ea20a4c4745ba5abdd"
+      "sha256": "de380fc7aef3c74c36bf8cf1ce2d25feed1a6f444331bdc4fb0d9fd647836c60"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -57861,12 +57909,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 1169,
+      "lines": 1209,
       "origin": "tracked",
       "path": "bin/feature14_simd.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f8717924ab63880a144d4d85dba310c3854c10d6888498d5ea9ec473060ec3f7"
+      "sha256": "c65fa22520f7518dc1bc7f50c7386575af196b03ddf47c306b981b4d40d74d14"
     },
     {
       "build_owners": [
@@ -75828,12 +75876,12 @@
         "toolchain/cupidasm.h"
       ],
       "language": "cupid_c",
-      "lines": 2181,
+      "lines": 2184,
       "origin": "tracked",
       "path": "kernel/lang/as.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "3c0d57a4c298f4639c0cd834225d9a03330f2924862049b2bad2eb97f53b1ea1"
+      "sha256": "ebcc150f16cc3f12a2ded972a474924eeced5373e0d91bec2f075f4fe041a584"
     },
     {
       "build_owners": [
@@ -75899,12 +75947,12 @@
         "kernel/lang/as_elf.h"
       ],
       "language": "cupid_c",
-      "lines": 1185,
+      "lines": 1372,
       "origin": "tracked",
       "path": "kernel/lang/as_elf.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "aa614be6b203e2567b06f5c124ca791352f80f637d93fc775efb3e3c7cd9b5b9"
+      "sha256": "f4297dc4cd6f39727c4dc42218ef06d0c29ad6cda3561bc9ad846f941078808b"
     },
     {
       "build_owners": [
@@ -75935,12 +75983,12 @@
         "toolchain/cupidld.h"
       ],
       "language": "c_header",
-      "lines": 139,
+      "lines": 143,
       "origin": "tracked",
       "path": "kernel/lang/as_elf.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d4dde6bd28d983c90524e2b0433cb59558c303bd1584da84c5daf246491a8ee4"
+      "sha256": "14cd57188f5f0beaa8f2c47b67c777993b9d28577950934e2155f35642bea24f"
     },
     {
       "build_owners": [
@@ -76327,12 +76375,12 @@
         "kernel/lang/cupidc.h"
       ],
       "language": "cupid_c",
-      "lines": 13250,
+      "lines": 13348,
       "origin": "tracked",
       "path": "kernel/lang/cupidc_parse.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e30103d44a5a06c457b7a65c11efa9f922241070f9916c9f6451ed8bc8a56d9a"
+      "sha256": "12873c241a58486f4fc4e9afd658b4d1e6414c2f299f9b3ae673abbc1449e492"
     },
     {
       "build_owners": [
@@ -80239,8 +80287,10 @@
         "c.control.if",
         "c.control.return",
         "c.control.while",
+        "c.declarator.unsized_array",
         "c.expression.sizeof",
         "c.preprocessor.define",
+        "c.preprocessor.elif",
         "c.preprocessor.else",
         "c.preprocessor.endif",
         "c.preprocessor.if",
@@ -80249,6 +80299,7 @@
         "c.storage.static",
         "c.type.char",
         "c.type.int",
+        "c.type.long",
         "c.type.struct",
         "c.type.typedef",
         "c.type.unsigned",
@@ -80260,12 +80311,12 @@
         "toolchain/cupidasm.h"
       ],
       "language": "cupid_c",
-      "lines": 480,
+      "lines": 1433,
       "origin": "tracked",
       "path": "toolchain/cupidasm_main.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d397db985f18f08e7157e0884b237398d1bc84e4d0beb384eb682d7daf09416f"
+      "sha256": "ebfde7e77124689942aa4688df33070f18ac99a12632b3ccbe5669dc8ae04876"
     },
     {
       "build_owners": [
@@ -80582,12 +80633,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "cupid_c",
-      "lines": 27634,
+      "lines": 27885,
       "origin": "tracked",
       "path": "toolchain/cupidc_frontend.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f4c64dbf55422f72417ba161ff37fbed876c78c73d2d9f344d7d8c843dcb712c"
+      "sha256": "b1f2bdd0244e80fd481c7eddaffbdb8b41e048bced7122a26ac9c6f39216f774"
     },
     {
       "build_owners": [
@@ -80933,12 +80984,12 @@
         "toolchain/pe32_impl.h"
       ],
       "language": "cupid_c",
-      "lines": 4021,
+      "lines": 4009,
       "origin": "tracked",
       "path": "toolchain/cupiddis.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9cb564c1b758c71d152867fcec9273a21f500e0a8e6c0f80e35e227c25fd332b"
+      "sha256": "b38ec7e87b16892b8960386f410fd403bc93f17d271a3ebe74b8bd5d5ae5dd8e"
     },
     {
       "build_owners": [
@@ -81804,7 +81855,7 @@
       "path": "toolchain/hosted/i386-windows/cupidbuild_start.asm",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "71cb0bd8738dc24b91162b2f0ea7b32a88b18a38321d1959f1cad834a3ff47bf"
+      "sha256": "c1501e745d7bdbab3cadbc88a9f8165303cea83f34a97feccce161772be259f2"
     },
     {
       "build_owners": [
@@ -82259,12 +82310,12 @@
         "toolchain/elf32.h"
       ],
       "language": "cupid_c",
-      "lines": 1713,
+      "lines": 1906,
       "origin": "tracked",
       "path": "toolchain/tests/cupidasm_kernel_elf_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "27e38718494d8eb2eb48d4a1d0d772f384b79bbbe7362a6a57ae121a18766e70"
+      "sha256": "59fe41be63aeb927c3fcc3f2c47187dffb70ccb910bb36eaad812c7afdfccf00"
     },
     {
       "build_owners": [
@@ -82284,16 +82335,18 @@
         "c.preprocessor.ifndef",
         "c.qualifier.const",
         "c.storage.static",
-        "c.type.char"
+        "c.type.char",
+        "c.type.struct",
+        "c.type.typedef"
       ],
       "includes": [],
       "language": "c_header",
-      "lines": 40,
+      "lines": 117,
       "origin": "tracked",
-      "path": "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+      "path": "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5c18bdde94c345b7438d8dba5aa405cc8592c6596c9716b5dad5d4e1e2c42019"
+      "sha256": "f592d4a52755b9a9a5c30e0ed2f20953403eb07a399c6eea4f29f80ae15db351"
     },
     {
       "build_owners": [
@@ -82343,18 +82396,18 @@
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
         "toolchain/cupidc_frontend.h",
-        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h"
       ],
       "language": "cupid_c",
-      "lines": 36144,
+      "lines": 36283,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_frontend_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "6eec13b8a4403c0e32f78e370820d20c123b322dff802e396fcaa7f5d821b1d9"
+      "sha256": "1311c84801992b9b484936dee101e74c788d892291223e915387b4c47a974294"
     },
     {
       "build_owners": [
@@ -82402,18 +82455,18 @@
         "toolchain/cupidc_frontend.h",
         "toolchain/cupidc_ir.h",
         "toolchain/cupidc_pp.h",
-        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h"
       ],
       "language": "cupid_c",
-      "lines": 43528,
+      "lines": 43652,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_ir_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ad2c94650899a518ec1a918474a5bbde334290c2f7a248139c8c897e05dd9b61"
+      "sha256": "e98128ad9a9924236948c9dde34609de7f40ef3cfcb3d64edb7b91ace76959d6"
     },
     {
       "build_owners": [
@@ -82500,19 +82553,19 @@
         "toolchain/cupidc_pp.h",
         "toolchain/cupidld.h",
         "toolchain/elf32.h",
-        "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+        "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 52563,
+      "lines": 52728,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "3f1a0a1e51dd9010ee507de504649763abe20c9dadd06f801703c6e280415c58"
+      "sha256": "e8b60d2f7fb699c31f38b357107431baa02b35b16ea45f421fa9ddf101435d84"
     },
     {
       "build_owners": [
@@ -82744,12 +82797,12 @@
         "toolchain/pe32.h"
       ],
       "language": "cupid_c",
-      "lines": 4150,
+      "lines": 4229,
       "origin": "tracked",
       "path": "toolchain/tests/cupiddis_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9a2855ec98d9159b8f806b9a848d176bddf87d5ca36c54623c19f2e782de0be7"
+      "sha256": "b4e6cf6ca8c3be17a76c76db5b200130f05b389ebb6170addd27ef0f26bf338f"
     },
     {
       "build_owners": [
@@ -83019,7 +83072,7 @@
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "68a84c51328cdb1b2a10f7256dc372ddd0e42cc3638172f74ca28971a792150d"
+      "sha256": "9030cb50de357a15e82c9a948711b338083c2e92c06aec10e094a9d370d0bcf3"
     },
     {
       "build_owners": [
@@ -83640,7 +83693,7 @@
             "toolchain/tests/x86_active_cases.inc",
             "toolchain/tests/x86_catalogue_contract.inc",
             "toolchain/tests/x86_inline_cases.inc",
-            "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+            "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
             "toolchain/tests/cupidc_kernel_simd_fixture.h",
             "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
             "toolchain/tests/cupidc_static_long_double_control_fixture.h",
@@ -83742,7 +83795,7 @@
             "toolchain/tests/x86_active_cases.inc",
             "toolchain/tests/x86_catalogue_contract.inc",
             "toolchain/tests/x86_inline_cases.inc",
-            "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+            "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
             "toolchain/tests/cupidc_kernel_simd_fixture.h",
             "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
             "toolchain/tests/cupidc_static_long_double_control_fixture.h",

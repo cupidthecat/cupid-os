@@ -58,6 +58,35 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 
 ## 2026-08-25 source-current checkpoint
 
+The Linux and Windows fixed-point builders now run the preceding generation's
+CupidDis on every generated C object after structural ELF validation and
+before linking. Each object must pass known-decode, local-target, and
+code-anchor checks. Startup objects use the same policy. Active assembly now
+publishes 68 typed functions, including all fourteen exports in the Windows
+CupidBuild startup. ADR 0347 records this boundary.
+
+Hosted and in-OS CupidASM now retain the same raw control-edge evidence. The
+kernel adapter validates and writes canonical `cupid.raw-map.v2`. The hosted
+CLI stages the image and map together and can recover an interrupted pair
+publication, including targets that did not exist before the command. ADR
+0348 records both changes.
+
+Source-head hosted CupidC accepts C99 hexadecimal `float`, `double`, and `long
+double` constants. It uses bounded target-only integer arithmetic and rounds
+normal, subnormal, halfway, overflow, and underflow cases directly to
+binary32, binary64, or x87 extended width. CupidDis now reuses the instruction
+map from its summary pass for strict raw, ELF32, and PE32 inspection. ADRs 0349
+and 0350 record these changes.
+
+Private CupidC now allocates fixed-size automatic raw callback arrays in
+contiguous four-byte frame slots. Each declaration clears the complete array
+before optional brace initialization, and the retained signature governs
+indexed stores, copies, and calls. The active feature-14 guest adds a separate
+marker for declaration zeroing, a later target, assignment, copying, and four
+indirect calls. Unsized automatic arrays, parameter arrays, record or class
+field arrays, and multidimensional arrays remain unsupported. ADR 0351 records
+the supported boundary.
+
 CupidBuild now treats the checked seed as a complete five-image trust unit. It
 rejects unlisted `.elf` or `.exe` peers before tool execution and repeats the
 directory check after every attempted CupidASM and CupidDis launch, including
@@ -161,9 +190,12 @@ zero-fill omitted fixed elements, resolve later function targets with
 `CC_PATCH_DATA_ABSOLUTE`, and keep their signature through indexed stores and
 calls. Calls may use either postfix `()` directly or an explicit unary `*`.
 Block-static scalar raw callbacks share the same data-backed declaration path.
-Automatic raw callback arrays, raw callback array parameters, raw record or
-class field arrays, multidimensional raw callback arrays, computed conditional
-values, aggregate results, and raw Cupid class method parameters remain open.
+Fixed-size automatic raw callback arrays use cleared local frame storage and
+retain their signature through brace initialization, indexed stores, copies,
+and calls. Unsized automatic arrays, raw callback array parameters, raw record
+or class field arrays, multidimensional raw callback arrays, computed
+conditional values, aggregate results, and raw Cupid class method parameters
+remain open.
 Callback-valued results, pointer-to-function-pointer `**` declarators, and
 callback alias chains remain separate work. Typedef-backed fixed callback field
 arrays stay on their separate retained-field path. The promoted standalone
@@ -315,10 +347,10 @@ kernel outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,580,120 | `3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8` |
-| `kernel/kernel.elf` | 9,711,192 | `394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337` |
-| `kernel/kernel.bin` | 9,482,844 | `3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35` |
-| `cupidos.img` | 209,715,200 | `797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612` |
+| `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
+| `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
+| `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
+| `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
 
 The exact verifier accepts all fourteen current policy rows. The normal build
 compiled every kernel and Doom source with checked CupidC, linked both kernel
@@ -326,6 +358,10 @@ ELFs with CupidLD, and passed the strict 431-input CupidDis scan with local
 targets and code anchors before publishing the image. A private four-vCPU E1000
 frontier smoke booted that image and passed the SMP, terminal, framebuffer, and
 audio checks without changing the source image.
+The serial log contains
+`[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`.
+Its 147,688 bytes have SHA-256
+`ae0ef6db543d9c046d3291488130407ae47541c329da258a00ef1600f9c0b3b1`.
 The cross-platform seed fixtures combine a relocated external call with a
 resolved local branch, then corrupt the branch to land inside an instruction.
 Active-source tests prove all nine bootloader and four SMP targets. [ADR 0305](docs/adr/0305-promote-and-adopt-local-relative-target-checks.md)
@@ -386,9 +422,10 @@ reuses its instruction-start map. The fixed-point drivers cover one valid and
 one invalid executable on Linux and Windows. Both promoted seeds carry the
 linked and relocatable forms. The normal kernel publisher selects the linked
 form for the pass-one and final ELFs. Guarded ISR and context-switch
-publication selects the relocatable form, and fixed-point builders inspect
-every startup object before linking it. Active assembly declares 54 exported
-functions without changing section bytes or relocations. [ADR 0320](docs/adr/0320-validate-static-elf32-code-anchors.md)
+publication selects the relocatable form. Fixed-point builders inspect every
+generated C object and startup object before linking it. Active assembly
+declares 68 exported functions without changing section bytes or relocations.
+[ADR 0320](docs/adr/0320-validate-static-elf32-code-anchors.md)
 records the linked source boundary. [ADR 0323](docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
 records its carriage and production adoption. [ADR 0335](docs/adr/0335-type-assembly-functions-and-certify-relocatable-code-anchors.md)
 records explicit assembly functions and relocatable anchors. [ADR 0336](docs/adr/0336-promote-and-adopt-assembly-function-anchors.md)
@@ -640,7 +677,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - Private CupidC preserves unsigned 32-bit runtime types through objects, pointers, calls, enums, unary operations, conditionals, comparisons, division, remainder, right shift, `sizeof`, and scalar returns. `/=`, `%=`, and `>>=` use the same signedness rules while evaluating each destination once. It converts the complete `uint32_t` range exactly to `double` and correctly rounded `float`, including ordinary and method returns. Values in C's defined interval convert from `float` or `double` to an unsigned word through casts, initialization, assignment, arguments, and returns. Forty kernel bindings with `uint32_t`, `size_t`, or `swap_handle_t` results publish that unsigned type. The Browser stores array length in the same lane, accepts canonical indices through 4,294,967,294, and treats 4,294,967,295 as an ordinary property. ADR 0221 records the original type boundary, and ADR 0249 records the two completed operations. The feature-13 guest checks four conversion boundaries, signed and high-bit unsigned `%=` results, and one evaluation of a side-effecting destination. Its required boot marker is `[feature13-unsigned] PASS conversions=4 remainders=2 once=1`.
 - Private `float4` and `double2` values support matching packed arithmetic and fixed arrays with one, two, or three dimensions in global, local, block-static, and persistent REPL storage. Array rank stays independent of byte stride, including when an inner extent is one. Access keeps checked row strides until the final 16-byte vector leaf, uses unaligned-safe moves, supports plain and arithmetic compound assignment, and preserves lane values. Prefix and postfix `++` and `--` work on modifiable direct vectors and fully indexed leaves. Each evaluated index runs once. Const qualification is retained through typedef aliases. Const direct vectors and fixed-array leaves remain readable. Plain and arithmetic compound assignment, plus prefix and postfix `++` and `--`, are rejected before a store. Prefix returns the stored vector, while postfix returns the exact old 128-bit payload. Indexes inside row or vector `sizeof` do not run, and incomplete rows cannot escape as untyped pointers. Fixed-prototype direct functions and methods pass either vector by value in complete 16-byte cdecl slots and return it in XMM0. Those slots are packed at four-byte granularity and use `MOVUPS`; the private boundary does not promise 16-byte call-site alignment. SIMD variadic tails, unprototyped calls, and calls through signature-erased function pointers remain rejected. SIMD pointers, fields, lane updates, and computed vector updates remain explicit gaps. Direct arithmetic uses a stable machine operand order, and minimum and maximum intrinsics retain their defined NaN and signed-zero behavior. Feature 14 now also requires `[feature14-call] PASS float4=4 double2=2 nested=2 calls=6`. ADR 0257 records multidimensional row descent, ADR 0294 records whole-vector updates, and ADR 0299 records fixed SIMD calls.
 - The signature-erased function-pointer limit in the preceding SIMD summary
-  applies to automatic raw callback arrays, raw callback array parameters, raw
+  applies to unsized automatic raw callback arrays, raw callback array parameters, raw
   record or class field arrays, multidimensional raw callback arrays, alias
   chains, empty `()`, and deliberate `void *` erasure. A named raw callback
   file object or direct free-function parameter now retains its parsed
@@ -663,7 +700,9 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   targets use the shared initialized-data path. Indexed stores and direct or
   explicitly dereferenced calls retain the callback signature. Block-static
   scalar raw callbacks share this path. Typedef-backed fixed callback field
-  arrays remain a separate field-layout capability.
+  arrays remain a separate field-layout capability. Fixed-size automatic raw
+  callback arrays use contiguous cleared frame slots and retain their signature
+  through brace initialization, indexed stores, copies, and calls.
   Callback-valued parameters in retained raw or direct-typedef signatures are
   parsed recursively. Each nested callback keeps its result, fixed parameters,
   record identities, prototype state, and variadic boundary. The nested handle
@@ -1935,8 +1974,9 @@ with a fixed 1536-bit integer workspace. It rounds the exact ratio once at the
 written width, including nearest-even halfway cases, subnormals, finite limits,
 overflow to infinity, underflow, and signed zero. Tokens through 95 characters
 retain exact bits across the frontend, Linear IR, and ELF32 constant data.
-Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
-long-double decimal ratios beyond the bounded parser, other
+It also accepts C99 hexadecimal constants at binary32, binary64, and x87
+extended width through bounded target-only integer arithmetic. Decimal
+long-double subnormals, long-double decimal ratios beyond the bounded parser, other
 floating-to-wide conversions, atomic floating compound assignment, atomic and
 long-double increment or decrement, SIMD values, and over-aligned emission
 remain open.

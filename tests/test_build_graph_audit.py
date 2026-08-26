@@ -6565,6 +6565,52 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '        "failure_cases": len(tool_names) + 5,\n',
                 r"native Windows fixed-point behavior differs",
             ),
+            "Linux fixed-point C objects skip CupidDis certification": (
+                "bootstrap",
+                "        _certify_relocatable_code_anchors(\n"
+                "            runner,\n"
+                "            producers[\"cupiddis\"],\n"
+                "            object_path,\n"
+                "            f\"{stage_name} CupidC for {logical_source}\",\n"
+                "        )\n",
+                "        _skip_relocatable_code_certification(\n"
+                "            runner,\n"
+                "            producers[\"cupiddis\"],\n"
+                "            object_path,\n"
+                "            f\"{stage_name} CupidC for {logical_source}\",\n"
+                "        )\n",
+                r"fixed-point C object certification differs",
+            ),
+            "native Windows fixed-point C objects skip CupidDis certification": (
+                "bootstrap",
+                "        _certify_relocatable_code_anchors(\n"
+                "            runner,\n"
+                "            producers[\"cupiddis\"],\n"
+                "            object_path,\n"
+                "            f\"{stage_name} native CupidC for "
+                "{logical_source}\",\n"
+                "        )\n",
+                "        _skip_relocatable_code_certification(\n"
+                "            runner,\n"
+                "            producers[\"cupiddis\"],\n"
+                "            object_path,\n"
+                "            f\"{stage_name} native CupidC for "
+                "{logical_source}\",\n"
+                "        )\n",
+                r"fixed-point C object certification differs",
+            ),
+            "fixed-point C object certification weakens strict decode": (
+                "bootstrap",
+                "            \"--require-known\",\n"
+                "            \"--require-local-targets\",\n"
+                "            \"--require-code-anchors\",\n"
+                "            object_path,\n",
+                "            \"--require-known\",\n"
+                "            \"--skip-local-targets\",\n"
+                "            \"--require-code-anchors\",\n"
+                "            object_path,\n",
+                r"fixed-point C object certification differs",
+            ),
             "candidate image certification helper disappears": (
                 "bootstrap",
                 "def _check_candidate_image_certification_behavior(\n",

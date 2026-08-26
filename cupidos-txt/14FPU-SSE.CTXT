@@ -284,22 +284,24 @@ ratio in a private 1536-bit integer workspace, then rounds once at the selected
 IEEE width with ties going to even. Public frontend, Linear IR, and ELF32
 contracts cover both halfway parities, minimum subnormal and normal values,
 maximum finite values, infinity, signed underflow zero, extreme exponents, and
-the 95-character token boundary. ADR 0312 first carried this capability. ADR
+the 95-character token boundary. Source head also parses C99 hexadecimal
+float, double, and long double constants with bounded target-only integer
+arithmetic and direct binary32, binary64, or x87 rounding. ADR 0312 first carried this capability. ADR
 0318 carries it in the current checked seeds. The four arithmetic compound
 operators also
 accept an integer and a floating operand in either lvalue direction. They use
 the usual float,
 double, or long double computation type, convert back to the declared left
 type, and evaluate the destination once. Atomic floating compound assignment,
-atomic floating updates, long double increment and decrement, hexadecimal
-floating constants, hexadecimal or subnormal long-double literals,
-long-double ratios beyond the bounded parser, general SIMD value semantics,
+atomic floating updates, long double increment and decrement, decimal
+long-double subnormals, long-double ratios beyond the bounded parser, general SIMD value semantics,
 and atomic floating access remain
 outside this shared path. Checked-seed static controls, arithmetic, and
 floating-width conversion fold through the target representation. ADR 0260
 records the static arithmetic model, and ADR 0265 records seed carriage.
 ADR 0293 records exact source-head decimal float and double literals.
 ADR 0296 records mixed arithmetic compound assignment.
+ADR 0349 records exact source-head hexadecimal floating literals.
 
 Private comparison and truth sequences use SETNP for an ordered guard and SETP
 for an unordered guard. Checked-seed CupidDis recognizes both byte
@@ -381,10 +383,13 @@ static int (*wipes[])(int, int, int) shape with wipeno*3 phase selection.
 Checked-seed hosted CupidC still owns the production kernel/doom/src/f_wipe.cc
 object.
 
-Automatic raw callback arrays, raw array parameters, raw array record fields,
-and multidimensional raw arrays remain unsupported. Typedef-backed fixed
+Fixed-size automatic raw callback arrays use cleared four-byte local frame
+slots and retain their signature through brace initialization, indexed stores,
+copies, and calls. Unsized automatic arrays, raw array parameters, raw array
+record fields, and multidimensional raw arrays remain unsupported. Typedef-backed fixed
 callback arrays on record fields use the retained ADR 0328 path. ADR 0330
-records the raw data-backed array and shared block-static scalar boundary.
+records the raw data-backed array and shared block-static scalar boundary. ADR
+0351 records the fixed automatic form.
 
 Function-pointer typedef declarations remain file-scope, allow one alias per
 declaration, and share a sixteen-entry table. Direct record and array callback

@@ -32,6 +32,11 @@ CupidBuild and matches all six final tool images. Its behavior gate also runs
 the guarded object command with both images, compares the relocatable output,
 and checks missing-source rollback. The normal build still uses the five-tool
 seed and Python publisher.
+Source head now validates every fixed-point C object structurally and then
+requires known decode, local targets, and code anchors before linking. The
+Windows CupidBuild startup marks all fourteen exports as functions. Fresh
+Linux and Windows convergence remains required before this source-head rule can
+support promotion. ADR 0347 records the object and startup boundary.
 >endtree
 
 >h2 Overview

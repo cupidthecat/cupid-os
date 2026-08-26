@@ -441,6 +441,36 @@ int feature14_test_callback_raw_array() {
     return 0;
 }
 
+int feature14_wipe_later(int width, int height, int ticks);
+
+int feature14_test_callback_raw_automatic_array() {
+    int (*automatic_callbacks[4])(int, int, int) = {
+        feature14_wipe_zero_start,
+        feature14_wipe_later
+    };
+    int (*automatic_zeroed[2])(int, int, int);
+    int (*automatic_copied)(int, int, int) = automatic_callbacks[0];
+
+    feature14_raw_array_call_count = 0;
+    if (automatic_callbacks[2] != 0 || automatic_callbacks[3] != 0)
+        return 1;
+    if (automatic_zeroed[0] != 0 || automatic_zeroed[1] != 0)
+        return 2;
+    automatic_callbacks[2] = feature14_wipe_replacement;
+    automatic_callbacks[3] = automatic_callbacks[0];
+    if (automatic_copied(4, 2, 1) != 107) return 3;
+    if (automatic_callbacks[1](4, 2, 1) != 707) return 4;
+    if (automatic_callbacks[2](4, 2, 1) != 907) return 5;
+    if (automatic_callbacks[3](4, 2, 1) != 107) return 6;
+    if (feature14_raw_array_call_count != 4) return 7;
+    return 0;
+}
+
+int feature14_wipe_later(int width, int height, int ticks) {
+    feature14_raw_array_call_count += 1;
+    return 700 + width + height + ticks;
+}
+
 void feature14_nested_draw(int x, int y) {
     feature14_nested_inner_calls += 1;
     feature14_nested_value = x * 10 + y;
@@ -962,6 +992,16 @@ int main() {
     } else {
         serial_printf("[feature14-callback-raw-array] FAIL check=%d\n",
                       callback_raw_array_result);
+        ok = 0;
+    }
+
+    int callback_raw_automatic_array_result =
+        feature14_test_callback_raw_automatic_array();
+    if (callback_raw_automatic_array_result == 0) {
+        serial_printf("[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4\n");
+    } else {
+        serial_printf("[feature14-callback-raw-automatic-array] FAIL check=%d\n",
+                      callback_raw_automatic_array_result);
         ok = 0;
     }
 

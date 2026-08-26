@@ -32,6 +32,8 @@ typedef struct {
   ctool_bytes_t bytes;
   const ctool_asm_raw_range_t *raw_ranges;
   ctool_u32 raw_range_count;
+  const ctool_asm_raw_edge_t *raw_edges;
+  ctool_u32 raw_edge_count;
   ctool_u32 raw_origin;
   ctool_string_t entry_symbol;
   ctool_u32 entry_address;
@@ -39,18 +41,20 @@ typedef struct {
 } as_artifact_result_t;
 
 /* Build one kernel-owned CupidASM artifact through the shared assembler.
- * Raw results retain their typed range map. ELF32 results remain unlinked.
- * Executable results pass the relocatable object to CupidLD. Output must be
- * empty, and any failure restores it to empty and clears the result. */
+ * Raw results retain their typed ranges and source-resolved control edges.
+ * ELF32 results remain unlinked. Executable results pass the relocatable
+ * object to CupidLD. Output must be empty, and any failure restores it to
+ * empty and clears the result. */
 ctool_status_t as_artifact_assemble(ctool_job_t *job,
                                     const ctool_source_t *source,
                                     const as_artifact_request_t *request,
                                     ctool_buffer_t *output,
                                     as_artifact_result_t *result_out);
 
-/* Render the canonical map carried by one successful raw result. The result
- * borrows its byte and range views. Output must be empty and stays empty when
- * validation, formatting, or buffer growth fails. */
+/* Render the canonical cupid.raw-map.v2 map carried by one successful raw
+ * result. The result borrows its byte, range, and control-edge views. Output
+ * must be empty and stays empty when validation, formatting, or buffer growth
+ * fails. */
 ctool_status_t as_artifact_render_raw_map(
     const as_artifact_result_t *result, ctool_buffer_t *output);
 

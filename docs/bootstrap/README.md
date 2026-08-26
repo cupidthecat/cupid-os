@@ -51,9 +51,51 @@ records the complete source-head CupidBuild link closure and the hosted
 `memchr` dependency that closure exposed. ADR 0344 records complete seed
 membership and execution-profile validation inside CupidBuild.
 ADR 0345 records the separate six-tool candidate plan and its Toolchain
-publication contract.
+publication contract. ADR 0346 records whole-image candidate certification.
+ADR 0347 records strict certification of every fixed-point C object and the
+typed CupidBuild Windows startup anchors. ADR 0348 records in-OS raw-map v2
+edge carriage and recoverable hosted raw-pair publication. ADR 0349 records
+exact hexadecimal floating constants, ADR 0350 records strict decode-map
+reuse, and ADR 0351 records automatic raw callback arrays.
 
 ## 2026-08-25 source-current checkpoint
+
+The newest source hardening keeps the five-tool checked seeds and normal build
+ownership unchanged. Each fixed-point C object now passes the preceding
+generation's strict CupidDis checks before it can reach CupidLD. The Windows
+CupidBuild startup marks all fourteen exported entries as functions, so the
+code-anchor policy covers them. CupidDis now builds each strict instruction
+map during its summary pass. Anchor-only input decodes once, while local-target
+and source-edge checks add one validation walk. Relocatable ownership keeps
+only the current instruction's claimed relocation indices instead of an
+arena-sized claim array.
+
+Hosted and in-OS CupidASM now keep the same raw control-edge evidence. The
+kernel adapter validates and renders canonical `cupid.raw-map.v2` rows for
+local, external, and unprovable edges. The hosted CLI stages the raw image and
+map together and uses bounded backup, commit, and absent-file records to
+recover either the previous pair or a completed publication. Malformed or
+hostile recovery state fails before a public mutation. These changes do not
+alter successful raw image or map bytes.
+
+Hosted CupidC now converts C99 hexadecimal `float`, `double`, and `long
+double` constants with target-only integer arithmetic, including normals,
+subnormals, halfway rounding, signed zero, finite maxima, overflow, and
+underflow. The private in-OS compiler also accepts fixed-size automatic raw
+callback arrays. It zeroes their local frame slots at each declaration and
+retains the callback signature through braced initialization, indexed stores,
+copies, and JIT or AOT calls. Unsized, parameter, field, and multidimensional
+raw callback arrays remain unsupported.
+The active feature-14 guest requires
+`[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`
+before the nested callback marker.
+
+Focused assembler, disassembler, compiler, and fixed-point boundary tests are
+green. The generated audit, normal image build, and complete private guest
+frontier are also green. Fresh Linux and native Windows fixed points and the
+consolidated Toolchain gate remain required before any newer tool image can be
+promoted. The source-suffix audit still finds no safe `.c` rename because all
+active CupidC-owned translation units already use `.cc`.
 
 CupidBuild now parses its frozen seed manifest instead of searching its text
 for tool records. The current host schema must contain the exact five-tool
@@ -219,10 +261,10 @@ fourteen exact artifacts. The current outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,580,120 | `3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8` |
-| `kernel/kernel.elf` | 9,711,192 | `394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337` |
-| `kernel/kernel.bin` | 9,482,844 | `3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35` |
-| `cupidos.img` | 209,715,200 | `797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612` |
+| `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
+| `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
+| `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
+| `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
 
 The final normal build linked both kernel ELFs, passed the exact verifier, and
 completed strict CupidDis inspection of all 431 production inputs with local
@@ -246,8 +288,9 @@ function-anchor and source-edge carriage and production adoption.
 
 The in-OS CupidASM adapter now exposes raw binary, unlinked ELF32 relocatable,
 and linked executable results through one typed request. Raw results keep the
-shared assembler's source-derived code16, code32, and data ranges and render
-the existing `cupid.raw-map.v1` format. The shell accepts `-f bin|elf32|exec`;
+shared assembler's source-derived code16, code32, and data ranges plus ordered
+control edges, and render canonical `cupid.raw-map.v2`. The shell accepts
+`-f bin|elf32|exec`;
 the older `as -o`, `cupidasm -o`, and source-only `cupidasm` forms still write
 a linked executable. Raw image and map publication prepares both candidates
 before moving a target and restores the previous pair when a command write or
@@ -312,13 +355,17 @@ existing absolute data patch. Indexed stores and calls retain the callback
 signature, including calls written with an explicit unary `*`. A block-static
 raw callback scalar uses the same data-backed path.
 
-Automatic, parameter, record or class field, and multidimensional raw callback
-arrays remain unsupported. Alias chains, conditional field values, aggregate
+Fixed-size automatic raw callback arrays now use zeroed local frame storage and
+retain their signature through braced initialization, indexed stores, copies,
+and calls. Unsized automatic arrays, parameter arrays, record or class field
+arrays, and multidimensional raw callback arrays remain unsupported. Alias
+chains, conditional field values, aggregate
 results, and raw Cupid class method parameters also remain outside this
 boundary. The unchanged `kernel/doom/src/f_wipe.cc` callback table supplies the
 active source requirement. ADR 0325 records the field declaration and call
-boundary, ADR 0328 records typedef-backed callback field arrays, and ADR 0330
-records data-backed raw callback arrays.
+boundary, ADR 0328 records typedef-backed callback field arrays, ADR 0330
+records data-backed raw callback arrays, and ADR 0351 records the automatic
+form.
 
 At the ADR 0328 checkpoint, the private callback ABI module passed all 289
 tests. At the ADR 0330 checkpoint, the module passed all 301 tests in 5.505
@@ -955,9 +1002,10 @@ aggregate results remain outside this path. The active `set_icon_drawer`
 binding carries a nested callback handle through this metadata. Data-backed raw
 callback arrays may use one dimension at file scope, in a block-static
 declaration, or in persistent REPL storage. The same path handles block-static
-raw callback scalars. Automatic, parameter, record or class field, and
-multidimensional raw callback arrays are
-still rejected. Raw and typedef-backed callback fields retain the signature
+raw callback scalars. Fixed-size automatic arrays use the local-frame path and
+retain the same signature. Unsized automatic arrays, parameter arrays, record
+or class field arrays, and multidimensional raw callback arrays are still
+rejected. Raw and typedef-backed callback fields retain the signature
 and support direct postfix calls. A structure or
 class field declared directly with the callback typedef keeps its signature
 for checked stores, null clearing, and copies into named callback objects. A
@@ -1107,9 +1155,10 @@ metadata-free. Callback-valued parameters retain their nested signature, and
 matching descends through raw or typedef-backed signature graphs. The graph is
 limited to 16 callback levels, while all callback values keep their existing
 four-byte i386 representation. One-dimensional raw callback arrays with static
-storage retain
-their signature through indexed stores and calls, but automatic, parameter,
-record or class field, and multidimensional raw arrays remain unsupported. Raw
+storage retain their signature through indexed stores and calls. Fixed-size
+automatic arrays now retain it through the local-frame path, while unsized
+automatic arrays, parameter arrays, record or class field arrays, and
+multidimensional raw arrays remain unsupported. Raw
 callback fields retain their parsed signatures. Direct structure and array results
 remain rejected, while record-pointer identity is retained.
 Named local callback copies are checked too. A structure or class field
@@ -1381,8 +1430,11 @@ workspace. CupidC forms their exact ratios and rounds once at binary32 or
 binary64 width. The path covers halfway values, subnormals, finite limits,
 overflow to infinity, underflow, signed zero, and tokens through 95
 characters. The public frontend, Linear IR, and object contracts inspect the
-same raw payloads. Hexadecimal floating literals, hexadecimal or subnormal
-long-double literals, long-double decimals beyond the bounded ratio parser,
+same raw payloads. Source head also parses C99 hexadecimal constants for
+binary32, binary64, and x87 with the same target-only model. Its contracts
+cover normal, subnormal, halfway, finite-limit, overflow, underflow, suffix,
+signed-zero, malformed, function-body, IR, and object paths. Decimal
+long-double subnormals and long-double decimals beyond the bounded ratio parser,
 other floating-to-wide conversions, atomic floating compound assignment,
 atomic and long-double increment or decrement, SIMD, and over-aligned floating
 objects remain open. ADR 0202 records the runtime truth boundary,
@@ -1390,7 +1442,8 @@ ADR 0256 records canonical static x87 classes, and ADR 0260 records static x87
 arithmetic. ADR 0288 records the runtime integer and long-double usual
 conversions. ADR 0289 records wide integer conversion and usual arithmetic
 with `float` and `double`. ADR 0293 records exact hosted decimal conversion.
-ADR 0296 records mixed arithmetic compound assignment.
+ADR 0296 records mixed arithmetic compound assignment, and ADR 0349 records
+exact hexadecimal conversion.
 
 The static object proof covers exact `1.0L`, the next represented value above
 one, the largest accepted bounded literal, positive and negative zero, and
@@ -2978,9 +3031,8 @@ overrides, positional union or Cupid class lists, static member-address
 constants outside the block-static symbol path, integer-routed and other
 unrepresented address casts, automatic bases, runtime offsets and subscripts,
 block declaration attributes, nested function definitions, computed goto and
-GNU label addresses, broader GNU assembly forms, hexadecimal floating
-constants, hexadecimal or subnormal long-double literals, long-double decimal
-ratios beyond the bounded parser,
+GNU label addresses, broader GNU assembly forms, decimal long-double
+subnormals, long-double decimal ratios beyond the bounded parser,
 remaining floating-to-wide conversions, nonempty identifier-list
 definitions, non-scalar arguments without declared parameter
 types, aggregate variadic reads, block assertions, variable-length arrays and

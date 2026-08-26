@@ -2080,6 +2080,12 @@ def _build_stage(
             360,
         )
         _validate_i386_relocatable(object_path)
+        _certify_relocatable_code_anchors(
+            runner,
+            producers["cupiddis"],
+            object_path,
+            f"{stage_name} CupidC for {logical_source}",
+        )
         return name, object_path
 
     workers = int(plan["workers"])
@@ -2391,6 +2397,12 @@ def _build_windows_stage(
             360,
         )
         _validate_i386_relocatable(object_path)
+        _certify_relocatable_code_anchors(
+            runner,
+            producers["cupiddis"],
+            object_path,
+            f"{stage_name} native CupidC for {logical_source}",
+        )
         return name, object_path
 
     workers = int(native_plan["workers"])

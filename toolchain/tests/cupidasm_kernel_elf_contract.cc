@@ -745,19 +745,42 @@ static int run_artifact_raw(void) {
       0xb8u, 0x34u, 0x12u, 0xaau, 0xbbu,
       0xb8u, 0x78u, 0x56u, 0x34u, 0x12u, 0xc3u};
   static const char expected_map[] =
-      "cupid.raw-map.v1\n"
+      "cupid.raw-map.v2\n"
       "size 11\n"
       "base 0x00008000\n"
+      "edges 0\n"
       "range 0x00000000 code16\n"
       "range 0x00000003 data\n"
       "range 0x00000005 code32\n";
+  static const char edge_source_text[] =
+      "BITS 16\n"
+      "ORG 0x8000\n"
+      "start: jmp next\n"
+      "next: jmp dword 0x08:pm32\n"
+      "BITS 32\n"
+      "pm32: call eax\n"
+      "jmp 0x08:0x00100000\n";
+  static const char expected_edge_map[] =
+      "cupid.raw-map.v2\n"
+      "size 19\n"
+      "base 0x00008000\n"
+      "edges 4\n"
+      "range 0x00000000 code16\n"
+      "range 0x0000000a code32\n"
+      "edge 0x00000000 relative local 0x00000002 0x00008002 16 "
+      "0x00000000\n"
+      "edge 0x00000002 far local 0x0000000a 0x0000800a 32 "
+      "0x00000008\n"
+      "edge 0x0000000a indirect unprovable - - unknown -\n"
+      "edge 0x0000000c far external - 0x00100000 32 0x00000008\n";
   static const char empty_source_text[] =
       "ORG 0x9000\n"
       "VALUE equ 1\n";
   static const char expected_empty_map[] =
-      "cupid.raw-map.v1\n"
+      "cupid.raw-map.v2\n"
       "size 0\n"
-      "base 0x00009000\n";
+      "base 0x00009000\n"
+      "edges 0\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = (ctool_job_t *)0;
@@ -807,11 +830,51 @@ static int run_artifact_raw(void) {
       result.raw_ranges[1].kind != CTOOL_ASM_RAW_RANGE_DATA ||
       result.raw_ranges[2].offset != 5u ||
       result.raw_ranges[2].kind != CTOOL_ASM_RAW_RANGE_CODE32 ||
+      result.raw_edges != (const ctool_asm_raw_edge_t *)0 ||
+      result.raw_edge_count != 0u ||
       ctool_buffer_view(map_output).size !=
           (ctool_u32)(sizeof(expected_map) - 1u) ||
       memcmp(ctool_buffer_view(map_output).data, expected_map,
              sizeof(expected_map) - 1u) != 0) {
     (void)fprintf(stderr, "kernel raw artifact differs (%s)\n",
+                  ctool_status_name(status));
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(map_output);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_buffer_clear(map_output);
+  ctool_buffer_clear(output);
+  source.contents = ctool_bytes(
+      edge_source_text, (ctool_u32)(sizeof(edge_source_text) - 1u));
+  status = as_artifact_assemble(job, &source, &request, output, &result);
+  if (status == CTOOL_OK) {
+    status = as_artifact_render_raw_map(&result, map_output);
+  }
+  if (status != CTOOL_OK || result.bytes.size != 19u ||
+      result.raw_origin != 0x8000u || result.raw_range_count != 2u ||
+      result.raw_edge_count != 4u ||
+      result.raw_edges == (const ctool_asm_raw_edge_t *)0 ||
+      result.raw_edges[0].source_offset != 0u ||
+      result.raw_edges[0].kind != CTOOL_ASM_RAW_EDGE_RELATIVE ||
+      result.raw_edges[0].class_id != CTOOL_ASM_RAW_EDGE_LOCAL ||
+      result.raw_edges[0].target_offset != 2u ||
+      result.raw_edges[0].target_address != 0x8002u ||
+      result.raw_edges[0].target_mode != CTOOL_X86_MODE_16 ||
+      result.raw_edges[0].target_segment != 0u ||
+      result.raw_edges[1].kind != CTOOL_ASM_RAW_EDGE_FAR ||
+      result.raw_edges[1].class_id != CTOOL_ASM_RAW_EDGE_LOCAL ||
+      result.raw_edges[2].kind != CTOOL_ASM_RAW_EDGE_INDIRECT ||
+      result.raw_edges[2].class_id != CTOOL_ASM_RAW_EDGE_UNPROVABLE ||
+      result.raw_edges[3].kind != CTOOL_ASM_RAW_EDGE_FAR ||
+      result.raw_edges[3].class_id != CTOOL_ASM_RAW_EDGE_EXTERNAL ||
+      ctool_buffer_view(map_output).size !=
+          (ctool_u32)(sizeof(expected_edge_map) - 1u) ||
+      memcmp(ctool_buffer_view(map_output).data, expected_edge_map,
+             sizeof(expected_edge_map) - 1u) != 0) {
+    (void)fprintf(stderr, "kernel raw control edges differ (%s)\n",
                   ctool_status_name(status));
     (void)ctool_job_render_diagnostics(job);
     ctool_buffer_close(map_output);
@@ -830,7 +893,9 @@ static int run_artifact_raw(void) {
   }
   if (status != CTOOL_OK || result.bytes.size != 0u ||
       result.raw_ranges != (const ctool_asm_raw_range_t *)0 ||
-      result.raw_range_count != 0u || result.raw_origin != 0x9000u ||
+      result.raw_range_count != 0u ||
+      result.raw_edges != (const ctool_asm_raw_edge_t *)0 ||
+      result.raw_edge_count != 0u || result.raw_origin != 0x9000u ||
       ctool_buffer_view(map_output).size !=
           (ctool_u32)(sizeof(expected_empty_map) - 1u) ||
       memcmp(ctool_buffer_view(map_output).data, expected_empty_map,
@@ -909,7 +974,11 @@ static int run_artifact_relocatable(void) {
       result.bytes.size != ctool_buffer_view(output).size ||
       result.entry_symbol.data != (const char *)0 ||
       result.entry_symbol.size != 0u ||
-      result.entry_address != 0u || result.raw_ranges != (const ctool_asm_raw_range_t *)0 ||
+      result.entry_address != 0u ||
+      result.raw_ranges != (const ctool_asm_raw_range_t *)0 ||
+      result.raw_range_count != 0u ||
+      result.raw_edges != (const ctool_asm_raw_edge_t *)0 ||
+      result.raw_edge_count != 0u || result.raw_origin != 0u ||
       object.file_type != CTOOL_ELF32_ET_REL ||
       object.relocation_count != 2u ||
       target == (const ctool_elf32_symbol_t *)0 ||
@@ -941,18 +1010,45 @@ static int result_is_zero(const as_artifact_result_t *result) {
   return 1;
 }
 
+static int expect_invalid_raw_map(const char *name,
+                                  const as_artifact_result_t *result,
+                                  ctool_buffer_t *output) {
+  ctool_status_t status;
+  ctool_buffer_clear(output);
+  status = as_artifact_render_raw_map(result, output);
+  if (status != CTOOL_ERR_INVALID_ARGUMENT ||
+      ctool_buffer_view(output).size != 0u) {
+    (void)fprintf(stderr, "%s raw map validation differs (%s)\n", name,
+                  ctool_status_name(status));
+    return 0;
+  }
+  return 1;
+}
+
 static int run_artifact_errors(void) {
   static const char source_text[] = "BITS 32\nmain: ret\n";
   static const ctool_u8 sentinel[] = {0x51u, 0x52u};
+  static const ctool_u8 raw_bytes[] = {0x90u, 0xc3u};
+  static const char expected_recovery_map[] =
+      "cupid.raw-map.v2\n"
+      "size 2\n"
+      "base 0x00001000\n"
+      "edges 0\n"
+      "range 0x00000000 code32\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = (ctool_job_t *)0;
   ctool_buffer_t *output = (ctool_buffer_t *)0;
   ctool_buffer_t *map_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited_map_output = (ctool_buffer_t *)0;
   ctool_source_t source;
   ctool_string_t entry;
   as_artifact_request_t request;
   as_artifact_result_t result;
+  as_artifact_result_t invalid_result;
+  ctool_asm_raw_range_t code_range;
+  ctool_asm_raw_range_t data_range;
+  ctool_asm_raw_edge_t edges[2];
   as_command_t command;
   ctool_status_t status;
 
@@ -966,10 +1062,18 @@ static int run_artifact_errors(void) {
                                    &output);
   }
   if (status == CTOOL_OK) {
-    status = ctool_job_open_buffer(job, 32u, 40u, &map_output);
+    status = ctool_job_open_buffer(job, 64u, config.limits.output_bytes,
+                                   &map_output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 32u, 40u, &limited_map_output);
   }
   if (status != CTOOL_OK) {
     if (output != (ctool_buffer_t *)0) ctool_buffer_close(output);
+    if (map_output != (ctool_buffer_t *)0) ctool_buffer_close(map_output);
+    if (limited_map_output != (ctool_buffer_t *)0) {
+      ctool_buffer_close(limited_map_output);
+    }
     if (job != (ctool_job_t *)0) ctool_job_close(job);
     return 1;
   }
@@ -1023,9 +1127,96 @@ static int run_artifact_errors(void) {
                   ctool_status_name(status));
     goto failed;
   }
-  status = as_artifact_render_raw_map(&result, map_output);
-  if (status != CTOOL_ERR_LIMIT || ctool_buffer_view(map_output).size != 0u) {
+  status = as_artifact_render_raw_map(&result, limited_map_output);
+  if (status != CTOOL_ERR_LIMIT ||
+      ctool_buffer_view(limited_map_output).size != 0u) {
     (void)fprintf(stderr, "raw map rollback differs (%s)\n",
+                  ctool_status_name(status));
+    goto failed;
+  }
+
+  code_range.offset = 0u;
+  code_range.kind = CTOOL_ASM_RAW_RANGE_CODE32;
+  data_range.offset = 0u;
+  data_range.kind = CTOOL_ASM_RAW_RANGE_DATA;
+  (void)memset(edges, 0, sizeof(edges));
+  edges[0].source_offset = 0u;
+  edges[0].kind = CTOOL_ASM_RAW_EDGE_INDIRECT;
+  edges[0].class_id = CTOOL_ASM_RAW_EDGE_UNPROVABLE;
+  edges[0].target_offset = CTOOL_ASM_RAW_EDGE_NO_TARGET;
+  edges[0].target_address = CTOOL_ASM_RAW_EDGE_NO_TARGET;
+  edges[0].target_mode = (ctool_x86_mode_t)0;
+  edges[0].target_segment = CTOOL_ASM_RAW_EDGE_NO_TARGET;
+  edges[1] = edges[0];
+  (void)memset(&invalid_result, 0, sizeof(invalid_result));
+  invalid_result.format = AS_ARTIFACT_FORMAT_BIN;
+  invalid_result.bytes = ctool_bytes(raw_bytes, (ctool_u32)sizeof(raw_bytes));
+  invalid_result.raw_ranges = &code_range;
+  invalid_result.raw_range_count = 1u;
+  invalid_result.raw_origin = 0x1000u;
+
+  invalid_result.raw_edge_count = 1u;
+  if (!expect_invalid_raw_map("missing edge storage", &invalid_result,
+                              map_output)) {
+    goto failed;
+  }
+  invalid_result.raw_edges = edges;
+  invalid_result.raw_edge_count = 2u;
+  if (!expect_invalid_raw_map("unordered edge sources", &invalid_result,
+                              map_output)) {
+    goto failed;
+  }
+  invalid_result.raw_ranges = &data_range;
+  invalid_result.raw_edge_count = 1u;
+  if (!expect_invalid_raw_map("data edge source", &invalid_result,
+                              map_output)) {
+    goto failed;
+  }
+  invalid_result.raw_ranges = &code_range;
+  edges[0].kind = CTOOL_ASM_RAW_EDGE_RELATIVE;
+  edges[0].class_id = CTOOL_ASM_RAW_EDGE_LOCAL;
+  edges[0].target_offset = 1u;
+  edges[0].target_address = 0x1002u;
+  edges[0].target_mode = CTOOL_X86_MODE_32;
+  edges[0].target_segment = 0u;
+  if (!expect_invalid_raw_map("inconsistent local edge", &invalid_result,
+                              map_output)) {
+    goto failed;
+  }
+  edges[0].target_address = 0x1001u;
+  edges[0].target_mode = CTOOL_X86_MODE_16;
+  if (!expect_invalid_raw_map("local edge mode mismatch", &invalid_result,
+                              map_output)) {
+    goto failed;
+  }
+  edges[0].class_id = CTOOL_ASM_RAW_EDGE_EXTERNAL;
+  edges[0].target_offset = CTOOL_ASM_RAW_EDGE_NO_TARGET;
+  edges[0].target_address = 0x1001u;
+  edges[0].target_mode = CTOOL_X86_MODE_32;
+  if (!expect_invalid_raw_map("inside-image external edge", &invalid_result,
+                              map_output)) {
+    goto failed;
+  }
+  edges[0].kind = CTOOL_ASM_RAW_EDGE_INDIRECT;
+  edges[0].class_id = CTOOL_ASM_RAW_EDGE_UNPROVABLE;
+  edges[0].target_address = 0x1001u;
+  edges[0].target_mode = (ctool_x86_mode_t)0;
+  edges[0].target_segment = CTOOL_ASM_RAW_EDGE_NO_TARGET;
+  if (!expect_invalid_raw_map("known unprovable edge", &invalid_result,
+                              map_output)) {
+    goto failed;
+  }
+
+  ctool_buffer_clear(map_output);
+  invalid_result.raw_edges = (const ctool_asm_raw_edge_t *)0;
+  invalid_result.raw_edge_count = 0u;
+  status = as_artifact_render_raw_map(&invalid_result, map_output);
+  if (status != CTOOL_OK ||
+      ctool_buffer_view(map_output).size !=
+          (ctool_u32)(sizeof(expected_recovery_map) - 1u) ||
+      memcmp(ctool_buffer_view(map_output).data, expected_recovery_map,
+             sizeof(expected_recovery_map) - 1u) != 0) {
+    (void)fprintf(stderr, "raw map validation recovery differs (%s)\n",
                   ctool_status_name(status));
     goto failed;
   }
@@ -1093,6 +1284,7 @@ static int run_artifact_errors(void) {
     goto failed;
   }
 
+  ctool_buffer_close(limited_map_output);
   ctool_buffer_close(map_output);
   ctool_buffer_close(output);
   ctool_job_close(job);
@@ -1100,6 +1292,7 @@ static int run_artifact_errors(void) {
   return 0;
 
 failed:
+  ctool_buffer_close(limited_map_output);
   ctool_buffer_close(map_output);
   ctool_buffer_close(output);
   ctool_job_close(job);

@@ -252,10 +252,10 @@ against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,580,120 | `3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8` |
-| `kernel/kernel.elf` | 9,711,192 | `394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337` |
-| `kernel/kernel.bin` | 9,482,844 | `3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35` |
-| `cupidos.img` | 209,715,200 | `797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612` |
+| `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
+| `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
+| `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
+| `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
 
 The normal build completed the 431-input local-target and code-anchor scan,
 published this image, and passed a private four-vCPU E1000 frontier smoke. The

@@ -435,11 +435,13 @@ kernel/doom/src/f_wipe.cc declaration, static int (*wipes[])(int, int, int),
 and its wipeno*3 phase dispatch. The
 production Doom object remains a checked-seed hosted CupidC output.
 
-Automatic raw callback arrays, raw callback array parameters, raw callback
-array fields, and multidimensional raw callback arrays remain unsupported.
+Fixed-size automatic raw callback arrays use cleared four-byte local frame
+slots and retain their signature through brace initialization, indexed stores,
+copies, and calls. Unsized automatic arrays, raw callback array parameters,
+raw callback array fields, and multidimensional raw callback arrays remain unsupported.
 Typedef-backed fixed callback arrays on record fields keep their retained
 signature under ADR 0328. ADR 0330 records the data-backed raw array and shared
-block-static scalar rules.
+block-static scalar rules. ADR 0351 records the fixed automatic form.
 Feature 13
 retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
 nested pass-by-value vector

@@ -40,6 +40,15 @@ final-stage CupidDis strictly certifies the corresponding six images. Both
 generations must also reject a private CupidBuild copy with an invalid
 file-backed entry instruction. ADR 0346 records this pre-promotion gate.
 
+Source head now applies the same strict CupidDis policy to every generated C
+object before either fixed-point driver links it. The Windows CupidBuild
+startup marks all fourteen exports as functions, so its anchors participate in
+that proof. CupidDis reuses each executable section's instruction map for
+reporting, relocation ownership, anchors, and local-target setup. The source
+contracts are green; fresh Linux and Windows convergence remains required
+before these changes can support a six-tool promotion. ADR 0347 records object
+certification and the startup closure, and ADR 0350 records decode-map reuse.
+
 The preceding five-tool Linux fixed point completed with the 55-source closure.
 Its coordinator reads only four bytes when it selects the runner for a checked
 tool, so tool-image size no longer controls probe memory. All generation,
@@ -1210,8 +1219,10 @@ behavior. This private change moves no object owner or host dependency. ADR
 
 The source contract matches the active six-entry `wipes` table in
 `kernel/doom/src/f_wipe.cc`. Its three phases select `wipeno*3`,
-`wipeno*3+1`, and `wipeno*3+2`. Automatic raw callback arrays, raw callback
-array parameters, raw callback arrays in records or classes, and
+`wipeno*3+1`, and `wipeno*3+2`. Fixed-size automatic raw callback arrays use
+cleared local frame storage and retain their signature through brace
+initialization, indexed stores, copies, and calls. Unsized automatic arrays,
+raw callback array parameters, raw callback arrays in records or classes, and
 multidimensional raw callback arrays remain unsupported. Alias chains,
 conditional field values, aggregate results,
 and arbitrary computed callback expressions remain outside this typed path.
@@ -1240,14 +1251,18 @@ contract passes against all fourteen exact artifacts.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,580,120 | `3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8` |
-| `kernel/kernel.elf` | 9,711,192 | `394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337` |
-| `kernel/kernel.bin` | 9,482,844 | `3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35` |
-| `cupidos.img` | 209,715,200 | `797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612` |
+| `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
+| `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
+| `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
+| `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
 
 The final normal build passed the exact policy and the strict 431-input
 local-target and code-anchor scan. A private four-vCPU E1000 frontier smoke
 then booted the published image without changing its source bytes.
+The guest reported
+`[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`.
+The 147,688-byte serial log has SHA-256
+`ae0ef6db543d9c046d3291488130407ae47541c329da258a00ef1600f9c0b3b1`.
 
 The first nine-artifact checkpoint on this path guarded the normal boot edge
 with a CupidC-built artifact-size contract. All 443 root transforms had a
@@ -1744,8 +1759,9 @@ copies, null checks, clearing, and direct postfix calls. Direct, nested, and
 indexed record-array member paths share that behavior and evaluate the selected
 designator once. Raw callback scalars and one-dimensional arrays at file scope,
 block-static scope, or persistent REPL scope retain that signature in
-data-backed storage. Automatic raw callback arrays, callback array parameters,
-raw callback arrays in records, multidimensional raw callback arrays, empty
+data-backed storage. Fixed-size automatic raw callback arrays use cleared
+local frame storage and keep the same signature. Unsized automatic arrays,
+callback array parameters, raw callback arrays in records, multidimensional raw callback arrays, empty
 `()`, callback alias chains, and `void *` forms remain
 unsupported or signature-erased. A
 plain function initializer or direct callback argument must match the retained
@@ -1835,8 +1851,9 @@ does the same. A declaration-initialized automatic object does too. A file
 object declared directly with the typedef keeps the signature across
 null initialization, checked assignment, indirect call, and clearing. Raw
 callback scalars and one-dimensional arrays with data-backed static storage
-keep the signature too. Automatic raw callback arrays, callback array
-parameters, raw callback arrays in records, multidimensional raw callback
+keep the signature too. Fixed-size automatic raw callback arrays use cleared
+local frame storage and keep the same signature. Unsized automatic arrays,
+callback array parameters, raw callback arrays in records, multidimensional raw callback
 arrays, empty `()`, callback alias chains, and `void *`
 forms remain unsupported or metadata-free. A structure or class field
 declared through the typedef or a raw function-pointer declarator retains the

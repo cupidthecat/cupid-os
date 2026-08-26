@@ -196,7 +196,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
     "toolchain/tests/cupidasm_kernel_elf_contract.cc",
-    "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+    "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
     "toolchain/tests/cupidc_frontend_contract.cc",
     "toolchain/tests/cupidc_ir_contract.cc",
     "toolchain/tests/cupidc_kernel_simd_fixture.h",
@@ -438,7 +438,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
     "toolchain/tests/cupidasm_kernel_elf_contract.cc",
-    "toolchain/tests/cupidc_exact_decimal_literal_fixture.h",
+    "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
     "toolchain/tests/cupidc_frontend_contract.cc",
     "toolchain/tests/cupidc_ir_contract.cc",
     "toolchain/tests/cupidc_kernel_simd_fixture.h",
@@ -9346,6 +9346,141 @@ def _cupid_toolchain_fixed_point_contract(
             f"certification {missing_candidate_image_fragments!r}; "
             f"corruption {missing_corruption_fragments!r}"
         )
+
+    fixed_point_object_certification_names = (
+        "_certify_relocatable_code_anchors",
+        "_build_stage",
+        "_build_windows_stage",
+    )
+    fixed_point_object_certification_functions = {
+        name: [
+            node
+            for node in bootstrap_tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == name
+        ]
+        for name in fixed_point_object_certification_names
+    }
+    fixed_point_object_certification_errors: list[str] = []
+    if any(
+        len(functions) != 1
+        for functions in fixed_point_object_certification_functions.values()
+    ):
+        fixed_point_object_certification_errors.append(
+            "the helper and both stage builders must be unique"
+        )
+    else:
+        certification_helper = fixed_point_object_certification_functions[
+            "_certify_relocatable_code_anchors"
+        ][0]
+        expected_helper_call = ast.parse(
+            "_run_clean("
+            "runner, cupiddis, "
+            "('--require-known', '--require-local-targets', "
+            "'--require-code-anchors', object_path), "
+            "f'{label} CupidDis code anchors', 120)",
+            mode="eval",
+        ).body
+        helper_calls = [
+            statement.value
+            for statement in certification_helper.body
+            if isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Call)
+            and isinstance(statement.value.func, ast.Name)
+            and statement.value.func.id == "_run_clean"
+        ]
+        if (
+            len(helper_calls) != 1
+            or ast.dump(helper_calls[0], include_attributes=False)
+            != ast.dump(expected_helper_call, include_attributes=False)
+        ):
+            fixed_point_object_certification_errors.append(
+                "the helper must run CupidDis with all three strict policies"
+            )
+
+        for builder_name, expected_label in (
+            (
+                "_build_stage",
+                "f'{stage_name} CupidC for {logical_source}'",
+            ),
+            (
+                "_build_windows_stage",
+                "f'{stage_name} native CupidC for {logical_source}'",
+            ),
+        ):
+            builder = fixed_point_object_certification_functions[
+                builder_name
+            ][0]
+            compile_functions = [
+                statement
+                for statement in builder.body
+                if isinstance(
+                    statement, (ast.FunctionDef, ast.AsyncFunctionDef)
+                )
+                and statement.name == "compile_source"
+            ]
+            if len(compile_functions) != 1:
+                fixed_point_object_certification_errors.append(
+                    f"{builder_name} must have one compile_source worker"
+                )
+                continue
+            compile_function = compile_functions[0]
+            expected_validation = ast.parse(
+                "_validate_i386_relocatable(object_path)", mode="eval"
+            ).body
+            expected_certification = ast.parse(
+                "_certify_relocatable_code_anchors("
+                "runner, producers['cupiddis'], object_path, "
+                f"{expected_label})",
+                mode="eval",
+            ).body
+            expected_return = ast.parse(
+                "return name, object_path"
+            ).body[0]
+            validation_statements = [
+                statement
+                for statement in compile_function.body
+                if isinstance(statement, ast.Expr)
+                and ast.dump(statement.value, include_attributes=False)
+                == ast.dump(expected_validation, include_attributes=False)
+            ]
+            certification_statements = [
+                statement
+                for statement in compile_function.body
+                if isinstance(statement, ast.Expr)
+                and ast.dump(statement.value, include_attributes=False)
+                == ast.dump(expected_certification, include_attributes=False)
+            ]
+            return_statements = [
+                statement
+                for statement in compile_function.body
+                if isinstance(statement, ast.Return)
+                and ast.dump(statement, include_attributes=False)
+                == ast.dump(expected_return, include_attributes=False)
+            ]
+            if (
+                len(validation_statements) != 1
+                or len(certification_statements) != 1
+                or len(return_statements) != 1
+                or not (
+                    compile_function.body.index(validation_statements[0])
+                    < compile_function.body.index(
+                        certification_statements[0]
+                    )
+                    < compile_function.body.index(return_statements[0])
+                )
+            ):
+                fixed_point_object_certification_errors.append(
+                    f"{builder_name} must certify every structurally valid "
+                    "CupidC object before returning it for linking"
+                )
+
+    if fixed_point_object_certification_errors:
+        raise AuditError(
+            "Cupid Toolchain fixed-point C object certification differs: "
+            f"{fixed_point_object_certification_errors!r}"
+        )
+
     linked_code_policy_helper_names = (
         "_check_relocatable_local_target_behavior",
         "_check_executable_local_target_behavior",
@@ -12475,6 +12610,13 @@ def _cupid_toolchain_fixed_point_contract(
             'producers["cupidasm"]',
             'producers["cupidld"]',
             "_validate_i386_relocatable(object_path)\n"
+            "        _certify_relocatable_code_anchors(\n"
+            "            runner,\n"
+            "            producers[\"cupiddis\"],\n"
+            "            object_path,\n"
+            "            f\"{stage_name} native CupidC for "
+            "{logical_source}\",\n"
+            "        )\n"
             "        return name, object_path",
             "_validate_i386_relocatable(object_path)\n"
             "        _certify_relocatable_code_anchors(\n"

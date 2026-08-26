@@ -212,8 +212,8 @@ as is the JIT-first path. The older -o form writes a linked executable.
 cupidasm writes a linked executable by default and derives its name when -o is
 omitted. Both commands accept -f bin|elf32|exec. An explicit -f requires -o,
 and raw output also requires --map. It writes the source-derived
-cupid.raw-map.v1 origin and code16, code32,
-or data ranges beside the flat bytes. ELF32 output remains an unlinked i386
+cupid.raw-map.v2 origin, code16, code32, or data ranges, and ordered control
+edges beside the flat bytes. ELF32 output remains an unlinked i386
 ET_REL file with undefined symbols and relocations. It does not require main
 or _start. Exec output selects main or _start and links with in-kernel CupidLD.
 
@@ -272,8 +272,9 @@ CupidASM can write the same information from its parsed source:
   cupidasm -f bin --map boot.map -o boot.bin boot.asm
   cupiddis --require-known --raw --range-map boot.map boot.bin
 
-The cupid.raw-map.v1 file records the image size, ORG base, and coalesced range
-starts. Instructions use their active BITS mode. Data declarations, alignment,
+The cupid.raw-map.v2 file records the image size, ORG base, coalesced range
+starts, and ordered source-resolved control edges. Instructions use their active
+BITS mode. Data declarations, alignment,
 and reserved storage are data. CupidDis rejects stale sizes, missing or repeated
 fields, invalid kinds, and unordered starts before decoding.
 
@@ -346,8 +347,9 @@ CupidDis also accepts the option for static ELF32 relocatable
 objects:
   cupiddis --require-known --require-local-targets program.o
 
-Each executable PROGBITS section gets its own instruction-start map and two
-decode passes. An unrelocated direct relative target must stay in that section
+Each executable PROGBITS section gets one reusable instruction-start map for
+rendering, relocation ownership, and anchor checks. Local-target validation
+adds only its required target walk. An unrelocated direct relative target must stay in that section
 and land on an instruction start there. A relocation at the operand field
 leaves the destination for link time. The existing relocation-ownership rule
 still checks the field. Failures distinguish a target outside the section from
@@ -390,7 +392,9 @@ separately. Failures distinguish anchors outside code from anchors in the
 middle of an instruction. ADR 0320 records the linked source boundary, ADR
 0323 records its linked promotion and adoption, ADR 0335 records the
 relocatable form, and ADR 0336 records its promotion and active adoption. The
-ISR, context-switch, and hosted startup objects publish 54 typed functions.
+ISR, context-switch, and hosted startup objects publish 68 typed functions.
+All fourteen CupidBuild Windows startup exports now use the function annotation,
+and the active-source contract rejects an untyped startup export.
 
 Source-head and checked-seed CupidDis also check relocations that target executable sections
 in ELF32 relocatable objects. R_386_PC32 must begin at a decoded four-byte

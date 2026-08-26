@@ -159,8 +159,11 @@ right operand. The operation uses `long double`, converts the result back to
 the left type, and evaluates the destination once. Static-duration addition,
 subtraction, multiplication, and
 division use target-only 128-bit integer arithmetic and
-round once to the x87 significand. Hexadecimal or subnormal long-double
-literals and decimals beyond the bounded ratio parser remain outside this
+round once to the x87 significand. Source-head hosted CupidC also parses C99
+hexadecimal floating constants with target-only integer arithmetic. It rounds
+binary32, binary64, and x87 normals, subnormals, and halfway cases once, and
+represents signed zero, finite maxima, overflow, and underflow without a host
+floating parser. Decimal ratios beyond the bounded parser remain outside this
 boundary. ADR 0256 records the canonical x87 class and special-width
 conversion rules. ADR 0260 records the static arithmetic model.
 The static fixture converts `-0.5L` to both `_Bool` and an unsigned integer. The results are one and zero respectively, proving that Boolean truth is checked before numeric truncation. Frozen IR also validates the target type representation. Primitive bases use their canonical target size, signedness, and alignment. An enum, its unwrapped base, and its compatible integer type agree on size, signedness, integer, object, and completeness flags, as well as alignment. A `QUALIFIED` node copies referenced alignment unless it introduces `_Atomic`. An atomic introduction at any layer raises alignment to at least the target atomic alignment. An `ALIGNED` node requires an explicit, nonzero power-of-two alignment and may lower the referenced alignment.
@@ -256,7 +259,10 @@ uninitialized fixed array begin as null. Initializers accept null and
 compatible defined or later-defined functions; a later target uses
 `CC_PATCH_DATA_ABSOLUTE`. Indexed stores and calls keep the retained signature,
 including calls written with an explicit unary `*`. Block-static scalar raw
-callbacks use the same initialized-data path. Automatic raw callback arrays,
+callbacks use the same initialized-data path. A fixed-size automatic raw
+callback array allocates contiguous four-byte frame slots, zeroes the full
+array at each declaration, and retains its signature through braced
+initialization, indexed stores, copies, and calls. Unsized automatic arrays,
 raw callback array parameters, raw record or class field arrays,
 multidimensional raw callback arrays, raw method parameters, conditional field
 values, and aggregate results remain outside this boundary. Callback-valued
@@ -276,7 +282,8 @@ function addresses, ADR 0321 records typedef-backed callback fields, and ADR
 0324 records grouped runtime function addresses. ADR 0325 records raw callback
 fields and direct field calls. ADR 0328 records typedef-backed callback field
 arrays, and ADR 0330 records data-backed raw callback arrays and block-static
-raw callbacks. ADR 0331 records recursive callback-parameter signatures. ADR
+raw callbacks. ADR 0351 records automatic raw callback arrays. ADR 0331
+records recursive callback-parameter signatures. ADR
 0332 records fixed signature publication for reviewed native bindings, and ADR
 0333 records nested callback publication for the active icon drawer binding.
 Source-head guest runtime proves the existing scalar raw forms with
@@ -406,9 +413,11 @@ and NaN. Static `+`, `-`, `*`, and `/` use unsigned 128-bit target arithmetic,
 round once to the explicit x87 significand, and produce final initializer data
 without runtime IR. Runtime conversion between `long double` and every signed
 or unsigned i386 integer width uses `FILD` and `FISTP`; integer output restores
-the caller's x87 control word. Hexadecimal or subnormal long-double literals
-and decimal ratios beyond the bounded parser remain open. ADR 0256 records the
-canonical x87 class rules, and ADR 0260 records the static arithmetic model.
+the caller's x87 control word. Source-head hosted CupidC accepts hexadecimal
+binary32, binary64, and x87 literals, including subnormal x87 payloads. Decimal
+ratios beyond the bounded parser remain open. ADR 0256 records the canonical
+x87 class rules, ADR 0260 records the static arithmetic model, and ADR 0349
+records exact hexadecimal conversion.
 
 The checked cohort requires byte identity for every newly compiled object and
 linked executable. Complete CupidC-emitted closures for CupidC, CupidASM,
@@ -752,7 +761,12 @@ The promoted fixed points above remain five-tool proofs. Source head derives a
 separate six-tool candidate from the same checked v1 plan. Its Linux proof
 freezes 58 inputs and matches 22 C objects, startup, and six tool images. The
 candidate is not a checked seed, and its source snapshot does not replace the
-historical manifest snapshot.
+historical manifest snapshot. Source head now asks the preceding generation's
+CupidDis to certify every C object before linking, not only the startup object.
+The native Windows CupidBuild startup also types all fourteen exported entries
+as functions. Complete Linux and Windows fixed-point reruns remain the gate for
+promoting these newer source bytes. ADR 0347 records the stronger object
+boundary.
 
 The current promoted fixed points bind snapshot
 `46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
@@ -1078,10 +1092,11 @@ that path. Raw callback fields retain the same metadata, and direct postfix
 calls through either field form use the typed cdecl path. A one-dimensional
 raw callback array with static storage retains its signature at block, file,
 and persistent REPL scope; block-static scalar raw callbacks use the same
-data-backed path. Automatic raw callback arrays, raw callback array parameters,
-raw record or class field arrays, multidimensional raw callback arrays, alias
-chains, `void *`, and empty-`()` pointers still lack this support and keep
-focused diagnostics.
+data-backed path. A fixed-size automatic raw callback array uses zeroed local
+frame storage and retains that signature. Unsized automatic arrays, raw
+callback array parameters, raw record or class field arrays, multidimensional
+raw callback arrays, alias chains, `void *`, and empty-`()` pointers still lack
+this support and keep focused diagnostics.
 A plain function initializer or direct `&function` address must match the local
 pointer's result, record identity, fixed parameters, and variadic boundary.
 Named local callback copies follow the same rule. Later target addresses are
@@ -1208,8 +1223,9 @@ _Avoid_: Cupid ASM when referring to the assembler
 **Kernel CupidASM artifact request**:
 The typed in-OS adapter request for raw binary, unlinked ELF32 relocatable, or
 linked executable output. All three forms use the shared CupidASM core. A raw
-result carries borrowed code16, code32, and data ranges plus its origin, and
-the adapter can render those ranges as `cupid.raw-map.v1`. An ELF32 result
+result carries borrowed code16, code32, and data ranges, ordered control edges,
+and its origin. The adapter validates that borrowed view and renders canonical
+`cupid.raw-map.v2`. An ELF32 result
 keeps its sections, undefined symbols, and relocations for a later link. The
 executable form selects `main` or `_start` and passes the object to in-kernel
 CupidLD. Raw image and map publication writes both private candidates before
@@ -1220,8 +1236,9 @@ command can finish deferred cleanup after reusing either member. Without a
 valid record, retained backups belong to an interrupted publication and must
 be restored.
 This rollback pair is not crash-atomic and does not lock concurrent shell
-publishers. ADR 0337 records the boundary.
-_Avoid_: separate kernel assembler, inferred byte-only mode map, crash-safe pair
+publishers. ADR 0337 records the artifact boundary, and ADR 0348 records v2
+edge carriage.
+_Avoid_: separate kernel assembler, inferred byte-only mode map, durable pair
 
 **Cupid ASM alignment statement**:
 The `align POWER_OF_TWO[, FILL_BYTE]` statement. In raw output it aligns the
@@ -1434,8 +1451,9 @@ _Avoid_: debug-line entry, inferred instruction start, unchecked production inpu
 An assembly symbol declared as `global name:function` or
 `extern name:function`. CupidASM records it as `STT_FUNC` without inferring a
 function from global binding. An unannotated assembly symbol remains
-`STT_NOTYPE`. Production uses this form for 54 ISR, context-switch, and hosted
-startup exports.
+`STT_NOTYPE`. Production uses this form for 68 ISR, context-switch, and hosted
+startup exports, including all fourteen entries in the Windows CupidBuild
+startup.
 _Avoid_: treating every global as code, disassembly-inferred function
 
 **Static PE entry anchor**:
@@ -1460,11 +1478,11 @@ greater than one page and touch every step, including the final partial page.
 _Avoid_: fully committed stack, source workaround, writable probe
 
 **Strict decode summary**:
-The typed CupidDis counts of known, unknown, invalid, and truncated instructions across selected code regions. Source head and the checked production seeds also report total and unmatched relocations that target executable sections in an ELF32 relocatable object. Declared raw data and non-executable ELF regions do not enter the summary. The hosted strict policy accepts the report only when its three fallback counts and unmatched relocation count are zero.
+The typed CupidDis counts of known, unknown, invalid, and truncated instructions across selected code regions. Source head and the checked production seeds also report total and unmatched relocations that target executable sections in an ELF32 relocatable object. Declared raw data and non-executable ELF regions do not enter the summary. Source head lets the summary pass fill the instruction-start map used by anchors and targets. Anchor-only checks decode once; local-target and source-edge checks add one validation walk after the complete map exists. The hosted strict policy accepts the report only when its three fallback counts and unmatched relocation count are zero. ADR 0350 records decode-map reuse.
 _Avoid_: searching rendered `db` rows, counting data as instructions, a replacement for ordinary disassembly output
 
 **Executable relocation ownership**:
-The match between one ELF32 code relocation and one decoded four-byte instruction field at the same section offset. `R_386_PC32` owns a relative field, while `R_386_32` owns a non-relative field. Relocations in data sections do not take part. Both checked production seeds carry the rule, and the public CupidASM object transaction rejects unmatched executable relocations before publication.
+The match between one ELF32 code relocation and one decoded four-byte instruction field at the same section offset. `R_386_PC32` owns a relative field, while `R_386_32` owns a non-relative field. Relocations in data sections do not take part. Source head tracks only the relocation indices claimed by the current instruction, bounded by the decoder field limit, instead of allocating one claim byte per relocation. Both checked production seeds carry the rule, and the public CupidASM object transaction rejects unmatched executable relocations before publication.
 _Avoid_: any relocation inside an instruction, parsing rendered operands, data relocation validation
 
 ### Bootstrap
@@ -1700,19 +1718,23 @@ Windows skips. That checkpoint reached the exact-size gate with changed
 pass-one ELF, final ELF, and raw-kernel outputs. After those three policy rows
 were updated, its repeat passed in 874.531 seconds and checked all fourteen
 artifacts.
-The source-head kernel outputs are a 9,580,120-byte
+The source-head kernel outputs are a 9,596,956-byte
 `kernel/kernel.elf.pass1` with SHA-256
-`3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8`, a
-9,711,192-byte `kernel/kernel.elf` with SHA-256
-`394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337`,
-and a 9,482,844-byte `kernel/kernel.bin` with SHA-256
-`3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35`.
+`fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1`, a
+9,728,028-byte `kernel/kernel.elf` with SHA-256
+`18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e`,
+and a 9,499,524-byte `kernel/kernel.bin` with SHA-256
+`be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949`.
 The published 209,715,200-byte `cupidos.img` has SHA-256
-`797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612`.
+`fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602`.
 The normal build linked both ELFs and completed strict inspection of all 431
 production inputs with local-target and code-anchor checks. A private
 four-vCPU E1000 frontier smoke booted the image and passed its SMP, terminal,
 framebuffer, and audio checks.
+The guest reported
+`[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`.
+The 147,688-byte serial log has SHA-256
+`ae0ef6db543d9c046d3291488130407ae47541c329da258a00ef1600f9c0b3b1`.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
 duplicate, linked, nonregular, or differently sized members fail. An

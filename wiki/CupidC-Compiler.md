@@ -207,8 +207,10 @@ records fixed native signatures, and ADR 0333 records the nested binding.
 The separate data-backed raw-array path serves the active six-entry table in
 `kernel/doom/src/f_wipe.cc`. The table groups three handlers per wipe and uses
 indexes `wipeno*3`,
-`wipeno*3+1`, and `wipeno*3+2`. Automatic raw callback arrays, raw callback
-array parameters, raw callback arrays in records or classes, and
+`wipeno*3+1`, and `wipeno*3+2`. Fixed-size automatic raw callback arrays use
+cleared local frame storage and retain their signature through brace
+initialization, indexed stores, copies, and calls. Unsized automatic arrays,
+raw callback array parameters, raw callback arrays in records or classes, and
 multidimensional raw callback arrays remain unsupported. Conditional field
 values, callback alias chains, raw method parameters, aggregate results, and
 arbitrary computed callback expressions remain outside
@@ -379,8 +381,9 @@ checked stores, named copies, null checks, clearing, and direct postfix calls.
 Direct, nested, and indexed record-array member paths share that behavior and
 evaluate the selected designator once. A data-backed raw callback scalar or
 one-dimensional array at file scope, block-static scope, or persistent REPL
-scope also keeps the signature. Automatic raw callback arrays, callback array
-parameters, raw callback arrays in records, multidimensional raw callback
+scope also keeps the signature. Fixed-size automatic raw callback arrays use
+cleared local frame storage and keep the same signature. Unsized automatic
+arrays, callback array parameters, raw callback arrays in records, multidimensional raw callback
 arrays, empty `()`, callback alias chains, and `void *`
 pointers remain unsupported or signature-erased. Direct structure and array callback results are
 rejected; record-pointer results retain their record identity. Named SIMD
@@ -425,8 +428,11 @@ method sugar. Typedef-backed callback field arrays retain the signature through
 indexed stores, named copies, and direct calls, with each index evaluated once.
 Raw callback scalars and one-dimensional arrays with static storage share the
 global initialized-data, absolute-patch, checked store, and typed indexed-call
-rules. Conditional callback expressions, automatic or parameter raw callback
-arrays, raw callback arrays in records, multidimensional raw callback arrays,
+rules. Fixed-size automatic raw callback arrays use contiguous four-byte frame
+slots, are cleared on every declaration, and support brace initialization,
+later targets, indexed stores, copies, and calls. Conditional callback
+expressions, unsized automatic or parameter raw callback arrays, raw callback
+arrays in records, multidimensional raw callback arrays,
 alias chains, raw method parameters, and aggregate callback results remain
 unsupported. The raw signature pool accepts 32 distinct parameter
 signatures. Runtime initialization and assignment accept `&(function)` and
@@ -437,7 +443,8 @@ in the same state. ADR
 typedef-backed field boundary, ADR 0324 records grouped runtime addresses, and
 ADR 0325 records raw fields and direct postfix field calls, and ADR 0328
 records typedef-backed callback field arrays. ADR 0330 records the static
-storage raw callback array boundary.
+storage raw callback array boundary, and ADR 0351 records fixed automatic
+storage.
 
 A fixed `int` or `unsigned int` parameter may also receive a represented
 object pointer as one unchanged i386 word. Narrow and floating destinations
@@ -805,12 +812,15 @@ feature 13 for the broader comparison and truth behavior. In GUI mode, the
 shell writes the listing to the terminal and mirrors it to serial only after
 the usual sink and redirection checks. That gives the runtime gate production
 CupidDis evidence without duplicating ordinary text-mode output.
-Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
-long-double decimals beyond the bounded ratio parser, other floating-to-wide
+C99 hexadecimal floating literals now round exactly to binary32, binary64, or
+x87 extended width, including normal, subnormal, overflow, underflow, and tie
+cases. Long-double decimals beyond the bounded ratio parser, other
+floating-to-wide
 conversions, atomic floating compound assignment, atomic and `long double`
 increment or decrement, SIMD values, and over-aligned object emission remain
 unfinished.
 ADR 0229 records the exact decimal representation and automatic object proof.
+ADR 0349 records hexadecimal parsing.
 ADR 0250 records runtime conversion to unsigned four-byte targets. ADR 0251
 records exact static long-double data. ADR 0253 records runtime conversions
 between `long double` and integers. ADR 0254 records static initializer
@@ -1450,8 +1460,7 @@ Static long-double truth, comparison, short-circuit logic, conditional
 selection, and conversion to or from binary32 and binary64 fold through the
 target representation and emit no runtime work. Canonical x87 infinity and
 NaN cross the same path, and the decoder accepts canonical subnormal payloads.
-Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
-long-double ratios beyond the bounded parser, other floating-to-wide
+Long-double decimal ratios beyond the bounded parser, other floating-to-wide
 conversions, atomic floating compound assignment, and atomic or `long double`
 increment and decrement remain unsupported.
 Static `+`, `-`, `*`, and `/` fold with integer-only x87 target arithmetic and
@@ -1682,14 +1691,14 @@ and digests. The focused semantic-contract, checked-runner, and
 independent-policy modules contain 22, 16, and 13 tests, for 51 total. They
 pass with four existing platform-specific skips. The source-head artifact
 contract passes against all fourteen exact artifacts. The pass-one ELF is
-9,580,120 bytes with SHA-256
-`3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8`.
-The final ELF is 9,711,192 bytes with SHA-256
-`394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337`.
-The raw kernel is 9,482,844 bytes with SHA-256
-`3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35`.
+9,596,956 bytes with SHA-256
+`fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1`.
+The final ELF is 9,728,028 bytes with SHA-256
+`18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e`.
+The raw kernel is 9,499,524 bytes with SHA-256
+`be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949`.
 The disk image is 209,715,200 bytes with SHA-256
-`797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612`.
+`fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602`.
 The normal build completed its 431-input code-anchor scan, and the image passed
 a private four-vCPU E1000 frontier smoke.
 
@@ -2915,9 +2924,8 @@ conversion cover `float`, `double`, and automatic `long double`. Runtime
 arithmetic, comparisons, and conditional selection convert every represented
 value integer and enum to `long double`. Operations that mix an eight-byte
 integer with `float` or `double`, atomic and `long double` updates,
-hexadecimal floating literals, hexadecimal or subnormal long-double literals,
-long-double ratios beyond the bounded parser and SIMD remain open in the
-hosted path. Static long-double
+long-double decimal ratios beyond the bounded parser and SIMD remain open in
+the hosted path. Static long-double
 arithmetic folds with integer-only 128-bit intermediates.
 Static long-double
 truth, comparisons, short-circuit logic, conditional selection, and

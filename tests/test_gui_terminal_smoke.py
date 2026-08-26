@@ -176,6 +176,8 @@ def _frontier_command_outputs():
             "cleared=1 reassigned=1 calls=3\n"
             "[feature14-callback-raw-array] PASS modes=2 phases=3 "
             "calls=12 stored=1 persistent=1\n"
+            "[feature14-callback-raw-automatic-array] PASS zeroed=4 "
+            "initialized=2 assigned=1 copied=2 later=1 calls=4\n"
             "[feature14-callback-nested] PASS outer=1 inner=1 value=43\n"
             "[feature14-callback-binding] PASS call=1 ignored=1 callback=0\n"
             "[feature14-callback-automatic] PASS local=4 method=4 calls=2\n"
@@ -2141,6 +2143,10 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "[feature14-callback-raw-array] PASS modes=2 phases=3 "
                 "calls=12 stored=1 persistent=1\n"
             ),
+            (
+                "[feature14-callback-raw-automatic-array] PASS zeroed=4 "
+                "initialized=2 assigned=1 copied=2 later=1 calls=4\n"
+            ),
             "[feature14-callback-nested] PASS outer=1 inner=1 value=43\n",
             "[feature14-callback-binding] PASS call=1 ignored=1 callback=0\n",
             (
@@ -2185,6 +2191,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "[feature14-callback-field] FAIL",
             "[feature14-callback-field-call] FAIL",
             "[feature14-callback-raw-array] FAIL",
+            "[feature14-callback-raw-automatic-array] FAIL",
             "[feature14-callback-nested] FAIL",
             "[feature14-callback-binding] FAIL",
             "[feature14-minmax] FAIL",
@@ -2265,6 +2272,12 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "cleared=1 reassigned=1 calls=3",
             "[feature14-callback-raw-array] PASS modes=2 phases=3 "
             "calls=12 stored=1 persistent=1",
+            "int (*automatic_callbacks[4])(int, int, int) =",
+            "int (*automatic_zeroed[2])(int, int, int);",
+            "int (*automatic_copied)(int, int, int) =",
+            "automatic_callbacks[2] = feature14_wipe_replacement;",
+            "[feature14-callback-raw-automatic-array] PASS zeroed=4 "
+            "initialized=2 assigned=1 copied=2 later=1 calls=4",
             "void (*set_drawer)(int, void (*)(int, int)) =",
             "void feature14_nested_install(int handle, "
             "void (*drawer)(int, int))",
@@ -2328,16 +2341,16 @@ class FrontierRuntimeContractTests(unittest.TestCase):
     def test_feature14_nested_callback_evidence_keeps_callback_order(self):
         command = _frontier_command("/bin/feature14_simd.cc")
         sample = _frontier_command_output("/bin/feature14_simd.cc")
-        raw_array = (
-            "[feature14-callback-raw-array] PASS modes=2 phases=3 "
-            "calls=12 stored=1 persistent=1\n"
+        automatic_array = (
+            "[feature14-callback-raw-automatic-array] PASS zeroed=4 "
+            "initialized=2 assigned=1 copied=2 later=1 calls=4\n"
         )
         nested = (
             "[feature14-callback-nested] PASS outer=1 inner=1 value=43\n"
         )
         reordered = sample.replace(
-            raw_array + nested,
-            nested + raw_array,
+            automatic_array + nested,
+            nested + automatic_array,
             1,
         )
 

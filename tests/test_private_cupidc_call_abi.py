@@ -4791,6 +4791,54 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     result.returncode, 85, result.stdout + result.stderr
                 )
 
+    def test_automatic_raw_callback_arrays_run_in_jit_and_aot(self):
+        source = """
+            int index_calls;
+
+            int combine(double first, int second) {
+              return (int)first * 10 + second;
+            }
+
+            int later(double first, int second);
+
+            int replacement(double first, int second) {
+              return (int)first * 20 + second;
+            }
+
+            int next_index(void) {
+              index_calls += 1;
+              return 1;
+            }
+
+            int dispatch(int replace) {
+              int (*callbacks[3])(double, int) = { combine, later };
+              int (*zeroed[1])(double, int);
+              int (*copied)(double, int) = callbacks[0];
+              if (callbacks[2] != 0) return 1;
+              if (zeroed[0] != 0) return 6;
+              if (replace) callbacks[next_index()] = replacement;
+              return copied(2.5, 4) + callbacks[1](2.5, 4);
+            }
+
+            int later(double first, int second) {
+              return (int)first * 10 + second + 10;
+            }
+
+            int main(void) {
+              if (dispatch(0) != 58) return 2;
+              if (dispatch(1) != 68) return 3;
+              if (index_calls != 1) return 4;
+              if (dispatch(0) != 58) return 5;
+              return 86;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 86, result.stdout + result.stderr
+                )
+
     def test_raw_callback_arrays_keep_mixed_width_calls_and_one_store_index(self):
         source = """
             int call_index_calls;
@@ -5005,14 +5053,37 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 "function-pointer initializer result does not match declaration",
             ),
             (
-                "automatic-storage",
+                "automatic-unsized",
                 """
+                int identity(int value) { return value; }
                 int main(void) {
-                  int (*callbacks[2])(int);
+                  int (*callbacks[])(int) = { identity };
                   return 0;
                 }
                 """,
-                "automatic raw function-pointer arrays are not supported",
+                "automatic raw function-pointer array size is required",
+            ),
+            (
+                "automatic-incompatible-initializer",
+                """
+                int right(int value) { return value; }
+                int wrong(double value) { return (int)value; }
+                int main(void) {
+                  int (*callbacks[2])(int) = { right, wrong };
+                  return 0;
+                }
+                """,
+                "function-pointer initializer parameters do not match declaration",
+            ),
+            (
+                "automatic-frame-capacity",
+                """
+                int main(void) {
+                  int (*callbacks[536870909])(int);
+                  return 0;
+                }
+                """,
+                "local frame size overflow",
             ),
             (
                 "parameter-storage",
@@ -5202,7 +5273,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         retry_source = """
             int right(int value) { return value; }
             int main(void) {
-              static int (*callbacks[])(int) = { right };
+              int (*callbacks[1])(int) = { right };
               return callbacks[0](9);
             }
         """

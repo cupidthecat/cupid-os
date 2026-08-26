@@ -16,8 +16,17 @@ static ctool_status_t dis_prepare_raw_label_order(ctool_job_t *job,
 typedef struct {
   const ctool_dis_report_t *report;
   ctool_u32 section_file_index;
-  ctool_u8 *relocation_claimed;
+  ctool_u32 claimed_count;
+  ctool_u32 claimed_indices[CTOOL_X86_MAX_FIELDS];
+  ctool_u64 matched_count;
 } dis_relocation_ownership_t;
+
+static ctool_status_t dis_summarize_region(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_bytes_t bytes, ctool_x86_mode_t mode,
+    dis_relocation_ownership_t *ownership,
+    ctool_dis_decode_summary_t *summary, ctool_u8 *instruction_starts,
+    ctool_u32 map_base);
 
 static ctool_bool
 dis_field_accepts_relocation(const ctool_x86_field_t *field,
@@ -124,6 +133,76 @@ static ctool_bool dis_field_has_relocation(
     }
   }
   return CTOOL_FALSE;
+}
+
+static ctool_u32 dis_find_owned_field_relocation(
+    dis_relocation_ownership_t *ownership, ctool_u32 instruction_offset,
+    const ctool_x86_field_t *field) {
+  const ctool_dis_report_t *report = ownership->report;
+  const ctool_elf32_object_t *object = &report->elf32;
+  ctool_u32 first;
+  ctool_u32 claimed;
+  ctool_u32 site;
+  if (instruction_offset > DIS_U32_MAX - (ctool_u32)field->byte_offset) {
+    return DIS_U32_MAX;
+  }
+  site = instruction_offset + (ctool_u32)field->byte_offset;
+  first = dis_relocation_site_lower_bound(
+      report, ownership->section_file_index, site);
+  while (first < report->relocation_site_order_count) {
+    ctool_u32 relocation_index = report->relocation_site_order[first];
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[relocation_index];
+    ctool_bool already_claimed = CTOOL_FALSE;
+    if (relocation->target_section_file_index !=
+            ownership->section_file_index ||
+        relocation->offset != site) {
+      break;
+    }
+    for (claimed = 0u; claimed < ownership->claimed_count; claimed++) {
+      if (ownership->claimed_indices[claimed] == relocation_index) {
+        already_claimed = CTOOL_TRUE;
+      }
+    }
+    if (already_claimed == CTOOL_FALSE &&
+        dis_field_accepts_relocation(field, relocation) == CTOOL_TRUE) {
+      return relocation_index;
+    }
+    first++;
+  }
+  return DIS_U32_MAX;
+}
+
+static void dis_begin_relocation_ownership(
+    ctool_dis_report_t *report, dis_relocation_ownership_t *ownership) {
+  ctool_u32 index;
+  ownership->report = report;
+  ownership->section_file_index = 0u;
+  ownership->claimed_count = 0u;
+  ownership->matched_count = 0u;
+  for (index = 0u; index < report->elf32.relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &report->elf32.relocations[index];
+    const ctool_elf32_section_t *target =
+        &report->elf32.sections[relocation->target_section_file_index];
+    if (target->type == CTOOL_ELF32_SHT_PROGBITS &&
+        (target->flags & CTOOL_ELF32_SHF_EXECINSTR) != 0u) {
+      report->decode_summary.executable_relocation_count++;
+    }
+  }
+}
+
+static ctool_status_t dis_finish_relocation_ownership(
+    ctool_dis_report_t *report,
+    const dis_relocation_ownership_t *ownership) {
+  if (ownership->matched_count >
+      report->decode_summary.executable_relocation_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  report->decode_summary.unmatched_executable_relocation_count =
+      report->decode_summary.executable_relocation_count -
+      ownership->matched_count;
+  return CTOOL_OK;
 }
 
 static void dis_zero_report(ctool_dis_report_t *report) {
@@ -424,11 +503,22 @@ dis_raw_kind_at_offset(const ctool_dis_report_t *report, ctool_u32 offset) {
   return CTOOL_DIS_RAW_RANGE_DATA;
 }
 
-static ctool_status_t dis_scan_local_target_region(
+static ctool_bool dis_decoded_raw_edge(
+    const ctool_x86_decoded_t *decoded, ctool_dis_raw_edge_kind_t *kind_out,
+    const ctool_x86_operand_t **operand_out);
+static ctool_u32 dis_raw_edge_index(const ctool_dis_report_t *report,
+                                    ctool_u32 source_offset);
+static void dis_validate_raw_edge_target(
+    ctool_dis_report_t *report, const ctool_dis_raw_edge_t *edge,
+    ctool_x86_mode_t source_mode, ctool_u32 actual_address,
+    ctool_u16 actual_bits, const ctool_u8 *instruction_starts,
+    ctool_bool *invalid_out);
+
+static ctool_status_t dis_scan_raw_policy_region(
     ctool_job_t *job, const ctool_x86_decoder_t *decoder,
     ctool_dis_report_t *report, ctool_u32 first, ctool_u32 last,
     ctool_x86_mode_t mode, ctool_u8 *instruction_starts,
-    ctool_bool mark_starts) {
+    ctool_u8 *matched_edges) {
   ctool_bytes_t bytes;
   ctool_u32 offset = 0u;
   if (first == last) {
@@ -447,9 +537,7 @@ static ctool_status_t dis_scan_local_target_region(
     }
     if (decoded.kind == CTOOL_X86_DECODE_KNOWN) {
       ctool_u32 source_offset = first + offset;
-      if (mark_starts == CTOOL_TRUE) {
-        dis_instruction_start_set(instruction_starts, source_offset);
-      } else {
+      if ((report->policies & CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u) {
         ctool_u32 operand_index;
         for (operand_index = 0u;
              operand_index < (ctool_u32)decoded.instruction.operand_count;
@@ -499,6 +587,59 @@ static ctool_status_t dis_scan_local_target_region(
           }
         }
       }
+      if ((report->policies & CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES) != 0u) {
+        ctool_dis_raw_edge_kind_t decoded_kind;
+        const ctool_x86_operand_t *operand =
+            (const ctool_x86_operand_t *)0;
+        if (dis_decoded_raw_edge(&decoded, &decoded_kind, &operand) ==
+            CTOOL_TRUE) {
+          ctool_u32 edge_index = dis_raw_edge_index(report, source_offset);
+          if (edge_index == DIS_U32_MAX) {
+            report->decode_summary.source_control_edge_count++;
+            report->decode_summary.source_control_edge_invalid_count++;
+            report->decode_summary
+                .source_control_edge_source_mismatch_count++;
+          } else {
+            const ctool_dis_raw_edge_t *edge = &report->raw_edges[edge_index];
+            ctool_bool invalid = CTOOL_FALSE;
+            dis_instruction_start_set(matched_edges, edge_index);
+            if (edge->kind != decoded_kind) {
+              report->decode_summary
+                  .source_control_edge_source_mismatch_count++;
+              invalid = CTOOL_TRUE;
+            } else if (decoded_kind == CTOOL_DIS_RAW_EDGE_INDIRECT) {
+              if (edge->class_id != CTOOL_DIS_RAW_EDGE_UNPROVABLE) {
+                report->decode_summary
+                    .source_control_edge_source_mismatch_count++;
+                invalid = CTOOL_TRUE;
+              }
+            } else if (decoded_kind == CTOOL_DIS_RAW_EDGE_RELATIVE) {
+              ctool_u32 target = dis_relative_target(
+                  report->base_address + source_offset, &decoded, operand);
+              dis_validate_raw_edge_target(
+                  report, edge, mode, target,
+                  decoded.instruction.operand_bits, instruction_starts,
+                  &invalid);
+            } else {
+              const ctool_x86_far_pointer_t *far = &operand->as.far_pointer;
+              if (far->offset.kind != CTOOL_X86_VALUE_CONSTANT ||
+                  far->segment.kind != CTOOL_X86_VALUE_CONSTANT ||
+                  far->segment.bits != edge->target_segment) {
+                report->decode_summary
+                    .source_control_edge_target_mismatch_count++;
+                invalid = CTOOL_TRUE;
+              }
+              dis_validate_raw_edge_target(
+                  report, edge, mode, far->offset.bits,
+                  decoded.instruction.operand_bits, instruction_starts,
+                  &invalid);
+            }
+            if (invalid == CTOOL_TRUE) {
+              report->decode_summary.source_control_edge_invalid_count++;
+            }
+          }
+        }
+      }
     } else if (decoded.kind == CTOOL_X86_DECODE_TRUNCATED) {
       decoded.consumed = decoded.encoding.size;
     }
@@ -508,53 +649,6 @@ static ctool_status_t dis_scan_local_target_region(
     offset += (ctool_u32)decoded.consumed;
   }
   return CTOOL_OK;
-}
-
-static ctool_status_t dis_prepare_raw_local_target_summary(
-    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
-    ctool_dis_report_t *report) {
-  ctool_arena_t *arena = ctool_job_arena(job);
-  ctool_arena_mark_t mark = ctool_arena_mark(arena);
-  ctool_u8 *instruction_starts = (ctool_u8 *)0;
-  ctool_u32 bitset_size = report->source->contents.size / 8u;
-  ctool_u32 pass;
-  ctool_u32 index;
-  ctool_status_t status = CTOOL_OK;
-  ctool_status_t rewind_status;
-  if (report->source->contents.size % 8u != 0u) {
-    bitset_size++;
-  }
-  if (bitset_size != 0u) {
-    status = ctool_arena_alloc_zero(arena, bitset_size,
-                                    (ctool_u32)sizeof(ctool_u8),
-                                    (ctool_u32)sizeof(ctool_u8),
-                                    (void **)&instruction_starts);
-  }
-  for (pass = 0u; status == CTOOL_OK && pass < 2u; pass++) {
-    if (report->mode != CTOOL_DIS_RAW_RANGE_MAP) {
-      status = dis_scan_local_target_region(
-          job, decoder, report, 0u, report->source->contents.size,
-          report->mode, instruction_starts,
-          pass == 0u ? CTOOL_TRUE : CTOOL_FALSE);
-      continue;
-    }
-    for (index = 0u;
-         status == CTOOL_OK && index < report->raw_range_count; index++) {
-      ctool_u32 first = report->raw_ranges[index].offset;
-      ctool_u32 last = index + 1u < report->raw_range_count
-                           ? report->raw_ranges[index + 1u].offset
-                           : report->source->contents.size;
-      if (report->raw_ranges[index].kind == CTOOL_DIS_RAW_RANGE_DATA) {
-        continue;
-      }
-      status = dis_scan_local_target_region(
-          job, decoder, report, first, last,
-          dis_raw_range_mode(report->raw_ranges[index].kind),
-          instruction_starts, pass == 0u ? CTOOL_TRUE : CTOOL_FALSE);
-    }
-  }
-  rewind_status = ctool_arena_rewind(arena, mark);
-  return status == CTOOL_OK ? rewind_status : status;
 }
 
 static ctool_bool dis_decoded_raw_edge(
@@ -687,99 +781,7 @@ static void dis_validate_raw_edge_target(
   }
 }
 
-static ctool_status_t dis_scan_raw_source_edge_region(
-    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
-    ctool_dis_report_t *report, ctool_u32 first, ctool_u32 last,
-    ctool_x86_mode_t mode, ctool_u8 *instruction_starts,
-    ctool_u8 *matched_edges, ctool_bool mark_starts) {
-  ctool_bytes_t bytes;
-  ctool_u32 offset = 0u;
-  if (first == last) {
-    return CTOOL_OK;
-  }
-  bytes = ctool_bytes(report->source->contents.data + first, last - first);
-  while (offset < bytes.size) {
-    ctool_x86_decoded_t decoded;
-    ctool_status_t status =
-        decoder == (const ctool_x86_decoder_t *)0
-            ? ctool_x86_decode(job, mode, bytes, offset, &decoded)
-            : ctool_x86_decode_indexed(job, decoder, mode, bytes, offset,
-                                       &decoded);
-    if (status != CTOOL_OK) {
-      return status;
-    }
-    if (decoded.kind == CTOOL_X86_DECODE_KNOWN) {
-      ctool_u32 source_offset = first + offset;
-      if (mark_starts == CTOOL_TRUE) {
-        dis_instruction_start_set(instruction_starts, source_offset);
-      } else {
-        ctool_dis_raw_edge_kind_t decoded_kind;
-        const ctool_x86_operand_t *operand =
-            (const ctool_x86_operand_t *)0;
-        if (dis_decoded_raw_edge(&decoded, &decoded_kind, &operand) ==
-            CTOOL_TRUE) {
-          ctool_u32 edge_index =
-              dis_raw_edge_index(report, source_offset);
-          if (edge_index == DIS_U32_MAX) {
-            report->decode_summary.source_control_edge_count++;
-            report->decode_summary.source_control_edge_invalid_count++;
-            report->decode_summary
-                .source_control_edge_source_mismatch_count++;
-          } else {
-            const ctool_dis_raw_edge_t *edge =
-                &report->raw_edges[edge_index];
-            ctool_bool invalid = CTOOL_FALSE;
-            dis_instruction_start_set(matched_edges, edge_index);
-            if (edge->kind != decoded_kind) {
-              report->decode_summary
-                  .source_control_edge_source_mismatch_count++;
-              invalid = CTOOL_TRUE;
-            } else if (decoded_kind == CTOOL_DIS_RAW_EDGE_INDIRECT) {
-              if (edge->class_id != CTOOL_DIS_RAW_EDGE_UNPROVABLE) {
-                report->decode_summary
-                    .source_control_edge_source_mismatch_count++;
-                invalid = CTOOL_TRUE;
-              }
-            } else if (decoded_kind == CTOOL_DIS_RAW_EDGE_RELATIVE) {
-              ctool_u32 target = dis_relative_target(
-                  report->base_address + source_offset, &decoded, operand);
-              dis_validate_raw_edge_target(
-                  report, edge, mode, target,
-                  decoded.instruction.operand_bits, instruction_starts,
-                  &invalid);
-            } else {
-              const ctool_x86_far_pointer_t *far =
-                  &operand->as.far_pointer;
-              if (far->offset.kind != CTOOL_X86_VALUE_CONSTANT ||
-                  far->segment.kind != CTOOL_X86_VALUE_CONSTANT ||
-                  far->segment.bits != edge->target_segment) {
-                report->decode_summary
-                    .source_control_edge_target_mismatch_count++;
-                invalid = CTOOL_TRUE;
-              }
-              dis_validate_raw_edge_target(
-                  report, edge, mode, far->offset.bits,
-                  decoded.instruction.operand_bits, instruction_starts,
-                  &invalid);
-            }
-            if (invalid == CTOOL_TRUE) {
-              report->decode_summary.source_control_edge_invalid_count++;
-            }
-          }
-        }
-      }
-    } else if (decoded.kind == CTOOL_X86_DECODE_TRUNCATED) {
-      decoded.consumed = decoded.encoding.size;
-    }
-    if (decoded.consumed == 0u || decoded.consumed > bytes.size - offset) {
-      return CTOOL_ERR_INTERNAL;
-    }
-    offset += (ctool_u32)decoded.consumed;
-  }
-  return CTOOL_OK;
-}
-
-static ctool_status_t dis_prepare_raw_source_edge_summary(
+static ctool_status_t dis_prepare_raw_policy_summaries(
     ctool_job_t *job, const ctool_x86_decoder_t *decoder,
     ctool_dis_report_t *report) {
   ctool_arena_t *arena = ctool_job_arena(job);
@@ -788,7 +790,6 @@ static ctool_status_t dis_prepare_raw_source_edge_summary(
   ctool_u32 matched_bytes = report->raw_edge_count / 8u;
   ctool_u8 *instruction_starts = (ctool_u8 *)0;
   ctool_u8 *matched_edges = (ctool_u8 *)0;
-  ctool_u32 pass;
   ctool_u32 index;
   ctool_status_t status = CTOOL_OK;
   ctool_status_t rewind_status;
@@ -803,24 +804,32 @@ static ctool_status_t dis_prepare_raw_source_edge_summary(
         arena, start_bytes, (ctool_u32)sizeof(ctool_u8),
         (ctool_u32)sizeof(ctool_u8), (void **)&instruction_starts);
   }
-  if (status == CTOOL_OK && matched_bytes != 0u) {
+  if (status == CTOOL_OK && matched_bytes != 0u &&
+      (report->policies & CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES) != 0u) {
     status = ctool_arena_alloc_zero(
         arena, matched_bytes, (ctool_u32)sizeof(ctool_u8),
         (ctool_u32)sizeof(ctool_u8), (void **)&matched_edges);
   }
-  report->decode_summary.source_control_edge_count =
-      report->raw_edge_count;
-  for (index = 0u; index < report->raw_edge_count; index++) {
-    if (report->raw_edges[index].class_id == CTOOL_DIS_RAW_EDGE_LOCAL) {
-      report->decode_summary.source_control_edge_local_count++;
-    } else if (report->raw_edges[index].class_id ==
-               CTOOL_DIS_RAW_EDGE_EXTERNAL) {
-      report->decode_summary.source_control_edge_external_count++;
-    } else {
-      report->decode_summary.source_control_edge_unprovable_count++;
+  if ((report->policies & CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES) != 0u) {
+    report->decode_summary.source_control_edge_count = report->raw_edge_count;
+    for (index = 0u; index < report->raw_edge_count; index++) {
+      if (report->raw_edges[index].class_id == CTOOL_DIS_RAW_EDGE_LOCAL) {
+        report->decode_summary.source_control_edge_local_count++;
+      } else if (report->raw_edges[index].class_id ==
+                 CTOOL_DIS_RAW_EDGE_EXTERNAL) {
+        report->decode_summary.source_control_edge_external_count++;
+      } else {
+        report->decode_summary.source_control_edge_unprovable_count++;
+      }
     }
   }
-  for (pass = 0u; status == CTOOL_OK && pass < 2u; pass++) {
+  if (status == CTOOL_OK && report->mode != CTOOL_DIS_RAW_RANGE_MAP) {
+    status = dis_summarize_region(
+        job, decoder, report->source->contents, report->mode,
+        (dis_relocation_ownership_t *)0, &report->decode_summary,
+        instruction_starts, 0u);
+  }
+  if (report->mode == CTOOL_DIS_RAW_RANGE_MAP) {
     for (index = 0u;
          status == CTOOL_OK && index < report->raw_range_count; index++) {
       ctool_u32 first = report->raw_ranges[index].offset;
@@ -830,18 +839,42 @@ static ctool_status_t dis_prepare_raw_source_edge_summary(
       if (report->raw_ranges[index].kind == CTOOL_DIS_RAW_RANGE_DATA) {
         continue;
       }
-      status = dis_scan_raw_source_edge_region(
-          job, decoder, report, first, last,
+      status = dis_summarize_region(
+          job, decoder,
+          ctool_bytes(report->source->contents.data + first, last - first),
           dis_raw_range_mode(report->raw_ranges[index].kind),
-          instruction_starts, matched_edges,
-          pass == 0u ? CTOOL_TRUE : CTOOL_FALSE);
+          (dis_relocation_ownership_t *)0, &report->decode_summary,
+          instruction_starts, first);
     }
   }
-  for (index = 0u; status == CTOOL_OK && index < report->raw_edge_count;
-       index++) {
-    if (dis_instruction_start_get(matched_edges, index) == CTOOL_FALSE) {
-      report->decode_summary.source_control_edge_invalid_count++;
-      report->decode_summary.source_control_edge_source_mismatch_count++;
+  if (status == CTOOL_OK && report->mode != CTOOL_DIS_RAW_RANGE_MAP) {
+    status = dis_scan_raw_policy_region(
+        job, decoder, report, 0u, report->source->contents.size,
+        report->mode, instruction_starts, matched_edges);
+  }
+  if (report->mode == CTOOL_DIS_RAW_RANGE_MAP) {
+    for (index = 0u;
+         status == CTOOL_OK && index < report->raw_range_count; index++) {
+      ctool_u32 first = report->raw_ranges[index].offset;
+      ctool_u32 last = index + 1u < report->raw_range_count
+                           ? report->raw_ranges[index + 1u].offset
+                           : report->source->contents.size;
+      if (report->raw_ranges[index].kind == CTOOL_DIS_RAW_RANGE_DATA) {
+        continue;
+      }
+      status = dis_scan_raw_policy_region(
+          job, decoder, report, first, last,
+          dis_raw_range_mode(report->raw_ranges[index].kind),
+          instruction_starts, matched_edges);
+    }
+  }
+  if ((report->policies & CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES) != 0u) {
+    for (index = 0u; status == CTOOL_OK && index < report->raw_edge_count;
+         index++) {
+      if (dis_instruction_start_get(matched_edges, index) == CTOOL_FALSE) {
+        report->decode_summary.source_control_edge_invalid_count++;
+        report->decode_summary.source_control_edge_source_mismatch_count++;
+      }
     }
   }
   rewind_status = ctool_arena_rewind(arena, mark);
@@ -851,7 +884,7 @@ static ctool_status_t dis_prepare_raw_source_edge_summary(
 static ctool_status_t dis_scan_elf_local_target_section(
     ctool_job_t *job, const ctool_x86_decoder_t *decoder,
     ctool_dis_report_t *report, const ctool_elf32_section_t *section,
-    ctool_u8 *instruction_starts, ctool_bool mark_starts) {
+    ctool_u8 *instruction_starts) {
   ctool_u32 offset = 0u;
   while (offset < section->contents.size) {
     ctool_x86_decoded_t decoded;
@@ -865,45 +898,41 @@ static ctool_status_t dis_scan_elf_local_target_section(
       return status;
     }
     if (decoded.kind == CTOOL_X86_DECODE_KNOWN) {
-      if (mark_starts == CTOOL_TRUE) {
-        dis_instruction_start_set(instruction_starts, offset);
-      } else {
-        ctool_u32 operand_index;
-        for (operand_index = 0u;
-             operand_index < (ctool_u32)decoded.instruction.operand_count;
-             operand_index++) {
-          const ctool_x86_operand_t *operand =
-              &decoded.instruction.operands[operand_index];
-          ctool_bool relocated = CTOOL_FALSE;
-          ctool_u32 field_index;
-          ctool_u32 target;
-          if (operand->kind != CTOOL_X86_OPERAND_RELATIVE ||
-              operand->as.value.kind != CTOOL_X86_VALUE_CONSTANT) {
-            continue;
+      ctool_u32 operand_index;
+      for (operand_index = 0u;
+           operand_index < (ctool_u32)decoded.instruction.operand_count;
+           operand_index++) {
+        const ctool_x86_operand_t *operand =
+            &decoded.instruction.operands[operand_index];
+        ctool_bool relocated = CTOOL_FALSE;
+        ctool_u32 field_index;
+        ctool_u32 target;
+        if (operand->kind != CTOOL_X86_OPERAND_RELATIVE ||
+            operand->as.value.kind != CTOOL_X86_VALUE_CONSTANT) {
+          continue;
+        }
+        for (field_index = 0u;
+             field_index < (ctool_u32)decoded.encoding.field_count;
+             field_index++) {
+          const ctool_x86_field_t *field =
+              &decoded.encoding.fields[field_index];
+          if ((ctool_u32)field->operand_index == operand_index &&
+              field->kind == CTOOL_X86_FIELD_RELATIVE &&
+              dis_field_has_relocation(report, section->file_index, offset,
+                                       field) == CTOOL_TRUE) {
+            relocated = CTOOL_TRUE;
           }
-          for (field_index = 0u;
-               field_index < (ctool_u32)decoded.encoding.field_count;
-               field_index++) {
-            const ctool_x86_field_t *field =
-                &decoded.encoding.fields[field_index];
-            if ((ctool_u32)field->operand_index == operand_index &&
-                field->kind == CTOOL_X86_FIELD_RELATIVE &&
-                dis_field_has_relocation(report, section->file_index, offset,
-                                         field) == CTOOL_TRUE) {
-              relocated = CTOOL_TRUE;
-            }
-          }
-          if (relocated == CTOOL_TRUE) {
-            continue;
-          }
-          report->decode_summary.direct_relative_target_count++;
-          target = dis_relative_target(offset, &decoded, operand);
-          if (target >= section->contents.size) {
-            report->decode_summary.direct_relative_outside_section_count++;
-          } else if (dis_instruction_start_get(instruction_starts, target) ==
-                     CTOOL_FALSE) {
-            report->decode_summary.direct_relative_mid_instruction_count++;
-          }
+        }
+        if (relocated == CTOOL_TRUE) {
+          continue;
+        }
+        report->decode_summary.direct_relative_target_count++;
+        target = dis_relative_target(offset, &decoded, operand);
+        if (target >= section->contents.size) {
+          report->decode_summary.direct_relative_outside_section_count++;
+        } else if (dis_instruction_start_get(instruction_starts, target) ==
+                   CTOOL_FALSE) {
+          report->decode_summary.direct_relative_mid_instruction_count++;
         }
       }
     } else if (decoded.kind == CTOOL_X86_DECODE_TRUNCATED) {
@@ -939,7 +968,9 @@ static ctool_status_t dis_prepare_rel_policy_summaries(
     ctool_job_t *job, const ctool_x86_decoder_t *decoder,
     ctool_dis_report_t *report) {
   ctool_arena_t *arena = ctool_job_arena(job);
+  dis_relocation_ownership_t ownership;
   ctool_u32 index;
+  dis_begin_relocation_ownership(report, &ownership);
   if ((report->policies & CTOOL_DIS_POLICY_CODE_ANCHORS) != 0u) {
     for (index = 0u; index < report->elf32.symbol_count; index++) {
       const ctool_elf32_symbol_t *symbol = &report->elf32.symbols[index];
@@ -977,13 +1008,16 @@ static ctool_status_t dis_prepare_rel_policy_summaries(
         arena, bitset_size, (ctool_u32)sizeof(ctool_u8),
         (ctool_u32)sizeof(ctool_u8), (void **)&instruction_starts);
     if (status == CTOOL_OK) {
-      status = dis_scan_elf_local_target_section(
-          job, decoder, report, section, instruction_starts, CTOOL_TRUE);
+      ownership.section_file_index = index;
+      ownership.claimed_count = 0u;
+      status = dis_summarize_region(
+          job, decoder, section->contents, report->mode, &ownership,
+          &report->decode_summary, instruction_starts, 0u);
     }
     if (status == CTOOL_OK &&
         (report->policies & CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u) {
       status = dis_scan_elf_local_target_section(
-          job, decoder, report, section, instruction_starts, CTOOL_FALSE);
+          job, decoder, report, section, instruction_starts);
     }
     if (status == CTOOL_OK &&
         (report->policies & CTOOL_DIS_POLICY_CODE_ANCHORS) != 0u) {
@@ -1015,7 +1049,7 @@ static ctool_status_t dis_prepare_rel_policy_summaries(
       return rewind_status;
     }
   }
-  return CTOOL_OK;
+  return dis_finish_relocation_ownership(report, &ownership);
 }
 
 typedef struct {
@@ -1192,8 +1226,7 @@ static ctool_bool dis_exec_address_is_loaded(
 static ctool_status_t dis_scan_exec_local_target_region(
     ctool_job_t *job, const ctool_x86_decoder_t *decoder,
     ctool_dis_report_t *report, const dis_exec_region_t *region,
-    ctool_u32 map_base,
-    ctool_u8 *instruction_starts, ctool_bool mark_starts) {
+    ctool_u8 *instruction_starts) {
   ctool_u32 offset = 0u;
   while (offset < region->contents.size) {
     ctool_x86_decoded_t decoded;
@@ -1207,36 +1240,32 @@ static ctool_status_t dis_scan_exec_local_target_region(
       return status;
     }
     if (decoded.kind == CTOOL_X86_DECODE_KNOWN) {
-      if (mark_starts == CTOOL_TRUE) {
-        dis_instruction_start_set(instruction_starts, map_base + offset);
-      } else {
-        ctool_u32 operand_index;
-        for (operand_index = 0u;
-             operand_index < (ctool_u32)decoded.instruction.operand_count;
-             operand_index++) {
-          const ctool_x86_operand_t *operand =
-              &decoded.instruction.operands[operand_index];
-          ctool_u32 target;
-          ctool_u32 target_map_offset;
-          if (operand->kind != CTOOL_X86_OPERAND_RELATIVE ||
-              operand->as.value.kind != CTOOL_X86_VALUE_CONSTANT) {
-            continue;
+      ctool_u32 operand_index;
+      for (operand_index = 0u;
+           operand_index < (ctool_u32)decoded.instruction.operand_count;
+           operand_index++) {
+        const ctool_x86_operand_t *operand =
+            &decoded.instruction.operands[operand_index];
+        ctool_u32 target;
+        ctool_u32 target_map_offset;
+        if (operand->kind != CTOOL_X86_OPERAND_RELATIVE ||
+            operand->as.value.kind != CTOOL_X86_VALUE_CONSTANT) {
+          continue;
+        }
+        report->decode_summary.direct_relative_target_count++;
+        target = dis_relative_target(region->address + offset, &decoded,
+                                     operand);
+        if (dis_exec_code_map_offset(report, target, &target_map_offset) ==
+            CTOOL_FALSE) {
+          if (dis_exec_address_is_loaded(report, target) == CTOOL_TRUE) {
+            report->decode_summary.direct_relative_data_count++;
+          } else {
+            report->decode_summary.direct_relative_outside_image_count++;
           }
-          report->decode_summary.direct_relative_target_count++;
-          target = dis_relative_target(region->address + offset,
-                                       &decoded, operand);
-          if (dis_exec_code_map_offset(report, target, &target_map_offset) ==
-              CTOOL_FALSE) {
-            if (dis_exec_address_is_loaded(report, target) == CTOOL_TRUE) {
-              report->decode_summary.direct_relative_data_count++;
-            } else {
-              report->decode_summary.direct_relative_outside_image_count++;
-            }
-          } else if (dis_instruction_start_get(
-                         instruction_starts, target_map_offset) ==
-                     CTOOL_FALSE) {
-            report->decode_summary.direct_relative_mid_instruction_count++;
-          }
+        } else if (dis_instruction_start_get(instruction_starts,
+                                             target_map_offset) ==
+                   CTOOL_FALSE) {
+          report->decode_summary.direct_relative_mid_instruction_count++;
         }
       }
     } else if (decoded.kind == CTOOL_X86_DECODE_TRUNCATED) {
@@ -1294,16 +1323,16 @@ static ctool_status_t dis_prepare_exec_policy_summaries(
       if (dis_exec_code_region_at(report, index, &region) == CTOOL_FALSE) {
         continue;
       }
-      status = dis_scan_exec_local_target_region(
-          job, decoder, report, &region, map_base, instruction_starts,
-          CTOOL_TRUE);
+      status = dis_summarize_region(
+          job, decoder, region.contents, report->mode,
+          (dis_relocation_ownership_t *)0, &report->decode_summary,
+          instruction_starts, map_base);
       map_base += region.contents.size;
     }
   }
   if (status == CTOOL_OK &&
       (report->policies & CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u) {
     ctool_u32 index;
-    ctool_u32 map_base = 0u;
     for (index = 0u;
          status == CTOOL_OK && index < dis_exec_region_count(report);
          index++) {
@@ -1312,9 +1341,7 @@ static ctool_status_t dis_prepare_exec_policy_summaries(
         continue;
       }
       status = dis_scan_exec_local_target_region(
-          job, decoder, report, &region, map_base, instruction_starts,
-          CTOOL_FALSE);
-      map_base += region.contents.size;
+          job, decoder, report, &region, instruction_starts);
     }
   }
   if (status == CTOOL_OK &&
@@ -1345,8 +1372,9 @@ static ctool_status_t
 dis_summarize_region(ctool_job_t *job, const ctool_x86_decoder_t *decoder,
                      ctool_bytes_t bytes,
                      ctool_x86_mode_t mode,
-                     const dis_relocation_ownership_t *ownership,
-                     ctool_dis_decode_summary_t *summary) {
+                     dis_relocation_ownership_t *ownership,
+                     ctool_dis_decode_summary_t *summary,
+                     ctool_u8 *instruction_starts, ctool_u32 map_base) {
   ctool_u32 offset = 0u;
   while (offset < bytes.size) {
     ctool_x86_decoded_t decoded;
@@ -1360,17 +1388,24 @@ dis_summarize_region(ctool_job_t *job, const ctool_x86_decoder_t *decoder,
     }
     switch (decoded.kind) {
     case CTOOL_X86_DECODE_KNOWN:
-      if (ownership != (const dis_relocation_ownership_t *)0 &&
-          ownership->relocation_claimed != (ctool_u8 *)0) {
+      if (instruction_starts != (ctool_u8 *)0) {
+        dis_instruction_start_set(instruction_starts, map_base + offset);
+      }
+      if (ownership != (dis_relocation_ownership_t *)0) {
         ctool_u32 field_index;
+        ownership->claimed_count = 0u;
         for (field_index = 0u; field_index < decoded.encoding.field_count;
              field_index++) {
-          ctool_u32 relocation_index = dis_find_field_relocation(
-              ownership->report, ownership->section_file_index, 0u, offset,
-              &decoded.encoding.fields[field_index],
-              ownership->relocation_claimed);
+          ctool_u32 relocation_index = dis_find_owned_field_relocation(
+              ownership, offset, &decoded.encoding.fields[field_index]);
           if (relocation_index != DIS_U32_MAX) {
-            ownership->relocation_claimed[relocation_index] = 1u;
+            if (ownership->claimed_count >= CTOOL_X86_MAX_FIELDS) {
+              return CTOOL_ERR_INTERNAL;
+            }
+            ownership->claimed_indices[ownership->claimed_count] =
+                relocation_index;
+            ownership->claimed_count++;
+            ownership->matched_count++;
           }
         }
       }
@@ -1409,8 +1444,8 @@ static ctool_status_t dis_prepare_decode_summary(
     if (report->mode != CTOOL_DIS_RAW_RANGE_MAP) {
       return dis_summarize_region(job, decoder, report->source->contents,
                                   report->mode,
-                                  (const dis_relocation_ownership_t *)0,
-                                  &report->decode_summary);
+                                  (dis_relocation_ownership_t *)0,
+                                  &report->decode_summary, (ctool_u8 *)0, 0u);
     }
     for (index = 0u; status == CTOOL_OK && index < report->raw_range_count;
          index++) {
@@ -1425,8 +1460,8 @@ static ctool_status_t dis_prepare_decode_summary(
           job, decoder,
           ctool_bytes(report->source->contents.data + first, last - first),
           dis_raw_range_mode(report->raw_ranges[index].kind),
-          (const dis_relocation_ownership_t *)0,
-          &report->decode_summary);
+          (dis_relocation_ownership_t *)0,
+          &report->decode_summary, (ctool_u8 *)0, 0u);
     }
     return status;
   }
@@ -1440,8 +1475,8 @@ static ctool_status_t dis_prepare_decode_summary(
       }
       status = dis_summarize_region(
           job, decoder, region.contents, report->mode,
-          (const dis_relocation_ownership_t *)0,
-          &report->decode_summary);
+          (dis_relocation_ownership_t *)0,
+          &report->decode_summary, (ctool_u8 *)0, 0u);
     }
     return status;
   }
@@ -1458,37 +1493,15 @@ static ctool_status_t dis_prepare_decode_summary(
       }
       status = dis_summarize_region(job, decoder, program->contents,
                                     report->mode,
-                                    (const dis_relocation_ownership_t *)0,
-                                    &report->decode_summary);
+                                    (dis_relocation_ownership_t *)0,
+                                    &report->decode_summary, (ctool_u8 *)0,
+                                    0u);
     }
     return status;
   }
   {
-    ctool_arena_t *arena = ctool_job_arena(job);
-    ctool_arena_mark_t mark = ctool_arena_mark(arena);
     dis_relocation_ownership_t ownership;
-    ctool_status_t rewind_status;
-    ownership.report = report;
-    ownership.section_file_index = 0u;
-    ownership.relocation_claimed = (ctool_u8 *)0;
-    if (report->elf32.relocation_count != 0u) {
-      status = ctool_arena_alloc_zero(
-          arena, report->elf32.relocation_count, (ctool_u32)sizeof(ctool_u8),
-          (ctool_u32)sizeof(ctool_u8),
-          (void **)&ownership.relocation_claimed);
-    }
-    for (index = 0u;
-         status == CTOOL_OK && index < report->elf32.relocation_count;
-         index++) {
-      const ctool_elf32_relocation_t *relocation =
-          &report->elf32.relocations[index];
-      const ctool_elf32_section_t *target =
-          &report->elf32.sections[relocation->target_section_file_index];
-      if (target->type == CTOOL_ELF32_SHT_PROGBITS &&
-          (target->flags & CTOOL_ELF32_SHF_EXECINSTR) != 0u) {
-        report->decode_summary.executable_relocation_count++;
-      }
-    }
+    dis_begin_relocation_ownership(report, &ownership);
     for (index = 0u; status == CTOOL_OK && index < report->elf32.section_count;
          index++) {
       const ctool_elf32_section_t *section = &report->elf32.sections[index];
@@ -1498,30 +1511,14 @@ static ctool_status_t dis_prepare_decode_summary(
         continue;
       }
       ownership.section_file_index = index;
+      ownership.claimed_count = 0u;
       status = dis_summarize_region(job, decoder, section->contents,
                                     report->mode, &ownership,
-                                    &report->decode_summary);
+                                    &report->decode_summary, (ctool_u8 *)0,
+                                    0u);
     }
     if (status == CTOOL_OK) {
-      ctool_u64 matched = 0u;
-      for (index = 0u;
-           ownership.relocation_claimed != (ctool_u8 *)0 &&
-           index < report->elf32.relocation_count;
-           index++) {
-        if (ownership.relocation_claimed[index] != 0u) {
-          matched++;
-        }
-      }
-      if (matched > report->decode_summary.executable_relocation_count) {
-        status = CTOOL_ERR_INTERNAL;
-      } else {
-        report->decode_summary.unmatched_executable_relocation_count =
-            report->decode_summary.executable_relocation_count - matched;
-      }
-    }
-    rewind_status = ctool_arena_rewind(arena, mark);
-    if (status == CTOOL_OK) {
-      status = rewind_status;
+      status = dis_finish_relocation_ownership(report, &ownership);
     }
   }
   return status;
@@ -1652,20 +1649,13 @@ static ctool_status_t dis_inspect(
     arena = ctool_job_arena(job);
     mark = ctool_arena_mark(arena);
     status = dis_prepare_raw_label_order(job, report_out);
-    if (status == CTOOL_OK) {
+    if (status == CTOOL_OK &&
+        (report_out->policies &
+         (CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
+          CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES)) != 0u) {
+      status = dis_prepare_raw_policy_summaries(job, decoder, report_out);
+    } else if (status == CTOOL_OK) {
       status = dis_prepare_decode_summary(job, decoder, report_out);
-    }
-    if (status == CTOOL_OK &&
-        (report_out->policies &
-         CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS) != 0u) {
-      status =
-          dis_prepare_raw_local_target_summary(job, decoder, report_out);
-    }
-    if (status == CTOOL_OK &&
-        (report_out->policies &
-         CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES) != 0u) {
-      status =
-          dis_prepare_raw_source_edge_summary(job, decoder, report_out);
     }
     if (status != CTOOL_OK) {
       (void)ctool_arena_rewind(arena, mark);
@@ -1710,12 +1700,12 @@ static ctool_status_t dis_inspect(
     report_out->views = request->views;
     report_out->policies = request->policies;
     report_out->mode = CTOOL_X86_MODE_32;
-    status = dis_prepare_decode_summary(job, decoder, report_out);
-    if (status == CTOOL_OK &&
-        (report_out->policies &
+    if ((report_out->policies &
          (CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
           CTOOL_DIS_POLICY_CODE_ANCHORS)) != 0u) {
       status = dis_prepare_exec_policy_summaries(job, decoder, report_out);
+    } else {
+      status = dis_prepare_decode_summary(job, decoder, report_out);
     }
     if (status != CTOOL_OK) {
       (void)ctool_arena_rewind(arena, mark);
@@ -1835,22 +1825,20 @@ static ctool_status_t dis_inspect(
   report_out->policies = request->policies;
   report_out->mode = CTOOL_X86_MODE_32;
   status = dis_prepare_report_orders(job, report_out);
-  if (status == CTOOL_OK) {
-    status = dis_prepare_decode_summary(job, decoder, report_out);
-  }
   if (status == CTOOL_OK &&
       report_out->elf32.file_type == CTOOL_ELF32_ET_REL &&
       (report_out->policies &
        (CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
         CTOOL_DIS_POLICY_CODE_ANCHORS)) != 0u) {
     status = dis_prepare_rel_policy_summaries(job, decoder, report_out);
-  }
-  if (status == CTOOL_OK &&
+  } else if (status == CTOOL_OK &&
       report_out->elf32.file_type == CTOOL_ELF32_ET_EXEC &&
       (report_out->policies &
        (CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
         CTOOL_DIS_POLICY_CODE_ANCHORS)) != 0u) {
     status = dis_prepare_exec_policy_summaries(job, decoder, report_out);
+  } else if (status == CTOOL_OK) {
+    status = dis_prepare_decode_summary(job, decoder, report_out);
   }
   if (status != CTOOL_OK) {
     (void)ctool_arena_rewind(arena, mark);

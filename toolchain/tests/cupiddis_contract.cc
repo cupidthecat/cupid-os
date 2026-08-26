@@ -294,6 +294,19 @@ static ctool_dis_request_t raw_request(ctool_x86_mode_t mode,
   return request;
 }
 
+static int decode_ownership_counts_equal(
+    const ctool_dis_decode_summary_t *left,
+    const ctool_dis_decode_summary_t *right) {
+  return left->known_count == right->known_count &&
+         left->unknown_count == right->unknown_count &&
+         left->invalid_count == right->invalid_count &&
+         left->truncated_count == right->truncated_count &&
+         left->executable_relocation_count ==
+             right->executable_relocation_count &&
+         left->unmatched_executable_relocation_count ==
+             right->unmatched_executable_relocation_count;
+}
+
 static int summaries_equal(const ctool_dis_decode_summary_t *left,
                            const ctool_dis_decode_summary_t *right) {
   return left->known_count == right->known_count &&
@@ -819,6 +832,9 @@ static int run_targets(void) {
     ctool_dis_request_t request =
         raw_request(CTOOL_DIS_RAW_RANGE_MAP, 0x1000u);
     ctool_dis_report_t report;
+    ctool_dis_report_t indexed_report;
+    ctool_dis_decode_summary_t edge_only_summary;
+    const ctool_x86_decoder_t *decoder;
     ctool_status_t status;
     if (!open_job(&edge_adapter, &edge_job)) {
       ctool_job_close(job);
@@ -843,6 +859,36 @@ static int run_targets(void) {
       ctool_job_close(job);
       return 1;
     }
+    edge_only_summary = report.decode_summary;
+    request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
+                       CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES;
+    status = ctool_dis_inspect(edge_job, &source, &request, &report);
+    if (status == CTOOL_OK) {
+      status = ctool_x86_decoder_prepare(edge_job, &decoder);
+    }
+    if (status == CTOOL_OK) {
+      status = ctool_dis_inspect_indexed(edge_job, decoder, &source, &request,
+                                         &indexed_report);
+    }
+    if (!check_status(status, CTOOL_OK,
+                      "combined raw target and source-edge policies") ||
+        !decode_ownership_counts_equal(&edge_only_summary,
+                                       &report.decode_summary) ||
+        report.decode_summary.direct_relative_target_count != 1u ||
+        report.decode_summary.direct_relative_outside_image_count != 0u ||
+        report.decode_summary.direct_relative_data_count != 0u ||
+        report.decode_summary.direct_relative_wrong_mode_count != 0u ||
+        report.decode_summary.direct_relative_mid_instruction_count != 0u ||
+        report.decode_summary.source_control_edge_count != 1u ||
+        report.decode_summary.source_control_edge_invalid_count != 0u ||
+        !summaries_equal(&report.decode_summary,
+                         &indexed_report.decode_summary)) {
+      (void)fprintf(stderr, "combined raw policy summary differs\n");
+      ctool_job_close(edge_job);
+      ctool_job_close(job);
+      return 1;
+    }
+    request.policies = CTOOL_DIS_POLICY_SOURCE_CONTROL_EDGES;
 
     source.contents = ctool_bytes(source_edge_changed,
                                   (ctool_u32)sizeof(source_edge_changed));
@@ -2781,6 +2827,7 @@ static int run_anchors(void) {
   ctool_dis_request_t request;
   ctool_dis_report_t report;
   ctool_dis_report_t indexed_report;
+  ctool_dis_decode_summary_t anchor_only_summary;
   const ctool_x86_decoder_t *decoder;
   ctool_status_t status;
   if (image_size == 0u || !open_job(&adapter, &job)) {
@@ -2814,12 +2861,20 @@ static int run_anchors(void) {
     ctool_job_close(job);
     return 1;
   }
+  anchor_only_summary = report.decode_summary;
   request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
                      CTOOL_DIS_POLICY_CODE_ANCHORS;
   status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_inspect_indexed(job, decoder, &source, &request,
+                                       &indexed_report);
+  }
   if (!check_status(status, CTOOL_OK, "combined executable code policies") ||
       report.decode_summary.code_anchor_count != 3u ||
-      report.decode_summary.direct_relative_target_count != 0u) {
+      report.decode_summary.direct_relative_target_count != 0u ||
+      !summaries_equal(&anchor_only_summary, &report.decode_summary) ||
+      !summaries_equal(&report.decode_summary,
+                       &indexed_report.decode_summary)) {
     ctool_job_close(job);
     return 1;
   }
@@ -2921,6 +2976,7 @@ static int run_anchors(void) {
     ctool_buffer_t *middle_object = (ctool_buffer_t *)0;
     ctool_buffer_t *outside_object = (ctool_buffer_t *)0;
     ctool_buffer_t *absolute_object = (ctool_buffer_t *)0;
+    ctool_dis_report_t baseline_report;
     ctool_dis_request_t invalid_request =
         raw_request(CTOOL_X86_MODE_32, 0u);
     if (!open_job(&adapter, &job)) {
@@ -2958,10 +3014,16 @@ static int run_anchors(void) {
     (void)memset(&invalid_request, 0, sizeof(invalid_request));
     invalid_request.input = CTOOL_DIS_INPUT_ELF32;
     invalid_request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+    status = ctool_dis_inspect(job, &source, &invalid_request,
+                               &baseline_report);
     invalid_request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
                                CTOOL_DIS_POLICY_CODE_ANCHORS;
-    status = ctool_dis_inspect(job, &source, &invalid_request, &report);
+    if (status == CTOOL_OK) {
+      status = ctool_dis_inspect(job, &source, &invalid_request, &report);
+    }
     if (!check_status(status, CTOOL_OK, "relocatable code anchors") ||
+        !decode_ownership_counts_equal(&baseline_report.decode_summary,
+                                       &report.decode_summary) ||
         report.decode_summary.code_anchor_count != 3u ||
         report.decode_summary.code_anchor_outside_executable_count != 0u ||
         report.decode_summary.code_anchor_mid_instruction_count != 0u ||
@@ -3592,6 +3654,9 @@ static int run_pe32(void) {
   ctool_pe32_image_t image;
   ctool_dis_request_t request;
   ctool_dis_report_t report;
+  ctool_dis_report_t baseline_report;
+  ctool_dis_report_t indexed_report;
+  const ctool_x86_decoder_t *decoder;
   capture_t capture;
   ctool_u8 *damaged;
   ctool_status_t status;
@@ -3608,12 +3673,26 @@ static int run_pe32(void) {
   (void)memset(&request, 0, sizeof(request));
   request.input = CTOOL_DIS_INPUT_PE32;
   request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
+  status = ctool_dis_inspect(job, &source, &request, &baseline_report);
   request.policies = CTOOL_DIS_POLICY_LOCAL_RELATIVE_TARGETS |
                      CTOOL_DIS_POLICY_CODE_ANCHORS;
-  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_inspect(job, &source, &request, &report);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_x86_decoder_prepare(job, &decoder);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_dis_inspect_indexed(job, decoder, &source, &request,
+                                       &indexed_report);
+  }
   if (!check_status(status, CTOOL_OK, "checked PE32 seed inspection") ||
       report.pe32.section_count != image.section_count ||
       report.pe32.import_count != image.import_count ||
+      !decode_ownership_counts_equal(&baseline_report.decode_summary,
+                                     &report.decode_summary) ||
+      !summaries_equal(&report.decode_summary,
+                       &indexed_report.decode_summary) ||
       report.decode_summary.code_anchor_count != 1u ||
       report.decode_summary.code_anchor_outside_executable_count != 0u ||
       report.decode_summary.code_anchor_mid_instruction_count != 0u) {

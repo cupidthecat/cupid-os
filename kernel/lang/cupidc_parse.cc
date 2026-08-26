@@ -10339,18 +10339,14 @@ static int cc_parse_data_backed_raw_function_pointer_declaration(
   }
 }
 
-static int cc_parse_function_pointer_local_initializer(
-    cc_state_t *cc, cc_symbol_t *pointer, int32_t local_slot) {
+static int cc_parse_function_pointer_local_initializer_value(
+    cc_state_t *cc, cc_symbol_t *pointer, int32_t local_slot,
+    int list_element) {
   cc_symbol_t *initializer_targets[CC_MAX_PARAMS];
   int initializer_target_count = 0;
 
   if (!pointer || cc->error)
     return 0;
-  if (!cc_match(cc, CC_TOK_EQ)) {
-    emit_mov_eax_imm(cc, 0);
-    emit_store_local(cc, local_slot);
-    return !cc->error;
-  }
 
   {
     cc_symbol_t *initializer_target;
@@ -10360,7 +10356,7 @@ static int cc_parse_function_pointer_local_initializer(
     int initializer_patch_count = cc->patch_count;
 
     initializer_kind = cc_probe_function_pointer_initializer(
-        cc, &initializer_target, 0);
+        cc, &initializer_target, list_element);
     cc_parse_expression(cc, 1);
     if (cc_last_expr_function_signature_erased) {
       initializer_kind = CC_FP_INITIALIZER_EXPLICIT_CAST;
@@ -10400,6 +10396,109 @@ static int cc_parse_function_pointer_local_initializer(
       !cc_apply_function_pointer_initializer_candidates(
           cc, pointer, initializer_targets, initializer_target_count))
     return 0;
+  return !cc->error;
+}
+
+static int cc_parse_function_pointer_local_initializer(
+    cc_state_t *cc, cc_symbol_t *pointer, int32_t local_slot) {
+  if (!pointer || cc->error)
+    return 0;
+  if (!cc_match(cc, CC_TOK_EQ)) {
+    emit_mov_eax_imm(cc, 0);
+    emit_store_local(cc, local_slot);
+    return !cc->error;
+  }
+  return cc_parse_function_pointer_local_initializer_value(
+      cc, pointer, local_slot, 0);
+}
+
+static int cc_parse_automatic_raw_function_pointer_array_declaration(
+    cc_state_t *cc,
+    const cc_named_function_pointer_declarator_t *declarator) {
+  cc_symbol_t pointer_signature;
+  cc_symbol_t *symbol;
+  int signature_handle;
+  int32_t total_bytes;
+  int32_t local_slot;
+  int element_index;
+
+  if (!declarator || cc->error)
+    return 0;
+  if (declarator->array_count < 0) {
+    cc_error(cc, "automatic raw function-pointer array size is required");
+    return 0;
+  }
+  if (!cc_checked_array_bytes(
+          cc, declarator->array_count, 4, &total_bytes) ||
+      !cc_reserve_local_frame(cc, total_bytes, 4, &local_slot))
+    return 0;
+
+  signature_handle = cc_intern_raw_function_pointer_signature(
+      cc, &declarator->signature);
+  if (signature_handle < 0)
+    return 0;
+
+  symbol = cc_sym_add(cc, declarator->name.text, SYM_LOCAL, TYPE_PTR);
+  if (!symbol)
+    return 0;
+  symbol->offset = local_slot;
+  symbol->is_array = 1;
+  symbol->array_elem_size = 4;
+  symbol->array_object_size = total_bytes;
+  symbol->array_rank = 1;
+  symbol->array_elem_type = TYPE_FUNC_PTR;
+  symbol->function_pointer_signature_handle = signature_handle;
+
+  memset(&pointer_signature, 0, sizeof(pointer_signature));
+  memset(pointer_signature.param_struct_indices, -1,
+         sizeof(pointer_signature.param_struct_indices));
+  cc_apply_named_function_pointer_declarator(
+      &pointer_signature, declarator);
+
+  for (element_index = 0; element_index < declarator->array_count;
+       element_index++) {
+    emit_mov_eax_imm(cc, 0);
+    emit_store_local(cc, local_slot + element_index * 4);
+  }
+
+  if (!cc_match(cc, CC_TOK_EQ)) {
+    cc_expect(cc, CC_TOK_SEMICOLON);
+    return !cc->error;
+  }
+  if (!cc_match(cc, CC_TOK_LBRACE)) {
+    cc_error(cc,
+             "automatic raw function-pointer array initializer requires braces");
+    return 0;
+  }
+  if (cc_match(cc, CC_TOK_RBRACE)) {
+    cc_expect(cc, CC_TOK_SEMICOLON);
+    return !cc->error;
+  }
+
+  element_index = 0;
+  for (;;) {
+    if (element_index >= declarator->array_count) {
+      cc_error(cc,
+               "too many initializers for automatic raw function-pointer array");
+      return 0;
+    }
+    if (!cc_parse_function_pointer_local_initializer_value(
+            cc, &pointer_signature, local_slot + element_index * 4, 1))
+      return 0;
+    element_index++;
+
+    if (cc_match(cc, CC_TOK_COMMA)) {
+      if (cc_match(cc, CC_TOK_RBRACE))
+        break;
+      continue;
+    }
+    cc_expect(cc, CC_TOK_RBRACE);
+    if (cc->error)
+      return 0;
+    break;
+  }
+
+  cc_expect(cc, CC_TOK_SEMICOLON);
   return !cc->error;
 }
 
@@ -10448,9 +10547,8 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
               function_pointer_return_array_count, &declarator))
         return;
       if (declarator.array_count != 0) {
-        cc_error(
-            cc,
-            "automatic raw function-pointer arrays are not supported");
+        (void)cc_parse_automatic_raw_function_pointer_array_declaration(
+            cc, &declarator);
         return;
       }
       if (!cc_reserve_local_frame(cc, 4, 4, &local_slot))

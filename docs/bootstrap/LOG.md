@@ -31537,3 +31537,110 @@ The six-tool candidate is still evidence, not a checked seed. Promotion needs
 a manifest contract that trusts CupidBuild without asking it to establish
 provenance that depends on the same image. The ISR and context-switch recipes
 remain on the guarded Python publisher until that promotion is complete.
+
+## 2026-08-25: harden the source-head bootstrap boundary
+
+### Implementation and decisions
+
+- The Linux and Windows fixed-point drivers now validate every generated C
+  object structurally, then require CupidDis known-decode, local-target, and
+  code-anchor checks before linking. The Windows CupidBuild startup marks all
+  fourteen exports as functions. The active-source audit rejects a missing
+  annotation. ADR 0347 records the trust boundary.
+- The in-kernel CupidASM adapter retains raw control edges and emits canonical
+  `cupid.raw-map.v2`. Its validator rejects missing, duplicate, out-of-range,
+  instruction-mismatched, wrong-target, and wrong-mode rows before publication.
+  Hosted CupidASM stages and recovers the image and map as one pair, including
+  targets that were absent before the command. ADR 0348 records both changes.
+- Hosted CupidC accepts C99 hexadecimal floating constants at binary32,
+  binary64, and x87 extended width. The bounded target-only parser covers
+  normal and subnormal values, ties, limits, suffixes, overflow, underflow, and
+  malformed forms without host floating conversion. ADR 0349 records the
+  language boundary.
+- CupidDis reuses the summary instruction map for strict raw, ELF32
+  relocatable, ELF32 executable, and PE32 inspection. Local-target validation
+  adds only its required target walk. Relocation ownership keeps bounded state
+  for the current instruction instead of an arena-wide claim array. ADR 0350
+  records this implementation boundary.
+- The private CupidC parser now allocates fixed-size automatic raw callback
+  arrays as contiguous four-byte frame slots. Each declaration clears the
+  complete array before brace initialization. Indexed stores, copies, calls,
+  later targets, signature checks, rollback, and recovery use the existing
+  typed callback path. Unsized automatic, parameter, record-field, and
+  multidimensional raw callback arrays remain unsupported. ADR 0351 records
+  the boundary.
+- The active graph still contains 240 CupidC-owned source files, and every one
+  already uses `.cc`. The remaining `.c` files are unreachable historical,
+  fixture, or oracle inputs, so none was renamed. `TempleOS/` remained
+  untouched reference material.
+
+### Failed approach
+
+A parallel experiment added function-like macros to the private in-kernel
+compiler through a flattened-text preprocessing API. Review found that it
+expanded unused arguments, rejected valid non-invoked recursive names, missed
+cross-line invocations and caller-boundary rescanning, and conflicted with ADR
+0012, which makes the typed preprocessing tape the sole macro authority. That
+slice was reverted completely. Function-like macros remain a typed-tape task,
+not a completed capability.
+
+### Source-level evidence
+
+- The focused fixed-point object-certification tests pass for Linux, Windows,
+  and an unmatched-relocation rejection. The complete active CupidASM source
+  suite passes all six tests, including the fourteen startup annotations.
+- The hosted and kernel CupidASM modules pass 33 combined tests. The hosted
+  publication slice also passed its 41 focused tests, and the private kernel
+  raw adapter passed its direct artifact cases and object rebuild.
+- CupidDis and shared-x86 tests pass 51 cases with one host-specific skip. All
+  direct CupidDis modes and the strict warning-free host build pass.
+- The final hexadecimal literal focus passes three frontend, IR, and object
+  tests. The surrounding frontend set passes four tests, and the full IR suite
+  passes all 86 cases.
+- The private callback ABI module passes all 318 tests in JIT and AOT modes.
+  Manifest-bound parser and emitter object builds also pass.
+
+### Integrated verification
+
+- The first complete `make -j4 all WAD_SRCS=` replay compiled the active
+  kernel, toolchain, user-program, and Doom closure with checked CupidC. It
+  linked both kernel passes with CupidLD and passed strict CupidDis inspection
+  of all 431 production inputs. The exact artifact gate then stopped image
+  publication because the reviewed CTXT additions moved `kernel/kernel.bin`
+  from 9,498,776 to 9,499,524 bytes. Updating that one intentional policy row
+  allowed the complete replay to pass all fourteen exact observations and
+  publish the image.
+- The final artifacts are:
+
+  | Artifact | Bytes | SHA-256 |
+  | --- | ---: | --- |
+  | `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
+  | `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
+  | `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
+  | `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
+
+  The 2,960-byte policy has SHA-256
+  `4fd14cb09741428696cdaf5d89edfa7721e6cbfccbdaa3a7a03b37f6c07f9247`.
+- A private four-vCPU QEMU run with the `max` CPU and E1000 adapter passed the
+  complete SMP and runtime frontier. It verified the 640 by 480 framebuffer,
+  AC97, PC speaker, terminal commands, and every ordered guest marker. The new
+  callback-array proof reported
+  `[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`.
+  The 147,688-byte serial log has SHA-256
+  `ae0ef6db543d9c046d3291488130407ae47541c329da258a00ef1600f9c0b3b1`.
+- The private callback ABI and artifact-policy group passed 369 tests in
+  77.096 seconds with four platform-specific skips. A broader frontend, IR,
+  object, x86, CupidDis, CupidASM, private ABI, and GUI group ran 835 tests in
+  1,136.846 seconds. Its only failures were the declared active-source
+  inventory locks changed by the new guest proof. The reviewed counts are now
+  26,012 returns, 41,964 `if` occurrences, and 5,250 `else` occurrences; both
+  affected lock tests pass in 9.130 seconds.
+- `make bootstrap-audit` and `make check-bootstrap-audit` both pass after the
+  source and documentation changes.
+
+### Remaining boundary
+
+Fresh Linux and native Windows fixed points and the consolidated Toolchain gate
+remain required for this source-head checkpoint. The six-tool candidate is not
+promoted, and the ISR and context-switch recipes remain on the checked Python
+publisher.

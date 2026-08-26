@@ -3,7 +3,7 @@
 #include "cupidc_frontend.h"
 #include "cupidc_ir.h"
 #include "cupidc_pp.h"
-#include "cupidc_exact_decimal_literal_fixture.h"
+#include "cupidc_exact_floating_literal_fixture.h"
 #include "cupidc_static_long_double_arithmetic_fixture.h"
 #include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
@@ -29454,7 +29454,7 @@ static int validate_floating_scalar_ir(
              : 0;
 }
 
-static int exact_decimal_literal_forest_matches(
+static int exact_floating_literal_forest_matches(
     const ctool_c_translation_unit_t *unit) {
   ctool_u32 float_root =
       find_object_initializer(unit, "exact_decimal_float");
@@ -29462,15 +29462,30 @@ static int exact_decimal_literal_forest_matches(
       find_object_initializer(unit, "exact_decimal_double");
   ctool_u32 long_double_root =
       find_object_initializer(unit, "exact_decimal_long_double");
+  ctool_u32 hex_float_root =
+      find_object_initializer(unit, "exact_hex_float");
+  ctool_u32 hex_double_root =
+      find_object_initializer(unit, "exact_hex_double");
+  ctool_u32 hex_long_double_root =
+      find_object_initializer(unit, "exact_hex_long_double");
   ctool_u32 index;
-  if (unit == NULL || unit->object_definition_count != 3u ||
-      unit->function_definition_count != 0u ||
+  if (unit == NULL || unit->object_definition_count != 6u ||
+      unit->function_definition_count != 3u ||
       float_root >= unit->initializer_count ||
       double_root >= unit->initializer_count ||
       long_double_root >= unit->initializer_count ||
+      hex_float_root >= unit->initializer_count ||
+      hex_double_root >= unit->initializer_count ||
+      hex_long_double_root >= unit->initializer_count ||
       unit->initializers[float_root].kind !=
           CTOOL_C_INITIALIZER_LIST ||
       unit->initializers[double_root].kind !=
+          CTOOL_C_INITIALIZER_LIST ||
+      unit->initializers[hex_float_root].kind !=
+          CTOOL_C_INITIALIZER_LIST ||
+      unit->initializers[hex_double_root].kind !=
+          CTOOL_C_INITIALIZER_LIST ||
+      unit->initializers[hex_long_double_root].kind !=
           CTOOL_C_INITIALIZER_LIST ||
       unit->initializers[float_root].element_count !=
           (ctool_u32)(sizeof(cupidc_exact_decimal_float_bits) /
@@ -29478,6 +29493,15 @@ static int exact_decimal_literal_forest_matches(
       unit->initializers[double_root].element_count !=
           (ctool_u32)(sizeof(cupidc_exact_decimal_double_bits) /
                       sizeof(cupidc_exact_decimal_double_bits[0])) ||
+      unit->initializers[hex_float_root].element_count !=
+          (ctool_u32)(sizeof(cupidc_exact_hex_float_bits) /
+                      sizeof(cupidc_exact_hex_float_bits[0])) ||
+      unit->initializers[hex_double_root].element_count !=
+          (ctool_u32)(sizeof(cupidc_exact_hex_double_bits) /
+                      sizeof(cupidc_exact_hex_double_bits[0])) ||
+      unit->initializers[hex_long_double_root].element_count !=
+          (ctool_u32)(sizeof(cupidc_exact_hex_long_double_bits) /
+                      sizeof(cupidc_exact_hex_long_double_bits[0])) ||
       static_floating_initializer_matches(
           unit, long_double_root, 0x8000000000000000ull,
           0x3fffu) == 0) {
@@ -29505,20 +29529,118 @@ static int exact_decimal_literal_forest_matches(
       return 0;
     }
   }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cupidc_exact_hex_float_bits) /
+                           sizeof(cupidc_exact_hex_float_bits[0]));
+       index++) {
+    ctool_u32 leaf = find_initializer_child(unit, hex_float_root, index);
+    if (leaf >= unit->initializer_count ||
+        static_floating_initializer_matches(
+            unit, leaf, cupidc_exact_hex_float_bits[index], 0u) == 0) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cupidc_exact_hex_double_bits) /
+                           sizeof(cupidc_exact_hex_double_bits[0]));
+       index++) {
+    ctool_u32 leaf = find_initializer_child(unit, hex_double_root, index);
+    if (leaf >= unit->initializer_count ||
+        static_floating_initializer_matches(
+            unit, leaf, cupidc_exact_hex_double_bits[index], 0u) == 0) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(cupidc_exact_hex_long_double_bits) /
+                       sizeof(cupidc_exact_hex_long_double_bits[0]));
+       index++) {
+    ctool_u32 leaf =
+        find_initializer_child(unit, hex_long_double_root, index);
+    if (leaf >= unit->initializer_count ||
+        static_floating_initializer_matches(
+            unit, leaf,
+            cupidc_exact_hex_long_double_bits[index].significand,
+            cupidc_exact_hex_long_double_bits[index].high_bits) == 0) {
+      return 0;
+    }
+  }
   return 1;
 }
 
-static int exact_decimal_literal_ir_matches(
+static int exact_floating_literal_ir_matches(
+    const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir) {
-  return ir != NULL && ir->file_assembly_count == 0u &&
-                 ir->file_assemblies == NULL &&
-                 ir->function_count == 0u && ir->functions == NULL &&
-                 ir->instruction_count == 0u &&
-                 ir->instructions == NULL &&
-                 ir->argument_type_count == 0u &&
-                 ir->argument_types == NULL
-             ? 1
-             : 0;
+  typedef struct {
+    const char *name;
+    ctool_c_type_kind_t kind;
+    ctool_u64 bits;
+    ctool_u32 high_bits;
+    ctool_u32 line;
+    ctool_u32 column;
+  } exact_runtime_literal_t;
+  static const exact_runtime_literal_t runtime_literals[] = {
+      {"exact_hex_runtime_float", CTOOL_C_TYPE_FLOAT,
+       0x3f800002ull, 0u, 62u, 46u},
+      {"exact_hex_runtime_double", CTOOL_C_TYPE_DOUBLE,
+       0x0000000000000001ull, 0u, 63u, 48u},
+      {"exact_hex_runtime_long_double", CTOOL_C_TYPE_LONG_DOUBLE,
+       0x0000000000000001ull, 0u, 64u, 58u}};
+  ctool_u32 oracle_index;
+  if (unit == NULL || ir == NULL || ir->file_assembly_count != 0u ||
+      ir->file_assemblies != NULL || ir->function_count != 3u ||
+      ir->functions == NULL || ir->instruction_count != 6u ||
+      ir->instructions == NULL || ir->argument_type_count != 0u ||
+      ir->argument_types != NULL) {
+    return 0;
+  }
+  for (oracle_index = 0u;
+       oracle_index <
+           (ctool_u32)(sizeof(runtime_literals) /
+                       sizeof(runtime_literals[0]));
+       oracle_index++) {
+    const exact_runtime_literal_t *oracle =
+        &runtime_literals[oracle_index];
+    const ctool_c_ir_function_t *function =
+        floating_conversion_ir_function(unit, ir, oracle->name);
+    const ctool_c_ir_instruction_t *literal;
+    const ctool_c_ir_instruction_t *return_value;
+    ctool_u32 type = find_plain_type_kind(unit, oracle->kind);
+    if (function == NULL || type == CTOOL_C_TYPE_NONE ||
+        function->instruction_count != 2u ||
+        function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction) {
+      return 0;
+    }
+    literal = &ir->instructions[function->first_instruction];
+    return_value = literal + 1u;
+    if (literal->kind != CTOOL_C_IR_INSTRUCTION_FLOATING ||
+        literal->type != type ||
+        literal->input_type != CTOOL_C_TYPE_NONE ||
+        literal->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        literal->conversion != CTOOL_C_CONVERSION_NONE ||
+        literal->argument_count != 0u ||
+        literal->first_argument_type != CTOOL_C_AST_NONE ||
+        literal->reference != CTOOL_C_AST_NONE ||
+        literal->integer_bits != oracle->bits ||
+        literal->floating_high_bits != oracle->high_bits ||
+        literal->location.line != oracle->line ||
+        literal->location.column != oracle->column ||
+        literal->physical_location.line != oracle->line ||
+        literal->physical_location.column != oracle->column ||
+        string_equal(
+            literal->location.path, "/exact-floating-literals.c") == 0 ||
+        string_equal(
+            literal->physical_location.path,
+            "/exact-floating-literals.c") == 0 ||
+        return_value->kind != CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+        return_value->type != type) {
+      return 0;
+    }
+  }
+  return 1;
 }
 
 static int run_floating_scalars(const char *host_root) {
@@ -29691,8 +29813,8 @@ static int run_floating_scalars(const char *host_root) {
       !parse_source_mode(job, "/floating-scalars.c", source,
                          CTOOL_TRUE, &unit) ||
       !parse_source_mode(
-          job, "/exact-decimal-literals.c",
-          cupidc_exact_decimal_literal_source, CTOOL_TRUE,
+          job, "/exact-floating-literals.c",
+          cupidc_exact_floating_literal_source, CTOOL_TRUE,
           &exact_unit)) {
     goto cleanup;
   }
@@ -29700,7 +29822,7 @@ static int run_floating_scalars(const char *host_root) {
       find_object_initializer(&exact_unit, "exact_decimal_float");
   exact_float_leaf =
       find_initializer_child(&exact_unit, exact_float_root, 0u);
-  if (exact_decimal_literal_forest_matches(&exact_unit) == 0 ||
+  if (exact_floating_literal_forest_matches(&exact_unit) == 0 ||
       exact_float_leaf >= exact_unit.initializer_count ||
       exact_unit.initializer_count == 0u ||
       sizeof(*invalid_exact_initializers) >
@@ -29710,19 +29832,20 @@ static int run_floating_scalars(const char *host_root) {
   exact_unit_hash = unit_fingerprint(&exact_unit);
   status = ctool_c_lower_ir(job, &exact_unit, &exact_ir);
   if (!check_status(status, CTOOL_OK,
-                    "exact decimal literal lowering") ||
+                    "exact floating literal lowering") ||
       unit_fingerprint(&exact_unit) != exact_unit_hash ||
-      exact_decimal_literal_forest_matches(&exact_unit) == 0 ||
-      exact_decimal_literal_ir_matches(&exact_ir) == 0) {
+      exact_floating_literal_forest_matches(&exact_unit) == 0 ||
+      exact_floating_literal_ir_matches(&exact_unit, &exact_ir) == 0) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   status = ctool_c_lower_ir(job, &exact_unit, &repeat_exact_ir);
   if (!check_status(status, CTOOL_OK,
-                    "repeat exact decimal literal lowering") ||
+                    "repeat exact floating literal lowering") ||
       unit_fingerprint(&exact_unit) != exact_unit_hash ||
-      exact_decimal_literal_forest_matches(&exact_unit) == 0 ||
-      exact_decimal_literal_ir_matches(&repeat_exact_ir) == 0) {
+      exact_floating_literal_forest_matches(&exact_unit) == 0 ||
+      exact_floating_literal_ir_matches(
+          &exact_unit, &repeat_exact_ir) == 0) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -29896,10 +30019,11 @@ static int run_floating_scalars(const char *host_root) {
   (void)memset(&repeat_exact_ir, 0xa5, sizeof(repeat_exact_ir));
   status = ctool_c_lower_ir(job, &exact_unit, &repeat_exact_ir);
   if (!check_status(status, CTOOL_OK,
-                    "exact decimal literal recovery") ||
+                    "exact floating literal recovery") ||
       unit_fingerprint(&exact_unit) != exact_unit_hash ||
-      exact_decimal_literal_forest_matches(&exact_unit) == 0 ||
-      exact_decimal_literal_ir_matches(&repeat_exact_ir) == 0) {
+      exact_floating_literal_forest_matches(&exact_unit) == 0 ||
+      exact_floating_literal_ir_matches(
+          &exact_unit, &repeat_exact_ir) == 0) {
     goto cleanup;
   }
   for (index = 0u; index < unit.expression_count; index++) {

@@ -884,14 +884,17 @@ MOVZX instructions. In GUI mode, the shell keeps the listing in the terminal
 and mirrors it to serial after its ordinary sink and redirection checks.
 ADR 0259 records the shared parity predicates.
 
-Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
-long-double ratios beyond the bounded parser, other floating-to-wide
-conversions, atomic floating compound assignment, atomic and long double
+C99 hexadecimal floating literals use bounded target-only integer parsing and
+round once to binary32, binary64, or x87 extended width. Normal, subnormal,
+overflow, underflow, suffix, malformed, and halfway cases have frontend, IR,
+and object contracts. Long-double ratios beyond the bounded parser, other
+floating-to-wide conversions, atomic floating compound assignment, atomic and long double
 increment or decrement, general SIMD value semantics, and over-aligned object
 emission remain
 unfinished.
 ADR 0293 records exact source-head decimal float and double literals.
 ADR 0296 records mixed arithmetic compound assignment.
+ADR 0349 records exact hexadecimal floating literals.
 The exact production SIMD
 assembly forms have their own checked path. Matching or mixed-width floating
 conditional arms keep their established x87 path.
@@ -1833,14 +1836,21 @@ wipeno*3 and the following two phase entries. The normal Doom object remains
 owned by checked-seed hosted CupidC; this private parser capability does not
 move production ownership.
 
-Automatic raw function-pointer arrays, raw array parameters, raw array record
-fields, and multidimensional raw arrays remain unsupported. Typedef-backed
+Fixed-size automatic raw function-pointer arrays use contiguous four-byte frame
+slots. Every declaration clears the full array before an optional brace
+initializer runs. Indexed stores, copies, calls, later targets, and signature
+checks use the existing typed callback path. Unsized automatic arrays, raw array
+parameters, raw array record fields, and multidimensional raw arrays remain
+unsupported. Typedef-backed
 fixed callback arrays on record fields keep the separate ADR 0328 path. ADR
 0315 records the raw scalar boundary, ADR 0319 records explicit function
 addresses, ADR 0321 records typedef-backed record and class fields, and ADR
 0324 records grouped runtime addresses. ADR 0325 records raw fields and direct
 field calls. ADR 0330 records data-backed raw callback arrays and the shared
-block-static scalar path.
+block-static scalar path. ADR 0351 records fixed automatic storage.
+The feature-14 guest requires
+[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2
+assigned=1 copied=2 later=1 calls=4.
 
 A function-pointer parameter inside a retained callback signature keeps a
 child signature handle. Raw declarators intern that child in the raw-signature

@@ -126,6 +126,31 @@ STARTUP_OBJECT_FIXTURES = (
         / "publication_start.asm",
         "function_count": 4,
     },
+    {
+        "name": "windows-cupidbuild-start",
+        "source": REPO_ROOT
+        / "toolchain"
+        / "hosted"
+        / "i386-windows"
+        / "cupidbuild_start.asm",
+        "functions": (
+            "cupid_windows_create_directory",
+            "cupid_windows_create_process",
+            "cupid_windows_find_close",
+            "cupid_windows_find_first_file",
+            "cupid_windows_find_next_file",
+            "cupid_windows_get_current_process_id",
+            "cupid_windows_get_exit_code_process",
+            "cupid_windows_get_file_attributes",
+            "cupid_windows_get_file_information",
+            "cupid_windows_open_process",
+            "cupid_windows_remove_directory",
+            "cupid_windows_terminate_process",
+            "cupid_windows_wait_for_single_object",
+            "cupid_windows_nt_set_information_file",
+        ),
+        "function_count": 14,
+    },
 )
 
 
@@ -338,12 +363,24 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
 
     def _assert_function_annotations_preserve_code(self, root, fixture):
         source_text = fixture["source"].read_text(encoding="utf-8")
-        function_names = {
-            line.split()[1].removesuffix(":function")
+        global_declarations = [
+            declaration.strip()
             for line in source_text.splitlines()
             if line.strip().lower().startswith("global ")
-            and line.strip().lower().endswith(":function")
+            for declaration in line.strip().split(None, 1)[1].split(",")
+        ]
+        function_names = {
+            declaration.rsplit(":", 1)[0]
+            for declaration in global_declarations
+            if declaration.lower().endswith(":function")
         }
+        expected_functions = set(fixture.get("functions", function_names))
+        if "functions" in fixture:
+            self.assertEqual(
+                {declaration.split(":", 1)[0] for declaration in global_declarations},
+                expected_functions,
+            )
+            self.assertEqual(function_names, expected_functions)
         self.assertEqual(len(function_names), fixture["function_count"])
         typed_path = root / f"{fixture['name']}.typed.o"
         ordinary_source = root / f"{fixture['name']}.ordinary.asm"
@@ -368,6 +405,10 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                 if symbol["type"] == 2
             },
             function_names,
+        )
+        self.assertEqual(
+            {ordinary["symbols"][name]["type"] for name in expected_functions},
+            {0},
         )
         self.assertEqual(
             typed["sections"][".text"]["data"],

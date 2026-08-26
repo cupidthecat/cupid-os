@@ -72,8 +72,9 @@ Select an artifact explicitly with `-f`:
 ```
 
 `bin` writes the flat bytes and requires `--map`. The map uses
-`cupid.raw-map.v1` and records the origin plus each code16, code32, or data
-range. `elf32` writes an unlinked i386 `ET_REL` file, so undefined symbols and
+`cupid.raw-map.v2` and records the origin, each code16, code32, or data range,
+and ordered source-resolved control edges. `elf32` writes an unlinked i386
+`ET_REL` file, so undefined symbols and
 relocations remain available to a later link. It does not require `main` or
 `_start`. `exec` uses the existing entry selection and in-kernel CupidLD link.
 
@@ -86,7 +87,10 @@ pair writes the same commit record beside both outputs. That record names its
 private backups and markers, so failed cleanup remains safe when a later
 command reuses either path. Partial or unsafe records are rejected. The VFS
 does not yet provide a crash-atomic two-file transaction or a
-concurrent-writer lock. ADR 0337 records this boundary.
+concurrent-writer lock. The hosted command uses the same recoverable pair
+protocol, including absence markers for outputs that did not exist before the
+command. ADR 0337 records the kernel boundary, and ADR 0348 records the hosted
+pair protocol and kernel v2 edge retention.
 
 For the in-kernel `as -o` path, CupidASM emits one ELF32 relocatable object.
 It applies the caller's ordered `main` and `_start` entry candidates, publishes
@@ -175,7 +179,9 @@ CupidASM writes these symbols as `STT_FUNC`. A declaration without
 `:function` remains `STT_NOTYPE`, so exported data is not mistaken for code.
 The type name is case-insensitive. A missing type name or any type other than
 `function` reports `CT6000018` and leaves the prior output untouched. ADR 0335
-records this boundary.
+records this boundary. All fourteen exports in the CupidBuild Windows startup
+now use the function annotation, and the active-source contract rejects an
+untyped startup export. ADR 0347 records that closure.
 
 ### Constants
 
@@ -238,15 +244,16 @@ cupidasm -f bin --map boot.map -o boot.bin boot.asm
 cupiddis --require-known --raw --range-map boot.map boot.bin
 ```
 
-The `cupid.raw-map.v1` file records the exact image size, `ORG` base, and
-coalesced range starts. Instructions use their active `BITS` mode. Data,
+The `cupid.raw-map.v2` file records the exact image size, `ORG` base, coalesced
+range starts, and ordered source-resolved control edges. Instructions use their
+active `BITS` mode. Data,
 alignment, and reserved storage are data ranges. CupidDis rejects a stale
 size, repeated or missing fields, invalid kinds, and unordered starts before
 decoding. The map option cannot be combined with manual mode, base, or range
-options. ADR 0277 records the schema.
+options. Version 1 remains accepted as a compatibility input. ADR 0277 records
+the first schema.
 
-Checked-seed CupidASM writes `cupid.raw-map.v2`. It adds an exact list of
-source-resolved calls and jumps without changing the image bytes. A row records
+A v2 row records
 its instruction offset, relative, far, or indirect kind, local, external, or
 unprovable class, resolved destination, target mode, and far segment when one
 is encoded. CupidDis accepts both schemas. Add `--require-source-edges` to bind
@@ -324,8 +331,9 @@ relocatable object:
 cupiddis --require-known --require-local-targets program.o
 ```
 
-Each executable `PROGBITS` section gets its own instruction-start map and two
-decode passes. An unrelocated direct relative target must stay inside that
+Each executable `PROGBITS` section gets one reusable instruction-start map for
+reporting, relocation ownership, and anchor checks. Local-target validation
+adds only its required target walk. An unrelocated direct relative target must stay inside that
 section and land on an instruction start there. A relocation at the operand
 field leaves the destination for link time, while the existing executable
 relocation rule still checks its field. Failures distinguish a target outside

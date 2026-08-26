@@ -79,7 +79,8 @@ static i386 executables and relocatable objects when an artifact owner selects
 not a new host transform. It removes no dependency. Both promoted seeds carry
 the rule. The normal kernel transaction applies it to the frozen pass-one and
 final ELFs, hostbuild applies it to the ISR and context-switch objects, and
-the fixed-point drivers apply it to startup objects before linking. Minimal
+the fixed-point drivers apply it to every generated C object after structural
+ELF validation and to every startup object before linking. Minimal
 DWARF source information remains missing and does not block this placement
 check. ADR 0320 records the executable rule, ADR 0323 records its carriage,
 ADR 0335 records relocatable anchors, and ADR 0336 records carriage and
@@ -187,10 +188,10 @@ fourteen exact artifacts. The current kernel outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,580,120 | `3197dcc79ee68193b94ca3bfa104e9a3a592ae9a7905416e6a351e5879b8afd8` |
-| `kernel/kernel.elf` | 9,711,192 | `394c8984c896a6f2c7d8475a41cf4fab4bd1f51a6703a6bff95f716c9a718337` |
-| `kernel/kernel.bin` | 9,482,844 | `3f9bc2f5009274d9ec0a4cfe548d5c1e07cf88634057bca4973d6890cb2d6d35` |
-| `cupidos.img` | 209,715,200 | `797c2a7bce559564f96319f5bfb04c5292c8aebb756b8957184935f99ab00612` |
+| `kernel/kernel.elf.pass1` | 9,596,956 | `fbf1f1feb45d9c1edd094a1daa57602bfa8d8185ac3d9e83771e57b1ebe854f1` |
+| `kernel/kernel.elf` | 9,728,028 | `18918ed937654801f89e8a5a23487af31f0445aa9c5c46f0a7e3ec89c007fb2e` |
+| `kernel/kernel.bin` | 9,499,524 | `be34d514278e28a91e36709a8a2c4e6876f1689d77322e6a53353252e3415949` |
+| `cupidos.img` | 209,715,200 | `fbcf52218dfc630b80373253e00d7f5a53895494ad615683f40b88ead1a8d602` |
 
 The normal build passed strict inspection of all 431 production inputs and
 the private four-vCPU E1000 frontier smoke. Python remains responsible for
@@ -641,8 +642,10 @@ one four-byte i386 cdecl slot. Nested raw records share the existing 32-entry
 pool with outer raw declarations. One-dimensional raw callback arrays at file
 scope, in block-static declarations, or in persistent REPL globals retain their
 signature. The same data-backed path covers a block-static raw callback scalar.
-Automatic, parameter, record or class field, and multidimensional raw callback
-arrays remain unsupported. A structure or
+Fixed-size automatic raw callback arrays use cleared four-byte frame slots and
+retain their signature through brace initialization, indexed stores, copies,
+and calls. Unsized automatic arrays, parameter arrays, record or class field
+arrays, and multidimensional raw callback arrays remain unsupported. A structure or
 class field declared through a callback typedef or raw function-pointer
 declarator keeps that signature for checked stores, null clearing, named
 copies, and direct postfix calls. Nested and indexed field designators are
@@ -977,11 +980,12 @@ runtime IR. Static `+`, `-`, `*`, and `/` use unsigned 128-bit target
 arithmetic with nearest-even rounding and gradual underflow. They also become
 final initializer records. This work introduces no host floating operation or
 math-library dependency.
-Source-head decimal `float` and `double` literals now use a fixed 1536-bit
-integer workspace for exact target-width rounding. Subnormal, underflow, and
-overflow results therefore add no host conversion routine or math library.
-Hexadecimal floating literals, hexadecimal or subnormal long-double literals,
-long-double ratios beyond the bounded parser, plain hosted floating-to-wide
+Source-head decimal `float` and `double` literals use a fixed 1536-bit integer
+workspace for exact target-width rounding. C99 hexadecimal literals use a
+separate bounded target-only parser for binary32, binary64, and x87 extended
+results, including normal, subnormal, overflow, underflow, and halfway cases.
+Neither path adds a host conversion routine or math library.
+Long-double decimal ratios beyond the bounded parser, plain hosted floating-to-wide
 assignment, general floating-to-wide casts, atomic floating access and
 compound assignment, and long-double increment or decrement remain open.
 Non-atomic mixed integer and floating arithmetic compound assignments now use
@@ -1363,7 +1367,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | --- | ---: | --- |
 | Host C compiler | 0 | Native hosted tools and contracts are explicit optional oracles outside every supported root |
 | CupidC | 250 participations | The 246 ordinary C-output transforms plus the native Windows ABI, artifact-size, Toolchain manifest verification, and Toolchain manifest authoring; this includes the 239-source checked-in normal cohort, generated kernel symbols, three generated installation tables, three example external programs, and the checked Toolchain contract cohort. Every published object is validated. |
-| Cupid-built semantic contracts | 4 participating transforms | The syscall checker owns the reviewed ABI rules. The artifact-size checker owns the policy and exact-size rules. The Toolchain manifest checker and author own the 21/70/50 publication facts, Linux seed binding, and all 58 fixed-point pair decisions. Python checks each report and pair independently and controls the filesystem boundary. |
+| Cupid-built semantic contracts | 4 participating transforms | The syscall checker owns the reviewed ABI rules. The artifact-size checker owns the policy and exact-size rules. The Toolchain manifest checker and author own the current 22-artifact, 75-publication-input, and 58-bootstrap-input facts, Linux seed binding, and all 62 fixed-point pair decisions. Python checks each report and pair independently and controls the filesystem boundary. |
 | CupidASM | 9 owned or participating transforms | Three production flat binaries, two production ELF32 `ET_REL` objects, and startup for the user ABI, artifact-size, Toolchain manifest verifier, and Toolchain manifest author. The two boot and kernel flat outputs are byte-identical to the optional NASM oracle; the checked ISO lane is the documented NASM `TIMES` exception. The objects match the oracle's code, alignment, binding, and relocation semantics while giving 33 defined public entries the `STT_FUNC` type. Both production object publishers validate and inspect private candidates before atomic replacement. |
 | NASM | 0 production transforms | Optional active-source and ELF32 interoperability oracle only |
 | CupidLD | 9 owned or participating transforms | Two script-driven kernel links, three fixed-address user executables, the native Windows user ABI PE, the host-selected artifact-size contract and `CUPMAN2` verifier, and the host-selected static ELF or native PE `CUPMAN4` author; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 and PE serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
@@ -1590,17 +1594,19 @@ reports definitions, statements, expressions, block bindings, and
 initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286;
 `cupidc_ir.cc` publishes 270/7,624/70,606/1,004/369;
 `cupidc_emit.cc` publishes 368/9,323/77,764/1,132/755; and
-`cupidc_frontend.cc` publishes 461/17,619/115,690/2,629/1,584. The generated
+`cupidc_frontend.cc` publishes 463/17,775/116,566/2,647/1,597. The generated
 audit records the current active-source totals and source graph.
 
 Checked stage-three and stage-four CupidC build the shared frontend, emitter,
-and normal contract programs. GCC or Clang and a host linker build only the
-explicit native oracles and development commands. Open work
+and normal contract programs. Source head accepts C99 hexadecimal `float`,
+`double`, and `long double` constants through bounded target-only integer
+arithmetic. GCC or Clang and a host linker build only the explicit native
+oracles and development commands. Open work
 includes chained and overriding designators, promoted anonymous-member
 designators, repeated union-member overrides, Cupid class lists, broader
 runtime values, pointer and eight-byte atomics, computed `goto`, GNU label
-addresses, the remaining GNU surface, hexadecimal floating literals, the
-remaining `long double` forms, and broader self-hosting. The private kernel
+addresses, the remaining GNU surface, the remaining decimal `long double`
+forms, and broader self-hosting. The private kernel
 compiler continues to own embedded runtime JIT and AOT compilation.
 
 Checked-seed CupidC accepts exact `fldcw %0` with one addressable, non-atomic
@@ -1810,8 +1816,7 @@ arithmetic, comparisons, and conditional selection. It reuses the Cupid-owned
 x87 emitter and adds no host producer. ADR 0288 records the boundary.
 
 Other floating-to-wide conversions, integer-lvalue compound assignment with a
-floating right operand, atomic and long-double updates, hexadecimal floating
-literals, hexadecimal or subnormal long-double literals, long-double decimal
+floating right operand, atomic and long-double updates, long-double decimal
 ratios beyond the bounded parser, aggregate floating values, atomic access,
 and other unrepresented forms remain outside the current ABI slice.
 

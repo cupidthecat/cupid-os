@@ -415,6 +415,200 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_order[4:], ["cupidld"] * len(TOOL_NAMES)
             )
 
+    def test_fixed_point_stages_certify_every_cupidc_object_before_linking(
+        self,
+    ):
+        class RecordingRunner:
+            def __init__(self, root: Path):
+                self.root = root
+                self.calls: list[tuple[Path, tuple[str, ...]]] = []
+
+            def run(self, executable, arguments, _timeout):
+                executable = Path(executable)
+                rendered = tuple(str(argument) for argument in arguments)
+                self.calls.append((executable, rendered))
+                if executable == producers["cupidc"]:
+                    output = self.root / rendered[-1].lstrip("/")
+                    output.write_bytes(_local_target_object_payload(0))
+                elif executable == producers["cupidasm"]:
+                    Path(arguments[4]).write_bytes(
+                        _local_target_object_payload(0)
+                    )
+                elif executable == producers["cupidld"]:
+                    output_index = list(arguments).index("-o") + 1
+                    Path(arguments[output_index]).write_bytes(b"linked")
+                return subprocess.CompletedProcess(rendered, 0, "", "")
+
+        with tempfile.TemporaryDirectory(
+            prefix=".fixed-point-c-object-gate-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            startup = root / "start.asm"
+            startup.write_text("bits 32\nret\n", encoding="utf-8")
+            producers = {
+                name: root / f"preceding-{name}"
+                for name in ("cupidc", "cupidasm", "cupiddis", "cupidld")
+            }
+            sources = [
+                {
+                    "name": name,
+                    "path": f"/{name}.cc",
+                    "gnu_extensions": False,
+                    "definitions": [],
+                }
+                for name in ("first", "second")
+            ]
+            linux_plan = {
+                "sources": sources,
+                "include_arguments": [],
+                "workers": 1,
+                "startup": str(startup),
+                "links": {name: ["start"] for name in TOOL_NAMES},
+            }
+            linux_runner = RecordingRunner(root)
+            with mock.patch(
+                "tools.bootstrap_toolchain._validate_static_i386_elf"
+            ):
+                _build_stage(
+                    linux_runner,
+                    root,
+                    root / "linux-stage",
+                    producers,
+                    linux_plan,
+                    "fixture",
+                )
+
+            windows_plan = {
+                "sources": sources,
+                "include_arguments": [],
+                "workers": 1,
+                "assembly_sources": [
+                    {"name": "start", "path": str(startup)},
+                ],
+                "links": {name: ["start"] for name in TOOL_NAMES},
+            }
+            windows_runner = RecordingRunner(root)
+            with mock.patch(
+                "tools.bootstrap_toolchain._validate_static_i386_pe32"
+            ):
+                _build_windows_stage(
+                    windows_runner,
+                    root,
+                    root / "windows-stage",
+                    producers,
+                    windows_plan,
+                    "fixture",
+                )
+
+            strict_flags = (
+                "--require-known",
+                "--require-local-targets",
+                "--require-code-anchors",
+            )
+            for label, runner, stage_name in (
+                ("Linux", linux_runner, "linux-stage"),
+                ("Windows", windows_runner, "windows-stage"),
+            ):
+                with self.subTest(platform=label):
+                    first_link = next(
+                        index
+                        for index, (tool, _arguments) in enumerate(runner.calls)
+                        if tool == producers["cupidld"]
+                    )
+                    certifications = [
+                        arguments
+                        for tool, arguments in runner.calls[:first_link]
+                        if tool == producers["cupiddis"]
+                    ]
+                    expected_objects = {
+                        str(root / stage_name / f"{name}.o")
+                        for name in ("first", "second")
+                    }
+                    self.assertEqual(
+                        {
+                            arguments[-1]
+                            for arguments in certifications
+                            if Path(arguments[-1]).name
+                            in {"first.o", "second.o"}
+                        },
+                        expected_objects,
+                    )
+                    self.assertTrue(
+                        all(
+                            arguments[:-1] == strict_flags
+                            for arguments in certifications
+                        )
+                    )
+
+    def test_fixed_point_stage_rejects_a_cupidc_object_before_linking(self):
+        class RejectingRunner:
+            def __init__(self, root: Path):
+                self.root = root
+                self.calls: list[Path] = []
+
+            def run(self, executable, arguments, _timeout):
+                executable = Path(executable)
+                self.calls.append(executable)
+                if executable == producers["cupidc"]:
+                    output = self.root / str(arguments[-1]).lstrip("/")
+                    output.write_bytes(_unowned_relocation_object_payload())
+                    return subprocess.CompletedProcess(arguments, 0, "", "")
+                if executable == producers["cupiddis"]:
+                    return subprocess.CompletedProcess(
+                        arguments,
+                        1,
+                        "",
+                        "code check failed: 1 of 1 executable relocations "
+                        "unmatched\n",
+                    )
+                raise AssertionError(
+                    "assembly and linking must not run after CupidC object "
+                    "certification fails"
+                )
+
+        with tempfile.TemporaryDirectory(
+            prefix=".fixed-point-c-object-rejection-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            startup = root / "start.asm"
+            startup.write_text("bits 32\nret\n", encoding="utf-8")
+            producers = {
+                name: root / f"preceding-{name}"
+                for name in ("cupidc", "cupidasm", "cupiddis", "cupidld")
+            }
+            plan = {
+                "sources": [
+                    {
+                        "name": "unit",
+                        "path": "/unit.cc",
+                        "gnu_extensions": False,
+                    }
+                ],
+                "include_arguments": [],
+                "workers": 1,
+                "startup": str(startup),
+                "links": {name: ["start"] for name in TOOL_NAMES},
+            }
+            runner = RejectingRunner(root)
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "fixture CupidC for /unit.cc CupidDis code anchors failed "
+                "with status 1: code check failed: 1 of 1 executable "
+                "relocations unmatched",
+            ):
+                _build_stage(
+                    runner,
+                    root,
+                    root / "stage",
+                    producers,
+                    plan,
+                    "fixture",
+                )
+            self.assertEqual(
+                runner.calls,
+                [producers["cupidc"], producers["cupiddis"]],
+            )
+
     def test_candidate_stages_link_all_six_tools(self):
         class RecordingRunner:
             def __init__(self):
