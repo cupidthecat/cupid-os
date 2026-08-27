@@ -1718,3 +1718,21 @@ private 209,715,200-byte image has SHA-256
 The complete private four-vCPU e1000 frontier passed in 496.479 seconds and
 reached the exact six-name ISO listing, `PASS feature17_iso`, and CupidC JIT
 completion.
+
+## 2026-08-26 six-tool seed compatibility
+
+The checked-seed readers have a dual-schema boundary. Active v1 manifests
+still own the five published tools. Inactive v2 manifests name CupidBuild as a
+sixth, non-producing artifact and retain exact source order, link order,
+producer roles, target layout, artifact bytes, and execution profiles. The
+Linux contract binds the six-tool plan. The Windows contract binds both that
+plan and its native translation.
+
+V2 lineage points to the current v1 manifests and source revision. Candidate
+revision and source-snapshot fields are checked as lower-case hexadecimal
+identities rather than compiled constants. The Windows record also carries a
+structural Linux v2 manifest digest that the host pairs with the supplied plan
+bytes. This removes the self-reference
+that blocked a direct promotion of the retained candidates. No production
+owner moves in this compatibility change. Fresh candidates, seed replacement,
+fixed-point reproof, and the later coordinator transfer remain separate gates.

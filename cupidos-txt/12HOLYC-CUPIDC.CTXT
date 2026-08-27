@@ -728,6 +728,17 @@ manual is an image input.
    attributes real declaration or call behavior and rejects unknown forms.
 >endtree
 
+>h2 Six-Tool Bootstrap Lineage
+>tree
+The next checked-seed format includes CupidBuild with the five existing tools.
+Its lineage points to the current checked seed and exact build plans. Candidate
+source identities are validated without embedding the future CupidBuild or
+manifest hash, which removes the circular dependency at promotion time. The
+Windows record names the Linux plan-manifest digest for exact host pairing. The
+format is implemented at source head; the active checked seeds remain on the
+five-tool contract until fresh candidates converge.
+>endtree
+
 >h2 See Also
 [04CUPIDC.CTXT - CupidC language](open:04CUPIDC.CTXT)
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)

@@ -15,6 +15,7 @@
 #define CUPIDBUILD_MANIFEST_BYTES 1048576u
 #define CUPIDBUILD_TOOL_BYTES 67108864u
 #define CUPIDBUILD_JSON_TOKENS 2048u
+#define CUPIDBUILD_SEED_ARTIFACTS 6u
 typedef struct {
   char file[CUPIDBUILD_PATH_BYTES];
   char sha256[65];
@@ -575,6 +576,25 @@ static int cupidbuild_json_string_field(const unsigned char *bytes,
          cupidbuild_json_text(bytes, &tokens[value], expected);
 }
 
+static int cupidbuild_json_lower_hex_field(
+    const unsigned char *bytes, const cupidbuild_json_token_t *tokens,
+    size_t count, size_t object, const char *name, size_t expected_size) {
+  size_t value = cupidbuild_json_required(bytes, tokens, count, object, name);
+  size_t index;
+  if (value >= count || tokens[value].type != CUPIDBUILD_JSON_STRING ||
+      tokens[value].end - tokens[value].start != expected_size) {
+    return 0;
+  }
+  for (index = tokens[value].start; index < tokens[value].end; index++) {
+    unsigned char digit = bytes[index];
+    if (!((digit >= '0' && digit <= '9') ||
+          (digit >= 'a' && digit <= 'f'))) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
 static int cupidbuild_json_number_field(const unsigned char *bytes,
                                         const cupidbuild_json_token_t *tokens,
                                         size_t count, size_t object,
@@ -638,33 +658,72 @@ static int cupidbuild_json_lineage(const unsigned char *bytes,
 static int cupidbuild_json_provenance(const unsigned char *bytes,
                                       const cupidbuild_json_token_t *tokens,
                                       size_t count, size_t object,
-                                      int windows) {
-  static const char revision[] = "a17c9465911da41d59b7ada71733d36c39faa5ea";
-  static const char snapshot[] =
+                                      int windows, int promoted) {
+  static const char legacy_revision[] =
+      "a17c9465911da41d59b7ada71733d36c39faa5ea";
+  static const char legacy_snapshot[] =
       "46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67";
-  static const char *const linux_names[] = {
+  static const char legacy_linux_manifest[] =
+      "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b";
+  static const char legacy_windows_manifest[] =
+      "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef";
+  static const char *const linux_v1_names[] = {
       "fixed_point_command",   "fixed_point_result", "producer_lineage",
       "seed_generation",       "source_input_count", "source_revision",
       "source_snapshot_sha256"};
-  static const char *const windows_names[] = {
+  static const char *const linux_v2_names[] = {
+      "artifact_generation",         "fixed_point_command",
+      "fixed_point_result",          "parent_seed_manifest_sha256",
+      "parent_seed_source_revision", "producer_lineage",
+      "seed_generation",             "source_input_count",
+      "source_revision",             "source_snapshot_sha256"};
+  static const char *const windows_v1_names[] = {
       "artifact_generation",         "fixed_point_command",
       "fixed_point_result",          "parent_seed_manifest_sha256",
       "parent_seed_source_revision", "producer_lineage",
       "source_input_count",          "source_revision",
       "source_snapshot_sha256"};
+  static const char *const windows_v2_names[] = {
+      "artifact_generation",
+      "fixed_point_command",
+      "fixed_point_result",
+      "parent_execution_seed_manifest_sha256",
+      "parent_execution_seed_source_revision",
+      "linux_candidate_build_plan_sha256",
+      "native_build_plan_sha256",
+      "plan_seed_manifest_sha256",
+      "parent_plan_seed_manifest_sha256",
+      "parent_plan_seed_source_revision",
+      "producer_lineage",
+      "source_input_count",
+      "source_revision",
+      "source_snapshot_sha256"};
+  const char *const *names =
+      windows ? (promoted ? windows_v2_names : windows_v1_names)
+              : (promoted ? linux_v2_names : linux_v1_names);
+  size_t name_count = windows ? (promoted ? 14u : 9u)
+                              : (promoted ? 10u : 7u);
   size_t lineage;
   if (object >= count ||
-      !cupidbuild_json_exact(bytes, tokens, count, object,
-                             windows ? windows_names : linux_names,
-                             windows ? 9u : 7u) ||
+      !cupidbuild_json_exact(bytes, tokens, count, object, names,
+                             name_count) ||
       !cupidbuild_json_string_field(bytes, tokens, count, object,
                                     "fixed_point_result", "pass") ||
       !cupidbuild_json_number_field(bytes, tokens, count, object,
-                                    "source_input_count", 50u) ||
-      !cupidbuild_json_string_field(bytes, tokens, count, object,
-                                    "source_revision", revision) ||
-      !cupidbuild_json_string_field(bytes, tokens, count, object,
-                                    "source_snapshot_sha256", snapshot)) {
+                                    "source_input_count",
+                                    promoted ? 58u : 50u) ||
+      (promoted
+           ? (!cupidbuild_json_lower_hex_field(
+                  bytes, tokens, count, object, "source_revision", 40u) ||
+              !cupidbuild_json_lower_hex_field(
+                  bytes, tokens, count, object, "source_snapshot_sha256",
+                  64u))
+           : (!cupidbuild_json_string_field(
+                  bytes, tokens, count, object, "source_revision",
+                  legacy_revision) ||
+              !cupidbuild_json_string_field(
+                  bytes, tokens, count, object, "source_snapshot_sha256",
+                  legacy_snapshot)))) {
     return 0;
   }
   lineage = cupidbuild_json_required(bytes, tokens, count, object,
@@ -673,25 +732,66 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
     return 0;
   }
   if (windows) {
-    return cupidbuild_json_string_field(bytes, tokens, count, object,
-                                        "artifact_generation",
-                                        "paired-stage-four-native-windows") &&
-           cupidbuild_json_string_field(bytes, tokens, count, object,
-                                        "fixed_point_command",
-                                        "make bootstrap-windows-from-seed") &&
-           cupidbuild_json_string_field(bytes, tokens, count, object,
-                                        "parent_seed_manifest_sha256",
-                                        "b6e34a2e18dd18aba91c6358116eafde399535"
-                                        "66efeadb224575ac8c13ab2c1b") &&
-           cupidbuild_json_string_field(bytes, tokens, count, object,
-                                        "parent_seed_source_revision",
-                                        revision);
-  }
-  return cupidbuild_json_string_field(bytes, tokens, count, object,
+    if (!cupidbuild_json_string_field(
+            bytes, tokens, count, object, "artifact_generation",
+            promoted ? "paired-stage-four-six-tool-native-windows"
+                     : "paired-stage-four-native-windows") ||
+        !cupidbuild_json_string_field(bytes, tokens, count, object,
                                       "fixed_point_command",
-                                      "make bootstrap-from-seed") &&
-         cupidbuild_json_string_field(bytes, tokens, count, object,
-                                      "seed_generation", "stage-four");
+                                      "make bootstrap-windows-from-seed") ||
+        !(promoted
+              ? (cupidbuild_json_string_field(
+                     bytes, tokens, count, object,
+                     "parent_execution_seed_manifest_sha256",
+                     legacy_windows_manifest) &&
+                 cupidbuild_json_string_field(
+                     bytes, tokens, count, object,
+                     "parent_execution_seed_source_revision",
+                     legacy_revision))
+              : (cupidbuild_json_string_field(
+                     bytes, tokens, count, object,
+                     "parent_seed_manifest_sha256",
+                     legacy_linux_manifest) &&
+                 cupidbuild_json_string_field(
+                     bytes, tokens, count, object,
+                     "parent_seed_source_revision", legacy_revision)))) {
+      return 0;
+    }
+    return !promoted ||
+           (cupidbuild_json_string_field(
+                bytes, tokens, count, object,
+                "linux_candidate_build_plan_sha256",
+                "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd") &&
+            cupidbuild_json_string_field(
+                bytes, tokens, count, object, "native_build_plan_sha256",
+                "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14") &&
+            cupidbuild_json_lower_hex_field(
+                bytes, tokens, count, object, "plan_seed_manifest_sha256",
+                64u) &&
+            cupidbuild_json_string_field(
+                bytes, tokens, count, object,
+                "parent_plan_seed_manifest_sha256", legacy_linux_manifest) &&
+           cupidbuild_json_string_field(bytes, tokens, count, object,
+                                        "parent_plan_seed_source_revision",
+                                        legacy_revision));
+  }
+  if (!cupidbuild_json_string_field(bytes, tokens, count, object,
+                                    "fixed_point_command",
+                                    "make bootstrap-from-seed") ||
+      !cupidbuild_json_string_field(bytes, tokens, count, object,
+                                    "seed_generation", "stage-four")) {
+    return 0;
+  }
+  return !promoted ||
+         (cupidbuild_json_string_field(
+              bytes, tokens, count, object, "artifact_generation",
+              "paired-stage-four-six-tool") &&
+          cupidbuild_json_string_field(
+              bytes, tokens, count, object, "parent_seed_manifest_sha256",
+              legacy_linux_manifest) &&
+          cupidbuild_json_string_field(
+              bytes, tokens, count, object, "parent_seed_source_revision",
+              legacy_revision));
 }
 
 static int cupidbuild_json_target(const unsigned char *bytes,
@@ -739,7 +839,7 @@ static int cupidbuild_json_target(const unsigned char *bytes,
 #if !defined(_WIN32)
 static int cupidbuild_json_sources(const unsigned char *bytes,
                                    const cupidbuild_json_token_t *tokens,
-                                   size_t count, size_t array) {
+                                   size_t count, size_t array, int promoted) {
   static const char *const names[] = {"gnu_extensions", "name", "path"};
   static const cupidbuild_seed_source_t expected[] = {
       {"runtime", "/toolchain/hosted/i386-linux/runtime.cc", 1},
@@ -760,15 +860,19 @@ static int cupidbuild_json_sources(const unsigned char *bytes,
       {"cupidc_frontend", "/toolchain/cupidc_frontend.cc", 0},
       {"cupidc_ir", "/toolchain/cupidc_ir.cc", 0},
       {"cupidc_emit", "/toolchain/cupidc_emit.cc", 0},
-      {"cupidc_main", "/toolchain/cupidc_main.cc", 0}};
+      {"cupidc_main", "/toolchain/cupidc_main.cc", 0},
+      {"cupidbuild", "/toolchain/cupidbuild.cc", 0},
+      {"cupidbuild_host", "/toolchain/cupidbuild_host.cc", 0},
+      {"cupidbuild_main", "/toolchain/cupidbuild_main.cc", 0}};
   size_t cursor;
   size_t index;
+  size_t expected_count = promoted ? 22u : 19u;
   if (array >= count || tokens[array].type != CUPIDBUILD_JSON_ARRAY ||
-      tokens[array].count != sizeof(expected) / sizeof(expected[0])) {
+      tokens[array].count != expected_count) {
     return 0;
   }
   cursor = array + 1u;
-  for (index = 0u; index < sizeof(expected) / sizeof(expected[0]); index++) {
+  for (index = 0u; index < expected_count; index++) {
     size_t extensions;
     int actual_extensions;
     if (cursor >= count ||
@@ -794,9 +898,9 @@ static int cupidbuild_json_sources(const unsigned char *bytes,
 
 static int cupidbuild_json_links(const unsigned char *bytes,
                                  const cupidbuild_json_token_t *tokens,
-                                 size_t count, size_t object) {
+                                 size_t count, size_t object, int promoted) {
   static const char *const names[] = {"cupidasm", "cupiddis", "cupidld",
-                                      "cupidobj", "cupidc"};
+                                      "cupidobj", "cupidc", "cupidbuild"};
   static const char *const cupidasm[] = {
       "start", "cupidasm_main", "cupidasm", "ctool_host",
       "ctool", "elf32",         "x86",      "runtime"};
@@ -813,9 +917,13 @@ static int cupidbuild_json_links(const unsigned char *bytes,
       "start",           "cupidc_main", "cupidc_emit", "cupidc_ir",
       "cupidc_frontend", "cupidc_type", "cupidc_pp",   "ctool_host",
       "ctool",           "elf32",       "x86",         "runtime"};
+  static const char *const cupidbuild[] = {
+      "start", "cupidbuild_main", "cupidbuild", "cupidbuild_host",
+      "ctool_host", "ctool", "elf32", "runtime"};
   size_t value;
   if (object >= count ||
-      !cupidbuild_json_exact(bytes, tokens, count, object, names, 5u)) {
+      !cupidbuild_json_exact(bytes, tokens, count, object, names,
+                             promoted ? 6u : 5u)) {
     return 0;
   }
   value = cupidbuild_json_required(bytes, tokens, count, object, "cupidasm");
@@ -838,12 +946,22 @@ static int cupidbuild_json_links(const unsigned char *bytes,
     return 0;
   }
   value = cupidbuild_json_required(bytes, tokens, count, object, "cupidc");
-  return cupidbuild_json_string_array(bytes, tokens, count, value, cupidc, 12u);
+  if (!cupidbuild_json_string_array(bytes, tokens, count, value, cupidc,
+                                    12u)) {
+    return 0;
+  }
+  if (!promoted) {
+    return 1;
+  }
+  value = cupidbuild_json_required(bytes, tokens, count, object, "cupidbuild");
+  return cupidbuild_json_string_array(bytes, tokens, count, value,
+                                      cupidbuild, 8u);
 }
 
 static int cupidbuild_json_build_plan(const unsigned char *bytes,
                                       const cupidbuild_json_token_t *tokens,
-                                      size_t count, size_t object) {
+                                      size_t count, size_t object,
+                                      int promoted) {
   static const char *const names[] = {"include_arguments", "links",
                                       "producer_tools",    "sources",
                                       "startup",           "workers"};
@@ -873,32 +991,35 @@ static int cupidbuild_json_build_plan(const unsigned char *bytes,
     return 0;
   }
   value = cupidbuild_json_required(bytes, tokens, count, object, "sources");
-  if (!cupidbuild_json_sources(bytes, tokens, count, value)) {
+  if (!cupidbuild_json_sources(bytes, tokens, count, value, promoted)) {
     return 0;
   }
   value = cupidbuild_json_required(bytes, tokens, count, object, "links");
-  return cupidbuild_json_links(bytes, tokens, count, value);
+  return cupidbuild_json_links(bytes, tokens, count, value, promoted);
 }
 #endif
 
 static int cupidbuild_json_artifacts(const unsigned char *bytes,
                                      const cupidbuild_json_token_t *tokens,
                                      size_t count, size_t array, int windows,
-                                     cupidbuild_seed_artifact_t artifacts[5]) {
+                                     int promoted,
+                                     cupidbuild_seed_artifact_t
+                                         artifacts[CUPIDBUILD_SEED_ARTIFACTS]) {
   static const char *const fields[] = {"file", "name", "producer", "sha256",
                                        "size"};
   static const char *const names[] = {"cupidasm", "cupidc", "cupiddis",
-                                      "cupidld", "cupidobj"};
-  static const int producers[] = {1, 1, 0, 1, 0};
-  int seen[5] = {0, 0, 0, 0, 0};
+                                      "cupidld", "cupidobj", "cupidbuild"};
+  static const int producers[] = {1, 1, 0, 1, 0, 0};
+  int seen[CUPIDBUILD_SEED_ARTIFACTS] = {0, 0, 0, 0, 0, 0};
   size_t cursor;
   size_t item;
+  size_t expected_count = promoted ? CUPIDBUILD_SEED_ARTIFACTS : 5u;
   if (array >= count || tokens[array].type != CUPIDBUILD_JSON_ARRAY ||
-      tokens[array].count != 5u) {
+      tokens[array].count != expected_count) {
     return 0;
   }
   cursor = array + 1u;
-  for (item = 0u; item < 5u; item++) {
+  for (item = 0u; item < expected_count; item++) {
     size_t name_token;
     size_t file_token;
     size_t digest_token;
@@ -913,13 +1034,13 @@ static int cupidbuild_json_artifacts(const unsigned char *bytes,
       return 0;
     }
     name_token = cupidbuild_json_required(bytes, tokens, count, cursor, "name");
-    for (index = 0u; index < 5u; index++) {
+    for (index = 0u; index < CUPIDBUILD_SEED_ARTIFACTS; index++) {
       if (name_token < count &&
           cupidbuild_json_text(bytes, &tokens[name_token], names[index])) {
         break;
       }
     }
-    if (index == 5u || seen[index] != 0) {
+    if (index == CUPIDBUILD_SEED_ARTIFACTS || seen[index] != 0) {
       return 0;
     }
     seen[index] = 1;
@@ -956,12 +1077,19 @@ static int cupidbuild_json_artifacts(const unsigned char *bytes,
     artifacts[index].size = actual_size;
     cursor = cupidbuild_json_next(tokens, count, cursor);
   }
+  for (item = 0u; item < CUPIDBUILD_SEED_ARTIFACTS; item++) {
+    if (seen[item] != (item < expected_count ? 1 : 0)) {
+      return 0;
+    }
+  }
   return 1;
 }
 
 static int cupidbuild_json_manifest(const unsigned char *manifest,
                                     size_t manifest_size,
-                                    cupidbuild_seed_artifact_t artifacts[5],
+                                    cupidbuild_seed_artifact_t
+                                        artifacts[CUPIDBUILD_SEED_ARTIFACTS],
+                                    size_t *artifact_count_out,
                                     const char **reason_out) {
   cupidbuild_json_token_t *tokens;
   size_t count = 0u;
@@ -970,13 +1098,16 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
   size_t schema;
   size_t target;
   int windows;
+  int promoted;
 #if defined(_WIN32)
-  static const char expected_schema[] = "cupid.execution-seed.v1";
+  static const char legacy_schema[] = "cupid.execution-seed.v1";
+  static const char promoted_schema[] = "cupid.execution-seed.v2";
   static const char *const top_names[] = {"artifacts", "provenance", "schema",
                                           "target"};
   windows = 1;
 #else
-  static const char expected_schema[] = "cupid.bootstrap-seed.v1";
+  static const char legacy_schema[] = "cupid.bootstrap-seed.v1";
+  static const char promoted_schema[] = "cupid.bootstrap-seed.v2";
   static const char *const top_names[] = {
       "artifacts",  "build_plan", "build_plan_sha256",
       "provenance", "schema",     "target"};
@@ -1006,20 +1137,26 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
   provenance =
       cupidbuild_json_required(manifest, tokens, count, 0u, "provenance");
   target = cupidbuild_json_required(manifest, tokens, count, 0u, "target");
-  if (schema >= count || tokens[schema].type != CUPIDBUILD_JSON_STRING ||
-      !cupidbuild_json_text(manifest, &tokens[schema], expected_schema)) {
+  if (schema >= count || tokens[schema].type != CUPIDBUILD_JSON_STRING) {
+    *reason_out = "schema differs";
+    free(tokens);
+    return 0;
+  }
+  promoted = cupidbuild_json_text(manifest, &tokens[schema], promoted_schema);
+  if (!promoted &&
+      !cupidbuild_json_text(manifest, &tokens[schema], legacy_schema)) {
     *reason_out = "schema differs";
     free(tokens);
     return 0;
   }
   if (!cupidbuild_json_artifacts(manifest, tokens, count, artifacts_token,
-                                 windows, artifacts)) {
+                                 windows, promoted, artifacts)) {
     *reason_out = "artifact inventory differs";
     free(tokens);
     return 0;
   }
   if (!cupidbuild_json_provenance(manifest, tokens, count, provenance,
-                                  windows)) {
+                                  windows, promoted)) {
     *reason_out = "fixed-point provenance differs";
     free(tokens);
     return 0;
@@ -1033,17 +1170,22 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
   {
     size_t plan =
         cupidbuild_json_required(manifest, tokens, count, 0u, "build_plan");
+    const char *expected_plan_sha256 =
+        promoted
+            ? "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
+            : "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc";
     if (!cupidbuild_json_string_field(manifest, tokens, count, 0u,
                                       "build_plan_sha256",
-                                      "59c1231e6fc7caafde8781dd6a566fa0ece2909b"
-                                      "e606914f24a19a7bececadcc") ||
-        !cupidbuild_json_build_plan(manifest, tokens, count, plan)) {
+                                      expected_plan_sha256) ||
+        !cupidbuild_json_build_plan(manifest, tokens, count, plan,
+                                    promoted)) {
       *reason_out = "build plan differs";
       free(tokens);
       return 0;
     }
   }
 #endif
+  *artifact_count_out = promoted ? CUPIDBUILD_SEED_ARTIFACTS : 5u;
   free(tokens);
   return 1;
 }
@@ -1135,7 +1277,8 @@ static int cupidbuild_string_equals(ctool_string_t actual,
 #endif
 
 static int cupidbuild_validate_execution_profile(const char *path,
-                                                 size_t artifact_index) {
+                                                 size_t artifact_index,
+                                                 int promoted) {
   unsigned char *bytes;
   size_t size = 0u;
   ctool_host_adapter_t adapter;
@@ -1171,22 +1314,66 @@ static int cupidbuild_validate_execution_profile(const char *path,
         "GetStdHandle",      "MoveFileExA",       "ReadFile",
         "SetFilePointer",    "VirtualAlloc",      "VirtualFree",
         "WriteFile"};
+    static const char *const cupidbuild_imports[] = {
+        "CloseHandle",
+        "CreateDirectoryA",
+        "CreateFileA",
+        "CreateProcessA",
+        "DeleteFileA",
+        "ExitProcess",
+        "FindClose",
+        "FindFirstFileA",
+        "FindNextFileA",
+        "FlushFileBuffers",
+        "GetCommandLineA",
+        "GetCurrentDirectoryA",
+        "GetCurrentProcessId",
+        "GetExitCodeProcess",
+        "GetFileAttributesA",
+        "GetFileInformationByHandle",
+        "GetFullPathNameA",
+        "GetLastError",
+        "GetStdHandle",
+        "MoveFileExA",
+        "OpenProcess",
+        "ReadFile",
+        "RemoveDirectoryA",
+        "SetFilePointer",
+        "TerminateProcess",
+        "VirtualAlloc",
+        "VirtualFree",
+        "WaitForSingleObject",
+        "WriteFile"};
     const char *const *expected_imports =
-        artifact_index == 3u ? linker_imports : ordinary_imports;
+        artifact_index == 5u
+            ? cupidbuild_imports
+            : ((promoted && artifact_index == 0u) || artifact_index == 3u
+                   ? linker_imports
+                   : ordinary_imports);
     size_t expected_count =
-        artifact_index == 3u
-            ? sizeof(linker_imports) / sizeof(linker_imports[0])
-            : sizeof(ordinary_imports) / sizeof(ordinary_imports[0]);
+        artifact_index == 5u
+            ? sizeof(cupidbuild_imports) / sizeof(cupidbuild_imports[0])
+            : (((promoted && artifact_index == 0u) || artifact_index == 3u)
+                   ? sizeof(linker_imports) / sizeof(linker_imports[0])
+                   : sizeof(ordinary_imports) / sizeof(ordinary_imports[0]));
+    size_t expected_library_count = artifact_index == 5u ? 2u : 1u;
+    size_t expected_total_count =
+        expected_count + (artifact_index == 5u ? 1u : 0u);
     ctool_pe32_image_t image;
     ctool_u32 index;
     if (ctool_pe32_read(job, &source, &image) == CTOOL_OK &&
         image.entry_point == 0x00401000u &&
-        image.import_library_count == 1u &&
-        image.import_count == (ctool_u32)expected_count &&
+        image.import_library_count == (ctool_u32)expected_library_count &&
+        image.import_count == (ctool_u32)expected_total_count &&
         cupidbuild_string_equals(image.import_libraries[0].name,
                                  "KERNEL32.dll")) {
       valid = 1;
-      for (index = 0u; index < image.import_count; index++) {
+      if (artifact_index == 5u &&
+          !cupidbuild_string_equals(image.import_libraries[1].name,
+                                    "NTDLL.dll")) {
+        valid = 0;
+      }
+      for (index = 0u; valid && index < (ctool_u32)expected_count; index++) {
         if (!cupidbuild_string_equals(image.imports[index].library_name,
                                       "KERNEL32.dll") ||
             !cupidbuild_string_equals(image.imports[index].procedure_name,
@@ -1194,6 +1381,14 @@ static int cupidbuild_validate_execution_profile(const char *path,
           valid = 0;
           break;
         }
+      }
+      if (valid && artifact_index == 5u &&
+          (!cupidbuild_string_equals(
+               image.imports[expected_count].library_name, "NTDLL.dll") ||
+           !cupidbuild_string_equals(
+               image.imports[expected_count].procedure_name,
+               "NtSetInformationFile"))) {
+        valid = 0;
       }
     }
   }
@@ -1204,6 +1399,7 @@ static int cupidbuild_validate_execution_profile(const char *path,
     ctool_u32 load_count = 0u;
     int entry_in_code = 0;
     (void)artifact_index;
+    (void)promoted;
     if (ctool_elf32_read(job, &source, &object) == CTOOL_OK &&
         object.file_type == CTOOL_ELF32_ET_EXEC &&
         object.entry_point == 0x08048000u &&
@@ -1256,25 +1452,29 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
   const char *frozen_inspector = (const char *)0;
   const char *frozen_linker = (const char *)0;
   const char *frozen_object = (const char *)0;
-  cupidbuild_seed_artifact_t artifacts[5];
+  const char *frozen_build = (const char *)0;
+  cupidbuild_seed_artifact_t artifacts[CUPIDBUILD_SEED_ARTIFACTS];
   cupidbuild_seed_artifact_t *assembler_artifact = &artifacts[0];
   cupidbuild_seed_artifact_t *compiler_artifact = &artifacts[1];
   cupidbuild_seed_artifact_t *inspector_artifact = &artifacts[2];
   cupidbuild_seed_artifact_t *linker_artifact = &artifacts[3];
   cupidbuild_seed_artifact_t *object_artifact = &artifacts[4];
+  cupidbuild_seed_artifact_t *build_artifact = &artifacts[5];
   cupidbuild_host_snapshot_t assembler_snapshot;
   cupidbuild_host_snapshot_t compiler_snapshot;
   cupidbuild_host_snapshot_t inspector_snapshot;
   cupidbuild_host_snapshot_t linker_snapshot;
   cupidbuild_host_snapshot_t object_snapshot;
+  cupidbuild_host_snapshot_t build_snapshot;
   cupidbuild_host_snapshot_t candidate_snapshot;
   unsigned char *manifest = (unsigned char *)0;
   unsigned char *candidate = (unsigned char *)0;
   size_t manifest_size = 0u;
+  size_t seed_artifact_count = 0u;
   const char *manifest_reason = "manifest path is invalid";
   const char *assembler_arguments[6];
   const char *inspector_arguments[5];
-  const char *expected_seed_files[5];
+  const char *expected_seed_files[CUPIDBUILD_SEED_ARTIFACTS];
   int assembler_status;
   int inspector_status;
   int result = 1;
@@ -1329,6 +1529,7 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
     goto done;
   }
   if (!cupidbuild_json_manifest(manifest, manifest_size, artifacts,
+                                &seed_artifact_count,
                                 &manifest_reason)) {
     (void)fprintf(stderr, "cupidbuild: checked seed manifest is invalid: %s\n",
                   manifest_reason);
@@ -1349,6 +1550,9 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
   expected_seed_files[2] = inspector_artifact->file;
   expected_seed_files[3] = linker_artifact->file;
   expected_seed_files[4] = object_artifact->file;
+  if (seed_artifact_count == CUPIDBUILD_SEED_ARTIFACTS) {
+    expected_seed_files[5] = build_artifact->file;
+  }
   if (!cupidbuild_host_seed_members_exact(
           manifest_directory,
 #if defined(_WIN32)
@@ -1356,7 +1560,7 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
 #else
           ".elf",
 #endif
-          expected_seed_files, 5u)) {
+          expected_seed_files, seed_artifact_count)) {
     (void)fprintf(stderr,
                   "cupidbuild: checked seed directory contains an unlisted "
                   "executable file\n");
@@ -1405,11 +1609,27 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
     (void)fprintf(stderr, "cupidbuild: checked CupidObj digest mismatch\n");
     goto done;
   }
-  if (!cupidbuild_validate_execution_profile(frozen_assembler, 0u) ||
-      !cupidbuild_validate_execution_profile(frozen_compiler, 1u) ||
-      !cupidbuild_validate_execution_profile(frozen_inspector, 2u) ||
-      !cupidbuild_validate_execution_profile(frozen_linker, 3u) ||
-      !cupidbuild_validate_execution_profile(frozen_object, 4u)) {
+  if (seed_artifact_count == CUPIDBUILD_SEED_ARTIFACTS) {
+    if (!cupidbuild_join(assembler_path, sizeof(assembler_path),
+                         manifest_directory, build_artifact->file) ||
+        !cupidbuild_host_freeze_input(transaction, assembler_path,
+                                      build_artifact->file, &frozen_build,
+                                      &build_snapshot) ||
+        !cupidbuild_artifact_matches(&build_snapshot, build_artifact)) {
+      (void)fprintf(stderr,
+                    "cupidbuild: checked CupidBuild digest mismatch\n");
+      goto done;
+    }
+  }
+  if (!cupidbuild_validate_execution_profile(
+          frozen_assembler, 0u,
+          seed_artifact_count == CUPIDBUILD_SEED_ARTIFACTS) ||
+      !cupidbuild_validate_execution_profile(frozen_compiler, 1u, 0) ||
+      !cupidbuild_validate_execution_profile(frozen_inspector, 2u, 0) ||
+      !cupidbuild_validate_execution_profile(frozen_linker, 3u, 0) ||
+      !cupidbuild_validate_execution_profile(frozen_object, 4u, 0) ||
+      (seed_artifact_count == CUPIDBUILD_SEED_ARTIFACTS &&
+       !cupidbuild_validate_execution_profile(frozen_build, 5u, 1))) {
     (void)fprintf(stderr,
                   "cupidbuild: checked seed execution profile mismatch\n");
     goto done;
@@ -1434,7 +1654,7 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
 #else
           ".elf",
 #endif
-          expected_seed_files, 5u)) {
+          expected_seed_files, seed_artifact_count)) {
     (void)fprintf(stderr,
                   "cupidbuild: checked seed directory membership changed "
                   "while checked tools ran\n");
@@ -1473,7 +1693,7 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
 #else
           ".elf",
 #endif
-          expected_seed_files, 5u)) {
+          expected_seed_files, seed_artifact_count)) {
     (void)fprintf(stderr,
                   "cupidbuild: checked seed directory membership changed "
                   "while checked tools ran\n");

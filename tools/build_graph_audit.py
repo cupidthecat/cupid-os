@@ -12059,156 +12059,88 @@ def _cupid_toolchain_fixed_point_contract(
         )
     else:
         candidate_helper = candidate_helpers[0]
-        helper_nodes, helper_parents = live_function_nodes(candidate_helper)
-        candidate_loops = [
-            node
-            for node in helper_nodes
-            if isinstance(node, ast.For)
-            and isinstance(node.target, ast.Tuple)
-            and [
-                item.id if isinstance(item, ast.Name) else None
-                for item in node.target.elts
-            ]
-            == ["name", "path", "gnu_extensions"]
-            and isinstance(node.iter, ast.Name)
-            and node.iter.id == "CANDIDATE_SOURCES"
-        ]
-        expected_append = ast.parse(
-            "sources.append({"
-            "'gnu_extensions': gnu_extensions, "
-            "'name': name, 'path': path})",
-            mode="eval",
+        candidate_body = candidate_helper.body
+        if (
+            candidate_body
+            and isinstance(candidate_body[0], ast.Expr)
+            and isinstance(candidate_body[0].value, ast.Constant)
+            and isinstance(candidate_body[0].value.value, str)
+        ):
+            candidate_body = candidate_body[1:]
+        expected_candidate_body = ast.parse(
+            "raw_sources = _require_list(\n"
+            "    checked_plan.get('sources'), 'build_plan.sources'\n"
+            ")\n"
+            "sources = [\n"
+            "    dict(_require_object(source, 'build source'))\n"
+            "    for source in raw_sources\n"
+            "]\n"
+            "sources_by_name = {\n"
+            "    str(source.get('name')): source for source in sources\n"
+            "}\n"
+            "for name, path, gnu_extensions in CANDIDATE_SOURCES:\n"
+            "    expected = {\n"
+            "        'gnu_extensions': gnu_extensions,\n"
+            "        'name': name,\n"
+            "        'path': path,\n"
+            "    }\n"
+            "    actual = sources_by_name.get(name)\n"
+            "    if actual is not None and actual != expected:\n"
+            "        raise BootstrapError(\n"
+            "            'Linux build plan uses the reserved candidate source ' "
+            "f'name: {name}'\n"
+            "        )\n"
+            "    if actual is None:\n"
+            "        sources.append(expected)\n"
+            "raw_links = _require_object(\n"
+            "    checked_plan.get('links'), 'build_plan.links'\n"
+            ")\n"
+            "if set(raw_links) not in (\n"
+            "    set(TOOL_NAMES), set(CANDIDATE_TOOL_NAMES)\n"
+            "):\n"
+            "    raise BootstrapError('checked build plan tool links differ')\n"
+            "links = {\n"
+            "    name: [\n"
+            "        str(item)\n"
+            "        for item in _require_list(\n"
+            "            raw_links.get(name), f'build_plan.links.{name}'\n"
+            "        )\n"
+            "    ]\n"
+            "    for name in TOOL_NAMES\n"
+            "}\n"
+            "raw_cupidbuild = raw_links.get('cupidbuild')\n"
+            "if raw_cupidbuild is None:\n"
+            "    links['cupidbuild'] = list(CANDIDATE_CUPIDBUILD_LINK)\n"
+            "else:\n"
+            "    cupidbuild_link = [\n"
+            "        str(item)\n"
+            "        for item in _require_list(\n"
+            "            raw_cupidbuild, 'build_plan.links.cupidbuild'\n"
+            "        )\n"
+            "    ]\n"
+            "    if tuple(cupidbuild_link) != CANDIDATE_CUPIDBUILD_LINK:\n"
+            "        raise BootstrapError(\n"
+            "            'Linux build plan candidate link differs: cupidbuild'\n"
+            "        )\n"
+            "    links['cupidbuild'] = cupidbuild_link\n"
+            "candidate = dict(checked_plan)\n"
+            "candidate['sources'] = sources\n"
+            "candidate['links'] = links\n"
+            "return candidate\n"
         ).body
-        append_calls = [
-            node
-            for node in helper_nodes
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "sources"
-            and node.func.attr == "append"
-            and len(candidate_loops) == 1
-            and _ast_contains(candidate_loops[0], node)
-        ]
-        link_assignments = [
-            node
-            for node in helper_nodes
-            if isinstance(node, ast.Assign)
-            and len(node.targets) == 1
-            and isinstance(node.targets[0], ast.Subscript)
-            and isinstance(node.targets[0].value, ast.Name)
-            and node.targets[0].value.id == "links"
-            and isinstance(node.targets[0].slice, ast.Constant)
-            and node.targets[0].slice.value == "cupidbuild"
-            and direct_name_call(
-                node.value,
-                "list",
-                ("CANDIDATE_CUPIDBUILD_LINK",),
-            )
-        ]
-
-        def candidate_field_assignments(
-            field: str,
-            value_name: str,
-        ) -> list[ast.Assign]:
-            return [
-                node
-                for node in helper_nodes
-                if isinstance(node, ast.Assign)
-                and len(node.targets) == 1
-                and isinstance(node.targets[0], ast.Subscript)
-                and isinstance(node.targets[0].value, ast.Name)
-                and node.targets[0].value.id == "candidate"
-                and isinstance(node.targets[0].slice, ast.Constant)
-                and node.targets[0].slice.value == field
-                and isinstance(node.value, ast.Name)
-                and node.value.id == value_name
-            ]
-
-        def candidate_field_writes(field: str) -> list[ast.AST]:
-            writes: list[ast.AST] = []
-            for node in helper_nodes:
-                targets: list[ast.expr] = []
-                if isinstance(node, ast.Assign):
-                    targets = node.targets
-                elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
-                    targets = [node.target]
-                if any(
-                    isinstance(target, ast.Subscript)
-                    and isinstance(target.value, ast.Name)
-                    and target.value.id == "candidate"
-                    and isinstance(target.slice, ast.Constant)
-                    and target.slice.value == field
-                    for target in targets
-                ):
-                    writes.append(node)
-            return writes
-
-        helper_returns = [
-            node
-            for node in helper_nodes
-            if isinstance(node, ast.Return)
-        ]
-        helper_is_exact = (
-            has_exact_live_expression_assignment(
-                candidate_helper,
-                "raw_sources",
-                "_require_list("
-                "checked_plan.get('sources'), 'build_plan.sources')",
-            )
-            and has_exact_live_expression_assignment(
-                candidate_helper,
-                "sources",
-                "[dict(_require_object(source, 'build source')) "
-                "for source in raw_sources]",
-            )
-            and has_exact_live_expression_assignment(
-                candidate_helper,
-                "raw_links",
-                "_require_object("
-                "checked_plan.get('links'), 'build_plan.links')",
-            )
-            and has_exact_live_expression_assignment(
-                candidate_helper,
-                "links",
-                "{name: [str(item) for item in _require_list("
-                "raw_links.get(name), f'build_plan.links.{name}')] "
-                "for name in TOOL_NAMES}",
-            )
-            and len(candidate_loops) == 1
-            and len(append_calls) == 1
-            and ast.dump(append_calls[0], include_attributes=False)
-            == ast.dump(expected_append, include_attributes=False)
-            and len(link_assignments) == 1
-            and has_exact_live_call_assignment(
-                candidate_helper,
-                "candidate",
-                "dict",
-                ("checked_plan",),
-            )
-            and len(candidate_field_writes("sources")) == 1
-            and len(candidate_field_assignments("sources", "sources")) == 1
-            and len(candidate_field_writes("links")) == 1
-            and len(candidate_field_assignments("links", "links")) == 1
-            and len(helper_returns) == 1
-            and isinstance(helper_returns[0].value, ast.Name)
-            and helper_returns[0].value.id == "candidate"
-            and all(
-                not _ast_node_is_statically_dead(
-                    node, candidate_helper, helper_parents
-                )
-                for node in (
-                    *append_calls,
-                    *link_assignments,
-                    *candidate_field_assignments("sources", "sources"),
-                    *candidate_field_assignments("links", "links"),
-                    *helper_returns,
-                )
+        helper_is_exact = len(candidate_body) == len(
+            expected_candidate_body
+        ) and all(
+            ast.dump(actual, include_attributes=False)
+            == ast.dump(expected, include_attributes=False)
+            for actual, expected in zip(
+                candidate_body, expected_candidate_body
             )
         )
         if not helper_is_exact:
             missing_bootstrap_fragments.append(
-                "candidate-plan helper must append and return the audited plan"
+                "candidate-plan helper must defensively upgrade or preserve "
+                "the audited plan"
             )
     required_linux_bootstrap_fragments = (
         "plan = _candidate_build_plan(checked_plan)",
@@ -12314,7 +12246,11 @@ def _cupid_toolchain_fixed_point_contract(
         "        )",
         "comparisons = _compare_windows_stages(\n"
         "            stage_three,\n"
-        "            stage_four,",
+        "            stage_four,\n"
+        "            c_source_names,\n"
+        "            assembly_names,\n"
+        "            CANDIDATE_TOOL_NAMES,\n"
+        "        )",
         "behavior = _run_native_windows_behavior_checks(\n"
         "            runner,\n"
         "            private_source_root,\n"
@@ -12332,6 +12268,16 @@ def _cupid_toolchain_fixed_point_contract(
         for fragment in required_windows_bootstrap_fragments
         if windows_bootstrap_source.count(fragment) != 1
     )
+    windows_inventory_guard = (
+        "if tuple(tool_names) != tuple(expected_tool_names):\n"
+        "        raise BootstrapError(\n"
+        "            \"native Windows stage-three tool inventory differs\"\n"
+        "        )"
+    )
+    if bootstrap_source.count(windows_inventory_guard) != 1:
+        missing_bootstrap_fragments.append(
+            "Windows comparator: expected tool inventory guard"
+        )
 
     def named_assignment_values(
         function: ast.FunctionDef | ast.AsyncFunctionDef | None,

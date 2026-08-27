@@ -2251,3 +2251,18 @@ seconds because the executable image may still be mapped. Other cleanup errors
 are not retried, and a persistent lock still stops the build. The seed,
 arguments, timeout, output validation, live cohort check, and atomic publisher
 keep their existing behavior.
+
+### Six-tool manifest compatibility
+
+The bootstrap readers accept the active v1 five-tool manifests and the next
+v2 six-tool manifests. V2 adds CupidBuild as a checked non-producer, binds the
+exact Linux and native build plans, and keeps platform-specific image checks.
+Its lineage points to the current v1 seeds. Candidate revision and source
+snapshot identities must be lower-case hexadecimal values, which lets a
+candidate validate a manifest that will later contain it without embedding
+its own future hash. The Windows record carries the Linux v2 manifest digest,
+and the host driver requires it to match the supplied plan seed.
+
+The checked seed directories remain on v1. Promotion requires fresh candidates
+built from the compatibility commit, final-stage equality on Linux and native
+Windows, complete cohort replacement, and a promoted-seed reproof.

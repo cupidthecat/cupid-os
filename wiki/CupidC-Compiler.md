@@ -3159,3 +3159,15 @@ log has SHA-256
 `bc30f5083b96a36362bec5975c0a88437c4f23515de329328bb03d8f6c3e9326`.
 The source image was unchanged at SHA-256
 `31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
+
+## Six-tool bootstrap manifests
+
+Source-head CupidBuild and the host bootstrap coordinator understand both the
+current five-tool manifests and the six-tool promotion format. The latter adds
+CupidBuild as a checked non-producer and validates its image with the same
+strict platform rules used during candidate generation. Its provenance names
+the existing seed as its parent instead of trying to embed the future
+CupidBuild or manifest digest. Windows also records the Linux plan-manifest
+digest for exact host-side pairing. The active checked compiler seeds remain
+on the five-tool schema until fresh candidates converge and are promoted
+together.

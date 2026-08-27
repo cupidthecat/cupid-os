@@ -161,6 +161,122 @@ class CupidBuildCliTests(unittest.TestCase):
             encoded = json.dumps(document, indent=2, sort_keys=True) + "\n"
         manifest.write_text(encoded, encoding="utf-8")
 
+    def _promote_seed_contract(self, manifest):
+        document = json.loads(manifest.read_text(encoding="utf-8"))
+        suffix = ".exe" if os.name == "nt" else ".elf"
+        stand_in = manifest.parent / f"cupidbuild{suffix}"
+        shutil.copy2(manifest.parent / f"cupidobj{suffix}", stand_in)
+        payload = stand_in.read_bytes()
+        document["artifacts"].append(
+            {
+                "file": stand_in.name,
+                "name": "cupidbuild",
+                "producer": False,
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "size": len(payload),
+            }
+        )
+        revision = "abcdef0123456789abcdef0123456789abcdef01"
+        snapshot = "2" * 64
+        if os.name == "nt":
+            document["schema"] = "cupid.execution-seed.v2"
+            document["provenance"] = {
+                "artifact_generation": (
+                    "paired-stage-four-six-tool-native-windows"
+                ),
+                "fixed_point_command": "make bootstrap-windows-from-seed",
+                "fixed_point_result": "pass",
+                "linux_candidate_build_plan_sha256": (
+                    "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
+                ),
+                "native_build_plan_sha256": (
+                    "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
+                ),
+                "plan_seed_manifest_sha256": "3" * 64,
+                "parent_execution_seed_manifest_sha256": (
+                    "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef"
+                ),
+                "parent_execution_seed_source_revision": (
+                    "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                ),
+                "parent_plan_seed_manifest_sha256": (
+                    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+                ),
+                "parent_plan_seed_source_revision": (
+                    "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                ),
+                "producer_lineage": document["provenance"][
+                    "producer_lineage"
+                ],
+                "source_input_count": 58,
+                "source_revision": revision,
+                "source_snapshot_sha256": snapshot,
+            }
+        else:
+            document["schema"] = "cupid.bootstrap-seed.v2"
+            plan = document["build_plan"]
+            plan["sources"].extend(
+                [
+                    {
+                        "gnu_extensions": False,
+                        "name": "cupidbuild",
+                        "path": "/toolchain/cupidbuild.cc",
+                    },
+                    {
+                        "gnu_extensions": False,
+                        "name": "cupidbuild_host",
+                        "path": "/toolchain/cupidbuild_host.cc",
+                    },
+                    {
+                        "gnu_extensions": False,
+                        "name": "cupidbuild_main",
+                        "path": "/toolchain/cupidbuild_main.cc",
+                    },
+                ]
+            )
+            plan["links"]["cupidbuild"] = [
+                "start",
+                "cupidbuild_main",
+                "cupidbuild",
+                "cupidbuild_host",
+                "ctool_host",
+                "ctool",
+                "elf32",
+                "runtime",
+            ]
+            encoded_plan = json.dumps(
+                plan,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+            ).encode("ascii")
+            document["build_plan_sha256"] = hashlib.sha256(
+                encoded_plan
+            ).hexdigest()
+            document["provenance"] = {
+                "artifact_generation": "paired-stage-four-six-tool",
+                "fixed_point_command": "make bootstrap-from-seed",
+                "fixed_point_result": "pass",
+                "parent_seed_manifest_sha256": (
+                    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+                ),
+                "parent_seed_source_revision": (
+                    "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                ),
+                "producer_lineage": document["provenance"][
+                    "producer_lineage"
+                ],
+                "seed_generation": "stage-four",
+                "source_input_count": 58,
+                "source_revision": revision,
+                "source_snapshot_sha256": snapshot,
+            }
+        manifest.write_text(
+            json.dumps(document, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return document
+
     @staticmethod
     def _reverse_object_fields(value):
         if isinstance(value, dict):
@@ -194,6 +310,92 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertEqual(result.stdout, "")
             self.assertEqual(result.stderr, "")
             self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
+    def test_six_tool_v2_contract_reaches_checked_execution_profiles(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-v2-contract-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            self._promote_seed_contract(manifest)
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text(
+                "bits 32\nsection .text\nglobal entry:function\nentry: ret\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"last known good object")
+
+            result = self._run_object(source, output, manifest)
+
+            if os.name == "nt":
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("execution profile mismatch", result.stderr)
+                self.assertEqual(
+                    output.read_bytes(), b"last known good object"
+                )
+            else:
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(
+                    output.read_bytes()[:7], b"\x7fELF\x01\x01\x01"
+                )
+
+    def test_six_tool_v2_contract_rejects_parent_and_revision_drift(self):
+        def uppercase_revision(document):
+            revision = document["provenance"]["source_revision"]
+            document["provenance"]["source_revision"] = revision.upper()
+
+        def change_parent(document):
+            parent_field = (
+                "parent_execution_seed_manifest_sha256"
+                if os.name == "nt"
+                else "parent_seed_manifest_sha256"
+            )
+            document["provenance"][parent_field] = "0" * 64
+
+        cases = (
+            ("uppercase source revision", uppercase_revision),
+            ("wrong parent manifest", change_parent),
+        )
+        if os.name == "nt":
+            cases += (
+                (
+                    "malformed plan seed manifest",
+                    lambda document: document["provenance"].update(
+                        {"plan_seed_manifest_sha256": "A" * 64}
+                    ),
+                ),
+            )
+        for label, mutate in cases:
+            with self.subTest(label=label), tempfile.TemporaryDirectory(
+                prefix=".cupidbuild-object-v2-provenance-", dir=REPO_ROOT
+            ) as temporary:
+                root = Path(temporary)
+                manifest = self._copy_checked_assembly_seed(root / "seed")
+                document = self._promote_seed_contract(manifest)
+                source = root / "input.asm"
+                output = root / "output.o"
+                source.write_text(
+                    "bits 32\nsection .text\nret\n", encoding="utf-8"
+                )
+                output.write_bytes(b"last known good object")
+                mutate(document)
+                manifest.write_text(
+                    json.dumps(document, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+
+                result = self._run_object(source, output, manifest)
+
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(
+                    "fixed-point provenance differs", result.stderr
+                )
+                self.assertEqual(
+                    output.read_bytes(), b"last known good object"
+                )
 
     def test_unlisted_executable_seed_peer_is_rejected_before_assembly(self):
         with tempfile.TemporaryDirectory(
@@ -398,6 +600,14 @@ class CupidBuildCliTests(unittest.TestCase):
                 )
                 + "\n"
             ),
+            "escaped schema": lambda document: (
+                json.dumps(document, indent=2, sort_keys=True).replace(
+                    document["schema"],
+                    r"\u0063" + document["schema"][1:],
+                    1,
+                )
+                + "\n"
+            ),
             "missing artifact": lambda document: (
                 json.dumps(
                     {**document, "artifacts": document["artifacts"][:-1]},
@@ -417,6 +627,29 @@ class CupidBuildCliTests(unittest.TestCase):
                                 else artifact
                             )
                             for index, artifact in enumerate(document["artifacts"])
+                        ],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            ),
+            "v2 artifact in a v1 manifest": lambda document: (
+                json.dumps(
+                    {
+                        **document,
+                        "artifacts": [
+                            *document["artifacts"][:-1],
+                            {
+                                **document["artifacts"][-1],
+                                "file": (
+                                    "cupidbuild.exe"
+                                    if os.name == "nt"
+                                    else "cupidbuild.elf"
+                                ),
+                                "name": "cupidbuild",
+                                "producer": False,
+                            },
                         ],
                     },
                     indent=2,

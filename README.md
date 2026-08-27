@@ -3032,6 +3032,18 @@ mapped briefly after the process exits, so deletion retries sharing violation
 that outlives the bound still fails the build. This does not relax manifest,
 output, timeout, or publication checks.
 
+### Six-tool seed compatibility
+
+Source head can validate both the active five-tool seed manifests and the
+next six-tool manifests. The v2 contracts add CupidBuild as a checked
+non-producer and retain the exact source, link, provenance, target, artifact,
+and execution-profile checks. Their lineage points to the existing v1 seeds,
+so a candidate does not need to contain its own future binary or manifest
+hash. The Windows record also carries the Linux v2 manifest digest, which the
+host driver checks against the supplied plan seed. The checked seed
+directories remain on v1 until fresh Linux and Windows candidates built from
+this compatibility boundary reach their fixed points.
+
 ---
 
 ## License

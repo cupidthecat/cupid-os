@@ -476,6 +476,17 @@ normal kernel publisher combines it with linked local-target validation for
 the pass-one and final ELFs before flattening.
 >endtree
 
+>h2 Six-Tool Seed Images
+>tree
+The next seed schema lists six complete tool images. CupidBuild joins CupidASM,
+CupidDis, CupidLD, CupidObj, and CupidC as a checked artifact but does not act
+as a code producer. Linux keeps static ELF32 checks. Windows applies the
+publication-capable import profile required by each native tool. The active
+seed directories remain on the five-image schema until a fresh fixed-point
+pair is promoted. The Windows record binds the exact Linux plan manifest used
+for that pair.
+>endtree
+
 >h2 See Also
 [04CUPIDC.CTXT - CupidC](open:04CUPIDC.CTXT)
 [02FILESYS.CTXT - storage layout](open:02FILESYS.CTXT)

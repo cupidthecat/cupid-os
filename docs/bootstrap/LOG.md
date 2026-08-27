@@ -31815,8 +31815,60 @@ not a completed capability.
 
 The six-tool candidate is not promoted. The ISR and context-switch recipes and
 the fixed-point coordinators remain on the checked Python publisher. A
-non-self-referential six-tool manifest, seed promotion, and recipe transfer
+fresh six-tool seed promotion, promoted-seed reproof, and recipe transfer
 remain open.
+
+## 2026-08-26: define the six-tool seed promotion contract
+
+The retained six-tool reports could not be promoted safely. Their CupidBuild
+images were built before the six-tool manifest schema existed, so each image
+only recognizes the active v1 five-tool contract. Adding those binaries to a
+v2 seed would make the new seed fail its own guarded operations.
+
+Source-head CupidBuild and the Python bootstrap coordinator now accept both
+the exact v1 contracts and inactive v2 contracts. The Linux v2 contract names
+six artifacts, the exact 22-source plan, and all six link orders. The Windows
+v2 contract names six artifacts and binds both the Linux candidate plan and
+the native plan. CupidBuild is a non-producer. Windows CupidASM and CupidLD use
+the publication import profile, while Windows CupidBuild uses its complete
+Kernel32 and NTDLL profile.
+
+V2 provenance binds the existing v1 parent manifest and revision. The new
+candidate revision and source snapshot must be lower-case hexadecimal strings
+of the right lengths, but CupidBuild does not compile their future values into
+itself. A Windows v2 manifest similarly records the future Linux v2 plan
+manifest digest as a structural lower-case field. The host coordinator binds
+that field to the supplied plan manifest bytes. This is a compatibility
+change only: both tracked seed directories remain byte-for-byte on v1, and no
+normal recipe changes owner.
+
+Focused positive tests build synthetic six-artifact Linux and Windows
+contracts from the checked cohorts. Negative tests cover the wrong parent,
+upper-case revision, JSON string escapes, producer-role drift, missing
+membership, mixed or mismatched Windows seed pairs, and the native
+execution-profile boundary. The CupidBuild module passes 42 tests with two
+platform skips. The bootstrap-seed module's 126 shorter tests pass in 276.716
+seconds. The complete Linux fixed point, including the Windows behavior
+matrix, passes in 1,710.826 seconds. The native Windows producer fixed point
+passes in 1,486.838 seconds. These three runs cover all 128 bootstrap-seed
+tests on the final source revision.
+
+Two preliminary Linux replays completed every build and behavior check before
+finding old assertions in the final report review. The assertions still named
+the larger pre-ADR-0350 CupidDis image and treated CupidLD as the only native
+tool with publication imports and objects. Current source-head evidence from
+three retained fixed points supplied the corrected CupidDis identity, and the
+native plan supplied the shared CupidASM and CupidLD publication profile. The
+final clean replay passes with those evidence checks in place.
+
+The fixed-point mutation audit passes in 237.182 seconds. It now rejects a
+five-tool native comparison and protects the six-tool inventory guard. Audit
+generation and its independent check also pass. The 2,741,840-byte active
+build JSON has SHA-256
+`21e1e47de7902ea6cc2d20b3ceb07debedbfbabae2491795c05fff508d54c407`,
+and the 12,858-byte summary has SHA-256
+`8608be89ae45cd0448cd851b9e7bb28defb8068d90eb68c10a0dfce3843ccd5d`.
+
 ## 2026-08-26: pin the official Freedoom runtime fixture
 
 The official Freedoom v0.13.0 Phase 1 IWAD is now available at

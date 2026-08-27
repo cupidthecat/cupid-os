@@ -1890,3 +1890,15 @@ transient sharing violation while deleting the completed private executable,
 with a two-second bound. Persistent locks and every other cleanup error remain
 fatal. This reliability change removes no host dependency and transfers no
 build owner.
+
+### Six-tool promotion boundary
+
+Host Python and source-head CupidBuild can validate either the active v1
+five-tool seeds or inactive v2 six-tool seeds. The new schema support does not
+retire Python or transfer a normal recipe. It makes the next seed promotion
+possible without asking CupidBuild to contain its own future artifact or
+manifest digest. The host also binds the Windows record's structural plan-seed
+digest to the supplied Linux manifest bytes. A fresh Linux and Windows
+candidate pair must still converge, be promoted as complete cohorts, and pass
+the promoted-seed fixed-point gates before any coordinator or assembly recipe
+can change owner.

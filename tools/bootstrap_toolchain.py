@@ -22,6 +22,8 @@ from typing import Sequence
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
 WINDOWS_SEED_SCHEMA = "cupid.execution-seed.v1"
+PROMOTED_SEED_SCHEMA = "cupid.bootstrap-seed.v2"
+PROMOTED_WINDOWS_SEED_SCHEMA = "cupid.execution-seed.v2"
 SEED_SOURCE_REVISION = "a17c9465911da41d59b7ada71733d36c39faa5ea"
 SEED_SOURCE_INPUT_COUNT = 50
 SEED_SOURCE_SNAPSHOT_SHA256 = (
@@ -35,6 +37,7 @@ TOOL_DISPLAY_NAMES = {
     "cupidld": "CupidLD",
     "cupidobj": "CupidObj",
     "cupidc": "CupidC",
+    "cupidbuild": "CupidBuild",
 }
 PRODUCER_NAMES = ("cupidc", "cupidasm", "cupidld")
 EXPECTED_TARGET = {
@@ -101,6 +104,22 @@ WINDOWS_SEED_PARENT_MANIFEST_SHA256 = (
 )
 WINDOWS_SEED_PARENT_SOURCE_REVISION = (
     "a17c9465911da41d59b7ada71733d36c39faa5ea"
+)
+PROMOTION_PARENT_LINUX_MANIFEST_SHA256 = (
+    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+)
+PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = (
+    "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef"
+)
+PROMOTION_PARENT_SOURCE_REVISION = (
+    "a17c9465911da41d59b7ada71733d36c39faa5ea"
+)
+PROMOTED_SOURCE_INPUT_COUNT = 58
+PROMOTED_LINUX_PLAN_SHA256 = (
+    "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
+)
+PROMOTED_WINDOWS_PLAN_SHA256 = (
+    "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
 )
 WINDOWS_TOOL_IMPORTS = (
     (
@@ -520,6 +539,15 @@ def _require_exact_keys(
         raise BootstrapError(f"{label} keys differ")
 
 
+def _require_lower_hex(value: object, size: int, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or re.fullmatch(rf"[0-9a-f]{{{size}}}", value) is None
+    ):
+        raise BootstrapError(f"{label} is invalid")
+    return value
+
+
 def _manifest_object(
     pairs: list[tuple[str, object]],
 ) -> dict[str, object]:
@@ -554,7 +582,7 @@ def _build_plan_sha256(plan: dict[str, object]) -> str:
 def _candidate_build_plan(
     checked_plan: dict[str, object],
 ) -> dict[str, object]:
-    """Derive the six-tool candidate plan from an unchanged v1 plan."""
+    """Return a defensive six-tool plan, upgrading a v1 plan if needed."""
     raw_sources = _require_list(
         checked_plan.get("sources"), "build_plan.sources"
     )
@@ -562,25 +590,26 @@ def _candidate_build_plan(
         dict(_require_object(source, "build source"))
         for source in raw_sources
     ]
-    source_names = {str(source.get("name")) for source in sources}
+    sources_by_name = {str(source.get("name")): source for source in sources}
     for name, path, gnu_extensions in CANDIDATE_SOURCES:
-        if name in source_names:
+        expected = {
+            "gnu_extensions": gnu_extensions,
+            "name": name,
+            "path": path,
+        }
+        actual = sources_by_name.get(name)
+        if actual is not None and actual != expected:
             raise BootstrapError(
                 "Linux build plan uses the reserved candidate source "
                 f"name: {name}"
             )
-        sources.append(
-            {
-                "gnu_extensions": gnu_extensions,
-                "name": name,
-                "path": path,
-            }
-        )
+        if actual is None:
+            sources.append(expected)
 
     raw_links = _require_object(
         checked_plan.get("links"), "build_plan.links"
     )
-    if set(raw_links) != set(TOOL_NAMES):
+    if set(raw_links) not in (set(TOOL_NAMES), set(CANDIDATE_TOOL_NAMES)):
         raise BootstrapError("checked build plan tool links differ")
     links = {
         name: [
@@ -591,7 +620,21 @@ def _candidate_build_plan(
         ]
         for name in TOOL_NAMES
     }
-    links["cupidbuild"] = list(CANDIDATE_CUPIDBUILD_LINK)
+    raw_cupidbuild = raw_links.get("cupidbuild")
+    if raw_cupidbuild is None:
+        links["cupidbuild"] = list(CANDIDATE_CUPIDBUILD_LINK)
+    else:
+        cupidbuild_link = [
+            str(item)
+            for item in _require_list(
+                raw_cupidbuild, "build_plan.links.cupidbuild"
+            )
+        ]
+        if tuple(cupidbuild_link) != CANDIDATE_CUPIDBUILD_LINK:
+            raise BootstrapError(
+                "Linux build plan candidate link differs: cupidbuild"
+            )
+        links["cupidbuild"] = cupidbuild_link
 
     candidate = dict(checked_plan)
     candidate["sources"] = sources
@@ -1519,7 +1562,9 @@ def _logical_path(root: Path, path: Path) -> str:
     return "/" + relative.as_posix()
 
 
-def _validate_build_plan(manifest: dict[str, object]) -> None:
+def _validate_build_plan(
+    manifest: dict[str, object], *, promoted: bool = False
+) -> None:
     plan = _require_object(manifest.get("build_plan"), "build_plan")
     _require_exact_keys(
         plan,
@@ -1551,9 +1596,17 @@ def _validate_build_plan(manifest: dict[str, object]) -> None:
     if tuple(producers) != PRODUCER_NAMES:
         raise BootstrapError("build plan producer tools differ")
 
+    expected_sources = (
+        (*EXPECTED_SOURCES, *CANDIDATE_SOURCES)
+        if promoted
+        else EXPECTED_SOURCES
+    )
     sources = _require_list(plan.get("sources"), "build_plan.sources")
-    if len(sources) != len(EXPECTED_SOURCES):
-        raise BootstrapError("build plan must contain 19 C sources")
+    if len(sources) != len(expected_sources):
+        raise BootstrapError(
+            "build plan must contain "
+            f"{len(expected_sources)} C sources"
+        )
     actual_sources: list[tuple[str, str, bool]] = []
     for index, raw_source in enumerate(sources):
         source = _require_object(
@@ -1580,13 +1633,16 @@ def _validate_build_plan(manifest: dict[str, object]) -> None:
                 f"build source GNU mode is invalid: {name}"
             )
         actual_sources.append((name, logical_path, extensions))
-    if tuple(actual_sources) != EXPECTED_SOURCES:
+    if tuple(actual_sources) != expected_sources:
         raise BootstrapError("build plan sources differ")
 
     links = _require_object(plan.get("links"), "build_plan.links")
-    if set(links) != set(EXPECTED_LINKS):
+    expected_links = dict(EXPECTED_LINKS)
+    if promoted:
+        expected_links["cupidbuild"] = CANDIDATE_CUPIDBUILD_LINK
+    if set(links) != set(expected_links):
         raise BootstrapError("build plan tool links differ")
-    for name, expected in EXPECTED_LINKS.items():
+    for name, expected in expected_links.items():
         raw_order = _require_list(
             links.get(name), f"build_plan.links.{name}"
         )
@@ -1601,6 +1657,8 @@ def _read_manifest_capture(
         raise BootstrapError("manifest may not be a symlink")
     try:
         encoded = manifest_path.read_bytes()
+        if b"\\" in encoded:
+            raise BootstrapError("manifest strings may not use escapes")
         raw_manifest = json.loads(
             encoded.decode("utf-8"),
             object_pairs_hook=_manifest_object,
@@ -1610,13 +1668,62 @@ def _read_manifest_capture(
     return _require_object(raw_manifest, "manifest"), encoded
 
 
+def _require_seed_pair_identity(
+    execution_seed: SeedInputs, plan_seed: SeedInputs
+) -> None:
+    execution_schema = execution_seed.manifest.get("schema")
+    plan_schema = plan_seed.manifest.get("schema")
+    execution_promoted = execution_schema == PROMOTED_WINDOWS_SEED_SCHEMA
+    plan_promoted = plan_schema == PROMOTED_SEED_SCHEMA
+    if execution_promoted != plan_promoted:
+        raise BootstrapError(
+            "native Windows bootstrap seed generation differs"
+        )
+    execution_provenance = _require_object(
+        execution_seed.manifest.get("provenance"),
+        "Windows execution seed provenance",
+    )
+    plan_provenance = _require_object(
+        plan_seed.manifest.get("provenance"), "Linux plan seed provenance"
+    )
+    for field, label in (
+        ("source_revision", "source revision"),
+        ("source_snapshot_sha256", "source snapshot"),
+    ):
+        if execution_provenance.get(field) != plan_provenance.get(field):
+            raise BootstrapError(
+                f"native Windows bootstrap seed {label} differs"
+            )
+    if execution_promoted and execution_provenance.get(
+        "plan_seed_manifest_sha256"
+    ) != plan_seed.manifest_sha256:
+        raise BootstrapError(
+            "native Windows bootstrap plan seed manifest differs"
+        )
+
+
 def _verify_seed_manifest_data(
     manifest: dict[str, object],
     seed_directory: Path,
     snapshot_directory: Path | None,
 ) -> tuple[dict[str, Path], dict[str, bytes]]:
     schema = manifest.get("schema")
-    is_windows_seed = schema == WINDOWS_SEED_SCHEMA
+    supported_schemas = {
+        SEED_SCHEMA,
+        WINDOWS_SEED_SCHEMA,
+        PROMOTED_SEED_SCHEMA,
+        PROMOTED_WINDOWS_SEED_SCHEMA,
+    }
+    if schema not in supported_schemas:
+        raise BootstrapError("manifest schema is unsupported")
+    is_windows_seed = schema in (
+        WINDOWS_SEED_SCHEMA,
+        PROMOTED_WINDOWS_SEED_SCHEMA,
+    )
+    promoted = schema in (
+        PROMOTED_SEED_SCHEMA,
+        PROMOTED_WINDOWS_SEED_SCHEMA,
+    )
     _require_exact_keys(
         manifest,
         (
@@ -1633,8 +1740,6 @@ def _verify_seed_manifest_data(
         ),
         "manifest",
     )
-    if schema not in (SEED_SCHEMA, WINDOWS_SEED_SCHEMA):
-        raise BootstrapError("manifest schema is unsupported")
     expected_target = (
         EXPECTED_WINDOWS_TARGET if is_windows_seed else EXPECTED_TARGET
     )
@@ -1652,7 +1757,79 @@ def _verify_seed_manifest_data(
     provenance = _require_object(
         manifest.get("provenance"), "provenance"
     )
-    if is_windows_seed:
+    if is_windows_seed and promoted:
+        _require_exact_keys(
+            provenance,
+            {
+                "artifact_generation",
+                "fixed_point_command",
+                "fixed_point_result",
+                "linux_candidate_build_plan_sha256",
+                "native_build_plan_sha256",
+                "plan_seed_manifest_sha256",
+                "parent_execution_seed_manifest_sha256",
+                "parent_execution_seed_source_revision",
+                "parent_plan_seed_manifest_sha256",
+                "parent_plan_seed_source_revision",
+                "producer_lineage",
+                "source_input_count",
+                "source_revision",
+                "source_snapshot_sha256",
+            },
+            "provenance",
+        )
+        if provenance.get("artifact_generation") != (
+            "paired-stage-four-six-tool-native-windows"
+        ):
+            raise BootstrapError("Windows seed generation differs")
+        _require_lower_hex(
+            provenance.get("source_revision"), 40, "source revision"
+        )
+        _require_lower_hex(
+            provenance.get("source_snapshot_sha256"),
+            64,
+            "source snapshot",
+        )
+        source_input_count = provenance.get("source_input_count")
+        if (
+            type(source_input_count) is not int
+            or source_input_count != PROMOTED_SOURCE_INPUT_COUNT
+        ):
+            raise BootstrapError("source input count differs")
+        if provenance.get("parent_execution_seed_source_revision") != (
+            PROMOTION_PARENT_SOURCE_REVISION
+        ):
+            raise BootstrapError("parent execution seed revision differs")
+        if provenance.get("parent_execution_seed_manifest_sha256") != (
+            PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256
+        ):
+            raise BootstrapError("parent execution seed manifest differs")
+        if provenance.get("parent_plan_seed_source_revision") != (
+            PROMOTION_PARENT_SOURCE_REVISION
+        ):
+            raise BootstrapError("parent plan seed revision differs")
+        if provenance.get("parent_plan_seed_manifest_sha256") != (
+            PROMOTION_PARENT_LINUX_MANIFEST_SHA256
+        ):
+            raise BootstrapError("parent plan seed manifest differs")
+        if provenance.get("linux_candidate_build_plan_sha256") != (
+            PROMOTED_LINUX_PLAN_SHA256
+        ):
+            raise BootstrapError("Linux candidate build plan differs")
+        if provenance.get("native_build_plan_sha256") != (
+            PROMOTED_WINDOWS_PLAN_SHA256
+        ):
+            raise BootstrapError("native build plan differs")
+        _require_lower_hex(
+            provenance.get("plan_seed_manifest_sha256"),
+            64,
+            "plan seed manifest SHA-256",
+        )
+        if provenance.get("producer_lineage") != (
+            EXPECTED_WINDOWS_PRODUCER_LINEAGE
+        ):
+            raise BootstrapError("producer lineage differs")
+    elif is_windows_seed:
         _require_exact_keys(
             provenance,
             {
@@ -1694,6 +1871,53 @@ def _verify_seed_manifest_data(
         if provenance.get("producer_lineage") != (
             EXPECTED_WINDOWS_PRODUCER_LINEAGE
         ):
+            raise BootstrapError("producer lineage differs")
+    elif promoted:
+        _require_exact_keys(
+            provenance,
+            {
+                "artifact_generation",
+                "fixed_point_command",
+                "fixed_point_result",
+                "parent_seed_manifest_sha256",
+                "parent_seed_source_revision",
+                "producer_lineage",
+                "seed_generation",
+                "source_input_count",
+                "source_revision",
+                "source_snapshot_sha256",
+            },
+            "provenance",
+        )
+        if provenance.get("artifact_generation") != (
+            "paired-stage-four-six-tool"
+        ):
+            raise BootstrapError("Linux seed generation differs")
+        _require_lower_hex(
+            provenance.get("source_revision"), 40, "source revision"
+        )
+        _require_lower_hex(
+            provenance.get("source_snapshot_sha256"),
+            64,
+            "source snapshot",
+        )
+        if provenance.get("seed_generation") != "stage-four":
+            raise BootstrapError("seed generation differs")
+        source_input_count = provenance.get("source_input_count")
+        if (
+            type(source_input_count) is not int
+            or source_input_count != PROMOTED_SOURCE_INPUT_COUNT
+        ):
+            raise BootstrapError("source input count differs")
+        if provenance.get("parent_seed_source_revision") != (
+            PROMOTION_PARENT_SOURCE_REVISION
+        ):
+            raise BootstrapError("parent seed source revision differs")
+        if provenance.get("parent_seed_manifest_sha256") != (
+            PROMOTION_PARENT_LINUX_MANIFEST_SHA256
+        ):
+            raise BootstrapError("parent seed manifest differs")
+        if provenance.get("producer_lineage") != EXPECTED_PRODUCER_LINEAGE:
             raise BootstrapError("producer lineage differs")
     else:
         _require_exact_keys(
@@ -1749,10 +1973,16 @@ def _verify_seed_manifest_data(
             raise BootstrapError("build plan SHA-256 is invalid")
         if _build_plan_sha256(plan) != expected_plan_digest:
             raise BootstrapError("build plan SHA-256 differs")
-        _validate_build_plan(manifest)
+        if promoted and expected_plan_digest != PROMOTED_LINUX_PLAN_SHA256:
+            raise BootstrapError("promoted build plan SHA-256 differs")
+        _validate_build_plan(manifest, promoted=promoted)
+    tool_names = CANDIDATE_TOOL_NAMES if promoted else TOOL_NAMES
     artifacts = _require_list(manifest.get("artifacts"), "artifacts")
-    if len(artifacts) != len(TOOL_NAMES):
-        raise BootstrapError("manifest must contain five tool artifacts")
+    if len(artifacts) != len(tool_names):
+        raise BootstrapError(
+            "manifest must contain "
+            f"{'six' if promoted else 'five'} tool artifacts"
+        )
     resolved: dict[str, Path] = {}
     captured_artifacts: dict[str, bytes] = {}
     seen_files: set[str] = set()
@@ -1767,7 +1997,7 @@ def _verify_seed_manifest_data(
         file_name = artifact.get("file")
         size = artifact.get("size")
         digest = artifact.get("sha256")
-        if not isinstance(name, str) or name not in TOOL_NAMES:
+        if not isinstance(name, str) or name not in tool_names:
             raise BootstrapError(f"artifact {index} has an unknown tool name")
         if name in resolved:
             raise BootstrapError(f"tool artifact is duplicated: {name}")
@@ -1816,9 +2046,13 @@ def _verify_seed_manifest_data(
             raise BootstrapError(f"SHA-256 differs for {file_name}")
         if is_windows_seed:
             imports = (
-                WINDOWS_LINKER_IMPORTS
-                if name == "cupidld"
-                else WINDOWS_TOOL_IMPORTS
+                _windows_imports(name)
+                if promoted
+                else (
+                    WINDOWS_LINKER_IMPORTS
+                    if name == "cupidld"
+                    else WINDOWS_TOOL_IMPORTS
+                )
             )
             _validate_static_i386_pe32_bytes(
                 data,
@@ -1846,7 +2080,7 @@ def _verify_seed_manifest_data(
         resolved[name] = resolved_path
         captured_artifacts[name] = data
         seen_files.add(file_name)
-    if set(resolved) != set(TOOL_NAMES):
+    if set(resolved) != set(tool_names):
         raise BootstrapError("manifest tool set differs")
     seed_suffix = ".exe" if is_windows_seed else ".elf"
     actual_seed_files = {
@@ -1877,7 +2111,7 @@ def _load_seed_inputs(
         manifest_sha256=hashlib.sha256(encoded_manifest).hexdigest(),
         live_manifest_path=manifest_path.absolute(),
         artifact_bytes=tuple(
-            (name, captured_artifacts[name]) for name in TOOL_NAMES
+            (name, captured_artifacts[name]) for name in tools
         ),
         tools=tools,
     )
@@ -1956,7 +2190,7 @@ def _compare_seed_with_stage_two(
     captured_artifacts = dict(seed_inputs.artifact_bytes)
     return {
         name: captured_artifacts[name] == stage_two.tools[name].read_bytes()
-        for name in TOOL_NAMES
+        for name in seed_inputs.tools
     }
 
 
@@ -1971,7 +2205,7 @@ def run_seed_tool(
     runner: ToolRunner | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run one checked-seed tool from a new or caller-owned frozen capture."""
-    if tool_name not in TOOL_NAMES:
+    if tool_name not in CANDIDATE_TOOL_NAMES:
         raise BootstrapError(
             f"checked seed has no tool named {tool_name}"
         )
@@ -2478,10 +2712,15 @@ def _compare_windows_stages(
     stage_four: Stage,
     c_source_names: Sequence[str],
     assembly_names: Sequence[str],
+    expected_tool_names: Sequence[str],
 ) -> dict[str, object]:
     tool_names = _plan_tool_names(
         stage_three.tools, "native Windows stage-three"
     )
+    if tuple(tool_names) != tuple(expected_tool_names):
+        raise BootstrapError(
+            "native Windows stage-three tool inventory differs"
+        )
     if set(stage_four.tools) != set(tool_names):
         raise BootstrapError(
             "native Windows stage-four tool inventory differs"
@@ -6771,6 +7010,9 @@ def _bootstrap_from_frozen_seed(
 ) -> dict[str, object]:
     seed_tools = seed_inputs.tools
     manifest = seed_inputs.manifest
+    seed_provenance = _require_object(
+        manifest.get("provenance"), "provenance"
+    )
     checked_plan = _require_object(
         manifest.get("build_plan"), "build_plan"
     )
@@ -6933,7 +7175,7 @@ def _bootstrap_from_frozen_seed(
             "platform": runner.platform_name,
             "schema": REPORT_SCHEMA,
             "seed_manifest_sha256": seed_inputs.manifest_sha256,
-            "seed_source_revision": SEED_SOURCE_REVISION,
+            "seed_source_revision": seed_provenance["source_revision"],
             "source_inputs": {
                 "count": len(source_snapshot),
                 "files": source_snapshot,
@@ -7000,7 +7242,14 @@ def _bootstrap_windows_from_frozen_seed(
     source_root: Path,
     output_root: Path,
 ) -> dict[str, object]:
+    _require_seed_pair_identity(seed_inputs, plan_inputs)
     seed_tools = seed_inputs.tools
+    seed_provenance = _require_object(
+        seed_inputs.manifest.get("provenance"), "provenance"
+    )
+    plan_provenance = _require_object(
+        plan_inputs.manifest.get("provenance"), "provenance"
+    )
     checked_linux_plan = _require_object(
         plan_inputs.manifest.get("build_plan"), "build_plan"
     )
@@ -7116,6 +7365,7 @@ def _bootstrap_windows_from_frozen_seed(
             stage_four,
             c_source_names,
             assembly_names,
+            CANDIDATE_TOOL_NAMES,
         )
         behavior = _run_native_windows_behavior_checks(
             runner,
@@ -7141,9 +7391,11 @@ def _bootstrap_windows_from_frozen_seed(
             "comparisons": comparisons,
             "initial_seed_matches_stage_two": seed_matches_stage_two,
             "plan_manifest_sha256": plan_inputs.manifest_sha256,
+            "plan_source_revision": plan_provenance["source_revision"],
             "platform": "windows-native",
             "schema": WINDOWS_REPORT_SCHEMA,
             "seed_manifest_sha256": seed_inputs.manifest_sha256,
+            "seed_source_revision": seed_provenance["source_revision"],
             "source_inputs": {
                 "count": len(source_snapshot),
                 "files": source_snapshot,
@@ -7215,17 +7467,24 @@ def bootstrap_windows_from_seed(
         seed_inputs = freeze_seed_inputs(
             manifest_path, temporary_root / "execution-seed"
         )
-        if seed_inputs.manifest.get("schema") != WINDOWS_SEED_SCHEMA:
+        if seed_inputs.manifest.get("schema") not in (
+            WINDOWS_SEED_SCHEMA,
+            PROMOTED_WINDOWS_SEED_SCHEMA,
+        ):
             raise BootstrapError(
                 "native Windows bootstrap requires a Windows execution seed"
             )
         plan_inputs = freeze_seed_inputs(
             plan_manifest_path, temporary_root / "plan-seed"
         )
-        if plan_inputs.manifest.get("schema") != SEED_SCHEMA:
+        if plan_inputs.manifest.get("schema") not in (
+            SEED_SCHEMA,
+            PROMOTED_SEED_SCHEMA,
+        ):
             raise BootstrapError(
                 "native Windows bootstrap requires a Linux build-plan seed"
             )
+        _require_seed_pair_identity(seed_inputs, plan_inputs)
         if os.name != "nt":
             raise BootstrapError(
                 "native Windows bootstrap requires a Windows host"
@@ -7251,7 +7510,10 @@ def _bootstrap_from_seed_with_policy(
         seed_inputs = freeze_seed_inputs(
             manifest_path, Path(temporary)
         )
-        if seed_inputs.manifest.get("schema") != SEED_SCHEMA:
+        if seed_inputs.manifest.get("schema") not in (
+            SEED_SCHEMA,
+            PROMOTED_SEED_SCHEMA,
+        ):
             raise BootstrapError(
                 "the native Windows execution seed cannot drive the "
                 "Linux fixed-point bootstrap"
@@ -7327,7 +7589,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--manifest", required=True, type=Path)
     run.add_argument("--root", required=True, type=Path)
-    run.add_argument("--tool", required=True, choices=TOOL_NAMES)
+    run.add_argument(
+        "--tool", required=True, choices=CANDIDATE_TOOL_NAMES
+    )
     run.add_argument("--timeout", type=int, default=300)
     run.add_argument("tool_arguments", nargs=argparse.REMAINDER)
     return parser

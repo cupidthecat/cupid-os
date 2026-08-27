@@ -3600,3 +3600,27 @@ The current checked execution seed carries wide integer conversion to
 `float` and `double` and executable relocation-field ownership. ADR 0292
 records the fixed-point promotion that moved both capabilities into the
 normal Windows and Linux publication paths.
+
+## Six-tool manifest compatibility
+
+The bootstrap coordinators and source-head CupidBuild accept the current v1
+five-tool contracts and the promotion-only v2 six-tool contracts. A v2 Linux
+manifest has the exact 22-source plan and its six links. A v2 Windows manifest
+binds that Linux plan and the exact native plan. Both add CupidBuild as a
+non-producer, keep strict artifact membership, and apply the tool's platform
+execution profile before a guarded operation can publish.
+
+The host reader rejects JSON string escapes so it interprets manifest strings
+the same way as CupidBuild. The native Windows driver also requires its
+execution and plan manifests to use one schema generation and the same source
+revision and snapshot. The Windows manifest also records the Linux plan
+manifest SHA-256. The host driver compares that field with the supplied bytes,
+so it cannot combine two separately valid candidate cohorts.
+
+The v2 provenance is intentionally one-way. It names the existing v1 parent
+manifest and revision, while the new candidate revision and source snapshot
+must be lower-case hexadecimal values of the correct length. This lets a
+CupidBuild candidate validate the contract that will contain it without
+embedding its own future hash. The active checked seeds are still v1. Fresh
+candidates must be built from a named compatibility commit and converge before
+either seed directory is promoted. ADR 0352 records the decision.

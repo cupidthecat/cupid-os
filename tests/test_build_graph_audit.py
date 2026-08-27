@@ -6797,6 +6797,42 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '    candidate["sources"] = raw_sources\n',
                 r"fixed-point source freeze differs",
             ),
+            "candidate helper stops upgrading v1 sources": (
+                "bootstrap",
+                "        if actual is None:\n"
+                "            sources.append(expected)\n",
+                "        if actual is None:\n"
+                "            continue\n",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate helper duplicates exact v2 sources": (
+                "bootstrap",
+                "        if actual is None:\n"
+                "            sources.append(expected)\n",
+                "        if True:\n"
+                "            sources.append(expected)\n",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate helper accepts a conflicting candidate source": (
+                "bootstrap",
+                "        if actual is not None and actual != expected:\n",
+                "        if False:\n",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate helper accepts another tool set": (
+                "bootstrap",
+                "    if set(raw_links) not in "
+                "(set(TOOL_NAMES), set(CANDIDATE_TOOL_NAMES)):\n",
+                "    if not raw_links:\n",
+                r"fixed-point source freeze differs",
+            ),
+            "candidate helper accepts a conflicting candidate link": (
+                "bootstrap",
+                "        if tuple(cupidbuild_link) "
+                "!= CANDIDATE_CUPIDBUILD_LINK:\n",
+                "        if False:\n",
+                r"fixed-point source freeze differs",
+            ),
             "candidate helper overwrites its checked source list": (
                 "bootstrap",
                 '    candidate["links"] = links\n'
@@ -7849,6 +7885,22 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "        comparisons = _compare_windows_stages(\n"
                 "            stage_two,\n"
                 "            stage_three,\n",
+                r"fixed-point source freeze differs",
+            ),
+            "native Windows comparison accepts a five-tool candidate": (
+                "bootstrap",
+                "            CANDIDATE_TOOL_NAMES,\n"
+                "        )\n"
+                "        behavior = _run_native_windows_behavior_checks(",
+                "            TOOL_NAMES,\n"
+                "        )\n"
+                "        behavior = _run_native_windows_behavior_checks(",
+                r"fixed-point source freeze differs",
+            ),
+            "native Windows comparison drops its expected inventory check": (
+                "bootstrap",
+                "    if tuple(tool_names) != tuple(expected_tool_names):\n",
+                "    if tuple(tool_names) == tuple(expected_tool_names):\n",
                 r"fixed-point source freeze differs",
             ),
             "native Windows behavior stops one generation early": (

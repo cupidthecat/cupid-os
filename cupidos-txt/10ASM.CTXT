@@ -910,6 +910,16 @@ the permissive fixed-32 wrapper. The DEBUG self-test covers one mixed map and
 one strict rejection through the public adapter.
 >endtree
 
+>h2 Six-Tool Bootstrap Boundary
+>tree
+The promotion manifest keeps CupidASM as a producer and adds CupidBuild as a
+checked non-producer. The Linux form binds the exact 22-source, six-link plan.
+The Windows form also binds its native plan and requires the publication import
+profile for native CupidASM. Existing five-tool seeds remain active while
+fresh six-tool candidates are generated and compared. Its host check also
+binds the exact Linux plan manifest.
+>endtree
+
 >h2 See Also
 [08CMDS.CTXT - command reference](open:08CMDS.CTXT)
 [05ELFPROG.CTXT - ELF programs](open:05ELFPROG.CTXT)

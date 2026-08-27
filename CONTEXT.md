@@ -1838,3 +1838,16 @@ seconds. Other filesystem errors fail immediately, and a persistent lock still
 stops the build. Seed capture, the live five-tool recheck, and atomic output
 publication are unchanged. ADR 0329 records this boundary.
 _Avoid_: unbounded retry, retrying unrelated cleanup errors
+
+**Promotion-compatible seed manifest**:
+A checked manifest contract that a candidate CupidBuild can validate before
+that candidate becomes part of the seed. The v2 Linux and Windows contracts
+name six tools, including CupidBuild as a non-producer. They bind the previous
+v1 manifest and source revision as their parent, bind the exact six-tool build
+plans, and require lower-case hexadecimal candidate revision and source
+snapshot identities. They do not embed the future manifest digest or the
+candidate CupidBuild digest in CupidBuild itself. The Windows record carries
+the future Linux plan-manifest digest as a structural field; the host driver
+binds it to the supplied bytes. The active checked seeds
+remain v1 until fresh candidates built from the compatibility commit converge.
+_Avoid_: self-referential seed, provisional promotion

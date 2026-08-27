@@ -2305,6 +2305,20 @@ This bridge belongs only to host fixed-point reconstruction. Normal Windows
 production commands continue to use the native checked execution seed.
 >endtree
 
+>h2 Six-Tool Seed Contract
+>tree
+CupidBuild accepts the current five-tool seed contract and the next six-tool
+contract. The six-tool form adds CupidBuild as a checked non-producer. It keeps
+exact source and link plans, artifact membership, producer roles, and platform
+image checks.
+
+The new contract names the current seed as its parent. Its candidate revision
+and source snapshot use checked lower-case hexadecimal identities, so the
+candidate does not need to contain its own future hash. The active seeds remain
+five-tool cohorts until fresh Linux and Windows candidates converge. The
+Windows record carries the Linux plan-manifest digest for exact host pairing.
+>endtree
+
 >h2 See Also
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [12HOLYC-CUPIDC.CTXT - HolyC comparison](open:12HOLYC-CUPIDC.CTXT)
