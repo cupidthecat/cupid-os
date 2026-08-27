@@ -47,7 +47,11 @@ that lock at the final publication boundaries, serializes cooperating
 publishers, and
 replaces the destination through a pinned parent only after every check
 passes. The CupidASM object operation implements this boundary on Linux and
-Windows. It parses the frozen six-tool v2 seed contract, including the host
+Windows. Source head also applies it to typed bootloader and SMP-trampoline
+raw-image operations. They keep the range map private, enforce the owning
+artifact's exact size and map layout, and require CupidDis known-decode,
+local-target, and source-edge checks before the image can publish. CupidBuild
+parses the frozen six-tool v2 seed contract, including the host
 target and provenance, before it runs CupidASM. The six exact manifest names
 must be the complete `.elf` or `.exe` membership, all six frozen images
 must match the selected static ELF32 or strict PE32 execution profile, and
@@ -55,8 +59,9 @@ membership is checked again after both attempted tool launches, including
 failure and timeout paths. CupidDis then requires known instructions, local
 targets, and relocatable code anchors. The normal ISR and context-switch
 recipes invoke this operation directly, so CupidBuild owns those two guarded
-publications. Fixed-point carriage alone still does not establish production
-ownership.
+publications. The promoted seeds predate the raw commands, so the normal boot
+and trampoline recipes keep their Hostbuild entry points. Fixed-point carriage
+or source-head capability alone still does not establish production ownership.
 _Avoid_: command wrapper, unchecked tool launch, production ownership from source presence
 
 **Hosted bootstrap runtime**:
@@ -562,9 +567,13 @@ already published a valid cohort when that final read-only verifier found an
 unrelated installed `tools` package. The checkout-local launcher rule fixed the
 host import boundary. The source-current `make bootstrap-audit` and
 `make check-bootstrap-audit` both pass. The generated six-tool fixed-point
-inventory records failure, help, and success counts of 23/6/29 for Linux and
-12/6/16 for Windows. The extra cases cover CupidBuild's guarded object
-transaction and strict CupidDis inspection of every final candidate image.
+inventory records failure, help, and success counts of 24/6/31 for Linux and
+13/6/18 for Windows. The CupidBuild behavior group covers its guarded object,
+bootloader, and SMP-trampoline operations, plus object and raw rollback. The
+matrix also applies strict CupidDis inspection to every final candidate image.
+Clean Linux and native Windows replays found CupidBuild as the only
+seed-to-stage-two mismatch and matched every final object and all six tool
+images between stages three and four.
 Both generations also reject a private CupidBuild copy with an invalid
 file-backed entry instruction. The preceding five-tool seeds retained their
 recorded behavior matrices and the same static ELF code-anchor check. The
@@ -1778,24 +1787,24 @@ The guest reported
 `[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`.
 The 143,084-byte serial log had SHA-256
 `6b5c6a4ca5daf9f19ec099d45609f385e0cf983f945a40433ebc3f1921e8ffab`.
-The current final artifacts are a 9,601,052-byte
+The current final artifacts are a 9,605,148-byte
 `kernel/kernel.elf.pass1` with SHA-256
-`d751d1bcf5839bc3c141779fa646739a7c9774a40dab4e2201be765bf0f44bf2`, a
-9,732,124-byte `kernel/kernel.elf` with SHA-256
-`f6f517d18f2706997bb58932d91f9ac010d201ef57fd28b6cb5d8ba7fb14826d`,
-and a 9,506,080-byte `kernel/kernel.bin` with SHA-256
-`f4a3abf1a14bcce072b5c4d0d7d81fde9b9172bf8da01dd9e22c82fb58227f53`.
-The current 3,382-byte exact-size policy covers 38,120,960 bytes and has
+`c68b5e4dc8b2c6e9d6e2f1b3f638c9693a5574572d03571cdf6e2ee36a8a4981`, a
+9,736,220-byte `kernel/kernel.elf` with SHA-256
+`816ddf834bbeb62ced115e817f30d8644d4010cfe8407942e6390f1305c3e4ee`,
+and a 9,506,932-byte `kernel/kernel.bin` with SHA-256
+`fefc956faeb9d414a44e7dd7c1cd86f4ec9dde3806b97d3c54b163eb92fd0416`.
+The current 3,382-byte exact-size policy covers 38,130,004 bytes and has
 SHA-256
-`1a02082a28205e5ff04da715686d80051262b051c1b2bea28d1e7520f1b03997`.
+`88638774d89e07c3484dd787c5c735c056ea840bc4ed9d500f5c2da31a2de951`.
 The normal 209,715,200-byte `cupidos.img` has SHA-256
-`409ee7759e2568b6d143bf10aac19450a79d9cd4cc31ae51585fd20f39b0d14e`
+`cfda98a01fcfcbfcd12c6a07089d60a3a925c90dbd89b9f6d449a7c302fc47a0`
 after preserving its FAT contents and staging `hello.iso`. The final private
 four-vCPU `max` and E1000 smoke used a copy of that image. All four CPUs came
 online, RDRAND seeded the CSPRNG, E1000 obtained `10.0.2.15`, the desktop
-started, and `/bin/ls.cc` reached JIT completion. The 33,159-byte log has
+started, and `/bin/ls.cc` reached JIT completion. The 32,032-byte log has
 SHA-256
-`cf2c13e65d8a10ee9c129fd3b90c50c7a8b6fa088c594f1909e94010c28dd5ea`
+`21b811a028a12e23356e04d5e6adc32b983a0e9685bf606cd5d01ae96a0284d8`
 and no panic marker. The source image was not changed by the smoke.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,

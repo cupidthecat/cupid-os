@@ -12,6 +12,13 @@ coverage, relocations, local targets, and function anchors, then publishes it
 atomically. Python no longer participates in these two transforms. ADR 0354
 records the handoff.
 
+Source-head CupidBuild also exposes typed bootloader and SMP-trampoline
+assembly. These commands retain the raw image and v2 map inside one guarded
+transaction, apply the artifact's exact size and layout rules, and require
+CupidDis source-edge validation. They are not normal recipe owners yet because
+the promoted seeds predate the interface. ADR 0355 records the source-head
+capability.
+
 ---
 
 ## Overview

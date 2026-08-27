@@ -1439,7 +1439,31 @@ static int cupidbuild_validate_execution_profile(const char *path,
   return valid;
 }
 
-int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
+typedef enum {
+  CUPIDBUILD_ASSEMBLY_OBJECT,
+  CUPIDBUILD_ASSEMBLY_BOOTLOADER,
+  CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE
+} cupidbuild_assembly_kind_t;
+
+static const unsigned char cupidbuild_smp_trampoline_map[] =
+    "cupid.raw-map.v2\n"
+    "size 4096\n"
+    "base 0x00008000\n"
+    "edges 6\n"
+    "range 0x00000000 code16\n"
+    "range 0x0000001f data\n"
+    "range 0x00000210 code32\n"
+    "range 0x00000254 data\n"
+    "edge 0x00000017 far local 0x00000210 0x00008210 32 0x00000008\n"
+    "edge 0x0000022f relative local 0x0000023a 0x0000823a 32 0x00000000\n"
+    "edge 0x00000235 relative local 0x00000229 0x00008229 32 0x00000000\n"
+    "edge 0x00000238 relative local 0x00000237 0x00008237 32 0x00000000\n"
+    "edge 0x00000250 indirect unprovable - - unknown -\n"
+    "edge 0x00000252 relative local 0x00000237 0x00008237 32 0x00000000\n";
+
+static int cupidbuild_assemble(
+    const cupidbuild_assembly_request_t *request,
+    cupidbuild_assembly_kind_t kind) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   char manifest_path[CUPIDBUILD_PATH_BYTES];
@@ -1467,23 +1491,25 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
   cupidbuild_host_snapshot_t object_snapshot;
   cupidbuild_host_snapshot_t build_snapshot;
   cupidbuild_host_snapshot_t candidate_snapshot;
+  cupidbuild_host_snapshot_t map_snapshot;
   unsigned char *manifest = (unsigned char *)0;
   unsigned char *candidate = (unsigned char *)0;
+  unsigned char *map = (unsigned char *)0;
   size_t manifest_size = 0u;
   size_t seed_artifact_count = 0u;
   const char *manifest_reason = "manifest path is invalid";
-  const char *assembler_arguments[6];
-  const char *inspector_arguments[5];
+  const char *assembler_arguments[8];
+  const char *inspector_arguments[9];
   const char *expected_seed_files[CUPIDBUILD_SEED_ARTIFACTS];
   int assembler_status;
   int inspector_status;
   int result = 1;
-  if (request == (const cupidbuild_object_request_t *)0 ||
+  if (request == (const cupidbuild_assembly_request_t *)0 ||
       !cupidbuild_path_safe(request->repository_root, 0) ||
       !cupidbuild_path_safe(request->source, 1) ||
       !cupidbuild_path_safe(request->output, 1) ||
       !cupidbuild_path_safe(request->seed_manifest, 0)) {
-    (void)fprintf(stderr, "cupidbuild: invalid guarded object request\n");
+    (void)fprintf(stderr, "cupidbuild: invalid guarded assembly request\n");
     return 1;
   }
   if (!cupidbuild_host_transaction_open(request->repository_root,
@@ -1635,11 +1661,21 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
     goto done;
   }
   assembler_arguments[0] = "-f";
-  assembler_arguments[1] = "elf32";
-  assembler_arguments[2] = "-o";
-  assembler_arguments[3] = cupidbuild_host_candidate(transaction);
-  assembler_arguments[4] = cupidbuild_host_frozen_source(transaction);
-  assembler_arguments[5] = (const char *)0;
+  assembler_arguments[1] =
+      kind == CUPIDBUILD_ASSEMBLY_OBJECT ? "elf32" : "bin";
+  if (kind == CUPIDBUILD_ASSEMBLY_OBJECT) {
+    assembler_arguments[2] = "-o";
+    assembler_arguments[3] = cupidbuild_host_candidate(transaction);
+    assembler_arguments[4] = cupidbuild_host_frozen_source(transaction);
+    assembler_arguments[5] = (const char *)0;
+  } else {
+    assembler_arguments[2] = "--map";
+    assembler_arguments[3] = cupidbuild_host_private_output(transaction);
+    assembler_arguments[4] = "-o";
+    assembler_arguments[5] = cupidbuild_host_candidate(transaction);
+    assembler_arguments[6] = cupidbuild_host_frozen_source(transaction);
+    assembler_arguments[7] = (const char *)0;
+  }
   assembler_status = cupidbuild_host_run(
       transaction, frozen_assembler, assembler_arguments, 60000u);
   if (!cupidbuild_host_require_inputs(transaction)) {
@@ -1665,11 +1701,24 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
     goto done;
   }
   if (!cupidbuild_host_capture_candidate(transaction, &candidate_snapshot,
-                                         &candidate) ||
-      !cupidbuild_validate_object(candidate, candidate_snapshot.size)) {
-    (void)fprintf(
-        stderr,
-        "cupidbuild: checked CupidASM relocatable object validation failed\n");
+                                         &candidate)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (kind == CUPIDBUILD_ASSEMBLY_OBJECT) {
+    if (!cupidbuild_validate_object(candidate, candidate_snapshot.size)) {
+      (void)fprintf(
+          stderr,
+          "cupidbuild: checked CupidASM relocatable object validation failed\n");
+      goto done;
+    }
+  } else if ((kind == CUPIDBUILD_ASSEMBLY_BOOTLOADER &&
+              candidate_snapshot.size != 2560u) ||
+             (kind == CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE &&
+              candidate_snapshot.size != 4096u)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: checked CupidASM raw output validation failed\n");
     goto done;
   }
   free(candidate);
@@ -1679,11 +1728,47 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
                   cupidbuild_host_error(transaction));
     goto done;
   }
-  inspector_arguments[0] = "--require-known";
-  inspector_arguments[1] = "--require-local-targets";
-  inspector_arguments[2] = "--require-code-anchors";
-  inspector_arguments[3] = cupidbuild_host_candidate(transaction);
-  inspector_arguments[4] = (const char *)0;
+  if (kind != CUPIDBUILD_ASSEMBLY_OBJECT) {
+    if (!cupidbuild_host_capture_private_output(transaction, &map_snapshot,
+                                                &map) ||
+        map_snapshot.size == 0u) {
+      (void)fprintf(stderr,
+                    "cupidbuild: checked CupidASM range map is missing or empty\n");
+      goto done;
+    }
+    if (kind == CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE &&
+        (map_snapshot.size != sizeof(cupidbuild_smp_trampoline_map) - 1u ||
+         memcmp(map, cupidbuild_smp_trampoline_map,
+                sizeof(cupidbuild_smp_trampoline_map) - 1u) != 0)) {
+      (void)fprintf(stderr,
+                    "cupidbuild: checked CupidASM range map does not match "
+                    "the SMP layout policy\n");
+      goto done;
+    }
+    free(map);
+    map = (unsigned char *)0;
+    if (!cupidbuild_host_require_private_output(transaction, &map_snapshot)) {
+      (void)fprintf(stderr, "cupidbuild: %s\n",
+                    cupidbuild_host_error(transaction));
+      goto done;
+    }
+  }
+  if (kind == CUPIDBUILD_ASSEMBLY_OBJECT) {
+    inspector_arguments[0] = "--require-known";
+    inspector_arguments[1] = "--require-local-targets";
+    inspector_arguments[2] = "--require-code-anchors";
+    inspector_arguments[3] = cupidbuild_host_candidate(transaction);
+    inspector_arguments[4] = (const char *)0;
+  } else {
+    inspector_arguments[0] = "--raw";
+    inspector_arguments[1] = "--range-map";
+    inspector_arguments[2] = cupidbuild_host_private_output(transaction);
+    inspector_arguments[3] = "--require-known";
+    inspector_arguments[4] = "--require-local-targets";
+    inspector_arguments[5] = "--require-source-edges";
+    inspector_arguments[6] = cupidbuild_host_candidate(transaction);
+    inspector_arguments[7] = (const char *)0;
+  }
   inspector_status = cupidbuild_host_run(
       transaction, frozen_inspector, inspector_arguments, 60000u);
   if (!cupidbuild_host_seed_members_exact(
@@ -1700,7 +1785,9 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
     goto done;
   }
   if (!cupidbuild_host_require_inputs(transaction) ||
-      !cupidbuild_host_require_candidate(transaction, &candidate_snapshot)) {
+      !cupidbuild_host_require_candidate(transaction, &candidate_snapshot) ||
+      (kind != CUPIDBUILD_ASSEMBLY_OBJECT &&
+       !cupidbuild_host_require_private_output(transaction, &map_snapshot))) {
     (void)fprintf(stderr, "cupidbuild: %s\n",
                   cupidbuild_host_error(transaction));
     goto done;
@@ -1718,8 +1805,24 @@ int cupidbuild_assemble_object(const cupidbuild_object_request_t *request) {
   result = 0;
 
 done:
+  free(map);
   free(candidate);
   free(manifest);
   cupidbuild_host_transaction_close(transaction);
   return result;
+}
+
+int cupidbuild_assemble_object(
+    const cupidbuild_assembly_request_t *request) {
+  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_OBJECT);
+}
+
+int cupidbuild_assemble_bootloader(
+    const cupidbuild_assembly_request_t *request) {
+  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_BOOTLOADER);
+}
+
+int cupidbuild_assemble_smp_trampoline(
+    const cupidbuild_assembly_request_t *request) {
+  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE);
 }

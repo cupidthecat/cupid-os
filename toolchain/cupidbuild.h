@@ -6,8 +6,14 @@ typedef struct {
   const char *repository_root;
   const char *source;
   const char *output;
-} cupidbuild_object_request_t;
+} cupidbuild_assembly_request_t;
 
-int cupidbuild_assemble_object(const cupidbuild_object_request_t *request);
+typedef cupidbuild_assembly_request_t cupidbuild_object_request_t;
+
+int cupidbuild_assemble_object(const cupidbuild_assembly_request_t *request);
+int cupidbuild_assemble_bootloader(
+    const cupidbuild_assembly_request_t *request);
+int cupidbuild_assemble_smp_trampoline(
+    const cupidbuild_assembly_request_t *request);
 
 #endif

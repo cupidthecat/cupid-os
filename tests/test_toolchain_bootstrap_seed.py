@@ -5067,9 +5067,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 12,
+                    "failure_cases": 13,
                     "help_cases": 6,
-                    "success_cases": 16,
+                    "success_cases": 18,
                 },
             )
             candidate_linux_plan = _candidate_build_plan(
@@ -5099,7 +5099,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
-                {name: True for name in CANDIDATE_TOOL_NAMES},
+                {
+                    name: name != "cupidbuild"
+                    for name in CANDIDATE_TOOL_NAMES
+                },
             )
             for stage_name in (
                 "stage-two",
@@ -5644,9 +5647,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            23,
+            24,
         )
-        self.assertEqual(returned["success_cases"].value, 29)
+        self.assertEqual(returned["success_cases"].value, 31)
         self.assertIsInstance(returned["help_cases"], ast.Call)
         self.assertEqual(returned["help_cases"].func.id, "len")
         self.assertEqual(returned["help_cases"].args[0].id, "tool_names")
@@ -5718,6 +5721,29 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         assert_relocation_check(
             behavior_function("_run_native_windows_behavior_checks")
         )
+
+    def test_fixed_point_cupidbuild_checks_every_guarded_assembly_operation(
+        self,
+    ):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+        behavior = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_check_cupidbuild_guarded_object_behavior"
+        )
+        rendered = ast.unparse(behavior)
+
+        for operation in (
+            "assemble-cupidasm-object",
+            "assemble-bootloader",
+            "assemble-smp-trampoline",
+        ):
+            self.assertIn(repr(operation), rendered)
+        self.assertIn("('guarded-bootloader.asm', 2560)", rendered)
+        self.assertIn("('guarded-smp-trampoline.S', 4096)", rendered)
+        self.assertIn("malformed-bootloader.asm", rendered)
+        self.assertIn("preserved CupidBuild raw output", rendered)
 
     def test_fixed_point_relocation_fixture_is_a_valid_i386_object(self):
         payload = _unowned_relocation_object_payload()
@@ -9195,9 +9221,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 23,
+                    "failure_cases": 24,
                     "help_cases": 6,
-                    "success_cases": 29,
+                    "success_cases": 31,
                 },
             )
             self.assertEqual(
@@ -9565,7 +9591,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 initial_matches,
-                {name: True for name in CANDIDATE_TOOL_NAMES},
+                {
+                    name: name != "cupidbuild"
+                    for name in CANDIDATE_TOOL_NAMES
+                },
             )
             self.assertEqual(report["source_inputs"]["count"], 58)
             self.assertEqual(

@@ -10,8 +10,10 @@ Related pages: [USB](USB.md), [Swap](Swap.md)
 The context-switch object now publishes through the promoted CupidBuild seed
 without Python. The guarded transaction still requires CupidASM output and
 strict CupidDis relocation, target, and function-anchor evidence. The SMP
-trampoline remains on its separate Python-coordinated raw image and map
-transaction.
+trampoline remains on its Python-coordinated raw image and map transaction.
+Source-head CupidBuild can perform that same typed 4,096-byte publication,
+including the exact mixed-mode map and strict source-edge inspection, but the
+promoted seed does not carry the command yet.
 
 ---
 

@@ -11,6 +11,11 @@ import time
 import unittest
 from pathlib import Path
 
+from tools.bootstrap_toolchain import (
+    _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE,
+    _CUPIDBUILD_SMP_BEHAVIOR_SOURCE,
+)
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
@@ -50,7 +55,7 @@ class CupidBuildCliTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._build_directory.cleanup()
 
-    def test_help_names_the_guarded_object_command(self):
+    def test_help_names_every_guarded_assembly_command(self):
         result = subprocess.run(
             [str(self.cli_path), "--help"],
             cwd=REPO_ROOT,
@@ -61,6 +66,8 @@ class CupidBuildCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stderr, "")
         self.assertIn("cupidbuild assemble-cupidasm-object", result.stdout)
+        self.assertIn("cupidbuild assemble-bootloader", result.stdout)
+        self.assertIn("cupidbuild assemble-smp-trampoline", result.stdout)
 
     def test_invalid_command_returns_usage_status_without_output(self):
         result = subprocess.run(
@@ -78,11 +85,11 @@ class CupidBuildCliTests(unittest.TestCase):
         platform = "i386-windows" if os.name == "nt" else "i386-linux"
         return REPO_ROOT / "bootstrap" / "seeds" / platform / "manifest.json"
 
-    def _run_object(self, source, output, manifest=None):
+    def _run_assembly(self, operation, source, output, manifest=None):
         return subprocess.run(
             [
                 str(self.cli_path),
-                "assemble-cupidasm-object",
+                operation,
                 "--seed-manifest",
                 str(manifest or self._production_manifest()),
                 "--root",
@@ -96,6 +103,11 @@ class CupidBuildCliTests(unittest.TestCase):
             text=True,
             capture_output=True,
             timeout=90,
+        )
+
+    def _run_object(self, source, output, manifest=None):
+        return self._run_assembly(
+            "assemble-cupidasm-object", source, output, manifest
         )
 
     def _private_roots(self):
@@ -392,6 +404,159 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertEqual(result.stdout, "")
             self.assertEqual(result.stderr, "")
             self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
+    def test_checked_tools_publish_the_active_raw_boot_artifacts(self):
+        cases = (
+            (
+                "assemble-bootloader",
+                REPO_ROOT / "boot" / "boot.asm",
+                2560,
+                "46cc9778da2b5cc5e8f04d7cc4b07243"
+                "c3e07d466626ad84fb813dc6fef3a0d3",
+            ),
+            (
+                "assemble-smp-trampoline",
+                REPO_ROOT / "kernel" / "smp" / "smp_trampoline.S",
+                4096,
+                "b738ebb68f28b9b07e330761f4e9a789"
+                "8f0424ab0a3835cd6079ae7d4a189e90",
+            ),
+        )
+        before = self._private_roots()
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-raw-success-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            for operation, source, size, digest in cases:
+                with self.subTest(operation=operation):
+                    output = root / f"{operation}.bin"
+                    output.write_bytes(b"last known good raw image")
+
+                    result = self._run_assembly(operation, source, output)
+
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(result.stderr, "")
+                    payload = output.read_bytes()
+                    self.assertEqual(len(payload), size)
+                    self.assertEqual(hashlib.sha256(payload).hexdigest(), digest)
+        self.assertEqual(self._private_roots(), before)
+
+    def test_raw_commands_reject_incomplete_or_stray_options(self):
+        source = REPO_ROOT / "boot" / "boot.asm"
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-raw-cli-failure-", dir=REPO_ROOT
+        ) as temporary:
+            output = Path(temporary) / "output.bin"
+            base = [
+                str(self.cli_path),
+                "assemble-bootloader",
+                "--seed-manifest",
+                str(self._production_manifest()),
+                "--root",
+                str(REPO_ROOT),
+                "--source",
+                source.relative_to(REPO_ROOT).as_posix(),
+            ]
+            invocations = (
+                base,
+                base
+                + [
+                    "--root",
+                    str(REPO_ROOT),
+                    "--output",
+                    output.relative_to(REPO_ROOT).as_posix(),
+                ],
+                base
+                + [
+                    "--output",
+                    output.relative_to(REPO_ROOT).as_posix(),
+                    "--unexpected",
+                ],
+            )
+            for arguments in invocations:
+                with self.subTest(arguments=arguments):
+                    result = subprocess.run(
+                        arguments,
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                        timeout=90,
+                    )
+
+                    self.assertEqual(result.returncode, 2)
+                    self.assertEqual(result.stdout, "")
+                    self.assertIn("usage: cupidbuild", result.stderr)
+                    self.assertFalse(output.exists())
+
+    def test_raw_operations_reject_wrong_sizes_and_preserve_outputs(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-raw-size-failure-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "input.asm"
+            source.write_text(
+                "bits 16\norg 0x7c00\nsection .text\nnop\n",
+                encoding="utf-8",
+            )
+            for operation in (
+                "assemble-bootloader",
+                "assemble-smp-trampoline",
+            ):
+                with self.subTest(operation=operation):
+                    output = root / f"{operation}.bin"
+                    output.write_bytes(b"last known good raw image")
+
+                    result = self._run_assembly(operation, source, output)
+
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("raw output validation failed", result.stderr)
+                    self.assertEqual(
+                        output.read_bytes(), b"last known good raw image"
+                    )
+
+    def test_smp_operation_rejects_a_wrong_exact_size_layout(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-smp-layout-failure-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "input.asm"
+            output = root / "output.bin"
+            source.write_text(
+                "bits 16\norg 0x8000\nsection .text\n"
+                "times 4096 db 0\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"last known good raw image")
+
+            result = self._run_assembly(
+                "assemble-smp-trampoline", source, output
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("range map does not match", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good raw image")
+
+    def test_bootloader_operation_rejects_a_nonlocal_raw_target(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-boot-unknown-code-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "input.asm"
+            output = root / "output.bin"
+            source.write_text(
+                "bits 16\norg 0x7c00\nsection .text\n"
+                "jmp 0x7000\n"
+                "times 2560 - ($ - $$) db 0\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"last known good raw image")
+
+            result = self._run_assembly("assemble-bootloader", source, output)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("checked CupidDis failed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good raw image")
 
     def test_six_tool_v2_contract_reaches_checked_execution_profiles(self):
         with tempfile.TemporaryDirectory(
@@ -847,6 +1012,37 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertNotEqual(failure.returncode, 0)
             self.assertEqual(self._private_roots(), before)
 
+    def test_fixed_point_raw_fixtures_satisfy_the_public_operations(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-fixed-point-raw-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            cases = (
+                (
+                    "assemble-bootloader",
+                    "guarded-bootloader.asm",
+                    _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE,
+                    2560,
+                ),
+                (
+                    "assemble-smp-trampoline",
+                    "guarded-smp-trampoline.S",
+                    _CUPIDBUILD_SMP_BEHAVIOR_SOURCE,
+                    4096,
+                ),
+            )
+            for operation, source_name, contents, expected_size in cases:
+                source = root / source_name
+                output = root / f"{operation}.bin"
+                source.write_text(contents, encoding="ascii", newline="\n")
+
+                result = self._run_assembly(operation, source, output)
+
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(output.stat().st_size, expected_size)
+
     def test_assembler_failure_preserves_the_previous_object(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-assembler-failure-", dir=REPO_ROOT
@@ -1274,6 +1470,143 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("source changed while checked tools ran", result.stderr)
             self.assertEqual(output.read_bytes(), b"last known good object")
+
+    def test_raw_source_drift_reports_the_image_transaction(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-raw-source-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "input.asm"
+            output = root / "output.bin"
+            original_source = (
+                "bits 16\norg 0x7c00\n"
+                + "nop\ndb 0\n" * 1279
+                + "nop\nret\n"
+            )
+            source.write_text(original_source, encoding="ascii")
+            output.write_bytes(b"last known good raw image")
+            before = self._private_roots()
+            changed = threading.Event()
+
+            def replace_source_when_transaction_opens():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    new_roots = self._private_roots() - before
+                    if any((path / "source.asm").is_file() for path in new_roots):
+                        source.write_text(
+                            original_source + "; live source changed\n",
+                            encoding="ascii",
+                        )
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=replace_source_when_transaction_opens, daemon=True
+            )
+            mutator.start()
+            result = self._run_assembly(
+                "assemble-bootloader", source, output
+            )
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "transaction was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "CupidASM source changed while checked tools ran", result.stderr
+            )
+            self.assertNotIn("object source", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good raw image")
+
+    def test_raw_map_drift_during_inspection_preserves_the_previous_image(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-raw-map-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "input.asm"
+            output = root / "output.bin"
+            source.write_text(
+                "bits 16\norg 0x7c00\n"
+                + "nop\ndb 0\n" * 1279
+                + "nop\nret\n",
+                encoding="ascii",
+            )
+            output.write_bytes(b"last known good raw image")
+            before = self._private_roots()
+            changed = threading.Event()
+
+            def touch_map_after_inspector_starts():
+                deadline = time.monotonic() + 20
+                private_root = None
+                map_path = None
+                stdout_path = None
+                initial_stdout = None
+                while time.monotonic() < deadline:
+                    new_roots = self._private_roots() - before
+                    for candidate_root in new_roots:
+                        candidate_map = candidate_root / "candidate.map"
+                        candidate_stdout = candidate_root / "tool.stdout"
+                        if not candidate_map.is_file():
+                            continue
+                        private_root = candidate_root
+                        map_path = candidate_map
+                        stdout_path = candidate_stdout
+                        try:
+                            status = stdout_path.stat()
+                            initial_stdout = (
+                                status.st_ino,
+                                status.st_ctime_ns,
+                                status.st_mtime_ns,
+                            )
+                        except FileNotFoundError:
+                            initial_stdout = None
+                        break
+                    if private_root is not None:
+                        break
+                    time.sleep(0.001)
+                while time.monotonic() < deadline and map_path is not None:
+                    try:
+                        status = stdout_path.stat()
+                        current_stdout = (
+                            status.st_ino,
+                            status.st_ctime_ns,
+                            status.st_mtime_ns,
+                        )
+                    except FileNotFoundError:
+                        time.sleep(0.001)
+                        continue
+                    if initial_stdout is not None and current_stdout == initial_stdout:
+                        time.sleep(0.001)
+                        continue
+                    map_status = map_path.stat()
+                    os.utime(
+                        map_path,
+                        ns=(
+                            map_status.st_atime_ns,
+                            map_status.st_mtime_ns + 2_000_000_000,
+                        ),
+                    )
+                    changed.set()
+                    return
+
+            mutator = threading.Thread(
+                target=touch_map_after_inspector_starts,
+                daemon=True,
+            )
+            mutator.start()
+            result = self._run_assembly(
+                "assemble-bootloader", source, output
+            )
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "CupidDis map read was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "private output changed while validation ran",
+                result.stderr,
+            )
+            self.assertEqual(output.read_bytes(), b"last known good raw image")
+            self.assertEqual(self._private_roots(), before)
 
     def test_checked_tool_drift_after_freeze_preserves_the_previous_object(self):
         with tempfile.TemporaryDirectory(

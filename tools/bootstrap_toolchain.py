@@ -3142,6 +3142,83 @@ def _materialize_behavior_seed(
     return manifest_path
 
 
+_CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE = (
+    "bits 16\n"
+    "org 0x7c00\n"
+    "start:\n"
+    "    jmp done\n"
+    "    nop\n"
+    "done:\n"
+    "    ret\n"
+    "times 2560 - ($ - $$) db 0\n"
+)
+
+
+_CUPIDBUILD_SMP_BEHAVIOR_SOURCE = (
+    "bits 16\n"
+    "org 0x8000\n"
+    "ap_start:\n"
+    "    cli\n"
+    "    cld\n"
+    "    xor ax, ax\n"
+    "    mov ds, ax\n"
+    "    mov es, ax\n"
+    "    mov ss, ax\n"
+    "    lgdt [gdtr]\n"
+    "    mov eax, cr0\n"
+    "    or al, 1\n"
+    "    mov cr0, eax\n"
+    "    jmp dword 0x08:pm32\n"
+    "times 0x100 - ($ - $$) db 0\n"
+    "gdt:\n"
+    "    dq 0x0000000000000000\n"
+    "    dq 0x00CF9A000000FFFF\n"
+    "    dq 0x00CF92000000FFFF\n"
+    "gdt_end:\n"
+    "times 0x120 - ($ - $$) db 0\n"
+    "gdtr:\n"
+    "    dw gdt_end - gdt - 1\n"
+    "    dd 0x8100\n"
+    "times 0x128 - ($ - $$) db 0\n"
+    "apic_to_cpu_id: times 32 db 0xFF\n"
+    "times 0x148 - ($ - $$) db 0\n"
+    "idle_stack_tops: times 32 dd 0\n"
+    "times 0x1C8 - ($ - $$) db 0\n"
+    "gs_selectors: times 32 dw 0\n"
+    "times 0x208 - ($ - $$) db 0\n"
+    "ap_entry32_ptr: dd 0\n"
+    "times 0x210 - ($ - $$) db 0\n"
+    "bits 32\n"
+    "pm32:\n"
+    "    mov ax, 0x10\n"
+    "    mov ds, ax\n"
+    "    mov es, ax\n"
+    "    mov fs, ax\n"
+    "    mov ss, ax\n"
+    "    mov eax, [0xFEE00020]\n"
+    "    shr eax, 24\n"
+    "    movzx eax, al\n"
+    "    xor ecx, ecx\n"
+    ".scan:\n"
+    "    cmp byte [0x8128 + ecx], al\n"
+    "    je .found\n"
+    "    inc ecx\n"
+    "    cmp ecx, 32\n"
+    "    jb .scan\n"
+    ".hang:\n"
+    "    hlt\n"
+    "    jmp .hang\n"
+    ".found:\n"
+    "    mov ax, [0x81C8 + ecx*2]\n"
+    "    mov gs, ax\n"
+    "    mov esp, [0x8148 + ecx*4]\n"
+    "    mov eax, [0x8208]\n"
+    "    call eax\n"
+    "    jmp .hang\n"
+    "times 4096 - ($ - $$) db 0\n"
+)
+
+
 def _check_cupidbuild_guarded_object_behavior(
     runner: ToolRunner,
     source_root: Path,
@@ -3192,6 +3269,70 @@ def _check_cupidbuild_guarded_object_behavior(
         )
     _validate_i386_relocatable(stage_two_output)
 
+    raw_operations = (
+        "assemble-bootloader",
+        "assemble-smp-trampoline",
+    )
+    raw_sources = (
+        ("guarded-bootloader.asm", 2560),
+        ("guarded-smp-trampoline.S", 4096),
+    )
+    raw_contents = (
+        _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE,
+        _CUPIDBUILD_SMP_BEHAVIOR_SOURCE,
+    )
+    for operation, (fixture_name, expected_size), contents in zip(
+        raw_operations, raw_sources, raw_contents, strict=True
+    ):
+        fixture_source = behavior_root / fixture_name
+        fixture_source.write_text(
+            contents,
+            encoding="ascii",
+            newline="\n",
+        )
+        stage_two_raw = behavior_root / f"stage-three-{operation}.bin"
+        stage_three_raw = behavior_root / f"stage-four-{operation}.bin"
+        common_raw_arguments: list[str | Path] = [
+            operation,
+            "--seed-manifest",
+            manifest_path,
+            "--root",
+            source_root,
+            "--source",
+            fixture_source.relative_to(source_root).as_posix(),
+        ]
+        raw_result = _run_stage_pair(
+            runner,
+            stage_two,
+            stage_three,
+            "cupidbuild",
+            [
+                *common_raw_arguments,
+                "--output",
+                stage_two_raw.relative_to(source_root).as_posix(),
+            ],
+            [
+                *common_raw_arguments,
+                "--output",
+                stage_three_raw.relative_to(source_root).as_posix(),
+            ],
+            180,
+        )
+        _expect_status(
+            raw_result,
+            0,
+            f"{label_prefix}CupidBuild {operation}",
+        )
+        if (
+            raw_result.stdout
+            or raw_result.stderr
+            or stage_two_raw.read_bytes() != stage_three_raw.read_bytes()
+            or stage_two_raw.stat().st_size != expected_size
+        ):
+            raise BootstrapError(
+                f"{label_prefix}CupidBuild {operation} output differs"
+            )
+
     sentinel = b"preserved CupidBuild output\n"
     stage_two_failure = behavior_root / "stage-three-cupidbuild-failure.o"
     stage_three_failure = behavior_root / "stage-four-cupidbuild-failure.o"
@@ -3232,6 +3373,58 @@ def _check_cupidbuild_guarded_object_behavior(
     ):
         raise BootstrapError(
             f"{label_prefix}CupidBuild failure behavior differs"
+        )
+
+    malformed_source = behavior_root / "malformed-bootloader.asm"
+    malformed_source.write_text(
+        "bits 16\norg 0x7c00\nnop\n",
+        encoding="ascii",
+        newline="\n",
+    )
+    raw_sentinel = b"preserved CupidBuild raw output\n"
+    stage_two_raw_failure = behavior_root / "stage-three-raw-failure.bin"
+    stage_three_raw_failure = behavior_root / "stage-four-raw-failure.bin"
+    stage_two_raw_failure.write_bytes(raw_sentinel)
+    stage_three_raw_failure.write_bytes(raw_sentinel)
+    raw_failure_arguments: list[str | Path] = [
+        "assemble-bootloader",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        source_root,
+        "--source",
+        malformed_source.relative_to(source_root).as_posix(),
+    ]
+    malformed_boot_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *raw_failure_arguments,
+            "--output",
+            stage_two_raw_failure.relative_to(source_root).as_posix(),
+        ],
+        [
+            *raw_failure_arguments,
+            "--output",
+            stage_three_raw_failure.relative_to(source_root).as_posix(),
+        ],
+        180,
+    )
+    _expect_status(
+        malformed_boot_result,
+        1,
+        f"{label_prefix}CupidBuild malformed bootloader",
+    )
+    if (
+        malformed_boot_result.stdout
+        or "cupidbuild:" not in malformed_boot_result.stderr
+        or stage_two_raw_failure.read_bytes() != raw_sentinel
+        or stage_three_raw_failure.read_bytes() != raw_sentinel
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild raw failure behavior differs"
         )
 
 
@@ -3527,9 +3720,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 6,
+        "failure_cases": len(tool_names) + 7,
         "help_cases": len(tool_names),
-        "success_cases": len(tool_names) + 10,
+        "success_cases": len(tool_names) + 12,
     }
 
 
@@ -6992,9 +7185,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 23,
+        "failure_cases": 24,
         "help_cases": len(tool_names),
-        "success_cases": 29,
+        "success_cases": 31,
     }
 
 

@@ -13,6 +13,16 @@ and timeout paths. It freezes all six images and validates their static ELF32
 or strict PE32 execution profiles before use. ADRs 0339, 0342, and 0344 record
 the transaction, and ADR 0354 records its direct Make ownership.
 
+Source head now contains the next two typed assembly operations. CupidBuild
+can build and certify the 2,560-byte bootloader and 4,096-byte SMP trampoline
+while keeping each raw range map private. This removes no active host
+dependency yet: the promoted seeds do not carry those commands, and Python
+still coordinates both normal raw recipes. ADR 0355 records the capability and
+the deferred ownership transfer. CupidBuild is consequently the one
+seed-to-stage-two mismatch until a new pair is promoted. Clean Linux and
+native Windows replays confirmed complete convergence across the final two
+generations.
+
 The fixed-point coordinator consumes the six-tool v2 Linux plan. Linux freezes
 58 inputs and builds 22 C objects, startup, and six tools. The native Windows
 plan adds its publication
@@ -83,10 +93,10 @@ same semantic shapes. The audit records 32
 assembly inputs, 301 headers, 414 Cupid C
 files, 255 feature requirements, and 26 accounted unreachable files. No
 ordinary C translation unit remained in a supported root. Its active-source
-audit records failure, help, and success counts of 23/6/29 for Linux and
-12/6/16 for Windows. The source-head figures include CupidBuild; each promoted
+audit records failure, help, and success counts of 24/6/31 for Linux and
+13/6/18 for Windows. The source-head figures include CupidBuild; each promoted
 host cohort still includes one successful and one failing static code-anchor
-case. Generation and checked comparison both pass.
+case. Audit generation and its checked-file comparison both pass.
 The pre-promotion poisoned OS build reached the exact-size gate after the
 complete compile, link, and strict-disassembly path. The repeated exact
 verifier, image publisher, and strong full private guest frontier passed.
@@ -218,12 +228,12 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`1a02082a28205e5ff04da715686d80051262b051c1b2bea28d1e7520f1b03997`.
+`88638774d89e07c3484dd787c5c735c056ea840bc4ed9d500f5c2da31a2de951`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,601,052, 9,732,124, and 9,506,080 bytes for the boot image, pass-one ELF,
+9,605,148, 9,736,220, and 9,506,932 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,120,960 bytes.
+sixteen rows, totaling 38,130,004 bytes.
 
 The paired-seed promotion replay passed both CupidLD links and strict
 inspection of all 431 production inputs. Its first size gate measured
@@ -235,17 +245,25 @@ specification-review correction followed. The third gate observed 9,505,572
 bytes against the 9,505,656-byte row and failed closed. That checkpoint's final
 policy update then accepted all sixteen paths.
 
-The direct CupidBuild ownership documentation later changed the embedded CTXT
-payload. The source-consistent normal replay measured 9,506,080 bytes, moved
-the exact row, accepted all sixteen paths, and preserved the image's existing
-FAT contents while staging `hello.iso`. It produced these current artifacts:
+The direct CupidBuild ownership and typed raw-command documentation later
+changed the embedded CTXT payload. The source-consistent normal replay measured
+9,506,932 bytes, moved all three changed kernel rows, accepted all sixteen
+paths, and preserved the image's existing FAT contents while staging
+`hello.iso`. It produced these current artifacts:
 
 | Current artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,601,052 | `d751d1bcf5839bc3c141779fa646739a7c9774a40dab4e2201be765bf0f44bf2` |
-| `kernel/kernel.elf` | 9,732,124 | `f6f517d18f2706997bb58932d91f9ac010d201ef57fd28b6cb5d8ba7fb14826d` |
-| `kernel/kernel.bin` | 9,506,080 | `f4a3abf1a14bcce072b5c4d0d7d81fde9b9172bf8da01dd9e22c82fb58227f53` |
-| `cupidos.img` | 209,715,200 | `409ee7759e2568b6d143bf10aac19450a79d9cd4cc31ae51585fd20f39b0d14e` |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `c68b5e4dc8b2c6e9d6e2f1b3f638c9693a5574572d03571cdf6e2ee36a8a4981` |
+| `kernel/kernel.elf` | 9,736,220 | `816ddf834bbeb62ced115e817f30d8644d4010cfe8407942e6390f1305c3e4ee` |
+| `kernel/kernel.bin` | 9,506,932 | `fefc956faeb9d414a44e7dd7c1cd86f4ec9dde3806b97d3c54b163eb92fd0416` |
+| `cupidos.img` | 209,715,200 | `cfda98a01fcfcbfcd12c6a07089d60a3a925c90dbd89b9f6d449a7c302fc47a0` |
+
+The latest private four-vCPU `max` and E1000 smoke brought every CPU online,
+seeded the CSPRNG from RDRAND, obtained `10.0.2.15`, started the desktop and
+terminal, and ran `/bin/ls.cc` through JIT completion. Its 32,032-byte log has
+SHA-256
+`21b811a028a12e23356e04d5e6adc32b983a0e9685bf606cd5d01ae96a0284d8`
+and no panic marker.
 
 At the promotion checkpoint, the normal `hello.iso` staging step created a
 209,715,200-byte runtime source

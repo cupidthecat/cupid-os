@@ -37,6 +37,8 @@ const char *cupidbuild_host_frozen_source(
     const cupidbuild_host_transaction_t *transaction);
 const char *cupidbuild_host_candidate(
     const cupidbuild_host_transaction_t *transaction);
+const char *cupidbuild_host_private_output(
+    const cupidbuild_host_transaction_t *transaction);
 
 int cupidbuild_host_run(cupidbuild_host_transaction_t *transaction,
                         const char *tool, const char *const *arguments,
@@ -46,6 +48,13 @@ int cupidbuild_host_capture_candidate(
     cupidbuild_host_snapshot_t *snapshot_out,
     unsigned char **bytes_out);
 int cupidbuild_host_require_candidate(
+    cupidbuild_host_transaction_t *transaction,
+    const cupidbuild_host_snapshot_t *expected);
+int cupidbuild_host_capture_private_output(
+    cupidbuild_host_transaction_t *transaction,
+    cupidbuild_host_snapshot_t *snapshot_out,
+    unsigned char **bytes_out);
+int cupidbuild_host_require_private_output(
     cupidbuild_host_transaction_t *transaction,
     const cupidbuild_host_snapshot_t *expected);
 int cupidbuild_host_require_inputs(

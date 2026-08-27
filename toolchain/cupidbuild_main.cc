@@ -7,6 +7,10 @@ static void cupidbuild_usage(FILE *stream) {
   (void)fprintf(
       stream,
       "usage: cupidbuild assemble-cupidasm-object "
+      "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
+      "       cupidbuild assemble-bootloader "
+      "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
+      "       cupidbuild assemble-smp-trampoline "
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n");
 }
 
@@ -24,7 +28,8 @@ static int cupidbuild_take_value(int argc, char **argv, int *index,
 }
 
 int main(int argc, char **argv) {
-  cupidbuild_object_request_t request;
+  cupidbuild_assembly_request_t request;
+  int operation = 0;
   int index;
   if (argc == 2 &&
       (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
@@ -32,7 +37,16 @@ int main(int argc, char **argv) {
     return 0;
   }
   (void)memset(&request, 0, sizeof(request));
-  if (argc >= 2 && strcmp(argv[1], "assemble-cupidasm-object") == 0) {
+  if (argc >= 2) {
+    if (strcmp(argv[1], "assemble-cupidasm-object") == 0) {
+      operation = 1;
+    } else if (strcmp(argv[1], "assemble-bootloader") == 0) {
+      operation = 2;
+    } else if (strcmp(argv[1], "assemble-smp-trampoline") == 0) {
+      operation = 3;
+    }
+  }
+  if (operation != 0) {
     for (index = 2; index < argc; index++) {
       int taken = cupidbuild_take_value(
           argc, argv, &index, "--seed-manifest", &request.seed_manifest);
@@ -60,7 +74,13 @@ int main(int argc, char **argv) {
       cupidbuild_usage(stderr);
       return 2;
     }
-    return cupidbuild_assemble_object(&request);
+    if (operation == 1) {
+      return cupidbuild_assemble_object(&request);
+    }
+    if (operation == 2) {
+      return cupidbuild_assemble_bootloader(&request);
+    }
+    return cupidbuild_assemble_smp_trampoline(&request);
   }
   cupidbuild_usage(stderr);
   return 2;

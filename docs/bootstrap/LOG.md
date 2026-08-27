@@ -32036,3 +32036,85 @@ transactions, generated artifacts, user programs, and both fixed points.
 Typed raw-image commands in CupidBuild are the next direct assembler handoff;
 fixed-point coordination remains the larger issue #34 boundary. ADR 0354
 records this transfer.
+
+## 2026-08-27: add typed raw assembly to source-head CupidBuild
+
+CupidBuild now provides `assemble-bootloader` and
+`assemble-smp-trampoline` beside its guarded relocatable-object operation. The
+commands keep the raw image and v2 map in the existing private transaction,
+enforce the 2,560-byte bootloader or 4,096-byte trampoline boundary, and pass
+the pinned map to CupidDis for known-decode, local-target, and source-edge
+checks. The SMP path also requires the complete active mixed-mode map. Only the
+image can publish.
+
+The hosted command suite passes 50 tests on native Windows, with two expected
+Linux-only skips. It reproduces both active raw artifacts and proves rollback
+for command errors, wrong sizes, the wrong exact-size SMP layout, and a raw
+target outside the image. The changed CupidBuild source also compiles and
+links through CupidC as a static i386 executable. A fixed-point coordinator
+contract now covers all three guarded assembly operations, deterministic raw
+fixtures inside the reported boundary, and malformed-boot rollback. Separate
+public CLI cases reproduce the active boot and SMP artifacts.
+
+The promoted v2 seeds predate these commands. The normal bootloader and SMP
+recipes therefore remain on Hostbuild, and the graph still records two
+CupidBuild and 450 Python participations. Seed promotion and direct raw-recipe
+ownership remain a separate green change. Source-head reconstruction expects
+CupidBuild alone to differ from the promoted seed at stage two; the other five
+initial tools match. A clean paired replay confirmed that boundary and matched
+the final generations across all six tools. ADR 0355 records the boundary.
+
+The final hosted command suite passed all 50 tests in 63.480 seconds, with two
+expected platform skips. It includes live source and range-map drift while
+CupidDis is running; both failures preserve the previous raw image, clean the
+private map, and report the assembly transaction without calling the image an
+object. CupidC rebuilt the changed CupidBuild sources into static i386 tools in
+35.434 seconds. The fixed-point mutation audit passed in 247.671 seconds, and
+both active-audit generation and checked comparison passed.
+
+The first complete 129-test bootstrap-seed run finished every build and
+behavior check before finding two report assertions that still expected the
+promoted CupidBuild bytes at stage two. The source-head compiler is supposed
+to differ until promotion. After correcting those assertions, one replay was
+invalidated by an edit to a frozen CupidBuild source while Linux was running;
+the final live-source comparison rejected it. Its Windows half had loaded the
+old assertion before the edit and was stopped rather than counted. The clean,
+untouched paired replay then passed Linux and native Windows in 3,661.449
+seconds. CupidBuild alone differed from the promoted seed at stage two on each
+host, and every compared object and all six tool images matched between stages
+three and four.
+
+An earlier OS build was run beside a fixed-point proof and exhausted CupidC's
+available process resources while compiling `kernel/gui/desktop.cc`. That run
+was excluded. The standalone replay compiled the complete kernel, drivers,
+libraries, user sources, Doom tree, and embedded Cupid tools. It completed both
+CupidLD links and the strict 431-input CupidDis scan, then stopped at the exact
+size gate. The embedded CTXT changes added 852 bytes to `kernel.bin` and 4,096
+bytes to each ELF. After those three deterministic rows were reviewed, the
+full replay passed all 16 exact artifacts, totaling 38,130,004 bytes, and
+updated the normal image while preserving its FAT data. The 3,382-byte policy
+has SHA-256
+`88638774d89e07c3484dd787c5c735c056ea840bc4ed9d500f5c2da31a2de951`.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `c68b5e4dc8b2c6e9d6e2f1b3f638c9693a5574572d03571cdf6e2ee36a8a4981` |
+| `kernel/kernel.elf` | 9,736,220 | `816ddf834bbeb62ced115e817f30d8644d4010cfe8407942e6390f1305c3e4ee` |
+| `kernel/kernel.bin` | 9,506,932 | `fefc956faeb9d414a44e7dd7c1cd86f4ec9dde3806b97d3c54b163eb92fd0416` |
+| `cupidos.img` | 209,715,200 | `cfda98a01fcfcbfcd12c6a07089d60a3a925c90dbd89b9f6d449a7c302fc47a0` |
+
+The private four-vCPU `max`/E1000 smoke passed. All four CPUs came online,
+RDRAND seeded the CSPRNG, E1000 obtained `10.0.2.15`, the desktop and terminal
+started, and `/bin/ls.cc` reached `JIT execution complete`. The 32,032-byte log
+has SHA-256
+`21b811a028a12e23356e04d5e6adc32b983a0e9685bf606cd5d01ae96a0284d8`
+and contains no panic marker.
+
+The final audit regeneration and checked comparison both passed. The
+2,767,718-byte active-build record has SHA-256
+`2c4246b3b85bb014a199ff82aee495495afda2914913e6f839d7679c50490f28`,
+and the 12,882-byte summary has SHA-256
+`f9311a945a32397c1b81766780be8d623a9a1bd6e6b7771e0061048c4cd817e0`.
+The artifact-policy and Hostbuild boot/SMP compatibility group passed 64 tests
+in 6.831 seconds, with four expected platform skips.

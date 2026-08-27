@@ -58,10 +58,26 @@ edge carriage and recoverable hosted raw-pair publication. ADR 0349 records
 exact hexadecimal floating constants, ADR 0350 records strict decode-map
 reuse, and ADR 0351 records automatic raw callback arrays. ADR 0352 records
 the non-self-referential v2 contracts, ADR 0353 records their paired
-promotion, and ADR 0354 records the first direct normal recipe ownership for
-CupidBuild.
+promotion, ADR 0354 records the first direct normal recipe ownership for
+CupidBuild, and ADR 0355 records its typed source-head raw-image interface.
 
 ## 2026-08-27 source-current checkpoint
+
+Source-head CupidBuild now accepts typed bootloader and SMP-trampoline
+requests. Both use the guarded publication transaction already used for
+relocatable objects. The boot path requires a 2,560-byte image and a nonempty
+private map. The SMP path requires 4,096 bytes and the exact active mixed-mode
+map. Both pass that pinned map to CupidDis with known-decode, local-target, and
+source-edge requirements. A failed assembly, layout check, inspection, or
+boundary recheck leaves the public image alone.
+
+The fixed-point behavior group runs all three assembly operations with its two
+compared CupidBuild generations and checks raw rollback. The current promoted
+seeds do not contain these two commands, so the normal raw recipes and graph
+ownership remain unchanged until a later promotion and direct transfer. Until
+then, CupidBuild is the one seed-to-stage-two mismatch. A clean Linux and
+native Windows replay confirmed that the other five initial images match and
+every stage-three/stage-four artifact converges.
 
 The normal ISR and context-switch recipes now enter the guarded object
 transaction through the promoted CupidBuild seed. They pass the complete
@@ -83,10 +99,10 @@ rename because every active CupidC translation unit already uses `.cc`.
 
 The complete normal image build passed the two CupidLD links, whole-kernel
 CupidDis inspection, all 16 exact artifact sizes, and image publication. The
-four changed CTXT inputs raised the raw kernel by 508 bytes to 9,506,080, and
-the exact policy now records that source-consistent size. A private four-vCPU
-`max` and E1000 smoke passed with all CPUs online and `/bin/ls.cc` reaching JIT
-completion.
+two changed CTXT inputs raised the raw kernel by 852 bytes to 9,506,932 and
+each linked ELF by 4,096 bytes. The exact policy records those source-consistent
+sizes. A private four-vCPU `max` and E1000 smoke passed with all CPUs online
+and `/bin/ls.cc` reaching JIT completion.
 
 ## 2026-08-25 source-current checkpoint
 
@@ -313,27 +329,28 @@ sixteen exact artifacts. The current outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,601,052 | `d751d1bcf5839bc3c141779fa646739a7c9774a40dab4e2201be765bf0f44bf2` |
-| `kernel/kernel.elf` | 9,732,124 | `f6f517d18f2706997bb58932d91f9ac010d201ef57fd28b6cb5d8ba7fb14826d` |
-| `kernel/kernel.bin` | 9,506,080 | `f4a3abf1a14bcce072b5c4d0d7d81fde9b9172bf8da01dd9e22c82fb58227f53` |
-| `cupidos.img` | 209,715,200 | `409ee7759e2568b6d143bf10aac19450a79d9cd4cc31ae51585fd20f39b0d14e` |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `c68b5e4dc8b2c6e9d6e2f1b3f638c9693a5574572d03571cdf6e2ee36a8a4981` |
+| `kernel/kernel.elf` | 9,736,220 | `816ddf834bbeb62ced115e817f30d8644d4010cfe8407942e6390f1305c3e4ee` |
+| `kernel/kernel.bin` | 9,506,932 | `fefc956faeb9d414a44e7dd7c1cd86f4ec9dde3806b97d3c54b163eb92fd0416` |
+| `cupidos.img` | 209,715,200 | `cfda98a01fcfcbfcd12c6a07089d60a3a925c90dbd89b9f6d449a7c302fc47a0` |
 
 The current normal build linked both kernel ELFs and completed strict CupidDis
 inspection of all 431 production inputs with local targets and code anchors
 enabled. Earlier paired-seed checks rejected three stale raw-kernel rows before
-publication. The direct CupidBuild ownership documentation later moved the
-embedded CTXT payload again. The final replay measured 9,506,080 bytes, updated
-the exact row, passed all sixteen paths, preserved the normal image's FAT
-contents, and staged `hello.iso`.
-The 3,382-byte policy covers sixteen paths totaling 38,120,960 bytes and has
+publication. The direct CupidBuild ownership and typed raw-command
+documentation later moved the embedded CTXT payload again. The final replay
+measured 9,506,932 bytes, updated the three changed kernel rows, passed all
+sixteen paths, preserved the normal image's FAT contents, and staged
+`hello.iso`.
+The 3,382-byte policy covers sixteen paths totaling 38,130,004 bytes and has
 SHA-256
-`1a02082a28205e5ff04da715686d80051262b051c1b2bea28d1e7520f1b03997`.
+`88638774d89e07c3484dd787c5c735c056ea840bc4ed9d500f5c2da31a2de951`.
 
 The final private four-vCPU `max` and E1000 smoke used a copy of that normal
 image. All four CPUs came online, RDRAND seeded the CSPRNG, E1000 obtained
 `10.0.2.15`, the desktop started, and `/bin/ls.cc` reached JIT completion. The
-33,159-byte log has SHA-256
-`cf2c13e65d8a10ee9c129fd3b90c50c7a8b6fa088c594f1909e94010c28dd5ea`
+32,032-byte log has SHA-256
+`21b811a028a12e23356e04d5e6adc32b983a0e9685bf606cd5d01ae96a0284d8`
 and no panic marker. The source image was not changed by the smoke.
 
 Source-head bootstrap reporting now compares stage two with the verified bytes
@@ -554,7 +571,7 @@ locks one `$(ARTIFACT_SIZE_CONTRACT)` command with
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The final post-CTXT
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-23/6/29 for Linux and 12/6/16 for Windows.
+24/6/31 for Linux and 13/6/18 for Windows.
 
 A pre-final-CTXT build at the preceding integrated checkpoint reached the
 exact-size gate after 668.414 seconds. It
@@ -885,8 +902,8 @@ CLI negative cases cover both forms. Far and indirect transfers stay outside
 the count. The normal kernel transaction runs this rule over its frozen
 pass-one and final ELFs before CupidObj flattening. ADR 0314 records the
 decoder boundary, and ADR 0318 records carriage and production adoption.
-The generated audit reports failure, help, and success counts of 23/6/29 for
-Linux and 12/6/16 for Windows.
+The generated audit reports failure, help, and success counts of 24/6/31 for
+Linux and 13/6/18 for Windows.
 
 Checked CupidDis has an explicit static ELF code-anchor policy.
 `--require-code-anchors` requires `--require-known`. For `ET_REL`, it counts
@@ -901,7 +918,7 @@ relocatable and linked inputs, missing disassembly state, dynamic or
 interpreted images, overlapping executable loads, bounded map exhaustion, and
 recovery in the same job. The Linux and Windows fixed-point drivers each add a
 valid and an invalid executable behavior case. The source-current audit
-records 23/6/29 failure/help/success cases for Linux and 12/6/16 for Windows.
+records 24/6/31 failure/help/success cases for Linux and 13/6/18 for Windows.
 
 Both promoted seeds carry both forms. Production combines it with
 `--require-known --require-local-targets` for the ISR, context-switch, hosted

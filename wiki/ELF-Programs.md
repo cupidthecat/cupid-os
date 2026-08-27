@@ -885,23 +885,23 @@ the raw kernel is 9,251,100 bytes with SHA-256
 
 The source-head artifact contract passes against all sixteen exact artifacts.
 The current 3,382-byte policy has SHA-256
-`1a02082a28205e5ff04da715686d80051262b051c1b2bea28d1e7520f1b03997`
-and covers 38,120,960 bytes across those paths.
+`88638774d89e07c3484dd787c5c735c056ea840bc4ed9d500f5c2da31a2de951`
+and covers 38,130,004 bytes across those paths.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,601,052 | `d751d1bcf5839bc3c141779fa646739a7c9774a40dab4e2201be765bf0f44bf2` |
-| `kernel/kernel.elf` | 9,732,124 | `f6f517d18f2706997bb58932d91f9ac010d201ef57fd28b6cb5d8ba7fb14826d` |
-| `kernel/kernel.bin` | 9,506,080 | `f4a3abf1a14bcce072b5c4d0d7d81fde9b9172bf8da01dd9e22c82fb58227f53` |
-| `cupidos.img` | 209,715,200 | `409ee7759e2568b6d143bf10aac19450a79d9cd4cc31ae51585fd20f39b0d14e` |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `c68b5e4dc8b2c6e9d6e2f1b3f638c9693a5574572d03571cdf6e2ee36a8a4981` |
+| `kernel/kernel.elf` | 9,736,220 | `816ddf834bbeb62ced115e817f30d8644d4010cfe8407942e6390f1305c3e4ee` |
+| `kernel/kernel.bin` | 9,506,932 | `fefc956faeb9d414a44e7dd7c1cd86f4ec9dde3806b97d3c54b163eb92fd0416` |
+| `cupidos.img` | 209,715,200 | `cfda98a01fcfcbfcd12c6a07089d60a3a925c90dbd89b9f6d449a7c302fc47a0` |
 
 Those output identities come from the current normal build. It completed the
 431-input local-target and code-anchor scan, accepted the exact policy, and
 preserved the image's FAT contents while staging `hello.iso`. A private
 four-vCPU `max` and E1000 copy brought all CPUs online, seeded the CSPRNG from
 RDRAND, obtained `10.0.2.15`, started the desktop, and ran `/bin/ls.cc` through
-JIT completion. Its 33,159-byte log has SHA-256
-`cf2c13e65d8a10ee9c129fd3b90c50c7a8b6fa088c594f1909e94010c28dd5ea`
+JIT completion. Its 32,032-byte log has SHA-256
+`21b811a028a12e23356e04d5e6adc32b983a0e9685bf606cd5d01ae96a0284d8`
 and no panic marker.
 
 The active Linux and Windows seeds use v2 and carry six tool images, including

@@ -13,6 +13,16 @@ before launch. The recheck still runs after a failure or timeout. The normal
 ISR and context-switch recipes invoke that transaction directly. Broader Python
 removal remains open.
 
+Source-head CupidBuild also implements typed `assemble-bootloader` and
+`assemble-smp-trampoline` commands. They share the guarded transaction but add
+private raw-map capture, exact image and layout checks, and strict
+source-resolved edge inspection. The fixed-point behavior group exercises
+both commands across consecutive generations. This is capability work rather
+than a recipe transfer: the promoted seeds predate the commands, and Hostbuild
+still owns both normal raw-image publications. Clean Linux and native Windows
+fixed-point replays found CupidBuild alone different from its promoted seed
+image, while all six stage-three and stage-four tools matched.
+
 The paired v2 fixed points build all six tools through Linux and native Windows
 stages. Linux freezes 58 source inputs and produces 22 C objects plus startup.
 Windows produces 23 C objects and three assembly objects. Both compare all six
@@ -125,8 +135,9 @@ negative cases cover both forms. The normal kernel transaction applies the
 linked rule to its frozen pass-one and final ELFs before CupidObj flattening.
 ADR 0314 records the decoder boundary, and ADR 0318 records carriage and
 adoption. The generated audit reports failure, help, and success counts
-of 23/6/29 for Linux and 12/6/16 for Windows. Generation and checked comparison
-both pass. The promoted v2 seeds carry all six images.
+of 24/6/31 for Linux and 13/6/18 for Windows. Generation and checked comparison
+both pass for that audit. The promoted v2 seeds carry all six images, but their
+CupidBuild image predates the two raw commands described in ADR 0355.
 
 Checked CupidDis provides an explicit static executable code-anchor policy.
 It checks the ELF entry and each defined function symbol against decoded starts

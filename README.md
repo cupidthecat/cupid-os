@@ -58,6 +58,21 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 
 ## 2026-08-27 source-current checkpoint
 
+Source-head CupidBuild now has typed bootloader and SMP-trampoline assembly
+commands. Each command keeps the raw image and `cupid.raw-map.v2` sidecar in
+one private transaction, enforces the artifact's exact size and map policy,
+and asks checked CupidDis to validate known instructions, local targets, and
+source-resolved edges before publishing the image. The map remains private.
+
+The fixed-point behavior gate exercises both raw commands and the existing
+object command across consecutive CupidBuild generations. The promoted seeds
+predate the new interface, so the normal bootloader and trampoline recipes
+still use Hostbuild; no graph owner or participation count changes in this
+source-head step. The clean Linux and native Windows reconstructions found
+CupidBuild alone different from the promoted seed at stage two, then reached
+complete stage-three/stage-four convergence. The normal OS build and a private
+four-vCPU boot smoke also pass. ADR 0355 records that boundary.
+
 The normal ISR and context-switch recipes now invoke the promoted CupidBuild
 seed directly. CupidBuild freezes the assembly source and complete six-tool
 cohort, publishes a private ELF32 relocatable through CupidASM, applies the
@@ -73,11 +88,11 @@ so a fresh checkout can enter the same direct recipe. ADR 0354 records the
 ownership boundary.
 
 The complete normal build passed both CupidLD links, whole-kernel CupidDis
-inspection, all 16 exact-size checks, and image publication. The four updated
-CTXT pages increased the deterministic raw kernel by 508 bytes to 9,506,080,
-which is now the checked policy value. A private four-vCPU `max` and E1000 boot
-brought all CPUs online and ran `/bin/ls.cc` through in-OS CupidC without a
-panic marker.
+inspection, all 16 exact-size checks, and image publication. The two updated
+CTXT pages increased the deterministic raw kernel by 852 bytes to 9,506,932
+and each linked ELF by 4,096 bytes. Those values are now checked policy rows.
+A private four-vCPU `max` and E1000 boot brought all CPUs online and ran
+`/bin/ls.cc` through in-OS CupidC without a panic marker.
 
 ## 2026-08-25 source-current checkpoint
 
@@ -330,7 +345,7 @@ recipe has one `$(ARTIFACT_SIZE_CONTRACT)` command, and that command carries
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The source-current
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-23/6/29 for Linux and 12/6/16 for Windows. The audit records 747 active
+24/6/31 for Linux and 13/6/18 for Windows. The audit records 747 active
 sources, 452 transforms, 255 feature requirements, and 26 accounted unreachable
 files.
 [ADR 0304](docs/adr/0304-author-toolchain-publication-manifests-with-cupidc.md)
@@ -427,9 +442,9 @@ decode pass, then applies the linked rule to the pass-one and final ELFs before
 CupidObj flattens the final image.
 [ADR 0314](docs/adr/0314-validate-local-targets-in-linked-elf32-images.md)
 records the source boundary. The generated six-tool audit reports failure,
-help, and success counts of 23/6/29 for Linux and 12/6/16 for Windows.
-Generation and checked comparison both pass. The promoted five-tool cohort
-remains a separate historical trust proof.
+help, and success counts of 24/6/31 for Linux and 13/6/18 for Windows.
+Audit generation and its checked-file comparison both pass. The promoted
+five-tool cohort remains a separate historical trust proof.
 
 Checked CupidDis provides `--require-code-anchors` for static i386 ELF32
 objects. Checked CupidDis checks every defined `STT_FUNC` in an `ET_REL` object

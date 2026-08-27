@@ -7,7 +7,7 @@ The matrix uses these statuses:
 - **Missing**: no implementation satisfying the bootstrap contract was found.
 - **Required**: the checked active-source audit proves the capability is exercised, but the Cupid implementation does not yet satisfy it.
 
-CupidBuild guarded object publication is **Observed at source head**. It now
+CupidBuild guarded assembly publication is **Observed at source head**. It now
 parses the frozen manifest and enforces exact JSON fields, the host schema and
 target, fixed-point provenance, the six artifact records and producer roles,
 and the full Linux build plan. It accepts whitespace and field-order changes
@@ -26,6 +26,17 @@ replacement recovery. The full suite passes on native Windows and Linux. The
 check and object rename are separate operations, so lock ownership remains a
 cooperative publisher protocol rather than protection from arbitrary path
 mutation.
+
+The typed raw-image boundary is also **Observed at source head**. Bootloader
+publication requires an exact 2,560-byte candidate and a nonempty private v2
+map. SMP-trampoline publication requires an exact 4,096-byte candidate and the
+complete active mixed-mode map. CupidDis applies known-decode, local-target,
+and source-edge checks before either image can replace its predecessor. The
+promoted seeds do not carry these commands yet, so this capability has not
+moved either normal raw recipe. Source-head reconstruction expects only the
+CupidBuild seed image to differ from stage two. Clean Linux and native Windows
+replays confirmed that mismatch and complete stage-three/stage-four
+convergence.
 
 Six-tool fixed-point construction is **Observed with checked v2 seeds**. The
 coordinator reads CupidBuild's three sources and link from the active plan.
@@ -55,8 +66,9 @@ assembly files, 301 C headers, and 414 Cupid C files. No ordinary C
 translation unit remains in a supported root. Lexical counts are discovery
 evidence; semantic completion still requires focused compiler and assembler
 tests. `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The current active-source
-fixed-point inventory records failure, help, and success counts of 23/6/29 for
-Linux and 12/6/16 for Windows. The promoted seeds carry all six tools. The
+fixed-point inventory records failure, help, and success counts of 24/6/31 for
+Linux and 13/6/18 for Windows. The promoted seed reports retain the preceding
+23/6/29 and 12/6/16 inventories. Both seeds carry all six tools. The
 normal linked-kernel path selects the static code-anchor rule.
 
 The public user Make entry point is explicit: `all` is the default on Windows

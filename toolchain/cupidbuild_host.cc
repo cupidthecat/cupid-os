@@ -59,6 +59,7 @@ struct cupidbuild_host_transaction {
   char output_name[CUPIDBUILD_HOST_PATH_BYTES];
   char private_root[CUPIDBUILD_HOST_PATH_BYTES];
   char candidate[CUPIDBUILD_HOST_PATH_BYTES];
+  char private_output[CUPIDBUILD_HOST_PATH_BYTES];
   char tool_stdout[CUPIDBUILD_HOST_PATH_BYTES];
   char tool_stderr[CUPIDBUILD_HOST_PATH_BYTES];
   char lock_path[CUPIDBUILD_HOST_PATH_BYTES];
@@ -68,8 +69,10 @@ struct cupidbuild_host_transaction {
   cupidbuild_host_snapshot_t output_parent_snapshot;
   cupidbuild_host_snapshot_t initial_output_snapshot;
   cupidbuild_host_snapshot_t candidate_snapshot;
+  cupidbuild_host_snapshot_t private_output_snapshot;
   cupidbuild_host_snapshot_t lock_snapshot;
   int candidate_captured;
+  int private_output_captured;
   int lock_held;
   int private_created;
 #if defined(_WIN32)
@@ -2012,6 +2015,9 @@ int cupidbuild_host_transaction_open(
       !cupidbuild_host_join(transaction->candidate,
                             sizeof(transaction->candidate),
                             transaction->private_root, "candidate.o") ||
+      !cupidbuild_host_join(transaction->private_output,
+                            sizeof(transaction->private_output),
+                            transaction->private_root, "candidate.map") ||
       !cupidbuild_host_join(transaction->tool_stdout,
                             sizeof(transaction->tool_stdout),
                             transaction->private_root, "tool.stdout") ||
@@ -2053,6 +2059,7 @@ void cupidbuild_host_transaction_close(
     return;
   }
   cupidbuild_host_delete_file(transaction->candidate);
+  cupidbuild_host_delete_file(transaction->private_output);
   cupidbuild_host_delete_file(transaction->tool_stdout);
   cupidbuild_host_delete_file(transaction->tool_stderr);
   for (index = 0u; index < transaction->input_count; index++) {
@@ -2086,6 +2093,13 @@ const char *cupidbuild_host_candidate(
   return transaction == (const cupidbuild_host_transaction_t *)0
              ? (const char *)0
              : transaction->candidate;
+}
+
+const char *cupidbuild_host_private_output(
+    const cupidbuild_host_transaction_t *transaction) {
+  return transaction == (const cupidbuild_host_transaction_t *)0
+             ? (const char *)0
+             : transaction->private_output;
 }
 
 int cupidbuild_host_run(cupidbuild_host_transaction_t *transaction,
@@ -2171,6 +2185,42 @@ int cupidbuild_host_require_candidate(
   return 1;
 }
 
+int cupidbuild_host_capture_private_output(
+    cupidbuild_host_transaction_t *transaction,
+    cupidbuild_host_snapshot_t *snapshot_out, unsigned char **bytes_out) {
+  if (transaction == (cupidbuild_host_transaction_t *)0 ||
+      !cupidbuild_host_read_regular(transaction->private_output, 0,
+                                    &transaction->private_output_snapshot,
+                                    bytes_out)) {
+    cupidbuild_host_set_error(transaction,
+                              "checked CupidASM private output cannot be pinned");
+    return 0;
+  }
+  transaction->private_output_captured = 1;
+  if (snapshot_out != (cupidbuild_host_snapshot_t *)0) {
+    *snapshot_out = transaction->private_output_snapshot;
+  }
+  return 1;
+}
+
+int cupidbuild_host_require_private_output(
+    cupidbuild_host_transaction_t *transaction,
+    const cupidbuild_host_snapshot_t *expected) {
+  cupidbuild_host_snapshot_t current;
+  if (transaction == (cupidbuild_host_transaction_t *)0 ||
+      transaction->private_output_captured == 0 ||
+      expected == (const cupidbuild_host_snapshot_t *)0 ||
+      !cupidbuild_host_read_regular(transaction->private_output, 0, &current,
+                                    (unsigned char **)0) ||
+      !cupidbuild_host_snapshot_equal(&current, expected)) {
+    cupidbuild_host_set_error(
+        transaction,
+        "checked CupidASM private output changed while validation ran");
+    return 0;
+  }
+  return 1;
+}
+
 int cupidbuild_host_require_inputs(
     cupidbuild_host_transaction_t *transaction) {
   unsigned int index;
@@ -2186,7 +2236,7 @@ int cupidbuild_host_require_inputs(
       cupidbuild_host_set_error(
           transaction,
           index == 0u
-              ? "CupidASM object source changed while checked tools ran"
+              ? "CupidASM source changed while checked tools ran"
               : "checked seed inputs changed while checked tools ran");
       return 0;
     }
@@ -2236,7 +2286,7 @@ int cupidbuild_host_publish(cupidbuild_host_transaction_t *transaction) {
   }
   if (!cupidbuild_host_atomic_replace(transaction)) {
     cupidbuild_host_set_error(transaction,
-                              "validated CupidASM object could not be published");
+                              "validated CupidASM output could not be published");
     return 0;
   }
   return 1;
@@ -2246,7 +2296,7 @@ const char *cupidbuild_host_error(
     const cupidbuild_host_transaction_t *transaction) {
   if (transaction == (const cupidbuild_host_transaction_t *)0 ||
       transaction->error[0] == '\0') {
-    return "hosted object transaction failed";
+    return "hosted CupidASM transaction failed";
   }
   return transaction->error;
 }

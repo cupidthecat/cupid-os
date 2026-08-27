@@ -9214,9 +9214,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 23,
+        "failure_cases": 24,
         "help_cases": 6,
-        "success_cases": 29,
+        "success_cases": 31,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -9586,6 +9586,16 @@ def _cupid_toolchain_fixed_point_contract(
         "failure_result = _run_stage_pair(",
         "stage_two_failure.read_bytes() != sentinel",
         "stage_three_failure.read_bytes() != sentinel",
+        'raw_operations = (\n        "assemble-bootloader",\n'
+        '        "assemble-smp-trampoline",\n    )',
+        '("guarded-bootloader.asm", 2560)',
+        '("guarded-smp-trampoline.S", 4096)',
+        "raw_result = _run_stage_pair(",
+        "stage_two_raw.read_bytes() != stage_three_raw.read_bytes()",
+        'malformed_source = behavior_root / "malformed-bootloader.asm"',
+        "malformed_boot_result = _run_stage_pair(",
+        "stage_two_raw_failure.read_bytes() != raw_sentinel",
+        "stage_three_raw_failure.read_bytes() != raw_sentinel",
     )
     missing_cupidbuild_behavior_fragments = [
         fragment
@@ -9594,7 +9604,7 @@ def _cupid_toolchain_fixed_point_contract(
     ]
     if (
         missing_cupidbuild_behavior_fragments
-        or cupidbuild_behavior_source.count('        "cupidbuild",') != 2
+        or cupidbuild_behavior_source.count('        "cupidbuild",') != 4
     ):
         raise AuditError(
             "Cupid Toolchain fixed-point CupidBuild behavior differs: "
@@ -12659,9 +12669,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 6, "
+            "'failure_cases': len(tool_names) + 7, "
             "'help_cases': len(tool_names), "
-            "'success_cases': len(tool_names) + 10"
+            "'success_cases': len(tool_names) + 12"
             "}",
             mode="eval",
         ).body
@@ -12681,8 +12691,8 @@ def _cupid_toolchain_fixed_point_contract(
             )
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return twelve failure, "
-                "six help, and sixteen success cases"
+                "_run_native_windows_behavior_checks: return thirteen failure, "
+                "six help, and eighteen success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -13312,11 +13322,12 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 6,
-        "windows_success_behavior_cases": 16,
-        "windows_failure_behavior_cases": 12,
+        "windows_success_behavior_cases": 18,
+        "windows_failure_behavior_cases": 13,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_guarded_object_transaction",
+            "cupid.cupidbuild_guarded_raw_transaction",
             "cupiddis.candidate_image_certification",
             "cupiddis.elf32_code_anchors",
             "cupidld.pe32_fixed_image",
