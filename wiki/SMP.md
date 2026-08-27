@@ -11,9 +11,9 @@ The context-switch object now publishes through the promoted CupidBuild seed
 without Python. The guarded transaction still requires CupidASM output and
 strict CupidDis relocation, target, and function-anchor evidence. The SMP
 trampoline remains on its Python-coordinated raw image and map transaction.
-Source-head CupidBuild can perform that same typed 4,096-byte publication,
-including the exact mixed-mode map and strict source-edge inspection, but the
-promoted seed does not carry the command yet.
+The refreshed promoted CupidBuild seed can perform that same typed 4,096-byte
+publication, including the exact mixed-mode map and strict source-edge
+inspection. Only the normal Make recipe remains to be transferred.
 
 ---
 
@@ -546,21 +546,21 @@ these recipes falls back to Clang or GCC.
 
 The active Linux and Windows seeds use v2 and contain six tool images,
 including CupidBuild. Both bind revision
-`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, the exact 58-input snapshot
-`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
+`43c747f0e683d0527984bae05bf944879e64a07b`, the exact 58-input snapshot
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`,
 and their platform build plan. The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
 its 6,602-byte manifest has SHA-256
-`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
 its 2,852-byte manifest has SHA-256
-`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
 and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
 self-consumption pass on both platforms, including the normal SMP path, with
 all six initial images equal to stage two. CupidBuild owns the context-switch
 object publication directly. Python still coordinates the raw trampoline and
-the remaining build publications.
+the remaining build publications. ADR 0356 records the active seed refresh.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
 seconds with all fourteen exact policy artifacts accepted. Its 4,096-byte

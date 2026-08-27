@@ -5100,7 +5100,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
                 {
-                    name: name != "cupidbuild"
+                    name: True
                     for name in CANDIDATE_TOOL_NAMES
                 },
             )
@@ -9592,7 +9592,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 initial_matches,
                 {
-                    name: name != "cupidbuild"
+                    name: True
                     for name in CANDIDATE_TOOL_NAMES
                 },
             )

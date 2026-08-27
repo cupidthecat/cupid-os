@@ -1692,23 +1692,24 @@ independent-policy modules contain 54 tests. They pass with four
 platform-specific skips. The source-head artifact
 contract passes against all sixteen exact artifacts. The current 3,382-byte
 policy has SHA-256
-`88638774d89e07c3484dd787c5c735c056ea840bc4ed9d500f5c2da31a2de951`
-and covers 38,130,004 bytes across those paths. The pass-one ELF is 9,605,148
+`3518552751c6993bbf4c36735a0a780616253543ba5c6555af55ae5979c45ff6`
+and covers 38,143,900 bytes across those paths. The pass-one ELF is 9,605,148
 bytes with SHA-256
-`c68b5e4dc8b2c6e9d6e2f1b3f638c9693a5574572d03571cdf6e2ee36a8a4981`.
+`7f83f2283f5f1c0f90cfde71942c7c7cfb596b13ba4e0974e8e843de28e0bc63`.
 The final ELF is 9,736,220 bytes with SHA-256
-`816ddf834bbeb62ced115e817f30d8644d4010cfe8407942e6390f1305c3e4ee`.
-The raw kernel is 9,506,932 bytes with SHA-256
-`fefc956faeb9d414a44e7dd7c1cd86f4ec9dde3806b97d3c54b163eb92fd0416`.
+`d55d1170293bbc2e2285586f85cb54702a1fefeae90cc497fd474834ae001076`.
+The raw kernel is 9,507,224 bytes with SHA-256
+`efd8290cabcdfddeaa9e40e6a3ae4b2fbec4cc640e53b5abbdbecda8379e24f1`.
 The normal disk image is 209,715,200 bytes with SHA-256
-`cfda98a01fcfcbfcd12c6a07089d60a3a925c90dbd89b9f6d449a7c302fc47a0`.
+`9ee5ed43c1f5615077f6da47e579e41e27e31fd8fe7839d6b220e7e031d17635`.
 The normal build completed its 431-input code-anchor scan, accepted the exact
 policy, and preserved the image's FAT contents while staging `hello.iso`. A
-private four-vCPU `max` and E1000 copy brought all CPUs online, seeded the
-CSPRNG from RDRAND, obtained `10.0.2.15`, started the desktop, and ran
-`/bin/ls.cc` through JIT completion. Its 32,032-byte log has SHA-256
-`21b811a028a12e23356e04d5e6adc32b983a0e9685bf606cd5d01ae96a0284d8`
-and no panic marker.
+private four-vCPU `max` and E1000 copy brought all CPUs online and completed
+the full graphics, audio, and in-OS CupidC frontier. The framebuffer changed
+101,820 pixels; both audio captures were non-silent. Its 149,029-byte log has
+SHA-256
+`5b4cd234867bda2c69152d443f8104bd4d2b7974e7b2da45d30185a60849c538`
+and no rejected runtime marker.
 
 The preceding source-head cohort used the same pass-one and final ELF sizes
 with SHA-256 values
@@ -3184,22 +3185,23 @@ The source image was unchanged at SHA-256
 CupidBuild and the host bootstrap coordinator still understand the historical
 v1 five-tool format. The active Linux and Windows compiler seeds use v2 and
 list CupidBuild beside the five existing tools. Both
-manifests bind revision `f620e3a973c6fca661c8eeefe443f4b3c669dddc`, the
+manifests bind revision `43c747f0e683d0527984bae05bf944879e64a07b`, the
 58-input snapshot
-`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`,
 and the exact platform build plan.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
 and pairs to the exact Linux manifest bytes.
 
 Candidate fixed-point and behavior proof passed on both platforms. The active
 v2 cohorts also pass promoted-seed self-consumption, with all six initial images
 equal to stage two. CupidBuild owns the normal ISR and context-switch object
 recipes. Python coordinates and publishes the remaining checked build paths.
+ADR 0356 records the active seed refresh.

@@ -32,10 +32,10 @@ Core files:
   kernel/lang/shell.cc            smp shell command
 
 The normal context-switch object publishes through the promoted CupidBuild
-seed. Source-head CupidBuild can also assemble the 4,096-byte AP trampoline,
-pin its exact mixed-mode v2 map, and require CupidDis source-edge checks. The
-promoted seed does not contain that command yet, so the normal trampoline
-recipe remains on its checked Hostbuild transaction.
+seed. The refreshed seed can also assemble the 4,096-byte AP trampoline, pin
+its exact mixed-mode v2 map, and require CupidDis source-edge checks. The
+normal trampoline recipe remains on its checked Hostbuild transaction until
+the separate Make ownership transfer.
 >endtree
 
 >h2 Boot Order (Critical)

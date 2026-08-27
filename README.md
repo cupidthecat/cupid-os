@@ -65,13 +65,14 @@ and asks checked CupidDis to validate known instructions, local targets, and
 source-resolved edges before publishing the image. The map remains private.
 
 The fixed-point behavior gate exercises both raw commands and the existing
-object command across consecutive CupidBuild generations. The promoted seeds
-predate the new interface, so the normal bootloader and trampoline recipes
-still use Hostbuild; no graph owner or participation count changes in this
-source-head step. The clean Linux and native Windows reconstructions found
-CupidBuild alone different from the promoted seed at stage two, then reached
-complete stage-three/stage-four convergence. The normal OS build and a private
-four-vCPU boot smoke also pass. ADR 0355 records that boundary.
+object command across consecutive CupidBuild generations. The refreshed
+promoted seeds now carry all three commands. Their self-consumption proofs
+match all six stage-two images and retain complete stage-three/stage-four
+convergence. The normal bootloader and trampoline recipes still use Hostbuild
+until their separate ownership transfer, so graph participation does not
+change in this checkpoint. The normal OS build and a private four-vCPU boot
+smoke also pass. ADR 0355 records the source capability, and ADR 0356 records
+its carriage in the active seeds.
 
 The normal ISR and context-switch recipes now invoke the promoted CupidBuild
 seed directly. CupidBuild freezes the assembly source and complete six-tool
@@ -88,11 +89,12 @@ so a fresh checkout can enter the same direct recipe. ADR 0354 records the
 ownership boundary.
 
 The complete normal build passed both CupidLD links, whole-kernel CupidDis
-inspection, all 16 exact-size checks, and image publication. The two updated
-CTXT pages increased the deterministic raw kernel by 852 bytes to 9,506,932
-and each linked ELF by 4,096 bytes. Those values are now checked policy rows.
-A private four-vCPU `max` and E1000 boot brought all CPUs online and ran
-`/bin/ls.cc` through in-OS CupidC without a panic marker.
+inspection, all 16 exact-size checks, and image publication. The refreshed
+seed records and review-corrected CTXT payload produce a deterministic
+9,507,224-byte raw kernel. The pass-one and final ELFs remain 9,605,148 and
+9,736,220 bytes. Those values are checked policy rows. A private four-vCPU
+`max` and E1000 frontier exercises the staged image through the complete
+runtime contract.
 
 ## 2026-08-25 source-current checkpoint
 
@@ -144,8 +146,8 @@ CupidBuild. Every rejected transaction preserves the previous object.
 
 Fresh Linux and native Windows reconstructions pass from the same 58-input
 source snapshot. Linux matches 22 C objects, startup, and six tools with a
-23/6/29 behavior matrix. Windows matches 23 C objects, three assembly objects,
-and six tools with a 12/6/16 matrix. Their stage-four images are the active
+24/6/31 behavior matrix. Windows matches 23 C objects, three assembly objects,
+and six tools with a 13/6/18 matrix. Their stage-four images are the active
 paired seeds. The normal ISR and context-switch object recipes still enter the
 Python publisher; promotion alone does not transfer those recipes or retire
 host coordination. ADRs 0344, 0345, 0352, and 0353 record the path to this
@@ -168,15 +170,14 @@ Source-head hosted CupidDis now reads the deterministic static i386 PE32
 profile emitted by CupidLD. It reports PE and COFF headers, sections, and
 named imports, then decodes executable sections through the shared x86 model.
 Strict inspection checks the entry point and direct local targets against
-decoded instruction starts. All five checked Windows seed images and an
+decoded instruction starts. All six checked Windows seed images and an
 import-free CupidLD fixture pass beside the independent Python PE validator.
 This is not general PE support: images above CupidLD's 2 GiB RVA limit,
 dynamic images, base relocations, ordinal imports, PE symbols, and
 noncanonical section layouts remain outside the accepted profile. The five
 seed reports match an independent Python reconstruction field for field. The
-promoted seeds predate the reader, so this is
-source-head evidence rather than seed-carriage evidence. ADR 0338 records the
-boundary.
+active paired seeds carry the reader. ADR 0338 records the original boundary,
+and ADR 0356 records the current seed refresh.
 
 Private CupidC retains a file-scope function-pointer typedef signature in direct
 free-function parameters, Cupid class method parameters,
@@ -592,8 +593,8 @@ The private run left the source image unchanged at SHA-256
 `31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
 
 The active manifests bind revision
-`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, the 58-input snapshot
-`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
+`43c747f0e683d0527984bae05bf944879e64a07b`, the 58-input snapshot
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`,
 and the Linux plan
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 The Windows record also binds the native plan
@@ -602,9 +603,9 @@ and the exact Linux manifest bytes.
 
 | Linux seed member | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `manifest.json` | 6,602 | `6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562` |
+| `manifest.json` | 6,602 | `78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8` |
 | CupidASM | 496,628 | `29b9673ca94bd4fa6c74b41f6ab31ca794665315ea0a2eff5735ffe9ad1cae44` |
-| CupidBuild | 268,304 | `443934460de95e4e2dba795ff25b29cfa9e1c5a202229a6961d2f11d665963e4` |
+| CupidBuild | 276,788 | `55fd96ed06cd451364008a79899765bd8e2796485b73fa65938b2d0f0512f7bb` |
 | CupidC | 2,691,720 | `fe0ed161a586b39544bd02018b1a288927b4fb7f6663a01f653dd5e0032670c8` |
 | CupidDis | 538,516 | `24e231ffb05a507a49f65977ee628a2dd53b27991ed97f7ba6acc3c0367618c8` |
 | CupidLD | 312,888 | `deea83b95c4c00746cee27d50ff31ae5734e45dd0f57a328630de010c26eedd9` |
@@ -612,9 +613,9 @@ and the exact Linux manifest bytes.
 
 | Windows seed member | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `manifest.json` | 2,852 | `4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4` |
+| `manifest.json` | 2,852 | `019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288` |
 | CupidASM | 479,744 | `9c50e204262a0b05b12d4fc0924670c66092d053ad12b99134ab79a254ef07ae` |
-| CupidBuild | 288,768 | `8a9feff021c9e2211bc93e2fa38e595236c13e1c57220f4f90934582f629de33` |
+| CupidBuild | 293,888 | `508dcc5442b6fde8a2f297965cbd9303a14e7c0a3c5cbda9921d62b255424815` |
 | CupidC | 2,620,416 | `73252f25a44ff0308f0a9403e942af0e582e9cac222e5738412af9c313f6d19c` |
 | CupidDis | 516,608 | `588485d496209eecf437e6f6fc9d02474d5c4ac1f236af86bdaad9f3f2d705ce` |
 | CupidLD | 296,960 | `aaa7b51a290646ef1d972f4904b1ed176a4dc912e53c1bc4cbdd8d1e39d8495f` |
@@ -1792,29 +1793,28 @@ stage-four cohort is:
 | Tool | Bytes | SHA-256 |
 | --- | ---: | --- |
 | CupidASM | 479,744 | `9c50e204262a0b05b12d4fc0924670c66092d053ad12b99134ab79a254ef07ae` |
-| CupidBuild | 288,768 | `8a9feff021c9e2211bc93e2fa38e595236c13e1c57220f4f90934582f629de33` |
+| CupidBuild | 293,888 | `508dcc5442b6fde8a2f297965cbd9303a14e7c0a3c5cbda9921d62b255424815` |
 | CupidC | 2,620,416 | `73252f25a44ff0308f0a9403e942af0e582e9cac222e5738412af9c313f6d19c` |
 | CupidDis | 516,608 | `588485d496209eecf437e6f6fc9d02474d5c4ac1f236af86bdaad9f3f2d705ce` |
 | CupidLD | 296,960 | `aaa7b51a290646ef1d972f4904b1ed176a4dc912e53c1bc4cbdd8d1e39d8495f` |
 | CupidObj | 375,808 | `b6f6a5b66f8e2bcb4b779a16428d7b77a956113c5ca301344537b35839611572` |
 
 Its 2,852-byte v2 manifest has SHA-256
-`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`.
-It binds revision `f620e3a973c6fca661c8eeefe443f4b3c669dddc`, the
+`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`.
+It binds revision `43c747f0e683d0527984bae05bf944879e64a07b`, the
 58-input snapshot
-`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`,
 the native plan
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`,
 and Linux plan manifest
-`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
 The promotion candidate passed cleanly. Stages three and four matched 23 C
-objects, three assembly objects, and all six tools, then passed the 12/6/16
-failure, help, and success matrix. Its 64,496-byte candidate report has
+objects, three assembly objects, and all six tools, then passed the 13/6/18
+failure, help, and success matrix. Its 64,516-byte candidate report has
 SHA-256
-`404e9dcf1bd552f95bdd381688f00c0759476dc116c02ed8abd2d06e0a2915a7`.
+`7ac7087a866af10666ff4c4356677bae886c0f3df648076b17a89ade19dac60c`.
 The promoted-manifest reproof passed with all six initial images equal to stage
-two. Its 64,515-byte report has SHA-256
-`645b1f6e6181dd44e3169cc9735a9d9ca75f96d7ae50b5e585a3038dae32e169`.
+two. ADR 0356 records the refreshed pair and its fixed-point evidence.
 CupidDis checks static ELF entry points and defined function symbols against
 decoded instruction starts.
 
@@ -2197,8 +2197,8 @@ The six static i386 Linux tools form one checked bootstrap seed. Its v2
 manifest binds their exact bytes, target ABI, stage-three producer lineage,
 22-source build plan, and six link orders before execution. The active
 generation-four cohort comes from revision
-`f620e3a973c6fca661c8eeefe443f4b3c669dddc` and source snapshot
-`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
+`43c747f0e683d0527984bae05bf944879e64a07b` and source snapshot
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`.
 CupidC is 2,691,720 bytes with SHA-256
 `fe0ed161a586b39544bd02018b1a288927b4fb7f6663a01f653dd5e0032670c8`.
 It carries canonical static x87 payloads, runtime and static integer
@@ -2222,13 +2222,15 @@ bytes with SHA-256
 `79c7b58aee81cdf68526c645f74b3a28d1179b0f6c0d7a4744463d26e285a3ed`
 and carries `profile-manifest` authoring, transactional sequential-JPEG
 validation, and pristine disk and ISO fixture construction. CupidBuild is
-268,304 bytes with SHA-256
-`443934460de95e4e2dba795ff25b29cfa9e1c5a202229a6961d2f11d665963e4`.
+276,788 bytes with SHA-256
+`55fd96ed06cd451364008a79899765bd8e2796485b73fa65938b2d0f0512f7bb`.
 It is a checked non-producer and carries the guarded CupidASM object
-transaction. The 6,602-byte manifest has SHA-256
-`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
-[ADR 0353](docs/adr/0353-promote-paired-six-tool-seeds.md) records the active
-promotion. [ADR 0336](docs/adr/0336-promote-and-adopt-assembly-function-anchors.md),
+transaction plus the typed bootloader and SMP trampoline transactions. The
+6,602-byte manifest has SHA-256
+`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
+[ADR 0353](docs/adr/0353-promote-paired-six-tool-seeds.md) records the v2
+promotion, and [ADR 0356](docs/adr/0356-refresh-paired-seeds-for-guarded-raw-assembly.md)
+records the active refresh. [ADR 0336](docs/adr/0336-promote-and-adopt-assembly-function-anchors.md),
 [ADR 0312](docs/adr/0312-promote-and-adopt-relocatable-local-target-checks.md),
 [ADR 0292](docs/adr/0292-promote-strict-relocation-production-seeds.md),
 [ADR 0280](docs/adr/0280-promote-the-clean-stage-four-linux-seed.md),
@@ -2245,14 +2247,13 @@ a compile cannot change the frozen bytes consumed by any stage.
 
 The promotion proof compares all 22 C objects, the independently assembled
 startup object, and the six linked images between stages three and four. It
-passes six help paths, twenty-nine successful operations, and twenty-three
-useful failures. The 51,370-byte candidate report has SHA-256
-`8eb8204a9e1f23a22e1effad6d521ab692824b73299cb8e43ea2560a772dcfab`.
-The paired Windows candidate passes the 12/6/16 behavior matrix. Reproof from
+passes six help paths, 31 successful operations, and 24 useful failures. The
+51,390-byte candidate report has SHA-256
+`912d8c43f8c7129985f819b58ee19d8ae92aa9e16e0aae2e9db57ce8cb261d2c`.
+The paired Windows candidate passes the 13/6/18 behavior matrix. Reproof from
 the promoted manifests also passed: all six initial images matched stage two
-on Linux and Windows. The 51,389-byte Linux report has SHA-256
-`d2c51e2c4df168cadd2636d1f87423ebc7423d439e1679184f5849947376ecce`;
-the Windows report identity appears with the native proof above.
+on Linux and Windows. ADR 0356 records both candidate reports and the refreshed
+seed identities.
 With every host code-generation variable pointed at an invalid command, normal
 `make -j2` passed in 1,057.969 seconds. That historical build ran the separate
 strict CupidDis gate before CupidObj flattened the kernel. It produced these

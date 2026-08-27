@@ -484,23 +484,23 @@ The active v2 seed schemas list six complete tool images. CupidBuild joins
 CupidASM, CupidDis, CupidLD, CupidObj, and CupidC as a checked artifact. Its
 fixed-point plan role remains non-producing even though it owns two normal
 publications. Both manifests bind revision
-`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 inputs, and source snapshot
-`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
+`43c747f0e683d0527984bae05bf944879e64a07b`, 58 inputs, and source snapshot
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. All six initial images match stage two. CupidBuild owns the normal ISR
 and context-switch object recipes. Python coordinates and publishes the
-remaining build paths.
+remaining build paths. ADR 0356 records the active seed refresh.
 >endtree
 
 >h2 See Also

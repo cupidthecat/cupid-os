@@ -16,8 +16,8 @@ Source-head CupidBuild also exposes typed bootloader and SMP-trampoline
 assembly. These commands retain the raw image and v2 map inside one guarded
 transaction, apply the artifact's exact size and layout rules, and require
 CupidDis source-edge validation. They are not normal recipe owners yet because
-the promoted seeds predate the interface. ADR 0355 records the source-head
-capability.
+recipe ownership needs its own graph, build, and boot evidence. ADR 0355
+records the source-head capability, and ADR 0356 records seed carriage.
 
 ---
 
@@ -1669,22 +1669,24 @@ ADR 0318 records the seed identities.
 The active Linux and Windows v2 manifests carry CupidASM as a producer and
 CupidBuild as both a checked tool and the coordinator for two normal object
 publications. Both list six images and bind revision
-`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, the 58-input snapshot
-`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
+`43c747f0e683d0527984bae05bf944879e64a07b`, the 58-input snapshot
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`,
 and their exact build plans.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
 and pairs to the exact Linux manifest bytes.
 
-Linux and native Windows candidate proof passed. Linux covers 23 failure, six
-help, and 29 success groups; Windows covers 12 failure, six help, and 16
+Linux and native Windows candidate proof passed. Linux covers 24 failure, six
+help, and 31 success groups; Windows covers 13 failure, six help, and 18
 success groups. Promoted-seed self-consumption also passed on both platforms,
-with all six initial tool images equal to stage two. ADR 0353 records the
-active pair. CupidBuild recipe transfer and Python-free coordination remain.
+with all six initial tool images equal to stage two. ADR 0353 records the v2
+promotion, and ADR 0356 records the active refresh. The checked CupidBuild
+images carry guarded raw commands; their normal Make recipe transfer and
+Python-free coordination remain.

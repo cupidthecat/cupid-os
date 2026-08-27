@@ -32118,3 +32118,100 @@ and the 12,882-byte summary has SHA-256
 `f9311a945a32397c1b81766780be8d623a9a1bd6e6b7771e0061048c4cd817e0`.
 The artifact-policy and Hostbuild boot/SMP compatibility group passed 64 tests
 in 6.831 seconds, with four expected platform skips.
+
+## 2026-08-27: refresh the paired seeds for guarded raw assembly
+
+The checked Linux and Windows v2 cohorts now carry the CupidBuild source from
+commit `43c747f0e683d0527984bae05bf944879e64a07b`. The 58-input snapshot has
+SHA-256
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`.
+The platform build plans and the other five tool images did not change.
+
+The Linux candidate matched 22 C objects, startup, and all six final tool
+images between stages three and four. Its behavior matrix passed 24 failure,
+six help, and 31 success cases. The 51,390-byte report has SHA-256
+`912d8c43f8c7129985f819b58ee19d8ae92aa9e16e0aae2e9db57ce8cb261d2c`.
+
+The native Windows candidate matched 23 C objects, three assembly objects, and
+all six PE images. Its 13 failure, six help, and 18 success cases passed. The
+64,516-byte report has SHA-256
+`7ac7087a866af10666ff4c4356677bae886c0f3df648076b17a89ade19dac60c`.
+
+Both candidate reports showed the intended transition: CupidASM, CupidC,
+CupidDis, CupidLD, and CupidObj already matched stage two, while CupidBuild did
+not. Only the two CupidBuild seed files moved:
+
+| Seed image | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `bootstrap/seeds/i386-linux/cupidbuild.elf` | 276,788 | `55fd96ed06cd451364008a79899765bd8e2796485b73fa65938b2d0f0512f7bb` |
+| `bootstrap/seeds/i386-windows/cupidbuild.exe` | 293,888 | `508dcc5442b6fde8a2f297965cbd9303a14e7c0a3c5cbda9921d62b255424815` |
+
+The 6,602-byte Linux manifest has SHA-256
+`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
+The 2,852-byte Windows manifest has SHA-256
+`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
+and names the exact Linux digest. Both keep the v1 transition-parent fields
+defined by the v2 schema. Their promoted revision and snapshot identify the
+refreshed cohort.
+
+The host verifiers accept both manifests, and the artifact-size gate passes
+all sixteen rows. The two updated CupidBuild rows and the measured flat-kernel
+row bring the exact total to 38,143,900 bytes. The 3,382-byte policy has
+SHA-256
+`3518552751c6993bbf4c36735a0a780616253543ba5c6555af55ae5979c45ff6`.
+
+The focused manifest, artifact-size, and CupidBuild suites passed 169 tests in
+163.667 seconds, with nine expected platform skips. The first complete
+129-test coordinator run took 3,774.116 seconds. Both real-seed fixed points
+completed and reported all six initial images equal, but two final assertions
+still expected CupidBuild to differ from stage two. Every other test passed.
+Those two expectations now describe the refreshed seed correctly.
+The two corrected real-seed tests then passed in 3,259.993 seconds.
+
+The standalone normal build compiled the full kernel, drivers, libraries,
+user programs, Doom tree, and embedded toolchain with the refreshed seed. The
+first exact-size gate measured a 9,507,240-byte `kernel.bin` against the old
+9,506,932-byte row and failed closed. The two ELF files kept their exact byte
+counts. After the measured row was updated, the fresh replay passed the strict
+CupidDis scan, all sixteen exact sizes, and disk-image staging.
+
+The review then found one stale carriage claim in the SMP manual. Its
+correction shortened `kernel.bin` by 16 bytes. The gate rejected the measured
+9,507,224-byte image against the 9,507,240-byte row. After the final policy
+update, the direct verifier accepted all sixteen exact paths.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `7f83f2283f5f1c0f90cfde71942c7c7cfb596b13ba4e0974e8e843de28e0bc63` |
+| `kernel/kernel.elf` | 9,736,220 | `d55d1170293bbc2e2285586f85cb54702a1fefeae90cc497fd474834ae001076` |
+| `kernel/kernel.bin` | 9,507,224 | `efd8290cabcdfddeaa9e40e6a3ae4b2fbec4cc640e53b5abbdbecda8379e24f1` |
+| `cupidos.img` | 209,715,200 | `9ee5ed43c1f5615077f6da47e579e41e27e31fd8fe7839d6b220e7e031d17635` |
+
+An intermediate private four-vCPU `max`/E1000 frontier passed before the
+16-byte manual correction. It covered SMP, networking, storage, graphics,
+AC97 and PC-speaker audio, and in-OS CupidC work. The 148,124-byte serial log
+has SHA-256
+`169cbc6abdedae37e5d574b714624eeeb60741b45e10e45c6395ede1521bc5ad`.
+
+The final private four-vCPU `max`/E1000 frontier passed from the
+review-corrected image. It exercised the same complete runtime surface. The
+framebuffer changed 101,820 pixels, and both audio captures were non-silent.
+The 149,029-byte serial log has SHA-256
+`5b4cd234867bda2c69152d443f8104bd4d2b7974e7b2da45d30185a60849c538`.
+
+The final artifact-policy and Hostbuild boot/SMP group passed 64 tests in
+5.496 seconds, with four platform skips. Both seed verifiers and the direct
+16-artifact verifier passed. Audit regeneration and its deterministic drift
+check also passed; the 2,767,718-byte active record has SHA-256
+`bd5660baf9425244dd9460e0587c77ebf0b96a48f4d78cbc63ef0f0e2b883f13`,
+and the 12,882-byte summary has SHA-256
+`f9311a945a32397c1b81766780be8d623a9a1bd6e6b7771e0061048c4cd817e0`.
+
+This refresh changes checked executable inputs, not Make ownership. CupidBuild
+continues to publish the ISR and context-switch objects directly. Its refreshed
+images now carry `assemble-bootloader` and `assemble-smp-trampoline`, while
+Hostbuild keeps both normal raw recipes until their separate graph, build, and
+boot handoff. ADR 0356 records the decision. No active source changes suffix;
+the toolchain sources are already `.cc`.

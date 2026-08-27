@@ -33,8 +33,8 @@ tools. The active v2 seed now carries that command closure.
 Source-head CupidBuild also has typed bootloader and SMP-trampoline commands.
 They keep the raw image and v2 map private, require the exact artifact size and
 layout, and ask CupidDis to validate known code, local targets, and
-source-resolved edges. The promoted seeds predate these commands, so the normal
-raw recipes still enter through Hostbuild.
+source-resolved edges. The refreshed seeds carry both commands, while the
+normal raw recipes still enter through Hostbuild pending their direct handoff.
 The current checked Toolchain gate publishes 22 artifacts and passes all 22
 assembler demos. Its Linux candidate proof freezes 58 sources and matches
 22 C objects, startup, and all six final tool images between consecutive
@@ -42,11 +42,9 @@ generations. Both CupidBuild images assemble the checked startup into equal
 relocatables and preserve prior output on a missing-source failure. Each
 final-stage CupidDis also checks all six corresponding images for known code,
 local targets, and code anchors. Both generations reject a private CupidBuild
-copy whose entry instruction was replaced with an invalid opcode. The promoted
-candidates passed 23 failure, six help, and 29 success cases on Linux and 12,
-six, and 16 on Windows. Source head adds two raw successes and one raw rollback
-failure per host, for 24/six/31 on Linux and 13/six/18 on Windows. The
-candidates were promoted, and their self-consumption reproof passes
+copy whose entry instruction was replaced with an invalid opcode. The refresh
+candidates passed 24 failure, six help, and 31 success cases on Linux and 13,
+six, and 18 on Windows. Their self-consumption reproof passes
 with all six initial images equal to stage two on both platforms.
 >endtree
 
@@ -512,7 +510,7 @@ reconstructs the exact .idata layout, and
 the report retains both object and image pairs plus the observed Windows
 result. The preceding Linux v1 seed carried this command in its 5/22/21
 behavior matrix. The active paired v2 seeds retain the command and pass the
-23/6/29 Linux and 12/6/16 Windows matrices.
+24/6/31 Linux and 13/6/18 Windows matrices.
 
 Checked-seed CupidLD uses an adjacent candidate created with exclusive-create
 semantics for both ELF and PE output. It writes and closes the candidate, then
@@ -922,23 +920,25 @@ one strict rejection through the public adapter.
 >tree
 The active v2 manifests keep CupidASM as a producer and add CupidBuild as a
 checked tool and the coordinator for two normal object publications. Both bind revision
-`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 source inputs, and snapshot
-`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
+`43c747f0e683d0527984bae05bf944879e64a07b`, 58 source inputs, and snapshot
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`.
 
 The Linux form binds the 22-source, six-link plan with SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. All six initial images match stage two. CupidBuild owns the normal ISR
-and context-switch object recipes. Python retains coordination and publication
-for the remaining paths.
+and context-switch object recipes. The refreshed images also carry guarded raw
+bootloader and SMP commands, while Hostbuild retains those two normal recipes.
+Python retains coordination and publication for the remaining paths. ADR 0356
+records the active seed refresh.
 >endtree
 
 >h2 See Also

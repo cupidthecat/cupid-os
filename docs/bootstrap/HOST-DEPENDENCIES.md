@@ -13,15 +13,13 @@ and timeout paths. It freezes all six images and validates their static ELF32
 or strict PE32 execution profiles before use. ADRs 0339, 0342, and 0344 record
 the transaction, and ADR 0354 records its direct Make ownership.
 
-Source head now contains the next two typed assembly operations. CupidBuild
-can build and certify the 2,560-byte bootloader and 4,096-byte SMP trampoline
-while keeping each raw range map private. This removes no active host
-dependency yet: the promoted seeds do not carry those commands, and Python
-still coordinates both normal raw recipes. ADR 0355 records the capability and
-the deferred ownership transfer. CupidBuild is consequently the one
-seed-to-stage-two mismatch until a new pair is promoted. Clean Linux and
-native Windows replays confirmed complete convergence across the final two
-generations.
+The refreshed promoted seeds contain the next two typed assembly operations.
+CupidBuild can build and certify the 2,560-byte bootloader and 4,096-byte SMP
+trampoline while keeping each raw range map private. This removes no active
+host dependency yet because Python still coordinates both normal raw recipes.
+ADR 0355 records the capability, and ADR 0356 records its paired carriage.
+Promoted-seed self-consumption now matches all six stage-two images on Linux
+and native Windows while retaining complete final-generation convergence.
 
 The fixed-point coordinator consumes the six-tool v2 Linux plan. Linux freezes
 58 inputs and builds 22 C objects, startup, and six tools. The native Windows
@@ -39,7 +37,7 @@ The self-link produces CupidBuild beside the other five seed tools and the
 static runtime contract. The hosted runtime supplies CupidBuild's standard
 `memchr` dependency, so this link does not import a host libc. ADR 0343 records
 the source closure, ADR 0353 records the seed promotion, and ADR 0354 records
-the separate production handoff.
+the separate production handoff. ADR 0356 records the guarded-raw seed refresh.
 
 The Toolchain publication includes `cupidc-cupidbuild.elf` among its 22
 artifacts. Its paired evidence covers 17 contract objects, 16
@@ -48,14 +46,14 @@ stage pairs. Publication verification recreates the checked plan before it
 recaptures the 58-file live source inventory.
 
 The active pair binds revision
-`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, the 58-input snapshot
-`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
+`43c747f0e683d0527984bae05bf944879e64a07b`, the 58-input snapshot
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`,
 and the Linux plan
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 The 6,602-byte Linux manifest has SHA-256
-`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
 The 2,852-byte Windows manifest has SHA-256
-`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
 and binds native plan
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`
 to those exact Linux manifest and plan bytes. The Linux v2 record names parent
@@ -179,7 +177,7 @@ complete stage-three-to-stage-four
 native convergence proof first passed on a frozen uncommitted snapshot. Those
 earlier proofs remain historical. The current Windows and Linux six-tool
 candidate proofs passed cleanly. Their failure, help, and success inventories
-are 12/6/16 and 23/6/29, respectively.
+are 13/6/18 and 24/6/31, respectively.
 Python-free coordination remains open.
 
 The root Makefile forwards `FAT_START_LBA` to the disk-image helpers and has no
@@ -228,12 +226,12 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`88638774d89e07c3484dd787c5c735c056ea840bc4ed9d500f5c2da31a2de951`.
+`3518552751c6993bbf4c36735a0a780616253543ba5c6555af55ae5979c45ff6`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,605,148, 9,736,220, and 9,506,932 bytes for the boot image, pass-one ELF,
+9,605,148, 9,736,220, and 9,507,224 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,130,004 bytes.
+sixteen rows, totaling 38,143,900 bytes.
 
 The paired-seed promotion replay passed both CupidLD links and strict
 inspection of all 431 production inputs. Its first size gate measured
@@ -247,23 +245,23 @@ policy update then accepted all sixteen paths.
 
 The direct CupidBuild ownership and typed raw-command documentation later
 changed the embedded CTXT payload. The source-consistent normal replay measured
-9,506,932 bytes, moved all three changed kernel rows, accepted all sixteen
+9,507,224 bytes, moved the changed flat-kernel row, accepted all sixteen
 paths, and preserved the image's existing FAT contents while staging
 `hello.iso`. It produced these current artifacts:
 
 | Current artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,605,148 | `c68b5e4dc8b2c6e9d6e2f1b3f638c9693a5574572d03571cdf6e2ee36a8a4981` |
-| `kernel/kernel.elf` | 9,736,220 | `816ddf834bbeb62ced115e817f30d8644d4010cfe8407942e6390f1305c3e4ee` |
-| `kernel/kernel.bin` | 9,506,932 | `fefc956faeb9d414a44e7dd7c1cd86f4ec9dde3806b97d3c54b163eb92fd0416` |
-| `cupidos.img` | 209,715,200 | `cfda98a01fcfcbfcd12c6a07089d60a3a925c90dbd89b9f6d449a7c302fc47a0` |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `7f83f2283f5f1c0f90cfde71942c7c7cfb596b13ba4e0974e8e843de28e0bc63` |
+| `kernel/kernel.elf` | 9,736,220 | `d55d1170293bbc2e2285586f85cb54702a1fefeae90cc497fd474834ae001076` |
+| `kernel/kernel.bin` | 9,507,224 | `efd8290cabcdfddeaa9e40e6a3ae4b2fbec4cc640e53b5abbdbecda8379e24f1` |
+| `cupidos.img` | 209,715,200 | `9ee5ed43c1f5615077f6da47e579e41e27e31fd8fe7839d6b220e7e031d17635` |
 
-The latest private four-vCPU `max` and E1000 smoke brought every CPU online,
-seeded the CSPRNG from RDRAND, obtained `10.0.2.15`, started the desktop and
-terminal, and ran `/bin/ls.cc` through JIT completion. Its 32,032-byte log has
-SHA-256
-`21b811a028a12e23356e04d5e6adc32b983a0e9685bf606cd5d01ae96a0284d8`
-and no panic marker.
+The latest private four-vCPU `max` and E1000 smoke brought every CPU online
+and completed the full graphics, audio, and in-OS CupidC frontier. The
+framebuffer changed 101,820 pixels; both audio captures were non-silent. Its
+149,029-byte log has SHA-256
+`5b4cd234867bda2c69152d443f8104bd4d2b7974e7b2da45d30185a60849c538`
+and no rejected runtime marker.
 
 At the promotion checkpoint, the normal `hello.iso` staging step created a
 209,715,200-byte runtime source
@@ -1988,23 +1986,25 @@ build owner.
 
 Host Python and CupidBuild can validate either the legacy v1 five-tool seeds
 or the active v2 six-tool seeds. The v2 pair contains CupidBuild and binds the
-Windows plan-seed digest to the exact Linux manifest bytes. This promotion
-does not retire Python or transfer a normal recipe. The fixed-point
-coordinators, source freezing, independent comparisons, and publication guards
-remain host-owned until a later ownership step supplies its own evidence.
+Windows plan-seed digest to the exact Linux manifest bytes. This refresh does
+not retire Python or transfer another normal recipe. CupidBuild keeps the two
+assembly-object publications it already owns; Hostbuild retains the bootloader
+and trampoline paths. The fixed-point coordinators, source freezing,
+independent comparisons, and remaining publication guards stay host-owned
+until later ownership steps supply their own evidence.
 
 The promoted images have these exact identities:
 
 | Platform | Image | Bytes | SHA-256 |
 | --- | --- | ---: | --- |
 | Linux | `cupidasm.elf` | 496,628 | `29b9673ca94bd4fa6c74b41f6ab31ca794665315ea0a2eff5735ffe9ad1cae44` |
-| Linux | `cupidbuild.elf` | 268,304 | `443934460de95e4e2dba795ff25b29cfa9e1c5a202229a6961d2f11d665963e4` |
+| Linux | `cupidbuild.elf` | 276,788 | `55fd96ed06cd451364008a79899765bd8e2796485b73fa65938b2d0f0512f7bb` |
 | Linux | `cupidc.elf` | 2,691,720 | `fe0ed161a586b39544bd02018b1a288927b4fb7f6663a01f653dd5e0032670c8` |
 | Linux | `cupiddis.elf` | 538,516 | `24e231ffb05a507a49f65977ee628a2dd53b27991ed97f7ba6acc3c0367618c8` |
 | Linux | `cupidld.elf` | 312,888 | `deea83b95c4c00746cee27d50ff31ae5734e45dd0f57a328630de010c26eedd9` |
 | Linux | `cupidobj.elf` | 392,784 | `79c7b58aee81cdf68526c645f74b3a28d1179b0f6c0d7a4744463d26e285a3ed` |
 | Windows | `cupidasm.exe` | 479,744 | `9c50e204262a0b05b12d4fc0924670c66092d053ad12b99134ab79a254ef07ae` |
-| Windows | `cupidbuild.exe` | 288,768 | `8a9feff021c9e2211bc93e2fa38e595236c13e1c57220f4f90934582f629de33` |
+| Windows | `cupidbuild.exe` | 293,888 | `508dcc5442b6fde8a2f297965cbd9303a14e7c0a3c5cbda9921d62b255424815` |
 | Windows | `cupidc.exe` | 2,620,416 | `73252f25a44ff0308f0a9403e942af0e582e9cac222e5738412af9c313f6d19c` |
 | Windows | `cupiddis.exe` | 516,608 | `588485d496209eecf437e6f6fc9d02474d5c4ac1f236af86bdaad9f3f2d705ce` |
 | Windows | `cupidld.exe` | 296,960 | `aaa7b51a290646ef1d972f4904b1ed176a4dc912e53c1bc4cbdd8d1e39d8495f` |
@@ -2014,7 +2014,8 @@ The root, user, and Toolchain Makefiles now capture those six platform images
 as one seed closure. The fixed-point coordinators, checked runner, artifact
 contract, manifest tools, and their tests use the same six-image inventory.
 This closes the filename and membership work needed for the v2 promotion, but
-it does not make CupidBuild the owner of a normal build recipe.
+the current refresh only updates the checked executable inputs. ADR 0356
+records that boundary.
 
 Python still owns seed and source freezing, checked process launch, WSL
 staging, independent stage and report comparisons, artifact-policy parity,

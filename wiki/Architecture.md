@@ -257,24 +257,24 @@ validates the Windows target, provenance, exact inventory, and observed bytes.
 The focused modules contain 54 tests. They pass with four platform-specific
 skips. The source-head artifact contract passes
 against all sixteen exact artifacts. The current 3,382-byte policy has SHA-256
-`88638774d89e07c3484dd787c5c735c056ea840bc4ed9d500f5c2da31a2de951`
-and covers 38,130,004 bytes across those paths.
+`3518552751c6993bbf4c36735a0a780616253543ba5c6555af55ae5979c45ff6`
+and covers 38,143,900 bytes across those paths.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,605,148 | `c68b5e4dc8b2c6e9d6e2f1b3f638c9693a5574572d03571cdf6e2ee36a8a4981` |
-| `kernel/kernel.elf` | 9,736,220 | `816ddf834bbeb62ced115e817f30d8644d4010cfe8407942e6390f1305c3e4ee` |
-| `kernel/kernel.bin` | 9,506,932 | `fefc956faeb9d414a44e7dd7c1cd86f4ec9dde3806b97d3c54b163eb92fd0416` |
-| `cupidos.img` | 209,715,200 | `cfda98a01fcfcbfcd12c6a07089d60a3a925c90dbd89b9f6d449a7c302fc47a0` |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `7f83f2283f5f1c0f90cfde71942c7c7cfb596b13ba4e0974e8e843de28e0bc63` |
+| `kernel/kernel.elf` | 9,736,220 | `d55d1170293bbc2e2285586f85cb54702a1fefeae90cc497fd474834ae001076` |
+| `kernel/kernel.bin` | 9,507,224 | `efd8290cabcdfddeaa9e40e6a3ae4b2fbec4cc640e53b5abbdbecda8379e24f1` |
+| `cupidos.img` | 209,715,200 | `9ee5ed43c1f5615077f6da47e579e41e27e31fd8fe7839d6b220e7e031d17635` |
 
 The current normal build completed the 431-input local-target and code-anchor
 scan, accepted the exact policy, and preserved the image's FAT contents while
 staging `hello.iso`. A private four-vCPU `max` and E1000 copy brought all CPUs
-online, seeded the CSPRNG from RDRAND, obtained `10.0.2.15`, started the
-desktop, and ran `/bin/ls.cc` through JIT completion. Its 32,032-byte log has
-SHA-256
-`21b811a028a12e23356e04d5e6adc32b983a0e9685bf606cd5d01ae96a0284d8`
-and no panic marker.
+online and completed the full graphics, audio, and in-OS CupidC frontier. The
+framebuffer changed 101,820 pixels; both audio captures were non-silent. Its
+149,029-byte log has SHA-256
+`5b4cd234867bda2c69152d443f8104bd4d2b7974e7b2da45d30185a60849c538`
+and no rejected runtime marker.
 
 The preceding source-head cohort used the same pass-one and final ELF sizes
 with SHA-256 values
@@ -303,20 +303,21 @@ code-anchor pair, and ADR 0336 records the earlier five-tool pair.
 
 The current seed pair uses the Linux and Windows v2 schemas and lists six tool
 images, including CupidBuild with a non-producing fixed-point plan role. Both manifests bind revision
-`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 inputs, and source snapshot
-`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
+`43c747f0e683d0527984bae05bf944879e64a07b`, 58 inputs, and source snapshot
+`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`.
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
 its 6,602-byte manifest has SHA-256
-`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
 its 2,852-byte manifest has SHA-256
-`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
 and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
 self-consumption pass on both platforms, with all six initial images equal to
-stage two. Normal Make recipes and Python coordination keep their current
-ownership.
+stage two. Existing ownership remains unchanged: CupidBuild publishes two
+assembly objects, while Hostbuild and Python retain the raw and other guarded
+paths. ADR 0356 records the active seed refresh.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260 seconds.
 All fourteen policy artifacts matched their exact sizes. The 2,960-byte policy

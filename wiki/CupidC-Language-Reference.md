@@ -198,25 +198,25 @@ and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 
 The source-head artifact contract passes against all sixteen exact artifacts.
 The current 3,382-byte policy has SHA-256
-`88638774d89e07c3484dd787c5c735c056ea840bc4ed9d500f5c2da31a2de951`
-and covers 38,130,004 bytes across those paths.
+`3518552751c6993bbf4c36735a0a780616253543ba5c6555af55ae5979c45ff6`
+and covers 38,143,900 bytes across those paths.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,605,148 | `c68b5e4dc8b2c6e9d6e2f1b3f638c9693a5574572d03571cdf6e2ee36a8a4981` |
-| `kernel/kernel.elf` | 9,736,220 | `816ddf834bbeb62ced115e817f30d8644d4010cfe8407942e6390f1305c3e4ee` |
-| `kernel/kernel.bin` | 9,506,932 | `fefc956faeb9d414a44e7dd7c1cd86f4ec9dde3806b97d3c54b163eb92fd0416` |
-| `cupidos.img` | 209,715,200 | `cfda98a01fcfcbfcd12c6a07089d60a3a925c90dbd89b9f6d449a7c302fc47a0` |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `7f83f2283f5f1c0f90cfde71942c7c7cfb596b13ba4e0974e8e843de28e0bc63` |
+| `kernel/kernel.elf` | 9,736,220 | `d55d1170293bbc2e2285586f85cb54702a1fefeae90cc497fd474834ae001076` |
+| `kernel/kernel.bin` | 9,507,224 | `efd8290cabcdfddeaa9e40e6a3ae4b2fbec4cc640e53b5abbdbecda8379e24f1` |
+| `cupidos.img` | 209,715,200 | `9ee5ed43c1f5615077f6da47e579e41e27e31fd8fe7839d6b220e7e031d17635` |
 
 Those output identities come from the final source-head normal build. Its
 431-input linked-image scan passed local-target and code-anchor validation.
 The build accepted the exact policy and preserved the image's FAT contents
 while staging `hello.iso`. A private four-vCPU `max` and E1000 copy brought all
-CPUs online, seeded the CSPRNG from RDRAND, obtained `10.0.2.15`, started the
-desktop, and ran `/bin/ls.cc` through JIT completion. Its 32,032-byte log has
-SHA-256
-`21b811a028a12e23356e04d5e6adc32b983a0e9685bf606cd5d01ae96a0284d8`
-and no panic marker.
+CPUs online and completed the full graphics, audio, and in-OS CupidC frontier.
+The framebuffer changed 101,820 pixels; both audio captures were non-silent.
+Its 149,029-byte log has SHA-256
+`5b4cd234867bda2c69152d443f8104bd4d2b7974e7b2da45d30185a60849c538`
+and no rejected runtime marker.
 
 Both active v2 seeds carry the same source snapshot. ADR 0318 records the
 preceding linked-image
