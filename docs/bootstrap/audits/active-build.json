@@ -5166,10 +5166,7 @@
       {
         "inputs": [
           "kernel/core/context_switch.asm",
-          "tools/hostbuild.py",
-          "tools/cupidc_kernel_compile.py",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5181,14 +5178,14 @@
         "operation": "assemble_elf32_relocatable",
         "output": "kernel/core/context_switch.o",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py assemble-cupidasm-object \\",
-          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-cupidasm-object \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
           "--source $< --output $@"
         ],
         "tools": [
           "cupid_assembler",
           "cupid_disassembler",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -5537,10 +5534,7 @@
       {
         "inputs": [
           "kernel/cpu/isr.asm",
-          "tools/hostbuild.py",
-          "tools/cupidc_kernel_compile.py",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5552,14 +5546,14 @@
         "operation": "assemble_elf32_relocatable",
         "output": "kernel/cpu/isr.o",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py assemble-cupidasm-object \\",
-          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-cupidasm-object \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
           "--source $< --output $@"
         ],
         "tools": [
           "cupid_assembler",
           "cupid_disassembler",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -56048,7 +56042,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "c73136711f8cd31680f14addbf830184b65c56ba5b26c3048eb3002743fde1bb"
+        "sha256": "8952187d00b4f99266675ab52ede03511673fd5c91f92f1f9e384dee37bf75c7"
       },
       {
         "path": "user/Makefile",
@@ -56097,7 +56091,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "8a6a7f4ae19eb2b53a130da873daf205cbfb892b7cccc07793964aae4d9f39c1"
+      "sha256": "5fea10f2735836cf8a21f956ada60f637d77e39be6b2fe97f6affbdac4a029fe"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -62970,8 +62964,8 @@
     {
       "build_owners": [
         "cupid_assembler",
-        "cupid_disassembler",
-        "host_python"
+        "cupid_builder",
+        "cupid_disassembler"
       ],
       "builds": [
         "."
@@ -63930,8 +63924,8 @@
     {
       "build_owners": [
         "cupid_assembler",
-        "cupid_disassembler",
-        "host_python"
+        "cupid_builder",
+        "cupid_disassembler"
       ],
       "builds": [
         "."

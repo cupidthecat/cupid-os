@@ -22,8 +22,8 @@ starts before publication. The Linux and Windows hosted layers reject links, har
 aliases, drift, competing publishers, and changed output parents. A replaced
 owner lock found at a final boundary blocks publication. Cleanup quarantines
 the path and restores a successor instead of deleting it. Every failure
-preserves the previous object. CupidBuild is now part of the active seed, but
-the command remains outside the normal Make recipes.
+preserves the previous object. CupidBuild is part of the active seed, and the
+ISR and context-switch Make recipes invoke the command directly.
 Before CupidASM runs, CupidBuild rejects any unlisted `.elf` or `.exe` peer and
 validates all six frozen tool images against the selected host profile. It
 checks directory membership again after every attempted CupidASM and CupidDis
@@ -914,7 +914,7 @@ one strict rejection through the public adapter.
 >h2 Active Six-Tool Bootstrap Boundary
 >tree
 The active v2 manifests keep CupidASM as a producer and add CupidBuild as a
-checked non-producer. Both bind revision
+checked tool and the coordinator for two normal object publications. Both bind revision
 `f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 source inputs, and snapshot
 `e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
 
@@ -929,8 +929,9 @@ Its 2,852-byte manifest has SHA-256
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
-Windows. All six initial images match stage two. CupidBuild does not own a
-normal Make recipe, and Python retains coordination and publication.
+Windows. All six initial images match stage two. CupidBuild owns the normal ISR
+and context-switch object recipes. Python retains coordination and publication
+for the remaining paths.
 >endtree
 
 >h2 See Also

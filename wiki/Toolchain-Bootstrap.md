@@ -1,6 +1,7 @@
 # Toolchain Bootstrap
 
-CupidBuild is present at source head. Its first hosted command performs a
+CupidBuild is present in both promoted seed cohorts and directly owns the
+normal ISR and context-switch object publications. Its first hosted command performs a
 guarded CupidASM relocatable-object transaction: it freezes the source and
 checked seed, parses the exact host schema, target, provenance, artifact
 inventory, producer roles, and Linux build plan, then runs private checked
@@ -16,9 +17,9 @@ on Windows and Linux. It also rejects unlisted `.elf` or `.exe` peers before
 execution and after each attempted checked command, including failures and
 timeouts. Every frozen tool must match the static i386 ELF32 or strict CupidLD
 PE32 profile before either tool runs. The active v2 seeds contain all six
-tools, including CupidBuild as a checked non-producer. Normal object
-publication still uses Python and the existing Make recipe. ADRs 0339, 0342,
-and 0344 record that boundary.
+tools. The two Make recipes invoke the host seed with the full seed closure and
+absolute repository root. ADRs 0339, 0342, and 0344 record the guarded
+transaction, and ADR 0354 records direct production ownership.
 
 The paired v2 trust unit freezes 58 source inputs and builds 22 Linux C
 objects, one startup object, and all six tools. Native Windows adds its
@@ -26,8 +27,9 @@ publication runtime and CupidBuild startup bridge, with the exact
 `KERNEL32.dll` and `NTDLL.dll` imports. Both final-stage comparisons and
 behavior gates include CupidBuild. The Toolchain publication contract carries
 the sixth tool and publishes 22 artifacts across 62 stage pairs. This seed
-promotion does not transfer a normal OS recipe to CupidBuild. ADR 0345 records
-the candidate boundary.
+promotion established the seed used by the later object-recipe transfer. ADR
+0345 records the candidate boundary, ADR 0353 records promotion, and ADR 0354
+records the first normal use.
 
 Both candidate proofs pass. Linux matches 22 C objects, startup, and six tools
 with 23/6/29 failure, help, and success cases. Native Windows matches 23 C
@@ -1256,30 +1258,24 @@ The source-current artifact-size modules contain 54 tests. They pass with four
 platform-specific skips. The source-head artifact
 contract passes against all sixteen exact artifacts. The current 3,382-byte
 policy has SHA-256
-`7f9c1f49d1543112bf6984def1e4ecba6df4fb7a55d2481a85deb7370cf4bfc2`
-and covers 38,120,452 bytes across those paths.
+`1a02082a28205e5ff04da715686d80051262b051c1b2bea28d1e7520f1b03997`
+and covers 38,120,960 bytes across those paths.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,601,052 | `2c2b16f018c018ecd55c96868428d9427213aca4344c67b44e2241f05a054463` |
-| `kernel/kernel.elf` | 9,732,124 | `342d57566d853ee9a894ec5c6d4e0eafbc6169019950c768f648873ce797fee6` |
-| `kernel/kernel.bin` | 9,505,572 | `1d12e0ddc98bcc66fe34157357a80f4a4f6916f0f75b921b5e56eaa792de1977` |
-| `cupidos.img` | 209,715,200 | `112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3` |
+| `kernel/kernel.elf.pass1` | 9,601,052 | `d751d1bcf5839bc3c141779fa646739a7c9774a40dab4e2201be765bf0f44bf2` |
+| `kernel/kernel.elf` | 9,732,124 | `f6f517d18f2706997bb58932d91f9ac010d201ef57fd28b6cb5d8ba7fb14826d` |
+| `kernel/kernel.bin` | 9,506,080 | `f4a3abf1a14bcce072b5c4d0d7d81fde9b9172bf8da01dd9e22c82fb58227f53` |
+| `cupidos.img` | 209,715,200 | `409ee7759e2568b6d143bf10aac19450a79d9cd4cc31ae51585fd20f39b0d14e` |
 
-The final normal build passed the exact policy and the strict 431-input
-local-target and code-anchor scan, then published a freshly force-formatted
-image. Staging `hello`, `ls`, `cat`, and `catfix.txt` produced a
-209,715,200-byte runtime derivative with SHA-256
-`816f219305dd0b406d2077913a7f1def08a88efd9591239d0effe44b385cbf10`.
-Private copies of that derivative passed the `hello`, `ls`, and hostile-fixture
-`cat` QEMU smokes. The published clean image was then restored with SHA-256
-`112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3`.
-
-| Runtime smoke | Log bytes | Log SHA-256 |
-| --- | ---: | --- |
-| `hello` | 28,807 | `6543cecfb005f2b775541e279201ee6af4bac4af74bed81a27918f5711392c82` |
-| `ls` | 30,158 | `03c01d39b2320be1cc5ec2f92b33d6ffbc62acf50de74f4464ac4fc73f55ea27` |
-| `cat` against the hostile fixture | 63,987 | `ca5f6622e317e8ade54370d428271e8f64221b9afd3bf3f238d04760ebdec57a` |
+The current normal build passed the exact policy and strict 431-input
+local-target and code-anchor scan. It preserved the image's FAT contents while
+staging `hello.iso`. A private four-vCPU `max` and E1000 copy brought all CPUs
+online, seeded the CSPRNG from RDRAND, obtained `10.0.2.15`, started the
+desktop, and ran `/bin/ls.cc` through JIT completion. Its 33,159-byte log has
+SHA-256
+`cf2c13e65d8a10ee9c129fd3b90c50c7a8b6fa088c594f1909e94010c28dd5ea`
+and no panic marker.
 
 The preceding source-head cohort used the same pass-one and final ELF sizes
 with SHA-256 values
@@ -1603,7 +1599,7 @@ participations to CupidC and none to a host C compiler. Of those, 246 are
 ordinary C-output transforms; the checked native Windows user ABI,
 artifact-size, Toolchain manifest author, and Toolchain manifest verifier
 supply the other four.
-Python participates in all 452 transforms. The ordinary CupidC
+Python participates in 450 transforms, and CupidBuild in two. The ordinary CupidC
 total is 240 normal transforms plus three generated installation tables and
 the `hello.cc`, `ls.cc`, and `cat.cc` programs. Root `all` has 443 transforms:
 all 443 have a Cupid participant. The size verifier emits no OS artifact; it
@@ -1625,8 +1621,8 @@ order across host locales.
 The stable audit counts record 747 active language inputs, 452 transforms, 255
 features, and 26 unreachable inputs across the three roots. It includes 443
 transforms under root `all`. Four transforms use Cupid-built semantic
-contracts, and no transform is Python-only. Python participates in all 452 as
-orchestrator.
+contracts, and no transform is Python-only. Python participates in 450 as
+orchestrator, while CupidBuild directly owns the two guarded object publications.
 
 The assembly ownership contract covers all 32 active assembly sources. All are
 owned by CupidASM, including five Toolchain startup inputs. An ownerless source
@@ -2288,7 +2284,8 @@ keep their existing behavior.
 
 The bootstrap readers still accept the historical v1 five-tool format. The
 active Linux and Windows seed directories now use v2. Each manifest lists
-CupidASM, CupidC, CupidDis, CupidLD, CupidObj, and non-producer CupidBuild. Both
+CupidASM, CupidC, CupidDis, CupidLD, CupidObj, and CupidBuild with a
+non-producing fixed-point plan role. Both
 bind revision `f620e3a973c6fca661c8eeefe443f4b3c669dddc`, source snapshot
 `e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
 and 58 source inputs.
@@ -2309,5 +2306,6 @@ match stage two; the 51,389-byte Linux report has SHA-256
 `d2c51e2c4df168cadd2636d1f87423ebc7423d439e1679184f5849947376ecce`,
 and the 64,515-byte Windows report has SHA-256
 `645b1f6e6181dd44e3169cc9735a9d9ca75f96d7ae50b5e585a3038dae32e169`.
-CupidBuild's presence in the seed does not move normal Make recipe ownership
-or replace Python coordination and publication.
+Seed presence alone does not establish ownership. The later direct recipe
+transfer gives CupidBuild the ISR and context-switch publications, while
+Python retains the other 450 transforms.

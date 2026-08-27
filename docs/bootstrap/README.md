@@ -57,8 +57,36 @@ typed CupidBuild Windows startup anchors. ADR 0348 records in-OS raw-map v2
 edge carriage and recoverable hosted raw-pair publication. ADR 0349 records
 exact hexadecimal floating constants, ADR 0350 records strict decode-map
 reuse, and ADR 0351 records automatic raw callback arrays. ADR 0352 records
-the non-self-referential v2 contracts, and ADR 0353 records their paired
-promotion.
+the non-self-referential v2 contracts, ADR 0353 records their paired
+promotion, and ADR 0354 records the first direct normal recipe ownership for
+CupidBuild.
+
+## 2026-08-27 source-current checkpoint
+
+The normal ISR and context-switch recipes now enter the guarded object
+transaction through the promoted CupidBuild seed. They pass the complete
+six-tool prerequisite closure, the production manifest, and the absolute
+repository root. CupidBuild freezes those inputs, runs a private CupidASM
+candidate, validates i386 `ET_REL`, applies the three CupidDis policies, and
+publishes only after the final source, seed, lock, parent, and output checks.
+
+The direct recipes do not use Hostbuild, Python, or standalone tool overrides.
+A forced native Windows rebuild with `PYTHON=missing-python` produced the same
+ISR and context-switch object hashes as the preceding publications. The graph
+still contains 452 transforms. CupidBuild participates in two, and Python in
+450. The raw image, compiler, linker, generator, user-program, and fixed-point
+transactions remain Python-coordinated.
+
+The Linux CupidBuild seed now retains executable mode in Git. Its bytes and v2
+manifest record are unchanged. The active suffix audit still has no safe `.c`
+rename because every active CupidC translation unit already uses `.cc`.
+
+The complete normal image build passed the two CupidLD links, whole-kernel
+CupidDis inspection, all 16 exact artifact sizes, and image publication. The
+four changed CTXT inputs raised the raw kernel by 508 bytes to 9,506,080, and
+the exact policy now records that source-consistent size. A private four-vCPU
+`max` and E1000 smoke passed with all CPUs online and `/bin/ls.cc` reaching JIT
+completion.
 
 ## 2026-08-25 source-current checkpoint
 
@@ -285,40 +313,28 @@ sixteen exact artifacts. The current outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,601,052 | `2c2b16f018c018ecd55c96868428d9427213aca4344c67b44e2241f05a054463` |
-| `kernel/kernel.elf` | 9,732,124 | `342d57566d853ee9a894ec5c6d4e0eafbc6169019950c768f648873ce797fee6` |
-| `kernel/kernel.bin` | 9,505,572 | `1d12e0ddc98bcc66fe34157357a80f4a4f6916f0f75b921b5e56eaa792de1977` |
-| `cupidos.img` | 209,715,200 | `112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3` |
+| `kernel/kernel.elf.pass1` | 9,601,052 | `d751d1bcf5839bc3c141779fa646739a7c9774a40dab4e2201be765bf0f44bf2` |
+| `kernel/kernel.elf` | 9,732,124 | `f6f517d18f2706997bb58932d91f9ac010d201ef57fd28b6cb5d8ba7fb14826d` |
+| `kernel/kernel.bin` | 9,506,080 | `f4a3abf1a14bcce072b5c4d0d7d81fde9b9172bf8da01dd9e22c82fb58227f53` |
+| `cupidos.img` | 209,715,200 | `409ee7759e2568b6d143bf10aac19450a79d9cd4cc31ae51585fd20f39b0d14e` |
 
-The final normal build linked both kernel ELFs and completed strict CupidDis
+The current normal build linked both kernel ELFs and completed strict CupidDis
 inspection of all 431 production inputs with local targets and code anchors
-enabled. Its first exact-size check measured 9,504,760 bytes against the
-provisional 9,504,480-byte raw-kernel row and failed closed before publication.
-After that row was corrected, CTXT lineage corrections added 896 bytes. A
-second exact-size check measured 9,505,656 bytes against the 9,504,760-byte row
-and also failed closed before publication. A final CTXT specification-review
-correction followed. The third check observed 9,505,572 bytes against the
-9,505,656-byte row and failed closed before publication. After the final
-policy update, all sixteen paths passed and the build published the fresh
-force-formatted normal image above.
-The 3,382-byte policy covers sixteen paths totaling 38,120,452 bytes and has
+enabled. Earlier paired-seed checks rejected three stale raw-kernel rows before
+publication. The direct CupidBuild ownership documentation later moved the
+embedded CTXT payload again. The final replay measured 9,506,080 bytes, updated
+the exact row, passed all sixteen paths, preserved the normal image's FAT
+contents, and staged `hello.iso`.
+The 3,382-byte policy covers sixteen paths totaling 38,120,960 bytes and has
 SHA-256
-`7f9c1f49d1543112bf6984def1e4ecba6df4fb7a55d2481a85deb7370cf4bfc2`.
+`1a02082a28205e5ff04da715686d80051262b051c1b2bea28d1e7520f1b03997`.
 
-The normal `hello.iso` staging step created a 209,715,200-byte runtime source
-derivative containing `hello`, `ls`, `cat`, and `catfix.txt`. Its SHA-256 is
-`816f219305dd0b406d2077913a7f1def08a88efd9591239d0effe44b385cbf10`.
-The harness booted private copies of that staged derivative for three QEMU
-smokes:
-
-| Guest exercise | Log bytes | Log SHA-256 |
-| --- | ---: | --- |
-| `hello` | 28,807 | `6543cecfb005f2b775541e279201ee6af4bac4af74bed81a27918f5711392c82` |
-| `ls` | 30,158 | `03c01d39b2320be1cc5ec2f92b33d6ffbc62acf50de74f4464ac4fc73f55ea27` |
-| `cat` against the hostile fixture | 63,987 | `ca5f6622e317e8ade54370d428271e8f64221b9afd3bf3f238d04760ebdec57a` |
-
-All three passed. Afterward, the clean normal image was restored to SHA-256
-`112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3`.
+The final private four-vCPU `max` and E1000 smoke used a copy of that normal
+image. All four CPUs came online, RDRAND seeded the CSPRNG, E1000 obtained
+`10.0.2.15`, the desktop started, and `/bin/ls.cc` reached JIT completion. The
+33,159-byte log has SHA-256
+`cf2c13e65d8a10ee9c129fd3b90c50c7a8b6fa088c594f1909e94010c28dd5ea`
+and no panic marker. The source image was not changed by the smoke.
 
 Source-head bootstrap reporting now compares stage two with the verified bytes
 in `SeedInputs.artifact_bytes`. It no longer reopens ephemeral
@@ -501,8 +517,8 @@ direct suite includes a checked stage-four build and run of the author. The
 source graph retains 747
 active inputs, 452 transforms,
 255 feature requirements, and 26 accounted unreachable files. Participation
-is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and four
-Cupid-built contracts. Python participates in every transform, but none is
+is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, CupidBuild 2,
+and four Cupid-built contracts. Python participates in 450 transforms, but none is
 Python-only. The latest complete schema v3 `CUPMAN4` publication passed. The
 Cupid author and Python oracle agreed on all 62 stage pairs. Every stage-three
 object and executable matched its stage-four counterpart. The hosted runtime
@@ -2958,9 +2974,9 @@ generated fixed-point inventory records failure, help, and success counts of
 23/6/29 for Linux and 12/6/16 for Windows.
 
 Across the three supported roots, CupidC participates in 250 transforms,
-CupidASM in nine, CupidLD in nine, and CupidObj in 192. Python participates in
-all 452 as the checked-tool launcher and host-side safety, parity, and
-publication layer.
+CupidASM in nine, CupidLD in nine, CupidObj in 192, and CupidBuild in two.
+Python participates in 450 as the checked-tool launcher and host-side safety,
+parity, and publication layer.
 No transform invokes a host C compiler, and no recursive Make transform
 remains. The user and Toolchain artifact publishers create their required
 output directories. The user compiler uses POSIX `dir_fd` operations or
@@ -3478,9 +3494,9 @@ and truncated code. ADR 0334 records the in-kernel request boundary.
 
 The ownership counts in the preceding long-form summary are superseded by
 CUPMAN4. CupidC participates in 250 transforms, CupidASM and CupidLD in nine
-each, CupidObj in 192, and CupidDis in nine. Four semantic contracts participate,
-and no transform is Python-only. Python remains present in all 452 transforms
-for capture, safety, oracle comparison, and publication.
+each, CupidObj in 192, CupidDis in nine, and CupidBuild in two. Four semantic
+contracts participate, and no transform is Python-only. Python remains present
+in 450 transforms for capture, safety, oracle comparison, and publication.
 
 Checked-seed CupidDis also publishes a typed summary of known, unknown, invalid,
 and truncated instructions across selected code regions. The hosted
@@ -3684,7 +3700,8 @@ at the same parent revision.
 | `cupidld.exe` | 296,960 | `aaa7b51a290646ef1d972f4904b1ed176a4dc912e53c1bc4cbdd8d1e39d8495f` |
 | `cupidobj.exe` | 375,808 | `b6f6a5b66f8e2bcb4b779a16428d7b77a956113c5ca301344537b35839611572` |
 
-The active artifact-size policy is 3,382 bytes with SHA-256
+At the paired six-tool promotion checkpoint, the artifact-size policy was
+3,382 bytes with SHA-256
 `7f9c1f49d1543112bf6984def1e4ecba6df4fb7a55d2481a85deb7370cf4bfc2`.
 It has sixteen rows: `boot/boot.bin`, the two kernel ELFs, the flat kernel,
 the six Linux images, and the six Windows images. The four OS rows expect
@@ -3698,7 +3715,7 @@ equal to stage two. Their reports are 51,389 and 64,515 bytes, with SHA-256
 and `645b1f6e6181dd44e3169cc9735a9d9ca75f96d7ae50b5e585a3038dae32e169`.
 The refreshed active-build audit passes.
 
-The normal OS replay passed both CupidLD links and the strict 431-input
+That checkpoint's normal OS replay passed both CupidLD links and the strict 431-input
 CupidDis scan. Its first exact-size check measured a 9,504,760-byte raw kernel
 against the provisional 9,504,480-byte policy row and failed closed before
 publishing an image. After that row was corrected, CTXT lineage corrections
@@ -3706,9 +3723,10 @@ added 896 bytes. A second gate measured 9,505,656 bytes against the
 9,504,760-byte row and also failed closed before publication. A final CTXT
 specification-review correction followed. The third gate observed 9,505,572
 bytes against the 9,505,656-byte row and failed closed before publication. The
-final policy then passed all sixteen exact paths, totaling 38,120,452 bytes.
+checkpoint policy then passed all sixteen exact paths, totaling 38,120,452
+bytes.
 
-The final replay produced these artifacts and force-formatted a fresh normal
+That checkpoint replay produced these artifacts and force-formatted a fresh normal
 image:
 
 | Artifact | Bytes | SHA-256 |

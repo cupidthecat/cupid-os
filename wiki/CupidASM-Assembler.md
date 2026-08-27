@@ -5,6 +5,13 @@ run fixed images immediately, write raw binaries with typed range maps, keep
 an ELF32 relocatable object for a later link, or ask CupidLD for a linked
 executable. JIT programs run in ring 0 and can call the kernel directly.
 
+The normal ISR and context-switch recipes now enter CupidASM through the
+promoted CupidBuild seed. CupidBuild freezes the source and six-tool cohort,
+validates the private `ET_REL` object, asks CupidDis to check instruction
+coverage, relocations, local targets, and function anchors, then publishes it
+atomically. Python no longer participates in these two transforms. ADR 0354
+records the handoff.
+
 ---
 
 ## Overview
@@ -1653,7 +1660,8 @@ ADR 0318 records the seed identities.
 ## Active six-tool seed
 
 The active Linux and Windows v2 manifests carry CupidASM as a producer and
-CupidBuild as a checked non-producer. Both list six images and bind revision
+CupidBuild as both a checked tool and the coordinator for two normal object
+publications. Both list six images and bind revision
 `f620e3a973c6fca661c8eeefe443f4b3c669dddc`, the 58-input snapshot
 `e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
 and their exact build plans.

@@ -312,6 +312,10 @@ TOOL_MARKERS = (
     ("assemble-smp-trampoline --seed-manifest", "cupid_disassembler"),
     ("assemble-cupidasm-object --seed-manifest", "cupid_assembler"),
     ("assemble-cupidasm-object --seed-manifest", "cupid_disassembler"),
+    (
+        "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX)",
+        "cupid_builder",
+    ),
     ("validate-code --seed-manifest", "cupid_disassembler"),
     ("validate-code --seed-manifest", "cupid_object"),
     ("mksyms --seed-manifest", "cupid_disassembler"),
@@ -1953,7 +1957,11 @@ def _operation_for_recipe(
     ):
         return "assemble_flat_binary"
     if (
-        "hostbuild.py assemble-cupidasm-object " in joined
+        (
+            "hostbuild.py assemble-cupidasm-object " in joined
+            or "cupidbuild.$(production_seed_suffix) "
+            "assemble-cupidasm-object " in joined
+        )
         and "cupid_assembler" in tools
         and "cupid_disassembler" in tools
     ):

@@ -10,6 +10,11 @@ CupidLD output to match the checked seed. Programs run as ring-0 kernel threads
 and receive a **syscall table**, a struct of function pointers passed to
 `_start()`.
 
+The same promoted six-tool cohort now runs CupidBuild directly for the kernel's
+two guarded assembly objects. This does not change the user-program ABI or
+ELF layout. Across the supported graph, CupidBuild participates in two
+transforms and Python in 450.
+
 ---
 
 ## Quick Start
@@ -880,32 +885,27 @@ the raw kernel is 9,251,100 bytes with SHA-256
 
 The source-head artifact contract passes against all sixteen exact artifacts.
 The current 3,382-byte policy has SHA-256
-`7f9c1f49d1543112bf6984def1e4ecba6df4fb7a55d2481a85deb7370cf4bfc2`
-and covers 38,120,452 bytes across those paths.
+`1a02082a28205e5ff04da715686d80051262b051c1b2bea28d1e7520f1b03997`
+and covers 38,120,960 bytes across those paths.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,601,052 | `2c2b16f018c018ecd55c96868428d9427213aca4344c67b44e2241f05a054463` |
-| `kernel/kernel.elf` | 9,732,124 | `342d57566d853ee9a894ec5c6d4e0eafbc6169019950c768f648873ce797fee6` |
-| `kernel/kernel.bin` | 9,505,572 | `1d12e0ddc98bcc66fe34157357a80f4a4f6916f0f75b921b5e56eaa792de1977` |
-| `cupidos.img` | 209,715,200 | `112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3` |
+| `kernel/kernel.elf.pass1` | 9,601,052 | `d751d1bcf5839bc3c141779fa646739a7c9774a40dab4e2201be765bf0f44bf2` |
+| `kernel/kernel.elf` | 9,732,124 | `f6f517d18f2706997bb58932d91f9ac010d201ef57fd28b6cb5d8ba7fb14826d` |
+| `kernel/kernel.bin` | 9,506,080 | `f4a3abf1a14bcce072b5c4d0d7d81fde9b9172bf8da01dd9e22c82fb58227f53` |
+| `cupidos.img` | 209,715,200 | `409ee7759e2568b6d143bf10aac19450a79d9cd4cc31ae51585fd20f39b0d14e` |
 
-Those output identities come from the final normal build. Staging `hello`,
-`ls`, `cat`, and `catfix.txt` produced a 209,715,200-byte runtime derivative
-with SHA-256
-`816f219305dd0b406d2077913a7f1def08a88efd9591239d0effe44b385cbf10`.
-Private copies of that derivative passed the `hello`, `ls`, and hostile-fixture
-`cat` QEMU smokes. The published clean image was then restored with SHA-256
-`112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3`.
-
-| Runtime smoke | Log bytes | Log SHA-256 |
-| --- | ---: | --- |
-| `hello` | 28,807 | `6543cecfb005f2b775541e279201ee6af4bac4af74bed81a27918f5711392c82` |
-| `ls` | 30,158 | `03c01d39b2320be1cc5ec2f92b33d6ffbc62acf50de74f4464ac4fc73f55ea27` |
-| `cat` against the hostile fixture | 63,987 | `ca5f6622e317e8ade54370d428271e8f64221b9afd3bf3f238d04760ebdec57a` |
+Those output identities come from the current normal build. It completed the
+431-input local-target and code-anchor scan, accepted the exact policy, and
+preserved the image's FAT contents while staging `hello.iso`. A private
+four-vCPU `max` and E1000 copy brought all CPUs online, seeded the CSPRNG from
+RDRAND, obtained `10.0.2.15`, started the desktop, and ran `/bin/ls.cc` through
+JIT completion. Its 33,159-byte log has SHA-256
+`cf2c13e65d8a10ee9c129fd3b90c50c7a8b6fa088c594f1909e94010c28dd5ea`
+and no panic marker.
 
 The active Linux and Windows seeds use v2 and carry six tool images, including
-non-producer CupidBuild. Both bind revision
+CupidBuild with a non-producing fixed-point plan role. Both bind revision
 `f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 source inputs, and snapshot
 `e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
 The Linux plan has SHA-256
@@ -929,8 +929,9 @@ and its disk image had SHA-256
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows, with all six initial images equal to stage two. The current promotion
-records its normal-build artifacts above. CupidBuild does not own a normal Make
-recipe, and Python remains the build coordinator and publisher. ADR 0318
+records its normal-build artifacts above. CupidBuild owns the normal ISR and
+context-switch object recipes, while Python remains the coordinator and
+publisher for the other 450 transforms. ADR 0318
 records the preceding linked-image
 promotion, ADR 0323 records the preceding code-anchor promotion, and ADR 0336
 records the earlier five-tool promotion.

@@ -2665,10 +2665,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "kernel/smp_trampoline.bin": "assemble_flat_binary",
             }
             for output_path, operation in expected_assembly.items():
+                coordinator = (
+                    "cupid_builder"
+                    if output_path
+                    in {"kernel/core/context_switch.o", "kernel/cpu/isr.o"}
+                    else "host_python"
+                )
                 expected_tools = [
                     "cupid_assembler",
                     "cupid_disassembler",
-                    "host_python",
+                    coordinator,
                 ]
                 self.assertEqual(
                     transforms[output_path]["tools"],
@@ -9541,6 +9547,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     for tool in (
                         "cupid_c_compiler",
                         "cupid_assembler",
+                        "cupid_builder",
                         "cupid_object",
                         "cupid_linker",
                         "cupid_disassembler",
@@ -9552,12 +9559,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
+                    "cupid_builder": 2,
                     "cupid_object": 192,
                     "cupid_linker": 9,
                     "cupid_disassembler": 9,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 452,
+                    "host_python": 450,
                 },
             )
             self.assertFalse(
@@ -9565,6 +9573,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     not {
                         "cupid_c_compiler",
                         "cupid_assembler",
+                        "cupid_builder",
                         "cupid_object",
                         "cupid_linker",
                         "cupid_disassembler",
@@ -10281,7 +10290,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     [
                         "cupid_assembler",
                         "cupid_disassembler",
-                        "host_python",
+                        "cupid_builder",
                     ],
                 )
                 self.assertEqual(
@@ -10290,20 +10299,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     set(object_transform["inputs"]),
-                    seed_inputs
-                    | {
+                    {
+                        "Makefile",
+                        *WINDOWS_PRODUCTION_SEED_INPUTS,
                         object_source,
-                        "tools/cupidc_kernel_compile.py",
-                        "tools/hostbuild.py",
                     },
                 )
                 self.assertEqual(
                     object_transform["recipe"],
                     [
-                        "$(PYTHON) tools/hostbuild.py "
+                        "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                        "$(PRODUCTION_SEED_SUFFIX) "
                         "assemble-cupidasm-object \\",
                         "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
-                        "--root . \\",
+                        '--root "$(CURDIR)" \\',
                         "--source $< --output $@",
                     ],
                 )
@@ -10349,6 +10358,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 6,
+            "cupid_builder": 2,
             "cupid_object": 192,
             "cupid_linker": 3,
             "cupid_disassembler": 6,
@@ -10362,18 +10372,40 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             with self.subTest(tool=tool):
                 self.assertEqual(len(transforms), expected_count)
                 for transform in transforms:
+                    expected_python_count = (
+                        0
+                        if transform["output"]
+                        in {
+                            "kernel/cpu/isr.o",
+                            "kernel/core/context_switch.o",
+                        }
+                        else 1
+                    )
                     self.assertEqual(
                         transform["tools"].count("host_python"),
-                        1,
+                        expected_python_count,
                         transform["output"],
                     )
+                    expected_trust_inputs = (
+                        {
+                            "Makefile",
+                            *WINDOWS_PRODUCTION_SEED_INPUTS,
+                        }
+                        if transform["output"]
+                        in {
+                            "kernel/cpu/isr.o",
+                            "kernel/core/context_switch.o",
+                        }
+                        else seed_inputs
+                    )
                     self.assertTrue(
-                        seed_inputs.issubset(transform["inputs"]),
+                        expected_trust_inputs.issubset(transform["inputs"]),
                         transform["output"],
                     )
         cupid_tools = {
             "cupid_c_compiler",
             "cupid_assembler",
+            "cupid_builder",
             "cupid_object",
             "cupid_linker",
             "cupid_disassembler",
@@ -10900,6 +10932,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 f"CUPIDASM_INPUTS={relative_driver}",
                 "CUPIDDIS=custom-cupiddis",
                 f"CUPIDDIS_INPUTS={relative_driver}",
+                "PYTHON=custom-python",
             )
             with mock.patch.object(
                 module,
@@ -10928,19 +10961,21 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     self.assertTrue(
                         {
                             "Makefile",
-                            "tools/bootstrap_toolchain.py",
-                            "tools/cupidc_kernel_compile.py",
-                            "tools/hostbuild.py",
                             *WINDOWS_PRODUCTION_SEED_INPUTS,
                         }.issubset(inputs)
                     )
                     recipe = "\n".join(rule.recipe)
                     self.assertIn(
-                        "tools/hostbuild.py assemble-cupidasm-object",
+                        "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                        "$(PRODUCTION_SEED_SUFFIX) "
+                        "assemble-cupidasm-object",
                         recipe,
                     )
+                    self.assertIn('--root "$(CURDIR)"', recipe)
                     self.assertNotIn("custom-cupidasm", recipe)
                     self.assertNotIn("custom-cupiddis", recipe)
+                    self.assertNotIn("custom-python", recipe)
+                    self.assertNotIn("tools/hostbuild.py", recipe)
 
     def test_guarded_iso_lane_ignores_standalone_assembler_overrides(self):
         make = shutil.which("make")

@@ -18,7 +18,8 @@ Verified against source on: 2026-08-27
 >tree open Hosted CupidBuild Source
 The checked Linux and Windows command suites cover CupidBuild's policy and
 hosted transaction modules, including the real guarded object path. CupidBuild
-is a checked non-producer in both active v2 seeds. Their fixed points and
+is a checked tool in both active v2 seeds and directly owns the normal ISR and
+context-switch object publications. Their fixed points and
 promoted-seed reproofs match all six tool images. Both compared CupidBuild
 images run the guarded object command, require the same relocatable output,
 and preserve an existing object when the source is missing.
@@ -260,9 +261,9 @@ It reports 250 CupidC participations and no host C transform. Of those, 246
 produce ordinary C outputs. The native Windows user ABI, artifact-size policy,
 Toolchain manifest author, and Toolchain manifest verifier supply the other four
 CupidC contract checks. CupidObj participates 192 times, CupidASM and CupidLD
-participate nine times each, and CupidDis participates nine times. Four
-transforms run Cupid-built semantic contracts. Host Python participates in all
-452 transforms, but none is Python-only. The normal Toolchain build uses checked
+participate nine times each, CupidDis participates nine times, and CupidBuild
+participates twice. Four transforms run Cupid-built semantic contracts. Host
+Python participates in 450 transforms, but none is Python-only. The normal Toolchain build uses checked
 static i386 tools for its contract cohort; native contract binaries are optional
 oracles.
 
@@ -2271,7 +2272,8 @@ separate defense.
 >h2 Checked compiler seed boundary
 >tree
 The active Linux and Windows v2 cohorts are complete six-tool trust units.
-Their manifests include CupidBuild as a checked non-producer. Both bind
+Their manifests include CupidBuild. It directly coordinates the two normal
+guarded assembly-object publications. Both bind
 revision `f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 source inputs, and
 snapshot
 `e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
@@ -2315,7 +2317,8 @@ production commands continue to use the native checked execution seed.
 >h2 Active Six-Tool Seed Contract
 >tree
 CupidBuild still accepts the historical v1 five-tool contract. The active
-Linux and Windows seeds use v2 and list CupidBuild as a checked non-producer.
+Linux and Windows seeds use v2 and list CupidBuild as a checked tool and normal
+object-publication coordinator.
 They keep exact source and link plans, artifact membership, producer roles, and
 platform image checks.
 
@@ -2330,9 +2333,9 @@ Its 2,852-byte manifest has SHA-256
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
-Windows. All six initial images match stage two. The seed promotion does not
-give CupidBuild a normal Make recipe or replace Python coordination and
-publication.
+Windows. All six initial images match stage two. CupidBuild now owns the two
+guarded assembly-object recipes. Python coordinates and publishes the
+remaining paths.
 >endtree
 
 >h2 See Also

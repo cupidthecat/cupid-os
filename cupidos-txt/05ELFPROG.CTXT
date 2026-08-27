@@ -30,8 +30,8 @@ The Linux and Windows standalone builds pass the real ISR object path and the
 complete transaction suites. The active v2 fixed points include CupidBuild and
 match all six final tool images. Their behavior gate also runs
 the guarded object command with both images, compares the relocatable output,
-and checks missing-source rollback. The normal build uses the six-tool seed,
-but Python remains the publisher and no normal Make recipe invokes CupidBuild.
+and checks missing-source rollback. The normal ISR and context-switch recipes
+invoke CupidBuild directly. Python publishes the remaining checked paths.
 Source head now validates every fixed-point C object structurally and then
 requires known decode, local targets, and code anchors before linking. The
 Windows CupidBuild startup marks all fourteen exports as functions. Fresh
@@ -451,7 +451,7 @@ Choose CupidC when you want:
 >h2 Checked toolchain seed boundary
 >tree
 The active Linux and Windows v2 cohorts are complete six-tool trust units.
-CupidBuild is a checked non-producer in both.
+CupidBuild is checked in both and directly owns two normal object publications.
 Their fixed-point gates compare the final stages and exercise each platform's
 success and failure behavior. CupidDis must reject unmatched executable
 relocations.
@@ -481,8 +481,9 @@ the pass-one and final ELFs before flattening.
 >h2 Active Six-Tool Seed Images
 >tree
 The active v2 seed schemas list six complete tool images. CupidBuild joins
-CupidASM, CupidDis, CupidLD, CupidObj, and CupidC as a checked artifact but does
-not act as a code producer. Both manifests bind revision
+CupidASM, CupidDis, CupidLD, CupidObj, and CupidC as a checked artifact. Its
+fixed-point plan role remains non-producing even though it owns two normal
+publications. Both manifests bind revision
 `f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 inputs, and source snapshot
 `e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
 
@@ -497,8 +498,9 @@ Its 2,852-byte manifest has SHA-256
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
-Windows. All six initial images match stage two. CupidBuild does not own a
-normal Make recipe, and Python still coordinates and publishes the build.
+Windows. All six initial images match stage two. CupidBuild owns the normal ISR
+and context-switch object recipes. Python coordinates and publishes the
+remaining build paths.
 >endtree
 
 >h2 See Also

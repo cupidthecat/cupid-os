@@ -31953,3 +31953,86 @@ All three passed. Afterward, the clean normal image was restored to SHA-256
 Python still coordinates the fixed-point builds. The ISR and
 context-switch recipes still run through `tools/hostbuild.py`, and CupidBuild
 still has no normal Make recipe. Issue #32 stays open for those transfers.
+
+## 2026-08-27: CupidBuild owns guarded assembly-object publication
+
+The normal `kernel/cpu/isr.o` and `kernel/core/context_switch.o` recipes now
+invoke the promoted CupidBuild seed directly. Each recipe declares the
+Makefile and all six seed files as prerequisites, passes the production
+manifest, and supplies the quoted absolute `$(CURDIR)`. The command retains
+the existing private assembly, ELF32 validation, CupidDis inspection, source
+and seed rechecks, owner lock, pinned output parent, rollback, and atomic
+publication rules.
+
+The first direct Make contract failed against the two Hostbuild recipes, as
+expected. After the transfer, the focused recipe and standalone-override tests
+passed. Adding the absolute-root assertion exposed that CupidBuild rejects `.`
+under its path contract; changing only the two direct calls to `$(CURDIR)` made
+that case pass. A forced native Windows rebuild used
+`PYTHON=missing-python` and produced the same two objects:
+
+| Object | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/cpu/isr.o` | 1,892 | `ffefff3f2ed557d40c636f675bac8597b00179c070b5dea1e995d0c35a0b8840` |
+| `kernel/core/context_switch.o` | 696 | `440d6605e50b56461cec91a45308b0d65ad5306fd8e6f217b4dc638f22663901` |
+
+The complete transaction, Hostbuild compatibility, and build-graph command
+ran 163 tests. It found one stale assembly-owner expectation after every other
+case had run. That assertion now selects CupidBuild for the two relocatable
+objects and Python for the raw bootloader and trampoline outputs; its focused
+rerun passed. An independent final replay then passed all 163 tests in
+1,120.528 seconds, with two expected Linux-only skips on Windows. The
+deterministic `make check-bootstrap-audit` comparison also passed. After the
+evidence corrections, the three changed graph contracts passed again in
+63.625 seconds.
+
+The regenerated graph still contains 452 transforms and 443 under root
+`all`. CupidBuild participates in two. Python participates in 450 instead of
+452. CupidASM and CupidDis remain participants on both transferred objects,
+so no transform loses its language or inspection owner. No `.c` file moved in
+this step: both inputs are assembly, and every active CupidC translation unit
+already uses `.cc`.
+
+Direct Linux execution found that `bootstrap/seeds/i386-linux/cupidbuild.elf`
+had been stored with mode `100644`, unlike the other Linux tool seeds. Its Git
+mode is now `100755`. The bytes remain 268,304 with SHA-256
+`443934460de95e4e2dba795ff25b29cfa9e1c5a202229a6961d2f11d665963e4`,
+so the v2 manifest digest does not change. WSL executed the tracked seed
+directly and returned CupidBuild's usage line, which checks the checkout mode
+needed by a Linux recipe.
+
+The first complete normal build reached the exact-size contract after both
+links and whole-kernel inspection. It measured a 9,505,860-byte raw kernel,
+288 bytes above the preceding policy because the four updated CTXT files are
+embedded in the image. A later documentation consistency pass changed those
+embedded pages again. The final source-consistent replay measured 9,506,080
+bytes, 508 bytes above the pre-transfer row. After that exact row moved, all
+16 policy artifacts passed. The 3,382-byte policy covers 38,120,960 bytes and
+has SHA-256
+`1a02082a28205e5ff04da715686d80051262b051c1b2bea28d1e7520f1b03997`.
+Hostbuild then updated the 200 MiB normal image while preserving its FAT data.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,601,052 | `d751d1bcf5839bc3c141779fa646739a7c9774a40dab4e2201be765bf0f44bf2` |
+| `kernel/kernel.elf` | 9,732,124 | `f6f517d18f2706997bb58932d91f9ac010d201ef57fd28b6cb5d8ba7fb14826d` |
+| `kernel/kernel.bin` | 9,506,080 | `f4a3abf1a14bcce072b5c4d0d7d81fde9b9172bf8da01dd9e22c82fb58227f53` |
+| `cupidos.img` | 209,715,200 | `409ee7759e2568b6d143bf10aac19450a79d9cd4cc31ae51585fd20f39b0d14e` |
+
+The first private QEMU attempts exited before serial output. A direct launch
+showed `cannot set up guest memory 'pc.ram'`: a diagnostic QEMU child had
+survived its shell interrupt. After stopping that exact process, the private
+four-vCPU `max` and E1000 smoke passed. The final source-consistent image also
+passed the same smoke. All four CPUs came online, RDRAND seeded the CSPRNG,
+E1000 obtained `10.0.2.15`, the desktop and terminal started, and
+`/bin/ls.cc` compiled and reached `JIT execution complete`. The final
+33,159-byte log had SHA-256
+`cf2c13e65d8a10ee9c129fd3b90c50c7a8b6fa088c594f1909e94010c28dd5ea`
+and no panic marker.
+
+Python still coordinates raw boot and trampoline publication, C and link
+transactions, generated artifacts, user programs, and both fixed points.
+Typed raw-image commands in CupidBuild are the next direct assembler handoff;
+fixed-point coordination remains the larger issue #34 boundary. ADR 0354
+records this transfer.

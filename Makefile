@@ -381,10 +381,9 @@ kernel/cpu/idt.o: kernel/cpu/idt.cc drivers/serial.h kernel/core/kernel.h \
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/idt.cc --output kernel/cpu/idt.o
 
 # Compile assembly files
-kernel/cpu/isr.o: kernel/cpu/isr.asm tools/hostbuild.py \
-	tools/cupidc_kernel_compile.py $(CHECKED_SEED_INPUTS)
-	$(PYTHON) tools/hostbuild.py assemble-cupidasm-object \
-		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \
+kernel/cpu/isr.o: kernel/cpu/isr.asm Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-cupidasm-object \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
 		--source $< --output $@
 
 kernel/cpu/pic.o: kernel/cpu/pic.cc kernel/core/kernel.h kernel/core/types.h \
@@ -931,9 +930,9 @@ kernel/core/process.o: kernel/core/process.cc drivers/serial.h drivers/timer.h \
 
 # Context switch (assembly)
 kernel/core/context_switch.o: kernel/core/context_switch.asm \
-	tools/hostbuild.py tools/cupidc_kernel_compile.py $(CHECKED_SEED_INPUTS)
-	$(PYTHON) tools/hostbuild.py assemble-cupidasm-object \
-		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-cupidasm-object \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
 		--source $< --output $@
 
 # Clipboard

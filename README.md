@@ -56,6 +56,29 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 - System clipboard, x86-32 disassembler, BMP / PNG / JPEG image codecs, TrueType font system with bundled Liberation fonts and live `fontswitch`
 - Panic backtrace decoded against a kernel symbol table (`addr  function_name+offset` per frame)
 
+## 2026-08-27 source-current checkpoint
+
+The normal ISR and context-switch recipes now invoke the promoted CupidBuild
+seed directly. CupidBuild freezes the assembly source and complete six-tool
+cohort, publishes a private ELF32 relocatable through CupidASM, applies the
+known-decode, local-target, and code-anchor policies through CupidDis, rechecks
+the transaction, and replaces the object atomically. A forced native Windows
+run with `PYTHON=missing-python` produced byte-identical objects.
+
+The active graph still has 452 transforms. CupidBuild now participates in two,
+and Python participates in 450. The raw bootloader and SMP transactions, C and
+link operations, generated artifacts, user programs, and fixed-point builders
+remain separate transfers. The Linux CupidBuild seed is stored as an executable
+so a fresh checkout can enter the same direct recipe. ADR 0354 records the
+ownership boundary.
+
+The complete normal build passed both CupidLD links, whole-kernel CupidDis
+inspection, all 16 exact-size checks, and image publication. The four updated
+CTXT pages increased the deterministic raw kernel by 508 bytes to 9,506,080,
+which is now the checked policy value. A private four-vCPU `max` and E1000 boot
+brought all CPUs online and ran `/bin/ls.cc` through in-OS CupidC without a
+panic marker.
+
 ## 2026-08-25 source-current checkpoint
 
 The Linux and Windows fixed-point builders now run the preceding generation's
@@ -285,8 +308,8 @@ records checkout-local contract imports, and [ADR 0322](docs/adr/0322-run-the-to
 records native Windows author execution. The source graph has 747 active inputs,
 452 transforms, 255 feature requirements, and 26 accounted unreachable files.
 Participation
-is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and four
-Cupid-built semantic contracts. Python participates in all 452 transforms,
+is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, CupidBuild 2,
+and four Cupid-built semantic contracts. Python participates in 450 transforms,
 but no transform is Python-only. Root `all` remains at 443 transforms, each
 with a Cupid participant. The latest complete schema v3 `CUPMAN4`
 publication passed. The Cupid author and Python oracle agreed on all 62 stage
@@ -3048,7 +3071,7 @@ output, timeout, or publication checks.
 ### Active six-tool seeds
 
 The checked Linux and Windows directories now use the v2 contracts. Each
-contains six images, including CupidBuild as a checked non-producer, and keeps
+contains six images, including CupidBuild, and keeps
 the exact source, plan, provenance, target, artifact, and execution-profile
 checks defined by ADR 0352. The Windows record carries the SHA-256 of the exact
 Linux v2 manifest bytes, which prevents a valid execution seed from being
@@ -3056,9 +3079,10 @@ paired with another valid plan seed.
 
 The validators still accept v1 manifests in compatibility and transition
 tests. Production closures, artifact-size verification, and Toolchain
-publication freeze and recheck all six active images. Python still coordinates
-those guarded calls, and the normal CupidBuild recipe transfer remains
-separate work. ADR 0353 records the promotion.
+publication freeze and recheck all six active images. CupidBuild directly owns
+the two guarded relocatable assembly publications. Python coordinates the
+remaining guarded calls. ADR 0353 records the promotion, and ADR 0354 records
+the first normal recipe transfer.
 
 ---
 
