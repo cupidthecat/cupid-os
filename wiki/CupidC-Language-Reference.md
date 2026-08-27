@@ -198,24 +198,24 @@ and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 
 The source-head artifact contract passes against all sixteen exact artifacts.
 The current 3,382-byte policy has SHA-256
-`3518552751c6993bbf4c36735a0a780616253543ba5c6555af55ae5979c45ff6`
-and covers 38,143,900 bytes across those paths.
+`78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`
+and covers 38,144,480 bytes across those paths.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,605,148 | `7f83f2283f5f1c0f90cfde71942c7c7cfb596b13ba4e0974e8e843de28e0bc63` |
-| `kernel/kernel.elf` | 9,736,220 | `d55d1170293bbc2e2285586f85cb54702a1fefeae90cc497fd474834ae001076` |
-| `kernel/kernel.bin` | 9,507,224 | `efd8290cabcdfddeaa9e40e6a3ae4b2fbec4cc640e53b5abbdbecda8379e24f1` |
-| `cupidos.img` | 209,715,200 | `9ee5ed43c1f5615077f6da47e579e41e27e31fd8fe7839d6b220e7e031d17635` |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63` |
+| `kernel/kernel.elf` | 9,736,220 | `c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436` |
+| `kernel/kernel.bin` | 9,507,804 | `2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f` |
+| `cupidos.img` | 209,715,200 | `1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc` |
 
 Those output identities come from the final source-head normal build. Its
 431-input linked-image scan passed local-target and code-anchor validation.
 The build accepted the exact policy and preserved the image's FAT contents
 while staging `hello.iso`. A private four-vCPU `max` and E1000 copy brought all
 CPUs online and completed the full graphics, audio, and in-OS CupidC frontier.
-The framebuffer changed 101,820 pixels; both audio captures were non-silent.
-Its 149,029-byte log has SHA-256
-`5b4cd234867bda2c69152d443f8104bd4d2b7974e7b2da45d30185a60849c538`
+The framebuffer changed 69,823 pixels; both audio captures were non-silent.
+Its 147,526-byte log has SHA-256
+`252d3ef3796233cd752754c19aaa85a7311010bd75d0d5d57264fd6919584b56`
 and no rejected runtime marker.
 
 Both active v2 seeds carry the same source snapshot. ADR 0318 records the

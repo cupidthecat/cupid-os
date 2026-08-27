@@ -7,13 +7,12 @@ per-CPU runqueues or IRQ migration.
 
 Related pages: [USB](USB.md), [Swap](Swap.md)
 
-The context-switch object now publishes through the promoted CupidBuild seed
-without Python. The guarded transaction still requires CupidASM output and
-strict CupidDis relocation, target, and function-anchor evidence. The SMP
-trampoline remains on its Python-coordinated raw image and map transaction.
-The refreshed promoted CupidBuild seed can perform that same typed 4,096-byte
-publication, including the exact mixed-mode map and strict source-edge
-inspection. Only the normal Make recipe remains to be transferred.
+The context-switch object and SMP trampoline now publish through the promoted
+CupidBuild seed without Python. The object transaction requires CupidASM
+output and strict CupidDis relocation, target, and function-anchor evidence.
+The raw transaction keeps the 4,096-byte image and exact mixed-mode v2 map
+private until CupidDis accepts its source-resolved edges. ADR 0354 records the
+object handoff, and ADR 0357 records the raw recipe handoff.
 
 ---
 
@@ -272,22 +271,20 @@ The trampoline is a 4KB raw binary placed at physical address 0x8000. The
 BSP writes it there before sending SIPI. It runs in 16-bit real mode then
 transitions each AP to 32-bit protected mode.
 
-The production build assembles a private 4,096-byte candidate with CupidASM.
-CupidASM also writes a private source-derived range map. Hostbuild requires it
-to match 16-bit code in `[0x000, 0x01f)`, data in `[0x01f, 0x210)`, 32-bit
-code in `[0x210, 0x254)`, and data in `[0x254, 0x1000)`. The map stays pinned
-while CupidDis runs with `--raw --range-map`, `--require-known`, and
-`--require-local-targets`. The local-target check validates
-four direct relative transfers. The far jump that changes mode and the
-indirect call to `ap_main_c` are excluded. A target outside the image, inside
-data, in the wrong mode, or in the middle of an instruction fails. Far
-pointers, indirect register or memory targets, and ELF input are outside this
-rule. A changed displacement can still pass if it reaches a different valid
-instruction start in same-mode code, because the raw image does not retain
-source-label identity. Hostbuild replaces `kernel/smp_trampoline.bin` only
-after assembly and inspection succeed. A failure preserves the previous
-trampoline, and the private map is not published. ADR 0305 records
-promoted-seed production adoption. ADR 0308 records the map handoff.
+The production build invokes the promoted CupidBuild seed directly. CupidASM
+assembles a private 4,096-byte candidate and writes its source-derived v2 range
+map. CupidBuild requires 16-bit code in `[0x000, 0x01f)`, data in
+`[0x01f, 0x210)`, 32-bit code in `[0x210, 0x254)`, and data in
+`[0x254, 0x1000)`. The map stays pinned while CupidDis requires known code,
+local targets, and source-resolved edges. The policy covers four local
+relative transfers, the local far jump that changes mode, and the indirect
+call to `ap_main_c` as an unprovable runtime target. An invalid range, target,
+mode, or source edge blocks publication. CupidBuild replaces
+`kernel/smp_trampoline.bin` only after assembly and inspection succeed. A
+failure preserves the previous trampoline, and the private map is not
+published. ADR 0305 records local-target adoption, ADR 0308 records the map
+handoff, ADR 0340 records source-resolved edges, and ADR 0357 records direct
+publication ownership.
 
 ### Trampoline stages
 
@@ -559,8 +556,9 @@ its 2,852-byte manifest has SHA-256
 and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
 self-consumption pass on both platforms, including the normal SMP path, with
 all six initial images equal to stage two. CupidBuild owns the context-switch
-object publication directly. Python still coordinates the raw trampoline and
-the remaining build publications. ADR 0356 records the active seed refresh.
+object and raw trampoline publications directly. Across the supported graph,
+CupidBuild participates in four transforms and Python in 448. ADR 0356 records
+the active seed refresh, and ADR 0357 records the raw recipe transfer.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
 seconds with all fourteen exact policy artifacts accepted. Its 4,096-byte

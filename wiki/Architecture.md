@@ -2,11 +2,11 @@
 
 cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-bit x86. The kernel, drivers, shell, and applications all run in the same flat memory space with full hardware access.
 
-The current build graph contains 452 transforms. CupidBuild directly
-coordinates the ISR and context-switch object publications, so it participates
-in two transforms and Python in 450. CupidASM remains the language owner and
-CupidDis remains the inspection owner for both objects. The other Python
-coordination boundaries are unchanged.
+The current build graph contains 452 transforms, including 443 under root
+`all`. CupidBuild directly coordinates the ISR and context-switch object
+publications plus the bootloader and SMP raw-image publications, so it
+participates in four transforms and Python in 448. CupidASM remains the
+language owner, and CupidDis remains the inspection owner for all four.
 
 ---
 
@@ -52,21 +52,16 @@ BIOS loads boot.asm at 0x7C00 (real mode, 16-bit)
             └── desktop_run()       - Main event loop
 ```
 
-The checked raw-image transaction assembles the 2,560-byte boot image and the
-4,096-byte SMP trampoline with the promoted CupidASM seed. Promoted CupidDis
-uses their typed range maps with
-`--require-known --require-local-targets --raw`. The
-boot image has nine checked direct relative targets and excludes three far
-jumps. The trampoline has four checked direct relative targets and excludes
-its far mode transition and indirect call. Far pointers, indirect register or
-memory targets, and ELF input are outside this rule. A displacement that lands
-on a different valid instruction start in same-mode code can still pass because
-the check does not retain source-label identity. Either transaction preserves
-the prior image on failure. ADR 0305 records the raw-image promotion, and ADR
-0312 records the preceding seed and relocatable-object adoption. ADR 0318
-records the preceding linked-image adoption, ADR 0323 records the preceding
-code-anchor adoption, ADR 0336 records the parent v1 pair, and ADR 0353 records
-the active paired v2 promotion.
+The promoted CupidBuild seed owns the checked transactions for the 2,560-byte
+boot image and 4,096-byte SMP trampoline. CupidASM writes each private image
+and its typed v2 range map. CupidDis requires known instructions, local
+targets, and source-resolved edges before publication. The boot map contains
+nine local relative, two local far, and one external far edge. The trampoline
+map contains four local relative, one local far, and one indirect unprovable
+edge. A failed check preserves the previous image, and the map stays private.
+ADR 0305 records raw local-target adoption, ADR 0340 records source-resolved
+edges, ADR 0356 records seed carriage, and ADR 0357 records direct publication
+ownership.
 
 The public in-kernel raw adapter accepts fixed 16-bit code, fixed 32-bit code,
 or the same typed code16, code32, and data range records used by the shared
@@ -239,11 +234,11 @@ compiler or assembler ownership from that transform.
 
 The publication records 75 publication inputs, 58 candidate inputs, 22
 artifacts, and 62 stage pairs. The active v2 seed carries CupidBuild, which now
-owns two normal publications. The stable audit counts cover 747 active language inputs,
+owns four normal guarded assembly publications. The stable audit counts cover 747 active language inputs,
 452 transforms, 255 features, and 26 unreachable inputs.
 CupidC participates in 250 transforms,
 CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in nine, and
-CupidBuild in two. Four transforms use Cupid-built semantic contracts. Python participates in 450
+CupidBuild in four. Four transforms use Cupid-built semantic contracts. Python participates in 448
 as orchestrator, but no transform is Python-only. All 443 transforms under root
 `all` have a Cupid participant.
 
@@ -257,23 +252,23 @@ validates the Windows target, provenance, exact inventory, and observed bytes.
 The focused modules contain 54 tests. They pass with four platform-specific
 skips. The source-head artifact contract passes
 against all sixteen exact artifacts. The current 3,382-byte policy has SHA-256
-`3518552751c6993bbf4c36735a0a780616253543ba5c6555af55ae5979c45ff6`
-and covers 38,143,900 bytes across those paths.
+`78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`
+and covers 38,144,480 bytes across those paths.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,605,148 | `7f83f2283f5f1c0f90cfde71942c7c7cfb596b13ba4e0974e8e843de28e0bc63` |
-| `kernel/kernel.elf` | 9,736,220 | `d55d1170293bbc2e2285586f85cb54702a1fefeae90cc497fd474834ae001076` |
-| `kernel/kernel.bin` | 9,507,224 | `efd8290cabcdfddeaa9e40e6a3ae4b2fbec4cc640e53b5abbdbecda8379e24f1` |
-| `cupidos.img` | 209,715,200 | `9ee5ed43c1f5615077f6da47e579e41e27e31fd8fe7839d6b220e7e031d17635` |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63` |
+| `kernel/kernel.elf` | 9,736,220 | `c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436` |
+| `kernel/kernel.bin` | 9,507,804 | `2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f` |
+| `cupidos.img` | 209,715,200 | `1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc` |
 
 The current normal build completed the 431-input local-target and code-anchor
 scan, accepted the exact policy, and preserved the image's FAT contents while
 staging `hello.iso`. A private four-vCPU `max` and E1000 copy brought all CPUs
 online and completed the full graphics, audio, and in-OS CupidC frontier. The
-framebuffer changed 101,820 pixels; both audio captures were non-silent. Its
-149,029-byte log has SHA-256
-`5b4cd234867bda2c69152d443f8104bd4d2b7974e7b2da45d30185a60849c538`
+framebuffer changed 69,823 pixels; both audio captures were non-silent. Its
+147,526-byte log has SHA-256
+`252d3ef3796233cd752754c19aaa85a7311010bd75d0d5d57264fd6919584b56`
 and no rejected runtime marker.
 
 The preceding source-head cohort used the same pass-one and final ELF sizes
@@ -315,9 +310,9 @@ its 2,852-byte manifest has SHA-256
 `019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
 and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
 self-consumption pass on both platforms, with all six initial images equal to
-stage two. Existing ownership remains unchanged: CupidBuild publishes two
-assembly objects, while Hostbuild and Python retain the raw and other guarded
-paths. ADR 0356 records the active seed refresh.
+stage two. CupidBuild publishes the two assembly objects and both raw images
+directly, while Python retains the other guarded paths. ADR 0356 records the
+active seed refresh, and ADR 0357 records the raw recipe transfer.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260 seconds.
 All fourteen policy artifacts matched their exact sizes. The 2,960-byte policy

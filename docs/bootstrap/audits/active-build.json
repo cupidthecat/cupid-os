@@ -3105,9 +3105,7 @@
       {
         "inputs": [
           "boot/boot.asm",
-          "tools/hostbuild.py",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3119,14 +3117,14 @@
         "operation": "assemble_flat_binary",
         "output": "boot/boot.bin",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py assemble-bootloader \\",
-          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-bootloader \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
           "--source $< --output $@"
         ],
         "tools": [
           "cupid_assembler",
           "cupid_disassembler",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -37993,9 +37991,7 @@
       {
         "inputs": [
           "kernel/smp/smp_trampoline.S",
-          "tools/hostbuild.py",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38007,14 +38003,14 @@
         "operation": "assemble_flat_binary",
         "output": "kernel/smp_trampoline.bin",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py assemble-smp-trampoline \\",
-          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-smp-trampoline \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
           "--source $< --output $@"
         ],
         "tools": [
           "cupid_assembler",
           "cupid_disassembler",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -56044,7 +56040,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "8952187d00b4f99266675ab52ede03511673fd5c91f92f1f9e384dee37bf75c7"
+        "sha256": "b9daf9e7a8d62d34267ecd09ecffb6ee38d9b4fee4e38e3d8f164b6c42773302"
       },
       {
         "path": "user/Makefile",
@@ -56093,7 +56089,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "bd38d28070b05cdbe80b3ad6713f327300e77e6012d4bd9c2f38070ae2db6d2d"
+      "sha256": "a6e8c33a43e16952e64d69e1d9d0a5d711be53004d41d3c798028437585882e1"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -60543,8 +60539,8 @@
     {
       "build_owners": [
         "cupid_assembler",
-        "cupid_disassembler",
-        "host_python"
+        "cupid_builder",
+        "cupid_disassembler"
       ],
       "builds": [
         "."
@@ -79440,8 +79436,8 @@
     {
       "build_owners": [
         "cupid_assembler",
-        "cupid_disassembler",
-        "host_python"
+        "cupid_builder",
+        "cupid_disassembler"
       ],
       "builds": [
         "."

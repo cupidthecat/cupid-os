@@ -57,16 +57,14 @@ must be the complete `.elf` or `.exe` membership, all six frozen images
 must match the selected static ELF32 or strict PE32 execution profile, and
 membership is checked again after both attempted tool launches, including
 failure and timeout paths. CupidDis then requires known instructions, local
-targets, and relocatable code anchors. The normal ISR and context-switch
-recipes invoke this operation directly, so CupidBuild owns those two guarded
-publications. The refreshed seeds carry the raw commands, but the normal boot
-and trampoline recipes keep their Hostbuild entry points until their separate
-handoff. Fixed-point carriage or source capability alone still does not
-establish production ownership.
+targets, and relocatable code anchors. The normal ISR, context-switch,
+bootloader, and SMP-trampoline recipes invoke this operation directly, so
+CupidBuild owns all four guarded publications. Fixed-point carriage or source
+capability alone still does not establish production ownership.
 _Avoid_: command wrapper, unchecked tool launch, production ownership from source presence
 
 **Hosted bootstrap runtime**:
-The static i386 C runtime linked into Cupid tool and contract images. It supplies the represented heap, file, memory, string, error, and working-directory interfaces without a host libc. Its string boundary includes binary `memchr`, which CupidBuild uses while validating frozen JSON. The active six-tool seeds contain CupidBuild beside CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. CupidBuild directly coordinates the two guarded relocatable assembly publications; Python coordinates the remaining checked uses.
+The static i386 C runtime linked into Cupid tool and contract images. It supplies the represented heap, file, memory, string, error, and working-directory interfaces without a host libc. Its string boundary includes binary `memchr`, which CupidBuild uses while validating frozen JSON. The active six-tool seeds contain CupidBuild beside CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. CupidBuild directly coordinates two guarded relocatable objects and two guarded raw images; Python participates in the remaining 448 transforms.
 _Avoid_: host libc, production ownership from a source-head link
 
 **External executable arena**:
@@ -521,19 +519,19 @@ symbol tables and flow into every linked tool. The Windows reproof reports all
 five comparisons true because PE linking removes those ELF symbol tables.
 Both checked CupidDis images carry executable-relocation,
 raw, relocatable, linked local-target, and static ELF code-anchor checks.
-Hostbuild selects the raw form for the nine bootloader and four SMP targets
-proved by active-source tests and both linked checks for the two kernel ELFs
-before flattening. CupidBuild selects the relocatable form for both active
-CupidASM objects. The
+CupidBuild selects the raw form for the nine bootloader and four SMP targets
+proved by active-source tests and the relocatable form for both active
+CupidASM objects. Hostbuild retains both linked checks for the two kernel ELFs
+before flattening. The
 artifact-size policy covers
 four OS outputs, six Linux seed images, and six Windows seed images.
 
 The source-current three-root graph records 452 transforms, including 443
 under root `all`. CupidC participates in 250, CupidObj in 192, CupidASM in nine,
 CupidLD in nine, and CupidDis in nine. Four transforms run Cupid-built semantic
-contracts, and CupidBuild in two. Its assembly ownership contract covers all 32
+contracts, and CupidBuild in four. Its assembly ownership contract covers all 32
 active assembly sources, including five Toolchain startup sources, with no
-ownerless input. Python participates in 450 for coordination and safety, but no
+ownerless input. Python participates in 448 for coordination and safety, but no
 transform is Python-only. The Toolchain publisher now gives a checked strict
 C11 author its artifact and source facts plus 62 raw stage pairs through
 `CUPMAN4`. The pairs cover 17 contract objects, 16 contract executables, 22
@@ -1792,23 +1790,23 @@ The 143,084-byte serial log had SHA-256
 `6b5c6a4ca5daf9f19ec099d45609f385e0cf983f945a40433ebc3f1921e8ffab`.
 The current final artifacts are a 9,605,148-byte
 `kernel/kernel.elf.pass1` with SHA-256
-`7f83f2283f5f1c0f90cfde71942c7c7cfb596b13ba4e0974e8e843de28e0bc63`, a
+`e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63`, a
 9,736,220-byte `kernel/kernel.elf` with SHA-256
-`d55d1170293bbc2e2285586f85cb54702a1fefeae90cc497fd474834ae001076`,
-and a 9,507,224-byte `kernel/kernel.bin` with SHA-256
-`efd8290cabcdfddeaa9e40e6a3ae4b2fbec4cc640e53b5abbdbecda8379e24f1`.
-The current 3,382-byte exact-size policy covers 38,143,900 bytes and has
+`c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436`,
+and a 9,507,804-byte `kernel/kernel.bin` with SHA-256
+`2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f`.
+The current 3,382-byte exact-size policy covers 38,144,480 bytes and has
 SHA-256
-`3518552751c6993bbf4c36735a0a780616253543ba5c6555af55ae5979c45ff6`.
+`78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`.
 The normal 209,715,200-byte `cupidos.img` has SHA-256
-`9ee5ed43c1f5615077f6da47e579e41e27e31fd8fe7839d6b220e7e031d17635`
+`1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc`
 after preserving its FAT contents and staging `hello.iso`. The final private
 four-vCPU `max` and E1000 smoke used a copy of that image. All four CPUs came
 online, and the complete frontier finished its graphics, audio, and in-OS
-CupidC work. The framebuffer changed 101,820 pixels. AC97 captured 32,502,438
-frames at peak 25,600, and the PC speaker captured 77,568 frames at peak
-32,744. The 149,029-byte log has SHA-256
-`5b4cd234867bda2c69152d443f8104bd4d2b7974e7b2da45d30185a60849c538`
+CupidC work. The framebuffer changed 69,823 pixels. AC97 captured 32,591,013
+frames at peak 25,600, and the PC speaker captured 76,324 frames at peak
+31,271. The 147,526-byte log has SHA-256
+`252d3ef3796233cd752754c19aaa85a7311010bd75d0d5d57264fd6919584b56`
 and no rejected runtime marker. The source image was not changed by the smoke.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
@@ -1843,7 +1841,9 @@ objects. Final-stage comparisons and behavior checks cover all six tools, and
 any post-promotion reproof must compare all six initial images as well. Both
 compared CupidBuild images run the guarded object command. They must publish
 identical relocatable bytes and preserve existing outputs when the source is
-missing. Each final-stage CupidDis strictly inspects the corresponding six
+missing. They also run the guarded bootloader and SMP-trampoline commands,
+reproduce the exact raw sizes, and preserve an existing output on useful
+failures. Each final-stage CupidDis strictly inspects the corresponding six
 images, and both generations reject an entry-corrupted CupidBuild copy. The
 candidate behavior inventories are 24/6/31 on Linux and 13/6/18 on Windows for
 failure, help, and success cases. Both plans freeze the same 58 inputs at
@@ -1896,7 +1896,7 @@ An optional comparison build used to establish external reference behavior or ou
 _Avoid_: normal build
 
 **Host toolchain**:
-External compilers, assemblers, linkers, and binary utilities confined to explicit development and oracle paths. They do not produce normal Cupid OS or Toolchain artifacts. Host Python still coordinates most of the checked build, while CupidBuild directly owns the ISR and context-switch object publications. Windows runs output-bearing production tools, the user syscall ABI contract, the artifact-size contract, and the Toolchain manifest verifier from the native six-tool execution seed. The manifest verifier also checks the paired Linux publication seed. Windows stage two uses checked Linux CupidC plus the Windows execution seed, then native PE tools build stages three and four. Linux fixed-point reconstruction, that one-generation Windows C bridge, and the full published Toolchain contract cohort use WSL on Windows. Both platforms have a clean six-tool candidate proof and paired v2 seed promotion. Further Python-free coordination remains open. ADR 0341 records the bridge, ADR 0353 records the promotion, and ADR 0354 records the first normal CupidBuild recipe transfer.
+External compilers, assemblers, linkers, and binary utilities confined to explicit development and oracle paths. They do not produce normal Cupid OS or Toolchain artifacts. Host Python still coordinates most of the checked build, while CupidBuild directly owns the ISR and context-switch objects plus the bootloader and SMP-trampoline raw images. Windows runs output-bearing production tools, the user syscall ABI contract, the artifact-size contract, and the Toolchain manifest verifier from the native six-tool execution seed. The manifest verifier also checks the paired Linux publication seed. Windows stage two uses checked Linux CupidC plus the Windows execution seed, then native PE tools build stages three and four. Linux fixed-point reconstruction, that one-generation Windows C bridge, and the full published Toolchain contract cohort use WSL on Windows. Both platforms have a clean six-tool candidate proof and paired v2 seed promotion. Further Python-free coordination remains open. ADR 0341 records the bridge, ADR 0353 records the promotion, ADR 0354 records the first normal CupidBuild recipe transfer, and ADR 0357 records the raw publication transfer.
 _Avoid_: build orchestrator
 
 **Checked native-tool cleanup**:
@@ -1916,5 +1916,6 @@ lower-case hexadecimal promoted revision and source snapshot. The Windows
 record names the exact Linux v2 plan-manifest digest, and the host driver binds
 that field to the supplied bytes. Python pins the promoted artifact identities;
 CupidBuild validates the structural source identity so its own binary does not
-create a self-reference.
+create a self-reference. That non-producer lineage role is separate from
+CupidBuild's ownership of four normal guarded publications.
 _Avoid_: self-referential seed, provisional promotion

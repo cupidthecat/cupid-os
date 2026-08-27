@@ -1905,6 +1905,7 @@ def _operation_for_recipe(
     inputs: list[str],
 ) -> str:
     joined = " ".join(recipe).lower()
+    tokens = {token.lower() for token in _recipe_tokens(recipe)}
     if (
         "$(toolchain_manifest_contract)" in joined
         and "cupid_c_contract" in tools
@@ -1945,13 +1946,13 @@ def _operation_for_recipe(
     ):
         return "extract_raw_binary"
     if (
-        "hostbuild.py assemble-bootloader " in joined
-        and "cupid_assembler" in tools
-        and "cupid_disassembler" in tools
-    ):
-        return "assemble_flat_binary"
-    if (
-        "hostbuild.py assemble-smp-trampoline " in joined
+        any(
+            operation in tokens
+            for operation in (
+                "assemble-bootloader",
+                "assemble-smp-trampoline",
+            )
+        )
         and "cupid_assembler" in tools
         and "cupid_disassembler" in tools
     ):

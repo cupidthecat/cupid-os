@@ -36,8 +36,9 @@ four. Both CupidBuild images also pass the guarded object command and its
 missing-source rollback. The six-tool cohorts are now active, and their
 promoted-seed self-consumption reproof passes with all six initial images equal
 to stage two on both platforms. This changes hosted bootstrap evidence, not
-CupidC language behavior. CupidBuild owns the ISR and context-switch object
-recipes, while Python retains coordination and publication elsewhere.
+CupidC language behavior. CupidBuild owns the ISR, context-switch, bootloader,
+and SMP-trampoline recipes, while Python retains coordination and publication
+elsewhere.
 >endtree
 
 >h2 Purpose
@@ -661,7 +662,8 @@ and private four-vCPU proof for this increment. Exact artifact and runtime
 measurements stay there because this manual is an image input.
 
 The active Linux and Windows v2 cohorts are complete six-tool trust units.
-CupidBuild is checked in both and owns two normal object publications.
+CupidBuild is checked in both and owns four normal guarded assembly
+publications: two objects and two raw images.
 Their CupidDis images carry local-target validation for raw images,
 relocatable objects, and static linked executables. Active-source tests cover
 all nine bootloader targets and all four trampoline targets. Production also
@@ -712,8 +714,8 @@ log records the exact publication identity and completion evidence.
 Audit generation and checked reproduction pass. The audit records 747 active
 inputs, 452 transforms, 255 feature requirements,
 and 26 accounted unreachable files. Ownership participation is CupidC 250,
-CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and CupidBuild 2. Python
-participates in 450. Four transforms run Cupid-built contracts, and none is
+CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and CupidBuild 4. Python
+participates in 448. Four transforms run Cupid-built contracts, and none is
 Python-only. The host bootstrap log records
 the post-manual-freeze poisoned build and strong private four-vCPU e1000
 frontier. Exact OS identities and runtime measurements stay there because this
@@ -751,9 +753,10 @@ Its 2,852-byte manifest has SHA-256
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
-Windows. All six initial images match stage two. The normal ISR and
-context-switch recipes use CupidBuild directly. Python coordinates and
-publishes the remaining build paths. ADR 0356 records the active seed refresh.
+Windows. All six initial images match stage two. The normal ISR,
+context-switch, bootloader, and SMP-trampoline recipes use CupidBuild directly.
+Python participates in the remaining 448 transforms. ADR 0356 records the
+active seed refresh, and ADR 0357 records the raw recipe transfer.
 >endtree
 
 >h2 See Also

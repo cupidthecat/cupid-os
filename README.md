@@ -58,6 +58,21 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 
 ## 2026-08-27 source-current checkpoint
 
+The normal bootloader and SMP-trampoline rules now run the promoted CupidBuild
+seed directly. Each rule depends on Makefile, the production manifest, and all
+six seed images; standalone CupidASM, CupidDis, and Python overrides cannot
+redirect the transaction. CupidBuild freezes that trust unit, lets CupidASM
+author the private image and map, asks CupidDis to enforce the artifact's
+decode, target, and source-edge rules, and publishes only after every live
+boundary still matches. Forced Windows and Linux rebuilds passed with Python
+deliberately unavailable and reproduced the established 2,560-byte boot image
+and 4,096-byte trampoline exactly. ADR 0357 records the handoff.
+
+The graph still contains 452 transforms, including 443 under root `all`.
+CupidBuild now participates in four, Python in 448, and every transform still
+has a Cupid tool involved. Fixed-point coordination, packaging, and the other
+checked publications remain separate work.
+
 Source-head CupidBuild now has typed bootloader and SMP-trampoline assembly
 commands. Each command keeps the raw image and `cupid.raw-map.v2` sidecar in
 one private transaction, enforces the artifact's exact size and map policy,
@@ -68,11 +83,9 @@ The fixed-point behavior gate exercises both raw commands and the existing
 object command across consecutive CupidBuild generations. The refreshed
 promoted seeds now carry all three commands. Their self-consumption proofs
 match all six stage-two images and retain complete stage-three/stage-four
-convergence. The normal bootloader and trampoline recipes still use Hostbuild
-until their separate ownership transfer, so graph participation does not
-change in this checkpoint. The normal OS build and a private four-vCPU boot
-smoke also pass. ADR 0355 records the source capability, and ADR 0356 records
-its carriage in the active seeds.
+convergence. The normal OS build and a private four-vCPU boot smoke also pass.
+ADR 0355 records the source capability, and ADR 0356 records its carriage in
+the active seeds.
 
 The normal ISR and context-switch recipes now invoke the promoted CupidBuild
 seed directly. CupidBuild freezes the assembly source and complete six-tool
@@ -81,17 +94,13 @@ known-decode, local-target, and code-anchor policies through CupidDis, rechecks
 the transaction, and replaces the object atomically. A forced native Windows
 run with `PYTHON=missing-python` produced byte-identical objects.
 
-The active graph still has 452 transforms. CupidBuild now participates in two,
-and Python participates in 450. The raw bootloader and SMP transactions, C and
-link operations, generated artifacts, user programs, and fixed-point builders
-remain separate transfers. The Linux CupidBuild seed is stored as an executable
-so a fresh checkout can enter the same direct recipe. ADR 0354 records the
-ownership boundary.
+The Linux CupidBuild seed is stored as an executable so a fresh checkout can
+enter each direct recipe. ADR 0354 records the first ownership boundary.
 
 The complete normal build passed both CupidLD links, whole-kernel CupidDis
 inspection, all 16 exact-size checks, and image publication. The refreshed
-seed records and review-corrected CTXT payload produce a deterministic
-9,507,224-byte raw kernel. The pass-one and final ELFs remain 9,605,148 and
+seed records and humanized CTXT payload produce a deterministic
+9,507,804-byte raw kernel. The pass-one and final ELFs remain 9,605,148 and
 9,736,220 bytes. Those values are checked policy rows. A private four-vCPU
 `max` and E1000 frontier exercises the staged image through the complete
 runtime contract.
@@ -324,8 +333,8 @@ records checkout-local contract imports, and [ADR 0322](docs/adr/0322-run-the-to
 records native Windows author execution. The source graph has 747 active inputs,
 452 transforms, 255 feature requirements, and 26 accounted unreachable files.
 Participation
-is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, CupidBuild 2,
-and four Cupid-built semantic contracts. Python participates in 450 transforms,
+is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, CupidBuild 4,
+and four Cupid-built semantic contracts. Python participates in 448 transforms,
 but no transform is Python-only. Root `all` remains at 443 transforms, each
 with a Cupid participant. The latest complete schema v3 `CUPMAN4`
 publication passed. The Cupid author and Python oracle agreed on all 62 stage
@@ -410,10 +419,10 @@ Active-source tests prove all nine bootloader and four SMP targets. [ADR 0305](d
 records raw-image promotion, and ADR 0312 records relocatable-object promotion
 and production adoption.
 
-The SMP publisher now gets its mixed-mode layout from CupidASM instead of
-repeating the range starts on the CupidDis command line. Hostbuild requires the
-private `cupid.raw-map.v1` file to match the fixed 4 KiB trampoline policy,
-pins it through strict CupidDis inspection, and publishes only the binary. A
+The SMP publisher gets its mixed-mode layout from CupidASM instead of repeating
+the range starts on the CupidDis command line. CupidBuild requires the private
+`cupid.raw-map.v2` file to match the fixed 4 KiB trampoline policy, pins it
+through strict CupidDis inspection, and publishes only the binary. A
 forced checked-seed build kept the reviewed trampoline SHA-256
 `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
 [ADR 0308](docs/adr/0308-bind-the-smp-trampoline-to-cupidasm-raw-layout-metadata.md)
@@ -2664,13 +2673,14 @@ location.
 ## Bootloader (boot/boot.asm)
 
 The bootloader has two stages and occupies five 512-byte sectors. The normal
-Make rule runs `tools/hostbuild.py assemble-bootloader` with the production
-seed manifest. Hostbuild freezes the source and six-tool cohort, asks CupidASM
-for private image and source-map candidates, requires the exact 2,560-byte
-result, and sends the map to CupidDis with `--require-known`. It rechecks the
-live inputs and output boundary before atomic publication. Failures preserve
-the previous boot image and leave no public map file. ADR 0283 records this
-ownership boundary.
+Make rule runs the promoted CupidBuild seed with the production manifest and
+complete six-image seed closure. CupidBuild freezes the source and trust unit,
+asks CupidASM for private image and source-map candidates, requires the exact
+2,560-byte result, and sends the map to CupidDis for strict decode,
+local-target, and source-edge checks. It rechecks the live inputs and output
+boundary before atomic publication. Failures preserve the previous boot image
+and leave no public map file. ADR 0283 records the original checked transaction,
+and ADR 0357 records direct publication ownership.
 
 Stage 1 lives in the MBR at 0x7C00. It loads stage 2 (4 sectors from LBA 1) to 0x7E00 using INT 0x13 EDD, then jumps there.
 
@@ -3096,9 +3106,10 @@ paired with another valid plan seed.
 The validators still accept v1 manifests in compatibility and transition
 tests. Production closures, artifact-size verification, and Toolchain
 publication freeze and recheck all six active images. CupidBuild directly owns
-the two guarded relocatable assembly publications. Python coordinates the
-remaining guarded calls. ADR 0353 records the promotion, and ADR 0354 records
-the first normal recipe transfer.
+the two guarded relocatable objects and both guarded raw images. Python
+participates in the remaining 448 transforms. ADR 0353 records the promotion,
+ADR 0354 records the first normal recipe transfer, and ADR 0357 records the raw
+publication handoff.
 
 ---
 

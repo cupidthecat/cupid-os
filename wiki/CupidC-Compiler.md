@@ -1,11 +1,12 @@
 # CupidC Compiler
 
 CupidC builds CupidBuild as part of the promoted Linux and Windows six-tool
-cohorts. The normal ISR and context-switch recipes now run that checked
-CupidBuild image directly, which establishes production ownership for two
-guarded publications. Fixed-point carriage and the remaining Python
-transactions stay distinct. ADR 0339 records the original source-head seam,
-ADR 0353 records seed promotion, and ADR 0354 records the recipe transfer.
+cohorts. The normal ISR, context-switch, bootloader, and SMP-trampoline recipes
+run that checked CupidBuild image directly, which establishes production
+ownership for four guarded publications. Fixed-point carriage and the
+remaining Python transactions stay distinct. ADR 0339 records the original
+source-head seam, ADR 0353 records seed promotion, ADR 0354 records the object
+recipe transfer, and ADR 0357 records the raw recipe transfer.
 
 CupidC is a HolyC-inspired C compiler built into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code. Programs run directly in ring 0 without a virtual machine or interpreter. Every active CupidC translation unit already uses `.cc`; this transfer has no C source to rename.
 
@@ -1673,9 +1674,9 @@ execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. The stable
 audit counts cover 747 active language inputs, 452 transforms, 255 features,
-and 26 unreachable inputs. Python participates in 450 transforms as orchestrator.
+and 26 unreachable inputs. Python participates in 448 transforms as orchestrator.
 CupidC participates in 250, CupidObj in 192, CupidASM in nine, CupidLD in nine,
-CupidDis in nine, and CupidBuild in two. Four transforms use Cupid-built semantic contracts, and no
+CupidDis in nine, and CupidBuild in four. Four transforms use Cupid-built semantic contracts, and no
 transform is Python-only. Root `all` has 443 transforms, and every one has a
 Cupid participant. The size verifier emits no OS artifact; it runs a private
 CupidC contract with CupidASM startup and a CupidLD link. The normal graph runs
@@ -1692,23 +1693,23 @@ independent-policy modules contain 54 tests. They pass with four
 platform-specific skips. The source-head artifact
 contract passes against all sixteen exact artifacts. The current 3,382-byte
 policy has SHA-256
-`3518552751c6993bbf4c36735a0a780616253543ba5c6555af55ae5979c45ff6`
-and covers 38,143,900 bytes across those paths. The pass-one ELF is 9,605,148
+`78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`
+and covers 38,144,480 bytes across those paths. The pass-one ELF is 9,605,148
 bytes with SHA-256
-`7f83f2283f5f1c0f90cfde71942c7c7cfb596b13ba4e0974e8e843de28e0bc63`.
+`e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63`.
 The final ELF is 9,736,220 bytes with SHA-256
-`d55d1170293bbc2e2285586f85cb54702a1fefeae90cc497fd474834ae001076`.
-The raw kernel is 9,507,224 bytes with SHA-256
-`efd8290cabcdfddeaa9e40e6a3ae4b2fbec4cc640e53b5abbdbecda8379e24f1`.
+`c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436`.
+The raw kernel is 9,507,804 bytes with SHA-256
+`2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f`.
 The normal disk image is 209,715,200 bytes with SHA-256
-`9ee5ed43c1f5615077f6da47e579e41e27e31fd8fe7839d6b220e7e031d17635`.
+`1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc`.
 The normal build completed its 431-input code-anchor scan, accepted the exact
 policy, and preserved the image's FAT contents while staging `hello.iso`. A
 private four-vCPU `max` and E1000 copy brought all CPUs online and completed
 the full graphics, audio, and in-OS CupidC frontier. The framebuffer changed
-101,820 pixels; both audio captures were non-silent. Its 149,029-byte log has
+69,823 pixels; both audio captures were non-silent. Its 147,526-byte log has
 SHA-256
-`5b4cd234867bda2c69152d443f8104bd4d2b7974e7b2da45d30185a60849c538`
+`252d3ef3796233cd752754c19aaa85a7311010bd75d0d5d57264fd6919584b56`
 and no rejected runtime marker.
 
 The preceding source-head cohort used the same pass-one and final ELF sizes
@@ -3202,6 +3203,7 @@ and pairs to the exact Linux manifest bytes.
 
 Candidate fixed-point and behavior proof passed on both platforms. The active
 v2 cohorts also pass promoted-seed self-consumption, with all six initial images
-equal to stage two. CupidBuild owns the normal ISR and context-switch object
-recipes. Python coordinates and publishes the remaining checked build paths.
-ADR 0356 records the active seed refresh.
+equal to stage two. CupidBuild owns the normal ISR, context-switch, bootloader,
+and SMP-trampoline recipes. Python participates in the remaining 448
+transforms. ADR 0356 records the active seed refresh, and ADR 0357 records the
+raw recipe transfer.

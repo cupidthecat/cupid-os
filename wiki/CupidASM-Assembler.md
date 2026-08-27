@@ -5,19 +5,15 @@ run fixed images immediately, write raw binaries with typed range maps, keep
 an ELF32 relocatable object for a later link, or ask CupidLD for a linked
 executable. JIT programs run in ring 0 and can call the kernel directly.
 
-The normal ISR and context-switch recipes now enter CupidASM through the
-promoted CupidBuild seed. CupidBuild freezes the source and six-tool cohort,
-validates the private `ET_REL` object, asks CupidDis to check instruction
-coverage, relocations, local targets, and function anchors, then publishes it
-atomically. Python no longer participates in these two transforms. ADR 0354
-records the handoff.
-
-Source-head CupidBuild also exposes typed bootloader and SMP-trampoline
-assembly. These commands retain the raw image and v2 map inside one guarded
-transaction, apply the artifact's exact size and layout rules, and require
-CupidDis source-edge validation. They are not normal recipe owners yet because
-recipe ownership needs its own graph, build, and boot evidence. ADR 0355
-records the source-head capability, and ADR 0356 records seed carriage.
+The normal ISR, context-switch, bootloader, and SMP-trampoline recipes now
+enter CupidASM through the promoted CupidBuild seed. For objects, CupidBuild
+validates the private `ET_REL` candidate and asks CupidDis to check instruction
+coverage, relocations, local targets, and function anchors. For raw images, it
+keeps the image and v2 map in one private transaction, applies the artifact's
+exact size and layout rules, and requires CupidDis source-edge validation.
+Python does not participate in these four transforms. ADR 0354 records the
+object handoff, ADR 0355 records the typed raw interface, ADR 0356 records seed
+carriage, and ADR 0357 records the raw recipe handoff.
 
 ---
 
@@ -300,7 +296,7 @@ state. The guarded boot and SMP transactions require these rows before
 publication. ADR 0340 records the v2 contract, ADR 0336 records v1 seed
 carriage and adoption, and ADR 0353 records active v2 carriage.
 
-One checked raw-image transaction serves the SMP and bootloader callers. It
+One checked CupidBuild raw-image transaction serves the SMP and bootloader callers. It
 owns output locking, source and seed freezing, drift checks, private candidates,
 and atomic publication. Each caller retains its image-size and map policy. The
 SMP caller requires CupidASM's private map to match the fixed AP startup layout
@@ -310,21 +306,23 @@ expanded eleven-test suite passed in 1.708 seconds, including direct mismatch
 and live-output drift checks for both callers. Parent-replacement tests exposed
 a POSIX candidate leak when private work lived below the output parent. Private
 roots now live directly below the stable repository root. Both caller modules
-pass all 10 tests on Windows and through WSL. The normal bootloader Make edge
-calls the guarded transaction with the production manifest and full checked
-seed. Hostbuild publishes only after CupidASM and CupidDis accept the private
-image and map. ADR 0283 records the cutover.
+pass all 10 tests on Windows and through WSL. The normal bootloader and SMP
+Make edges call the guarded transaction with the production manifest and full
+checked seed. CupidBuild publishes only after CupidASM and CupidDis accept the
+private image and map. ADR 0283 records the first boot cutover, and ADR 0357
+records direct CupidBuild ownership.
 
 The ISR and context-switch objects now enter the shared checked assembly
-transaction too. CupidASM writes a private ELF32 relocatable, hostbuild applies
+transaction too. CupidASM writes a private ELF32 relocatable, CupidBuild applies
 the shared structural validator and requires executable bytes, and CupidDis
 must decode every executable byte. The source, seed, candidate, live output,
 and output parent must still match before atomic publication. The later final
-kernel gate remains as a whole-kernel check. ADR 0286 records this object
-boundary.
+kernel gate remains as a whole-kernel check. The current Make recipes invoke
+CupidBuild directly. ADR 0286 records the object boundary, and ADR 0354 records
+direct publication ownership.
 
 The normal SMP trampoline recipe uses CupidASM's own map as a publication gate.
-Hostbuild freezes the selected seed and source, asks CupidASM for private image
+CupidBuild freezes the selected seed and source, asks CupidASM for private image
 and map candidates, and requires the map to match the canonical 4 KiB policy.
 It then runs CupidDis with `--raw --range-map`, `--require-known`,
 `--require-local-targets`, and `--require-source-edges`. The local-target option always requires
@@ -1667,8 +1665,8 @@ ADR 0318 records the seed identities.
 ## Active six-tool seed
 
 The active Linux and Windows v2 manifests carry CupidASM as a producer and
-CupidBuild as both a checked tool and the coordinator for two normal object
-publications. Both list six images and bind revision
+CupidBuild as both a checked tool and the coordinator for four normal guarded
+assembly publications. Both list six images and bind revision
 `43c747f0e683d0527984bae05bf944879e64a07b`, the 58-input snapshot
 `4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`,
 and their exact build plans.
@@ -1687,6 +1685,5 @@ Linux and native Windows candidate proof passed. Linux covers 24 failure, six
 help, and 31 success groups; Windows covers 13 failure, six help, and 18
 success groups. Promoted-seed self-consumption also passed on both platforms,
 with all six initial tool images equal to stage two. ADR 0353 records the v2
-promotion, and ADR 0356 records the active refresh. The checked CupidBuild
-images carry guarded raw commands; their normal Make recipe transfer and
-Python-free coordination remain.
+promotion, ADR 0356 records the active refresh, and ADR 0357 records the raw
+recipe transfer. Python-free coordination remains open.

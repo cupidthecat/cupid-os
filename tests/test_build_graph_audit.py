@@ -2665,16 +2665,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "kernel/smp_trampoline.bin": "assemble_flat_binary",
             }
             for output_path, operation in expected_assembly.items():
-                coordinator = (
-                    "cupid_builder"
-                    if output_path
-                    in {"kernel/core/context_switch.o", "kernel/cpu/isr.o"}
-                    else "host_python"
-                )
                 expected_tools = [
                     "cupid_assembler",
                     "cupid_disassembler",
-                    coordinator,
+                    "cupid_builder",
                 ]
                 self.assertEqual(
                     transforms[output_path]["tools"],
@@ -9018,7 +9012,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6627, 179),
+                "c.expression.sizeof": (6630, 179),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -9560,13 +9554,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
-                    "cupid_builder": 2,
+                    "cupid_builder": 4,
                     "cupid_object": 192,
                     "cupid_linker": 9,
                     "cupid_disassembler": 9,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 450,
+                    "host_python": 448,
                 },
             )
             self.assertFalse(
@@ -10226,7 +10220,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(
             bootloader_transform["tools"],
-            ["cupid_assembler", "cupid_disassembler", "host_python"],
+            ["cupid_assembler", "cupid_disassembler", "cupid_builder"],
         )
         self.assertEqual(
             bootloader_transform["operation"],
@@ -10234,13 +10228,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(
             set(bootloader_transform["inputs"]),
-            seed_inputs | {"boot/boot.asm", "tools/hostbuild.py"},
+            {
+                "Makefile",
+                "boot/boot.asm",
+                *WINDOWS_PRODUCTION_SEED_INPUTS,
+            },
         )
         self.assertEqual(
             bootloader_transform["recipe"],
             [
-                "$(PYTHON) tools/hostbuild.py assemble-bootloader \\",
-                "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                "$(PRODUCTION_SEED_SUFFIX) assemble-bootloader \\",
+                '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
                 "--source $< --output $@",
             ],
         )
@@ -10251,7 +10250,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(
             trampoline_transform["tools"],
-            ["cupid_assembler", "cupid_disassembler", "host_python"],
+            ["cupid_assembler", "cupid_disassembler", "cupid_builder"],
         )
         self.assertEqual(
             trampoline_transform["operation"],
@@ -10259,17 +10258,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(
             set(trampoline_transform["inputs"]),
-            seed_inputs
-            | {
+            {
+                "Makefile",
                 "kernel/smp/smp_trampoline.S",
-                "tools/hostbuild.py",
+                *WINDOWS_PRODUCTION_SEED_INPUTS,
             },
         )
         self.assertEqual(
             trampoline_transform["recipe"],
             [
-                "$(PYTHON) tools/hostbuild.py assemble-smp-trampoline \\",
-                "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                "$(PRODUCTION_SEED_SUFFIX) assemble-smp-trampoline \\",
+                '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
                 "--source $< --output $@",
             ],
         )
@@ -10359,7 +10359,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 6,
-            "cupid_builder": 2,
+            "cupid_builder": 4,
             "cupid_object": 192,
             "cupid_linker": 3,
             "cupid_disassembler": 6,
@@ -10377,8 +10377,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         0
                         if transform["output"]
                         in {
+                            "boot/boot.bin",
                             "kernel/cpu/isr.o",
                             "kernel/core/context_switch.o",
+                            "kernel/smp_trampoline.bin",
                         }
                         else 1
                     )
@@ -10394,8 +10396,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         }
                         if transform["output"]
                         in {
+                            "boot/boot.bin",
                             "kernel/cpu/isr.o",
                             "kernel/core/context_switch.o",
+                            "kernel/smp_trampoline.bin",
                         }
                         else seed_inputs
                     )
@@ -11023,7 +11027,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn("tools/hostbuild.py gen-big", recipe)
             self.assertNotIn("custom-cupidasm", recipe)
 
-    def test_bootloader_keeps_checked_seed_closure_under_tool_overrides(self):
+    def test_raw_assembly_keeps_seed_closure_under_tool_overrides(self):
         make = shutil.which("make")
         if make is None:
             self.skipTest("GNU Make is unavailable")
@@ -11035,37 +11039,65 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             driver = Path(td) / "cupidasm-driver"
             driver.write_bytes(b"driver\n")
             relative_driver = driver.relative_to(REPO_ROOT).as_posix()
-            variables = (
-                *module.CANONICAL_MAKE_VARIABLES,
-                "CUPIDASM=custom-cupidasm",
-                f"CUPIDASM_INPUTS={relative_driver}",
-            )
-            with mock.patch.object(
-                module,
-                "CANONICAL_MAKE_VARIABLES",
-                variables,
+            for host, seed_inputs in (
+                ("Windows_NT", WINDOWS_PRODUCTION_SEED_INPUTS),
+                ("Linux", LINUX_BOOTSTRAP_SEED_INPUTS),
             ):
-                rules = module._parse_make_rules(
-                    module._run_make_database(
-                        REPO_ROOT,
-                        make,
-                        "boot/boot.bin",
-                    )
+                variables = (
+                    f"OS={host}",
+                    "CUPIDASM=custom-cupidasm",
+                    f"CUPIDASM_INPUTS={relative_driver}",
+                    "CUPIDDIS=custom-cupiddis",
+                    f"CUPIDDIS_INPUTS={relative_driver}",
+                    "PYTHON=custom-python",
                 )
+                with mock.patch.object(
+                    module,
+                    "CANONICAL_MAKE_VARIABLES",
+                    variables,
+                ):
+                    for target, source, operation in (
+                        (
+                            "boot/boot.bin",
+                            "boot/boot.asm",
+                            "assemble-bootloader",
+                        ),
+                        (
+                            "kernel/smp_trampoline.bin",
+                            "kernel/smp/smp_trampoline.S",
+                            "assemble-smp-trampoline",
+                        ),
+                    ):
+                        with self.subTest(host=host, target=target):
+                            rules = module._parse_make_rules(
+                                module._run_make_database(
+                                    REPO_ROOT,
+                                    make,
+                                    target,
+                                )
+                            )
 
-            rule = rules["boot/boot.bin"]
-            inputs = set(rule.prerequisites)
-            self.assertNotIn(relative_driver, inputs)
-            self.assertTrue(
-                {
-                    "Makefile",
-                    "tools/bootstrap_toolchain.py",
-                    *WINDOWS_PRODUCTION_SEED_INPUTS,
-                }.issubset(inputs)
-            )
-            recipe = "\n".join(rule.recipe)
-            self.assertIn("tools/hostbuild.py assemble-bootloader", recipe)
-            self.assertNotIn("custom-cupidasm", recipe)
+                            rule = rules[target]
+                            inputs = set(rule.prerequisites)
+                            self.assertEqual(
+                                inputs,
+                                {
+                                    "Makefile",
+                                    source,
+                                    *seed_inputs,
+                                },
+                            )
+                            recipe = "\n".join(rule.recipe)
+                            self.assertIn(
+                                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                                "$(PRODUCTION_SEED_SUFFIX) " + operation,
+                                recipe,
+                            )
+                            self.assertIn('--root "$(CURDIR)"', recipe)
+                            self.assertNotIn("custom-cupidasm", recipe)
+                            self.assertNotIn("custom-cupiddis", recipe)
+                            self.assertNotIn("custom-python", recipe)
+                            self.assertNotIn("tools/hostbuild.py", recipe)
 
     def test_generated_kernel_symbols_use_the_checked_cupidc_graph(self):
         with tempfile.TemporaryDirectory() as td:

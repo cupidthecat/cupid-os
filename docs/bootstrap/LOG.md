@@ -32215,3 +32215,87 @@ images now carry `assemble-bootloader` and `assemble-smp-trampoline`, while
 Hostbuild keeps both normal raw recipes until their separate graph, build, and
 boot handoff. ADR 0356 records the decision. No active source changes suffix;
 the toolchain sources are already `.cc`.
+
+## 2026-08-27: hand normal raw publication to CupidBuild
+
+The normal `boot/boot.bin` and `kernel/smp_trampoline.bin` rules now invoke the
+promoted CupidBuild seed directly. Each recipe binds its source, Makefile,
+production manifest, and all six production seed images, then passes the
+absolute repository root to the typed raw command. Python, Hostbuild, and the
+standalone CupidASM and CupidDis controls are absent from both recipes.
+
+The graph contract was written first. It initially failed for both targets
+because their prerequisite closures still contained `tools/hostbuild.py` and
+`tools/bootstrap_toolchain.py`. After the handoff, the same contract passed on
+the Windows and Linux Make profiles. It poisons Python and the standalone
+assembler and disassembler controls, requires the exact host-selected seed
+closure, and accepts only the promoted CupidBuild command.
+
+A forced native Windows rebuild passed with `PYTHON=missing-python`. The same
+forced rebuild passed through WSL with `PYTHON=/bin/false`. Both hosts produced
+the established raw artifacts:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/smp_trampoline.bin` | 4,096 | `b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90` |
+
+The complete CupidBuild command suite passed 50 tests in 57.598 seconds, with
+two expected Linux-only cases skipped on Windows. The full build-graph suite
+passed all 111 tests in 913.207 seconds. Audit generation and deterministic
+comparison both passed. The source-current graph still has 452 transforms,
+including 443 under root `all`, but CupidBuild participation rises from two to
+four while Python falls from 450 to 448. The 2,767,674-byte audit record has
+SHA-256
+`49ed2f7c349a8592e23dc80443931c5a44d4dbff434d3433bb40ee50c7bba218`,
+and the 12,882-byte summary has SHA-256
+`c617bdddc4b39d162bea773a44c428db4df3e06abafa155976341902224ba547`.
+
+The first complete normal build compiled the kernel, drivers, libraries, user
+programs, Doom tree, embedded manuals, and Cupid tools. Both CupidLD links and
+the strict 431-input CupidDis scan passed. The exact-size gate then rejected a
+9,507,804-byte flat kernel against the previous 9,507,224-byte row and
+preserved the existing disk image. The embedded humanized CTXT refresh caused
+that 580-byte change; the two ELF byte counts stayed fixed. After the measured
+row moved, the direct verifier accepted all sixteen exact artifacts. A clean
+normal replay then passed the links, scan, size contract, FAT-preserving image
+update, and `hello.iso` staging.
+
+| Source-current artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,605,148 | `e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63` |
+| `kernel/kernel.elf` | 9,736,220 | `c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436` |
+| `kernel/kernel.bin` | 9,507,804 | `2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f` |
+| `cupidos.img` | 209,715,200 | `1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc` |
+
+The 3,382-byte policy still covers sixteen paths. Their exact total is now
+38,144,480 bytes, and the policy has SHA-256
+`78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`.
+
+The private four-vCPU `max` and E1000 frontier passed from the new image. All
+four CPUs came online, E1000 acquired `10.0.2.15`, and the guest completed its
+SMP, storage, USB, graphics, browser, Doom startup, audio, and in-OS CupidC
+work. The framebuffer changed 69,823 pixels. AC97 captured 32,591,013 stereo
+44.1 kHz frames at peak 25,600, and the PC speaker captured 76,324 frames at
+peak 31,271. The 147,526-byte serial log has SHA-256
+`252d3ef3796233cd752754c19aaa85a7311010bd75d0d5d57264fd6919584b56`
+and no rejected runtime marker. The private-image check left `cupidos.img`
+byte-identical.
+
+The final artifact-policy and Hostbuild compatibility group passed all 64
+tests in 6.488 seconds, with four platform skips. Both six-tool seed verifiers
+passed. The policy update required one final audit regeneration; the first
+checked comparison rejected the stale record, and the regenerated record then
+passed its deterministic comparison. Its final SHA-256 is
+`49ed2f7c349a8592e23dc80443931c5a44d4dbff434d3433bb40ee50c7bba218`.
+
+Hostbuild retains its compatibility tests, optional oracles, disk and ISO
+work, kernel flattening, and other active responsibilities. This handoff does
+not claim that Python has left the build. It removes Python from two more
+normal publication boundaries while keeping the shared transaction and its
+rollback policy intact.
+
+No source suffix changed. Every active CupidC translation unit already uses
+`.cc`, and assembly publication does not create a new C ownership boundary.
+`TempleOS/` remained untouched reference material. ADR 0357 records the
+decision.

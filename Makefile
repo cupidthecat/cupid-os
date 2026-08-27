@@ -339,9 +339,9 @@ FORCE:
 all: $(OS_IMAGE)
 
 # Compile bootloader
-$(BOOTLOADER): boot/boot.asm tools/hostbuild.py $(CHECKED_SEED_INPUTS)
-	$(PYTHON) tools/hostbuild.py assemble-bootloader \
-		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \
+$(BOOTLOADER): boot/boot.asm Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-bootloader \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
 		--source $< --output $@
 
 # Compile C source files
@@ -472,9 +472,9 @@ drivers/pci.o: drivers/pci.cc drivers/pci.h drivers/serial.h \
 
 # AP trampoline raw binary blob (P5 SMP T8)
 kernel/smp_trampoline.bin: kernel/smp/smp_trampoline.S \
-	tools/hostbuild.py $(CHECKED_SEED_INPUTS)
-	$(PYTHON) tools/hostbuild.py assemble-smp-trampoline \
-		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-smp-trampoline \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
 		--source $< --output $@
 
 kernel/smp/smp_trampoline.o: kernel/smp_trampoline.bin \
