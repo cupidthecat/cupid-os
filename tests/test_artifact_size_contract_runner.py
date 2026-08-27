@@ -14,10 +14,18 @@ from tools import artifact_size_contract
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REAL_CAPTURE_CHECKED_SEED = artifact_size_contract._capture_checked_seed
-SEED_NAMES = ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj")
+SEED_NAMES = (
+    "cupidasm",
+    "cupidbuild",
+    "cupidc",
+    "cupiddis",
+    "cupidld",
+    "cupidobj",
+)
 FIXED_OWNERS = {
     "boot/boot.bin": "CupidASM",
     "bootstrap/seeds/i386-windows/cupidasm.exe": "CupidASM",
+    "bootstrap/seeds/i386-windows/cupidbuild.exe": "CupidBuild",
     "bootstrap/seeds/i386-windows/cupidc.exe": "CupidC",
     "bootstrap/seeds/i386-windows/cupiddis.exe": "CupidDis",
     "bootstrap/seeds/i386-windows/cupidld.exe": "CupidLD",
@@ -28,6 +36,7 @@ FIXED_OWNERS = {
 }
 SEED_OWNERS = {
     "cupidasm": "CupidASM",
+    "cupidbuild": "CupidBuild",
     "cupidc": "CupidC",
     "cupiddis": "CupidDis",
     "cupidld": "CupidLD",
@@ -174,10 +183,11 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
         sizes = {
             "boot/boot.bin": 1,
             "bootstrap/seeds/i386-windows/cupidasm.exe": 10,
-            "bootstrap/seeds/i386-windows/cupidc.exe": 11,
-            "bootstrap/seeds/i386-windows/cupiddis.exe": 12,
-            "bootstrap/seeds/i386-windows/cupidld.exe": 13,
-            "bootstrap/seeds/i386-windows/cupidobj.exe": 14,
+            "bootstrap/seeds/i386-windows/cupidbuild.exe": 11,
+            "bootstrap/seeds/i386-windows/cupidc.exe": 12,
+            "bootstrap/seeds/i386-windows/cupiddis.exe": 13,
+            "bootstrap/seeds/i386-windows/cupidld.exe": 14,
+            "bootstrap/seeds/i386-windows/cupidobj.exe": 15,
             "kernel/kernel.bin": 7,
             "kernel/kernel.elf": 8,
             "kernel/kernel.elf.pass1": 9,
@@ -196,6 +206,10 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                         {
                             "file": f"{name}.elf",
                             "name": name,
+                            "producer": name in {"cupidasm", "cupidc", "cupidld"},
+                            "sha256": hashlib.sha256(
+                                name.encode("ascii")
+                            ).hexdigest(),
                             "size": sizes[
                                 f"bootstrap/seeds/i386-linux/{name}.elf"
                             ],
@@ -206,7 +220,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                         "source_revision": "1" * 40,
                         "source_snapshot_sha256": "2" * 64,
                     },
-                    "schema": "cupid.bootstrap-seed.v1",
+                    "schema": "cupid.bootstrap-seed.v2",
                 },
                 indent=2,
                 sort_keys=True,
@@ -241,14 +255,35 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                     ],
                     "provenance": {
                         "artifact_generation": (
-                            "paired-stage-four-native-windows"
+                            "paired-stage-four-six-tool-native-windows"
                         ),
                         "fixed_point_command": (
                             "make bootstrap-windows-from-seed"
                         ),
                         "fixed_point_result": "pass",
-                        "parent_seed_manifest_sha256": linux_manifest_digest,
-                        "parent_seed_source_revision": "1" * 40,
+                        "linux_candidate_build_plan_sha256": (
+                            "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817be"
+                            "bc35c9904efbecbd"
+                        ),
+                        "native_build_plan_sha256": (
+                            "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c9"
+                            "95086bfe723cff14"
+                        ),
+                        "parent_execution_seed_manifest_sha256": (
+                            "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292bae"
+                            "d0241967f772eaef"
+                        ),
+                        "parent_execution_seed_source_revision": (
+                            "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                        ),
+                        "parent_plan_seed_manifest_sha256": (
+                            "b6e34a2e18dd18aba91c6358116eafde39953566efeadb22"
+                            "4575ac8c13ab2c1b"
+                        ),
+                        "parent_plan_seed_source_revision": (
+                            "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                        ),
+                        "plan_seed_manifest_sha256": linux_manifest_digest,
                         "producer_lineage": {
                             "assembly": (
                                 "native stage-three CupidASM from the checked "
@@ -263,11 +298,11 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                                 "i386 Windows bootstrap"
                             ),
                         },
-                        "source_input_count": 50,
+                        "source_input_count": 58,
                         "source_revision": "1" * 40,
                         "source_snapshot_sha256": "2" * 64,
                     },
-                    "schema": "cupid.execution-seed.v1",
+                    "schema": "cupid.execution-seed.v2",
                     "target": {
                         "abi": "windows-stdcall-imports",
                         "architecture": "i386",
@@ -388,7 +423,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                 captured["build_inputs"] = build_inputs
                 captured["execution_seed"] = execution_seed
                 return {
-                    "artifact_count": 14,
+                    "artifact_count": 16,
                     "schema": "cupid.artifact-size-verification.v1",
                     "total_exact_bytes": sum(sizes.values()),
                 }
@@ -481,14 +516,14 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                         manifest.read_bytes(),
                     ),),
                 )
-            self.assertEqual(report["artifact_count"], 14)
+            self.assertEqual(report["artifact_count"], 16)
 
     def test_verify_with_contract_rejects_a_report_that_differs_from_oracle(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             policy, manifest, _ = self.write_fixture(root)
             wrong = {
-                "artifact_count": 14,
+                "artifact_count": 16,
                 "schema": "cupid.artifact-size-verification.v1",
                 "total_exact_bytes": 0,
             }
@@ -519,7 +554,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
             ):
                 (root / "boot/boot.bin").write_bytes(b"changed")
                 return {
-                    "artifact_count": 14,
+                    "artifact_count": 16,
                     "schema": "cupid.artifact-size-verification.v1",
                     "total_exact_bytes": sum(sizes.values()),
                 }
@@ -573,7 +608,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
             ):
                 checked_manifest.write_bytes(b" " * len(original))
                 return {
-                    "artifact_count": 14,
+                    "artifact_count": 16,
                     "schema": "cupid.artifact-size-verification.v1",
                     "total_exact_bytes": sum(sizes.values()),
                 }
@@ -619,7 +654,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                     ns=(before.st_atime_ns, before.st_mtime_ns),
                 )
                 return {
-                    "artifact_count": 14,
+                    "artifact_count": 16,
                     "schema": "cupid.artifact-size-verification.v1",
                     "total_exact_bytes": sum(sizes.values()),
                 }
@@ -670,7 +705,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                     ns=(before.st_atime_ns, before.st_mtime_ns),
                 )
                 return {
-                    "artifact_count": 14,
+                    "artifact_count": 16,
                     "schema": "cupid.artifact-size-verification.v1",
                     "total_exact_bytes": sum(sizes.values()),
                 }
@@ -717,7 +752,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                 replacement.write_bytes(b"y")
                 replacement.rename(original)
                 return {
-                    "artifact_count": 14,
+                    "artifact_count": 16,
                     "schema": "cupid.artifact-size-verification.v1",
                     "total_exact_bytes": sum(sizes.values()),
                 }
@@ -755,7 +790,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                 (root / "boot").mkdir()
                 (root / "boot/boot.bin").write_bytes(b"y")
                 return {
-                    "artifact_count": 14,
+                    "artifact_count": 16,
                     "schema": "cupid.artifact-size-verification.v1",
                     "total_exact_bytes": sum(sizes.values()),
                 }
@@ -798,7 +833,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                 root.rename(moved)
                 root.mkdir()
                 return {
-                    "artifact_count": 14,
+                    "artifact_count": 16,
                     "schema": "cupid.artifact-size-verification.v1",
                     "total_exact_bytes": sum(sizes.values()),
                 }
@@ -831,7 +866,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
             root = Path(directory)
             policy, manifest, sizes = self.write_fixture(root)
             report = {
-                "artifact_count": 14.0,
+                "artifact_count": 16.0,
                 "schema": "cupid.artifact-size-verification.v1",
                 "total_exact_bytes": float(sum(sizes.values())),
             }
@@ -854,7 +889,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
 
     def test_cli_reports_the_checked_cupid_contract_result(self):
         report = {
-            "artifact_count": 14,
+            "artifact_count": 16,
             "schema": "cupid.artifact-size-verification.v1",
             "total_exact_bytes": 42,
         }
@@ -891,7 +926,7 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
             timeout=91,
         )
         write.assert_called_once_with(
-            "Cupid artifact sizes: ok (14 exact artifacts)\n"
+            "Cupid artifact sizes: ok (16 exact artifacts)\n"
         )
 
     def test_cli_preserves_multiline_failure_format(self):

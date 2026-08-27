@@ -24,7 +24,7 @@ try:
         EXPECTED_SOURCES,
         EXPECTED_WINDOWS_TARGET,
         WINDOWS_TOOL_IMPORTS,
-        WINDOWS_SEED_SCHEMA,
+        PROMOTED_WINDOWS_SEED_SCHEMA,
         ToolRunner,
         _validate_i386_relocatable,
         _validate_static_i386_elf,
@@ -42,7 +42,7 @@ except ModuleNotFoundError:
         EXPECTED_SOURCES,
         EXPECTED_WINDOWS_TARGET,
         WINDOWS_TOOL_IMPORTS,
-        WINDOWS_SEED_SCHEMA,
+        PROMOTED_WINDOWS_SEED_SCHEMA,
         ToolRunner,
         _validate_i386_relocatable,
         _validate_static_i386_elf,
@@ -2574,7 +2574,7 @@ def _run_native_windows_user_syscall_abi(
                 root, source_root
             )
             seed = freeze_seed_inputs(manifest, private / "seed")
-            if seed.manifest.get("schema") != WINDOWS_SEED_SCHEMA:
+            if seed.manifest.get("schema") != PROMOTED_WINDOWS_SEED_SCHEMA:
                 raise ContractError(
                     "native Windows user ABI requires the checked Windows "
                     "execution seed"

@@ -66,7 +66,8 @@ binary32 or binary64 width, with ties going to even. Public frontend, Linear
 IR, and ELF32 contracts cover both halfway parities, minimum subnormal and
 normal values, maximum finite values, infinity, signed underflow zero, and
 extreme exponents. A complete token may contain 95 characters. ADR 0312 first
-carried this capability; ADR 0318 carries it in the current checked seeds.
+carried this capability. The preceding linked-image cohort carried it under
+ADR 0318, and the active paired v2 cohort retains it under ADR 0353.
 
 Non-atomic `long double` values now use twelve-byte target objects. Automatic
 values use frame snapshots. Static-duration scalars, fixed arrays, and

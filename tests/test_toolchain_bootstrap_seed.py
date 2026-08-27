@@ -18,16 +18,22 @@ from tools import hostbuild
 from tools.bootstrap_toolchain import (
     BootstrapError,
     CANDIDATE_TOOL_NAMES,
+    PROMOTED_LINUX_MANIFEST_SHA256,
     PROMOTED_LINUX_PLAN_SHA256,
+    PROMOTED_SOURCE_REVISION,
+    PROMOTED_SOURCE_SNAPSHOT_SHA256,
     PROMOTED_SEED_SCHEMA,
     PROMOTED_WINDOWS_PLAN_SHA256,
+    PROMOTED_WINDOWS_MANIFEST_SHA256,
     PROMOTED_WINDOWS_SEED_SCHEMA,
     SEED_SCHEMA,
     SEED_SOURCE_REVISION,
+    SEED_SOURCE_SNAPSHOT_SHA256,
     SeedInputs,
     Stage,
     TOOL_NAMES,
     ToolRunner,
+    WINDOWS_SEED_SCHEMA,
     WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256,
     WINDOWS_CUPIDBUILD_IMPORTS,
     WINDOWS_LINKER_IMPORTS,
@@ -90,6 +96,32 @@ WINDOWS_SEED_MANIFEST = (
 )
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     @staticmethod
+    def _legacy_linux_manifest_fixture(
+        document: dict[str, object],
+    ) -> dict[str, object]:
+        manifest = json.loads(json.dumps(document))
+        manifest["schema"] = SEED_SCHEMA
+        manifest["artifacts"] = [
+            artifact
+            for artifact in manifest["artifacts"]
+            if artifact["name"] != "cupidbuild"
+        ]
+        plan = manifest["build_plan"]
+        plan["sources"] = plan["sources"][:-3]
+        del plan["links"]["cupidbuild"]
+        manifest["build_plan_sha256"] = _build_plan_sha256(plan)
+        manifest["provenance"] = {
+            "fixed_point_command": "make bootstrap-from-seed",
+            "fixed_point_result": "pass",
+            "producer_lineage": manifest["provenance"]["producer_lineage"],
+            "seed_generation": "stage-four",
+            "source_input_count": 50,
+            "source_revision": SEED_SOURCE_REVISION,
+            "source_snapshot_sha256": SEED_SOURCE_SNAPSHOT_SHA256,
+        }
+        return manifest
+
+    @staticmethod
     def _promote_manifest_fixture(
         document: dict[str, object], windows: bool
     ) -> dict[str, object]:
@@ -97,17 +129,18 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         artifacts = manifest["artifacts"]
         assert isinstance(artifacts, list)
         suffix = ".exe" if windows else ".elf"
-        artifacts.append(
-            {
-                "file": f"cupidbuild{suffix}",
-                "name": "cupidbuild",
-                "producer": False,
-                "sha256": "",
-                "size": 0,
-            }
-        )
-        revision = "abcdef0123456789abcdef0123456789abcdef01"
-        snapshot = "2" * 64
+        if not any(artifact.get("name") == "cupidbuild" for artifact in artifacts):
+            artifacts.append(
+                {
+                    "file": f"cupidbuild{suffix}",
+                    "name": "cupidbuild",
+                    "producer": False,
+                    "sha256": "",
+                    "size": 0,
+                }
+            )
+        revision = PROMOTED_SOURCE_REVISION
+        snapshot = PROMOTED_SOURCE_SNAPSHOT_SHA256
         lineage = manifest["provenance"]["producer_lineage"]
         if windows:
             manifest["schema"] = PROMOTED_WINDOWS_SEED_SCHEMA
@@ -196,6 +229,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         checked_plan = json.loads(
             SEED_MANIFEST.read_text(encoding="utf-8")
         )["build_plan"]
+        checked_plan["sources"] = checked_plan["sources"][:-3]
+        del checked_plan["links"]["cupidbuild"]
         original_plan = json.loads(json.dumps(checked_plan))
 
         candidate_plan = _candidate_build_plan(checked_plan)
@@ -281,18 +316,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         ) as temporary:
             seed = Path(temporary) / "seed"
             shutil.copytree(SEED_MANIFEST.parent, seed)
-            shutil.copy2(seed / "cupidobj.elf", seed / "cupidbuild.elf")
             manifest = self._promote_manifest_fixture(
                 json.loads(
                     (seed / "manifest.json").read_text(encoding="utf-8")
                 ),
                 False,
             )
-            artifact = manifest["artifacts"][-1]
-            artifact["size"] = (seed / "cupidbuild.elf").stat().st_size
-            artifact["sha256"] = hashlib.sha256(
-                (seed / "cupidbuild.elf").read_bytes()
-            ).hexdigest()
             (seed / "manifest.json").write_text(
                 json.dumps(manifest, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
@@ -313,18 +342,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         ) as temporary:
             seed = Path(temporary) / "seed"
             shutil.copytree(WINDOWS_SEED_MANIFEST.parent, seed)
-            shutil.copy2(seed / "cupidobj.exe", seed / "cupidbuild.exe")
             manifest = self._promote_manifest_fixture(
                 json.loads(
                     (seed / "manifest.json").read_text(encoding="utf-8")
                 ),
                 True,
             )
-            artifact = manifest["artifacts"][-1]
-            artifact["size"] = (seed / "cupidbuild.exe").stat().st_size
-            artifact["sha256"] = hashlib.sha256(
-                (seed / "cupidbuild.exe").read_bytes()
-            ).hexdigest()
             (seed / "manifest.json").write_text(
                 json.dumps(manifest, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
@@ -377,6 +400,18 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 "artifact producer role differs: cupidbuild",
             ),
+            "wrong artifact size": (
+                lambda manifest: manifest["artifacts"][-1].update(
+                    {"size": 1}
+                ),
+                "promoted artifact size differs: cupidbuild",
+            ),
+            "wrong artifact digest": (
+                lambda manifest: manifest["artifacts"][-1].update(
+                    {"sha256": "0" * 64}
+                ),
+                "promoted artifact SHA-256 differs: cupidbuild",
+            ),
             "missing artifact": (
                 lambda manifest: manifest["artifacts"].pop(),
                 "manifest must contain six tool artifacts",
@@ -392,17 +427,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ) as temporary:
                 seed = Path(temporary) / "seed"
                 shutil.copytree(SEED_MANIFEST.parent, seed)
-                shutil.copy2(
-                    seed / "cupidobj.elf", seed / "cupidbuild.elf"
-                )
                 manifest = self._promote_manifest_fixture(source, False)
-                artifact = manifest["artifacts"][-1]
-                artifact["size"] = (
-                    seed / "cupidbuild.elf"
-                ).stat().st_size
-                artifact["sha256"] = hashlib.sha256(
-                    (seed / "cupidbuild.elf").read_bytes()
-                ).hexdigest()
                 mutate(manifest)
                 (seed / "manifest.json").write_text(
                     json.dumps(manifest, indent=2, sort_keys=True) + "\n",
@@ -421,8 +446,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         ) as temporary:
             manifest = Path(temporary) / "manifest.json"
             encoded = SEED_MANIFEST.read_text(encoding="utf-8").replace(
-                "cupid.bootstrap-seed.v1",
-                r"\u0063upid.bootstrap-seed.v1",
+                PROMOTED_SEED_SCHEMA,
+                r"\u0063upid.bootstrap-seed.v2",
                 1,
             )
             manifest.write_text(encoded, encoding="utf-8", newline="\n")
@@ -3340,7 +3365,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["seed_source_revision"],
-                "abcdef0123456789abcdef0123456789abcdef01",
+                PROMOTED_SOURCE_REVISION,
             )
             self.assertEqual(
                 report["build_plan_sha256"], PROMOTED_LINUX_PLAN_SHA256
@@ -3682,11 +3707,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["seed_source_revision"],
-                "abcdef0123456789abcdef0123456789abcdef01",
+                PROMOTED_SOURCE_REVISION,
             )
             self.assertEqual(
                 report["plan_source_revision"],
-                "abcdef0123456789abcdef0123456789abcdef01",
+                PROMOTED_SOURCE_REVISION,
             )
             self.assertEqual(
                 report["candidate_build_plan_sha256"],
@@ -3750,7 +3775,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 )
 
     def test_recomputed_digest_cannot_change_the_source_plan(self):
-        original = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
+        original = self._legacy_linux_manifest_fixture(
+            json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
+        )
         mutations = {
             "substituted source": lambda plan: plan["sources"][1].update(
                 {"path": "/toolchain/elf32.cc"}
@@ -3925,7 +3952,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 frozen.manifest["build_plan_sha256"],
-                "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc",
+                PROMOTED_LINUX_PLAN_SHA256,
             )
             self.assertNotEqual(
                 frozen.tools["cupidc"].read_bytes(),
@@ -3935,10 +3962,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                (
-                    "273f2621401878f673cc3d2987e267cf"
-                    "188ed016ac2005dc9573b3242b225094"
-                ),
+                "fe0ed161a586b39544bd02018b1a288927b4fb7f6663a01f653dd5e0032670c8",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -4024,6 +4048,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ToolRunner._wsl_command()
 
     def test_checked_i386_linux_seed_verifies(self):
+        self.assertEqual(
+            hashlib.sha256(SEED_MANIFEST.read_bytes()).hexdigest(),
+            PROMOTED_LINUX_MANIFEST_SHA256,
+        )
         result = subprocess.run(
             [
                 sys.executable,
@@ -4040,7 +4068,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "checked i386 Linux seed: ok (5 tools)\n",
+            "checked i386 Linux seed: ok (6 tools)\n",
         )
         self.assertEqual(result.stderr, "")
 
@@ -4087,6 +4115,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
 
     def test_checked_i386_windows_seed_verifies(self):
+        self.assertEqual(
+            hashlib.sha256(WINDOWS_SEED_MANIFEST.read_bytes()).hexdigest(),
+            PROMOTED_WINDOWS_MANIFEST_SHA256,
+        )
         result = subprocess.run(
             [
                 sys.executable,
@@ -4103,7 +4135,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "checked i386 Windows seed: ok (5 tools)\n",
+            "checked i386 Windows seed: ok (6 tools)\n",
         )
         self.assertEqual(result.stderr, "")
 
@@ -4319,18 +4351,18 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "source input count differs",
             ),
             (
-                "wrong parent seed",
+                "wrong parent execution seed",
                 lambda manifest: manifest["provenance"].update(
-                    {"parent_seed_manifest_sha256": "0" * 64}
+                    {"parent_execution_seed_manifest_sha256": "0" * 64}
                 ),
-                "parent seed manifest differs",
+                "parent execution seed manifest differs",
             ),
             (
-                "wrong parent source revision",
+                "wrong parent execution source revision",
                 lambda manifest: manifest["provenance"].update(
-                    {"parent_seed_source_revision": "0" * 40}
+                    {"parent_execution_seed_source_revision": "0" * 40}
                 ),
-                "parent seed source revision differs",
+                "parent execution seed revision differs",
             ),
             (
                 "wrong producer lineage",
@@ -4374,7 +4406,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     ):
                         verify_seed_inputs(manifest_path)
 
-    def test_stage_four_windows_seed_accepts_native_producer_provenance(self):
+    def test_legacy_windows_seed_accepts_native_producer_provenance(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-bootstrap-windows-stage-four-"
         ) as temporary:
@@ -4384,6 +4416,24 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             manifest = json.loads(
                 manifest_path.read_text(encoding="utf-8")
             )
+            manifest["schema"] = WINDOWS_SEED_SCHEMA
+            manifest["artifacts"] = [
+                artifact
+                for artifact in manifest["artifacts"]
+                if artifact["name"] != "cupidbuild"
+            ]
+            (copied_seed / "cupidbuild.exe").unlink()
+            legacy_assembler = (copied_seed / "cupiddis.exe").read_bytes()
+            (copied_seed / "cupidasm.exe").write_bytes(legacy_assembler)
+            assembler_artifact = next(
+                artifact
+                for artifact in manifest["artifacts"]
+                if artifact["name"] == "cupidasm"
+            )
+            assembler_artifact["size"] = len(legacy_assembler)
+            assembler_artifact["sha256"] = hashlib.sha256(
+                legacy_assembler
+            ).hexdigest()
             manifest["provenance"] = {
                 "artifact_generation": (
                     "paired-stage-four-native-windows"
@@ -4777,20 +4827,20 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
 
         self.assertEqual(report, {"status": "pass"})
         self.assertEqual(
-            observed["execution_schema"], "cupid.execution-seed.v1"
+            observed["execution_schema"], PROMOTED_WINDOWS_SEED_SCHEMA
         )
         self.assertEqual(
-            observed["plan_schema"], "cupid.bootstrap-seed.v1"
+            observed["plan_schema"], PROMOTED_SEED_SCHEMA
         )
         self.assertEqual(observed["source_root"], REPO_ROOT)
         self.assertEqual(observed["output_root"], output)
         self.assertEqual(
             observed["execution_signatures"],
-            {name: b"MZ" for name in TOOL_NAMES},
+            {name: b"MZ" for name in CANDIDATE_TOOL_NAMES},
         )
         self.assertEqual(
             observed["plan_signatures"],
-            {name: b"\x7fELF" for name in TOOL_NAMES},
+            {name: b"\x7fELF" for name in CANDIDATE_TOOL_NAMES},
         )
         self.assertFalse(output.exists())
 
@@ -4979,11 +5029,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["seed_source_revision"],
-                "a17c9465911da41d59b7ada71733d36c39faa5ea",
+                PROMOTED_SOURCE_REVISION,
             )
             self.assertEqual(
                 report["plan_source_revision"],
-                "a17c9465911da41d59b7ada71733d36c39faa5ea",
+                PROMOTED_SOURCE_REVISION,
             )
             self.assertEqual(
                 report["comparisons"],
@@ -5049,13 +5099,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
-                {
-                    "cupidasm": False,
-                    "cupidc": False,
-                    "cupiddis": False,
-                    "cupidld": False,
-                    "cupidobj": False,
-                },
+                {name: True for name in CANDIDATE_TOOL_NAMES},
             )
             for stage_name in (
                 "stage-two",
@@ -8773,12 +8817,15 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         ) as temporary:
             copied_seed = Path(temporary) / "i386-linux"
             shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+            manifest_path = copied_seed / "manifest.json"
+            manifest = self._legacy_linux_manifest_fixture(
+                json.loads(manifest_path.read_text(encoding="utf-8"))
+            )
+            (copied_seed / "cupidbuild.elf").unlink()
             assembler = copied_seed / "cupidasm.elf"
             image = bytearray(assembler.read_bytes())
             image[24:28] = (0x08048004).to_bytes(4, "little")
             assembler.write_bytes(image)
-            manifest_path = copied_seed / "manifest.json"
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             artifact = next(
                 item
                 for item in manifest["artifacts"]
@@ -8818,6 +8865,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         ) as temporary:
             copied_seed = Path(temporary) / "i386-linux"
             shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+            manifest_path = copied_seed / "manifest.json"
+            manifest = self._legacy_linux_manifest_fixture(
+                json.loads(manifest_path.read_text(encoding="utf-8"))
+            )
+            (copied_seed / "cupidbuild.elf").unlink()
             assembler = copied_seed / "cupidasm.elf"
             image = bytearray(assembler.read_bytes())
             program_offset = int.from_bytes(image[28:32], "little")
@@ -8828,8 +8880,6 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 0x09000000
             ).to_bytes(4, "little")
             assembler.write_bytes(image)
-            manifest_path = copied_seed / "manifest.json"
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             artifact = next(
                 item
                 for item in manifest["artifacts"]
@@ -9106,12 +9156,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "a17c9465911da41d59b7ada71733d36c39faa5ea",
+                PROMOTED_SOURCE_REVISION,
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
                 report["build_plan_sha256"],
-                "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc",
+                PROMOTED_LINUX_PLAN_SHA256,
             )
             self.assertEqual(
                 report["comparisons"],
@@ -9492,13 +9542,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             initial_matches = report["initial_seed_matches_stage_two"]
             self.assertEqual(
                 set(initial_matches),
-                {
-                    "cupidasm",
-                    "cupidc",
-                    "cupiddis",
-                    "cupidld",
-                    "cupidobj",
-                },
+                set(CANDIDATE_TOOL_NAMES),
             )
             candidate_plan = _candidate_build_plan(
                 json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))[
@@ -9521,13 +9565,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 initial_matches,
-                {
-                    "cupidasm": False,
-                    "cupidc": False,
-                    "cupiddis": False,
-                    "cupidld": False,
-                    "cupidobj": False,
-                },
+                {name: True for name in CANDIDATE_TOOL_NAMES},
             )
             self.assertEqual(report["source_inputs"]["count"], 58)
             self.assertEqual(

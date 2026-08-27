@@ -1,4 +1,5 @@
 import ast
+import hashlib
 import json
 import os
 import subprocess
@@ -25,16 +26,25 @@ ARTIFACT_OWNERS = {
     "bootstrap/seeds/i386-linux/cupiddis.elf": "CupidDis",
     "bootstrap/seeds/i386-linux/cupidld.elf": "CupidLD",
     "bootstrap/seeds/i386-linux/cupidobj.elf": "CupidObj",
+    "bootstrap/seeds/i386-linux/cupidbuild.elf": "CupidBuild",
     "bootstrap/seeds/i386-windows/cupidasm.exe": "CupidASM",
     "bootstrap/seeds/i386-windows/cupidc.exe": "CupidC",
     "bootstrap/seeds/i386-windows/cupiddis.exe": "CupidDis",
     "bootstrap/seeds/i386-windows/cupidld.exe": "CupidLD",
     "bootstrap/seeds/i386-windows/cupidobj.exe": "CupidObj",
+    "bootstrap/seeds/i386-windows/cupidbuild.exe": "CupidBuild",
     "kernel/kernel.bin": "CupidObj",
     "kernel/kernel.elf": "CupidLD",
     "kernel/kernel.elf.pass1": "CupidLD",
 }
-SEED_NAMES = ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj")
+SEED_NAMES = (
+    "cupidasm",
+    "cupidbuild",
+    "cupidc",
+    "cupiddis",
+    "cupidld",
+    "cupidobj",
+)
 
 
 class ArtifactSizePolicyTests(unittest.TestCase):
@@ -67,11 +77,15 @@ class ArtifactSizePolicyTests(unittest.TestCase):
                         {
                             "file": f"{name}.elf",
                             "name": name,
+                            "producer": name in {"cupidasm", "cupidc", "cupidld"},
+                            "sha256": hashlib.sha256(
+                                name.encode("ascii")
+                            ).hexdigest(),
                             "size": sizes[f"{directory}/{name}.elf"],
                         }
                         for name in SEED_NAMES
                     ],
-                    "schema": "cupid.bootstrap-seed.v1",
+                    "schema": "cupid.bootstrap-seed.v2",
                 },
                 indent=2,
                 sort_keys=True,
@@ -161,7 +175,7 @@ class ArtifactSizePolicyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "Cupid artifact sizes: ok (14 exact artifacts)\n",
+            "Cupid artifact sizes: ok (16 exact artifacts)\n",
         )
         self.assertEqual(result.stderr, "")
 
@@ -337,7 +351,7 @@ class ArtifactSizePolicyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "Cupid artifact sizes: ok (14 exact artifacts)\n",
+            "Cupid artifact sizes: ok (16 exact artifacts)\n",
         )
         self.assertEqual(result.stderr, "")
 
@@ -389,6 +403,33 @@ class ArtifactSizePolicyTests(unittest.TestCase):
             "artifact size verification failed: policy artifact "
             "bootstrap/seeds/i386-linux/cupidasm.elf has exact size 2, "
             "but the selected seed manifest declares 3\n",
+        )
+
+    def test_verify_rejects_a_wrong_seed_producer_role(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            policy, manifest, _, _ = self.write_fixture(root)
+            decoded = json.loads(manifest.read_text(encoding="utf-8"))
+            build = next(
+                artifact
+                for artifact in decoded["artifacts"]
+                if artifact["name"] == "cupidbuild"
+            )
+            build["producer"] = True
+            manifest.write_text(
+                json.dumps(decoded, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+
+            result = self.run_policy(root, policy, manifest)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(
+            result.stderr,
+            "artifact size verification failed: seed manifest artifact "
+            "cupidbuild has the wrong producer role\n",
         )
 
     def test_verify_does_not_reopen_checked_paths_by_name(self):

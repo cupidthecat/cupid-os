@@ -536,14 +536,22 @@ validates each i386 ELF32 object, and only then replaces the production
 output. A forced build with an invalid host compiler proves that none of
 these recipes falls back to Clang or GCC.
 
-The promoted Linux and Windows seed manifests bind revision
-`a17c9465911da41d59b7ada71733d36c39faa5ea` and exact 50-input snapshot
-`46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
-The 5,573-byte Linux manifest has SHA-256
-`b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
-The 2,118-byte Windows manifest has SHA-256
-`751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`
-and names the Linux manifest as its parent. ADR 0336 records the current pair.
+The active Linux and Windows seeds use v2 and contain six tool images,
+including CupidBuild as a checked non-producer. Both bind revision
+`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, the exact 58-input snapshot
+`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
+and their platform build plan. The Linux plan has SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
+its 6,602-byte manifest has SHA-256
+`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
+its 2,852-byte manifest has SHA-256
+`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
+self-consumption pass on both platforms, including the normal SMP path, with
+all six initial images equal to stage two. CupidBuild does not own a normal
+Make recipe, and Python still coordinates publication.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
 seconds with all fourteen exact policy artifacts accepted. Its 4,096-byte

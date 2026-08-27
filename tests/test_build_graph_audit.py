@@ -32,6 +32,7 @@ LINUX_BOOTSTRAP_SEED_INPUTS = (
     "bootstrap/seeds/i386-linux/cupiddis.elf",
     "bootstrap/seeds/i386-linux/cupidld.elf",
     "bootstrap/seeds/i386-linux/cupidobj.elf",
+    "bootstrap/seeds/i386-linux/cupidbuild.elf",
 )
 WINDOWS_PRODUCTION_SEED_INPUTS = (
     "bootstrap/seeds/i386-windows/manifest.json",
@@ -40,6 +41,7 @@ WINDOWS_PRODUCTION_SEED_INPUTS = (
     "bootstrap/seeds/i386-windows/cupiddis.exe",
     "bootstrap/seeds/i386-windows/cupidld.exe",
     "bootstrap/seeds/i386-windows/cupidobj.exe",
+    "bootstrap/seeds/i386-windows/cupidbuild.exe",
 )
 
 
@@ -423,7 +425,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             len(module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS), 26
         )
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 6
+            len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 7
         )
         self.assertEqual(
             repo_inputs("NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS"),
@@ -437,7 +439,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             input_variables["USER_SYSCALL_ABI_PLATFORM_ARGUMENTS"],
             "--windows-manifest ../bootstrap/seeds/i386-windows/manifest.json",
         )
-        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 32)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 33)
         self.assertEqual(
             module.USER_SYSCALL_ABI_AUDIT_INPUTS,
             tuple(
@@ -2484,11 +2486,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 155)
-            self.assertEqual(contract["elif_occurrences"], 9)
-            self.assertEqual(contract["expression_occurrences"], 164)
-            self.assertEqual(contract["unique_expressions"], 35)
-            self.assertEqual(contract["directive_expression_pairs"], 37)
+            self.assertEqual(contract["if_occurrences"], 176)
+            self.assertEqual(contract["elif_occurrences"], 11)
+            self.assertEqual(contract["expression_occurrences"], 187)
+            self.assertEqual(contract["unique_expressions"], 36)
+            self.assertEqual(contract["directive_expression_pairs"], 38)
             self.assertTrue(
                 all(
                     not item["path"].casefold().startswith("templeos/")
@@ -2548,6 +2550,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "defined ( _WIN32 ) || defined ( __DJGPP__ )": 0,
                     "defined ( _WIN64 )": 0,
                     "defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 0,
+                    "defined ( CUPIDASM_PUBLICATION_TESTING )": 0,
                     "defined ( CUPID_RUNTIME_WINDOWS )": 0,
                     "defined ( CUPIDBUILD_CUSTOM_LINUX )": 0,
                     "defined ( CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL )": 0,
@@ -3901,9 +3904,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 711)
-            self.assertEqual(contract["include_occurrences"], 2495)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2218)
-            self.assertEqual(contract["direct_angle_occurrences"], 277)
+            self.assertEqual(contract["include_occurrences"], 2498)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2219)
+            self.assertEqual(contract["direct_angle_occurrences"], 279)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -6056,7 +6059,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 104)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 105)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -9008,7 +9011,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6567, 179),
+                "c.expression.sizeof": (6627, 179),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -10706,6 +10709,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "cupiddis",
                     "cupidld",
                     "cupidobj",
+                    "cupidbuild",
                 )
             }
             self.assertEqual(
@@ -10834,6 +10838,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "cupiddis",
                 "cupidld",
                 "cupidobj",
+                "cupidbuild",
             ):
                 (seed_directory / f"{tool}.exe").write_bytes(b"seed\n")
             relative_manifest = manifest.relative_to(REPO_ROOT).as_posix()
@@ -10867,6 +10872,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         "cupiddis",
                         "cupidld",
                         "cupidobj",
+                        "cupidbuild",
                     )
                 },
             }

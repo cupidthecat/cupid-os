@@ -283,8 +283,8 @@ The extra rule catches a branch redirected to a different valid instruction
 start and checks immediate far mode transitions. It records indirect register
 or memory transfers as unprovable because their destination comes from runtime
 state. The guarded boot and SMP transactions require these rows before
-publication. ADR 0340 records the v2 contract, and ADR 0336 records seed
-carriage and adoption.
+publication. ADR 0340 records the v2 contract, ADR 0336 records v1 seed
+carriage and adoption, and ADR 0353 records active v2 carriage.
 
 One checked raw-image transaction serves the SMP and bootloader callers. It
 owns output locking, source and seed freezing, drift checks, private candidates,
@@ -337,7 +337,8 @@ production adoption.
 ADR 0305 records raw-image carriage. ADR 0312 records the relocatable-object
 promotion and production adoption. ADR 0318 records the preceding linked-image
 promotion, ADR 0323 records the preceding code-anchor promotion, and ADR 0336
-records the current promotion.
+records the parent v1 promotion. ADR 0353 records the active paired v2
+promotion.
 
 CupidDis can apply the same explicit option to a static ELF32
 relocatable object:
@@ -389,7 +390,7 @@ functions against file-backed decoded starts. Function aliases are separate
 anchors. Both promoted seeds carry the option. Production checks the ISR,
 context-switch, hosted startup, and linked kernel boundaries. ADR 0320 records
 the linked source rule, ADR 0335 records the object rule, and ADR 0336 records
-its promotion and active adoption.
+its v1 promotion and adoption. ADR 0353 records active v2 carriage.
 
 ### Requiring complete code coverage
 
@@ -540,9 +541,9 @@ formed the preceding checked Windows execution seed used by output-bearing
 production recipes. The Linux seed remains the build-plan root. The native
 driver pairs both
 manifests and builds native stages two through four. It compares stages three
-and four. Preliminary Windows and Linux runs pass the complete final-pair
-artifact and behavior gates on one frozen uncommitted source snapshot. Linux
-later passed its current clean proof, promoted stage four, and passed a
+and four. At the preceding v1 checkpoint, Windows and Linux passed the complete
+final-pair artifact and behavior gates on one frozen uncommitted source
+snapshot. Linux later passed its clean proof, promoted stage four, and passed a
 1,473.9-second reproof from the new seed. Native Windows then passed its clean
 proof in 1,253.4 seconds, promoted the 438,784-byte CupidASM image with SHA-256
 `c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6`,
@@ -552,7 +553,8 @@ ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
 record native reconstruction and convergence. ADRs 0280, 0281, and 0292
 record preceding Linux and Windows promotions. ADR 0318 records the preceding
 linked-image promotion, ADR 0323 records the preceding code-anchor promotion,
-and ADR 0336 records the current promotion.
+and ADR 0336 records the parent v1 promotion. ADR 0353 records the active paired
+v2 promotion.
 
 ### Function Example
 
@@ -682,7 +684,8 @@ records the x87 integer forms, ADR 0258 records the preceding promotion, ADR
 carriage, and ADRs 0280 and 0292 record preceding seeds. ADR 0305 records raw
 local-target carriage, ADR 0312 records the preceding local-target seed, ADR
 0318 records the preceding linked-image seed, ADR 0323 records the preceding
-code-anchor seed, and ADR 0336 records the current seed.
+code-anchor seed, and ADR 0336 records the parent v1 seed. ADR 0353 records the
+active paired v2 seed.
 
 `setp` and `setnp` accept one byte register or memory destination in either
 mode. They encode as `0F 9A /r` and `0F 9B /r`. Address-size overrides work
@@ -1606,18 +1609,18 @@ seconds, reached the full JIT completion marker, and found no reject marker.
 The source image was unchanged. Its 33,219-byte log has SHA-256
 `e39a1905002c2baa483c65eb6e763f4f62907c22f8954873dbb20f4ba5a53e93`.
 
-The promoted Linux CupidASM image is 462,600 bytes with SHA-256
+The earlier v1 Linux CupidASM image was 462,600 bytes with SHA-256
 `a6c2f07e722fb4b5152326773a240722d1065785c1110d65c593445b0e88dc80`.
-Its 5,573-byte seed manifest has SHA-256
+Its 5,573-byte seed manifest had SHA-256
 `b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
-The promoted Windows CupidASM image is 444,928 bytes with SHA-256
+The earlier v1 Windows CupidASM image was 444,928 bytes with SHA-256
 `5c21d79b1822831e5d81359fa2b31d85b731ead5a88c6596ced38585e64b87cb`.
-Its 2,118-byte manifest has SHA-256
+Its 2,118-byte manifest had SHA-256
 `751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`.
-Both bind revision `a17c9465911da41d59b7ada71733d36c39faa5ea` and exact
+Both bound revision `a17c9465911da41d59b7ada71733d36c39faa5ea` and exact
 50-input snapshot
 `46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
-The Windows manifest names the Linux manifest as its parent. The 2026-08-14
+The Windows manifest named the Linux manifest as its parent. The 2026-08-14
 build and smoke evidence above predates this promotion; the later poisoned
 build and e1000 smoke followed it. The pre-documentation artifact gate then
 passed in 651.3 seconds and accepted all fourteen exact paths.
@@ -1646,3 +1649,27 @@ log has SHA-256
 The source image was unchanged at SHA-256
 `31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
 ADR 0318 records the seed identities.
+
+## Active six-tool seed
+
+The active Linux and Windows v2 manifests carry CupidASM as a producer and
+CupidBuild as a checked non-producer. Both list six images and bind revision
+`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, the 58-input snapshot
+`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
+and their exact build plans.
+
+The Linux plan has SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
+Its 6,602-byte manifest has SHA-256
+`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
+Its 2,852-byte manifest has SHA-256
+`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+and pairs to the exact Linux manifest bytes.
+
+Linux and native Windows candidate proof passed. Linux covers 23 failure, six
+help, and 29 success groups; Windows covers 12 failure, six help, and 16
+success groups. Promoted-seed self-consumption also passed on both platforms,
+with all six initial tool images equal to stage two. ADR 0353 records the
+active pair. CupidBuild recipe transfer and Python-free coordination remain.

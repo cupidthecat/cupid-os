@@ -57,8 +57,10 @@ memory targets, and ELF input are outside this rule. A displacement that lands
 on a different valid instruction start in same-mode code can still pass because
 the check does not retain source-label identity. Either transaction preserves
 the prior image on failure. ADR 0305 records the raw-image promotion, and ADR
-0312 records the preceding seed and relocatable-object adoption. ADR 0323
-records the current seed and linked-image adoption.
+0312 records the preceding seed and relocatable-object adoption. ADR 0318
+records the preceding linked-image adoption, ADR 0323 records the preceding
+code-anchor adoption, ADR 0336 records the parent v1 pair, and ADR 0353 records
+the active paired v2 promotion.
 
 The public in-kernel raw adapter accepts fixed 16-bit code, fixed 32-bit code,
 or the same typed code16, code32, and data range records used by the shared
@@ -229,10 +231,10 @@ Audit ownership for author generation stops at the 20 direct build inputs. The
 historical 70 publication and 50 bootstrap inputs are observations and do not inherit
 compiler or assembler ownership from that transform.
 
-The publication now records 75 publication inputs, 58 candidate inputs, 22
-artifacts, and 62 stage pairs. It carries CupidBuild as a candidate output
-without adding it to the checked seed. The stable audit counts cover 747 active
-language inputs, 452 transforms, 255 features, and 26 unreachable inputs.
+The publication records 75 publication inputs, 58 candidate inputs, 22
+artifacts, and 62 stage pairs. The active v2 seed now carries CupidBuild as a
+checked non-producer. The stable audit counts cover 747 active language inputs,
+452 transforms, 255 features, and 26 unreachable inputs.
 CupidC participates in 250 transforms,
 CupidObj in 192, CupidASM in nine, CupidLD in nine, and CupidDis in nine. Four
 transforms use Cupid-built semantic contracts. Python participates in all 452
@@ -244,36 +246,76 @@ still locked the old artifact-size recipe. The audit and its test now require
 one `$(ARTIFACT_SIZE_CONTRACT)` command. That wrapper captures the Linux policy
 manifest and the complete checked Windows seed cohort in one transaction. Its
 `CUPSIZE2` request gives the CupidC-built contract the Windows manifest, Linux
-parent digest, and five regular-file size and digest observations. The contract
+parent digest, and six regular-file size and digest observations. The contract
 validates the Windows target, provenance, exact inventory, and observed bytes.
-The focused modules contain 22, 16, and 13 tests, for 51 total. They pass with
-four existing platform-specific skips. The source-head artifact contract passes
-against all fourteen exact artifacts.
+The focused modules contain 54 tests. They pass with four platform-specific
+skips. The source-head artifact contract passes
+against all sixteen exact artifacts. The current 3,382-byte policy has SHA-256
+`7f9c1f49d1543112bf6984def1e4ecba6df4fb7a55d2481a85deb7370cf4bfc2`
+and covers 38,120,452 bytes across those paths.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,596,956 | `c871658c40304bfb5e7c61f2e7cc0479bb1bb7fe1c4af7835d119544d8034206` |
-| `kernel/kernel.elf` | 9,728,028 | `78bcce45f047c807aa798988606c363d0b51b6b48f6b1335cbd156a64a2ca1a0` |
-| `kernel/kernel.bin` | 9,500,284 | `f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873` |
-| `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
+| `kernel/kernel.elf.pass1` | 9,601,052 | `2c2b16f018c018ecd55c96868428d9427213aca4344c67b44e2241f05a054463` |
+| `kernel/kernel.elf` | 9,732,124 | `342d57566d853ee9a894ec5c6d4e0eafbc6169019950c768f648873ce797fee6` |
+| `kernel/kernel.bin` | 9,505,572 | `1d12e0ddc98bcc66fe34157357a80f4a4f6916f0f75b921b5e56eaa792de1977` |
+| `cupidos.img` | 209,715,200 | `112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3` |
 
 The normal build completed the 431-input local-target and code-anchor scan,
-published this image, and passed a private four-vCPU E1000 frontier smoke. The
-smoke covered SMP, terminal startup, framebuffer output, AC97, and PC speaker
-audio while leaving the source image unchanged.
+then published a freshly force-formatted image. Staging `hello`, `ls`, `cat`,
+and `catfix.txt` produced a 209,715,200-byte runtime derivative with SHA-256
+`816f219305dd0b406d2077913a7f1def08a88efd9591239d0effe44b385cbf10`.
+Private copies of that derivative passed the `hello`, `ls`, and hostile-fixture
+`cat` QEMU smokes. The published clean image was then restored with SHA-256
+`112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3`.
+
+| Runtime smoke | Log bytes | Log SHA-256 |
+| --- | ---: | --- |
+| `hello` | 28,807 | `6543cecfb005f2b775541e279201ee6af4bac4af74bed81a27918f5711392c82` |
+| `ls` | 30,158 | `03c01d39b2320be1cc5ec2f92b33d6ffbc62acf50de74f4464ac4fc73f55ea27` |
+| `cat` against the hostile fixture | 63,987 | `ca5f6622e317e8ade54370d428271e8f64221b9afd3bf3f238d04760ebdec57a` |
+
+The preceding source-head cohort used the same pass-one and final ELF sizes
+with SHA-256 values
+`c694ba70e37e711c6490db2f17fb1869300c26703017cb1bd8adb3b51cce1c60`
+and `bbdb974acc12bf57dd95bff4f734ad9ad75dd8d11dfec3267a22df455666f459`.
+Its 9,504,760-byte raw kernel had SHA-256
+`346063e08f2fef5550e2a40b8edb1ea7cbe2f242a3084f1137a9552ed7baf84a`,
+and its disk image had SHA-256
+`aa9bc411d48625837b511b32444019f0aa555a48fc5aaa2400c9259dd8607333`.
+That image passed a private four-vCPU E1000 frontier smoke covering SMP,
+terminal startup, framebuffer output, AC97, and PC speaker audio.
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated audit records 23 failure groups, six help groups, and 29 success
 groups on Linux. It records 12 failure groups, six help groups, and 16 success
 groups on Windows.
 
-The exact artifact-size policy covers fourteen paths: four OS artifacts, five
-Linux seed executables, and five Windows seed executables. The wrapper passes
+The exact artifact-size policy covers sixteen paths: four OS artifacts, six
+Linux seed executables, and six Windows seed executables. The wrapper passes
 the captured Linux manifest to the Cupid contract, validates the captured
-Windows manifest and five PE images, and rechecks both trust units before
-success. ADR 0305 established and first carried the fourteen-path closure.
+Windows manifest and six PE images, and rechecks both trust units before
+success. ADR 0305 established and first carried the earlier fourteen-path
+closure.
 ADRs 0312 and 0318 preserve earlier promotions, ADR 0323 records the preceding
-code-anchor pair, and ADR 0336 records the current seed pair.
+code-anchor pair, and ADR 0336 records the earlier five-tool pair.
+
+The current seed pair uses the Linux and Windows v2 schemas and lists six tool
+images, including non-producer CupidBuild. Both manifests bind revision
+`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 inputs, and source snapshot
+`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
+The Linux plan has SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
+its 6,602-byte manifest has SHA-256
+`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
+its 2,852-byte manifest has SHA-256
+`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
+self-consumption pass on both platforms, with all six initial images equal to
+stage two. Normal Make recipes and Python coordination keep their current
+ownership.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260 seconds.
 All fourteen policy artifacts matched their exact sizes. The 2,960-byte policy
@@ -385,14 +427,14 @@ Both reproofs reject executable relocations without decoded field owners. ADRs
 0280 and 0281 preserve the preceding promotions. ADR 0292 records that
 strict-relocation promotion.
 
-The current promoted Linux and Windows seeds both bind revision
+The earlier v1 Linux and Windows seeds both bound revision
 `a17c9465911da41d59b7ada71733d36c39faa5ea` and exact 50-input snapshot
 `46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
-The 5,573-byte Linux manifest has SHA-256
+The 5,573-byte Linux manifest had SHA-256
 `b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
-The 2,118-byte Windows manifest has SHA-256
+The 2,118-byte Windows manifest had SHA-256
 `751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`
-and names that Linux manifest as its parent. ADR 0336 records these identities.
+and named that Linux manifest as its parent. ADR 0336 records these identities.
 
 The first complete run of the intermediate 86-test seed suite took 2,394.660 seconds and reported
 failures from stale test data. The tiny source roots were
@@ -404,8 +446,8 @@ Six focused source-freeze and PE tests passed in 0.736 seconds. The isolated
 fixed-point test passed in 1,187.863 seconds, and that suite passed all 86 tests
 in 2,444.917 seconds. After the relocatable-object cases were added, the
 ADR 0312 checkpoint passed all 89 tests in 3,145.502 seconds. The complete
-source-head module later passed all 92 tests in 2,820.626 seconds. Both checked
-seeds now carry that snapshot, and the kernel publisher applies the linked
+source-head module later passed all 92 tests in 2,820.626 seconds. Those v1
+seeds carried that snapshot, and the kernel publisher applies the linked
 local-target and code-anchor rules before flattening. ADR 0323 records the promotion and
 adoption. The current source-head module also covers grouped runtime addresses
 and native Windows diagnostic paths; all 99 tests pass in 3,377.405 seconds.

@@ -111,21 +111,21 @@ behavior matrix. The
 old seed comparison was false for CupidASM, CupidC, and CupidDis and true for
 CupidLD and CupidObj. That promoted 2,118-byte manifest has SHA-256
 `ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e`.
-The current 2,118-byte Windows manifest has SHA-256
+The later v1 2,118-byte Windows manifest had SHA-256
 `751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`.
-It binds revision `a17c9465911da41d59b7ada71733d36c39faa5ea`, exact 50-input
+It bound revision `a17c9465911da41d59b7ada71733d36c39faa5ea`, exact 50-input
 snapshot
 `46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`,
 and Linux parent manifest
 `b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
-ADR 0336 records the current pair.
+ADR 0336 records that v1 pair.
 See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
 0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md).
 ADR 0258 records checked-seed carriage. The preliminary Linux behavior
 reconstruction also found that `cupiddis_main.cc` lacked `_WIN32=1`; the corrected Windows
-profile, parity test, and audit guard now cover all five tool mains. ADR 0268 records the shared runtime,
+profile, parity test, and audit guard now cover all six tool mains. ADR 0268 records the shared runtime,
 ADR 0269 records CupidLD publication, ADR 0272 records Windows execution seed
 carriage and production selection, ADR 0278 records the native driver, and
 [ADR 0279](../docs/adr/0279-prove-post-change-fixed-points-through-convergence.md)
@@ -134,7 +134,8 @@ records the Linux promotion. [ADR 0281](../docs/adr/0281-promote-the-clean-stage
 records the preceding Windows promotion. [ADR 0292](../docs/adr/0292-promote-strict-relocation-production-seeds.md)
 records the preceding strict-relocation promotion. [ADR
 0323](../docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
-records the current promotion and production adoption.
+records the preceding code-anchor promotion and production adoption. ADR 0336
+records the parent v1 pair, and ADR 0353 records the active paired v2 promotion.
 
 Source-head hosted CupidDis can inspect the same deterministic static i386
 PE32 profile that CupidLD emits. `--headers`, `--sections`, and `--imports`
@@ -877,21 +878,62 @@ the final ELF is 9,472,440 bytes with SHA-256
 the raw kernel is 9,251,100 bytes with SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
-The source-head artifact contract passes against all fourteen exact artifacts.
+The source-head artifact contract passes against all sixteen exact artifacts.
+The current 3,382-byte policy has SHA-256
+`7f9c1f49d1543112bf6984def1e4ecba6df4fb7a55d2481a85deb7370cf4bfc2`
+and covers 38,120,452 bytes across those paths.
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,596,956 | `c871658c40304bfb5e7c61f2e7cc0479bb1bb7fe1c4af7835d119544d8034206` |
-| `kernel/kernel.elf` | 9,728,028 | `78bcce45f047c807aa798988606c363d0b51b6b48f6b1335cbd156a64a2ca1a0` |
-| `kernel/kernel.bin` | 9,500,284 | `f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873` |
-| `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
+| `kernel/kernel.elf.pass1` | 9,601,052 | `2c2b16f018c018ecd55c96868428d9427213aca4344c67b44e2241f05a054463` |
+| `kernel/kernel.elf` | 9,732,124 | `342d57566d853ee9a894ec5c6d4e0eafbc6169019950c768f648873ce797fee6` |
+| `kernel/kernel.bin` | 9,505,572 | `1d12e0ddc98bcc66fe34157357a80f4a4f6916f0f75b921b5e56eaa792de1977` |
+| `cupidos.img` | 209,715,200 | `112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3` |
 
-Those output identities come from the completed normal build. Both checked
-seeds carry the same source snapshot. The kernel transaction passed linked
-local-target and static code-anchor validation before flattening, and the image
-passed a private four-vCPU E1000 frontier smoke. ADR 0318 records
-the preceding linked-image promotion, ADR 0323 records the preceding
-code-anchor promotion, and ADR 0336 records the current promotion and adoption.
+Those output identities come from the final normal build. Staging `hello`,
+`ls`, `cat`, and `catfix.txt` produced a 209,715,200-byte runtime derivative
+with SHA-256
+`816f219305dd0b406d2077913a7f1def08a88efd9591239d0effe44b385cbf10`.
+Private copies of that derivative passed the `hello`, `ls`, and hostile-fixture
+`cat` QEMU smokes. The published clean image was then restored with SHA-256
+`112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3`.
+
+| Runtime smoke | Log bytes | Log SHA-256 |
+| --- | ---: | --- |
+| `hello` | 28,807 | `6543cecfb005f2b775541e279201ee6af4bac4af74bed81a27918f5711392c82` |
+| `ls` | 30,158 | `03c01d39b2320be1cc5ec2f92b33d6ffbc62acf50de74f4464ac4fc73f55ea27` |
+| `cat` against the hostile fixture | 63,987 | `ca5f6622e317e8ade54370d428271e8f64221b9afd3bf3f238d04760ebdec57a` |
+
+The active Linux and Windows seeds use v2 and carry six tool images, including
+non-producer CupidBuild. Both bind revision
+`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 source inputs, and snapshot
+`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
+The Linux plan has SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
+its 6,602-byte manifest has SHA-256
+`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
+its 2,852-byte manifest has SHA-256
+`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+and pairs to the exact Linux manifest bytes.
+
+The preceding source-head cohort used the same pass-one and final ELF sizes
+with SHA-256 values
+`c694ba70e37e711c6490db2f17fb1869300c26703017cb1bd8adb3b51cce1c60`
+and `bbdb974acc12bf57dd95bff4f734ad9ad75dd8d11dfec3267a22df455666f459`.
+Its 9,504,760-byte raw kernel had SHA-256
+`346063e08f2fef5550e2a40b8edb1ea7cbe2f242a3084f1137a9552ed7baf84a`,
+and its disk image had SHA-256
+`aa9bc411d48625837b511b32444019f0aa555a48fc5aaa2400c9259dd8607333`.
+
+Candidate proof and promoted-seed self-consumption pass on Linux and native
+Windows, with all six initial images equal to stage two. The current promotion
+records its normal-build artifacts above. CupidBuild does not own a normal Make
+recipe, and Python remains the build coordinator and publisher. ADR 0318
+records the preceding linked-image
+promotion, ADR 0323 records the preceding code-anchor promotion, and ADR 0336
+records the earlier five-tool promotion.
 
 The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB

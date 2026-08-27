@@ -39,14 +39,16 @@ TOOLCHAIN_MANIFEST_EXECUTION_INPUTS := \
 	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupidc.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX) \
 	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupiddis.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX) \
 	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupidld.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX) \
-	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupidobj.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX)
+	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupidobj.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX) \
+	$(TOOLCHAIN_MANIFEST_EXECUTION_DIRECTORY)cupidbuild.$(TOOLCHAIN_MANIFEST_EXECUTION_SUFFIX)
 TOOLCHAIN_MANIFEST_PUBLICATION_SEED_INPUTS := \
 	../bootstrap/seeds/i386-linux/manifest.json \
 	../bootstrap/seeds/i386-linux/cupidasm.elf \
 	../bootstrap/seeds/i386-linux/cupidc.elf \
 	../bootstrap/seeds/i386-linux/cupiddis.elf \
 	../bootstrap/seeds/i386-linux/cupidld.elf \
-	../bootstrap/seeds/i386-linux/cupidobj.elf
+	../bootstrap/seeds/i386-linux/cupidobj.elf \
+	../bootstrap/seeds/i386-linux/cupidbuild.elf
 TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS := \
 	Makefile \
 	hosted/i386-linux/include/cupid_host_abi.h \

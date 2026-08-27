@@ -115,6 +115,68 @@ PROMOTION_PARENT_SOURCE_REVISION = (
     "a17c9465911da41d59b7ada71733d36c39faa5ea"
 )
 PROMOTED_SOURCE_INPUT_COUNT = 58
+PROMOTED_SOURCE_REVISION = "f620e3a973c6fca661c8eeefe443f4b3c669dddc"
+PROMOTED_SOURCE_SNAPSHOT_SHA256 = (
+    "e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922"
+)
+PROMOTED_LINUX_MANIFEST_SHA256 = (
+    "6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562"
+)
+PROMOTED_WINDOWS_MANIFEST_SHA256 = (
+    "4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4"
+)
+PROMOTED_LINUX_ARTIFACT_IDENTITIES = {
+    "cupidasm": (
+        496628,
+        "29b9673ca94bd4fa6c74b41f6ab31ca794665315ea0a2eff5735ffe9ad1cae44",
+    ),
+    "cupiddis": (
+        538516,
+        "24e231ffb05a507a49f65977ee628a2dd53b27991ed97f7ba6acc3c0367618c8",
+    ),
+    "cupidld": (
+        312888,
+        "deea83b95c4c00746cee27d50ff31ae5734e45dd0f57a328630de010c26eedd9",
+    ),
+    "cupidobj": (
+        392784,
+        "79c7b58aee81cdf68526c645f74b3a28d1179b0f6c0d7a4744463d26e285a3ed",
+    ),
+    "cupidc": (
+        2691720,
+        "fe0ed161a586b39544bd02018b1a288927b4fb7f6663a01f653dd5e0032670c8",
+    ),
+    "cupidbuild": (
+        268304,
+        "443934460de95e4e2dba795ff25b29cfa9e1c5a202229a6961d2f11d665963e4",
+    ),
+}
+PROMOTED_WINDOWS_ARTIFACT_IDENTITIES = {
+    "cupidasm": (
+        479744,
+        "9c50e204262a0b05b12d4fc0924670c66092d053ad12b99134ab79a254ef07ae",
+    ),
+    "cupiddis": (
+        516608,
+        "588485d496209eecf437e6f6fc9d02474d5c4ac1f236af86bdaad9f3f2d705ce",
+    ),
+    "cupidld": (
+        296960,
+        "aaa7b51a290646ef1d972f4904b1ed176a4dc912e53c1bc4cbdd8d1e39d8495f",
+    ),
+    "cupidobj": (
+        375808,
+        "b6f6a5b66f8e2bcb4b779a16428d7b77a956113c5ca301344537b35839611572",
+    ),
+    "cupidc": (
+        2620416,
+        "73252f25a44ff0308f0a9403e942af0e582e9cac222e5738412af9c313f6d19c",
+    ),
+    "cupidbuild": (
+        288768,
+        "8a9feff021c9e2211bc93e2fa38e595236c13e1c57220f4f90934582f629de33",
+    ),
+}
 PROMOTED_LINUX_PLAN_SHA256 = (
     "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
 )
@@ -1790,6 +1852,12 @@ def _verify_seed_manifest_data(
             64,
             "source snapshot",
         )
+        if provenance.get("source_revision") != PROMOTED_SOURCE_REVISION:
+            raise BootstrapError("source revision differs")
+        if provenance.get("source_snapshot_sha256") != (
+            PROMOTED_SOURCE_SNAPSHOT_SHA256
+        ):
+            raise BootstrapError("source snapshot differs")
         source_input_count = provenance.get("source_input_count")
         if (
             type(source_input_count) is not int
@@ -1901,6 +1969,12 @@ def _verify_seed_manifest_data(
             64,
             "source snapshot",
         )
+        if provenance.get("source_revision") != PROMOTED_SOURCE_REVISION:
+            raise BootstrapError("source revision differs")
+        if provenance.get("source_snapshot_sha256") != (
+            PROMOTED_SOURCE_SNAPSHOT_SHA256
+        ):
+            raise BootstrapError("source snapshot differs")
         if provenance.get("seed_generation") != "stage-four":
             raise BootstrapError("seed generation differs")
         source_input_count = provenance.get("source_input_count")
@@ -2024,6 +2098,21 @@ def _verify_seed_manifest_data(
             )
         if producer != (name in PRODUCER_NAMES):
             raise BootstrapError(f"artifact producer role differs: {name}")
+        if promoted:
+            promoted_identities = (
+                PROMOTED_WINDOWS_ARTIFACT_IDENTITIES
+                if is_windows_seed
+                else PROMOTED_LINUX_ARTIFACT_IDENTITIES
+            )
+            promoted_size, promoted_digest = promoted_identities[name]
+            if size != promoted_size:
+                raise BootstrapError(
+                    f"promoted artifact size differs: {name}"
+                )
+            if digest != promoted_digest:
+                raise BootstrapError(
+                    f"promoted artifact SHA-256 differs: {name}"
+                )
         path = seed_directory / file_name
         if path.is_symlink():
             raise BootstrapError(f"seed artifact may not be a symlink: {name}")

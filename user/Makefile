@@ -37,14 +37,16 @@ CHECKED_SEED_INPUTS := $(PRODUCTION_SEED_MANIFEST) \
 	$(PRODUCTION_SEED_DIRECTORY)cupidc.$(PRODUCTION_SEED_SUFFIX) \
 	$(PRODUCTION_SEED_DIRECTORY)cupiddis.$(PRODUCTION_SEED_SUFFIX) \
 	$(PRODUCTION_SEED_DIRECTORY)cupidld.$(PRODUCTION_SEED_SUFFIX) \
-	$(PRODUCTION_SEED_DIRECTORY)cupidobj.$(PRODUCTION_SEED_SUFFIX)
+	$(PRODUCTION_SEED_DIRECTORY)cupidobj.$(PRODUCTION_SEED_SUFFIX) \
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX)
 BOOTSTRAP_SEED_MANIFEST := ../bootstrap/seeds/i386-linux/manifest.json
 BOOTSTRAP_SEED_INPUTS := $(BOOTSTRAP_SEED_MANIFEST) \
 	../bootstrap/seeds/i386-linux/cupidasm.elf \
 	../bootstrap/seeds/i386-linux/cupidc.elf \
 	../bootstrap/seeds/i386-linux/cupiddis.elf \
 	../bootstrap/seeds/i386-linux/cupidld.elf \
-	../bootstrap/seeds/i386-linux/cupidobj.elf
+	../bootstrap/seeds/i386-linux/cupidobj.elf \
+	../bootstrap/seeds/i386-linux/cupidbuild.elf
 CUPIDC_PRODUCTION_COMPILE := $(PYTHON) ../tools/cupidc_production_compile.py \
 	--root .. --cohort user --manifest $(PRODUCTION_SEED_MANIFEST)
 CUPIDLD_USER_LINK := $(PYTHON) ../tools/cupidld_user_link.py --root .. \

@@ -91,10 +91,10 @@ BOOTSTRAP_TOOL_NAMES = (
     "cupidbuild",
 )
 BUILD_PLAN_SHA256 = (
-    "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc"
+    "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
 )
 SEED_MANIFEST_SHA256 = (
-    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+    "6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562"
 )
 INPUT_PATHS = (
     "kernel/core/syscall.cc",

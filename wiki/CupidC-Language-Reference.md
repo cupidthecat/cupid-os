@@ -196,17 +196,44 @@ seconds with all fourteen artifacts accepted, existing FAT contents preserved,
 and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
-The source-head artifact contract passes against all fourteen exact artifacts.
-The raw kernel is 9,500,284 bytes with SHA-256
-`f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873`.
-The 209,715,200-byte disk image has SHA-256
-`09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186`.
-Those output identities come from the completed source-head normal build. Its
-431-input linked-image scan passed local-target and code-anchor validation, and
-the image passed a private four-vCPU E1000 frontier smoke. Both checked seeds
-carry the same source snapshot. ADR 0318 records
-the preceding linked-image promotion, ADR 0323 records the preceding
-code-anchor promotion, and ADR 0336 records the current promotion and adoption.
+The source-head artifact contract passes against all sixteen exact artifacts.
+The current 3,382-byte policy has SHA-256
+`7f9c1f49d1543112bf6984def1e4ecba6df4fb7a55d2481a85deb7370cf4bfc2`
+and covers 38,120,452 bytes across those paths.
+
+| Source-head artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,601,052 | `2c2b16f018c018ecd55c96868428d9427213aca4344c67b44e2241f05a054463` |
+| `kernel/kernel.elf` | 9,732,124 | `342d57566d853ee9a894ec5c6d4e0eafbc6169019950c768f648873ce797fee6` |
+| `kernel/kernel.bin` | 9,505,572 | `1d12e0ddc98bcc66fe34157357a80f4a4f6916f0f75b921b5e56eaa792de1977` |
+| `cupidos.img` | 209,715,200 | `112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3` |
+
+Those output identities come from the final source-head normal build. Its
+431-input linked-image scan passed local-target and code-anchor validation.
+Staging `hello`, `ls`, `cat`, and `catfix.txt` produced a 209,715,200-byte
+runtime derivative with SHA-256
+`816f219305dd0b406d2077913a7f1def08a88efd9591239d0effe44b385cbf10`.
+Private copies of that derivative passed the `hello`, `ls`, and hostile-fixture
+`cat` QEMU smokes. The published clean image was then restored with SHA-256
+`112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3`.
+
+| Runtime smoke | Log bytes | Log SHA-256 |
+| --- | ---: | --- |
+| `hello` | 28,807 | `6543cecfb005f2b775541e279201ee6af4bac4af74bed81a27918f5711392c82` |
+| `ls` | 30,158 | `03c01d39b2320be1cc5ec2f92b33d6ffbc62acf50de74f4464ac4fc73f55ea27` |
+| `cat` against the hostile fixture | 63,987 | `ca5f6622e317e8ade54370d428271e8f64221b9afd3bf3f238d04760ebdec57a` |
+
+Both active v2 seeds carry the same source snapshot. ADR 0318 records the
+preceding linked-image
+promotion, ADR 0323 records the preceding code-anchor promotion, ADR 0336
+records the parent v1 pair, and ADR 0353 records the active paired v2 promotion.
+
+The preceding source-head checkpoint had a 9,504,760-byte raw kernel with
+SHA-256
+`346063e08f2fef5550e2a40b8edb1ea7cbe2f242a3084f1137a9552ed7baf84a`
+and a 209,715,200-byte disk image with SHA-256
+`aa9bc411d48625837b511b32444019f0aa555a48fc5aaa2400c9259dd8607333`.
+That image passed its private four-vCPU E1000 frontier smoke.
 
 The integrated strong full private frontier smoke passed in 883.513 seconds
 with e1000, four `max` vCPUs, SMP and frontier checks, and the private USB
@@ -548,8 +575,8 @@ records wide integer conversion and usual arithmetic with `float` and
 records exact decimal `float` and `double` literals.
 [ADR 0296](../docs/adr/0296-support-mixed-floating-compound-assignments.md)
 records mixed arithmetic compound assignment. ADR 0312 first carried both
-capabilities. The unchanged CupidC images in the current checked seeds have
-carried them since ADR 0318.
+capabilities. The preceding linked-image cohort carried them under ADR 0318,
+and the active paired v2 cohort retains them under ADR 0353.
 ADR 0258 records the preceding checked seed. ADR 0260 records static
 long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
 0265 records their checked-seed carriage, and ADR 0273 records private derived

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-08-25
+Verified against source on: 2026-08-27
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,25 +15,23 @@ Verified against source on: 2026-08-25
 
 >h2 CupidBuild Object Transaction
 >tree open CupidBuild Object Transaction
-The source-head CupidBuild command can assemble a private CupidASM ET_REL
-object after it parses the frozen five-tool seed contract. CupidDis requires
+The checked CupidBuild command can assemble a private CupidASM ET_REL
+object after it parses the frozen six-tool seed contract. CupidDis requires
 complete known decoding, local targets, and function anchors at instruction
 starts before publication. The Linux and Windows hosted layers reject links, hardlink
 aliases, drift, competing publishers, and changed output parents. A replaced
 owner lock found at a final boundary blocks publication. Cleanup quarantines
 the path and restores a successor instead of deleting it. Every failure
-preserves the previous object. The command remains a source-head proof until a
-checked seed contains CupidBuild and a normal Make recipe invokes it.
+preserves the previous object. CupidBuild is now part of the active seed, but
+the command remains outside the normal Make recipes.
 Before CupidASM runs, CupidBuild rejects any unlisted `.elf` or `.exe` peer and
-validates all five frozen tool images against the selected host profile. It
+validates all six frozen tool images against the selected host profile. It
 checks directory membership again after every attempted CupidASM and CupidDis
 launch, including failure and timeout paths.
-The source-head hosted link also builds CupidBuild beside CupidASM and the
-other five production tools. This proves the command closure but does not add
-CupidBuild to a checked seed.
+The hosted link builds CupidBuild beside CupidASM and the other five existing
+tools. The active v2 seed now carries that command closure.
 The current checked Toolchain gate publishes 22 artifacts and passes all 22
-assembler demos. It derives a separate six-tool candidate from the unchanged
-five-tool seed. Its Linux proof freezes 58 sources and matches
+assembler demos. Its Linux candidate proof freezes 58 sources and matches
 22 C objects, startup, and all six final tool images between consecutive
 generations. Both CupidBuild images assemble the checked startup into equal
 relocatables and preserve prior output on a missing-source failure. Each
@@ -41,7 +39,8 @@ final-stage CupidDis also checks all six corresponding images for known code,
 local targets, and code anchors. Both generations reject a private CupidBuild
 copy whose entry instruction was replaced with an invalid opcode. Linux now
 passes 23 failure, six help, and 29 success cases; Windows passes 12, six, and
-16. The candidate is not a promoted seed.
+16. The candidates were promoted, and their self-consumption reproof passes
+with all six initial images equal to stage two on both platforms.
 >endtree
 
 >h2 Overview
@@ -62,14 +61,14 @@ Source architecture:
   raw-map rendering, rollback publication, and in-kernel CupidLD adapter
 - toolchain/cupidasm_main.cc: hosted cupidasm command adapter
 
-The normal image runs CupidASM from a checked five-tool seed. It owns five
+The normal image runs CupidASM from a checked six-tool seed. It owns five
 production assembly transforms without first building a native hosted
 command. The complete ownership audit assigns all 32 active assembly sources
 to CupidASM, including five Toolchain startup inputs, and rejects ownerless
 additions. ADR 0327 records that rule. The same checked trust unit supplies CupidObj for 192 transforms,
 CupidLD for three root links, and CupidDis for six root inspections. Three
 additional CupidDis inspections guard the user ELFs. Python verifies
-and freezes all five images before each command. Linux uses the static i386
+and freezes all six images before each command. Linux uses the static i386
 bootstrap seed. Windows uses the native PE32 execution seed for output-bearing
 commands. Linux-contract work still crosses WSL. The native fixed-point driver
 pairs that PE seed with a frozen Linux build plan. The
@@ -107,9 +106,9 @@ publication identity and completion evidence.
 The publication gate requires stage-three and stage-four identity, hosted
 runtime checks, live-input checks, and native Windows verification. Normal
 `all` uses poisoned-host Cupid tooling. Its exact artifact-size policy covers
-fourteen paths: four OS artifacts, five Linux seed images, and five Windows
+sixteen paths: four OS artifacts, six Linux seed images, and six Windows
 seed images. A CUPSIZE2 request lets the CupidC-built contract validate the
-Windows manifest target, provenance, Linux parent link, exact five-tool
+Windows manifest target, provenance, Linux parent link, exact six-tool
 inventory, and observed sizes and digests. The focused semantic-contract,
 checked-runner, and independent-policy modules contain 22, 16, and 13 tests,
 for 51 total. They pass with four existing platform-specific skips. The host
@@ -504,8 +503,9 @@ Windows validates and runs the image, checks its exact stdout and empty stderr,
 and requires exit 37. The validator checks the fixed stack and heap fields,
 reconstructs the exact .idata layout, and
 the report retains both object and image pairs plus the observed Windows
-result. The promoted Linux seed carries the 5/22/21 behavior matrix and this
-command.
+result. The preceding Linux v1 seed carried this command in its 5/22/21
+behavior matrix. The active paired v2 seeds retain the command and pass the
+23/6/29 Linux and 12/6/16 Windows matrices.
 
 Checked-seed CupidLD uses an adjacent candidate created with exclusive-create
 semantics for both ELF and PE output. It writes and closes the candidate, then
@@ -698,7 +698,7 @@ sources. Common families include:
 - atomic helpers: bswap, xadd, cmpxchg, lock-prefixed memory operations
 - sized memory inc/dec and reserve directives
 
-The promoted i386 Linux seed and source head carry all 604 shared x86 rows in
+The active paired v2 seeds and source head carry all 604 shared x86 rows in
 CupidASM and CupidDis, including FILD, FISTP, SETP, and SETNP. The catalogue also includes the IMUL and
 padding NOP families, FLDZ, forward x87 stack subtraction, and SHRD. ADR 0208
 records the x87 form's seed carriage, and ADR 0228 records the first SHRD seed
@@ -706,7 +706,8 @@ promotion. ADR 0243
 records the preceding seed, ADR 0252 records the x87 integer forms, ADR 0258
 records the preceding seed, and ADR 0259 records the parity predicates. ADRs
 0265, 0280, 0292, 0312, and 0318 record preceding promotions. ADR 0323 records
-the current promotion.
+the preceding code-anchor promotion, ADR 0336 records the parent promotion,
+and ADR 0353 records the active paired promotion.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR
@@ -883,9 +884,9 @@ switch objects must pass that rule before publication. They also carry the
 raw local-target policy used by the production bootloader and SMP trampoline
 transactions.
 
-The Linux and Windows five-tool cohorts pass their fixed-point comparison and
-behavior gates. This establishes seed carriage for the shared assembler and
-disassembler rules, including section-local targets in static relocatable
+The Linux and Windows six-tool cohorts pass their candidate fixed-point
+comparison and behavior gates. This establishes seed carriage for the shared
+assembler and disassembler rules, including section-local targets in static relocatable
 objects. The guarded ISR and context-switch transactions select that object
 rule after structural ELF validation. Relocated external operands remain under
 the relocation-ownership check and are excluded from the local-target count.
@@ -910,14 +911,26 @@ the permissive fixed-32 wrapper. The DEBUG self-test covers one mixed map and
 one strict rejection through the public adapter.
 >endtree
 
->h2 Six-Tool Bootstrap Boundary
+>h2 Active Six-Tool Bootstrap Boundary
 >tree
-The promotion manifest keeps CupidASM as a producer and adds CupidBuild as a
-checked non-producer. The Linux form binds the exact 22-source, six-link plan.
-The Windows form also binds its native plan and requires the publication import
-profile for native CupidASM. Existing five-tool seeds remain active while
-fresh six-tool candidates are generated and compared. Its host check also
-binds the exact Linux plan manifest.
+The active v2 manifests keep CupidASM as a producer and add CupidBuild as a
+checked non-producer. Both bind revision
+`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 source inputs, and snapshot
+`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
+
+The Linux form binds the 22-source, six-link plan with SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
+Its 6,602-byte manifest has SHA-256
+`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
+Its 2,852-byte manifest has SHA-256
+`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+and pairs to the exact Linux manifest bytes.
+
+Candidate proof and promoted-seed self-consumption pass on Linux and native
+Windows. All six initial images match stage two. CupidBuild does not own a
+normal Make recipe, and Python retains coordination and publication.
 >endtree
 
 >h2 See Also

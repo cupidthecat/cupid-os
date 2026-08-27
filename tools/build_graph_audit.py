@@ -63,6 +63,7 @@ LINUX_BOOTSTRAP_SEED_INPUTS = (
     "bootstrap/seeds/i386-linux/cupiddis.elf",
     "bootstrap/seeds/i386-linux/cupidld.elf",
     "bootstrap/seeds/i386-linux/cupidobj.elf",
+    "bootstrap/seeds/i386-linux/cupidbuild.elf",
 )
 WINDOWS_PRODUCTION_SEED_INPUTS = (
     "bootstrap/seeds/i386-windows/manifest.json",
@@ -71,6 +72,7 @@ WINDOWS_PRODUCTION_SEED_INPUTS = (
     "bootstrap/seeds/i386-windows/cupiddis.exe",
     "bootstrap/seeds/i386-windows/cupidld.exe",
     "bootstrap/seeds/i386-windows/cupidobj.exe",
+    "bootstrap/seeds/i386-windows/cupidbuild.exe",
 )
 ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS = (
     "Makefile",

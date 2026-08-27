@@ -2850,7 +2850,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "",
         )
         seed = SimpleNamespace(
-            manifest={"schema": "cupid.execution-seed.v1"},
+            manifest={"schema": "cupid.execution-seed.v2"},
             tools={},
         )
 

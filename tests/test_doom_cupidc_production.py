@@ -1173,7 +1173,14 @@ class DoomCupidCProductionTests(unittest.TestCase):
             self.assertIsNotNone(frozen_seed)
             self.assertEqual(
                 set(frozen_seed.tools),
-                {"cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj"},
+                {
+                    "cupidasm",
+                    "cupidbuild",
+                    "cupidc",
+                    "cupiddis",
+                    "cupidld",
+                    "cupidobj",
+                },
             )
             self.assertTrue(
                 all(
@@ -2127,6 +2134,7 @@ class DoomCupidCProductionTests(unittest.TestCase):
             f"cupiddis{seed_suffix}",
             f"cupidld{seed_suffix}",
             f"cupidobj{seed_suffix}",
+            f"cupidbuild{seed_suffix}",
         ):
             shutil.copyfile(checked_seed_root / name, seed_root / name)
 

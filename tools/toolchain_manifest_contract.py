@@ -26,10 +26,10 @@ try:
     from tools import artifact_size_policy, cupidc_toolchain_contracts
     from tools.bootstrap_toolchain import (
         BootstrapError,
+        CANDIDATE_TOOL_NAMES,
         EXPECTED_WINDOWS_TARGET,
-        SEED_SCHEMA,
-        TOOL_NAMES,
-        WINDOWS_SEED_SCHEMA,
+        PROMOTED_SEED_SCHEMA,
+        PROMOTED_WINDOWS_SEED_SCHEMA,
         WINDOWS_TOOL_IMPORTS,
         ToolRunner,
         _validate_build_plan,
@@ -44,10 +44,10 @@ except ModuleNotFoundError:
     import cupidc_toolchain_contracts
     from bootstrap_toolchain import (
         BootstrapError,
+        CANDIDATE_TOOL_NAMES,
         EXPECTED_WINDOWS_TARGET,
-        SEED_SCHEMA,
-        TOOL_NAMES,
-        WINDOWS_SEED_SCHEMA,
+        PROMOTED_SEED_SCHEMA,
+        PROMOTED_WINDOWS_SEED_SCHEMA,
         WINDOWS_TOOL_IMPORTS,
         ToolRunner,
         _validate_build_plan,
@@ -362,7 +362,9 @@ def _seed_artifact_files(
     label: str,
 ) -> tuple[str, ...]:
     artifacts = manifest.get("artifacts")
-    if not isinstance(artifacts, list) or len(artifacts) != len(TOOL_NAMES):
+    if not isinstance(artifacts, list) or len(artifacts) != len(
+        CANDIDATE_TOOL_NAMES
+    ):
         raise ToolchainManifestContractError(f"{label} artifacts differ")
     files: dict[str, str] = {}
     for artifact in artifacts:
@@ -372,13 +374,13 @@ def _seed_artifact_files(
         file_name = artifact.get("file")
         if (
             not isinstance(name, str)
-            or name not in TOOL_NAMES
+            or name not in CANDIDATE_TOOL_NAMES
             or name in files
             or file_name != f"{name}.{suffix}"
         ):
             raise ToolchainManifestContractError(f"{label} artifact differs")
         files[name] = file_name
-    if set(files) != set(TOOL_NAMES):
+    if set(files) != set(CANDIDATE_TOOL_NAMES):
         raise ToolchainManifestContractError(f"{label} artifacts differ")
     return tuple(files[name] for name in sorted(files))
 
@@ -484,6 +486,7 @@ def _bootstrap_input_logical_paths(
             "toolchain/hosted/i386-windows/tool_start.asm",
             "toolchain/hosted/i386-windows/publication_runtime.cc",
             "toolchain/hosted/i386-windows/publication_start.asm",
+            "toolchain/hosted/i386-windows/cupidbuild_start.asm",
             "toolchain/tests/hosted_i386_windows_contract.cc",
             "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         )
@@ -542,11 +545,11 @@ def _capture_live_manifest_closure(
         seed_bytes,
         "Toolchain publication seed manifest",
     )
-    if seed_manifest.get("schema") != SEED_SCHEMA:
+    if seed_manifest.get("schema") != PROMOTED_SEED_SCHEMA:
         raise ToolchainManifestContractError(
             "Toolchain publication seed schema differs"
         )
-    _validate_build_plan(seed_manifest)
+    _validate_build_plan(seed_manifest, promoted=True)
     build_plan = seed_manifest.get("build_plan")
     if not isinstance(build_plan, dict):
         raise ToolchainManifestContractError(
@@ -647,7 +650,7 @@ def _require_live_closure_membership(
     seed_manifest = _decode_json_object(
         seed_bytes, "Toolchain publication seed manifest"
     )
-    _validate_build_plan(seed_manifest)
+    _validate_build_plan(seed_manifest, promoted=True)
     build_plan = seed_manifest.get("build_plan")
     if not isinstance(build_plan, dict):
         raise ToolchainManifestContractError(
@@ -807,9 +810,9 @@ def _freeze_execution_seed(
     )
     manifest = _decode_json_object(manifest_bytes, "execution seed manifest")
     schema = manifest.get("schema")
-    if schema == WINDOWS_SEED_SCHEMA:
+    if schema == PROMOTED_WINDOWS_SEED_SCHEMA:
         suffix = "exe"
-    elif schema == SEED_SCHEMA:
+    elif schema == PROMOTED_SEED_SCHEMA:
         suffix = "elf"
     else:
         raise ToolchainManifestContractError(
@@ -1006,11 +1009,11 @@ def _build_and_run_contract(
                 )
                 windows = os.name == "nt"
                 schema = seed.manifest.get("schema")
-                if windows and schema != WINDOWS_SEED_SCHEMA:
+                if windows and schema != PROMOTED_WINDOWS_SEED_SCHEMA:
                     raise ToolchainManifestContractError(
                         "Windows requires the checked native execution seed"
                     )
-                if not windows and schema != artifact_size_policy.SEED_SCHEMA:
+                if not windows and schema != PROMOTED_SEED_SCHEMA:
                     raise ToolchainManifestContractError(
                         "Linux requires the checked bootstrap seed"
                     )

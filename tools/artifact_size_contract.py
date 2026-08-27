@@ -26,7 +26,8 @@ try:
     from tools.bootstrap_toolchain import (
         BootstrapError,
         EXPECTED_WINDOWS_TARGET,
-        WINDOWS_SEED_SCHEMA,
+        PROMOTED_SEED_SCHEMA,
+        PROMOTED_WINDOWS_SEED_SCHEMA,
         WINDOWS_TOOL_IMPORTS,
         ToolRunner,
         _validate_i386_relocatable,
@@ -41,7 +42,8 @@ except ModuleNotFoundError:
     from bootstrap_toolchain import (
         BootstrapError,
         EXPECTED_WINDOWS_TARGET,
-        WINDOWS_SEED_SCHEMA,
+        PROMOTED_SEED_SCHEMA,
+        PROMOTED_WINDOWS_SEED_SCHEMA,
         WINDOWS_TOOL_IMPORTS,
         ToolRunner,
         _validate_i386_relocatable,
@@ -62,6 +64,7 @@ DEFAULT_TIMEOUT = 900
 WINDOWS_CHECKED_MANIFEST = "bootstrap/seeds/i386-windows/manifest.json"
 WINDOWS_CHECKED_FILES = (
     "cupidasm.exe",
+    "cupidbuild.exe",
     "cupidc.exe",
     "cupiddis.exe",
     "cupidld.exe",
@@ -69,6 +72,7 @@ WINDOWS_CHECKED_FILES = (
 )
 LINUX_EXECUTION_FILES = (
     "cupidasm.elf",
+    "cupidbuild.elf",
     "cupidc.elf",
     "cupiddis.elf",
     "cupidld.elf",
@@ -343,7 +347,7 @@ def _capture_checked_seed(
         reader,
         logical_manifest,
         WINDOWS_CHECKED_FILES,
-        WINDOWS_SEED_SCHEMA,
+        PROMOTED_WINDOWS_SEED_SCHEMA,
         "checked Windows seed",
     )
 
@@ -357,14 +361,14 @@ def _capture_execution_seed(
             reader,
             logical_manifest,
             WINDOWS_CHECKED_FILES,
-            WINDOWS_SEED_SCHEMA,
+            PROMOTED_WINDOWS_SEED_SCHEMA,
             "Windows execution seed",
         )
     return _capture_seed(
         reader,
         logical_manifest,
         LINUX_EXECUTION_FILES,
-        artifact_size_policy.SEED_SCHEMA,
+        PROMOTED_SEED_SCHEMA,
         "Linux execution seed",
     )
 
@@ -599,11 +603,11 @@ def _build_and_run_contract(
             seed = freeze_seed_inputs(captured_manifest, private / "seed")
             windows = os.name == "nt"
             schema = seed.manifest.get("schema")
-            if windows and schema != WINDOWS_SEED_SCHEMA:
+            if windows and schema != PROMOTED_WINDOWS_SEED_SCHEMA:
                 raise ArtifactSizeContractError(
                     "Windows requires the checked native execution seed"
                 )
-            if not windows and schema != artifact_size_policy.SEED_SCHEMA:
+            if not windows and schema != PROMOTED_SEED_SCHEMA:
                 raise ArtifactSizeContractError(
                     "Linux requires the checked bootstrap seed"
                 )

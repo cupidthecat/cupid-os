@@ -26,6 +26,7 @@ LINUX_PRODUCTION_SEED_FILES = {
     "bootstrap/seeds/i386-linux/cupiddis.elf",
     "bootstrap/seeds/i386-linux/cupidld.elf",
     "bootstrap/seeds/i386-linux/cupidobj.elf",
+    "bootstrap/seeds/i386-linux/cupidbuild.elf",
 }
 WINDOWS_PRODUCTION_SEED_FILES = {
     "bootstrap/seeds/i386-windows/manifest.json",
@@ -34,6 +35,7 @@ WINDOWS_PRODUCTION_SEED_FILES = {
     "bootstrap/seeds/i386-windows/cupiddis.exe",
     "bootstrap/seeds/i386-windows/cupidld.exe",
     "bootstrap/seeds/i386-windows/cupidobj.exe",
+    "bootstrap/seeds/i386-windows/cupidbuild.exe",
 }
 SEED_MANIFEST = (
     REPO_ROOT

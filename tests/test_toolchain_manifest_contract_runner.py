@@ -107,10 +107,10 @@ def _rewrite_with_live_closure(output: Path, manifest):
 
 def _expected_report():
     return {
-        "artifact_count": 21,
-        "artifact_total_bytes": 652,
-        "bootstrap_source_input_count": 50,
-        "input_count": 70,
+        "artifact_count": 22,
+        "artifact_total_bytes": 682,
+        "bootstrap_source_input_count": 58,
+        "input_count": 75,
         "schema": "cupid.toolchain-manifest-verification.v1",
     }
 
@@ -324,6 +324,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                     "cupiddis",
                     "cupidld",
                     "cupidobj",
+                    "cupidbuild",
                 )
             )
             for name in (*files, "rogue.exe"):
@@ -447,7 +448,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 decoded["artifact_observations"],
                 sorted(observations),
             )
-            self.assertEqual(len(decoded["input_observations"]), 70)
+            self.assertEqual(len(decoded["input_observations"]), 75)
             self.assertIn(
                 "toolchain/x86.cc",
                 {
@@ -457,8 +458,8 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                     ]
                 },
             )
-            self.assertEqual(len(decoded["bootstrap_observations"]), 50)
-            self.assertEqual(len(decoded["seed_observations"]), 5)
+            self.assertEqual(len(decoded["bootstrap_observations"]), 58)
+            self.assertEqual(len(decoded["seed_observations"]), 6)
             self.assertEqual(
                 decoded["seed_path"],
                 manifest["bootstrap"]["seed_manifest"]["path"],
@@ -906,7 +907,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
             timeout=91,
         )
         write.assert_called_once_with(
-            "Cupid Toolchain manifest: ok (21 artifacts)\n"
+            "Cupid Toolchain manifest: ok (22 artifacts)\n"
         )
 
     def test_cli_reports_a_controlled_failure(self):

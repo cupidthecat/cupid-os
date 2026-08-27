@@ -28,9 +28,9 @@ static const char manifest_report_schema[] =
 static const char manifest_expected_seed_path[] =
     "bootstrap/seeds/i386-linux/manifest.json";
 static const char manifest_expected_build_plan_sha256[] =
-    "59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc";
+    "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd";
 static const char manifest_expected_seed_manifest_sha256[] =
-    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b";
+    "6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562";
 
 static const char *const
     manifest_expected_input_paths[MANIFEST_EXPECTED_INPUT_COUNT] = {
@@ -1657,7 +1657,7 @@ static int manifest_parse_seed_closure(
     if (text_equals_literal(&key, "schema")) {
       field = 1u;
       ok = manifest_parse_string_literal(
-          &reader, "cupid.bootstrap-seed.v1", "seed manifest schema differs");
+          &reader, "cupid.bootstrap-seed.v2", "seed manifest schema differs");
     } else if (text_equals_literal(&key, "artifacts")) {
       field = 2u;
       ok = manifest_parse_seed_closure_artifacts(&reader, closure);

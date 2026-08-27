@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-08-25
+Verified against source on: 2026-08-27
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -22,21 +22,22 @@ rechecks the live boundaries, and publishes through a pinned parent. The
 transaction records its acquired owner lock, checks it at both final
 boundaries, and quarantines the path before cleanup. A successor lock is
 restored instead of deleted.
-The seed directory must contain exactly the five listed `.elf` or `.exe`
-peers. All five frozen images must match the selected static ELF32 or strict
+The seed directory must contain exactly the six listed `.elf` or `.exe`
+peers. All six frozen images must match the selected static ELF32 or strict
 PE32 execution profile, and membership is checked again after both attempted
 tool launches, including failure and timeout paths.
 The Linux and Windows standalone builds pass the real ISR object path and the
-complete transaction suites. A separate Linux candidate fixed point includes
-CupidBuild and matches all six final tool images. Its behavior gate also runs
+complete transaction suites. The active v2 fixed points include CupidBuild and
+match all six final tool images. Their behavior gate also runs
 the guarded object command with both images, compares the relocatable output,
-and checks missing-source rollback. The normal build still uses the five-tool
-seed and Python publisher.
+and checks missing-source rollback. The normal build uses the six-tool seed,
+but Python remains the publisher and no normal Make recipe invokes CupidBuild.
 Source head now validates every fixed-point C object structurally and then
 requires known decode, local targets, and code anchors before linking. The
 Windows CupidBuild startup marks all fourteen exports as functions. Fresh
-Linux and Windows convergence remains required before this source-head rule can
-support promotion. ADR 0347 records the object and startup boundary.
+Linux and Windows candidates converged, and promoted-seed self-consumption
+passes with all six initial images equal to stage two. ADR 0347 records the
+object and startup boundary.
 >endtree
 
 >h2 Overview
@@ -75,15 +76,14 @@ Source-head hosted CupidDis reads this deterministic static i386 PE32 profile.
 It reports the bounded PE and COFF fields, canonical sections, and named
 imports. Strict inspection decodes every executable section through the
 shared x86 model and checks the entry point and constant direct local targets
-against instruction starts. All five checked Windows tool images and an
+against instruction starts. All six checked Windows tool images and an
 import-free CupidLD fixture pass beside the independent Python validator.
 
 Dynamic PE, base relocations, ordinal imports, PE symbols, and general section
 layouts remain unsupported. The same applies to a loaded span above CupidLD's
-2 GiB RVA limit. Complete section and import reports for the five checked tools
-match an independent parse of their PE bytes. The promoted CupidDis tools
-predate this reader, so a later fixed-point proof and seed promotion must
-establish carriage.
+2 GiB RVA limit. Complete section and import reports for the six checked tools
+match an independent parse of their PE bytes. The active v2 CupidDis images
+carry this reader.
 
 CupidASM assembles the repository Windows entry, and freestanding CupidC
 compiles its headerless main. CupidLD links GetStdHandle, WriteFile, and
@@ -95,7 +95,8 @@ Linux programs that ran through WSL on Windows. This proved the loader, not a
 native Windows fixed point.
 
 Each native bootstrap generation builds matching CupidASM, CupidC, CupidDis,
-CupidLD, and CupidObj commands with Cupid tooling. Their shared hosted runtime
+CupidLD, CupidObj, and CupidBuild commands with Cupid tooling. Their shared
+hosted runtime
 provides native arguments, allocation, separate standard streams, named-file
 reads and writes, append behavior, seeking, the current directory, and useful
 error mapping. A direct runtime contract checks those paths, including failed
@@ -105,12 +106,12 @@ CupidLD adds path resolution, exclusive candidate creation, flush, replacement,
 and cleanup. Its successful output matches the reference image, and its forced
 failure leaves no candidate.
 
-Those five PE32 images form the checked Windows execution seed used by
+Those six PE32 images form the checked Windows execution seed used by
 output-bearing production recipes. Fixed-point reconstruction, Toolchain
 contracts still run the Linux seed through WSL. Artifact-size policy reads the
 Linux manifest as provenance, while its checked contract runs as a temporary
 PE on Windows. CUPSIZE2 also gives that contract the Windows manifest, Linux
-parent digest, and five regular-file size and digest observations. The
+parent digest, and six regular-file size and digest observations. The
 contract validates the Windows target, provenance, inventory, and observed
 bytes. The user ABI gate also builds and runs a temporary PE from the
 Windows seed. The
@@ -336,9 +337,9 @@ identity and completion evidence.
 The publication gate requires stage-three and stage-four identity, hosted
 runtime checks, live-input checks, and native Windows verification. The normal
 `all` path uses Cupid tooling with the host code-generation variables poisoned.
-Its exact policy covers fourteen paths: four OS artifacts, five Linux seed
-images, and five Windows seed images. CUPSIZE2 gives the CupidC-built contract
-the Windows manifest, Linux parent digest, and five regular-file size and
+Its exact policy covers sixteen paths: four OS artifacts, six Linux seed
+images, and six Windows seed images. CUPSIZE2 gives the CupidC-built contract
+the Windows manifest, Linux parent digest, and six regular-file size and
 digest observations. The contract validates the Windows target, provenance,
 exact inventory, and observed bytes. The focused semantic-contract,
 checked-runner, and independent-policy modules contain 22, 16, and 13 tests,
@@ -449,7 +450,8 @@ Choose CupidC when you want:
 
 >h2 Checked toolchain seed boundary
 >tree
-The promoted Linux and Windows cohorts are complete five-tool trust units.
+The active Linux and Windows v2 cohorts are complete six-tool trust units.
+CupidBuild is a checked non-producer in both.
 Their fixed-point gates compare the final stages and exercise each platform's
 success and failure behavior. CupidDis must reject unmatched executable
 relocations.
@@ -476,15 +478,27 @@ normal kernel publisher combines it with linked local-target validation for
 the pass-one and final ELFs before flattening.
 >endtree
 
->h2 Six-Tool Seed Images
+>h2 Active Six-Tool Seed Images
 >tree
-The next seed schema lists six complete tool images. CupidBuild joins CupidASM,
-CupidDis, CupidLD, CupidObj, and CupidC as a checked artifact but does not act
-as a code producer. Linux keeps static ELF32 checks. Windows applies the
-publication-capable import profile required by each native tool. The active
-seed directories remain on the five-image schema until a fresh fixed-point
-pair is promoted. The Windows record binds the exact Linux plan manifest used
-for that pair.
+The active v2 seed schemas list six complete tool images. CupidBuild joins
+CupidASM, CupidDis, CupidLD, CupidObj, and CupidC as a checked artifact but does
+not act as a code producer. Both manifests bind revision
+`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 inputs, and source snapshot
+`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
+
+The Linux plan has SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
+Its 6,602-byte manifest has SHA-256
+`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
+Its 2,852-byte manifest has SHA-256
+`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+and pairs to the exact Linux manifest bytes.
+
+Candidate proof and promoted-seed self-consumption pass on Linux and native
+Windows. All six initial images match stage two. CupidBuild does not own a
+normal Make recipe, and Python still coordinates and publishes the build.
 >endtree
 
 >h2 See Also

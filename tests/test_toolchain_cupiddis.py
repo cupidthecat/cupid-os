@@ -938,6 +938,7 @@ class CupidDisContractTests(unittest.TestCase):
             "cupiddis.exe",
             "cupidld.exe",
             "cupidobj.exe",
+            "cupidbuild.exe",
         }
         seeds = sorted(seed_root.glob("*.exe"))
         self.assertEqual({path.name for path in seeds}, expected_names)

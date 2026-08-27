@@ -110,7 +110,14 @@ class CupidBuildCliTests(unittest.TestCase):
         production_seed = self._production_manifest().parent
         shutil.copy2(production_seed / "manifest.json", destination / "manifest.json")
         suffix = ".exe" if os.name == "nt" else ".elf"
-        for tool in ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj"):
+        for tool in (
+            "cupidasm",
+            "cupidc",
+            "cupiddis",
+            "cupidld",
+            "cupidobj",
+            "cupidbuild",
+        ):
             shutil.copy2(
                 production_seed / f"{tool}{suffix}",
                 destination / f"{tool}{suffix}",
@@ -167,15 +174,25 @@ class CupidBuildCliTests(unittest.TestCase):
         stand_in = manifest.parent / f"cupidbuild{suffix}"
         shutil.copy2(manifest.parent / f"cupidobj{suffix}", stand_in)
         payload = stand_in.read_bytes()
-        document["artifacts"].append(
-            {
+        build_artifact = next(
+            (
+                artifact
+                for artifact in document["artifacts"]
+                if artifact["name"] == "cupidbuild"
+            ),
+            None,
+        )
+        if build_artifact is None:
+            build_artifact = {
                 "file": stand_in.name,
                 "name": "cupidbuild",
                 "producer": False,
-                "sha256": hashlib.sha256(payload).hexdigest(),
-                "size": len(payload),
+                "sha256": "",
+                "size": 0,
             }
-        )
+            document["artifacts"].append(build_artifact)
+        build_artifact["sha256"] = hashlib.sha256(payload).hexdigest()
+        build_artifact["size"] = len(payload)
         revision = "abcdef0123456789abcdef0123456789abcdef01"
         snapshot = "2" * 64
         if os.name == "nt":
@@ -215,8 +232,9 @@ class CupidBuildCliTests(unittest.TestCase):
         else:
             document["schema"] = "cupid.bootstrap-seed.v2"
             plan = document["build_plan"]
-            plan["sources"].extend(
-                [
+            if "cupidbuild" not in plan["links"]:
+                plan["sources"].extend(
+                    [
                     {
                         "gnu_extensions": False,
                         "name": "cupidbuild",
@@ -232,18 +250,18 @@ class CupidBuildCliTests(unittest.TestCase):
                         "name": "cupidbuild_main",
                         "path": "/toolchain/cupidbuild_main.cc",
                     },
+                    ]
+                )
+                plan["links"]["cupidbuild"] = [
+                    "start",
+                    "cupidbuild_main",
+                    "cupidbuild",
+                    "cupidbuild_host",
+                    "ctool_host",
+                    "ctool",
+                    "elf32",
+                    "runtime",
                 ]
-            )
-            plan["links"]["cupidbuild"] = [
-                "start",
-                "cupidbuild_main",
-                "cupidbuild",
-                "cupidbuild_host",
-                "ctool_host",
-                "ctool",
-                "elf32",
-                "runtime",
-            ]
             encoded_plan = json.dumps(
                 plan,
                 sort_keys=True,
@@ -276,6 +294,70 @@ class CupidBuildCliTests(unittest.TestCase):
             encoding="utf-8",
         )
         return document
+
+    @staticmethod
+    def _legacy_seed_contract(document):
+        legacy = json.loads(json.dumps(document))
+        legacy["artifacts"] = [
+            artifact
+            for artifact in legacy["artifacts"]
+            if artifact["name"] != "cupidbuild"
+        ]
+        revision = "a17c9465911da41d59b7ada71733d36c39faa5ea"
+        snapshot = (
+            "46c5335c80d822dd5085ee22077486ea"
+            "647e5396482d42454847c87e4222aa67"
+        )
+        lineage = legacy["provenance"]["producer_lineage"]
+        if os.name == "nt":
+            legacy["schema"] = "cupid.execution-seed.v1"
+            legacy["provenance"] = {
+                "artifact_generation": "paired-stage-four-native-windows",
+                "fixed_point_command": "make bootstrap-windows-from-seed",
+                "fixed_point_result": "pass",
+                "parent_seed_manifest_sha256": (
+                    "b6e34a2e18dd18aba91c6358116eafde"
+                    "39953566efeadb224575ac8c13ab2c1b"
+                ),
+                "parent_seed_source_revision": revision,
+                "producer_lineage": lineage,
+                "source_input_count": 50,
+                "source_revision": revision,
+                "source_snapshot_sha256": snapshot,
+            }
+        else:
+            legacy["schema"] = "cupid.bootstrap-seed.v1"
+            plan = legacy["build_plan"]
+            candidate_sources = {
+                "cupidbuild",
+                "cupidbuild_host",
+                "cupidbuild_main",
+            }
+            plan["sources"] = [
+                source
+                for source in plan["sources"]
+                if source["name"] not in candidate_sources
+            ]
+            del plan["links"]["cupidbuild"]
+            encoded_plan = json.dumps(
+                plan,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+            ).encode("ascii")
+            legacy["build_plan_sha256"] = hashlib.sha256(
+                encoded_plan
+            ).hexdigest()
+            legacy["provenance"] = {
+                "fixed_point_command": "make bootstrap-from-seed",
+                "fixed_point_result": "pass",
+                "producer_lineage": lineage,
+                "seed_generation": "stage-four",
+                "source_input_count": 50,
+                "source_revision": revision,
+                "source_snapshot_sha256": snapshot,
+            }
+        return legacy
 
     @staticmethod
     def _reverse_object_fields(value):
@@ -587,6 +669,16 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertEqual(output.read_bytes(), original)
 
     def test_malformed_or_incomplete_seed_contract_is_rejected(self):
+        def v2_artifact_in_v1_manifest(document):
+            build_artifact = next(
+                artifact
+                for artifact in document["artifacts"]
+                if artifact["name"] == "cupidbuild"
+            )
+            legacy = self._legacy_seed_contract(document)
+            legacy["artifacts"].append(build_artifact)
+            return json.dumps(legacy, indent=2, sort_keys=True) + "\n"
+
         mutations = {
             "trailing document": lambda document: (
                 json.dumps(document, indent=2, sort_keys=True) + "\n{}\n"
@@ -634,29 +726,7 @@ class CupidBuildCliTests(unittest.TestCase):
                 )
                 + "\n"
             ),
-            "v2 artifact in a v1 manifest": lambda document: (
-                json.dumps(
-                    {
-                        **document,
-                        "artifacts": [
-                            *document["artifacts"][:-1],
-                            {
-                                **document["artifacts"][-1],
-                                "file": (
-                                    "cupidbuild.exe"
-                                    if os.name == "nt"
-                                    else "cupidbuild.elf"
-                                ),
-                                "name": "cupidbuild",
-                                "producer": False,
-                            },
-                        ],
-                    },
-                    indent=2,
-                    sort_keys=True,
-                )
-                + "\n"
-            ),
+            "v2 artifact in a v1 manifest": v2_artifact_in_v1_manifest,
             "extra artifact field": lambda document: (
                 json.dumps(
                     {
@@ -822,7 +892,7 @@ class CupidBuildCliTests(unittest.TestCase):
             self._replace_seed_tool(
                 manifest,
                 "cupiddis",
-                self._production_manifest().parent / f"cupidasm{suffix}",
+                self._production_manifest().parent / f"cupidobj{suffix}",
             )
             source = root / "input.asm"
             output = root / "output.o"

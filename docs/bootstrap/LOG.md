@@ -31887,3 +31887,69 @@ release-authentication files. This pin makes the asset available; gameplay,
 input, audio, menu save/load, and reboot persistence still need executed guest
 evidence. `FREEDOOM-RUNTIME.md` records the initial build and boot commands and
 the ordered guest work for the next implementation slices.
+
+## 2026-08-27: promote the paired six-tool seeds
+
+The checked Linux and Windows seed directories now contain the paired v2
+cohorts recorded in ADR 0353. Each cohort contains CupidASM, CupidDis, CupidLD,
+CupidObj, CupidC, and CupidBuild. CupidBuild remains a checked non-producer;
+Python still coordinates the fixed-point builds, and no normal recipe changes
+owner in this promotion.
+
+The promoted Linux manifest rebuilt the complete tool cohort from its checked
+inputs. All six initial images matched, and stages three and four matched
+across 22 C objects, the startup object, and six tool images. The 51,389-byte
+report has SHA-256
+`d2c51e2c4df168cadd2636d1f87423ebc7423d439e1679184f5849947376ecce`.
+
+The promoted Windows manifest passed the same gate with all six initial images
+equal. Stages three and four matched across 23 C objects, three assembly
+objects, and six tool images. The 64,515-byte report has SHA-256
+`645b1f6e6181dd44e3169cc9735a9d9ca75f96d7ae50b5e585a3038dae32e169`.
+The candidate report identities remain recorded separately in ADR 0353.
+
+The shorter bootstrap coordinator suite passes all 126 tests in 385.396
+seconds. The focused artifact modules pass 54 tests with four platform skips.
+Active audit generation also passes.
+
+The normal OS replay passed both CupidLD links and the strict 431-input
+CupidDis scan. Its first exact-size check measured a 9,504,760-byte raw kernel
+against the provisional 9,504,480-byte policy row. The gate failed closed
+before image publication. After that row was corrected, CTXT lineage
+corrections added 896 bytes. A second gate measured 9,505,656 bytes against the
+9,504,760-byte row and also failed closed before publication. A final
+spec-review correction to the CTXT sources changed the raw kernel again. The
+third check observed 9,505,572 bytes against the 9,505,656-byte row and failed
+closed before publication. After the row was corrected, the 3,382-byte policy
+passed all sixteen exact paths, totaling 38,120,452 bytes. The policy has
+SHA-256
+`7f9c1f49d1543112bf6984def1e4ecba6df4fb7a55d2481a85deb7370cf4bfc2`.
+
+The final replay produced these artifacts and force-formatted a fresh normal
+image:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,601,052 | `2c2b16f018c018ecd55c96868428d9427213aca4344c67b44e2241f05a054463` |
+| `kernel/kernel.elf` | 9,732,124 | `342d57566d853ee9a894ec5c6d4e0eafbc6169019950c768f648873ce797fee6` |
+| `kernel/kernel.bin` | 9,505,572 | `1d12e0ddc98bcc66fe34157357a80f4a4f6916f0f75b921b5e56eaa792de1977` |
+| `cupidos.img` | 209,715,200 | `112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3` |
+
+The normal `hello.iso` staging step created a 209,715,200-byte runtime source
+derivative containing `hello`, `ls`, `cat`, and `catfix.txt`. Its SHA-256 is
+`816f219305dd0b406d2077913a7f1def08a88efd9591239d0effe44b385cbf10`.
+The harness booted private copies of that staged derivative for three QEMU
+smokes:
+
+| Guest exercise | Log bytes | Log SHA-256 |
+| --- | ---: | --- |
+| `hello` | 28,807 | `6543cecfb005f2b775541e279201ee6af4bac4af74bed81a27918f5711392c82` |
+| `ls` | 30,158 | `03c01d39b2320be1cc5ec2f92b33d6ffbc62acf50de74f4464ac4fc73f55ea27` |
+| `cat` against the hostile fixture | 63,987 | `ca5f6622e317e8ade54370d428271e8f64221b9afd3bf3f238d04760ebdec57a` |
+
+All three passed. Afterward, the clean normal image was restored to SHA-256
+`112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3`.
+
+Python still coordinates the fixed-point builds. The ISR and
+context-switch recipes still run through `tools/hostbuild.py`, and CupidBuild
+still has no normal Make recipe. Issue #32 stays open for those transfers.

@@ -737,8 +737,9 @@ private 1536-bit integer workspace and rounds once at the requested IEEE width.
 The public frontend, Linear IR, and ELF32 contracts cover both halfway
 parities, minimum subnormal and normal values, maximum finite values, infinity,
 signed underflow zero, extreme exponents, and the 95-character token boundary.
-ADR 0312 first carried this capability. The unchanged CupidC images in the
-current checked seeds have carried it since ADR 0318.
+ADR 0312 first carried this capability. The preceding linked-image cohort
+carried it under ADR 0318.
+The active paired v2 cohort retains it under ADR 0353.
 Non-atomic `long double` values now use twelve-byte target objects and x87
 80-bit memory loads and stores. Bounded finite normal decimal `L` tokens
 round an exact integer ratio to a 64-bit explicit significand with ties to
@@ -930,9 +931,9 @@ direct contract suite passes 40 tests in 54.623 seconds, the publisher suite
 passes 64 tests in 12.144 seconds, and the pinned verifier runner passes 25 tests
 in 32.773 seconds with three POSIX-only Windows skips. ADR 0311 records this
 host import boundary.
-The published cohort keeps the promoted five-tool seed separate from its
-six-tool candidate. The candidate adds CupidBuild and freezes 58 inputs. ADR
-0345 records that boundary.
+The active v2 cohort contains all six tools. CupidBuild is a checked
+non-producer, and the paired Linux and Windows manifests freeze the same 58
+inputs. ADR 0345 records that boundary.
 The settled audit is recorded in the
 build-graph evidence below. The final poisoned build and private guest evidence
 appear in the current checked-seed proof.
@@ -1133,19 +1134,19 @@ in 1,253.4 seconds, and the promoted-seed reproof passed in 1,061.3 seconds
 with the 5/5/6 matrix. ADR 0266 records the decoder index, ADR 0281 records the
 preceding Windows promotion, and ADR 0292 records that promotion.
 
-The current promoted Linux CupidC image is 2,687,436 bytes with SHA-256
+The earlier v1 Linux CupidC image was 2,687,436 bytes with SHA-256
 `273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094`.
-Its 5,573-byte manifest has SHA-256
+Its 5,573-byte manifest had SHA-256
 `b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`.
-The current promoted Windows CupidC image is 2,613,760 bytes with SHA-256
+The earlier v1 Windows CupidC image was 2,613,760 bytes with SHA-256
 `c768223d4dcd36023e9793b65d86f7bcbd641e921d6a6febf0a255eb7a0e1002`.
-Its 2,118-byte manifest has SHA-256
+Its 2,118-byte manifest had SHA-256
 `751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`.
-Both manifests bind revision `a17c9465911da41d59b7ada71733d36c39faa5ea`
+Both manifests bound revision `a17c9465911da41d59b7ada71733d36c39faa5ea`
 and exact 50-input snapshot
 `46c5335c80d822dd5085ee22077486ea647e5396482d42454847c87e4222aa67`.
-The Windows manifest names the Linux manifest as its parent. ADR 0336 records
-the current promotion.
+The Windows manifest named the Linux manifest as its parent. ADR 0336 records
+that v1 promotion.
 The normal kernel path runs strict checked-seed CupidDis and checked CupidObj
 flat extraction against one frozen cohort of all 429 audited root object
 outputs plus the pass-one and final kernel ELFs. Its 9,076-byte graph-ordered input manifest has SHA-256
@@ -1339,7 +1340,7 @@ layout. Native contract runners and hosted development commands are explicit
 host-built oracles; normal OS and Toolchain artifacts do not depend on them.
 
 Root image assembly, object, link, and inspection commands use that checked
-five-tool seed. Checked production kernel, generated-install, and user CupidC
+six-tool seed. Checked production kernel, generated-install, and user CupidC
 calls plus checked user CupidLD links and CupidDis inspections use the same runner with their existing
 frozen seed capture. The runner verifies the complete live trust unit again
 after each command, and Make passes wildcard-discovered output lists through
@@ -1686,21 +1687,46 @@ The first attempt at the audit stopped after 65.183 seconds because the test
 still locked the old artifact-size recipe. The audit and its test now require
 one `$(ARTIFACT_SIZE_CONTRACT)` command that captures both seed roles. Its
 `CUPSIZE2` request lets the CupidC-built contract validate the Windows target,
-provenance, Linux parent link, exact five-tool inventory, and observed sizes
+provenance, Linux parent link, exact six-tool inventory, and observed sizes
 and digests. The focused semantic-contract, checked-runner, and
-independent-policy modules contain 22, 16, and 13 tests, for 51 total. They
-pass with four existing platform-specific skips. The source-head artifact
-contract passes against all fourteen exact artifacts. The pass-one ELF is
-9,596,956 bytes with SHA-256
-`c871658c40304bfb5e7c61f2e7cc0479bb1bb7fe1c4af7835d119544d8034206`.
-The final ELF is 9,728,028 bytes with SHA-256
-`78bcce45f047c807aa798988606c363d0b51b6b48f6b1335cbd156a64a2ca1a0`.
-The raw kernel is 9,500,284 bytes with SHA-256
-`f7b09ca658d72d5bd7124baa93f815697dd7b91cd76f78e56903430b4d59a873`.
-The disk image is 209,715,200 bytes with SHA-256
-`09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186`.
-The normal build completed its 431-input code-anchor scan, and the image passed
-a private four-vCPU E1000 frontier smoke.
+independent-policy modules contain 54 tests. They pass with four
+platform-specific skips. The source-head artifact
+contract passes against all sixteen exact artifacts. The current 3,382-byte
+policy has SHA-256
+`7f9c1f49d1543112bf6984def1e4ecba6df4fb7a55d2481a85deb7370cf4bfc2`
+and covers 38,120,452 bytes across those paths. The pass-one ELF is 9,601,052
+bytes with SHA-256
+`2c2b16f018c018ecd55c96868428d9427213aca4344c67b44e2241f05a054463`.
+The final ELF is 9,732,124 bytes with SHA-256
+`342d57566d853ee9a894ec5c6d4e0eafbc6169019950c768f648873ce797fee6`.
+The raw kernel is 9,505,572 bytes with SHA-256
+`1d12e0ddc98bcc66fe34157357a80f4a4f6916f0f75b921b5e56eaa792de1977`.
+The freshly force-formatted disk image is 209,715,200 bytes with SHA-256
+`112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3`.
+The normal build completed its 431-input code-anchor scan. Staging `hello`,
+`ls`, `cat`, and `catfix.txt` produced a 209,715,200-byte runtime derivative
+with SHA-256
+`816f219305dd0b406d2077913a7f1def08a88efd9591239d0effe44b385cbf10`.
+Private copies of that derivative passed the `hello`, `ls`, and hostile-fixture
+`cat` QEMU smokes. The published clean image was then restored with SHA-256
+`112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3`.
+
+| Runtime smoke | Log bytes | Log SHA-256 |
+| --- | ---: | --- |
+| `hello` | 28,807 | `6543cecfb005f2b775541e279201ee6af4bac4af74bed81a27918f5711392c82` |
+| `ls` | 30,158 | `03c01d39b2320be1cc5ec2f92b33d6ffbc62acf50de74f4464ac4fc73f55ea27` |
+| `cat` against the hostile fixture | 63,987 | `ca5f6622e317e8ade54370d428271e8f64221b9afd3bf3f238d04760ebdec57a` |
+
+The preceding source-head cohort used the same pass-one and final ELF sizes
+with SHA-256 values
+`c694ba70e37e711c6490db2f17fb1869300c26703017cb1bd8adb3b51cce1c60`
+and `bbdb974acc12bf57dd95bff4f734ad9ad75dd8d11dfec3267a22df455666f459`.
+Its 9,504,760-byte raw kernel had SHA-256
+`346063e08f2fef5550e2a40b8edb1ea7cbe2f242a3084f1137a9552ed7baf84a`,
+and its disk image had SHA-256
+`aa9bc411d48625837b511b32444019f0aa555a48fc5aaa2400c9259dd8607333`.
+That image passed the private four-vCPU E1000 frontier smoke recorded at the
+checkpoint.
 
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The Linux
 audit records 23 failure groups, six help groups, and 29 success groups. The
@@ -3160,14 +3186,27 @@ log has SHA-256
 The source image was unchanged at SHA-256
 `31b25b6881419b1bb8a04b2b3765323b21c5706ac114af1a07b514dcdcd07ea3`.
 
-## Six-tool bootstrap manifests
+## Active six-tool bootstrap manifests
 
-Source-head CupidBuild and the host bootstrap coordinator understand both the
-current five-tool manifests and the six-tool promotion format. The latter adds
-CupidBuild as a checked non-producer and validates its image with the same
-strict platform rules used during candidate generation. Its provenance names
-the existing seed as its parent instead of trying to embed the future
-CupidBuild or manifest digest. Windows also records the Linux plan-manifest
-digest for exact host-side pairing. The active checked compiler seeds remain
-on the five-tool schema until fresh candidates converge and are promoted
-together.
+CupidBuild and the host bootstrap coordinator still understand the historical
+v1 five-tool format. The active Linux and Windows compiler seeds use v2 and
+list CupidBuild as a checked non-producer beside the five existing tools. Both
+manifests bind revision `f620e3a973c6fca661c8eeefe443f4b3c669dddc`, the
+58-input snapshot
+`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`,
+and the exact platform build plan.
+
+The Linux plan has SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
+Its 6,602-byte manifest has SHA-256
+`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
+Its 2,852-byte manifest has SHA-256
+`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+and pairs to the exact Linux manifest bytes.
+
+Candidate fixed-point and behavior proof passed on both platforms. The active
+v2 cohorts also pass promoted-seed self-consumption, with all six initial images
+equal to stage two. CupidBuild does not own a normal Make recipe at this
+checkpoint, and Python still coordinates and publishes the build.

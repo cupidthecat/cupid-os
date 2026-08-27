@@ -15,10 +15,11 @@ from pathlib import Path, PurePosixPath
 
 
 SCHEMA = "cupid.artifact-size-policy.v1"
-SEED_SCHEMA = "cupid.bootstrap-seed.v1"
+SEED_SCHEMA = "cupid.bootstrap-seed.v2"
 FIXED_ARTIFACT_OWNERS = {
     "boot/boot.bin": "CupidASM",
     "bootstrap/seeds/i386-windows/cupidasm.exe": "CupidASM",
+    "bootstrap/seeds/i386-windows/cupidbuild.exe": "CupidBuild",
     "bootstrap/seeds/i386-windows/cupidc.exe": "CupidC",
     "bootstrap/seeds/i386-windows/cupiddis.exe": "CupidDis",
     "bootstrap/seeds/i386-windows/cupidld.exe": "CupidLD",
@@ -29,6 +30,7 @@ FIXED_ARTIFACT_OWNERS = {
 }
 SEED_ARTIFACT_OWNERS = {
     "cupidasm": "CupidASM",
+    "cupidbuild": "CupidBuild",
     "cupidc": "CupidC",
     "cupiddis": "CupidDis",
     "cupidld": "CupidLD",
@@ -679,8 +681,15 @@ def _decode_seed_manifest(
     for index, artifact in enumerate(artifacts):
         if not isinstance(artifact, dict):
             raise SizePolicyError(f"seed manifest artifact {index} is not an object")
+        expected_keys = {"file", "name", "producer", "sha256", "size"}
+        if set(artifact) != expected_keys:
+            raise SizePolicyError(
+                f"seed manifest artifact {index} fields differ"
+            )
         name = artifact.get("name")
         filename = artifact.get("file")
+        producer = artifact.get("producer")
+        digest = artifact.get("sha256")
         size = artifact.get("size")
         if not isinstance(name, str) or name not in SEED_ARTIFACT_OWNERS:
             raise SizePolicyError(
@@ -695,6 +704,19 @@ def _decode_seed_manifest(
             )
         if filename in files:
             raise SizePolicyError(f"seed manifest file is duplicated: {filename}")
+        expected_producer = name in {"cupidasm", "cupidc", "cupidld"}
+        if producer is not expected_producer:
+            raise SizePolicyError(
+                f"seed manifest artifact {name} has the wrong producer role"
+            )
+        if (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise SizePolicyError(
+                f"seed manifest artifact {name} has an invalid digest"
+            )
         if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
             raise SizePolicyError(f"seed manifest artifact {name} has an invalid size")
         files.add(filename)

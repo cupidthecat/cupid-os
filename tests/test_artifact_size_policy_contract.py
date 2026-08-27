@@ -18,26 +18,28 @@ SOURCE_REVISION = "1" * 40
 SOURCE_SNAPSHOT = "2" * 64
 SEED_TOOLS = (
     ("cupidasm", "CupidASM", 101),
-    ("cupidc", "CupidC", 102),
-    ("cupiddis", "CupidDis", 103),
-    ("cupidld", "CupidLD", 104),
-    ("cupidobj", "CupidObj", 105),
+    ("cupidbuild", "CupidBuild", 102),
+    ("cupidc", "CupidC", 103),
+    ("cupiddis", "CupidDis", 104),
+    ("cupidld", "CupidLD", 105),
+    ("cupidobj", "CupidObj", 106),
 )
 FIXED_ARTIFACTS = (
     ("boot/boot.bin", "CupidASM", 10),
     ("bootstrap/seeds/i386-windows/cupidasm.exe", "CupidASM", 51),
-    ("bootstrap/seeds/i386-windows/cupidc.exe", "CupidC", 52),
-    ("bootstrap/seeds/i386-windows/cupiddis.exe", "CupidDis", 53),
-    ("bootstrap/seeds/i386-windows/cupidld.exe", "CupidLD", 54),
-    ("bootstrap/seeds/i386-windows/cupidobj.exe", "CupidObj", 55),
+    ("bootstrap/seeds/i386-windows/cupidbuild.exe", "CupidBuild", 52),
+    ("bootstrap/seeds/i386-windows/cupidc.exe", "CupidC", 53),
+    ("bootstrap/seeds/i386-windows/cupiddis.exe", "CupidDis", 54),
+    ("bootstrap/seeds/i386-windows/cupidld.exe", "CupidLD", 55),
+    ("bootstrap/seeds/i386-windows/cupidobj.exe", "CupidObj", 56),
     ("kernel/kernel.bin", "CupidObj", 20),
     ("kernel/kernel.elf", "CupidLD", 30),
     ("kernel/kernel.elf.pass1", "CupidLD", 40),
 )
 SUCCESS_REPORT = (
-    '{"artifact_count":14,'
+    '{"artifact_count":16,'
     '"schema":"cupid.artifact-size-verification.v1",'
-    '"total_exact_bytes":880}\n'
+    '"total_exact_bytes":1042}\n'
 )
 
 
@@ -108,7 +110,7 @@ def _manifest():
                 "file": f"{name}.elf",
                 "name": name,
                 "producer": name in {"cupidasm", "cupidc", "cupidld"},
-                "sha256": name * 8,
+                "sha256": hashlib.sha256(name.encode("ascii")).hexdigest(),
                 "size": size,
             }
             for name, _owner, size in SEED_TOOLS
@@ -117,10 +119,26 @@ def _manifest():
             "ignored": [None, True, False, -3, 1.25, {"nested": "value"}]
         },
         "provenance": {
+            "artifact_generation": "paired-stage-four-six-tool",
+            "fixed_point_command": "make bootstrap-from-seed",
+            "fixed_point_result": "pass",
+            "parent_seed_manifest_sha256": (
+                "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+            ),
+            "parent_seed_source_revision": (
+                "a17c9465911da41d59b7ada71733d36c39faa5ea"
+            ),
+            "producer_lineage": {
+                "assembly": "stage-three CupidASM from the checked-seed bootstrap",
+                "c": "stage-three CupidC from the checked-seed bootstrap",
+                "link": "stage-three CupidLD from the checked-seed bootstrap",
+            },
+            "seed_generation": "stage-four",
+            "source_input_count": 58,
             "source_revision": SOURCE_REVISION,
             "source_snapshot_sha256": SOURCE_SNAPSHOT,
         },
-        "schema": "cupid.bootstrap-seed.v1",
+        "schema": "cupid.bootstrap-seed.v2",
         "target": {"architecture": "i386", "format": "elf32"},
     }
 
@@ -141,11 +159,28 @@ def _windows_manifest(parent_manifest_sha256):
             for size in (fixed_size,)
         ],
         "provenance": {
-            "artifact_generation": "paired-stage-four-native-windows",
+            "artifact_generation": "paired-stage-four-six-tool-native-windows",
             "fixed_point_command": "make bootstrap-windows-from-seed",
             "fixed_point_result": "pass",
-            "parent_seed_manifest_sha256": parent_manifest_sha256,
-            "parent_seed_source_revision": SOURCE_REVISION,
+            "linux_candidate_build_plan_sha256": (
+                "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
+            ),
+            "native_build_plan_sha256": (
+                "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
+            ),
+            "parent_execution_seed_manifest_sha256": (
+                "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef"
+            ),
+            "parent_execution_seed_source_revision": (
+                "a17c9465911da41d59b7ada71733d36c39faa5ea"
+            ),
+            "parent_plan_seed_manifest_sha256": (
+                "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+            ),
+            "parent_plan_seed_source_revision": (
+                "a17c9465911da41d59b7ada71733d36c39faa5ea"
+            ),
+            "plan_seed_manifest_sha256": parent_manifest_sha256,
             "producer_lineage": {
                 "assembly": (
                     "native stage-three CupidASM from the checked i386 "
@@ -160,11 +195,11 @@ def _windows_manifest(parent_manifest_sha256):
                     "Windows bootstrap"
                 ),
             },
-            "source_input_count": 50,
+            "source_input_count": 58,
             "source_revision": SOURCE_REVISION,
             "source_snapshot_sha256": SOURCE_SNAPSHOT,
         },
-        "schema": "cupid.execution-seed.v1",
+        "schema": "cupid.execution-seed.v2",
         "target": {
             "abi": "windows-stdcall-imports",
             "architecture": "i386",
@@ -355,7 +390,7 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(
             result.stderr,
             "Cupid artifact-size contract failed: request does not contain "
-            "fourteen artifact observations\n",
+            "sixteen artifact observations\n",
         )
 
     def test_policy_and_manifest_schemas_are_checked(self):
@@ -376,6 +411,23 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
             )
         )
 
+    def test_linux_seed_v2_provenance_is_checked(self):
+        cases = (
+            ("artifact_generation", "wrong"),
+            ("parent_seed_manifest_sha256", "0" * 64),
+            ("parent_seed_source_revision", "0" * 40),
+            ("source_input_count", 57),
+        )
+        for field, value in cases:
+            with self.subTest(field=field):
+                manifest = _manifest()
+                manifest["provenance"][field] = value
+                self.assert_contract_failure(_request(manifest=manifest))
+
+        manifest = _manifest()
+        manifest["provenance"]["producer_lineage"]["c"] = "wrong"
+        self.assert_contract_failure(_request(manifest=manifest))
+
     def test_windows_seed_target_parent_and_source_revision_are_checked(self):
         digest = "3" * 64
         windows_manifest = _windows_manifest(digest)
@@ -386,6 +438,28 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                 windows_manifest=windows_manifest,
             )
         )
+
+    def test_windows_seed_v2_plan_and_parent_provenance_are_checked(self):
+        digest = "3" * 64
+        cases = (
+            ("linux_candidate_build_plan_sha256", "0" * 64),
+            ("native_build_plan_sha256", "0" * 64),
+            ("parent_execution_seed_manifest_sha256", "0" * 64),
+            ("parent_execution_seed_source_revision", "0" * 40),
+            ("parent_plan_seed_manifest_sha256", "0" * 64),
+            ("parent_plan_seed_source_revision", "0" * 40),
+            ("source_input_count", 57),
+        )
+        for field, value in cases:
+            with self.subTest(field=field):
+                windows_manifest = _windows_manifest(digest)
+                windows_manifest["provenance"][field] = value
+                self.assert_contract_failure(
+                    _request(
+                        linux_manifest_digest=digest,
+                        windows_manifest=windows_manifest,
+                    )
+                )
 
         windows_manifest = _windows_manifest("4" * 64)
         self.assert_contract_failure(
@@ -422,7 +496,7 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_windows_seed_requires_exact_five_name_inventory_and_producers(self):
+    def test_windows_seed_requires_exact_six_name_inventory_and_producers(self):
         digest = "3" * 64
         windows_manifest = _windows_manifest(digest)
         windows_manifest["artifacts"].pop()
@@ -579,7 +653,7 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
             _request(policy=policy, observations=observations)
         )
 
-    def test_seed_manifest_requires_five_named_elf_artifacts(self):
+    def test_seed_manifest_requires_six_named_elf_artifacts_and_producers(self):
         manifest = _manifest()
         manifest["artifacts"][0]["file"] = "wrong.elf"
         self.assert_contract_failure(_request(manifest=manifest))
@@ -596,6 +670,15 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         manifest = _manifest()
         manifest["artifacts"][-1]["name"] = "other"
         manifest["artifacts"][-1]["file"] = "other.elf"
+        self.assert_contract_failure(_request(manifest=manifest))
+
+        manifest = _manifest()
+        build = next(
+            artifact
+            for artifact in manifest["artifacts"]
+            if artifact["name"] == "cupidbuild"
+        )
+        build["producer"] = True
         self.assert_contract_failure(_request(manifest=manifest))
 
     def test_observation_cohort_rejects_duplicate_missing_and_unknown_paths(self):

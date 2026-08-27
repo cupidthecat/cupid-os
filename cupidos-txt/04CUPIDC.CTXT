@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-25
+Verified against source on: 2026-08-27
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -18,13 +18,12 @@ Verified against source on: 2026-08-25
 >tree open Hosted CupidBuild Source
 The checked Linux and Windows command suites cover CupidBuild's policy and
 hosted transaction modules, including the real guarded object path. CupidBuild
-is not part of the promoted seed. A separate source-head candidate includes
-its three `.cc` roots, and the Linux fixed point matches all six tool images.
-Both compared CupidBuild images run the guarded object command, require the
-same relocatable output, and preserve an existing object when the source is
-missing. This is candidate evidence rather than seed carriage.
+is a checked non-producer in both active v2 seeds. Their fixed points and
+promoted-seed reproofs match all six tool images. Both compared CupidBuild
+images run the guarded object command, require the same relocatable output,
+and preserve an existing object when the source is missing.
 The command now rejects unlisted executable-shaped seed peers and validates all
-five frozen tools against the host ELF32 or PE32 execution profile before use.
+six frozen tools against the host ELF32 or PE32 execution profile before use.
 It repeats the membership check after each attempted checked command, including
 failure and timeout paths.
 >endtree
@@ -269,7 +268,7 @@ oracles.
 
 The normal `all` path uses Cupid tooling while the host code-generation
 variables point to invalid commands. Its exact artifact-size policy covers
-fourteen paths: four OS artifacts, five Linux seed images, and five Windows
+sixteen paths: four OS artifacts, six Linux seed images, and six Windows
 seed images. One wrapper captures the Linux policy manifest and the complete
 Windows seed cohort before the policy contract runs.
 The publisher accepts only a dedicated cupidc-contracts directory inside the
@@ -312,7 +311,7 @@ a private PE. The PE and Python oracle read one frozen six-file ABI snapshot,
 and the Windows path never changes the Linux publication. ADR 0245 records the
 directory boundary, ADR 0264 records the ABI transfer, and ADR 0295 records
 native Windows execution. Checked production kernel, generated-install, and
-user CupidC calls plus checked user CupidLD links pass their frozen five-tool
+user CupidC calls plus checked user CupidLD links pass their frozen six-tool
 capture to the same checked runner. It rechecks the live manifest and every
 seed image after the private command returns. ADR 0246 records this invocation
 boundary.
@@ -336,7 +335,7 @@ a descriptor whose identity is checked before and after the read.
 The same contract source handles CUPMAN2 verification in check mode. Its
 request carries the publication manifest, all 22 artifact observations, the
 exact 75-file publication inventory, the 58-file bootstrap inventory, the Linux
-publication seed, and its five tool images. Checked CupidC compiles the
+publication seed, and its six tool images. Checked CupidC compiles the
 verifier, CupidASM supplies startup, and CupidLD links a static ELF on Linux or
 native PE on Windows. Python keeps the no-follow filesystem capture, launch,
 independent oracle, and final drift checks. One pinned repository reader covers
@@ -420,11 +419,11 @@ contains sixteen contract executables and six tools, for 22 artifacts.
 
 `verify-artifact-sizes` is a direct prerequisite of cupidos.img. One Python
 wrapper pins the raw policy, the Linux bootstrap manifest, the complete Windows
-manifest and five-tool cohort, and all fourteen file observations.
+manifest and six-tool cohort, and all sixteen file observations.
 Checked CupidC compiles a strict C11 policy contract, CupidASM supplies startup,
 and CupidLD links a static ELF on Linux or a native PE on Windows. The contract
 uses CUPSIZE2 to validate the policy, Linux manifest, Windows target,
-provenance, Linux parent link, exact five-tool inventory, and every observed
+provenance, Linux parent link, exact six-tool inventory, and every observed
 size and digest. It rereads its request and emits canonical JSON. Python
 independently validates the captured
 Windows cohort, checks the same request, and rewalks every live path before
@@ -793,7 +792,9 @@ forms the decimal ratio and rounds it once, with ties going to even. The path
 covers subnormals, finite limits, infinity, signed underflow zero, extreme
 exponents, and complete tokens through 95 characters. Frontend, Linear IR, and
 ELF32 contracts pin the raw bits and deterministic object bytes. ADR 0312 first
-carried the capability. ADR 0318 carries it in the current checked seeds.
+carried the decimal capability. ADR 0318 records a preceding linked-image seed.
+ADR 0349 records hexadecimal syntax, and ADR 0353 records carriage in the
+active paired v2 seeds.
 Static-duration scalar and aggregate leaves use a
 second integer-only IEEE evaluator for unary signs, addition, subtraction,
 multiplication, division, comparisons, casts, scalar truth, short-circuit
@@ -1168,12 +1169,13 @@ not guaranteed. On POSIX, CupidLD requests mode 0777; the process umask may
 remove any permission bits. The directory must remain stable under the
 caller's control, and the standalone CLI does not lock or pin the output path.
 
-The repository carries those exact five images as a checked i386 Linux seed.
-Its manifest binds their hashes, sizes, target ABI, source revision, producer
-lineage, exact source plan, startup, and five link orders before execution.
-The current CupidC image is the 2,687,436-byte stage-four output. Its SHA-256 is
+At the earlier v1 checkpoint, the repository carried those exact five images
+as a checked i386 Linux seed. Its manifest bound their hashes, sizes, target
+ABI, source revision, producer lineage, exact source plan, startup, and five
+link orders before execution. The CupidC image was the 2,687,436-byte
+stage-four output. Its SHA-256 was
 273f2621401878f673cc3d2987e267cf188ed016ac2005dc9573b3242b225094,
-and its clean source revision is
+and its clean source revision was
 a17c9465911da41d59b7ada71733d36c39faa5ea.
 It retains the complete 83-root Doom frontier, current GNU entity metadata,
 x87 and SSE memory forms, descriptor and segment assembly, every unchanged
@@ -1212,12 +1214,12 @@ The 392,688-byte image applies
 one overflow-safe 512-path request limit, preserves mixed home-asset order,
 rejects distinct paths that map to the same wrapped symbol, and renders the
 packed symbol source from canonical CupidDis text. The 5,573-byte seed manifest
-has SHA-256
+had SHA-256
 b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b.
-It binds generation four, the clean revision, the 50-input snapshot, and the
+It bound generation four, the clean revision, the 50-input snapshot, and the
 stage-three producers. ADRs 0265, 0280, and 0292 preserve earlier promotion
 records. ADRs 0312 and 0323 record preceding five-tool promotions. ADR 0336
-records the current promotion.
+records the later v1 promotion.
 Checked-seed CupidObj validates sequential SOF0 and SOF1 marker streams in its
 wrap-jpeg command, then applies the ordinary byte-exact wrapper. The normal
 JPEG recipe runs that checked command first on a private source snapshot.
@@ -1241,9 +1243,10 @@ ADR 0237 records seed carriage, and ADR 0238 records production ownership.
 Checked-seed CupidObj also accepts `iso-fixture`. The core consumes an ASCII
 manifest and a typed list of logical directories and loaded files, then writes
 the complete deterministic ECMA-119 and Rock Ridge fixture. Its output matches
-the tracked 61,440-byte image exactly. The fixed-point gate exercises the
-command and its rollback path in the 5/22/21 behavior matrix. The normal
-recipe now runs that checked command first on frozen ordinal file snapshots.
+the tracked 61,440-byte image exactly. The preceding v1 fixed-point gate
+exercised the command and its rollback path in the 5/22/21 behavior matrix.
+The active Linux v2 seed retains the command and passes the 23/6/29 matrix. The
+normal recipe runs that checked command first on frozen ordinal file snapshots.
 Python compares an independent render, rechecks live state, and publishes
 under a per-output lock. ADR 0239 records the source boundary, ADR 0240 records
 seed carriage, and ADR 0241 records production ownership.
@@ -1252,10 +1255,11 @@ Checked-seed CupidObj also accepts `profile-manifest`. The command reads one
 bounded CUPROF1 snapshot containing the two Doom profile memberships and the
 exact bytes of all 291 captured headers. It checks portable path identity,
 computes SHA-256 internally, sorts the logical sets, and writes the canonical
-69,366-byte JSON. The current promoted seed passes a 5/22/21
-behavior matrix with padding, repeated-block, unsafe-path, case-collision,
-rollback, and recovery coverage. The checked seed carries this command, and
-the normal recipe passes that seed manifest. The wrapper derives the
+69,366-byte JSON. The preceding v1 seed passed a 5/22/21 behavior matrix with
+padding, repeated-block, unsafe-path, case-collision, rollback, and recovery
+coverage. The active v2 seeds retain the command. Their fixed-point behavior
+matrices are 23/6/29 on Linux and 12/6/16 on Windows. The normal recipe passes
+that seed manifest. The wrapper derives the
 snapshot and independent Python oracle from one stable capture, runs CupidObj
 from the exact frozen seed, and requires byte parity. Under an adjacent
 no-follow lock, it rechecks the seed, live inputs, candidate, output directory,
@@ -1284,8 +1288,8 @@ runtime printed the exact success marker and returned 37. ADR 0266 records
 indexed decoding, and ADR 0265
 records that transition and promotion. ADRs 0280, 0281, 0292, and 0312 record
 preceding seeds, ADR 0318 records the preceding linked-image seeds, ADR 0323
-records the preceding code-anchor seeds, and ADR 0336 records the current
-seeds. The first
+records the preceding code-anchor seeds, ADR 0336 records the parent seeds,
+and ADR 0353 records the active paired v2 seeds. The first
 separate gate covered 427 audited root objects and two kernel ELFs. Its
 9,028-byte, 429-path manifest had SHA-256
 48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e,
@@ -2266,10 +2270,13 @@ separate defense.
 
 >h2 Checked compiler seed boundary
 >tree
-The promoted Linux and Windows cohorts are verified as complete five-tool trust
-units. Their fixed-point gates rebuild the final stage, compare every initial
-tool, and run the platform behavior matrix. The promoted compiler carries wide
-integer conversion to float and double.
+The active Linux and Windows v2 cohorts are complete six-tool trust units.
+Their manifests include CupidBuild as a checked non-producer. Both bind
+revision `f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 source inputs, and
+snapshot
+`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
+Candidate fixed-point and behavior proof passed on both platforms. The
+promoted compiler carries wide integer conversion to float and double.
 
 These standalone compiler seeds do not contain the private in-kernel callback
 parser or AOT writer. The focused private tests and the feature14 guest contract
@@ -2286,7 +2293,7 @@ runs. Every other cleanup error fails immediately, and a persistent lock still
 stops the build.
 
 This retry does not change the checked seed, tool arguments, timeout, exit
-status, output bytes, live five-tool recheck, or atomic publication rules.
+status, output bytes, live six-tool recheck, or atomic publication rules.
 >endtree
 
 >h2 Windows Fixed-Point Bridge
@@ -2305,18 +2312,27 @@ This bridge belongs only to host fixed-point reconstruction. Normal Windows
 production commands continue to use the native checked execution seed.
 >endtree
 
->h2 Six-Tool Seed Contract
+>h2 Active Six-Tool Seed Contract
 >tree
-CupidBuild accepts the current five-tool seed contract and the next six-tool
-contract. The six-tool form adds CupidBuild as a checked non-producer. It keeps
-exact source and link plans, artifact membership, producer roles, and platform
-image checks.
+CupidBuild still accepts the historical v1 five-tool contract. The active
+Linux and Windows seeds use v2 and list CupidBuild as a checked non-producer.
+They keep exact source and link plans, artifact membership, producer roles, and
+platform image checks.
 
-The new contract names the current seed as its parent. Its candidate revision
-and source snapshot use checked lower-case hexadecimal identities, so the
-candidate does not need to contain its own future hash. The active seeds remain
-five-tool cohorts until fresh Linux and Windows candidates converge. The
-Windows record carries the Linux plan-manifest digest for exact host pairing.
+The Linux plan has SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
+Its 6,602-byte manifest has SHA-256
+`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
+Its 2,852-byte manifest has SHA-256
+`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+and pairs to the exact Linux manifest bytes.
+
+Candidate proof and promoted-seed self-consumption pass on Linux and native
+Windows. All six initial images match stage two. The seed promotion does not
+give CupidBuild a normal Make recipe or replace Python coordination and
+publication.
 >endtree
 
 >h2 See Also

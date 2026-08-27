@@ -1681,13 +1681,14 @@ class HostBuildImageTests(unittest.TestCase):
 
             self.assertEqual(target.read_bytes(), b"existing disk image")
 
-    def test_image_validates_all_five_seed_images_before_cupidobj(self):
+    def test_image_validates_all_six_seed_images_before_cupidobj(self):
         for tool_name in (
             "cupidasm.elf",
             "cupidc.elf",
             "cupiddis.elf",
             "cupidld.elf",
             "cupidobj.elf",
+            "cupidbuild.elf",
         ):
             with (
                 self.subTest(tool_name=tool_name),
@@ -1740,7 +1741,11 @@ class HostBuildImageTests(unittest.TestCase):
             boot.write_bytes(b"B" * (5 * hostbuild.SECTOR_SIZE))
             kernel.write_bytes(b"kernel")
             image.write_bytes(b"existing disk image")
-            manifest.write_text("{}\n", encoding="ascii", newline="\n")
+            manifest.write_text(
+                '{"schema":"cupid.bootstrap-seed.v2"}\n',
+                encoding="ascii",
+                newline="\n",
+            )
 
             with (
                 mock.patch(

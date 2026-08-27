@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-08-25
+Verified against source on: 2026-08-27
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -29,12 +29,15 @@ The hosted i386 string runtime now supplies standard binary memchr so the same
 CupidBuild source compiles and links through CupidC. The runtime probe checks
 matching, absent, embedded-zero, unsigned-byte, and empty-range searches.
 The current checked Toolchain run rebuilt all 22 hosted artifacts and passed
-the full contract surface. It derives a separate six-tool candidate from the
-five-tool seed. Its Linux proof freezes 58 inputs and matches 22 C
+the full contract surface. Its Linux candidate proof freezes 58 inputs and
+matches 22 C
 objects, one startup object, and all six tool images between stages three and
 four. Both CupidBuild images also pass the guarded object command and its
-missing-source rollback. This changes hosted bootstrap evidence, not CupidC
-language behavior, and does not promote CupidBuild into the seed.
+missing-source rollback. The six-tool cohorts are now active, and their
+promoted-seed self-consumption reproof passes with all six initial images equal
+to stage two on both platforms. This changes hosted bootstrap evidence, not
+CupidC language behavior. CupidBuild still owns no normal Make recipe, and
+Python retains coordination and publication.
 >endtree
 
 >h2 Purpose
@@ -646,9 +649,9 @@ Useful commands:
 >h2 Current Bootstrap Boundary
 >tree open Current Bootstrap Boundary
 Normal `all` uses poisoned-host Cupid tooling. Its exact artifact-size policy
-covers fourteen paths: four OS artifacts, five Linux seed images, and five
+covers sixteen paths: four OS artifacts, six Linux seed images, and six
 Windows seed images. CUPSIZE2 gives the CupidC-built policy contract the
-Windows manifest, Linux parent digest, and five regular-file size and digest
+Windows manifest, Linux parent digest, and six regular-file size and digest
 observations. The contract validates the Windows target, provenance, exact
 inventory, and observed bytes. The focused semantic-contract, checked-runner,
 and independent-policy modules contain 22, 16, and 13 tests, for 51 total.
@@ -657,7 +660,8 @@ records the complete source-consistent normal build, final checked publication,
 and private four-vCPU proof for this increment. Exact artifact and runtime
 measurements stay there because this manual is an image input.
 
-The promoted Linux and Windows cohorts are complete five-tool trust units.
+The active Linux and Windows v2 cohorts are complete six-tool trust units.
+CupidBuild is a checked non-producer in both.
 Their CupidDis images carry local-target validation for raw images,
 relocatable objects, and static linked executables. Active-source tests cover
 all nine bootloader targets and all four trampoline targets. Production also
@@ -728,15 +732,26 @@ manual is an image input.
    attributes real declaration or call behavior and rejects unknown forms.
 >endtree
 
->h2 Six-Tool Bootstrap Lineage
+>h2 Active Six-Tool Bootstrap Lineage
 >tree
-The next checked-seed format includes CupidBuild with the five existing tools.
-Its lineage points to the current checked seed and exact build plans. Candidate
-source identities are validated without embedding the future CupidBuild or
-manifest hash, which removes the circular dependency at promotion time. The
-Windows record names the Linux plan-manifest digest for exact host pairing. The
-format is implemented at source head; the active checked seeds remain on the
-five-tool contract until fresh candidates converge.
+The active v2 checked-seed format includes CupidBuild with the five existing
+tools. Both manifests bind revision
+`f620e3a973c6fca661c8eeefe443f4b3c669dddc`, 58 source inputs, and snapshot
+`e94b8976e2389aa43f0085349fc273afb23be92943d023013190161f86364922`.
+
+The Linux plan has SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
+Its 6,602-byte manifest has SHA-256
+`6a8fc994d9901165f073dbac190bee3ebb59f8bc9a04993b61f010f58e9bf562`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
+Its 2,852-byte manifest has SHA-256
+`4d3baa5de2eb8e56835fa80e468e95b7dbab1aada7565d1e27bc2363f8daceb4`
+and pairs to the exact Linux manifest bytes.
+
+Candidate proof and promoted-seed self-consumption pass on Linux and native
+Windows. All six initial images match stage two. The normal Make recipes do not
+use CupidBuild, and Python still coordinates and publishes the build.
 >endtree
 
 >h2 See Also
