@@ -4960,7 +4960,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 stage_two_producer_suffixes,
                 {
                     "cupidasm": ".exe",
-                    "cupidc": ".elf",
+                    "cupidc": ".exe",
                     "cupiddis": ".exe",
                     "cupidld": ".exe",
                 },
@@ -5123,7 +5123,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
                 {
-                    name: True
+                    name: name != "cupidbuild"
                     for name in CANDIDATE_TOOL_NAMES
                 },
             )
@@ -9615,7 +9615,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 initial_matches,
                 {
-                    name: True
+                    name: False
                     for name in CANDIDATE_TOOL_NAMES
                 },
             )

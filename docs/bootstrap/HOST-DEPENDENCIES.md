@@ -29,24 +29,24 @@ timeout-and-seed-drift precedence.
 
 The final normal `make -j2 all` passed after the exact-size check failed closed
 and its policy was updated. All 16 exact artifacts passed. The current sizes
-are 9,515,232 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
+are 9,515,752 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
 `kernel/kernel.elf`, and 9,613,340 bytes for `kernel/kernel.elf.pass1`.
 Whole-image CupidDis inspection and disk-image staging passed as well.
 
 A private four-vCPU E1000 QEMU smoke used
 `--cpu max --verify-smp-runtime`, ran `/bin/ls.cc`, and passed in about 47.5
 seconds. CupidC compiled 911 code bytes and 71 data bytes and completed JIT
-execution. The 33,113-byte log has SHA-256
-`7b0711ce849107f838aed61f4238ce6edb79d787911edbd39194ec8868cdcf24`
+execution. The 33,248-byte log has SHA-256
+`8bdd3b1ea5dfde3a61d068b1d4debbb8fcc91626ee63f13487f647240c2fb49d`
 and no rejected runtime marker.
 
-A final full Windows Toolchain rerun could not start because WSL failed while
-translating the Linux seed after the WSL VM and service outage. The earlier
-full Windows and Linux green baselines remain pre-edge-fix evidence rather than
-final evidence for this revision.
-
-**TODO:** Repeat the full Windows Toolchain run after WSL can translate the
-Linux seed, then record the current Linux-backed result.
+The complete 129-case bootstrap-seed module finished with 126 passes. Both
+fixed points built successfully. The three failures were stale assertions
+about the initial seed comparisons and the Windows CupidC suffix. The focused
+privacy case passed after correction in 0.700 seconds. Complete reruns then
+passed the native Windows fixed point in 1,847.207 seconds and the Linux fixed
+point in 2,158.113 seconds. The complete module then passed all 129 cases in
+3,569.451 seconds.
 
 CupidBuild belongs to both checked seed cohorts and now directly owns four
 normal publications: the ISR and context-switch objects plus the bootloader
@@ -275,12 +275,12 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`212741a1d61dcfde2af4478752e21d1a57488127d9ce7ef44ee8f558ad2da82c`.
+`176784825f42f9145138630c0dacb8e93fb90db600edab412fe94c2c7da66f8f`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,613,340, 9,744,412, and 9,515,232 bytes for the boot image, pass-one ELF,
+9,613,340, 9,744,412, and 9,515,752 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,168,292 bytes.
+sixteen rows, totaling 38,168,812 bytes.
 
 The paired-seed promotion replay passed both CupidLD links and strict
 inspection of all 431 production inputs. Its first size gate measured
@@ -300,10 +300,10 @@ paths, and preserved the image's existing FAT contents while staging
 
 The raw-publication handoff then refreshed the embedded manuals. The ELF byte
 counts held steady, and the flat kernel grew by 580 bytes. The exact-size gate
-rejected the old row before the measured update passed. The replay produced
-these current artifacts:
+rejected the old row before the measured update passed. That handoff checkpoint
+produced these artifacts:
 
-| Current artifact | Bytes | SHA-256 |
+| Handoff artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `kernel/kernel.elf.pass1` | 9,605,148 | `e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63` |
 | `kernel/kernel.elf` | 9,736,220 | `c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436` |

@@ -32472,3 +32472,56 @@ online, the in-kernel Cupid toolchain self-tests passed, DHCP completed, the
 terminal launched, and CupidC compiled and ran the command. The smoke log is
 36,901 bytes with SHA-256
 `e496d52b0a507d71aa951eb566a649d6682287f81c10fef4388b0937b4c4adeb`.
+
+After the host storage cleanup and WSL restart, the complete bootstrap-seed
+test module ran all 129 cases in 3,778.649 seconds. The two fixed points built
+successfully, but their final assertions still expected the promoted seeds to
+match the newer source head. A third focused assertion still expected an ELF
+CupidC for Windows stage two. The other 126 cases passed.
+
+The assertions now record the actual transition. Source-head Linux differs
+from its initial seed for all six tools. Source-head Windows matches its seed
+for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj; CupidBuild differs because
+its checked CupidObj runner has not entered the paired seeds. Every Windows
+stage-two producer has a `.exe` suffix. The focused privacy case passed in
+0.700 seconds. Concurrent clean reruns then passed the native Windows fixed
+point in 1,847.207 seconds and the Linux fixed point in 2,158.113 seconds.
+
+### Final evidence refresh
+
+The complete bootstrap-seed module then passed all 129 tests in 3,569.451
+seconds. This run covers the corrected Linux transition, the native Windows
+transition, every `.exe` stage-two producer on Windows, and the surrounding
+source-freeze, privacy, report, and behavior contracts.
+
+The four in-OS toolchain manuals now carry that final result. Rebuilding their
+embedded bytes reached the exact-size gate at 9,515,752 bytes while the policy
+still required the preceding 9,515,764-byte checkpoint. The gate failed closed.
+After the single measured row was updated, the supported `make -j2 all` path
+compiled the kernel and complete Doom tree, linked both kernel stages with
+CupidLD, passed the whole-image CupidDis scan, accepted all 16 exact artifacts,
+and published the 200 MiB image.
+
+| Final artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.bin` | 9,515,752 | `517b533d19308e92bc969408d2c59d459dd9a6ed01ce5ce6ca56f3a03c3a21c6` |
+| `kernel/kernel.elf` | 9,744,412 | `e9a5c958cc817303d77c327ff1acee8b82248f2bcebce9f07a4ee3623c20ae69` |
+| `kernel/kernel.elf.pass1` | 9,613,340 | `aa1a4ec39f40a911877dd8bfcc52af890273b1efe5cbd49fcc53213c2b22604d` |
+| `cupidos.img` | 209,715,200 | `c4131674d3ca7c604b9c708f6ababab703ace7aa5e0d6706fa72f305212c65b7` |
+
+The 3,382-byte size policy covers 38,168,812 bytes and has SHA-256
+`176784825f42f9145138630c0dacb8e93fb90db600edab412fe94c2c7da66f8f`.
+All 54 artifact-size tests passed in 4.942 seconds with four expected platform
+skips, and the checked active-build audit passed.
+
+A private four-vCPU E1000 smoke booted the final image with
+`--cpu max --verify-smp-runtime`. All four CPUs came online, the in-kernel
+Cupid toolchain self-test passed, DHCP assigned `10.0.2.15`, the GUI terminal
+opened, and `/bin/ls.cc` reached `JIT execution complete`. The 33,248-byte log
+has SHA-256
+`8bdd3b1ea5dfde3a61d068b1d4debbb8fcc91626ee63f13487f647240c2fb49d`.
+
+The paired seeds still need a later source-head refresh for CupidBuild, and
+Python still owns the remaining build transactions. No active `.c` source
+changed ownership in this step, so no suffix rename was due. `TempleOS/`
+remained untouched reference material.

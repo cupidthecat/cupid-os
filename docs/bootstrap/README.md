@@ -92,8 +92,9 @@ CupidObj runner has not entered the paired seeds yet.
 Native Windows fixed-point reconstruction no longer needs WSL. Windows still
 uses WSL for Linux fixed-point reconstruction and the remaining static Linux
 Toolchain contract paths. The normal Make graph and checked seed files do not
-change in this step. The in-OS CTXT update shortens `kernel/kernel.bin` by 28
-bytes to 9,515,232 bytes; `kernel/kernel.elf` remains 9,744,412 bytes and
+change in this step. Updating the four in-OS CTXT manuals increased
+`kernel/kernel.bin` to 9,515,752 bytes; `kernel/kernel.elf` remains 9,744,412
+bytes and
 `kernel/kernel.elf.pass1` remains 9,613,340 bytes. ADR 0359 records the
 producer and provenance boundary.
 
@@ -102,6 +103,15 @@ tree, both CupidLD links, whole-image CupidDis validation, all 16 exact artifact
 rows, and disk-image publication. A four-CPU QEMU smoke then brought every CPU
 online, passed the in-kernel toolchain self-tests, obtained a DHCP lease,
 opened the GUI terminal, and compiled and ran `/bin/ls.cc` with CupidC.
+
+After WSL restarted, the full Linux fixed-point test passed in 2,158.113
+seconds. The native Windows fixed-point test passed independently in 1,847.207
+seconds. The source-head transition reports all six initial Linux tools as
+changed. Windows matches the initial seed for five tools and differs only for
+CupidBuild, whose checked CupidObj runner still awaits paired seed promotion.
+In the initial 129-case module run, 126 cases passed; three stale expectations
+failed and were rerun directly after correction. The complete module then
+passed all 129 cases in 3,569.451 seconds.
 
 ## 2026-08-27 source-current checkpoint
 
@@ -3826,17 +3836,17 @@ at the same parent revision.
 
 The current artifact-size policy is
 3,382 bytes with SHA-256
-`212741a1d61dcfde2af4478752e21d1a57488127d9ce7ef44ee8f558ad2da82c`.
+`176784825f42f9145138630c0dacb8e93fb90db600edab412fe94c2c7da66f8f`.
 It has sixteen rows: `boot/boot.bin`, the two kernel ELFs, the flat kernel,
 the six Linux images, and the six Windows images. The four OS rows expect
-2,560, 9,613,340, 9,744,412, and 9,515,232 bytes for the boot image, pass-one
+2,560, 9,613,340, 9,744,412, and 9,515,752 bytes for the boot image, pass-one
 ELF, final ELF, and flat kernel, respectively. Production seed captures in
 the root, user, and Toolchain Makefiles, together with the bootstrap
 coordinators and checked runners, now freeze all six images as one trust unit.
 The promoted-seed Linux and Windows reproofs pass with all six initial images
 equal to stage two. ADR 0356 records the candidate reports, refreshed seed
 identities, and self-consumption evidence. The sixteen current policy rows
-total 38,168,292 bytes.
+total 38,168,812 bytes.
 
 That checkpoint's normal OS replay passed both CupidLD links and the strict 431-input
 CupidDis scan. Its first exact-size check measured a 9,504,760-byte raw kernel

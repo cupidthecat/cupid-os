@@ -6,10 +6,14 @@ and paired provenance input, but its executables do not run during native
 reconstruction. A complete source-current proof passed while WSL was
 unavailable: stages three and four matched across 23 C objects, three assembly
 objects, and all six tools, and the 13/6/18 behavior matrix passed. ADR 0359
-records the removal of the temporary compiler bridge. The revised in-OS CTXT
-moves `kernel/kernel.bin` to 9,515,232 bytes while both linked ELF sizes remain
+records the removal of the temporary compiler bridge. Updating the four in-OS
+CTXT manuals increased `kernel/kernel.bin` to 9,515,752 bytes while both linked
+ELF sizes remain
 unchanged. The final production build and a four-CPU GUI-terminal boot smoke
 passed with the Windows checked seed.
+After WSL restarted, both the Linux and native Windows end-to-end fixed-point
+tests passed. Source head differs from the initial Linux seed for all six tools;
+Windows differs only for CupidBuild pending the next paired seed refresh.
 
 Source-head CupidBuild now has a native checked CupidObj runner. Linux creates
 no `.cupidbuild-run` namespace. It freezes the manifest and all six tools in
@@ -41,7 +45,7 @@ timeout-and-seed-drift precedence case.
 
 The final normal `make -j2 all` passed after the exact-size check failed closed
 and its policy was updated. All 16 exact artifacts passed. The current sizes
-are 9,515,232 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
+are 9,515,752 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
 `kernel/kernel.elf`, and 9,613,340 bytes for `kernel/kernel.elf.pass1`.
 Whole-image CupidDis inspection and disk-image staging passed as part of that
 build.
@@ -49,17 +53,17 @@ build.
 A private four-vCPU E1000 QEMU smoke used
 `--cpu max --verify-smp-runtime`, ran `/bin/ls.cc`, and passed in about 47.5
 seconds. CupidC compiled 911 code bytes and 71 data bytes and completed JIT
-execution. The 33,113-byte log has SHA-256
-`7b0711ce849107f838aed61f4238ce6edb79d787911edbd39194ec8868cdcf24`
+execution. The 33,248-byte log has SHA-256
+`8bdd3b1ea5dfde3a61d068b1d4debbb8fcc91626ee63f13487f647240c2fb49d`
 and no rejected runtime marker.
 
-A final full Windows Toolchain rerun could not start because WSL failed while
-translating the Linux seed after the WSL VM and service outage. Earlier full
-Windows and Linux green baselines are
-pre-edge-fix evidence, not final evidence for this revision.
-
-**TODO:** Repeat the full Windows Toolchain run after WSL can translate the
-Linux seed, then record the current Linux-backed result.
+The complete 129-case bootstrap-seed module finished with 126 passes. Both
+fixed points built successfully. The three failures were stale assertions
+about the initial seed comparisons and the Windows CupidC suffix. The focused
+privacy case passed after correction in 0.700 seconds. Complete reruns then
+passed the native Windows fixed point in 1,847.207 seconds and the Linux fixed
+point in 2,158.113 seconds. The complete module then passed all 129 cases in
+3,569.451 seconds.
 
 CupidBuild is present in both promoted seed cohorts and directly owns four
 normal guarded assembly publications: the ISR and context-switch objects, the
@@ -1236,7 +1240,7 @@ produced 33,452,396 frames at peak 25,600, and the PC speaker produced 76,614
 frames at peak 31,877. USB detach/replug and the post-replug survival window
 also passed. The private run left the source image unchanged.
 
-## Current production checkpoint
+## Raw-publication production checkpoint
 
 The private CupidC source accepts direct file-scope function-pointer typedefs
 in free-function parameters, Cupid class method parameters, and
@@ -1327,21 +1331,20 @@ latest complete schema v3 CUPMAN4 publication and final CUPMAN2 verification
 are recorded above. The definitive build and private guest evidence are
 recorded below.
 
-The source-current artifact-size modules contain 54 tests. They pass with four
-platform-specific skips. The source-head artifact
-contract passes against all sixteen exact artifacts. The current 3,382-byte
-policy has SHA-256
+At this checkpoint, the artifact-size modules contained 54 tests. They passed
+with four platform-specific skips. The checkpoint's artifact contract passed
+against all sixteen exact artifacts. Its 3,382-byte policy had SHA-256
 `78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`
-and covers 38,144,480 bytes across those paths.
+and covered 38,144,480 bytes across those paths.
 
-| Source-head artifact | Bytes | SHA-256 |
+| Checkpoint artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `kernel/kernel.elf.pass1` | 9,605,148 | `e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63` |
 | `kernel/kernel.elf` | 9,736,220 | `c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436` |
 | `kernel/kernel.bin` | 9,507,804 | `2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f` |
 | `cupidos.img` | 209,715,200 | `1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc` |
 
-The current normal build passed the exact policy and strict 431-input
+That normal build passed the exact policy and strict 431-input
 local-target and code-anchor scan. It preserved the image's FAT contents while
 staging `hello.iso`. A private four-vCPU `max` and E1000 copy brought all CPUs
 online and completed the full graphics, audio, and in-OS CupidC frontier. The

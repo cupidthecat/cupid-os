@@ -1792,21 +1792,21 @@ The final normal `make -j2 all` passed after the exact-size check failed closed
 and its policy was updated. All sixteen exact artifacts passed, along with
 whole-image CupidDis inspection and disk-image staging. The current artifacts
 are a 9,613,340-byte `kernel/kernel.elf.pass1` with SHA-256
-`d024b8442bd9f74109258a43eec30d80641f0950f6817348613f5635bd6d08ae`, a
+`aa1a4ec39f40a911877dd8bfcc52af890273b1efe5cbd49fcc53213c2b22604d`, a
 9,744,412-byte `kernel/kernel.elf` with SHA-256
-`5725d9eab37a380b11a26b26974375683948ab2255c674b13f6766d609b94050`,
-and a 9,515,232-byte `kernel/kernel.bin` with SHA-256
-`c422b4bfe9fc50bd3c45b77b0afcc26544e34ed78f02993d1f416eac778f22e4`.
-The current 3,382-byte exact-size policy covers 38,168,292 bytes and has
+`e9a5c958cc817303d77c327ff1acee8b82248f2bcebce9f07a4ee3623c20ae69`,
+and a 9,515,752-byte `kernel/kernel.bin` with SHA-256
+`517b533d19308e92bc969408d2c59d459dd9a6ed01ce5ce6ca56f3a03c3a21c6`.
+The current 3,382-byte exact-size policy covers 38,168,812 bytes and has
 SHA-256
-`212741a1d61dcfde2af4478752e21d1a57488127d9ce7ef44ee8f558ad2da82c`.
+`176784825f42f9145138630c0dacb8e93fb90db600edab412fe94c2c7da66f8f`.
 The normal 209,715,200-byte `cupidos.img` has SHA-256
-`c6edc5e0fed89c95ed45482b90a2ad67d75e0c29f1ef12b788f2dedeb4e3e69a`.
+`c4131674d3ca7c604b9c708f6ababab703ace7aa5e0d6706fa72f305212c65b7`.
 A private four-vCPU E1000 QEMU smoke used
 `--cpu max --verify-smp-runtime`, ran `/bin/ls.cc`, and passed in about 47.5
 seconds. CupidC compiled 911 code bytes and 71 data bytes and completed JIT
-execution. The 33,113-byte log has SHA-256
-`7b0711ce849107f838aed61f4238ce6edb79d787911edbd39194ec8868cdcf24`
+execution. The 33,248-byte log has SHA-256
+`8bdd3b1ea5dfde3a61d068b1d4debbb8fcc91626ee63f13487f647240c2fb49d`
 and no rejected runtime marker. The source image was not changed by the smoke.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
@@ -1877,7 +1877,9 @@ and immediately before publication. Drift in either role prevents publication.
 The source-current proof matched 23 C objects, three assembly objects, and all
 six tools between stages three and four, then passed the 13/6/18 behavior
 gates while WSL was unavailable. ADR 0341 records the historical bridge, and
-ADR 0359 records its removal.
+ADR 0359 records its removal. After WSL restarted and three stale test
+expectations were corrected, the complete bootstrap-seed module passed all 129
+cases in 3,569.451 seconds.
 _Avoid_: Windows execution seed as Linux bootstrap seed, copied build plan, partial publication
 
 **Bootstrap stage**:

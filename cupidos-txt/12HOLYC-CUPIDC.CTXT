@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-08-27
+Verified against source on: 2026-08-28
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -58,15 +58,17 @@ identity. Both paths withhold captured output if the live cohort changes.
 The command remains a source capability until both checked seeds carry it and
 Make adopts it.
 
-The Windows CupidBuild CLI suite completed 66 tests in 66.145 seconds with
-three expected skips. The host-runner Python module completed six tests in
-0.914 seconds with three POSIX skips, and its dedicated Make contract passed.
-All six CupidASM source tests passed in 3.750 seconds. Strict Windows and
+The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
+three expected skips. The host-runner Python module completed eight tests in
+0.962 seconds with four POSIX skips, and its dedicated Make contract passed.
+All six CupidASM source tests passed in 3.771 seconds. Strict Windows and
 freestanding i386 adapter compilation passed, as did timeout-and-seed-drift
-precedence. A final full Windows Toolchain rerun could not start because WSL
-failed while translating the Linux seed after the WSL VM and service outage.
-Earlier full Windows and Linux green baselines predate the edge fixes and are
-not final evidence for this revision.
+precedence. After WSL restarted, the complete 129-case bootstrap-seed module
+ran. It passed 126 cases; three final assertions still held stale transition
+expectations. The corrected focused cases now pass. A complete Linux
+fixed-point rerun passed in 2,158.113 seconds, and an independent native
+Windows fixed-point rerun passed in 1,847.207 seconds. All 129 cases then
+passed in 3,569.451 seconds.
 >endtree
 
 >h2 Purpose

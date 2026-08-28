@@ -65,10 +65,16 @@ reconstruction. The complete proof passed while WSL returned
 `Wsl/Service/E_UNEXPECTED`: 23 C objects, three assembly objects, and all six
 tool images matched between stages three and four. The 13 failure, six help,
 and 18 success behavior cases also passed. ADR 0359 records the removal of the
-temporary CupidC bridge. The updated in-OS CTXT shortens `kernel/kernel.bin`
-by 28 bytes to 9,515,232 bytes; both linked ELF sizes remain unchanged.
+temporary CupidC bridge. Updating the four in-OS CTXT manuals increased
+`kernel/kernel.bin` to 9,515,752 bytes; both linked ELF sizes remain unchanged.
 The final `make -j2 all` production build and a four-CPU GUI-terminal boot
 smoke also passed with the Windows checked seed.
+After WSL restarted, the complete Linux fixed-point test passed as well. The
+source-head transition now records all six Linux seed comparisons as changed;
+Windows matches five tools and differs only for CupidBuild pending the next
+paired seed refresh. In the initial 129-case module run, 126 cases passed;
+three stale expectations failed and were rerun directly after correction. The
+complete module then passed all 129 cases in 3,569.451 seconds.
 
 ## 2026-08-27 source-current checkpoint
 

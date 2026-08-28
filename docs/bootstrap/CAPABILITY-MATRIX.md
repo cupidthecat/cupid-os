@@ -37,23 +37,24 @@ promoted seeds and has no normal-build ownership.
 
 The final normal `make -j2 all` passed after the exact-size check failed closed
 and its policy was updated. All 16 exact artifacts passed. The current sizes
-are 9,515,232 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
+are 9,515,752 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
 `kernel/kernel.elf`, and 9,613,340 bytes for `kernel/kernel.elf.pass1`.
 Whole-image CupidDis inspection and disk-image staging passed as part of the
 same build. A private four-vCPU E1000 QEMU smoke ran with
 `--cpu max --verify-smp-runtime`, executed `/bin/ls.cc`, and passed in about
 47.5 seconds. CupidC compiled 911 code bytes and 71 data bytes and completed
-JIT execution. Its 33,113-byte log has SHA-256
-`7b0711ce849107f838aed61f4238ce6edb79d787911edbd39194ec8868cdcf24`
+JIT execution. Its 33,248-byte log has SHA-256
+`8bdd3b1ea5dfde3a61d068b1d4debbb8fcc91626ee63f13487f647240c2fb49d`
 and no rejected runtime marker.
 
-The final full Windows Toolchain rerun remains blocked. WSL failed while
-translating the Linux seed after the WSL VM and service outage. Earlier full
-Windows and Linux green baselines predate the edge fixes and are not final
-evidence for this revision, so the capability remains Partial.
-
-**TODO:** Repeat the full Windows Toolchain run after WSL can translate the
-Linux seed, then record the current Linux-backed result.
+The complete 129-case bootstrap-seed module finished with 126 passes. Its two
+fixed points built successfully, but three final assertions still described
+the older seed transition and Windows producer suffix. After those expectations
+were corrected, the focused privacy case passed in 0.700 seconds. Complete
+reruns then passed the native Windows fixed point in 1,847.207 seconds and the
+Linux fixed point in 2,158.113 seconds. The complete module then passed all 129
+cases in 3,569.451 seconds. The capability remains Partial because seed
+promotion and normal-build ownership are separate steps.
 
 CupidBuild guarded assembly publication is **Observed at source head**. It now
 parses the frozen manifest and enforces exact JSON fields, the host schema and
