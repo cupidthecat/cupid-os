@@ -3136,7 +3136,7 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 
 ## 2026-08-14 self-hosting checkpoint
 
-The [source-current checkpoint](#2026-08-21-source-current-checkpoint) records
+The [source-current checkpoint](#2026-08-28-source-current-checkpoint) records
 the completed source slices, schema v3 Toolchain publication, final post-CTXT
 audit, fully poisoned build, and strong private guest frontier. Earlier build,
 artifact, and guest identities remain historical. The

@@ -1792,16 +1792,16 @@ The final normal `make -j2 all` passed after the exact-size check failed closed
 and its policy was updated. All sixteen exact artifacts passed, along with
 whole-image CupidDis inspection and disk-image staging. The current artifacts
 are a 9,613,340-byte `kernel/kernel.elf.pass1` with SHA-256
-`2a9b46e673fc62b66d838b9575fc86786ee165244eea59c173806d6499b2583d`, a
+`d024b8442bd9f74109258a43eec30d80641f0950f6817348613f5635bd6d08ae`, a
 9,744,412-byte `kernel/kernel.elf` with SHA-256
-`b96044fb5941f3297b47590441747df9ecbb569bbdbf157474c8dcb640d6d403`,
-and a 9,515,260-byte `kernel/kernel.bin` with SHA-256
-`b3835c0ad5fa85cb69d18b8670ce0533a6dca4041d71a4407d4a0d7d24b96375`.
-The current 3,382-byte exact-size policy covers 38,168,320 bytes and has
+`5725d9eab37a380b11a26b26974375683948ab2255c674b13f6766d609b94050`,
+and a 9,515,232-byte `kernel/kernel.bin` with SHA-256
+`c422b4bfe9fc50bd3c45b77b0afcc26544e34ed78f02993d1f416eac778f22e4`.
+The current 3,382-byte exact-size policy covers 38,168,292 bytes and has
 SHA-256
-`cd88ba65de4bb11e1759e3c48165795b88e74de40a17d62fba6fda7ee7aae192`.
+`212741a1d61dcfde2af4478752e21d1a57488127d9ce7ef44ee8f558ad2da82c`.
 The normal 209,715,200-byte `cupidos.img` has SHA-256
-`dc9aa94d66ea22cd6914b010697a1bb5f0eeca5169c1f30800179506008aa9db`.
+`c6edc5e0fed89c95ed45482b90a2ad67d75e0c29f1ef12b788f2dedeb4e3e69a`.
 A private four-vCPU E1000 QEMU smoke used
 `--cpu max --verify-smp-runtime`, ran `/bin/ls.cc`, and passed in about 47.5
 seconds. CupidC compiled 911 code bytes and 71 data bytes and completed JIT

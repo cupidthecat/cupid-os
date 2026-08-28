@@ -3593,9 +3593,10 @@ summary below. The SMP recipe assembles a private 4,096-byte candidate, applies
 the exact mixed-mode map with CupidDis `--require-known
 --require-local-targets`, and replaces the
 previous trampoline only after both tools pass. Windows output-bearing tools
-run from the checked native PE32 execution seed. The fixed point and complete
-Toolchain contract cohort retain the Linux seed and WSL. Artifact-size policy
-keeps Linux manifest provenance while its Windows contract runs natively. ADRs
+run from the checked native PE32 execution seed. The Linux fixed point and the
+remaining Linux Toolchain contract cohort retain the Linux seed and WSL.
+Artifact-size policy keeps Linux manifest provenance while its Windows contract
+runs natively. ADRs
 0271, 0272, and 0297 record the preceding boundaries, and ADR 0305 records
 local-target adoption.
 
@@ -3745,7 +3746,7 @@ Progress means transferring ownership without reducing Cupid OS behavior:
 
 ## Integrated source-head evidence
 
-The [source-current checkpoint](#2026-08-27-source-current-checkpoint) records
+The [source-current checkpoint](#2026-08-28-source-current-checkpoint) records
 the current focused results, schema v3 publication, final post-CTXT audit,
 fully poisoned OS build, and strong full private guest frontier. The audit has 747
 active language inputs, 452
@@ -3825,17 +3826,17 @@ at the same parent revision.
 
 The current artifact-size policy is
 3,382 bytes with SHA-256
-`cd88ba65de4bb11e1759e3c48165795b88e74de40a17d62fba6fda7ee7aae192`.
+`212741a1d61dcfde2af4478752e21d1a57488127d9ce7ef44ee8f558ad2da82c`.
 It has sixteen rows: `boot/boot.bin`, the two kernel ELFs, the flat kernel,
 the six Linux images, and the six Windows images. The four OS rows expect
-2,560, 9,613,340, 9,744,412, and 9,515,260 bytes for the boot image, pass-one
+2,560, 9,613,340, 9,744,412, and 9,515,232 bytes for the boot image, pass-one
 ELF, final ELF, and flat kernel, respectively. Production seed captures in
 the root, user, and Toolchain Makefiles, together with the bootstrap
 coordinators and checked runners, now freeze all six images as one trust unit.
 The promoted-seed Linux and Windows reproofs pass with all six initial images
 equal to stage two. ADR 0356 records the candidate reports, refreshed seed
 identities, and self-consumption evidence. The sixteen current policy rows
-total 38,168,320 bytes.
+total 38,168,292 bytes.
 
 That checkpoint's normal OS replay passed both CupidLD links and the strict 431-input
 CupidDis scan. Its first exact-size check measured a 9,504,760-byte raw kernel

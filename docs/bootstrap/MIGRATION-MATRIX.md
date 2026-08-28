@@ -30,7 +30,7 @@ and the timeout-and-seed-drift precedence case.
 
 The final normal `make -j2 all` passed after the exact-size check failed closed
 and its policy was updated. All 16 exact artifacts passed. The current sizes
-are 9,515,260 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
+are 9,515,232 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
 `kernel/kernel.elf`, and 9,613,340 bytes for `kernel/kernel.elf.pass1`.
 Whole-image CupidDis inspection and disk-image staging also passed. A private
 four-vCPU E1000 QEMU smoke ran with `--cpu max --verify-smp-runtime`, executed

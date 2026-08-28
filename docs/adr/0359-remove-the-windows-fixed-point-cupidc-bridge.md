@@ -89,7 +89,8 @@ Native Windows fixed-point reconstruction no longer executes a Linux tool or
 depends on WSL. WSL is still required on Windows for Linux fixed-point
 reconstruction and the remaining static Linux Toolchain contract paths.
 
-The checked seed binaries, normal Make graph, artifact-size policy, and source
-ownership are unchanged. This coordinator change does not make an additional
-C source CupidC-owned, so no `.c` file changes suffix. `TempleOS/` remains
-read-only reference material.
+The checked seed binaries, normal Make graph, artifact policy coverage, and
+source ownership are unchanged. The shorter CTXT changed the flat-kernel policy
+row from 9,515,260 to 9,515,232 bytes. This coordinator change does not make an
+additional C source CupidC-owned, so no `.c` file changes suffix. `TempleOS/`
+remains read-only reference material.

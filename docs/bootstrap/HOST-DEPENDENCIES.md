@@ -29,7 +29,7 @@ timeout-and-seed-drift precedence.
 
 The final normal `make -j2 all` passed after the exact-size check failed closed
 and its policy was updated. All 16 exact artifacts passed. The current sizes
-are 9,515,260 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
+are 9,515,232 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
 `kernel/kernel.elf`, and 9,613,340 bytes for `kernel/kernel.elf.pass1`.
 Whole-image CupidDis inspection and disk-image staging passed as well.
 
@@ -275,12 +275,12 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`.
+`212741a1d61dcfde2af4478752e21d1a57488127d9ce7ef44ee8f558ad2da82c`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,605,148, 9,736,220, and 9,507,804 bytes for the boot image, pass-one ELF,
+9,613,340, 9,744,412, and 9,515,232 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,144,480 bytes.
+sixteen rows, totaling 38,168,292 bytes.
 
 The paired-seed promotion replay passed both CupidLD links and strict
 inspection of all 431 production inputs. Its first size gate measured
