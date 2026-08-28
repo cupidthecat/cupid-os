@@ -28,6 +28,33 @@ The command now rejects unlisted executable-shaped seed peers and validates all
 six frozen tools against the host ELF32 or PE32 execution profile before use.
 It repeats the membership check after each attempted checked command, including
 failure and timeout paths.
+Source-head CupidBuild also has a checked CupidObj runner. Linux creates no
+.cupidbuild-run namespace. It freezes the manifest and all six tools in fully
+sealed anonymous memfds and pins the working directory by descriptor. The
+child calls fchdir before remapping the captured streams. A tool descriptor in
+slot 0, 1, or 2 is moved above the standard descriptors before fexecve or
+execveat. The dup2, pipe read and write, and wait loops retry EINTR; dup2 also
+retries EBUSY. Captured streams are anonymous memfds and are sealed before
+reading. A close-on-exec launch-status pipe preserves a real tool exit of 125,
+and the static i386 startup provides cupid_linux_syscall5.
+
+Windows pins and rechecks the working-directory identity. Its private root and
+files are handle-pinned, and the tool handle allows neither write nor delete
+sharing through CreateProcessA. Captured streams are forwarded in binary mode.
+This preserves their exact bytes. Cleanup removes a changed file when its
+identity still belongs to the runner and preserves a replacement identity.
+The promoted seeds do not carry this command yet, so normal Make ownership is
+unchanged.
+
+The Windows CupidBuild CLI suite completed 66 tests in 66.145 seconds with
+three expected skips. The host-runner Python module completed six tests in
+0.914 seconds with three POSIX skips, and the dedicated Make contract passed.
+All six CupidASM source tests passed in 3.750 seconds. Strict Windows and
+freestanding i386 adapter compilation passed, as did timeout-and-seed-drift
+precedence. A final full Windows Toolchain rerun could not start because WSL
+failed while translating the Linux seed after the WSL VM and service outage.
+Earlier full Windows and Linux green baselines are pre-edge-fix evidence, not
+final evidence for this revision.
 >endtree
 
 >h2 What Is CupidC

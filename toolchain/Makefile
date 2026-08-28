@@ -144,6 +144,8 @@ NATIVE_CUPIDASM_KERNEL_ELF_CONTRACT := \
 	$(BUILD_DIR)/cupidasm-kernel-elf-contract$(EXE)
 NATIVE_CUPIDOBJ_CONTRACT := $(BUILD_DIR)/cupidobj-contract$(EXE)
 NATIVE_CUPIDLD_CONTRACT := $(BUILD_DIR)/cupidld-contract$(EXE)
+NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT := \
+	$(BUILD_DIR)/cupidbuild-host-runner-contract$(EXE)
 CUPIDC := $(BUILD_DIR)/cupidc$(EXE)
 CUPIDC_PP_ACTIVE_CASES := tests/cupidc_pp_active_cases.inc
 X86_CONTRACT_SUPPORT := tests/x86_active_cases.inc \
@@ -343,6 +345,15 @@ CUPIDBUILD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                       $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidbuild_host.o \
                       $(BUILD_DIR)/cupidbuild.o \
                       $(BUILD_DIR)/cupidbuild_main.o
+CUPIDBUILD_HOST_RUNNER_CONTRACT_FLAGS := \
+	-DCUPIDBUILD_HOST_STREAM_LIMIT=4096
+ifneq ($(OS),Windows_NT)
+CUPIDBUILD_HOST_RUNNER_CONTRACT_FLAGS += \
+	-DCUPIDBUILD_HOST_NATIVE_EINTR_TEST
+endif
+CUPIDBUILD_HOST_RUNNER_CONTRACT_OBJECTS := \
+	$(BUILD_DIR)/cupidbuild_host_runner_adapter.o \
+	$(BUILD_DIR)/cupidbuild_host_runner_contract.o
 NATIVE_ORACLE_ARTIFACTS := $(NATIVE_CONTRACT) \
 	$(NATIVE_CUPIDC_PP_CONTRACT) $(NATIVE_CUPIDC_TYPE_CONTRACT) \
 	$(NATIVE_CUPIDC_FRONTEND_CONTRACT) $(NATIVE_CUPIDC_IR_CONTRACT) \
@@ -434,6 +445,11 @@ $(BUILD_DIR)/cupidld_main.o: cupidld_main.cc cupidld.h ctool_host.h ctool.h elf3
 
 $(BUILD_DIR)/cupidbuild_host.o: cupidbuild_host.cc cupidbuild_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild_host_runner_adapter.o: \
+    cupidbuild_host.cc cupidbuild_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(CUPIDBUILD_HOST_RUNNER_CONTRACT_FLAGS) \
+		-x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild.o: cupidbuild.cc cupidbuild.h cupidbuild_host.h \
                           ctool.h ctool_host.h elf32.h pe32.h pe32_impl.h | $(BUILD_DIR)
@@ -528,6 +544,11 @@ $(BUILD_DIR)/cupidobj_contract.o: tests/cupidobj_contract.cc cupidobj.h elf32.h 
 $(BUILD_DIR)/cupidld_contract.o: tests/cupidld_contract.cc cupidld.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
+$(BUILD_DIR)/cupidbuild_host_runner_contract.o: \
+    tests/cupidbuild_host_runner_contract.cc cupidbuild_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(CUPIDBUILD_HOST_RUNNER_CONTRACT_FLAGS) \
+		-x c -c $< -o $@
+
 $(NATIVE_CONTRACT): $(CORE_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CORE_OBJECTS) -o $@
 
@@ -604,9 +625,16 @@ $(CUPIDBUILD): $(CUPIDBUILD_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDBUILD_OBJECTS) \
 		$(CUPIDBUILD_HOST_LIBS) -o $@
 
+$(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT): \
+    $(CUPIDBUILD_HOST_RUNNER_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) \
+		$(CUPIDBUILD_HOST_RUNNER_CONTRACT_OBJECTS) \
+		$(CUPIDBUILD_HOST_LIBS) -o $@
+
 test: $(CONTRACT_MANIFEST) \
       $(X86_CONTRACT_SUPPORT) \
-      $(CUPIDC_PP_ACTIVE_CASES) $(CUPIDC_HOSTED_I386_RUNTIME)
+      $(CUPIDC_PP_ACTIVE_CASES) $(CUPIDC_HOSTED_I386_RUNTIME) \
+      $(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT)
 	$(PYTHON) ../tools/cupidc_toolchain_contracts.py verify \
 		--root .. --output $(CONTRACT_DIR)
 	$(CONTRACT) foundations
@@ -922,6 +950,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDLD_CONTRACT) merge-addends
 	$(CUPIDLD_CONTRACT) script-layout
 	$(CUPIDLD_CONTRACT) errors
+	$(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT) all
 
 # Generated C sources remain explicit materialization boundaries.  The hosted
 # contract prerequisite completes first; one recipe then serializes the root
@@ -941,9 +970,13 @@ native-oracles: $(NATIVE_ORACLE_ARTIFACTS)
 test-kernel-cupiddis-adapter: $(NATIVE_CUPIDDIS_KERNEL_ADAPTER_CONTRACT)
 	$(NATIVE_CUPIDDIS_KERNEL_ADAPTER_CONTRACT)
 
+test-cupidbuild-host-runner: $(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT)
+	$(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT) all
+
 print-bootstrap-artifacts:
 	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
 
 .PHONY: all test test-cupidc-pp-active-generated \
-        test-kernel-cupiddis-adapter native-oracles clean \
+        test-kernel-cupiddis-adapter test-cupidbuild-host-runner \
+	native-oracles clean \
         print-bootstrap-artifacts

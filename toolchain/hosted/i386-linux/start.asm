@@ -8,6 +8,7 @@ global cupid_linux_syscall1:function
 global cupid_linux_syscall2:function
 global cupid_linux_syscall3:function
 global cupid_linux_syscall4:function
+global cupid_linux_syscall5:function
 
 section .text
 
@@ -65,6 +66,22 @@ cupid_linux_syscall4:
  mov edx, [esp + 24]
  mov esi, [esp + 28]
  int 0x80
+ pop esi
+ pop ebx
+ ret
+
+cupid_linux_syscall5:
+ push ebx
+ push esi
+ push edi
+ mov eax, [esp + 16]
+ mov ebx, [esp + 20]
+ mov ecx, [esp + 24]
+ mov edx, [esp + 28]
+ mov esi, [esp + 32]
+ mov edi, [esp + 36]
+ int 0x80
+ pop edi
  pop esi
  pop ebx
  ret

@@ -39,6 +39,35 @@ Windows CupidBuild startup marks all fourteen exports as functions. Fresh
 Linux and Windows candidates converged, and promoted-seed self-consumption
 passes with all six initial images equal to stage two. ADR 0347 records the
 object and startup boundary.
+Source-head CupidBuild can now launch checked CupidObj without Python. On
+Linux, it creates no .cupidbuild-run namespace. The manifest and six tools are
+fully sealed anonymous memfds, and the working directory is pinned by
+descriptor. The child calls fchdir before remapping its captured streams. If
+the tool occupies descriptor 0, 1, or 2, it is moved above the standard
+descriptors before fexecve or execveat. The dup2, pipe read and write, and wait
+loops retry EINTR; dup2 also retries EBUSY. Captured streams are sealed
+anonymous memfds. A close-on-exec launch-status pipe preserves a genuine exit
+of 125, and the static i386 startup provides cupid_linux_syscall5.
+
+On Windows, the runner pins and rechecks the working-directory identity. It
+uses a handle-pinned private root and files, keeps the tool handle without
+write or delete sharing through CreateProcessA, and forwards captured streams
+in binary mode to preserve exact bytes. Cleanup deletes a file that changed in
+place when its identity still matches, but preserves a path replacement with a
+different identity.
+This generic runner does not claim the locking, inspection, or atomic
+replacement owned by the typed assembly transactions. Seed promotion and Make
+adoption remain separate steps.
+
+The Windows CupidBuild CLI suite completed 66 tests in 66.145 seconds with
+three expected skips. The host-runner Python module completed six tests in
+0.914 seconds with three POSIX skips, and its dedicated Make contract passed.
+The six-test CupidASM source suite passed in 3.750 seconds. Strict Windows and
+freestanding i386 adapter compilation passed, together with
+timeout-and-seed-drift precedence. A final full Windows Toolchain rerun could
+not start because WSL failed while translating the Linux seed after the WSL VM
+and service outage. Earlier full Windows and Linux green baselines predate the
+edge fixes and are not final evidence for this runner revision.
 >endtree
 
 >h2 Overview

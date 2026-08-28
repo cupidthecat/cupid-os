@@ -101,7 +101,7 @@ STARTUP_OBJECT_FIXTURES = (
         / "hosted"
         / "i386-linux"
         / "start.asm",
-        "function_count": 6,
+        "function_count": 7,
     },
     {
         "name": "windows-contract-start",

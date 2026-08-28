@@ -155,6 +155,7 @@
     "bin/old_cc2.cc": "explicitly_excluded",
     "bin/old_cc2_single.cc": "explicitly_excluded",
     "demos/paint.cc": "superseded",
+    "toolchain/tests/cupidbuild_host_runner_contract.cc": "not_reached",
     "toolchain/tests/cupiddis_kernel_adapter_contract.cc": "host_oracle"
   }
 }

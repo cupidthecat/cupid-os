@@ -2486,11 +2486,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 176)
+            self.assertEqual(contract["if_occurrences"], 210)
             self.assertEqual(contract["elif_occurrences"], 11)
-            self.assertEqual(contract["expression_occurrences"], 187)
-            self.assertEqual(contract["unique_expressions"], 36)
-            self.assertEqual(contract["directive_expression_pairs"], 38)
+            self.assertEqual(contract["expression_occurrences"], 221)
+            self.assertEqual(contract["unique_expressions"], 41)
+            self.assertEqual(contract["directive_expression_pairs"], 43)
             self.assertTrue(
                 all(
                     not item["path"].casefold().startswith("templeos/")
@@ -2517,8 +2517,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 {expression: values[2] for expression, values in manifest.items()},
                 {
+                    "! defined ( CUPIDBUILD_HOST_STREAM_LIMIT )": 1,
                     "! defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 1,
+                    "! defined ( CUPID_HOSTED_I386_WINDOWS_H )": 1,
                     "! defined ( CUPID_RUNTIME_WINDOWS )": 1,
+                    "! defined ( _GNU_SOURCE )": 1,
                     "! defined ( _POSIX_C_SOURCE )": 1,
                     "! defined ( _WIN32 )": 1,
                     "! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && "
@@ -2546,11 +2549,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "_WIN64": 0,
                     "defined ( _MSC_VER ) && ! defined ( __cplusplus )": 0,
                     "defined ( _WIN32 )": 0,
+                    "defined ( _WIN32 ) && ! defined ( CUPID_HOSTED_I386_WINDOWS_H )": 0,
                     "defined ( _WIN32 ) && ! defined ( _WIN32_WCE )": 0,
                     "defined ( _WIN32 ) || defined ( __DJGPP__ )": 0,
                     "defined ( _WIN64 )": 0,
                     "defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 0,
                     "defined ( CUPIDASM_PUBLICATION_TESTING )": 0,
+                    "defined ( CUPIDBUILD_HOST_NATIVE_EINTR_TEST )": 0,
                     "defined ( CUPID_RUNTIME_WINDOWS )": 0,
                     "defined ( CUPIDBUILD_CUSTOM_LINUX )": 0,
                     "defined ( CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL )": 0,
@@ -2652,7 +2657,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             audit = json.loads(output.read_text(encoding="utf-8"))
             features = {entry["id"]: entry for entry in audit["features"]}
-            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 162)
+            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 168)
             self.assertEqual(features["asm.directive.bits"]["occurrences"], 10)
             self.assertEqual(features["asm.directive.org"]["occurrences"], 3)
             transforms = {
@@ -3904,9 +3909,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 711)
-            self.assertEqual(contract["include_occurrences"], 2498)
+            self.assertEqual(contract["include_occurrences"], 2501)
             self.assertEqual(contract["direct_quoted_occurrences"], 2219)
-            self.assertEqual(contract["direct_angle_occurrences"], 279)
+            self.assertEqual(contract["direct_angle_occurrences"], 282)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -9004,7 +9009,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "active_sources": 747,
                     "features": 255,
                     "transforms": 452,
-                    "unreachable_sources": 26,
+                    "unreachable_sources": 27,
                 },
             )
             features = {
@@ -9012,7 +9017,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6630, 179),
+                "c.expression.sizeof": (6656, 179),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

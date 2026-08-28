@@ -1,5 +1,53 @@
 # Host dependency inventory
 
+CupidBuild's source head can now launch CupidObj through a native checked-seed
+runner. Linux creates no `.cupidbuild-run` namespace: the manifest and six
+tools are fully sealed anonymous memfds, and the working directory is pinned by
+descriptor. The child calls `fchdir` before remapping the captured streams. A
+tool descriptor in slot 0, 1, or 2 is duplicated above the standard
+descriptors before `fexecve` or `execveat`. The `dup2`, pipe read and write,
+and wait loops retry `EINTR`; `dup2` also retries `EBUSY`. The captured stream
+memfds are sealed before reading. A close-on-exec launch-status pipe preserves
+an exact child exit of 125, and the i386 startup supplies
+`cupid_linux_syscall5`.
+
+Windows pins and rechecks the working-directory identity. It uses a
+handle-pinned private root and files, holds the tool without write or delete
+sharing through `CreateProcessA`, and forwards captured streams in binary
+mode to preserve exact bytes. Cleanup deletes a file that changed in place
+when its identity still matches, but preserves a replacement with a different
+identity. Both platforms recheck the live seed before releasing output.
+
+The promoted seeds do not carry this command, so Python still coordinates all
+186 direct root CupidObj calls. This closes source capability without changing
+normal-build ownership or the current graph counts. The Windows CupidBuild CLI
+suite completed 66 tests in 65.934 seconds with three expected skips. The
+host-runner Python module completed eight tests in 0.962 seconds with four POSIX
+skips. The dedicated Make contract passed, as did all six CupidASM source tests
+in 3.771 seconds, strict Windows and freestanding i386 adapter compilation, and
+timeout-and-seed-drift precedence.
+
+The final normal `make -j2 all` passed after the exact-size check failed closed
+and its policy was updated. All 16 exact artifacts passed. The current sizes
+are 9,515,260 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
+`kernel/kernel.elf`, and 9,613,340 bytes for `kernel/kernel.elf.pass1`.
+Whole-image CupidDis inspection and disk-image staging passed as well.
+
+A private four-vCPU E1000 QEMU smoke used
+`--cpu max --verify-smp-runtime`, ran `/bin/ls.cc`, and passed in about 47.5
+seconds. CupidC compiled 911 code bytes and 71 data bytes and completed JIT
+execution. The 33,113-byte log has SHA-256
+`7b0711ce849107f838aed61f4238ce6edb79d787911edbd39194ec8868cdcf24`
+and no rejected runtime marker.
+
+A final full Windows Toolchain rerun could not start because WSL failed while
+translating the Linux seed after the WSL VM and service outage. The earlier
+full Windows and Linux green baselines remain pre-edge-fix evidence rather than
+final evidence for this revision.
+
+**TODO:** Repeat the full Windows Toolchain run after WSL can translate the
+Linux seed, then record the current Linux-backed result.
+
 CupidBuild belongs to both checked seed cohorts and now directly owns four
 normal publications: the ISR and context-switch objects plus the bootloader
 and SMP-trampoline raw images. The commands assemble and certify private

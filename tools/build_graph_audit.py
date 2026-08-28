@@ -7372,7 +7372,7 @@ def _cupid_toolchain_fixed_point_contract(
                 windows_publication_header_path,
             )
         )
-        == "b6decd1c682a6f61a04f90231498ecf821aec1adcfc3d9e530137b8930e66826"
+        == "e532243c5f0d19c109a6bd6da35a0e45406a9b664427275c669c77a4e32407e2"
         and token_digest(
             c_tokens(
                 active_windows_publication_runtime,

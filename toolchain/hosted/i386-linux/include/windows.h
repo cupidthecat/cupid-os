@@ -106,6 +106,7 @@ typedef struct {
 #define ERROR_FILE_NOT_FOUND 2u
 #define ERROR_PATH_NOT_FOUND 3u
 #define ERROR_NO_MORE_FILES 18u
+#define ERROR_SHARING_VIOLATION 32u
 
 unsigned int cupid_windows_close_handle(unsigned int handle);
 unsigned int cupid_windows_create_file(

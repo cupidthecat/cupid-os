@@ -60,10 +60,63 @@ reuse, and ADR 0351 records automatic raw callback arrays. ADR 0352 records
 the non-self-referential v2 contracts, ADR 0353 records their paired
 promotion, ADR 0354 records the first direct normal recipe ownership for
 CupidBuild, ADR 0355 records its typed source-head raw-image interface, ADR
-0356 records its carriage in the paired seeds, and ADR 0357 records direct raw
-publication ownership.
+0356 records its carriage in the paired seeds, ADR 0357 records direct raw
+publication ownership, and ADR 0358 records the source-head native CupidObj
+runner.
 
 ## 2026-08-27 source-current checkpoint
+
+Source-head CupidBuild now has a native checked-tool runner for CupidObj. On
+Linux, it creates no `.cupidbuild-run` namespace. The manifest and six tools
+are fully sealed anonymous memfds, and the caller's working directory is held
+by descriptor. The child calls `fchdir` before remapping its captured streams.
+If the retained tool occupies descriptor 0, 1, or 2, it is duplicated above
+the standard descriptors before `fexecve` or `execveat`. The `dup2`, pipe read
+and write, and wait loops retry `EINTR`; `dup2` also retries `EBUSY`. Standard
+output and standard error are anonymous memfds that are fully sealed before
+reading. A close-on-exec launch-status pipe preserves a genuine exit of 125.
+The static i386 startup provides `cupid_linux_syscall5` for `pread64` and
+`execveat`.
+
+On Windows, the command pins and rechecks the working-directory identity, then
+uses a handle-pinned private root and files. The tool handle permits neither
+write nor delete sharing and stays open through `CreateProcessA`. Stream
+forwarding uses binary mode to preserve exact bytes. Cleanup removes a mutated
+file when its identity still belongs to the runner and preserves a replacement
+with a different identity. Both platforms recheck the live seed before
+releasing output.
+
+The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
+three expected skips. The host-runner Python module completed eight tests in
+0.962 seconds with four POSIX skips, and its dedicated Make contract passed.
+All six CupidASM source tests passed in 3.771 seconds. Strict compilation of the
+Windows and freestanding i386 adapters passed, as did the
+timeout-and-seed-drift precedence case.
+
+The final normal `make -j2 all` passed after the exact-size check failed closed
+on the changed outputs and its policy was updated. All 16 exact artifacts
+passed: `kernel/kernel.bin` is 9,515,260 bytes, `kernel/kernel.elf` is
+9,744,412 bytes, and `kernel/kernel.elf.pass1` is 9,613,340 bytes. Whole-image
+CupidDis inspection and disk-image staging also passed.
+
+A private four-vCPU E1000 QEMU smoke used
+`--cpu max --verify-smp-runtime`, ran `/bin/ls.cc`, and passed in about 47.5
+seconds. CupidC compiled 911 code bytes and 71 data bytes and completed JIT
+execution. The 33,113-byte log has SHA-256
+`7b0711ce849107f838aed61f4238ce6edb79d787911edbd39194ec8868cdcf24`
+and no rejected runtime marker.
+
+A final full Windows Toolchain rerun could not start because WSL failed while
+translating the Linux seed after the WSL VM and service outage. Earlier full
+Windows and Linux green runs remain
+pre-edge-fix evidence, not final evidence for this revision.
+
+**TODO:** Repeat the full Windows Toolchain run after WSL can translate the
+Linux seed, then record the current Linux-backed result.
+
+The paired production seeds do not carry this command yet, so Make ownership
+and the current graph counts remain unchanged. ADR 0358 records the interface
+and its manifest trust boundary.
 
 The normal bootloader and SMP-trampoline rules now invoke the promoted
 CupidBuild seed directly. Their Make prerequisites are the source, Makefile,
@@ -109,13 +162,13 @@ The Linux CupidBuild seed now retains executable mode in Git. Its bytes and v2
 manifest record are unchanged. The active suffix audit still has no safe `.c`
 rename because every active CupidC translation unit already uses `.cc`.
 
-The complete normal image build passed the two CupidLD links, whole-kernel
-CupidDis inspection, all 16 exact artifact sizes, and image publication. The
-humanized CTXT payload produces a 9,507,804-byte raw kernel; the
-pass-one and final ELFs remain 9,605,148 and 9,736,220 bytes. The exact policy
-records those source-consistent sizes. A private four-vCPU `max` and E1000
-frontier passed with all CPUs online, changed framebuffer pixels, non-silent
-AC97 and PC-speaker captures, and completed in-OS CupidC work.
+At the earlier raw-publication handoff, the complete normal image build passed
+the two CupidLD links, whole-kernel CupidDis inspection, all 16 exact artifact
+sizes, and image publication. That checkpoint produced a 9,507,804-byte raw
+kernel, a 9,605,148-byte pass-one ELF, and a 9,736,220-byte final ELF. Its
+private four-vCPU `max` and E1000 frontier brought all CPUs online, changed the
+framebuffer, produced non-silent AC97 and PC-speaker captures, and completed
+in-OS CupidC work. The current post-edge-fix evidence appears above.
 
 ## 2026-08-25 source-current checkpoint
 
@@ -342,31 +395,22 @@ sixteen exact artifacts. The current outputs are:
 
 | Source-head artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `kernel/kernel.elf.pass1` | 9,605,148 | `e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63` |
-| `kernel/kernel.elf` | 9,736,220 | `c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436` |
-| `kernel/kernel.bin` | 9,507,804 | `2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f` |
-| `cupidos.img` | 209,715,200 | `1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc` |
+| `kernel/kernel.elf.pass1` | 9,613,340 | `2a9b46e673fc62b66d838b9575fc86786ee165244eea59c173806d6499b2583d` |
+| `kernel/kernel.elf` | 9,744,412 | `b96044fb5941f3297b47590441747df9ecbb569bbdbf157474c8dcb640d6d403` |
+| `kernel/kernel.bin` | 9,515,260 | `b3835c0ad5fa85cb69d18b8670ce0533a6dca4041d71a4407d4a0d7d24b96375` |
+| `cupidos.img` | 209,715,200 | `dc9aa94d66ea22cd6914b010697a1bb5f0eeca5169c1f30800179506008aa9db` |
 
-The current normal build linked both kernel ELFs and completed strict CupidDis
-inspection of all 431 production inputs with local targets and code anchors
-enabled. Earlier paired-seed checks rejected three stale raw-kernel rows before
-publication. The direct CupidBuild ownership and typed raw-command
-documentation later moved the embedded CTXT payload again. The final replay
-measured 9,507,224 bytes, updated the changed flat-kernel row, passed all
-sixteen paths, preserved the normal image's FAT contents, and staged
-`hello.iso`.
-The raw-publication handoff then refreshed the embedded manuals. Both ELF
-sizes stayed fixed, while the flat kernel grew by 580 bytes. The gate rejected
-the old row before the measured policy update passed all sixteen paths.
-The 3,382-byte policy covers sixteen paths totaling 38,144,480 bytes and has
-SHA-256
-`78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`.
+The final normal `make -j2 all` passed after the exact-size check failed closed
+and its policy was updated. Whole-image CupidDis inspection, all sixteen exact
+artifacts, and disk-image staging passed. The 3,382-byte policy covers
+38,168,320 bytes and has SHA-256
+`cd88ba65de4bb11e1759e3c48165795b88e74de40a17d62fba6fda7ee7aae192`.
 
-The final private four-vCPU `max` and E1000 smoke used a copy of that normal
-image. All four CPUs came online, and the complete frontier finished its
-graphics, audio, and in-OS CupidC work. The framebuffer changed 69,823
-pixels; both audio captures were non-silent. The 147,526-byte log has SHA-256
-`252d3ef3796233cd752754c19aaa85a7311010bd75d0d5d57264fd6919584b56`
+A private four-vCPU E1000 QEMU smoke used
+`--cpu max --verify-smp-runtime`, ran `/bin/ls.cc`, and passed in about 47.5
+seconds. CupidC compiled 911 code bytes and 71 data bytes and completed JIT
+execution. The 33,113-byte log has SHA-256
+`7b0711ce849107f838aed61f4238ce6edb79d787911edbd39194ec8868cdcf24`
 and no rejected runtime marker. The source image was not changed by the smoke.
 
 Source-head bootstrap reporting now compares stage two with the verified bytes
@@ -3740,17 +3784,17 @@ at the same parent revision.
 
 The current artifact-size policy is
 3,382 bytes with SHA-256
-`78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`.
+`cd88ba65de4bb11e1759e3c48165795b88e74de40a17d62fba6fda7ee7aae192`.
 It has sixteen rows: `boot/boot.bin`, the two kernel ELFs, the flat kernel,
 the six Linux images, and the six Windows images. The four OS rows expect
-2,560, 9,605,148, 9,736,220, and 9,507,804 bytes for the boot image, pass-one
+2,560, 9,613,340, 9,744,412, and 9,515,260 bytes for the boot image, pass-one
 ELF, final ELF, and flat kernel, respectively. Production seed captures in
 the root, user, and Toolchain Makefiles, together with the bootstrap
 coordinators and checked runners, now freeze all six images as one trust unit.
 The promoted-seed Linux and Windows reproofs pass with all six initial images
 equal to stage two. ADR 0356 records the candidate reports, refreshed seed
 identities, and self-consumption evidence. The sixteen current policy rows
-total 38,144,480 bytes.
+total 38,168,320 bytes.
 
 That checkpoint's normal OS replay passed both CupidLD links and the strict 431-input
 CupidDis scan. Its first exact-size check measured a 9,504,760-byte raw kernel

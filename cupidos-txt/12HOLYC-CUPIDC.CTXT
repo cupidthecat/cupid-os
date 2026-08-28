@@ -39,6 +39,34 @@ to stage two on both platforms. This changes hosted bootstrap evidence, not
 CupidC language behavior. CupidBuild owns the ISR, context-switch, bootloader,
 and SMP-trampoline recipes, while Python retains coordination and publication
 elsewhere.
+Source-head CupidBuild now adds a native checked CupidObj runner without adding
+language syntax. Linux creates no .cupidbuild-run namespace. It freezes the
+manifest and six tools in fully sealed anonymous memfds and pins the working
+directory by descriptor. The child calls fchdir before remapping captured
+streams. A tool descriptor in slot 0, 1, or 2 is moved above the standard
+descriptors before fexecve or execveat. The dup2, pipe read and write, and wait
+loops retry EINTR; dup2 also retries EBUSY. The stream memfds are sealed before
+reading. A close-on-exec launch-status pipe preserves a genuine exit of 125.
+The static i386 startup supplies cupid_linux_syscall5.
+
+Windows pins and rechecks the working-directory identity. Its private root and
+files are handle-pinned, and it retains the tool without write or delete
+sharing through CreateProcessA. It forwards captured streams in binary mode.
+This preserves their exact bytes. Cleanup deletes a file that changed in place
+when its identity still matches, but preserves a replacement with a different
+identity. Both paths withhold captured output if the live cohort changes.
+The command remains a source capability until both checked seeds carry it and
+Make adopts it.
+
+The Windows CupidBuild CLI suite completed 66 tests in 66.145 seconds with
+three expected skips. The host-runner Python module completed six tests in
+0.914 seconds with three POSIX skips, and its dedicated Make contract passed.
+All six CupidASM source tests passed in 3.750 seconds. Strict Windows and
+freestanding i386 adapter compilation passed, as did timeout-and-seed-drift
+precedence. A final full Windows Toolchain rerun could not start because WSL
+failed while translating the Linux seed after the WSL VM and service outage.
+Earlier full Windows and Linux green baselines predate the edge fixes and are
+not final evidence for this revision.
 >endtree
 
 >h2 Purpose

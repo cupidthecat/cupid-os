@@ -22,6 +22,21 @@ typedef struct {
   size_t size;
 } cupidbuild_seed_artifact_t;
 
+typedef struct {
+  char manifest_path[CUPIDBUILD_PATH_BYTES];
+  char directory[CUPIDBUILD_PATH_BYTES];
+  cupidbuild_seed_artifact_t artifacts[CUPIDBUILD_SEED_ARTIFACTS];
+  const char *frozen_tools[CUPIDBUILD_SEED_ARTIFACTS];
+  cupidbuild_host_snapshot_t tool_snapshots[CUPIDBUILD_SEED_ARTIFACTS];
+  const char *expected_files[CUPIDBUILD_SEED_ARTIFACTS];
+  unsigned char *manifest;
+  size_t manifest_size;
+  size_t artifact_count;
+} cupidbuild_seed_capture_t;
+
+static const char *const cupidbuild_seed_names[CUPIDBUILD_SEED_ARTIFACTS] = {
+    "CupidASM", "CupidC", "CupidDis", "CupidLD", "CupidObj", "CupidBuild"};
+
 typedef enum {
   CUPIDBUILD_JSON_OBJECT,
   CUPIDBUILD_JSON_ARRAY,
@@ -120,44 +135,6 @@ static int cupidbuild_repository_prefix(const char *path, const char *root) {
     }
   }
   return path[root_size] == '/' || path[root_size] == '\\';
-}
-
-static unsigned char *cupidbuild_read_private(const char *path, size_t limit,
-                                              size_t *size_out) {
-  FILE *stream;
-  long length;
-  unsigned char *bytes;
-#if defined(_WIN32)
-  stream = (FILE *)0;
-  if (fopen_s(&stream, path, "rb") != 0) {
-    stream = (FILE *)0;
-  }
-#else
-  stream = fopen(path, "rb");
-#endif
-  if (stream == (FILE *)0 || fseek(stream, 0L, SEEK_END) != 0) {
-    if (stream != (FILE *)0) {
-      (void)fclose(stream);
-    }
-    return (unsigned char *)0;
-  }
-  length = ftell(stream);
-  if (length < 0L || (unsigned long)length > (unsigned long)limit ||
-      fseek(stream, 0L, 0) != 0) {
-    (void)fclose(stream);
-    return (unsigned char *)0;
-  }
-  bytes = (unsigned char *)malloc((size_t)length + 1u);
-  if (bytes == (unsigned char *)0 ||
-      ((size_t)length != 0u &&
-       fread(bytes, 1u, (size_t)length, stream) != (size_t)length) ||
-      fclose(stream) != 0) {
-    free(bytes);
-    return (unsigned char *)0;
-  }
-  bytes[(size_t)length] = 0u;
-  *size_out = (size_t)length;
-  return bytes;
 }
 
 static void cupidbuild_json_space(cupidbuild_json_reader_t *reader) {
@@ -1276,8 +1253,10 @@ static int cupidbuild_string_equals(ctool_string_t actual,
 }
 #endif
 
-static int cupidbuild_validate_execution_profile(const char *path,
-                                                 size_t artifact_index,
+static int cupidbuild_validate_execution_profile(
+                                                  cupidbuild_host_transaction_t *transaction,
+                                                  const char *path,
+                                                  size_t artifact_index,
                                                  int promoted) {
   unsigned char *bytes;
   size_t size = 0u;
@@ -1286,7 +1265,8 @@ static int cupidbuild_validate_execution_profile(const char *path,
   ctool_job_t *job = (ctool_job_t *)0;
   ctool_source_t source;
   int valid = 0;
-  bytes = cupidbuild_read_private(path, CUPIDBUILD_TOOL_BYTES, &size);
+  bytes = cupidbuild_host_read_frozen_input(
+      transaction, path, CUPIDBUILD_TOOL_BYTES, &size);
   if (bytes == (unsigned char *)0 || size > 4294967295u ||
       ctool_host_adapter_init(&adapter, ".") != CTOOL_OK) {
     free(bytes);
@@ -1439,6 +1419,153 @@ static int cupidbuild_validate_execution_profile(const char *path,
   return valid;
 }
 
+static void cupidbuild_seed_capture_close(cupidbuild_seed_capture_t *seed) {
+  if (seed != (cupidbuild_seed_capture_t *)0) {
+    free(seed->manifest);
+    seed->manifest = (unsigned char *)0;
+  }
+}
+
+static int cupidbuild_seed_manifest_path(
+    const char *working_directory, const char *requested, int require_inside,
+    char *resolved, size_t capacity) {
+  size_t requested_size = strlen(requested);
+  int absolute = requested[0] == '/' || requested[0] == '\\' ||
+                 (requested_size > 1u && requested[1] == ':');
+  if (absolute != 0) {
+    if ((require_inside != 0 &&
+         (requested_size <= strlen(working_directory) ||
+          !cupidbuild_repository_prefix(requested, working_directory))) ||
+        requested_size + 1u > capacity) {
+      return 0;
+    }
+    (void)memcpy(resolved, requested, requested_size + 1u);
+    return 1;
+  }
+  return cupidbuild_join(resolved, capacity, working_directory, requested);
+}
+
+static int cupidbuild_seed_freeze(
+    cupidbuild_host_transaction_t *transaction, const char *working_directory,
+    const char *requested_manifest, int require_inside, int require_promoted,
+    cupidbuild_seed_capture_t *seed) {
+  const char *frozen_manifest = (const char *)0;
+  const char *manifest_reason = "manifest path is invalid";
+  size_t index;
+  (void)memset(seed, 0, sizeof(*seed));
+  if (!cupidbuild_seed_manifest_path(
+          working_directory, requested_manifest, require_inside,
+          seed->manifest_path, sizeof(seed->manifest_path))) {
+    (void)fprintf(stderr,
+                  "cupidbuild: checked seed manifest is outside the working "
+                  "directory\n");
+    return 0;
+  }
+  if (!cupidbuild_host_freeze_input(
+          transaction, seed->manifest_path, "manifest.json", &frozen_manifest,
+          (cupidbuild_host_snapshot_t *)0)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    return 0;
+  }
+  seed->manifest = cupidbuild_host_read_frozen_input(
+      transaction, frozen_manifest, CUPIDBUILD_MANIFEST_BYTES,
+      &seed->manifest_size);
+  if (seed->manifest == (unsigned char *)0) {
+    (void)fprintf(
+        stderr,
+        "cupidbuild: checked seed manifest is invalid: unreadable bytes\n");
+    return 0;
+  }
+  if (!cupidbuild_json_manifest(seed->manifest, seed->manifest_size,
+                                seed->artifacts, &seed->artifact_count,
+                                &manifest_reason)) {
+    (void)fprintf(stderr, "cupidbuild: checked seed manifest is invalid: %s\n",
+                  manifest_reason);
+    return 0;
+  }
+  if (require_promoted != 0 &&
+      seed->artifact_count != CUPIDBUILD_SEED_ARTIFACTS) {
+    (void)fprintf(stderr,
+                  "cupidbuild: checked tool runner requires a promoted "
+                  "six-tool seed\n");
+    return 0;
+  }
+  if (!cupidbuild_manifest_directory(seed->manifest_path, seed->directory,
+                                     sizeof(seed->directory))) {
+    (void)fprintf(stderr,
+                  "cupidbuild: checked seed manifest is invalid: artifact "
+                  "path is invalid\n");
+    return 0;
+  }
+  for (index = 0u; index < seed->artifact_count; index++) {
+    seed->expected_files[index] = seed->artifacts[index].file;
+  }
+  if (!cupidbuild_host_seed_members_exact(
+          seed->directory,
+#if defined(_WIN32)
+          ".exe",
+#else
+          ".elf",
+#endif
+          seed->expected_files, seed->artifact_count)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: checked seed directory contains an unlisted "
+                  "executable file\n");
+    return 0;
+  }
+  for (index = 0u; index < seed->artifact_count; index++) {
+    char live_path[CUPIDBUILD_PATH_BYTES];
+    if (!cupidbuild_join(live_path, sizeof(live_path), seed->directory,
+                         seed->artifacts[index].file) ||
+        !cupidbuild_host_freeze_input(
+            transaction, live_path, seed->artifacts[index].file,
+            &seed->frozen_tools[index], &seed->tool_snapshots[index]) ||
+        !cupidbuild_host_make_input_executable(
+            transaction, seed->frozen_tools[index]) ||
+        !cupidbuild_artifact_matches(&seed->tool_snapshots[index],
+                                     &seed->artifacts[index])) {
+      (void)fprintf(stderr, "cupidbuild: checked %s digest mismatch\n",
+                    cupidbuild_seed_names[index]);
+      return 0;
+    }
+  }
+  for (index = 0u; index < seed->artifact_count; index++) {
+    if (!cupidbuild_validate_execution_profile(
+            transaction, seed->frozen_tools[index], index,
+            seed->artifact_count == CUPIDBUILD_SEED_ARTIFACTS)) {
+      (void)fprintf(stderr,
+                    "cupidbuild: checked seed execution profile mismatch\n");
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int cupidbuild_seed_require_live(
+    cupidbuild_host_transaction_t *transaction,
+    const cupidbuild_seed_capture_t *seed) {
+  if (!cupidbuild_host_seed_members_exact(
+          seed->directory,
+#if defined(_WIN32)
+          ".exe",
+#else
+          ".elf",
+#endif
+          seed->expected_files, seed->artifact_count)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: checked seed directory membership changed "
+                  "while checked tools ran\n");
+    return 0;
+  }
+  if (!cupidbuild_host_require_inputs(transaction)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    return 0;
+  }
+  return 1;
+}
+
 typedef enum {
   CUPIDBUILD_ASSEMBLY_OBJECT,
   CUPIDBUILD_ASSEMBLY_BOOTLOADER,
@@ -1466,44 +1593,19 @@ static int cupidbuild_assemble(
     cupidbuild_assembly_kind_t kind) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
-  char manifest_path[CUPIDBUILD_PATH_BYTES];
-  char manifest_directory[CUPIDBUILD_PATH_BYTES];
-  char assembler_path[CUPIDBUILD_PATH_BYTES];
-  char inspector_path[CUPIDBUILD_PATH_BYTES];
-  const char *frozen_manifest = (const char *)0;
+  cupidbuild_seed_capture_t seed;
   const char *frozen_assembler = (const char *)0;
-  const char *frozen_compiler = (const char *)0;
   const char *frozen_inspector = (const char *)0;
-  const char *frozen_linker = (const char *)0;
-  const char *frozen_object = (const char *)0;
-  const char *frozen_build = (const char *)0;
-  cupidbuild_seed_artifact_t artifacts[CUPIDBUILD_SEED_ARTIFACTS];
-  cupidbuild_seed_artifact_t *assembler_artifact = &artifacts[0];
-  cupidbuild_seed_artifact_t *compiler_artifact = &artifacts[1];
-  cupidbuild_seed_artifact_t *inspector_artifact = &artifacts[2];
-  cupidbuild_seed_artifact_t *linker_artifact = &artifacts[3];
-  cupidbuild_seed_artifact_t *object_artifact = &artifacts[4];
-  cupidbuild_seed_artifact_t *build_artifact = &artifacts[5];
-  cupidbuild_host_snapshot_t assembler_snapshot;
-  cupidbuild_host_snapshot_t compiler_snapshot;
-  cupidbuild_host_snapshot_t inspector_snapshot;
-  cupidbuild_host_snapshot_t linker_snapshot;
-  cupidbuild_host_snapshot_t object_snapshot;
-  cupidbuild_host_snapshot_t build_snapshot;
   cupidbuild_host_snapshot_t candidate_snapshot;
   cupidbuild_host_snapshot_t map_snapshot;
-  unsigned char *manifest = (unsigned char *)0;
   unsigned char *candidate = (unsigned char *)0;
   unsigned char *map = (unsigned char *)0;
-  size_t manifest_size = 0u;
-  size_t seed_artifact_count = 0u;
-  const char *manifest_reason = "manifest path is invalid";
   const char *assembler_arguments[8];
   const char *inspector_arguments[9];
-  const char *expected_seed_files[CUPIDBUILD_SEED_ARTIFACTS];
   int assembler_status;
   int inspector_status;
   int result = 1;
+  (void)memset(&seed, 0, sizeof(seed));
   if (request == (const cupidbuild_assembly_request_t *)0 ||
       !cupidbuild_path_safe(request->repository_root, 0) ||
       !cupidbuild_path_safe(request->source, 1) ||
@@ -1519,147 +1621,12 @@ static int cupidbuild_assemble(
                   cupidbuild_host_error(transaction));
     goto done;
   }
-  if (request->seed_manifest[0] == '/' || request->seed_manifest[0] == '\\' ||
-      request->seed_manifest[1] == ':') {
-    if (strlen(request->seed_manifest) <= strlen(request->repository_root) ||
-        !cupidbuild_repository_prefix(request->seed_manifest,
-                                      request->repository_root)) {
-      (void)fprintf(
-          stderr,
-          "cupidbuild: checked seed manifest is outside the repository\n");
-      goto done;
-    }
-    if (strlen(request->seed_manifest) + 1u > sizeof(manifest_path)) {
-      goto done;
-    }
-    (void)memcpy(manifest_path, request->seed_manifest,
-                 strlen(request->seed_manifest) + 1u);
-  } else if (!cupidbuild_join(manifest_path, sizeof(manifest_path),
-                              request->repository_root,
-                              request->seed_manifest)) {
+  if (!cupidbuild_seed_freeze(transaction, request->repository_root,
+                              request->seed_manifest, 1, 0, &seed)) {
     goto done;
   }
-  if (!cupidbuild_host_freeze_input(transaction, manifest_path, "manifest.json",
-                                    &frozen_manifest,
-                                    (cupidbuild_host_snapshot_t *)0)) {
-    (void)fprintf(stderr, "cupidbuild: %s\n",
-                  cupidbuild_host_error(transaction));
-    goto done;
-  }
-  manifest = cupidbuild_read_private(frozen_manifest, CUPIDBUILD_MANIFEST_BYTES,
-                                     &manifest_size);
-  if (manifest == (unsigned char *)0) {
-    (void)fprintf(
-        stderr,
-        "cupidbuild: checked seed manifest is invalid: unreadable bytes\n");
-    goto done;
-  }
-  if (!cupidbuild_json_manifest(manifest, manifest_size, artifacts,
-                                &seed_artifact_count,
-                                &manifest_reason)) {
-    (void)fprintf(stderr, "cupidbuild: checked seed manifest is invalid: %s\n",
-                  manifest_reason);
-    goto done;
-  }
-  if (!cupidbuild_manifest_directory(manifest_path, manifest_directory,
-                                     sizeof(manifest_directory)) ||
-      !cupidbuild_join(assembler_path, sizeof(assembler_path),
-                       manifest_directory, assembler_artifact->file) ||
-      !cupidbuild_join(inspector_path, sizeof(inspector_path),
-                       manifest_directory, inspector_artifact->file)) {
-    (void)fprintf(stderr, "cupidbuild: checked seed manifest is invalid: "
-                          "artifact path is invalid\n");
-    goto done;
-  }
-  expected_seed_files[0] = assembler_artifact->file;
-  expected_seed_files[1] = compiler_artifact->file;
-  expected_seed_files[2] = inspector_artifact->file;
-  expected_seed_files[3] = linker_artifact->file;
-  expected_seed_files[4] = object_artifact->file;
-  if (seed_artifact_count == CUPIDBUILD_SEED_ARTIFACTS) {
-    expected_seed_files[5] = build_artifact->file;
-  }
-  if (!cupidbuild_host_seed_members_exact(
-          manifest_directory,
-#if defined(_WIN32)
-          ".exe",
-#else
-          ".elf",
-#endif
-          expected_seed_files, seed_artifact_count)) {
-    (void)fprintf(stderr,
-                  "cupidbuild: checked seed directory contains an unlisted "
-                  "executable file\n");
-    goto done;
-  }
-  if (!cupidbuild_host_freeze_input(transaction, assembler_path,
-                                    assembler_artifact->file, &frozen_assembler,
-                                    &assembler_snapshot) ||
-      !cupidbuild_host_make_input_executable(transaction, frozen_assembler) ||
-      !cupidbuild_artifact_matches(&assembler_snapshot, assembler_artifact)) {
-    (void)fprintf(stderr, "cupidbuild: checked CupidASM digest mismatch\n");
-    goto done;
-  }
-  if (!cupidbuild_join(assembler_path, sizeof(assembler_path),
-                       manifest_directory, compiler_artifact->file) ||
-      !cupidbuild_host_freeze_input(transaction, assembler_path,
-                                    compiler_artifact->file, &frozen_compiler,
-                                    &compiler_snapshot) ||
-      !cupidbuild_artifact_matches(&compiler_snapshot, compiler_artifact)) {
-    (void)fprintf(stderr, "cupidbuild: checked CupidC digest mismatch\n");
-    goto done;
-  }
-  if (!cupidbuild_host_freeze_input(transaction, inspector_path,
-                                    inspector_artifact->file, &frozen_inspector,
-                                    &inspector_snapshot) ||
-      !cupidbuild_host_make_input_executable(transaction, frozen_inspector) ||
-      !cupidbuild_artifact_matches(&inspector_snapshot, inspector_artifact)) {
-    (void)fprintf(stderr, "cupidbuild: checked CupidDis digest mismatch\n");
-    goto done;
-  }
-  if (!cupidbuild_join(assembler_path, sizeof(assembler_path),
-                       manifest_directory, linker_artifact->file) ||
-      !cupidbuild_host_freeze_input(transaction, assembler_path,
-                                    linker_artifact->file, &frozen_linker,
-                                    &linker_snapshot) ||
-      !cupidbuild_artifact_matches(&linker_snapshot, linker_artifact)) {
-    (void)fprintf(stderr, "cupidbuild: checked CupidLD digest mismatch\n");
-    goto done;
-  }
-  if (!cupidbuild_join(assembler_path, sizeof(assembler_path),
-                       manifest_directory, object_artifact->file) ||
-      !cupidbuild_host_freeze_input(transaction, assembler_path,
-                                    object_artifact->file, &frozen_object,
-                                    &object_snapshot) ||
-      !cupidbuild_artifact_matches(&object_snapshot, object_artifact)) {
-    (void)fprintf(stderr, "cupidbuild: checked CupidObj digest mismatch\n");
-    goto done;
-  }
-  if (seed_artifact_count == CUPIDBUILD_SEED_ARTIFACTS) {
-    if (!cupidbuild_join(assembler_path, sizeof(assembler_path),
-                         manifest_directory, build_artifact->file) ||
-        !cupidbuild_host_freeze_input(transaction, assembler_path,
-                                      build_artifact->file, &frozen_build,
-                                      &build_snapshot) ||
-        !cupidbuild_artifact_matches(&build_snapshot, build_artifact)) {
-      (void)fprintf(stderr,
-                    "cupidbuild: checked CupidBuild digest mismatch\n");
-      goto done;
-    }
-  }
-  if (!cupidbuild_validate_execution_profile(
-          frozen_assembler, 0u,
-          seed_artifact_count == CUPIDBUILD_SEED_ARTIFACTS) ||
-      !cupidbuild_validate_execution_profile(frozen_compiler, 1u, 0) ||
-      !cupidbuild_validate_execution_profile(frozen_inspector, 2u, 0) ||
-      !cupidbuild_validate_execution_profile(frozen_linker, 3u, 0) ||
-      !cupidbuild_validate_execution_profile(frozen_object, 4u, 0) ||
-      (seed_artifact_count == CUPIDBUILD_SEED_ARTIFACTS &&
-       !cupidbuild_validate_execution_profile(frozen_build, 5u, 1))) {
-    (void)fprintf(stderr,
-                  "cupidbuild: checked seed execution profile mismatch\n");
-    goto done;
-  }
+  frozen_assembler = seed.frozen_tools[0];
+  frozen_inspector = seed.frozen_tools[2];
   assembler_arguments[0] = "-f";
   assembler_arguments[1] =
       kind == CUPIDBUILD_ASSEMBLY_OBJECT ? "elf32" : "bin";
@@ -1678,22 +1645,7 @@ static int cupidbuild_assemble(
   }
   assembler_status = cupidbuild_host_run(
       transaction, frozen_assembler, assembler_arguments, 60000u);
-  if (!cupidbuild_host_require_inputs(transaction)) {
-    (void)fprintf(stderr, "cupidbuild: %s\n",
-                  cupidbuild_host_error(transaction));
-    goto done;
-  }
-  if (!cupidbuild_host_seed_members_exact(
-          manifest_directory,
-#if defined(_WIN32)
-          ".exe",
-#else
-          ".elf",
-#endif
-          expected_seed_files, seed_artifact_count)) {
-    (void)fprintf(stderr,
-                  "cupidbuild: checked seed directory membership changed "
-                  "while checked tools ran\n");
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
     goto done;
   }
   if (assembler_status != 0) {
@@ -1771,21 +1723,10 @@ static int cupidbuild_assemble(
   }
   inspector_status = cupidbuild_host_run(
       transaction, frozen_inspector, inspector_arguments, 60000u);
-  if (!cupidbuild_host_seed_members_exact(
-          manifest_directory,
-#if defined(_WIN32)
-          ".exe",
-#else
-          ".elf",
-#endif
-          expected_seed_files, seed_artifact_count)) {
-    (void)fprintf(stderr,
-                  "cupidbuild: checked seed directory membership changed "
-                  "while checked tools ran\n");
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
     goto done;
   }
-  if (!cupidbuild_host_require_inputs(transaction) ||
-      !cupidbuild_host_require_candidate(transaction, &candidate_snapshot) ||
+  if (!cupidbuild_host_require_candidate(transaction, &candidate_snapshot) ||
       (kind != CUPIDBUILD_ASSEMBLY_OBJECT &&
        !cupidbuild_host_require_private_output(transaction, &map_snapshot))) {
     (void)fprintf(stderr, "cupidbuild: %s\n",
@@ -1807,7 +1748,7 @@ static int cupidbuild_assemble(
 done:
   free(map);
   free(candidate);
-  free(manifest);
+  cupidbuild_seed_capture_close(&seed);
   cupidbuild_host_transaction_close(transaction);
   return result;
 }
@@ -1825,4 +1766,75 @@ int cupidbuild_assemble_bootloader(
 int cupidbuild_assemble_smp_trampoline(
     const cupidbuild_assembly_request_t *request) {
   return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE);
+}
+
+int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
+  cupidbuild_host_transaction_t *transaction =
+      (cupidbuild_host_transaction_t *)0;
+  cupidbuild_seed_capture_t seed;
+  int status;
+  int result = 1;
+  (void)memset(&seed, 0, sizeof(seed));
+  if (request == (const cupidbuild_run_request_t *)0 ||
+      !cupidbuild_path_safe(request->working_directory, 0) ||
+      !cupidbuild_path_safe(request->seed_manifest, 0) ||
+      request->arguments == (const char *const *)0 ||
+      request->tool == (const char *)0 ||
+      strcmp(request->tool, "cupidobj") != 0 ||
+      request->timeout_seconds == 0u || request->timeout_seconds > 86400u) {
+    (void)fprintf(stderr, "cupidbuild: invalid checked tool request\n");
+    return 1;
+  }
+  if (!cupidbuild_host_runner_open(request->working_directory,
+                                    &transaction)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (!cupidbuild_seed_freeze(transaction, request->working_directory,
+                              request->seed_manifest, 0, 1, &seed)) {
+    goto done;
+  }
+  if (!cupidbuild_host_require_frozen_inputs(transaction)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  status = cupidbuild_host_run_captured(
+      transaction, seed.frozen_tools[4], request->arguments,
+      request->timeout_seconds * 1000u);
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
+    goto done;
+  }
+  if (!cupidbuild_host_require_frozen_inputs(transaction)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (status == -2) {
+    (void)fprintf(stderr, "cupidbuild: checked CupidObj timed out\n");
+    goto done;
+  }
+  if (status < 0) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (!cupidbuild_host_forward_captured(transaction)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  result = status;
+
+done:
+  cupidbuild_seed_capture_close(&seed);
+  if (!cupidbuild_host_transaction_close(transaction)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: private checked-tool cleanup failed\n");
+    if (result == 0) {
+      result = 1;
+    }
+  }
+  return result;
 }

@@ -81,9 +81,699 @@ class CupidBuildCliTests(unittest.TestCase):
         self.assertEqual(result.stdout, "")
         self.assertIn("usage: cupidbuild", result.stderr)
 
+    def test_help_names_the_checked_tool_runner(self):
+        result = subprocess.run(
+            [str(self.cli_path), "--help"],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertRegex(
+            result.stdout,
+            r"cupidbuild run --seed-manifest MANIFEST\s+"
+            r"--root ROOT --tool cupidobj \[--timeout SECONDS\]\s+"
+            r"-- TOOL_ARGS\.\.\.",
+        )
+
+    def test_checked_tool_runner_matches_cupidobj_success_and_failure(self):
+        cases = (
+            ("help", ["--help"], 30),
+            ("invalid option", ["--not-a-cupidobj-option"], None),
+        )
+        cupidobj = self._production_tool("cupidobj")
+        for name, arguments, timeout in cases:
+            with self.subTest(name=name):
+                direct = subprocess.run(
+                    [str(cupidobj), *arguments],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=90,
+                )
+                checked = self._run_checked_tool(
+                    "cupidobj", arguments, timeout=timeout
+                )
+
+                self.assertEqual(
+                    (
+                        checked.returncode,
+                        checked.stdout,
+                        checked.stderr,
+                    ),
+                    (
+                        direct.returncode,
+                        direct.stdout,
+                        direct.stderr,
+                    ),
+                )
+
+    def test_checked_tool_runner_forwards_more_than_thirty_one_arguments(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-many-arguments-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            demos = root / "demos"
+            demos.mkdir()
+            demo_paths = []
+            for index in range(40):
+                source = demos / f"demo{index:02d}.asm"
+                source.write_text("bits 32\nret\n", encoding="ascii")
+                demo_paths.append(source.relative_to(root).as_posix())
+            direct_output = root / "direct.cc"
+            checked_output = root / "checked.cc"
+            common = ["install-source", "demos", "--demos", *demo_paths]
+            direct_arguments = [*common, "-o", direct_output.name]
+            checked_arguments = [*common, "-o", checked_output.name]
+            self.assertGreater(len(checked_arguments), 31)
+
+            direct = subprocess.run(
+                [str(self._production_tool("cupidobj")), *direct_arguments],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            checked = self._run_checked_tool(
+                "cupidobj", checked_arguments, root=root
+            )
+
+            self.assertEqual(direct.returncode, 0, direct.stderr)
+            self.assertEqual(
+                (checked.returncode, checked.stdout, checked.stderr),
+                (direct.returncode, direct.stdout, direct.stderr),
+            )
+            self.assertEqual(checked_output.read_bytes(), direct_output.read_bytes())
+
+    def test_checked_tool_runner_preserves_quoted_arguments(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-quoted-arguments-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            spaced = root / "path with spaces"
+            spaced.mkdir()
+            source = spaced / "source name.txt"
+            source.write_bytes(b"checked quoting input\n")
+            direct_output = spaced / "direct output.o"
+            checked_output = spaced / "checked output.o"
+            identity = 'quoted"identity\\'
+            source_argument = source.relative_to(root).as_posix()
+            direct_arguments = [
+                "wrap-text", source_argument, "-o",
+                direct_output.relative_to(root).as_posix(),
+                "--identity", identity,
+            ]
+            checked_arguments = [
+                "wrap-text", source_argument, "-o",
+                checked_output.relative_to(root).as_posix(),
+                "--identity", identity,
+            ]
+
+            direct = subprocess.run(
+                [str(self._production_tool("cupidobj")), *direct_arguments],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            checked = self._run_checked_tool(
+                "cupidobj", checked_arguments, root=root
+            )
+
+            self.assertEqual(direct.returncode, 0, direct.stderr)
+            self.assertEqual(
+                (checked.returncode, checked.stdout, checked.stderr),
+                (direct.returncode, direct.stdout, direct.stderr),
+            )
+            self.assertEqual(checked_output.read_bytes(), direct_output.read_bytes())
+
+    def test_checked_tool_runner_rejects_missing_or_unsupported_tool(self):
+        manifest = self._production_manifest()
+        prefix = [
+            str(self.cli_path),
+            "run",
+            "--seed-manifest",
+            str(manifest),
+            "--root",
+            str(REPO_ROOT),
+        ]
+        cases = (
+            ("missing", [*prefix, "--", "--help"]),
+            (
+                "unsupported",
+                [*prefix, "--tool", "cupidc", "--", "--help"],
+            ),
+        )
+        for name, command in cases:
+            with self.subTest(name=name):
+                result = subprocess.run(
+                    command,
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=90,
+                )
+
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("usage: cupidbuild run", result.stderr)
+
+    def test_checked_tool_runner_requires_the_argument_separator(self):
+        result = subprocess.run(
+            [
+                str(self.cli_path),
+                "run",
+                "--seed-manifest",
+                str(self._production_manifest()),
+                "--root",
+                str(REPO_ROOT),
+                "--tool",
+                "cupidobj",
+                "--help",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=90,
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("usage: cupidbuild run", result.stderr)
+
+    def test_checked_tool_runner_rejects_duplicate_options_and_bad_timeouts(self):
+        manifest = str(self._production_manifest())
+        root = str(REPO_ROOT)
+        required = [
+            "--seed-manifest", manifest,
+            "--root", root,
+            "--tool", "cupidobj",
+        ]
+        cases = {
+            "duplicate manifest": ["--seed-manifest", manifest],
+            "duplicate root": ["--root", root],
+            "duplicate tool": ["--tool", "cupidobj"],
+            "duplicate timeout": ["--timeout", "1", "--timeout", "2"],
+            "zero timeout": ["--timeout", "0"],
+            "negative timeout": ["--timeout", "-1"],
+            "too large timeout": ["--timeout", "86401"],
+            "nonnumeric timeout": ["--timeout", "soon"],
+        }
+        for name, extra in cases.items():
+            with self.subTest(name=name):
+                result = subprocess.run(
+                    [
+                        str(self.cli_path), "run", *required, *extra,
+                        "--", "--help",
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=90,
+                )
+
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("usage: cupidbuild run", result.stderr)
+
+    def test_checked_tool_runner_removes_private_roots_after_tool_exit(self):
+        cases = (
+            ("success", ["--help"], 0),
+            ("tool failure", ["--not-a-cupidobj-option"], 2),
+        )
+        for name, arguments, expected_status in cases:
+            with self.subTest(name=name):
+                before = self._run_private_roots()
+                result = self._run_checked_tool("cupidobj", arguments)
+                after = self._run_private_roots()
+
+                self.assertEqual(after, before)
+                self.assertEqual(
+                    result.returncode,
+                    expected_status,
+                    result.stderr,
+                )
+
+    def test_checked_tool_runner_times_out_and_cleans_up(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-timeout-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "large.txt"
+            output = root / "large.o"
+            source.write_bytes(b"checked timeout input\n" * 1_500_000)
+
+            result = self._run_checked_tool(
+                "cupidobj",
+                ["wrap-text", source.name, "-o", output.name],
+                root=root,
+                timeout=1,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("checked CupidObj timed out", result.stderr)
+            self.assertEqual(list(root.glob(".cupidbuild-run-*")), [])
+
+    def test_checked_tool_runner_reports_seed_drift_after_timeout(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-timeout-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "large.txt"
+            output = root / "large.o"
+            source.write_bytes(b"checked timeout drift input\n" * 1_500_000)
+            command = self._checked_tool_command(
+                "cupidobj",
+                ["wrap-text", source.name, "-o", output.name],
+                root=root,
+                timeout=1,
+                manifest=manifest,
+            )
+            process = subprocess.Popen(
+                command,
+                cwd=root,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            deadline = time.monotonic() + 20
+            launched = False
+            while time.monotonic() < deadline and process.poll() is None:
+                if os.name == "nt":
+                    launched = any(
+                        private.joinpath("tool.stdout").is_file()
+                        for private in root.glob(".cupidbuild-run-*")
+                    )
+                else:
+                    children = Path(
+                        f"/proc/{process.pid}/task/{process.pid}/children"
+                    )
+                    try:
+                        launched = bool(children.read_text(encoding="ascii").strip())
+                    except (FileNotFoundError, PermissionError, ProcessLookupError):
+                        launched = False
+                if launched:
+                    break
+                time.sleep(0.001)
+            self.assertTrue(launched, "checked tool launch was not observed")
+            manifest.write_bytes(manifest.read_bytes() + b" \n")
+            stdout, stderr = process.communicate(timeout=90)
+
+            self.assertEqual(process.returncode, 1)
+            self.assertEqual(stdout, "")
+            self.assertIn("checked seed inputs changed", stderr)
+            self.assertNotIn("checked CupidObj timed out", stderr)
+            self.assertEqual(list(root.glob(".cupidbuild-run-*")), [])
+
+    @unittest.skipUnless(os.name == "nt", "Windows uses private runner roots")
+    def test_checked_tool_runner_fails_when_private_cleanup_is_incomplete(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-cleanup-failure-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "large.txt"
+            output = root / "large.o"
+            source.write_bytes(b"checked cleanup input\n" * 1_000_000)
+            planted = threading.Event()
+
+            def plant_unowned_file_after_tool_starts():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    for private in root.glob(".cupidbuild-run-*"):
+                        if private.name.startswith(
+                            ".cupidbuild-run-cleanup-failure-"
+                        ):
+                            continue
+                        if (private.joinpath("tool.stdout").is_file()):
+                            private.joinpath("unowned.txt").write_text(
+                                "leave me alone\n", encoding="ascii"
+                            )
+                            planted.set()
+                            return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=plant_unowned_file_after_tool_starts, daemon=True
+            )
+            mutator.start()
+            result = self._run_checked_tool(
+                "cupidobj",
+                ["wrap-text", source.name, "-o", output.name],
+                root=root,
+            )
+            mutator.join(timeout=20)
+            private_roots = list(root.glob(".cupidbuild-run-*"))
+
+            try:
+                self.assertTrue(
+                    planted.is_set(), "checked tool launch was not observed"
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(
+                    "private checked-tool cleanup failed", result.stderr
+                )
+                self.assertEqual(len(private_roots), 1)
+                self.assertEqual(
+                    private_roots[0].joinpath("unowned.txt").read_text(
+                        encoding="ascii"
+                    ),
+                    "leave me alone\n",
+                )
+            finally:
+                for private in private_roots:
+                    shutil.rmtree(private)
+
+    @unittest.skipUnless(os.name == "nt", "Windows uses named stream files")
+    def test_checked_tool_runner_does_not_delete_a_planted_stream_path(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-planted-stream-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            planted = threading.Event()
+
+            def plant_stdout_after_private_root_appears():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    for private in root.glob(".cupidbuild-run-*"):
+                        stream = private / "tool.stdout"
+                        if not stream.exists():
+                            try:
+                                stream.write_text(
+                                    "unowned stream\n", encoding="ascii"
+                                )
+                            except OSError:
+                                continue
+                            planted.set()
+                            return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=plant_stdout_after_private_root_appears, daemon=True
+            )
+            mutator.start()
+            result = self._run_checked_tool("cupidobj", ["--help"], root=root)
+            mutator.join(timeout=20)
+            private_roots = list(root.glob(".cupidbuild-run-*"))
+
+            try:
+                self.assertTrue(planted.is_set(), "private root was not observed")
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(
+                    "private checked-tool cleanup failed", result.stderr
+                )
+                planted_path = next(
+                    private / "tool.stdout"
+                    for private in private_roots
+                    if private.joinpath("tool.stdout").is_file()
+                )
+                self.assertEqual(
+                    planted_path.read_text(encoding="ascii"),
+                    "unowned stream\n",
+                )
+            finally:
+                for private in private_roots:
+                    shutil.rmtree(private)
+
+    @unittest.skipUnless(os.name == "nt", "Windows uses named frozen inputs")
+    def test_checked_tool_runner_rejects_private_seed_drift(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-private-seed-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "large.txt"
+            output = root / "large.o"
+            source.write_bytes(b"private seed drift input\n" * 1_000_000)
+            changed = threading.Event()
+
+            def change_frozen_tool_after_launch():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    for private in root.glob(".cupidbuild-run-*"):
+                        if not private.joinpath("tool.stdout").is_file():
+                            continue
+                        frozen = next(private.glob("cupidc.*"), None)
+                        if frozen is None:
+                            continue
+                        with frozen.open("ab") as stream:
+                            stream.write(b"drift")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=change_frozen_tool_after_launch, daemon=True
+            )
+            mutator.start()
+            result = self._run_checked_tool(
+                "cupidobj",
+                ["wrap-text", source.name, "-o", output.name],
+                root=root,
+            )
+            mutator.join(timeout=20)
+            private_roots = list(root.glob(".cupidbuild-run-*"))
+
+            try:
+                self.assertTrue(changed.is_set(), "checked tool launch was not observed")
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(
+                    "private checked seed changed while checked tool ran",
+                    result.stderr,
+                )
+                self.assertNotIn(
+                    "private checked-tool cleanup failed", result.stderr
+                )
+                self.assertEqual(private_roots, [])
+            finally:
+                for private in private_roots:
+                    shutil.rmtree(private)
+
+    @unittest.skipIf(os.name == "nt", "Linux uses anonymous runner files")
+    def test_checked_tool_runner_uses_sealed_anonymous_inputs(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-anonymous-inputs-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "large.txt"
+            output = root / "large.o"
+            source.write_bytes(b"anonymous checked input\n" * 1_500_000)
+            command = self._checked_tool_command(
+                "cupidobj", ["wrap-text", source.name, "-o", output.name],
+                root=root,
+            )
+            process = subprocess.Popen(
+                command, cwd=root, text=True, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            deadline = time.monotonic() + 20
+            sealed = []
+            while time.monotonic() < deadline and process.poll() is None:
+                self.assertEqual(list(root.glob(".cupidbuild-run-*")), [])
+                descriptors = Path(f"/proc/{process.pid}/fd")
+                try:
+                    links = {
+                        path: os.readlink(path)
+                        for path in descriptors.iterdir()
+                    }
+                except (FileNotFoundError, PermissionError, ProcessLookupError):
+                    time.sleep(0.001)
+                    continue
+                frozen = [
+                    path for path, link in links.items()
+                    if "/memfd:" in link
+                    and "cupidbuild-stdout" not in link
+                    and "cupidbuild-stderr" not in link
+                ]
+                if len(frozen) >= 7:
+                    import fcntl
+
+                    for path in frozen:
+                        descriptor = os.open(path, os.O_RDWR)
+                        try:
+                            sealed.append(fcntl.fcntl(descriptor, 1034))
+                            with self.assertRaises(OSError):
+                                os.write(descriptor, b"drift")
+                            with self.assertRaises(OSError):
+                                os.ftruncate(descriptor, 0)
+                        finally:
+                            os.close(descriptor)
+                    break
+                time.sleep(0.001)
+            stdout, stderr = process.communicate(timeout=90)
+
+            self.assertEqual(process.returncode, 0, stderr)
+            self.assertEqual(stdout, "")
+            self.assertEqual(stderr, "")
+            self.assertGreaterEqual(len(sealed), 7)
+            self.assertTrue(all(value == 15 for value in sealed), sealed)
+            self.assertEqual(list(root.glob(".cupidbuild-run-*")), [])
+
+    @unittest.skipUnless(os.name == "nt", "Windows uses private runner roots")
+    def test_checked_tool_runner_does_not_delete_a_replacement_private_root(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-directory-replacement-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "large.txt"
+            output = root / "large.o"
+            stolen = root / "stolen-private-root"
+            source.write_bytes(b"checked replacement input\n" * 1_000_000)
+            attempted = threading.Event()
+            replaced = threading.Event()
+
+            def replace_private_root_after_tool_starts():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    for private in root.glob(".cupidbuild-run-*"):
+                        if private.name.startswith(
+                            ".cupidbuild-run-directory-replacement-"
+                        ):
+                            continue
+                        if not private.joinpath("tool.stdout").is_file():
+                            continue
+                        attempted.set()
+                        try:
+                            private.rename(stolen)
+                        except OSError:
+                            return
+                        private.mkdir()
+                        private.joinpath("replacement.txt").write_text(
+                            "replacement stays\n", encoding="ascii"
+                        )
+                        replaced.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=replace_private_root_after_tool_starts, daemon=True
+            )
+            mutator.start()
+            result = self._run_checked_tool(
+                "cupidobj",
+                ["wrap-text", source.name, "-o", output.name],
+                root=root,
+            )
+            mutator.join(timeout=20)
+            private_roots = list(root.glob(".cupidbuild-run-*"))
+
+            try:
+                self.assertTrue(
+                    attempted.is_set(), "checked tool launch was not observed"
+                )
+                self.assertFalse(
+                    replaced.is_set(),
+                    "the pinned Windows directory was renamed",
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(private_roots, [])
+            finally:
+                for private in private_roots:
+                    shutil.rmtree(private)
+                if stolen.exists():
+                    shutil.rmtree(stolen)
+
+    def test_checked_tool_runner_suppresses_output_after_live_seed_drift(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-seed-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "large.txt"
+            output = root / "large.o"
+            source.write_bytes(b"checked runner input\n" * 1_500_000)
+            changed = threading.Event()
+
+            def change_manifest_after_tool_starts():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    if output.exists():
+                        manifest.write_bytes(manifest.read_bytes() + b" \n")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=change_manifest_after_tool_starts, daemon=True
+            )
+            mutator.start()
+            result = self._run_checked_tool(
+                "cupidobj",
+                ["wrap-text", source.name, "-o", output.name],
+                root=root,
+                manifest=manifest,
+            )
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "checked tool launch was not observed")
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("checked seed inputs changed", result.stderr)
+            self.assertEqual(set(root.glob(".cupidbuild-run-*")), set())
+
     def _production_manifest(self):
         platform = "i386-windows" if os.name == "nt" else "i386-linux"
         return REPO_ROOT / "bootstrap" / "seeds" / platform / "manifest.json"
+
+    def _production_tool(self, name):
+        manifest = self._production_manifest()
+        document = json.loads(manifest.read_text(encoding="utf-8"))
+        artifact = next(
+            artifact
+            for artifact in document["artifacts"]
+            if artifact["name"] == name
+        )
+        return manifest.parent / artifact["file"]
+
+    def _run_checked_tool(
+        self,
+        tool,
+        arguments,
+        *,
+        root=REPO_ROOT,
+        timeout=None,
+        manifest=None,
+    ):
+        command = self._checked_tool_command(
+            tool, arguments, root=root, timeout=timeout, manifest=manifest
+        )
+        return subprocess.run(
+            command,
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=90,
+        )
+
+    def _checked_tool_command(
+        self,
+        tool,
+        arguments,
+        *,
+        root=REPO_ROOT,
+        timeout=None,
+        manifest=None,
+    ):
+        command = [
+            str(self.cli_path),
+            "run",
+            "--seed-manifest",
+            str(manifest or self._production_manifest()),
+            "--root",
+            str(root),
+            "--tool",
+            tool,
+        ]
+        if timeout is not None:
+            command.extend(["--timeout", str(timeout)])
+        command.extend(["--", *arguments])
+        return command
+
+    def _run_private_roots(self):
+        return set(REPO_ROOT.glob(".cupidbuild-run-*"))
 
     def _run_assembly(self, operation, source, output, manifest=None):
         return subprocess.run(

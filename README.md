@@ -58,6 +58,54 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 
 ## 2026-08-27 source-current checkpoint
 
+Source-head CupidBuild now has a native checked runner for ordinary CupidObj
+calls. On Linux, it creates no `.cupidbuild-run` filesystem namespace. The
+manifest and all six tools live in fully sealed anonymous memfds, the working
+directory is pinned by descriptor, and the child calls `fchdir` before
+remapping standard output and standard error. A tool descriptor in slot 0, 1,
+or 2 is first duplicated above the standard descriptors, then executed through
+`fexecve` or `execveat`. The `dup2`, pipe read and write, and wait loops retry
+`EINTR`; `dup2` also retries `EBUSY`. Captured streams are sealed anonymous
+memfds. A close-on-exec launch-status pipe distinguishes an adapter failure
+from a real CupidObj exit of 125. The static i386 startup exposes
+`cupid_linux_syscall5` for this path.
+
+On Windows, the runner pins and rechecks the working-directory identity and
+uses a handle-pinned private root and files. It holds the CupidObj handle
+without write or delete sharing through `CreateProcessA` and forwards captured
+streams in binary mode to preserve their exact bytes. Cleanup removes a
+mutated file if its identity still belongs to the runner and preserves a
+replacement with a different identity.
+
+The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
+three expected skips. The host-runner Python module completed eight tests in
+0.962 seconds with four POSIX skips. The dedicated Make contract passed. All
+six CupidASM source tests passed in 3.771 seconds, along with strict Windows
+and freestanding i386 adapter compilation and timeout-and-seed-drift
+precedence.
+
+After the exact-size check failed closed on the changed outputs and its policy
+was updated, `make -j2 all` completed successfully. All 16 exact artifacts
+passed. `kernel/kernel.bin` is 9,515,260 bytes,
+`kernel/kernel.elf` is 9,744,412 bytes, and
+`kernel/kernel.elf.pass1` is 9,613,340 bytes. Whole-image CupidDis inspection
+and disk-image staging also passed.
+
+A private four-vCPU E1000 smoke used `--cpu max --verify-smp-runtime`, ran
+`/bin/ls.cc`, and passed in about 47.5 seconds. CupidC compiled 911 code bytes
+and 71 data bytes and completed JIT execution. The 33,113-byte log has SHA-256
+`7b0711ce849107f838aed61f4238ce6edb79d787911edbd39194ec8868cdcf24`
+and no rejected runtime marker.
+
+A final full Windows Toolchain rerun could not start because WSL failed while
+translating the Linux seed after the WSL VM and service outage. Earlier full
+Windows and Linux green baselines remain pre-edge-fix evidence, not final
+evidence for this revision.
+
+The command still needs paired-seed promotion before Make can use it, so this
+source checkpoint does not change the graph's four CupidBuild and 448 Python
+participations. ADR 0358 records the boundary.
+
 The normal bootloader and SMP-trampoline rules now run the promoted CupidBuild
 seed directly. Each rule depends on Makefile, the production manifest, and all
 six seed images; standalone CupidASM, CupidDis, and Python overrides cannot
@@ -97,13 +145,13 @@ run with `PYTHON=missing-python` produced byte-identical objects.
 The Linux CupidBuild seed is stored as an executable so a fresh checkout can
 enter each direct recipe. ADR 0354 records the first ownership boundary.
 
-The complete normal build passed both CupidLD links, whole-kernel CupidDis
-inspection, all 16 exact-size checks, and image publication. The refreshed
-seed records and humanized CTXT payload produce a deterministic
-9,507,804-byte raw kernel. The pass-one and final ELFs remain 9,605,148 and
-9,736,220 bytes. Those values are checked policy rows. A private four-vCPU
-`max` and E1000 frontier exercises the staged image through the complete
-runtime contract.
+At the earlier raw-publication handoff, the complete normal build passed both
+CupidLD links, whole-kernel CupidDis inspection, all 16 exact-size checks, and
+image publication. That checkpoint produced a 9,507,804-byte raw kernel,
+9,605,148-byte pass-one ELF, and 9,736,220-byte final ELF. A private four-vCPU
+`max` and E1000 frontier exercised the staged image through its runtime
+contract. The current post-edge-fix evidence and artifact sizes are recorded
+at the start of this checkpoint.
 
 ## 2026-08-25 source-current checkpoint
 

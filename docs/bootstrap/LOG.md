@@ -32299,3 +32299,82 @@ No source suffix changed. Every active CupidC translation unit already uses
 `.cc`, and assembly publication does not create a new C ownership boundary.
 `TempleOS/` remained untouched reference material. ADR 0357 records the
 decision.
+
+## 2026-08-27: add a native checked CupidObj runner
+
+Source-head CupidBuild now accepts `run --tool cupidobj`. The command freezes
+the selected promoted manifest and all six tool images, validates the complete
+cohort and host execution profile, then rechecks the live seed before it
+releases the child streams. Seed drift discards those streams and fails the
+invocation.
+
+Linux creates no `.cupidbuild-run` namespace. The frozen manifest and six
+tools are fully sealed anonymous memfds, and the requested working directory
+is held by descriptor. Native Linux launches the retained CupidObj descriptor
+with `fexecve`; the custom static i386 host uses `execveat` with
+`AT_EMPTY_PATH`. The child calls `fchdir` on the retained working directory
+before it remaps standard output and standard error. A tool descriptor in slot
+0, 1, or 2 is duplicated above the standard descriptors first. The `dup2`,
+pipe read and write, and wait loops retry `EINTR`; `dup2` also retries
+`EBUSY`. Standard output and standard error are anonymous memfds that become
+fully sealed before CupidBuild reads them. A close-on-exec launch-status pipe
+closes on a successful exec and receives a failure byte from the adapter, so
+CupidBuild preserves a real CupidObj exit of 125. The i386 startup exports
+`cupid_linux_syscall5` for `pread64` and `execveat`.
+
+Windows creates a private root below the requested working directory and pins
+the working directory, root, and files with handles and captured identities.
+The working-directory handle and live path are rechecked before launch. The
+CupidObj handle allows neither write nor delete sharing and remains open
+through `CreateProcessA`. Captured streams are forwarded in binary mode to
+preserve exact bytes. Cleanup removes an identity-owned file even if its
+contents changed, but it preserves a replacement with a different identity.
+
+The tests were written before the command and first failed because CupidBuild
+treated `run` as an unknown operation. The current cases cover direct and
+checked behavior, argument forwarding, syntax failures, genuine status 125,
+launch failure, live drift, timeouts, captured streams, and platform-specific
+cleanup attacks.
+
+The native Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds
+with three expected platform skips. The host-runner Python module completed
+eight tests in 0.962 seconds with four POSIX cases skipped, and its dedicated
+Make contract passed. The CupidASM source suite passed all six tests in 3.771
+seconds. Strict compilation of the Windows and freestanding i386 adapters
+passed. The timeout-and-seed-drift case passed and confirmed that seed drift
+takes precedence over the timeout result.
+
+The full build-graph module ran 111 tests in 732.137 seconds. It passed 110
+cases and rejected one stale exact inventory: the runner added 26 real
+`sizeof` uses, moving the checked total from 6,630 to 6,656 across the same 179
+files. The corrected selector and deterministic audit then passed.
+
+The exact-size check failed closed when the final source changes moved the
+three kernel outputs. After the policy was updated to the measured sizes,
+`make -j2 all` passed. The verifier accepted all 16 exact artifacts.
+`kernel/kernel.bin` is 9,515,260 bytes, `kernel/kernel.elf` is 9,744,412
+bytes, and `kernel/kernel.elf.pass1` is 9,613,340 bytes. Whole-image CupidDis
+inspection and disk-image staging passed before the build completed.
+
+A private four-vCPU E1000 QEMU smoke ran with
+`--cpu max --verify-smp-runtime` and executed `/bin/ls.cc`. It passed in about
+47.5 seconds. CupidC compiled 911 code bytes and 71 data bytes and completed
+JIT execution. The 33,113-byte log has SHA-256
+`7b0711ce849107f838aed61f4238ce6edb79d787911edbd39194ec8868cdcf24`
+and no rejected runtime marker.
+
+A final full Windows Toolchain rerun was attempted but could not start. After
+the WSL VM and service outage, WSL failed while translating the Linux seed.
+The earlier full Windows and Linux green baselines predate the edge fixes, so
+they remain historical evidence rather than final evidence for this runner.
+Final WSL-backed Toolchain verification is still open.
+
+**TODO:** Repeat the full Windows Toolchain run after WSL can translate the
+Linux seed, then record the current Linux-backed result.
+
+This is a source capability checkpoint. The production seeds do not carry the
+new command, Make still uses Python for all 186 direct root CupidObj calls,
+and the graph remains at four CupidBuild and 448 Python participations. A
+paired seed refresh and a separate recipe handoff must prove those boundaries
+before ownership moves. ADR 0358 records the decision. No active source suffix
+changed, and `TempleOS/` remained untouched reference material.

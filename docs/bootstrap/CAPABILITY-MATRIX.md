@@ -7,6 +7,54 @@ The matrix uses these statuses:
 - **Missing**: no implementation satisfying the bootstrap contract was found.
 - **Required**: the checked active-source audit proves the capability is exercised, but the Cupid implementation does not yet satisfy it.
 
+Native checked CupidObj launch is **Partial at source head** while final runtime
+evidence is pending. `cupidbuild run` validates a promoted manifest, all six
+tools, seed membership, declared bytes, and host execution profiles. Linux
+creates no `.cupidbuild-run` namespace. It freezes every seed input in a fully
+sealed anonymous memfd and pins the working directory by descriptor. The child
+calls `fchdir` before remapping its streams. A retained tool descriptor in slot
+0, 1, or 2 is duplicated above the standard descriptors before native
+`fexecve` or static i386 `execveat`. The `dup2`, pipe read and write, and wait
+loops retry `EINTR`; `dup2` also retries `EBUSY`. Captured streams are
+anonymous memfds that become fully sealed before reading. A close-on-exec
+launch-status pipe preserves an exact child exit of 125. The static i386
+startup exports `cupid_linux_syscall5` for this descriptor path.
+
+Windows pins and rechecks the working-directory identity. It uses a
+handle-pinned private root and files, retains a tool handle without write or
+delete sharing through `CreateProcessA`, and forwards captured streams in
+binary mode to preserve exact bytes. Cleanup deletes a file that changed in
+place when its identity still matches, but preserves a replacement with a
+different identity. Both paths recheck the live seed before forwarding output.
+
+The focused checks passed. The Windows CupidBuild CLI suite completed 66
+tests in 65.934 seconds with three expected skips. The host-runner Python
+module completed eight tests in 0.962 seconds with four POSIX skips, and the
+dedicated Make contract passed. The six-test CupidASM source suite passed in
+3.771 seconds. Strict Windows and freestanding i386 adapter compilation passed,
+as did timeout-and-seed-drift precedence. The command is absent from the
+promoted seeds and has no normal-build ownership.
+
+The final normal `make -j2 all` passed after the exact-size check failed closed
+and its policy was updated. All 16 exact artifacts passed. The current sizes
+are 9,515,260 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
+`kernel/kernel.elf`, and 9,613,340 bytes for `kernel/kernel.elf.pass1`.
+Whole-image CupidDis inspection and disk-image staging passed as part of the
+same build. A private four-vCPU E1000 QEMU smoke ran with
+`--cpu max --verify-smp-runtime`, executed `/bin/ls.cc`, and passed in about
+47.5 seconds. CupidC compiled 911 code bytes and 71 data bytes and completed
+JIT execution. Its 33,113-byte log has SHA-256
+`7b0711ce849107f838aed61f4238ce6edb79d787911edbd39194ec8868cdcf24`
+and no rejected runtime marker.
+
+The final full Windows Toolchain rerun remains blocked. WSL failed while
+translating the Linux seed after the WSL VM and service outage. Earlier full
+Windows and Linux green baselines predate the edge fixes and are not final
+evidence for this revision, so the capability remains Partial.
+
+**TODO:** Repeat the full Windows Toolchain run after WSL can translate the
+Linux seed, then record the current Linux-backed result.
+
 CupidBuild guarded assembly publication is **Observed at source head**. It now
 parses the frozen manifest and enforces exact JSON fields, the host schema and
 target, fixed-point provenance, the six artifact records and producer roles,

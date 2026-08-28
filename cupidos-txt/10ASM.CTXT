@@ -46,6 +46,35 @@ copy whose entry instruction was replaced with an invalid opcode. The refresh
 candidates passed 24 failure, six help, and 31 success cases on Linux and 13,
 six, and 18 on Windows. Their self-consumption reproof passes
 with all six initial images equal to stage two on both platforms.
+Source-head CupidBuild also has a narrow checked runner for CupidObj. Linux
+creates no .cupidbuild-run namespace: it fully seals the manifest and six
+tools in anonymous memfds and pins the working directory by descriptor. The
+child calls fchdir before remapping captured streams. A tool descriptor in
+slot 0, 1, or 2 is moved above the standard descriptors before fexecve or
+execveat. The dup2, pipe read and write, and wait loops retry EINTR; dup2 also
+retries EBUSY. Captured stream memfds are sealed before reading. A
+close-on-exec launch-status pipe preserves an exact exit of 125, and the
+static i386 startup provides cupid_linux_syscall5.
+
+Windows pins and rechecks the working-directory identity, uses a handle-pinned
+private root and files, and retains a tool handle without write or delete
+sharing through CreateProcessA. It forwards captured streams in binary mode.
+This preserves their exact bytes. Cleanup deletes a file that changed in place
+when its identity still matches, but preserves a replacement with a different
+identity.
+The command does not turn an
+ordinary object-wrapping call into a guarded CupidASM publication. The current
+seeds and Make graph still use Python for those CupidObj launches.
+
+The Windows CupidBuild CLI suite completed 66 tests in 66.145 seconds with
+three expected skips. The host-runner Python module completed six tests in
+0.914 seconds with three POSIX skips, and the dedicated Make contract passed.
+All six CupidASM source tests passed in 3.750 seconds. Strict Windows and
+freestanding i386 adapter compilation passed, as did timeout-and-seed-drift
+precedence. A final full Windows Toolchain rerun could not start because WSL
+failed while translating the Linux seed after the WSL VM and service outage.
+Earlier full Windows and Linux green baselines are pre-edge-fix evidence, not
+final evidence for this revision.
 >endtree
 
 >h2 Overview
