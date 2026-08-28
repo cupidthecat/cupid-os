@@ -62,7 +62,46 @@ promotion, ADR 0354 records the first direct normal recipe ownership for
 CupidBuild, ADR 0355 records its typed source-head raw-image interface, ADR
 0356 records its carriage in the paired seeds, ADR 0357 records direct raw
 publication ownership, and ADR 0358 records the source-head native CupidObj
-runner.
+runner. ADR 0359 removes the Windows fixed-point CupidC bridge after the
+checked PE compiler proved the complete current closure.
+
+## 2026-08-28 source-current checkpoint
+
+The native Windows fixed point now uses the checked Windows execution seed for
+every stage-two producer. The checked Linux seed remains the reviewed build
+plan and paired provenance input, but its executables do not run during this
+path. Stage two compiles all 23 C objects with the PE32 CupidC, assembles three
+startup objects with the PE32 CupidASM, certifies them with the PE32 CupidDis,
+and links all six tools with the PE32 CupidLD.
+
+The checked native compiler first compiled the current
+`toolchain/cupidc_frontend.cc` in about 161 seconds. The complete fixed point
+then passed while WSL was unavailable with `Wsl/Service/E_UNEXPECTED`. Stages
+three and four matched across 23 C objects, three assembly objects, and all six
+tool images. The behavior gate passed 13 failure cases, six help cases, and 18
+success cases.
+
+The 64,500-byte report has SHA-256
+`9393e3eef5274243ea73fae0a0d402b97f928431e29922d4173ee8bd148dd316`.
+It freezes 58 inputs with source snapshot SHA-256
+`2cb3345665458cffa9f9f995e2f78008c3b4a80569916994a8124abd7db3b0f3`.
+The active execution seed matches stage two for CupidC, CupidASM, CupidDis,
+CupidLD, and CupidObj. CupidBuild differs because its source-head checked
+CupidObj runner has not entered the paired seeds yet.
+
+Native Windows fixed-point reconstruction no longer needs WSL. Windows still
+uses WSL for Linux fixed-point reconstruction and the remaining static Linux
+Toolchain contract paths. The normal Make graph and checked seed files do not
+change in this step. The in-OS CTXT update shortens `kernel/kernel.bin` by 28
+bytes to 9,515,232 bytes; `kernel/kernel.elf` remains 9,744,412 bytes and
+`kernel/kernel.elf.pass1` remains 9,613,340 bytes. ADR 0359 records the
+producer and provenance boundary.
+
+The final `make -j2 all` production build passed, including the complete Doom
+tree, both CupidLD links, whole-image CupidDis validation, all 16 exact artifact
+rows, and disk-image publication. A four-CPU QEMU smoke then brought every CPU
+online, passed the in-kernel toolchain self-tests, obtained a DHCP lease,
+opened the GUI terminal, and compiled and ran `/bin/ls.cc` with CupidC.
 
 ## 2026-08-27 source-current checkpoint
 
@@ -614,15 +653,15 @@ CupidBuild and the PE32 reader make up the published 75-input, 58-source
 closure. The 22-artifact cohort includes `cupidc-cupidbuild.elf` and binds all
 62 stage pairs without changing the five-tool checked seed.
 
-The enlarged source closure exceeds the older native Windows CupidC's
-practical 32-bit address-space boundary. Windows reserves each 16 KiB arena
-block in a 64 KiB allocation-granularity unit. The fixed-point driver now uses
-the checked Linux seed's CupidC for stage-two C objects while retaining the
-Windows seed for assembly, inspection, and linking. That stage produces a
-native CupidC with 64 KiB arena blocks. Native stage two builds stage three,
-native stage three builds stage four, and publication still requires the final
-objects and PE images to match. A poisoned `PATH` can resolve only the known
-System32 WSL executable for this bridge. ADR 0341 records the boundary.
+At that checkpoint, the enlarged source closure exceeded the older native
+Windows CupidC's practical 32-bit address-space boundary. Windows reserved each
+16 KiB arena block in a 64 KiB allocation-granularity unit. The fixed-point
+driver used the checked Linux seed's CupidC for stage-two C objects while the
+Windows seed supplied assembly, inspection, and linking. That stage produced a
+native CupidC with 64 KiB arena blocks, then the native generations converged.
+A poisoned `PATH` could resolve only the known System32 WSL executable for the
+bridge. ADR 0341 records that historical boundary. ADR 0359 removes the bridge
+from the source-current driver.
 
 An earlier
 `make bootstrap-audit` run failed after 65.183 seconds because its
@@ -2238,10 +2277,12 @@ fixed-layout PE contract. At that checkpoint, the execution manifest recorded
 paired-stage provenance and the parent Linux seed but no native build plan.
 The current promoted stage-four cohort and its clean evidence appear above.
 Output-bearing Windows recipes run the checked PE cohort directly. Linux
-fixed-point and contract paths still run the static Linux tools through WSL,
-while source-head Windows reconstruction uses checked Linux CupidC for its
-stage-two C objects before the native stages converge. Host Python still
-coordinates both paths. ADR 0272 records carriage and production selection.
+fixed-point and contract paths still run the static Linux tools through WSL.
+Source-head Windows reconstruction uses the checked PE cohort for every
+stage-two producer and retains the Linux manifest as its reviewed plan and
+paired provenance input. Host Python still coordinates both paths. ADR 0272
+records carriage and production selection, and ADR 0359 records the native
+stage-two handoff.
 ADRs 0281, 0292, 0312, and 0318 record preceding promotions, ADR 0323 records
 the preceding code-anchor promotion, and ADR 0336 records the later v1
 promotion.

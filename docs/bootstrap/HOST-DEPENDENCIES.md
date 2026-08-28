@@ -215,20 +215,18 @@ checked six-tool seed. Make passes discovered output paths through
 consume one canonical source order. ADR 0238 records the disk-image transfer,
 and ADR 0245 records the publisher-owned directory boundary. ADR 0246 records
 the shared invocation boundary. Python remains a required host-control
-component. WSL remains required on Windows for the Linux fixed point, the
-checked Linux CupidC bridge that produces stage-two Windows C objects, and the
+component. WSL remains required on Windows for the Linux fixed point and the
 remaining static Linux parts of the Toolchain contract cohort. It is not
-required for output-bearing production calls, the user ABI gate, artifact-size
-verification, `CUPMAN4` author execution, or `CUPMAN2` verification. Source
-head reconstructs Windows stage two with Linux CupidC and the PE execution
-seed, then reconstructs stages three and four entirely with native PE tools.
-The bridge exists because the promoted Windows compiler's 16 KiB arena blocks
-waste address space against Windows' 64 KiB allocation granularity. One
-complete stage-three-to-stage-four
-native convergence proof first passed on a frozen uncommitted snapshot. Those
-earlier proofs remain historical. The current Windows and Linux six-tool
-candidate proofs passed cleanly. Their failure, help, and success inventories
-are 13/6/18 and 24/6/31, respectively.
+required for output-bearing production calls, native Windows fixed-point
+reconstruction, the user ABI gate, artifact-size verification, `CUPMAN4`
+author execution, or `CUPMAN2` verification. Source head reconstructs all
+three Windows generations with native PE tools. The checked Linux seed remains
+the reviewed plan and paired provenance input, but its executables do not run
+during that path. The complete source-current Windows proof passed while WSL
+was unavailable, matching 23 C objects, three assembly objects, and all six
+tools between stages three and four. The current Windows and Linux behavior
+inventories are 13/6/18 and 24/6/31, respectively. ADR 0359 records removal of
+the temporary compiler bridge.
 Python-free coordination remains open.
 
 The root Makefile forwards `FAT_START_LBA` to the disk-image helpers and has no
@@ -511,11 +509,11 @@ The private guest AOT smoke assembled a 15,680-byte `ET_REL` object, linked an
 8,536-byte ELF with two `PT_LOAD` segments at `0x01A00000`, and observed PID 4
 exit normally. It passed in 79.661 seconds and adds no host dependency.
 
-The native Windows fixed-point driver also remains Python-coordinated. Its
-source-head stage two runs checked Linux CupidC through WSL and runs the
-checked PE tools directly for assembly, inspection, and linking. Native stages
-three and four then use only their preceding Windows tools. No host compiler,
-assembler, linker, or binary utility enters the proof. Earlier Windows and
+The native Windows fixed-point driver also remains Python-coordinated. At this
+historical checkpoint, stage two ran checked Linux CupidC through WSL and used
+the checked PE tools for assembly, inspection, and linking. Native stages three
+and four then used only their preceding Windows tools. No host compiler,
+assembler, linker, or binary utility entered the proof. Earlier Windows and
 Linux runs stopped at `cupidobj_main` after 821.9 and 883.3 seconds. Both
 runs published nothing. The drivers now build stage four and compare it with
 stage three. Later uncapped runs passed both final-pair comparisons. Windows
@@ -1367,7 +1365,7 @@ records the ownership transfer.
 | Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal six-tool build and sixteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime. All six native Windows tools use the repository runtime and CupidASM API bridges; CupidLD and CupidBuild add their publication-specific bridges | Not required by root `all`, `user:all`, `toolchain:all`, or the checked Windows commands; required only by native oracle and development targets | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |
 | GNU Make | Declares the root, user, and toolchain-contract build graphs and invokes tools | Required; the graph uses portable ordinary/stamp targets rather than GNU Make 4.3 grouped-target syntax | May remain as host orchestration; it must invoke Cupid code-producing tools on the normal path |
 | Python 3 | Launches the host-selected checked execution cohort for most output-bearing work, excluding the four direct CupidBuild assembly publications; runs the Windows user ABI, artifact-size, and Toolchain manifest contracts; launches the Linux bootstrap seed for fixed-point and full published Toolchain contract work; pins requests; repeats the Cupid author's 62 stage-pair comparisons; checks independent oracles; coordinates kernel-symbol validation; parity-checks accepted JPEG, ISO, and profile-manifest bytes; preserves FAT contents and stages files; validates, locks, and publishes other outputs; builds fixtures; and drives QEMU tests | Required | May remain for tests and packaging, but removing it from the staged fixed point and remaining checked-tool launch paths is the open Python-free bootstrap gate |
-| WSL on Windows | Runs the checked static i386 Linux seed for Linux fixed-point reconstruction, the stage-two Windows CupidC bridge, and the remaining Linux Toolchain contract cohort | Required for those checked Linux executable paths on Windows; native stages three and four, output-bearing production tools, the user ABI gate, artifact-size verification, `CUPMAN4` author execution, and `CUPMAN2` verification run without WSL | Remove the Windows bridge after a promoted native CupidC carries the 64 KiB arena-block policy, then remove WSL after the remaining Linux paths no longer depend on Linux executable semantics |
+| WSL on Windows | Runs the checked static i386 Linux seed for Linux fixed-point reconstruction and the remaining Linux Toolchain contract cohort | Required only for those checked Linux executable paths on Windows; all native Windows fixed-point generations, output-bearing production tools, the user ABI gate, artifact-size verification, `CUPMAN4` author execution, and `CUPMAN2` verification run without WSL | Remove WSL after the remaining Linux paths no longer depend on Linux executable semantics |
 | Git | Enumerates the tracked audit universe and creates detached baseline worktrees | Required for development/audit workflows, not image production | Retain as source-control orchestration, never as a code-producing dependency |
 | `link.ld` and its documented GNU-script subset | Defines kernel memory and section layout; CupidLD parses the exercised `ENTRY`, `SECTIONS`, location-counter, wildcard, alignment, symbol, `COMMON`, and `ASSERT` forms | Required input to both kernel link passes; host-linker interpretation is oracle-only | Keep the script as the source-owned layout contract and deepen CupidLD when the active script needs more semantics |
 | `jpegtran`, `djpeg`/`cjpeg`, or FFmpeg | No role in the normal root build. Checked CupidObj validates and wraps the repository's sequential SOF0 or SOF1 JPEG; Python checks accepted bytes independently | Not required by root `all`; progressive, unsupported, and malformed input fails instead of selecting a host converter | Retain only for optional asset maintenance outside the build graph |

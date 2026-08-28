@@ -7572,11 +7572,7 @@ def _bootstrap_windows_from_frozen_seed(
         )
         runner = ToolRunner(private_source_root)
         seed_producers = {
-            name: (
-                plan_inputs.tools["cupidc"]
-                if name == "cupidc"
-                else seed_tools[name]
-            )
+            name: seed_tools[name]
             for name in (*PRODUCER_NAMES, "cupiddis")
         }
         stage_two = _build_windows_stage(
@@ -7699,9 +7695,7 @@ def _bootstrap_windows_from_frozen_seed(
                 },
                 "stage-two": {
                     "objects": _artifact_inventory(stage_two.objects),
-                    "producer_generation": (
-                        "checked-linux-cupidc-and-windows-execution-seed"
-                    ),
+                    "producer_generation": "checked-windows-execution-seed",
                     "tools": _artifact_inventory(stage_two.tools),
                 },
             },

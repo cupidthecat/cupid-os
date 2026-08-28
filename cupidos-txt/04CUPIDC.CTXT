@@ -506,7 +506,8 @@ reattach, ATA, AC'97 and PC speaker audio, EHCI storage across six lifetimes,
 a zero-padded RTC timestamp, and DHCP traffic. A separate runtime check must
 load the same external ELF program twice at 0x01C00000 and release its first
 arena lease before the second load. CupidC optimization, removal of Host
-Python and the WSL bridge used for Linux-seed contracts and bootstrap,
+Python and the WSL path used for Linux-seed contracts and Linux fixed-point
+reconstruction,
 IWAD-backed gameplay, and a defined output-quality gate remain open.
 
 CupidC also represents operand-free GNU assembly inside functions. Basic
@@ -2329,20 +2330,19 @@ This retry does not change the checked seed, tool arguments, timeout, exit
 status, output bytes, live six-tool recheck, or atomic publication rules.
 >endtree
 
->h2 Windows Fixed-Point Bridge
+>h2 Native Windows Fixed Point
 >tree
-The promoted Windows compiler uses 16 KiB arena blocks. Windows reserves each
-of those blocks in a 64 KiB allocation unit, so the older 32-bit image runs out
-of practical address space while compiling the enlarged hosted frontend.
+The checked Windows execution seed supplies every stage-two producer. Its
+CupidC uses 64 KiB arena blocks, matching Windows allocation granularity, and
+compiles the complete current source closure. The checked Linux seed supplies
+the reviewed build plan and paired provenance but does not run during native
+Windows reconstruction.
 
-The host fixed-point driver uses checked Linux CupidC for stage-two Windows C
-objects. The checked Windows seed still assembles, inspects, and links that
-stage. The resulting native compiler uses 64 KiB arena blocks. Native stage two
-builds stage three, native stage three builds stage four, and the final objects
-and tools must match before the report is published.
-
-This bridge belongs only to host fixed-point reconstruction. Normal Windows
-production commands continue to use the native checked execution seed.
+Native stage two builds stage three, native stage three builds stage four, and
+the final objects and tools must match before the report is published. The
+source-current proof matched 23 C objects, three assembly objects, and all six
+tool images between the final two stages. All 13 failure, six help, and 18
+success behavior cases passed while WSL was unavailable.
 >endtree
 
 >h2 Active Six-Tool Seed Contract

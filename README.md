@@ -56,6 +56,20 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 - System clipboard, x86-32 disassembler, BMP / PNG / JPEG image codecs, TrueType font system with bundled Liberation fonts and live `fontswitch`
 - Panic backtrace decoded against a kernel symbol table (`addr  function_name+offset` per frame)
 
+## 2026-08-28 source-current checkpoint
+
+The native Windows fixed point now runs every stage-two producer from the
+checked PE32 execution seed. The Linux seed still supplies the reviewed build
+plan and paired provenance, but no Linux executable runs during the native
+reconstruction. The complete proof passed while WSL returned
+`Wsl/Service/E_UNEXPECTED`: 23 C objects, three assembly objects, and all six
+tool images matched between stages three and four. The 13 failure, six help,
+and 18 success behavior cases also passed. ADR 0359 records the removal of the
+temporary CupidC bridge. The updated in-OS CTXT shortens `kernel/kernel.bin`
+by 28 bytes to 9,515,232 bytes; both linked ELF sizes remain unchanged.
+The final `make -j2 all` production build and a four-CPU GUI-terminal boot
+smoke also passed with the Windows checked seed.
+
 ## 2026-08-27 source-current checkpoint
 
 Source-head CupidBuild now has a native checked runner for ordinary CupidObj
@@ -1085,8 +1099,8 @@ choco install qemu
 ```
 
 Install WSL only for Linux fixed-point reconstruction and the remaining static
-Linux Toolchain contract paths. The Windows `CUPMAN4` author itself runs as a
-native PE:
+Linux Toolchain contract paths. Native Windows fixed-point reconstruction and
+the Windows `CUPMAN4` author run as PE32 commands:
 
 ```powershell
 wsl --install
@@ -2519,7 +2533,7 @@ Block-scope compound literals use the shared initializer walker and one persiste
 Runtime narrow string expressions now receive deterministic local `.rodata` symbols and `R_386_32` relocations, so pointer initialization, arguments, indexing, and returns use normal array decay. Block-static pointers may also use another block-static object's address in a constant initializer; the local ELF symbol and relocation remain intact. File-scope and other static-duration compound literals, variable-length literals, and the named-aggregate backward-jump alias case remain open under issue #25. Top-level union and Cupid class values, aggregate members selected from structure rvalues, explicit bit-field initializer leaves, volatile or atomic aggregate access, over-aligned structures, Boolean mutation, and broader floating computation or conversion remain open. Static string address arithmetic, integer-routed or otherwise unrepresented address casts, wide strings, literal pooling, atomic and aggregate variadic values, and production integration also remain open. A copied structure may contain union, wide, or floating members because this path moves its complete target representation. The private in-kernel CupidC compiler continues to handle embedded runtime JIT and AOT compilation. See [the bootstrap record](docs/bootstrap/README.md), [ADR 0049](docs/adr/0049-cupidc-structure-values-and-cdecl-abi.md), [ADR 0050](docs/adr/0050-cupidc-sixteen-byte-call-alignment.md), [ADR 0051](docs/adr/0051-cupidc-block-scope-static-object-emission.md), [ADR 0052](docs/adr/0052-cupidc-block-scope-compound-literals.md), [ADR 0053](docs/adr/0053-cupidc-runtime-narrow-strings.md), [ADR 0054](docs/adr/0054-cupidc-scalar-variadic-calls.md), [ADR 0055](docs/adr/0055-cupidc-scalar-variadic-callees.md), [ADR 0056](docs/adr/0056-cupidc-empty-identifier-list-functions.md), [ADR 0057](docs/adr/0057-cupidc-block-scope-record-tags.md), [ADR 0058](docs/adr/0058-cupidc-block-scope-extern-objects.md), [ADR 0059](docs/adr/0059-cupidc-block-scope-typedefs.md), [ADR 0060](docs/adr/0060-cupidc-block-scope-function-declarations.md), [ADR 0061](docs/adr/0061-cupidc-block-scope-enums.md), [ADR 0062](docs/adr/0062-cupidc-nested-block-enum-definitions.md), [ADR 0063](docs/adr/0063-cupidc-bit-field-assignments.md), [ADR 0064](docs/adr/0064-cupidc-bit-field-mutation.md), [ADR 0065](docs/adr/0065-cupidc-wide-integer-returns.md), [ADR 0066](docs/adr/0066-cupidc-wide-integer-object-values.md), [ADR 0067](docs/adr/0067-cupidc-wide-integer-parameters-and-arguments.md), [ADR 0068](docs/adr/0068-cupidc-wide-integer-shifts-and-conversions.md), [ADR 0069](docs/adr/0069-cupidc-wide-integer-comparisons-and-conditions.md), [ADR 0070](docs/adr/0070-cupidc-wide-integer-addition-subtraction-and-unary.md), [ADR 0071](docs/adr/0071-cupidc-wide-integer-switch-dispatch.md), [ADR 0072](docs/adr/0072-cupidc-wide-integer-multiplication.md), [ADR 0073](docs/adr/0073-cupidc-wide-integer-division-and-remainder.md), [ADR 0074](docs/adr/0074-cupidc-wide-integer-mutation.md), [ADR 0075](docs/adr/0075-cupidc-wide-integer-variadics.md), [ADR 0076](docs/adr/0076-cupidc-floating-scalar-transport.md), [ADR 0077](docs/adr/0077-cupidc-float-default-argument-promotion.md), [ADR 0078](docs/adr/0078-private-cupidc-tagged-control-frames.md), and [ADR 0196](docs/adr/0196-transfer-toolchain-contracts-to-cupidc.md).
 
 Here, remaining production integration means replacing Host Python and the WSL
-bridge still used by Linux-seed contracts. It does not mean recovering a
+path still used by Linux-seed contracts. It does not mean recovering a
 host-C object graph.
 The checked-seed path owns all 239 checked-in normal roots and the
 generated kernel symbol translation described above. No supported transform
@@ -3092,9 +3106,9 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 
 - Python 3
 - GNU Make
-- WSL on Windows, used by Linux fixed-point and contract paths and by the
-  stage-two Windows CupidC bridge; later native fixed-point stages and
-  output-bearing production tools run from checked PE tools
+- WSL on Windows, used by Linux fixed-point and contract paths; native Windows
+  fixed-point reconstruction and output-bearing production tools run from
+  checked PE tools
 - QEMU (`qemu-system-i386`, runtime/testing only)
 - GCC with 32-bit support and its linker on Linux, optional for native
   Toolchain oracles and baseline capture

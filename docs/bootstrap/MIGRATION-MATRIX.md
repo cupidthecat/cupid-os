@@ -899,13 +899,14 @@ headers. The C-family inventory covers 711 files and 2,495 include operands:
 2,218 quoted and 277 angle forms. These source-current counts supersede the
 65-input, 68-input, and 736-input totals in the broad historical rows below.
 
-The source-current Windows fixed point uses checked Linux CupidC for
-stage-two C objects while the checked Windows seed supplies assembly,
-inspection, and linking. Its native compiler uses 64 KiB arena blocks, which
-matches Windows allocation granularity. Native stage two builds stage three,
-native stage three builds stage four, and only the final pair is compared for
-publication. This keeps code generation under Cupid ownership without
-shrinking the enlarged compiler source. ADR 0341 records the bridge.
+The source-current Windows fixed point uses the checked PE execution seed for
+every stage-two producer. Its native compiler uses 64 KiB arena blocks, which
+matches Windows allocation granularity and accommodates the enlarged compiler
+source. The checked Linux seed supplies the reviewed plan and paired
+provenance, but none of its executables run during this path. Native stage two
+builds stage three, native stage three builds stage four, and only the final
+pair is compared for publication. ADR 0341 records the former bridge; ADR 0359
+records its removal.
 
 The contract publisher now carries compile budgets in its plans. Fourteen
 ordinary contracts compile in the worker pool with 900-second limits. That
@@ -937,11 +938,11 @@ record, and publication generation without changing ownership counts.
 Repository startup and runtime code now take six complete CupidC-emitted
 command closures across CupidASM and CupidLD. The runtime supplies the checked
 heap, file, memory, string, `errno`, working-directory, and diagnostic
-interfaces. Fixed-point work runs all six tools on i386 Linux or through WSL,
-and Linux contract work runs the subset it needs. The Linux seed binds the
-static images to the target ABI, source revision, producer lineage,
-and complete build plan. Windows output-bearing production work runs checked
-PE copies directly.
+interfaces. Linux fixed-point work runs all six tools on i386 Linux or through
+WSL, and Linux contract work runs the subset it needs. Native Windows
+fixed-point and output-bearing production work run checked PE copies directly.
+The Linux seed binds the static images to the target ABI, source revision,
+producer lineage, and complete build plan.
 The string interface includes binary `memchr`; the hosted runtime probe checks
 first-match, unsigned-byte, embedded-zero, absent-byte, and empty-range cases.
 
@@ -1745,7 +1746,7 @@ shape.
 | Capability audit | Every active source and generated input mapped to required C, ASM, ABI, object, linker, and inspector features | Complete for root `all`, `user:all`, and `toolchain:all`: 747 active inputs, 255 feature IDs, 452 transforms, 26 accounted unreachable source-like files, and a checked drift and coverage gate. Root `all` has 443 transforms. The graph contains 32 assembly files, 301 headers, 414 Cupid C files, and no ordinary C translation unit. All 32 active assembly sources are CupidASM-owned, including five Toolchain startup inputs. The checked graph uses canonical Windows conditionals and the C locale on every host. No supported transform invokes a host C compiler or recursive Make. The active paired fixed-point inventory records failure, help, and success counts of 24/6/31 for Linux and 13/6/18 for Windows. |
 | Assembly migration | Every active assembly source has a declared owner and production assembly is built by CupidASM | Complete: all 32 active assembly sources are CupidASM-owned, including five Toolchain startup sources. The normal graph has five production assembly transforms and no NASM-owned transform. Exact and semantic parity, the clean poisoned-tool build, ISO lane parity, interrupt and scheduler contracts, UP JIT, and four-CPU boot/runtime gates pass. ADR 0327 records the complete ownership audit. |
 | C migration | Every reachable kernel, tool, application, Doom, and vendored C cohort compiles and passes behavior gates with CupidC | In progress: all 239 checked-in normal roots plus the generated kernel-symbol translation compile through the checked seed. Three generated installation tables and three example programs add CupidC ownership outside that cohort. The 15 hosted Toolchain contracts also compile, link, and run through the checked i386 seed. The user ABI, artifact-size, `CUPMAN4` author, and `CUPMAN2` verifier contracts run as checked native PE files on Windows. The current author contract decides all 62 fixed-point stage equalities from raw bytes before Python's independent oracle. All Doom production objects compile, and the asset-free recovery and dual-NIC frontiers pass. Full IWAD gameplay, input, audio, and save behavior remain open. |
-| Toolchain self-hosting | Checked seeds rebuild host tools; consecutive post-transition generations are byte-identical on Windows and Linux | The active paired v2 seeds are six-tool trust units over the same 58-input source closure. Linux builds 22 C objects plus startup and all six tools; stages three and four are byte-identical and pass the 24/6/31 behavior matrix. Native Windows uses checked Linux CupidC for stage-two C objects and the PE seed for assembly, inspection, and linking; its plan adds the publication runtime, three startup objects, and CupidBuild and passes 13/6/18 behavior. The preceding generation's CupidDis certifies every generated C object and startup object before linking. Both final-stage CupidDis images strictly certify every corresponding image and reject an entry-corrupted CupidBuild copy. Python still coordinates both fixed points. Normal CupidBuild ownership now covers the two guarded assembly objects and both guarded raw images. ADR 0336 records the parent seed pair, ADR 0341 records the bridge, ADR 0345 records the six-tool plan, ADRs 0346 and 0347 record certification, ADR 0353 records promotion, ADR 0354 records direct object publication, ADR 0356 records the active refresh, and ADR 0357 records direct raw publication. |
+| Toolchain self-hosting | Checked seeds rebuild host tools; consecutive post-transition generations are byte-identical on Windows and Linux | The active paired v2 seeds are six-tool trust units over the same 58-input source closure. Linux builds 22 C objects plus startup and all six tools; stages three and four are byte-identical and pass the 24/6/31 behavior matrix. Native Windows uses the PE seed for every stage-two producer; its plan adds the publication runtime, three startup objects, and CupidBuild and passes 13/6/18 behavior. The checked Linux seed supplies plan and provenance data without running during that reconstruction. The preceding generation's CupidDis certifies every generated C object and startup object before linking. Both final-stage CupidDis images strictly certify every corresponding image and reject an entry-corrupted CupidBuild copy. Python still coordinates both fixed points. Normal CupidBuild ownership now covers the two guarded assembly objects and both guarded raw images. ADR 0336 records the parent seed pair, ADR 0341 records the former bridge, ADR 0345 records the six-tool plan, ADRs 0346 and 0347 record certification, ADR 0353 records promotion, ADR 0354 records direct object publication, ADR 0356 records the active refresh, ADR 0357 records direct raw publication, and ADR 0359 records the all-native Windows fixed point. |
 | Normal-build cutover | Make invokes CupidC, CupidASM, CupidLD, CupidObj, CupidDis, and CupidBuild without GCC, Clang, NASM, LLVM, or binutils | In progress: all 443 root transforms have a Cupid participant. Across all three supported graphs, CupidC participates in 250 transforms, CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in nine, CupidBuild in four, and Python in 448. No transform is Python-only. Windows selects the native checked execution seed for output-bearing tools. The `CUPMAN4` author keeps the converged Linux producer path but runs as a validated native PE on Windows. The raw boot paths use direct CupidBuild transactions with strict decode, local-target, and source-edge checks. Linked kernel and user ELF publication also selects local-target and code-anchor checks before publication. Python retains coordination, independent comparison, drift, locking, and publication work outside those four direct CupidBuild transactions. |
 
 The current fixed points bind revision

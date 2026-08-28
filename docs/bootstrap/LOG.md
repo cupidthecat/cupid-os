@@ -32378,3 +32378,97 @@ and the graph remains at four CupidBuild and 448 Python participations. A
 paired seed refresh and a separate recipe handoff must prove those boundaries
 before ownership moves. ADR 0358 records the decision. No active source suffix
 changed, and `TempleOS/` remained untouched reference material.
+
+## 2026-08-28: remove the Windows fixed-point CupidC bridge
+
+The native Windows fixed-point driver now runs every stage-two producer from
+the checked PE32 execution seed. The checked Linux seed still supplies the
+reviewed build plan and paired provenance, but its executables do not run
+during this reconstruction. Native stages two through four therefore use only
+Cupid-built Windows tools.
+
+This change removes the temporary bridge from ADR 0341. That bridge existed
+because the older PE32 CupidC used 16 KiB arena blocks, while Windows reserved
+each allocation in a 64 KiB unit. The promoted execution seed carries the
+64 KiB policy. A direct checked-seed compile of the current
+`toolchain/cupidc_frontend.cc` returned zero in about 161 seconds, showing that
+the old address-space limit no longer applies to the current closure.
+
+The report test was changed first and failed on the former
+`checked-linux-cupidc-and-windows-execution-seed` label. The coordinator then
+selected the Windows seed for CupidC as well as CupidASM, CupidDis, and
+CupidLD, and now reports `checked-windows-execution-seed`. A producer-map
+assertion records the executable paths passed to the first Windows generation;
+it prevents a future metadata-only change from hiding a restored bridge. The
+focused report and dual-seed-freeze tests pass.
+
+The complete native proof used:
+
+```text
+make bootstrap-windows-from-seed \
+  BOOTSTRAP_WINDOWS_SEED_OUTPUT=build/bootstrap/native-no-wsl-20260828
+```
+
+It passed in about 21 minutes 50 seconds while WSL returned
+`Wsl/Service/E_UNEXPECTED`. The driver froze 58 inputs, compiled 23 C objects,
+assembled three startup objects, and linked all six tools in each generation.
+Stages three and four matched byte for byte. The behavior gate passed 13
+failure cases, six help cases, and 18 success cases.
+
+The 64,500-byte report has SHA-256
+`9393e3eef5274243ea73fae0a0d402b97f928431e29922d4173ee8bd148dd316`.
+Its source snapshot has SHA-256
+`2cb3345665458cffa9f9f995e2f78008c3b4a80569916994a8124abd7db3b0f3`.
+The active execution seed matches stage two for CupidC, CupidASM, CupidDis,
+CupidLD, and CupidObj. CupidBuild differs because the source-head checked
+CupidObj runner has not entered the paired seeds yet.
+
+Restarting WSL with `wsl --shutdown` did not clear the service error. A direct
+attempt to restart `WslService` was denied by the host service manager. Those
+attempts were not needed after the native seed proved the full Windows path.
+WSL remains required for Linux fixed-point reconstruction and the remaining
+static Linux Toolchain contract cohort on Windows.
+
+The first full OS build reached the exact-size gate after compiling the active
+kernel and Doom trees, linking both kernel stages with CupidLD, and validating
+the whole kernel with CupidDis. The gate rejected `kernel/kernel.bin` at
+9,515,232 bytes because the previous policy required 9,515,260. The 28-byte
+reduction comes from the shorter in-OS CTXT text. Both linked ELF sizes remain
+unchanged at 9,744,412 and 9,613,340 bytes. Only the `kernel/kernel.bin` policy
+row changed. All 54 artifact-size tests passed with four expected Windows
+skips before the checked contract reran.
+
+ADR 0359 records the new producer boundary. The normal Make graph, paired seed
+files, and ownership counts do not change. No newly owned C source exists in
+this step, so no `.c` file changes suffix. `TempleOS/` remained read-only
+reference material.
+
+The final `make -j2 all` rerun passed with the Windows checked seed. It compiled
+the active kernel, generated programs, and complete Doom tree; linked both
+kernel stages with CupidLD; validated the linked code with CupidDis; accepted
+all 16 exact artifact rows; and published the 200 MiB disk image. The resulting
+artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.bin` | 9,515,232 | `c422b4bfe9fc50bd3c45b77b0afcc26544e34ed78f02993d1f416eac778f22e4` |
+| `kernel/kernel.elf` | 9,744,412 | `5725d9eab37a380b11a26b26974375683948ab2255c674b13f6766d609b94050` |
+| `kernel/kernel.elf.pass1` | 9,613,340 | `d024b8442bd9f74109258a43eec30d80641f0950f6817348613f5635bd6d08ae` |
+| `cupidos.img` | 209,715,200 | `c6edc5e0fed89c95ed45482b90a2ad67d75e0c29f1ef12b788f2dedeb4e3e69a` |
+
+The first image-publication attempt ran out of host disk space after every
+compiler, linker, disassembler, and size check had passed. Compressing the
+existing sparse-friendly image made the guarded image recipe pass without
+changing its byte length, and the host later recovered enough space for a
+clean full rerun. One low-space parallel retry also reported CupidC frontend
+storage exhaustion while compiling `kernel/lang/cupidc.cc`; the identical
+isolated command passed, as did the final parallel build. The repeatable result
+therefore points to host memory or page-file pressure rather than a compiler
+closure failure.
+
+The final four-CPU QEMU smoke used the published image, an e1000 NIC, runtime
+SMP verification, and `/bin/ls.cc` in the GUI terminal. All four CPUs came
+online, the in-kernel Cupid toolchain self-tests passed, DHCP completed, the
+terminal launched, and CupidC compiled and ran the command. The smoke log is
+36,901 bytes with SHA-256
+`e496d52b0a507d71aa951eb566a649d6682287f81c10fef4388b0937b4c4adeb`.

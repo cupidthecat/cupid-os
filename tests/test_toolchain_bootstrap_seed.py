@@ -23,6 +23,7 @@ from tools.bootstrap_toolchain import (
     PROMOTED_SOURCE_REVISION,
     PROMOTED_SOURCE_SNAPSHOT_SHA256,
     PROMOTED_SEED_SCHEMA,
+    PRODUCER_NAMES,
     PROMOTED_WINDOWS_PLAN_SHA256,
     PROMOTED_WINDOWS_MANIFEST_SHA256,
     PROMOTED_WINDOWS_SEED_SCHEMA,
@@ -3115,6 +3116,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             shutil.rmtree(removed_seed)
             observed_plans: list[dict[str, object]] = []
+            observed_producers: list[dict[str, Path]] = []
 
             def freeze_sources(_root, _plan, destination):
                 destination.mkdir()
@@ -3130,6 +3132,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ):
                 stage_directory.mkdir()
                 observed_plans.append(plan)
+                observed_producers.append(dict(_producers))
                 tools = {}
                 for name in CANDIDATE_TOOL_NAMES:
                     tool = stage_directory / f"{name}.elf"
@@ -3207,6 +3210,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {name: True for name in TOOL_NAMES},
             )
             self.assertEqual(len(observed_plans), 3)
+            self.assertEqual(
+                observed_producers[0],
+                {
+                    name: seed_tools[name]
+                    for name in (*PRODUCER_NAMES, "cupiddis")
+                },
+            )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
                 self.assertEqual(len(plan["sources"]), 22)
@@ -3438,6 +3448,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             shutil.rmtree(removed_seed)
             observed_plans: list[dict[str, object]] = []
+            observed_producers: list[dict[str, Path]] = []
 
             def freeze_sources(_root, _plan, destination):
                 destination.mkdir()
@@ -3453,6 +3464,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ):
                 stage_directory.mkdir()
                 observed_plans.append(plan)
+                observed_producers.append(dict(_producers))
                 tools = {}
                 for name in CANDIDATE_TOOL_NAMES:
                     tool = stage_directory / f"{name}.exe"
@@ -3515,6 +3527,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {name: True for name in TOOL_NAMES},
             )
             self.assertEqual(len(observed_plans), 3)
+            self.assertEqual(
+                observed_producers[0],
+                {
+                    name: seed_tools[name]
+                    for name in (*PRODUCER_NAMES, "cupiddis")
+                },
+            )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
                 self.assertEqual(len(plan["sources"]), 23)
@@ -3527,6 +3546,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["plan_source_revision"], SEED_SOURCE_REVISION
+            )
+            self.assertEqual(
+                report["stages"]["stage-two"]["producer_generation"],
+                "checked-windows-execution-seed",
             )
             for stage in report["stages"].values():
                 self.assertEqual(
@@ -5054,7 +5077,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["stages"]["stage-two"]["producer_generation"],
-                "checked-linux-cupidc-and-windows-execution-seed",
+                "checked-windows-execution-seed",
             )
             self.assertEqual(
                 report["stages"]["stage-three"]["producer_generation"],

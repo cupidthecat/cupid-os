@@ -1862,21 +1862,22 @@ _Avoid_: provisional candidate, expanded v1 manifest, conflated proof results
 **Native Windows fixed-point driver**:
 The `bootstrap-windows` operation that freezes a checked Windows execution
 seed and the checked Linux build-plan seed, derives the PE plan, and builds
-Windows stages two through four. Source head uses the Linux seed's CupidC for
-stage-two C objects because the older Windows compiler exhausts its practical
-32-bit address space on the enlarged frontend. The Windows seed still supplies
-stage-two assembly, inspection, and linking. The resulting native CupidC uses
-64 KiB arena blocks, matching Windows allocation granularity. Native stage two
-builds stage three, native stage three builds stage four, and the driver
-compares every candidate object and all six tools between the final two
-generations. It runs
+Windows stages two through four. The Windows execution seed supplies every
+stage-two producer. Its CupidC carries 64 KiB arena blocks, matching Windows
+allocation granularity, and can compile the complete current closure without
+the former checked-Linux-compiler bridge. The Linux seed remains the reviewed
+build-plan and paired provenance input; none of its executables run during the
+native reconstruction. Native stage two builds stage three, native stage three
+builds stage four, and the driver compares every candidate object and all six
+tools between the final two generations. It runs
 native behavior checks on those compared stages, rehashes the live closure,
 and publishes one evidence bundle. The two manifest roles remain separate and
 are each revalidated with their listed artifacts at every generation boundary
 and immediately before publication. Drift in either role prevents publication.
-An uncapped preliminary proof matched 20 C objects, two assembly objects, and
-all five tools, then passed the 5/5/5 behavior gates in 20 minutes 43 seconds. It began
-from uncommitted source, so it is not seed-promotion evidence.
+The source-current proof matched 23 C objects, three assembly objects, and all
+six tools between stages three and four, then passed the 13/6/18 behavior
+gates while WSL was unavailable. ADR 0341 records the historical bridge, and
+ADR 0359 records its removal.
 _Avoid_: Windows execution seed as Linux bootstrap seed, copied build plan, partial publication
 
 **Bootstrap stage**:
@@ -1896,7 +1897,7 @@ An optional comparison build used to establish external reference behavior or ou
 _Avoid_: normal build
 
 **Host toolchain**:
-External compilers, assemblers, linkers, and binary utilities confined to explicit development and oracle paths. They do not produce normal Cupid OS or Toolchain artifacts. Host Python still coordinates most of the checked build, while CupidBuild directly owns the ISR and context-switch objects plus the bootloader and SMP-trampoline raw images. Windows runs output-bearing production tools, the user syscall ABI contract, the artifact-size contract, and the Toolchain manifest verifier from the native six-tool execution seed. The manifest verifier also checks the paired Linux publication seed. Windows stage two uses checked Linux CupidC plus the Windows execution seed, then native PE tools build stages three and four. Linux fixed-point reconstruction, that one-generation Windows C bridge, and the full published Toolchain contract cohort use WSL on Windows. Both platforms have a clean six-tool candidate proof and paired v2 seed promotion. Further Python-free coordination remains open. ADR 0341 records the bridge, ADR 0353 records the promotion, ADR 0354 records the first normal CupidBuild recipe transfer, and ADR 0357 records the raw publication transfer.
+External compilers, assemblers, linkers, and binary utilities confined to explicit development and oracle paths. They do not produce normal Cupid OS or Toolchain artifacts. Host Python still coordinates most of the checked build, while CupidBuild directly owns the ISR and context-switch objects plus the bootloader and SMP-trampoline raw images. Windows runs output-bearing production tools, every native fixed-point generation, the user syscall ABI contract, the artifact-size contract, and the Toolchain manifest verifier from the native six-tool execution seed. The manifest verifier also checks the paired Linux publication seed. Linux fixed-point reconstruction and the remaining published Linux Toolchain contract cohort use WSL on Windows. Both platforms have a clean six-tool candidate proof and paired v2 seed promotion. Further Python-free coordination remains open. ADR 0341 records the historical compiler bridge, ADR 0353 records the promotion, ADR 0354 records the first normal CupidBuild recipe transfer, ADR 0357 records the raw publication transfer, and ADR 0359 records the all-native Windows fixed point.
 _Avoid_: build orchestrator
 
 **Checked native-tool cleanup**:

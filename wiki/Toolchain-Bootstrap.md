@@ -1,5 +1,16 @@
 # Toolchain Bootstrap
 
+The native Windows fixed point now runs every stage-two producer from the
+checked PE32 execution seed. The checked Linux seed remains the reviewed plan
+and paired provenance input, but its executables do not run during native
+reconstruction. A complete source-current proof passed while WSL was
+unavailable: stages three and four matched across 23 C objects, three assembly
+objects, and all six tools, and the 13/6/18 behavior matrix passed. ADR 0359
+records the removal of the temporary compiler bridge. The revised in-OS CTXT
+moves `kernel/kernel.bin` to 9,515,232 bytes while both linked ELF sizes remain
+unchanged. The final production build and a four-CPU GUI-terminal boot smoke
+passed with the Windows checked seed.
+
 Source-head CupidBuild now has a native checked CupidObj runner. Linux creates
 no `.cupidbuild-run` namespace. It freezes the manifest and all six tools in
 fully sealed anonymous memfds and pins the working directory by descriptor.
@@ -157,12 +168,12 @@ boundary. Guarded boot and SMP publication now require these rows. ADR 0340
 records the source step. ADR 0336 records v1 carriage and adoption.
 ADR 0353 records active v2 carriage.
 
-Source head uses checked Linux CupidC through WSL for the stage-two Windows C
-objects. The Windows execution seed still assembles, inspects, and links that
-stage. The resulting native CupidC uses 64 KiB arena blocks so Windows does not
-reserve a 64 KiB region for every 16 KiB payload. Native stage two builds stage
-three, native stage three builds stage four, and the final two generations must
-match before publication. ADR 0341 records this temporary bridge.
+The checked Windows execution seed supplies every stage-two producer. Its
+CupidC uses 64 KiB arena blocks and can compile the complete current source
+closure. Native stage two builds stage three, native stage three builds stage
+four, and the final two generations must match before publication. The checked
+Linux seed supplies the reviewed plan and paired provenance only. ADR 0341
+records the former bridge; ADR 0359 records its removal.
 The reproducible operator entry points are:
 
 ```sh

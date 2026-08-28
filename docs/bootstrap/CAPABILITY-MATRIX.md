@@ -728,14 +728,14 @@ expressions, block bindings, and initializers: `ctool.cc`
 
 The deterministic object frontier contains those twelve implementation files plus `kernel/lang/as_elf.cc`. Hosted CupidC copies nested union storage inside supported structures, loads scalar members from structure rvalues, accepts a direct four-byte integer literal zero as a function-pointer null, converts object pointers to and from signed or unsigned eight-byte integers, and retains parenthesized or explicitly pointer-cast static string and binding addresses. In the detailed rows below, broad references to unsupported union values mean a union used directly as a value; nested union bytes inside a structure are represented. Checked four-byte i386 Linux profiles cover every C source in the static tool closure. Repository startup and runtime code link complete CupidC-built CupidC, CupidASM, CupidDis, CupidLD, CupidObj, and CupidBuild commands. The active Linux v2 seed carries those six images and their exact plan into a clean staged build. A paired PE v2 execution seed runs the same six tools directly on Windows for output-bearing production work and binds the exact Linux plan manifest. CupidC owns all 240 normal C transforms: 157 strict or generated roots and 83 Doom roots, all named `.cc`. The supported graph has no ordinary C translation unit and no host-C transform. Both active v2 fixed points build through stage four and compare stages three and four over the 58-input closure. The earlier five-tool proof timings remain checkpoint history. Optimization, Host Python removal, IWAD-backed gameplay, and an approved output-quality gate remain open.
 
-Source head now exceeds the promoted Windows CupidC's practical address-space
-boundary because its 16 KiB arena blocks each consume a 64 KiB Windows
-reservation. The fixed-point driver uses checked Linux CupidC for stage-two
-Windows C objects and the Windows seed for stage-two assembly, inspection, and
-linking. That stage carries a 64 KiB arena-block policy. Native stage two builds
-stage three, native stage three builds stage four, and the final two generations
-remain the equality boundary. Normal Windows production does not use this WSL
-bridge. ADR 0341 records the transition.
+The checked Windows seed now supplies every stage-two producer. Its CupidC
+carries the 64 KiB arena-block policy required by Windows allocation
+granularity and compiles the complete current source closure. The Linux seed
+still supplies the reviewed build plan and paired provenance, but no Linux
+executable runs during native Windows reconstruction. Native stage two builds
+stage three, native stage three builds stage four, and the final two
+generations remain the equality boundary. ADR 0341 records the former bridge;
+ADR 0359 records its removal.
 
 Those four proof times describe preceding checked cohorts. ADR 0292 records
 their promotion. The active six-tool v2 seeds pass 24/6/31 failure, help, and
