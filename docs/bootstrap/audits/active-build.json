@@ -70,7 +70,6 @@
         "inputs": [
           "bin/audiotest.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -86,14 +85,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/auto.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -109,14 +107,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/bgstudio.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -132,14 +129,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/bible.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -155,14 +151,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/bmptest.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -178,14 +173,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -201,14 +195,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/css.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -224,14 +217,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/dom.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -247,14 +239,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/font_face.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -270,14 +261,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/image.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -293,14 +283,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/input.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -316,14 +305,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/js_dom.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -339,14 +327,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/js_interp.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -362,14 +349,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/js_lex.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -385,14 +371,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/js_parse.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -408,14 +393,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/layout.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -431,14 +415,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/main.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -454,14 +437,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/nav.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -477,14 +459,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/net.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -500,14 +481,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/paint.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -523,14 +503,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/parser.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -546,14 +525,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/render_tree.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -569,14 +547,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/style.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -592,14 +569,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/url.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -615,14 +591,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/url_hash.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -638,14 +613,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/util.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -661,14 +635,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/woff.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -684,14 +657,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/browser/woff2.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -707,14 +679,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/cachestats.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -730,14 +701,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/cat.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -753,14 +723,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/cd.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -776,14 +745,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/clear.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -799,14 +767,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/cp.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -822,14 +789,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/crashtest.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -845,14 +811,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/ctxt.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -868,14 +833,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/cupidc_test1.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -891,14 +855,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/cupidc_test2.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -914,14 +877,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/cupidc_test3.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -937,14 +899,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/cupidc_test4.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -960,14 +921,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/cupidc_test5.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -983,14 +943,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/cupidfetch.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1006,14 +965,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/curl.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1029,14 +987,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/date.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1052,14 +1009,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/dglibc_test.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1075,14 +1031,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/doom.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1098,14 +1053,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/echo.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1121,14 +1075,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/ed.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1144,14 +1097,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/fat16.h",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1167,14 +1119,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature10_repl.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1190,14 +1141,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature11_ternary.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1213,14 +1163,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature12_float.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1236,14 +1185,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature13_derived_aot.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1259,14 +1207,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature13_double.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1282,14 +1229,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature14_simd.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1305,14 +1251,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature15_libm.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1328,14 +1273,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature16_asm_fpu.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1351,14 +1295,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature17_iso.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1374,14 +1317,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature18_swap.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1397,14 +1339,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature19_usb.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1420,14 +1361,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature1_types.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1443,14 +1383,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature20_smp.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1466,14 +1405,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature21_net.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1489,14 +1427,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature22_net_server.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1512,14 +1449,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature23_full_access.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1535,14 +1471,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature24_widetypes.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1558,14 +1493,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature25.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1581,14 +1515,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature2_top_level.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1604,14 +1537,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature3_class.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1627,14 +1559,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature4_forward_calls.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1650,14 +1581,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature5_print_builtin.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1673,14 +1603,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature6_exe.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1696,14 +1625,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature7_new_del.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1719,14 +1647,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature8_reg_noreg.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1742,14 +1669,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/feature9_abs_addr.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1765,14 +1691,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/find.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1788,14 +1713,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/fm.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1811,14 +1735,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/fontswitch.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1834,14 +1757,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/fp_drill.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1857,14 +1779,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/gfxdemo.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1880,14 +1801,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/gfxgui_test.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1903,14 +1823,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/gfxhandoff_exit.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1926,14 +1845,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/gfxhandoff_kill.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1949,14 +1867,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/gfxtest.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1972,14 +1889,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/godsong.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -1995,14 +1911,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/godspeak.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2018,14 +1933,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/grep.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2041,14 +1955,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/head.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2064,14 +1977,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/help.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2087,14 +1999,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/history.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2110,14 +2021,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/kbdsub_test.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2133,14 +2043,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/kill.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2156,14 +2065,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/logdump.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2179,14 +2087,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/loglevel.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2202,14 +2109,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/ls.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2225,14 +2131,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/memcheck.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2248,14 +2153,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/memdump.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2271,14 +2175,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/memleak.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2294,14 +2197,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/memstats.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2317,14 +2219,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/mkdir.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2340,14 +2241,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/mount.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2363,14 +2263,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/mv.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2386,14 +2285,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/notepad.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2409,14 +2307,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/oracle.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2432,14 +2329,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/paint.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2455,14 +2351,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/printc.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2478,14 +2373,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/ps.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2501,14 +2395,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/pwd.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2524,14 +2417,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/reboot.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2547,14 +2439,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/registers.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2570,14 +2461,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/resetcolor.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2593,14 +2483,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/rm.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2616,14 +2505,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/rmdir.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2639,14 +2527,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/setcolor.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2662,14 +2549,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/shell.h",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2685,14 +2571,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/sort.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2708,14 +2593,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/spawn.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2731,14 +2615,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/ssh.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2754,14 +2637,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/stacktrace.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2777,14 +2659,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/sync.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2800,14 +2681,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/sysinfo.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2823,14 +2703,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/tail.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2846,14 +2725,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/telnet.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2869,14 +2747,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/terminal.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2892,14 +2769,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/test.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2915,14 +2791,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/test_fpaug.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2938,14 +2813,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/test_print.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2961,14 +2835,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/time.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -2984,14 +2857,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/touch.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3007,14 +2879,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/volume.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3030,14 +2901,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/wc.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3053,14 +2923,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/wget.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3076,14 +2945,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "bin/yield.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3099,7 +2967,7 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -3459,7 +3327,6 @@
         "inputs": [
           "cupidos-txt/00INDEX.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3475,14 +3342,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/01SHELL.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3498,14 +3364,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/02FILESYS.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3521,14 +3386,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/03CUPIDSC.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3544,14 +3408,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/04CUPIDC.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3567,14 +3430,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/05ELFPROG.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3590,14 +3452,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/06GUITERM.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3613,14 +3474,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/07LABS.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3636,14 +3496,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/08CMDS.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3659,14 +3518,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/09EMBED.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3682,14 +3540,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/10ASM.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3705,14 +3562,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/11CTXT.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3728,14 +3584,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/12HOLYC-CUPIDC.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3751,14 +3606,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/13USB.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3774,14 +3628,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/14FPU-SSE.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3797,14 +3650,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/15ISO9660.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3820,14 +3672,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/16SWAP.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3843,14 +3694,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/17SMP.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3866,14 +3716,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "cupidos-txt/18NET.CTXT",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3889,7 +3738,7 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -3927,7 +3776,6 @@
         "inputs": [
           "demos/asm_compat_reserve.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3943,14 +3791,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/bubblesort.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3966,14 +3813,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/data.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -3989,14 +3835,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/factorial.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4012,14 +3857,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/fibonacci.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4035,14 +3879,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/fpu_kernel.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4058,14 +3901,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/fs_syscalls.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4081,14 +3923,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/hello.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4104,14 +3945,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/include_feature.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4127,14 +3967,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/include_helper.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4150,14 +3989,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/jcc_aliases.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4173,14 +4011,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/loop.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4196,14 +4033,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/math.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4219,14 +4055,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/parity_core.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4242,14 +4077,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/parity_diag.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4265,14 +4099,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/parity_gfx2d.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4288,14 +4121,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/parity_priv.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4311,14 +4143,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/reserve_directives.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4334,14 +4165,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/simd_blur.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4357,14 +4187,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/stack.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4380,14 +4209,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/syscall_table_demo.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4403,14 +4231,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "demos/syscall_vfs_extended_demo.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4426,7 +4253,7 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -4848,7 +4675,6 @@
         "inputs": [
           "god/Psalms.DD",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4864,14 +4690,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "god/Vocab.DD",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4887,14 +4712,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "image.bmp",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4910,7 +4734,7 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -37969,7 +37793,6 @@
         "inputs": [
           "kernel/smp_trampoline.bin",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37985,7 +37808,7 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -38634,7 +38457,6 @@
           "bin/browser/woff.cc",
           "bin/browser/woff2.cc",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38650,7 +38472,7 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -38738,7 +38560,6 @@
           "demos/syscall_table_demo.asm",
           "demos/syscall_vfs_extended_demo.asm",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38754,7 +38575,7 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -38813,7 +38634,6 @@
           "test.png",
           "file_example_JPG_1MB.jpg",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38829,7 +38649,7 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -38867,7 +38687,6 @@
         "inputs": [
           "snail.bmp",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38883,14 +38702,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "system/fonts/LiberationMono-Regular.ttf",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38906,14 +38724,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "system/fonts/LiberationSans-Regular.ttf",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38929,14 +38746,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "system/fonts/LiberationSerif-Regular.ttf",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38952,14 +38768,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "system/fonts/NotoSansSymbols-Regular.ttf",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38975,14 +38790,13 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
         "inputs": [
           "test.png",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38998,7 +38812,7 @@
         ],
         "tools": [
           "cupid_object",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -56311,7 +56125,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "b9daf9e7a8d62d34267ecd09ecffb6ee38d9b4fee4e38e3d8f164b6c42773302"
+        "sha256": "f9ba937fa68af7fc5fdf6bd13c110329e7ce5588d53dd9c43fe64ffcb398cca4"
       },
       {
         "path": "user/Makefile",
@@ -56360,7 +56174,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "5503c26cd296422eb69ec1305673256f6d4f4aa2a68a9cc1410c9767abf8a161"
+      "sha256": "94f79305806210844241f3b7185a279b3ee883c308ba6244987ec71d13d80e7b"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -57068,8 +56882,8 @@
   "sources": [
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57094,8 +56908,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57124,8 +56938,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57154,8 +56968,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57183,8 +56997,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57209,8 +57023,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57255,8 +57069,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57286,8 +57100,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57317,8 +57131,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57350,8 +57164,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57382,8 +57196,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57413,8 +57227,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57445,8 +57259,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57479,8 +57293,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57511,8 +57325,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57542,8 +57356,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57574,8 +57388,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57605,8 +57419,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57636,8 +57450,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57667,8 +57481,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57699,8 +57513,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57731,8 +57545,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57762,8 +57576,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57793,8 +57607,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57820,8 +57634,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57850,8 +57664,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57877,8 +57691,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57907,8 +57721,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57932,8 +57746,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57954,8 +57768,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -57982,8 +57796,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58009,8 +57823,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58032,8 +57846,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58059,8 +57873,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58085,8 +57899,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58119,8 +57933,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58150,8 +57964,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58184,8 +57998,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58213,8 +58027,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58243,8 +58057,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58279,8 +58093,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58306,8 +58120,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58338,8 +58152,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58363,8 +58177,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58388,8 +58202,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58410,8 +58224,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58434,8 +58248,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58465,8 +58279,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58502,8 +58316,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58523,8 +58337,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58547,8 +58361,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58576,8 +58390,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58603,8 +58417,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58636,8 +58450,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58672,8 +58486,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58698,8 +58512,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58727,8 +58541,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58756,8 +58570,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58784,8 +58598,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58810,8 +58624,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58844,8 +58658,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58871,8 +58685,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58901,8 +58715,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58931,8 +58745,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58959,8 +58773,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -58996,8 +58810,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59031,8 +58845,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59058,8 +58872,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59086,8 +58900,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59112,8 +58926,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59139,8 +58953,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59165,8 +58979,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59195,8 +59009,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59223,8 +59037,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59248,8 +59062,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59277,8 +59091,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59308,8 +59122,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59337,8 +59151,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59363,8 +59177,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59388,8 +59202,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59418,8 +59232,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59443,8 +59257,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59470,8 +59284,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59495,8 +59309,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59525,8 +59339,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59554,8 +59368,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59584,8 +59398,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59613,8 +59427,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59640,8 +59454,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59667,8 +59481,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59693,8 +59507,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59721,8 +59535,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59743,8 +59557,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59769,8 +59583,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59797,8 +59611,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59819,8 +59633,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59847,8 +59661,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59873,8 +59687,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59895,8 +59709,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59924,8 +59738,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59951,8 +59765,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -59978,8 +59792,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60011,8 +59825,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60040,8 +59854,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60069,8 +59883,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60097,8 +59911,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60119,8 +59933,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60142,8 +59956,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60168,8 +59982,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60190,8 +60004,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60212,8 +60026,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60241,8 +60055,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60270,8 +60084,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60298,8 +60112,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60332,8 +60146,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60361,8 +60175,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60388,8 +60202,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60421,8 +60235,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60443,8 +60257,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60465,8 +60279,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60488,8 +60302,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60516,8 +60330,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60547,8 +60361,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60575,8 +60389,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60597,8 +60411,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60625,8 +60439,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60647,8 +60461,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60671,8 +60485,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60701,8 +60515,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60728,8 +60542,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60756,8 +60570,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60787,8 +60601,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60897,8 +60711,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60933,8 +60747,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -60982,8 +60796,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61022,8 +60836,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61066,8 +60880,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61106,8 +60920,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61160,8 +60974,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61197,8 +61011,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61226,8 +61040,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61250,8 +61064,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61279,8 +61093,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61322,8 +61136,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61358,8 +61172,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61398,8 +61212,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61428,8 +61242,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61458,8 +61272,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61496,8 +61310,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61563,8 +61377,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61597,8 +61411,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61643,8 +61457,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61684,8 +61498,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -61717,8 +61531,8 @@
     },
     {
       "build_owners": [
-        "cupid_object",
-        "host_python"
+        "cupid_builder",
+        "cupid_object"
       ],
       "builds": [
         "."

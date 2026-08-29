@@ -4,9 +4,10 @@ cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-b
 
 The current build graph contains 452 transforms, including 443 under root
 `all`. CupidBuild directly coordinates the ISR and context-switch object
-publications plus the bootloader and SMP raw-image publications, so it
-participates in four transforms and Python in 448. CupidASM remains the
-language owner, and CupidDis remains the inspection owner for all four.
+publications plus the bootloader and SMP raw-image publications. It also runs
+186 direct CupidObj recipes, bringing its total to 190 transforms and leaving
+Python in 262. CupidASM remains the language owner, and CupidDis remains the
+inspection owner for the four guarded assembly publications.
 
 ---
 
@@ -234,13 +235,14 @@ compiler or assembler ownership from that transform.
 
 The publication records 75 publication inputs, 58 candidate inputs, 22
 artifacts, and 62 stage pairs. The active v2 seed carries CupidBuild, which now
-owns four normal guarded assembly publications. The stable audit counts cover 747 active language inputs,
-452 transforms, 255 features, and 26 unreachable inputs.
+owns four guarded assembly publications and runs 186 direct CupidObj recipes.
+The stable audit counts cover 747 active language inputs, 452 transforms, 255
+features, and 27 unreachable inputs.
 CupidC participates in 250 transforms,
 CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in nine, and
-CupidBuild in four. Four transforms use Cupid-built semantic contracts. Python participates in 448
-as orchestrator, but no transform is Python-only. All 443 transforms under root
-`all` have a Cupid participant.
+CupidBuild in 190. Four transforms use Cupid-built semantic contracts. Python
+participates in 262, but no transform is Python-only. All 443 transforms under
+root `all` have a Cupid participant.
 
 The first attempt at this audit stopped after 65.183 seconds because the test
 still locked the old artifact-size recipe. The audit and its test now require
@@ -250,19 +252,19 @@ manifest and the complete checked Windows seed cohort in one transaction. Its
 parent digest, and six regular-file size and digest observations. The contract
 validates the Windows target, provenance, exact inventory, and observed bytes.
 The focused modules contain 54 tests. They pass with four platform-specific
-skips. The source-head artifact contract passes
-against all sixteen exact artifacts. The current 3,382-byte policy has SHA-256
+skips. At that checkpoint, the source-head artifact contract passed
+against all sixteen exact artifacts. Its 3,382-byte policy had SHA-256
 `78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`
 and covers 38,144,480 bytes across those paths.
 
-| Source-head artifact | Bytes | SHA-256 |
+| Checkpoint artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `kernel/kernel.elf.pass1` | 9,605,148 | `e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63` |
 | `kernel/kernel.elf` | 9,736,220 | `c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436` |
 | `kernel/kernel.bin` | 9,507,804 | `2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f` |
 | `cupidos.img` | 209,715,200 | `1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc` |
 
-The current normal build completed the 431-input local-target and code-anchor
+That normal build completed the 431-input local-target and code-anchor
 scan, accepted the exact policy, and preserved the image's FAT contents while
 staging `hello.iso`. A private four-vCPU `max` and E1000 copy brought all CPUs
 online and completed the full graphics, audio, and in-OS CupidC frontier. The

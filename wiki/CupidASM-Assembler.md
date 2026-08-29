@@ -1665,8 +1665,8 @@ ADR 0318 records the seed identities.
 ## Active six-tool seed
 
 The active Linux and Windows v2 manifests carry CupidASM as a producer and
-CupidBuild as both a checked tool and the coordinator for four normal guarded
-assembly publications. Both list six images and bind revision
+CupidBuild as both a checked tool and the coordinator for four guarded assembly
+publications and 186 direct CupidObj recipes. Both list six images and bind revision
 `a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, the 58-input snapshot
 `a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`,
 and their exact build plans.

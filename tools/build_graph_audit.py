@@ -331,7 +331,6 @@ TOOL_MARKERS = (
     ("$(CUPIDLD)", "cupid_linker"),
     ("$(CUPIDLD)", "host_python"),
     ("$(CUPIDOBJ)", "cupid_object"),
-    ("$(CUPIDOBJ)", "host_python"),
     ("$(CUPIDC_PRODUCTION_COMPILE)", "cupid_c_compiler"),
     ("$(CUPIDC_PRODUCTION_COMPILE)", "host_python"),
     ("$(CUPIDC_KERNEL_COMPILE)", "cupid_c_compiler"),
@@ -1449,7 +1448,11 @@ def _make_include_configuration(root: Path) -> tuple[list[str], list[str]]:
 
 
 def _read_evaluated_make_variables(
-    root: Path, make: str, variables: tuple[str, ...]
+    root: Path,
+    make: str,
+    variables: tuple[str, ...],
+    *,
+    make_variables: tuple[str, ...] = (),
 ) -> dict[str, str]:
     target = "__cupid_audit_profile_values__"
     value_names = [f"__CUPID_AUDIT_VALUE_{index}" for index in range(len(variables))]
@@ -1465,6 +1468,7 @@ def _read_evaluated_make_variables(
         [
             make,
             *CANONICAL_MAKE_VARIABLES,
+            *make_variables,
             "MAKE=:",
             "--no-print-directory",
             "-prRn",
@@ -1846,7 +1850,29 @@ def _recipe_tokens(recipe: list[str]) -> list[str]:
     ]
 
 
-def _tools_for_recipe(recipe: list[str]) -> list[str]:
+def _cupidobj_runner_owner(command: str) -> str | None:
+    normalized = " ".join(command.replace("\\", "/").split())
+    if (
+        re.search(
+            r"(?:^|\s)\S*cupidbuild\.(?:elf|exe)\s+run(?:\s|$)",
+            normalized,
+        )
+        and "--tool cupidobj --" in normalized
+    ):
+        return "cupid_builder"
+    if (
+        "tools/bootstrap_toolchain.py" in normalized
+        and "--tool cupidobj --" in normalized
+    ):
+        return "host_python"
+    return None
+
+
+def _tools_for_recipe(
+    recipe: list[str],
+    *,
+    cupidobj_runner_owner: str | None = None,
+) -> list[str]:
     tokens = _recipe_tokens(recipe)
     joined = " ".join(tokens)
     tools = []
@@ -1855,6 +1881,13 @@ def _tools_for_recipe(recipe: list[str]) -> list[str]:
     for marker, tool in TOOL_MARKERS:
         if marker in joined and tool not in tools:
             tools.append(tool)
+        if (
+            marker == "$(CUPIDOBJ)"
+            and marker in joined
+            and cupidobj_runner_owner is not None
+            and cupidobj_runner_owner not in tools
+        ):
+            tools.append(cupidobj_runner_owner)
     if recipe and not tools:
         return ["host_shell"]
     return tools
@@ -2040,12 +2073,18 @@ def _build_transforms(
     directory: str,
     reachable: set[str],
     rules: dict[str, MakeRule],
+    *,
+    cupidobj_runner_owner: str | None = None,
 ) -> list[dict[str, object]]:
     transforms = []
     host_object_outputs = {
         prerequisite
         for local_output in reachable
-        if "host_c_compiler" in _tools_for_recipe(rules[local_output].recipe)
+        if "host_c_compiler"
+        in _tools_for_recipe(
+            rules[local_output].recipe,
+            cupidobj_runner_owner=cupidobj_runner_owner,
+        )
         and not local_output.lower().endswith((".o", ".obj"))
         and not re.search(
             r"(?:^|\s)-c(?:\s|$)",
@@ -2058,7 +2097,10 @@ def _build_transforms(
         rule = rules[local_output]
         if not rule.recipe:
             continue
-        tools = _tools_for_recipe(rule.recipe)
+        tools = _tools_for_recipe(
+            rule.recipe,
+            cupidobj_runner_owner=cupidobj_runner_owner,
+        )
         transforms.append(
             {
                 "output": _prefix_repo_path(directory, local_output),
@@ -2134,6 +2176,17 @@ def _collect_build_model(
         include_paths,
         generated_local,
     )
+    cupidobj_runner_owner = None
+    if any(
+        "$(CUPIDOBJ)" in " ".join(_recipe_tokens(rules[item].recipe))
+        for item in reachable
+    ):
+        cupidobj_command = _read_evaluated_make_variables(
+            build_root,
+            make,
+            ("CUPIDOBJ",),
+        )["CUPIDOBJ"]
+        cupidobj_runner_owner = _cupidobj_runner_owner(cupidobj_command)
 
     return BuildModel(
         directory=normalized_directory,
@@ -2159,7 +2212,12 @@ def _collect_build_model(
         include_search_paths=[
             _prefix_repo_path(normalized_directory, path) for path in include_paths
         ],
-        transforms=_build_transforms(normalized_directory, reachable, rules),
+        transforms=_build_transforms(
+            normalized_directory,
+            reachable,
+            rules,
+            cupidobj_runner_owner=cupidobj_runner_owner,
+        ),
     )
 
 
@@ -2987,10 +3045,10 @@ def _c_source_ownership_contract(
                 f"source suffix ownership policy path is missing: {path}"
             )
         owners = set(source["build_owners"])
-        if owners != {"cupid_object", "host_python"}:
+        if owners != {"cupid_builder", "cupid_object"}:
             raise AuditError(
                 "source suffix runtime delivery policy lacks the exact "
-                f"CupidObj-only ownership edge: {path}"
+                f"CupidBuild/CupidObj ownership edge: {path}"
             )
 
     for path, classification in unreachable_cupid_c_policy.items():
@@ -14617,7 +14675,7 @@ def _validate_cupidobj_install_source_delivery(
         directory != "."
         or contract is None
         or transform.get("operation") != "generate_install_source"
-        or transform.get("tools") != ["cupid_object", "host_python"]
+        or transform.get("tools") != ["cupid_object", "cupid_builder"]
         or transform.get("recipe") != expected_recipe
     ):
         raise AuditError(
@@ -14629,7 +14687,6 @@ def _validate_cupidobj_install_source_delivery(
         raise AuditError("CupidObj install-source delivery inputs are absent")
     required_inputs = {
         "Makefile",
-        "tools/bootstrap_toolchain.py",
         *WINDOWS_PRODUCTION_SEED_INPUTS,
     }
     missing_inputs = sorted(required_inputs - set(inputs))
@@ -15128,7 +15185,7 @@ def _c_preprocessor_active_cases_manifest(
                     f"delivery transform: {transform.get('output')} ({operation})"
                 )
             _c_preprocessor_recipe_markers(transform, {"CUPIDOBJ"})
-            if tools != ["cupid_object", "host_python"]:
+            if tools != ["cupid_object", "cupid_builder"]:
                 raise AuditError(
                     f"CupidC delivery transform has unexpected tools for "
                     f"{transform.get('output')}: {tools!r}"

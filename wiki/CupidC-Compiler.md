@@ -1681,11 +1681,11 @@ execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. The stable
 audit counts cover 747 active language inputs, 452 transforms, 255 features,
-and 26 unreachable inputs. Python participates in 448 transforms as orchestrator.
+and 27 unreachable inputs. Python participates in 262 transforms.
 CupidC participates in 250, CupidObj in 192, CupidASM in nine, CupidLD in nine,
-CupidDis in nine, and CupidBuild in four. Four transforms use Cupid-built semantic contracts, and no
-transform is Python-only. Root `all` has 443 transforms, and every one has a
-Cupid participant. The size verifier emits no OS artifact; it runs a private
+CupidDis in nine, and CupidBuild in 190. Four transforms use Cupid-built
+semantic contracts, and no transform is Python-only. Root `all` has 443
+transforms, and every one has a Cupid participant. The size verifier emits no OS artifact; it runs a private
 CupidC contract with CupidASM startup and a CupidLD link. The normal graph runs
 CupidC, CupidASM, CupidObj, CupidLD, and CupidDis from the manifest-checked
 seed; `toolchain:all` uses the rebuilt static tools for its published contract
@@ -1697,9 +1697,8 @@ one `$(ARTIFACT_SIZE_CONTRACT)` command that captures both seed roles. Its
 provenance, Linux parent link, exact six-tool inventory, and observed sizes
 and digests. The focused semantic-contract, checked-runner, and
 independent-policy modules contain 54 tests. They pass with four
-platform-specific skips. The source-head artifact
-contract passes against all sixteen exact artifacts. The current 3,382-byte
-policy has SHA-256
+platform-specific skips. At that checkpoint, the source-head artifact
+contract passed against all sixteen exact artifacts. Its 3,382-byte policy had SHA-256
 `78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`
 and covers 38,144,480 bytes across those paths. The pass-one ELF is 9,605,148
 bytes with SHA-256
@@ -1710,7 +1709,7 @@ The raw kernel is 9,507,804 bytes with SHA-256
 `2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f`.
 The normal disk image is 209,715,200 bytes with SHA-256
 `1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc`.
-The normal build completed its 431-input code-anchor scan, accepted the exact
+That normal build completed its 431-input code-anchor scan, accepted the exact
 policy, and preserved the image's FAT contents while staging `hello.iso`. A
 private four-vCPU `max` and E1000 copy brought all CPUs online and completed
 the full graphics, audio, and in-OS CupidC frontier. The framebuffer changed
@@ -3211,6 +3210,7 @@ and pairs to the exact Linux manifest bytes.
 Candidate fixed-point and behavior proof passed on both platforms. The active
 v2 cohorts also pass promoted-seed self-consumption, with all six initial images
 equal to stage two. CupidBuild owns the normal ISR, context-switch, bootloader,
-and SMP-trampoline recipes. Python participates in the remaining 448
-transforms. ADR 0356 records the active seed refresh, and ADR 0357 records the
-raw recipe transfer.
+and SMP-trampoline recipes and runs 186 direct CupidObj recipes. Python
+participates in the remaining 262 transforms. ADR 0356 records the active seed
+refresh, ADR 0357 records the raw recipe transfer, and ADR 0362 records the
+direct CupidObj handoff.

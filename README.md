@@ -56,7 +56,7 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 - System clipboard, x86-32 disassembler, BMP / PNG / JPEG image codecs, TrueType font system with bundled Liberation fonts and live `fontswitch`
 - Panic backtrace decoded against a kernel symbol table (`addr  function_name+offset` per frame)
 
-## 2026-08-28 source-current checkpoint
+## 2026-08-29 source-current checkpoint
 
 The native Windows fixed point now runs every stage-two producer from the
 checked PE32 execution seed. The Linux seed still supplies the reviewed build
@@ -83,16 +83,19 @@ invalid-option failure. The source-head behavior totals are 25 failures, six
 help cases, and 32 successes on Linux, plus 14 failures, six help cases, and
 19 successes on native Windows. Fresh paired fixed points carried that runner
 into both active six-tool seeds. Linux rebuilt all six images, while Windows
-retained five exact images and rebuilt CupidBuild. The normal Make graph stays
-at four CupidBuild and 448 Python participations until the separate recipe
-handoff. ADR 0360 records the runner boundary, and ADR 0361 records its paired
-seed promotion.
+retained five exact images and rebuilt CupidBuild. The normal Make graph now
+runs 186 ordinary CupidObj recipes through that checked CupidBuild command.
+CupidBuild participates in 190 transforms and Python in 262. ADR 0360 records
+the runner boundary, ADR 0361 records its paired seed promotion, and ADR 0362
+records the recipe handoff.
 The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
-strict CupidDis validation, all 16 exact artifacts, and a four-vCPU E1000 boot
-that ran `/bin/ls.cc`. The current flat kernel is 9,500,492 bytes; the final
-and pass-one ELFs are 9,728,056 and 9,596,984 bytes. The 34,596-byte guest log
-has SHA-256
-`f20d3ddac10cf56af9f37842da05ded545ed275dc26a4d0aa1592f2bbba2b2bb`.
+strict CupidDis validation, all 16 exact artifacts, and image publication. The
+current flat kernel is 9,501,584 bytes; the final and pass-one ELFs are
+9,728,056 and 9,596,984 bytes. A preceding 9,501,220-byte checkpoint, which
+differed only in embedded manual text, passed a four-vCPU E1000 boot and ran
+`/bin/ls.cc`. The final image smoke could not start before its timeout while
+the Windows host was out of paging-file capacity, and it produced no serial
+log.
 
 ## 2026-08-27 source-current checkpoint
 
@@ -140,9 +143,9 @@ translating the Linux seed after the WSL VM and service outage. Earlier full
 Windows and Linux green baselines remain pre-edge-fix evidence, not final
 evidence for this revision.
 
-The command still needs paired-seed promotion before Make can use it, so this
-source checkpoint does not change the graph's four CupidBuild and 448 Python
-participations. ADR 0358 records the boundary.
+At that source checkpoint, the command still needed paired-seed promotion
+before Make could use it. The graph therefore remained at four CupidBuild and
+448 Python participations. ADR 0358 records that boundary.
 
 The normal bootloader and SMP-trampoline rules now run the promoted CupidBuild
 seed directly. Each rule depends on Makefile, the production manifest, and all
@@ -154,10 +157,11 @@ boundary still matches. Forced Windows and Linux rebuilds passed with Python
 deliberately unavailable and reproduced the established 2,560-byte boot image
 and 4,096-byte trampoline exactly. ADR 0357 records the handoff.
 
-The graph still contains 452 transforms, including 443 under root `all`.
-CupidBuild now participates in four, Python in 448, and every transform still
-has a Cupid tool involved. Fixed-point coordination, packaging, and the other
-checked publications remain separate work.
+At that raw-publication checkpoint, the graph contained 452 transforms,
+including 443 under root `all`. CupidBuild participated in four and Python in
+448, while every transform still had a Cupid tool involved. Fixed-point
+coordination, packaging, and the other checked publications remained separate
+work.
 
 Source-head CupidBuild now has typed bootloader and SMP-trampoline assembly
 commands. Each command keeps the raw image and `cupid.raw-map.v2` sidecar in
@@ -426,10 +430,10 @@ POSIX-only skips on Windows. [ADR 0307](docs/adr/0307-author-toolchain-fixed-poi
 records the paired-evidence boundary, [ADR 0311](docs/adr/0311-pin-checked-contract-imports-to-the-checkout.md)
 records checkout-local contract imports, and [ADR 0322](docs/adr/0322-run-the-toolchain-manifest-author-natively-on-windows.md)
 records native Windows author execution. The source graph has 747 active inputs,
-452 transforms, 255 feature requirements, and 26 accounted unreachable files.
+452 transforms, 255 feature requirements, and 27 accounted unreachable files.
 Participation
-is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, CupidBuild 4,
-and four Cupid-built semantic contracts. Python participates in 448 transforms,
+is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, CupidBuild 190,
+and four Cupid-built semantic contracts. Python participates in 262 transforms,
 but no transform is Python-only. Root `all` remains at 443 transforms, each
 with a Cupid participant. The latest complete schema v3 `CUPMAN4`
 publication passed. The Cupid author and Python oracle agreed on all 62 stage
@@ -451,7 +455,7 @@ recipe has one `$(ARTIFACT_SIZE_CONTRACT)` command, and that command carries
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
 25/6/32 for Linux and 14/6/19 for Windows. The audit records 747 active
-sources, 452 transforms, 255 feature requirements, and 26 accounted unreachable
+sources, 452 transforms, 255 feature requirements, and 27 accounted unreachable
 files.
 [ADR 0304](docs/adr/0304-author-toolchain-publication-manifests-with-cupidc.md)
 records this split.
@@ -3171,7 +3175,7 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
 
 ## 2026-08-14 self-hosting checkpoint
 
-The [source-current checkpoint](#2026-08-28-source-current-checkpoint) records
+The [source-current checkpoint](#2026-08-29-source-current-checkpoint) records
 the completed source slices, schema v3 Toolchain publication, final post-CTXT
 audit, fully poisoned build, and strong private guest frontier. Earlier build,
 artifact, and guest identities remain historical. The
@@ -3203,10 +3207,13 @@ paired with another valid plan seed.
 The validators still accept v1 manifests in compatibility and transition
 tests. Production closures, artifact-size verification, and Toolchain
 publication freeze and recheck all six active images. CupidBuild directly owns
-the two guarded relocatable objects and both guarded raw images. Python
-participates in the remaining 448 transforms. ADR 0353 records the promotion,
-ADR 0354 records the first normal recipe transfer, and ADR 0357 records the raw
-publication handoff.
+the two guarded relocatable objects and both guarded raw images. It also runs
+the 186 direct CupidObj recipes. Python participates in the remaining 262
+transforms. ADR 0353 records the promotion, ADR 0354 records the first normal
+recipe transfer, ADR 0357 records the raw publication handoff, and ADR 0362
+records the direct CupidObj handoff.
+The audit obtains this ownership from the evaluated Make binding, so a
+Python-backed or direct CupidObj command cannot be mislabeled as CupidBuild.
 
 ---
 

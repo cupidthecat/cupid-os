@@ -743,7 +743,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ASM = nasm
                 LD = host-ld
                 OBJCOPY = host-objcopy
-                CUPIDOBJ = cupidobj
+                CUPIDOBJ = seed/cupidbuild.exe run \
+                    --seed-manifest seed/manifest.json --root . \
+                    --tool cupidobj --
 
                 .PHONY: all
                 all: kernel.elf app.o demo.o
@@ -835,7 +837,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 transforms["app.o"]["tools"],
-                ["cupid_object", "host_python"],
+                ["cupid_object", "cupid_builder"],
             )
             self.assertEqual(transforms["demo.o"]["tools"], ["host_object_copy"])
             self.assertEqual(
@@ -872,7 +874,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 kernel.bin: kernel.elf
                 \t$(CUPIDOBJ) flat $< -o $@
 
-                app.o: app.cc
+                app.o: app.txt
                 \t$(CUPIDOBJ) wrap-text $< -o $@
 
                 main.o: main.c
@@ -883,11 +885,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 """,
             )
             _write(root / "main.c", "int main(void) { return 0; }\n")
-            _write(root / "app.cc", "U0 Main() {}\n")
-            _write_source_suffix_policy(
-                root,
-                runtime_delivery_sources=["app.cc"],
-            )
+            _write(root / "app.txt", "plain delivery payload\n")
             _write(
                 root / "link.ld",
                 "ENTRY(main)\nSECTIONS { . = 0x100000; .text : { *(.text) } }\n",
@@ -1121,7 +1119,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 .SUFFIXES:
                 CC = host-cc
                 ASM = nasm
-                CUPIDOBJ = cupidobj
+                CUPIDOBJ = seed/cupidbuild.exe run \
+                    --seed-manifest seed/manifest.json --root . \
+                    --tool cupidobj --
 
                 .PHONY: all
                 all: feature.o app.o entry.o
@@ -2147,7 +2147,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "Makefile",
                 """
                 .SUFFIXES:
-                CUPIDOBJ = cupidobj
+                CUPIDOBJ = seed/cupidbuild.exe run \
+                    --seed-manifest seed/manifest.json --root . \
+                    --tool cupidobj --
 
                 .PHONY: all
                 all: ordinary.o digraph.o header_user.o
@@ -2274,7 +2276,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "Makefile",
                 """
                 .SUFFIXES:
-                CUPIDOBJ = cupidobj
+                CUPIDOBJ = seed/cupidbuild.exe run \
+                    --seed-manifest seed/manifest.json --root . \
+                    --tool cupidobj --
                 .PHONY: all
                 all: app.o
                 app.o: app.cc
@@ -2333,7 +2337,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     root / "Makefile",
                     """
                     .SUFFIXES:
-                    CUPIDOBJ = cupidobj
+                    CUPIDOBJ = seed/cupidbuild.exe run \
+                        --seed-manifest seed/manifest.json --root . \
+                        --tool cupidobj --
                     .PHONY: all
                     all: app.o
                     app.o: app.cc
@@ -3199,7 +3205,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "Makefile",
                 """
                 .SUFFIXES:
-                CUPIDOBJ = cupidobj
+                CUPIDOBJ = seed/cupidbuild.exe run \
+                    --seed-manifest seed/manifest.json --root . \
+                    --tool cupidobj --
 
                 .PHONY: all
                 all: program.o
@@ -3283,7 +3291,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn(
-                "runtime delivery policy lacks the exact CupidObj-only "
+                "runtime delivery policy lacks the exact CupidBuild/CupidObj "
                 "ownership edge: main.cc",
                 result.stderr,
             )
@@ -3296,7 +3304,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "Makefile",
                 """
                 .SUFFIXES:
-                CUPIDOBJ = cupidobj
+                CUPIDOBJ = seed/cupidbuild.exe run \
+                    --seed-manifest seed/manifest.json --root . \
+                    --tool cupidobj --
                 OBJCOPY = objcopy
 
                 .PHONY: all
@@ -3329,7 +3339,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn(
-                "runtime delivery policy lacks the exact CupidObj-only "
+                "runtime delivery policy lacks the exact CupidBuild/CupidObj "
                 "ownership edge: program.cc",
                 result.stderr,
             )
@@ -5620,7 +5630,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         checked_inputs = [
             "Makefile",
-            "tools/bootstrap_toolchain.py",
             *WINDOWS_PRODUCTION_SEED_INPUTS,
         ]
         ignored_inputs = {
@@ -5669,6 +5678,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                             recipe=[recipe],
                         )
                     },
+                    cupidobj_runner_owner="cupid_builder",
                 )[0]
                 self.assertEqual(
                     delivery["operation"], "generate_install_source"
@@ -9615,13 +9625,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
-                    "cupid_builder": 4,
+                    "cupid_builder": 190,
                     "cupid_object": 192,
                     "cupid_linker": 9,
                     "cupid_disassembler": 9,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 448,
+                    "host_python": 262,
                 },
             )
             self.assertFalse(
@@ -9866,7 +9876,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "output": "bin/new.h.o",
                     "inputs": ["bin/new.h"],
-                    "tools": ["cupid_object", "host_python"],
+                    "tools": ["cupid_object", "cupid_builder"],
                     "operation": "wrap_text_as_elf32_relocatable",
                     "recipe": ["$(CUPIDOBJ) wrap-text $< -o $@"],
                 }
@@ -10087,7 +10097,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         for variable, tool_name in (
             ("CUPIDASM", "cupidasm"),
-            ("CUPIDOBJ", "cupidobj"),
             ("CUPIDLD", "cupidld"),
             ("CUPIDDIS", "cupiddis"),
         ):
@@ -10098,6 +10107,40 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     command,
                 )
                 self.assertIn(f"--tool {tool_name} --", command)
+
+        cupidobj_command = " ".join(commands["CUPIDOBJ"].split())
+        self.assertNotIn("tools/bootstrap_toolchain.py", cupidobj_command)
+        self.assertRegex(
+            cupidobj_command,
+            r"bootstrap/seeds/i386-(?:linux|windows)/cupidbuild\.(?:elf|exe) "
+            r"run --seed-manifest bootstrap/seeds/i386-(?:linux|windows)/"
+            r"manifest\.json --root .+ --tool cupidobj --$",
+        )
+        makefile_source = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        self.assertIn("override CUPIDOBJ :=", makefile_source)
+        self.assertIn("override CUPIDOBJ_INPUTS :=", makefile_source)
+        self.assertNotIn("CUPIDOBJ ?=", makefile_source)
+
+        poisoned = module._read_evaluated_make_variables(
+            REPO_ROOT,
+            make,
+            ("CUPIDOBJ", "CUPIDOBJ_INPUTS"),
+            make_variables=(
+                "CUPIDOBJ=python poison-cupidobj.py",
+                "CUPIDOBJ_INPUTS=poison-seed.bin",
+            ),
+        )
+        self.assertEqual(
+            " ".join(poisoned["CUPIDOBJ"].split()),
+            cupidobj_command,
+        )
+        self.assertNotIn("poison-seed.bin", poisoned["CUPIDOBJ_INPUTS"])
+        self.assertIn("Makefile", poisoned["CUPIDOBJ_INPUTS"].split())
+        self.assertTrue(
+            set(WINDOWS_PRODUCTION_SEED_INPUTS).issubset(
+                set(poisoned["CUPIDOBJ_INPUTS"].split())
+            )
+        )
 
         with tempfile.TemporaryDirectory() as td:
             output = Path(td) / "audit.json"
@@ -10420,7 +10463,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 6,
-            "cupid_builder": 4,
+            "cupid_builder": 190,
             "cupid_object": 192,
             "cupid_linker": 3,
             "cupid_disassembler": 6,
@@ -10436,13 +10479,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for transform in transforms:
                     expected_python_count = (
                         0
-                        if transform["output"]
-                        in {
-                            "boot/boot.bin",
-                            "kernel/cpu/isr.o",
-                            "kernel/core/context_switch.o",
-                            "kernel/smp_trampoline.bin",
-                        }
+                        if "cupid_builder" in transform["tools"]
                         else 1
                     )
                     self.assertEqual(
@@ -10455,13 +10492,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                             "Makefile",
                             *WINDOWS_PRODUCTION_SEED_INPUTS,
                         }
-                        if transform["output"]
-                        in {
-                            "boot/boot.bin",
-                            "kernel/cpu/isr.o",
-                            "kernel/core/context_switch.o",
-                            "kernel/smp_trampoline.bin",
-                        }
+                        if "cupid_builder" in transform["tools"]
                         else seed_inputs
                     )
                     self.assertTrue(

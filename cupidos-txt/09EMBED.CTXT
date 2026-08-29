@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 DolDoc Docs In CupidOS Storage
-Verified against source on: 2026-07-10
+Verified against source on: 2026-08-29
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -85,6 +85,12 @@ promotions. ADR 0312 records the preceding local-target seed, ADR 0318 records
 the preceding linked-image seeds, ADR 0323 records the preceding code-anchor
 seeds, ADR 0336 records the parent pair, and ADR 0353 records the active paired
 v2 seeds.
+
+The normal Make graph launches these three generators and its 183 ordinary
+text and binary wrappers through the promoted CupidBuild runner. The runner
+freezes and rechecks the selected six-tool seed around each CupidObj call.
+Python remains on the six composite paths that add an independent format check
+or a controlled publication boundary.
 
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))

@@ -32706,3 +32706,106 @@ strong SMP runtime contract. The 34,596-byte log has SHA-256
 ADR 0361 records the promotion. The graph still records four CupidBuild and
 448 Python participations. Moving the 186 direct CupidObj recipes is a
 separate ownership change.
+
+## 2026-08-29: run direct CupidObj recipes through CupidBuild
+
+The promoted runner was ready, but Make still sent every ordinary CupidObj
+call through the Python checked-seed helper. The root graph now defines
+`CUPIDOBJ` as an immutable `cupidbuild run` command bound to the platform
+production seed, its manifest, and the repository root. Its prerequisite
+closure includes the Makefile and all six seed images.
+
+The change moves 186 recipes: 175 text wrappers, eight binary wrappers, and
+three installation-source generators. The six composite CupidObj paths keep
+their specialized Python contracts because they add independent format,
+parity, locking, or publication work. Those paths are JPEG wrapping, flat
+kernel publication, kernel-symbol generation, the disk template, the ISO, and
+the Doom profile manifest.
+
+The first source contract failed while `CUPIDOBJ` still expanded to the Python
+runner. A second negative test then exposed a Make command-line bypass after
+the new assignment landed. Changing both `CUPIDOBJ` and `CUPIDOBJ_INPUTS` to
+`override` assignments closed that gap. The evaluated negative case injects
+poison command and prerequisite values but still sees the promoted command,
+the Makefile, and the complete production seed closure. The 61-test production
+contract suite passed after the correction.
+
+The regenerated audit keeps 452 transforms across the three supported roots,
+including 443 under root `all`. CupidObj remains at 192 participations.
+CupidBuild rises from four to 190, while Python falls from 448 to 262. The
+direct group is exactly 175 `wrap_text_as_elf32_relocatable`, eight
+`wrap_binary_as_elf32_relocatable`, and three `generate_install_source`
+transforms. No transform is Python-only.
+
+Before the rebuild, the 186 direct outputs contained 4,021,395 bytes. Their
+sorted path, size, and SHA-256 inventory had digest
+`4a865114885b6d7aac7ef2813366d0c585f83ee865dd010f9a86dd3631c97300`.
+The documentation update intentionally changed five embedded CTXT inputs, so
+the final cohort contains 4,022,487 bytes and has digest
+`95a983d4869a08570ba99218f2f1f221dd64dc90169898419925f8142f7798e8`.
+Runner-only comparisons remained byte-identical for each migrated command
+family:
+
+| Command family | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `wrap-text` (`bin/ls.cc`) | 2,004 | `9474d113853416f8e87207d317b5514d680a0b50ca4ff91747e4d853074a2f13` |
+| `wrap-binary` (`image.bmp`) | 12,848 | `139e697eaa1bec2cb94473397437d1421a7f01dd087e2437dc741a3c2bb8ea7c` |
+| `install-source` (demos) | 12,845 | `0d1f7ee032b13abbbe1767d75fe32c6f1ffa8b7014db44ae35c9d4c47ebb8305` |
+
+The forced `make -j4 all` visibly launched the 186 calls through the native
+Windows CupidBuild seed. All 83 Doom roots, both CupidLD links, and the strict
+431-input CupidDis scan passed before the exact-size gate rejected the old
+flat-kernel row. The final manual corrections produced a 9,501,584-byte
+kernel. After the policy was updated, a top-level `make -o FORCE all` replay
+rebuilt the changed documentation and profile edges, repeated both links and
+the strict scan, accepted all 16 exact artifacts, and published the image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,596,984 | `43e5b716ce0eca66ebdae61c19fc4ca0e7451e388987379c55563de499e0f357` |
+| `kernel/kernel.elf` | 9,728,056 | `9985ea478d8a5b6a95580ff4452bc2e7f4ed91ccd75656502f65880b624ee3c8` |
+| `kernel/kernel.bin` | 9,501,584 | `1cb193cbbc59288fc1f35e2466c8a981ed44f6aeb673c16a637fb2137666c920` |
+| `cupidos.img` | 209,715,200 | `64ffda977acfb06327cce3c3620faf48986fb7ee3feb403a401e306638b183d8` |
+
+The 3,382-byte exact-size policy covers 38,166,912 bytes and has SHA-256
+`5add471e9e19c63623fdd30ee539892a047eefb90c4de1176605ea99e42d69ec`.
+A deterministic audit regeneration and its independent checked replay both
+passed. The production contract suite passed all 61 tests in 55.214 seconds.
+The three artifact-policy modules passed all 54 tests in 3.977 seconds, with
+four expected Windows skips.
+
+Two complete 111-case audit runs were attempted without changing the source or
+generated records. The first passed 110 selectors in 878.941 seconds; its only
+failure was a `MemoryError` in the include scanner, which passed alone in
+65.558 seconds. The second passed 108 selectors in 760.963 seconds; its three
+failures were `MemoryError` traces in the conditional, executable-block, and
+pragma scanners. The conditional and executable-block cases passed in fresh
+processes. The pragma case then passed alone in 65.690 seconds. Every selector
+therefore has current-source passing evidence, but no complete Windows process
+is recorded as green while the host remains out of paging-file commit.
+
+The two-axis review found one shared medium-severity problem. The first audit
+change treated the literal `$(CUPIDOBJ)` marker as proof of CupidBuild
+ownership. A synthetic graph that still bound the variable to the Python
+runner was therefore mislabeled. A focused test failed first on that false
+owner. The audit now evaluates `CUPIDOBJ` within each Make graph and recognizes
+the checked CupidBuild form, the Python runner, and a direct CupidObj command
+separately. The native, Python-backed, install-source, preprocessing, and
+runtime-delivery sweep passed nine focused cases. Audit regeneration and its
+independent checked replay passed after the correction. A final isolated sweep
+started each audit selector in a fresh process and passed all 111, with zero
+failures and no allocation retry. This is the definitive aggregate audit gate
+for the corrected source under the host's current commit limit.
+
+A preceding 9,501,220-byte checkpoint, which differed only in embedded manual
+text, passed a private four-vCPU E1000 QEMU smoke with
+`--cpu max --verify-smp-runtime` and ran `/bin/ls.cc`. The final image smoke
+could not start before its timeout while the Windows host was out of
+paging-file capacity, and it produced no serial log. The same four-vCPU E1000
+command remains the runtime rerun gate.
+
+No source suffix changes belong to this handoff: all active Toolchain and OS C
+sources already use `.cc`. `TempleOS/` remained read-only. ADR 0362 records
+the ownership decision. Issue #32 remains open for the six composite paths and
+the broader Python-coordinated bootstrap work.

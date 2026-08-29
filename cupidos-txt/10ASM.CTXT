@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-08-28
+Verified against source on: 2026-08-29
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -62,9 +62,10 @@ sharing through CreateProcessA. It forwards captured streams in binary mode.
 This preserves their exact bytes. Cleanup deletes a file that changed in place
 when its identity still matches, but preserves a replacement with a different
 identity.
-The command does not turn an
-ordinary object-wrapping call into a guarded CupidASM publication. The current
-seeds and Make graph still use Python for those CupidObj launches.
+The command does not turn an ordinary object-wrapping call into a guarded
+CupidASM publication. The promoted seeds now run all 186 direct CupidObj
+recipes through CupidBuild. Python stays on six composite CupidObj paths where
+it provides an independent check or controls publication.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
@@ -956,8 +957,8 @@ one strict rejection through the public adapter.
 >h2 Active Six-Tool Bootstrap Boundary
 >tree
 The active v2 manifests keep CupidASM as a producer and add CupidBuild as a
-checked tool and the coordinator for four normal guarded assembly
-publications. Both bind revision
+checked tool and the coordinator for four guarded assembly publications and
+186 direct CupidObj recipes. Both bind revision
 `a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, 58 source inputs, and snapshot
 `a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`.
 
@@ -973,10 +974,10 @@ and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. All six initial images match stage two. CupidBuild owns the normal ISR,
-context-switch, bootloader, and SMP-trampoline recipes. Across the 452
-supported transforms, CupidBuild participates in four and Python in 448. ADR
-0356 records the active seed refresh, and ADR 0357 records the raw recipe
-transfer.
+context-switch, bootloader, and SMP-trampoline recipes and runs 186 direct
+CupidObj calls. Across the 452 supported transforms, CupidBuild participates
+in 190 and Python in 262. ADR 0356 records the active seed refresh, ADR 0357
+records the raw recipe transfer, and ADR 0362 records the CupidObj handoff.
 >endtree
 
 >h2 See Also

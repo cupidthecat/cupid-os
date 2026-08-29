@@ -196,19 +196,19 @@ seconds with all fourteen artifacts accepted, existing FAT contents preserved,
 and `hello.iso` staged. Its 9,251,100-byte raw kernel has SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
-The source-head artifact contract passes against all sixteen exact artifacts.
-The current 3,382-byte policy has SHA-256
+At that checkpoint, the source-head artifact contract passed against all
+sixteen exact artifacts. Its 3,382-byte policy had SHA-256
 `78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`
 and covers 38,144,480 bytes across those paths.
 
-| Source-head artifact | Bytes | SHA-256 |
+| Checkpoint artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `kernel/kernel.elf.pass1` | 9,605,148 | `e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63` |
 | `kernel/kernel.elf` | 9,736,220 | `c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436` |
 | `kernel/kernel.bin` | 9,507,804 | `2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f` |
 | `cupidos.img` | 209,715,200 | `1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc` |
 
-Those output identities come from the final source-head normal build. Its
+Those output identities came from that source-head normal build. Its
 431-input linked-image scan passed local-target and code-anchor validation.
 The build accepted the exact policy and preserved the image's FAT contents
 while staging `hello.iso`. A private four-vCPU `max` and E1000 copy brought all

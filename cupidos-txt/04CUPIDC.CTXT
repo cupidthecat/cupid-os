@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-28
+Verified against source on: 2026-08-29
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -43,8 +43,8 @@ files are handle-pinned, and the tool handle allows neither write nor delete
 sharing through CreateProcessA. Captured streams are forwarded in binary mode.
 This preserves their exact bytes. Cleanup removes a changed file when its
 identity still belongs to the runner and preserves a replacement identity.
-The promoted seeds do not carry this command yet, so normal Make ownership is
-unchanged.
+Both promoted seeds carry this command. Normal Make uses it for 175 text
+wrappers, eight binary wrappers, and three installation-source generators.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
@@ -286,14 +286,14 @@ addresses.
 
 Across root and supplemental builds, audit generation and checked reproduction
 pass. The audit covers 747 active language inputs,
-452 transforms, 255 feature requirements, and 26 accounted unreachable files.
+452 transforms, 255 feature requirements, and 27 accounted unreachable files.
 It reports 250 CupidC participations and no host C transform. Of those, 246
 produce ordinary C outputs. The native Windows user ABI, artifact-size policy,
 Toolchain manifest author, and Toolchain manifest verifier supply the other four
 CupidC contract checks. CupidObj participates 192 times, CupidASM and CupidLD
 participate nine times each, CupidDis participates nine times, and CupidBuild
-participates four times. Four transforms run Cupid-built semantic contracts. Host
-Python participates in 448 transforms, but none is Python-only. The normal Toolchain build uses checked
+participates 190 times. Four transforms run Cupid-built semantic contracts. Host
+Python participates in 262 transforms, but none is Python-only. The normal Toolchain build uses checked
 static i386 tools for its contract cohort; native contract binaries are optional
 oracles.
 
@@ -2374,9 +2374,10 @@ and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. All six initial images match stage two. CupidBuild now owns all four
-guarded assembly recipes. Python participates in the remaining 448 transforms.
-ADR 0357 records the raw recipe transfer, and ADR 0361 records the active
-runner promotion.
+guarded assembly recipes and runs 186 direct CupidObj recipes. Python
+participates in the remaining 262 transforms. ADR 0357 records the raw recipe
+transfer, ADR 0361 records the active runner promotion, and ADR 0362 records
+the direct CupidObj handoff.
 >endtree
 
 >h2 See Also

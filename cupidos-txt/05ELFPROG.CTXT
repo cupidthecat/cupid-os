@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-08-28
+Verified against source on: 2026-08-29
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -31,15 +31,16 @@ complete transaction suites. The active v2 fixed points include CupidBuild and
 match all six final tool images. Their behavior gate also runs
 the guarded object command with both images, compares the relocatable output,
 and checks missing-source rollback. The normal ISR, context-switch,
-bootloader, and SMP-trampoline recipes invoke CupidBuild directly. Python
-publishes the remaining checked paths.
+bootloader, and SMP-trampoline recipes invoke CupidBuild directly. CupidBuild
+also runs the 186 direct CupidObj recipes; Python remains on the six composite
+CupidObj paths and the other checked publications.
 Source head now validates every fixed-point C object structurally and then
 requires known decode, local targets, and code anchors before linking. The
 Windows CupidBuild startup marks all fourteen exports as functions. Fresh
 Linux and Windows candidates converged, and promoted-seed self-consumption
 passes with all six initial images equal to stage two. ADR 0347 records the
 object and startup boundary.
-Source-head CupidBuild can now launch checked CupidObj without Python. On
+The promoted CupidBuild seeds can launch checked CupidObj without Python. On
 Linux, it creates no .cupidbuild-run namespace. The manifest and six tools are
 fully sealed anonymous memfds, and the working directory is pinned by
 descriptor. The child calls fchdir before remapping its captured streams. If
@@ -56,8 +57,8 @@ in binary mode to preserve exact bytes. Cleanup deletes a file that changed in
 place when its identity still matches, but preserves a path replacement with a
 different identity.
 This generic runner does not claim the locking, inspection, or atomic
-replacement owned by the typed assembly transactions. Seed promotion and Make
-adoption remain separate steps.
+replacement owned by the typed assembly transactions. Both seeds carry the
+runner, and Make uses it for the direct recipes.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
@@ -483,8 +484,8 @@ Choose CupidC when you want:
 >h2 Checked toolchain seed boundary
 >tree
 The active Linux and Windows v2 cohorts are complete six-tool trust units.
-CupidBuild is checked in both and directly owns four normal guarded assembly
-publications: two objects and two raw images.
+CupidBuild is checked in both, directly owns four guarded assembly
+publications, and runs 186 direct CupidObj recipes.
 Their fixed-point gates compare the final stages and exercise each platform's
 success and failure behavior. CupidDis must reject unmatched executable
 relocations.
@@ -515,8 +516,8 @@ the pass-one and final ELFs before flattening.
 >tree
 The active v2 seed schemas list six complete tool images. CupidBuild joins
 CupidASM, CupidDis, CupidLD, CupidObj, and CupidC as a checked artifact. Its
-fixed-point plan role remains non-producing even though it owns four normal
-guarded assembly publications. Both manifests bind revision
+fixed-point plan role remains non-producing even though it owns four guarded
+assembly publications and runs 186 direct CupidObj recipes. Both manifests bind revision
 `a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, 58 inputs, and source snapshot
 `a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`.
 
@@ -533,8 +534,9 @@ and pairs to the exact Linux manifest bytes.
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. All six initial images match stage two. CupidBuild owns the normal ISR,
 context-switch, bootloader, and SMP-trampoline recipes. Across all 452
-transforms, CupidBuild participates in four and Python in 448. ADR 0356 records
-the active seed refresh, and ADR 0357 records the raw recipe transfer.
+transforms, CupidBuild participates in 190 and Python in 262. ADR 0356 records
+the active seed refresh, ADR 0357 records the raw recipe transfer, and ADR 0362
+records the direct CupidObj handoff.
 >endtree
 
 >h2 See Also

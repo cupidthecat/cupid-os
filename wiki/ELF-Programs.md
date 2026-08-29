@@ -11,10 +11,9 @@ and receive a **syscall table**, a struct of function pointers passed to
 `_start()`.
 
 The same promoted six-tool cohort runs CupidBuild directly for four guarded
-assembly publications: the kernel's two assembly objects, the bootloader, and
-the SMP trampoline. This does not change the user-program ABI or ELF layout.
-Across the supported graph, CupidBuild participates in four transforms and
-Python in 448.
+assembly publications and 186 ordinary CupidObj recipes. This does not change
+the user-program ABI or ELF layout. Across the supported graph, CupidBuild
+participates in 190 transforms and Python in 262.
 
 ---
 
@@ -884,19 +883,19 @@ the final ELF is 9,472,440 bytes with SHA-256
 the raw kernel is 9,251,100 bytes with SHA-256
 `4014b1b2acf34be4dd7483fb8aa9e8a8b0e76eea771c83669571cbf7b66fe0e3`.
 
-The source-head artifact contract passes against all sixteen exact artifacts.
-The current 3,382-byte policy has SHA-256
+At that checkpoint, the source-head artifact contract passed against all
+sixteen exact artifacts. Its 3,382-byte policy had SHA-256
 `78d1d4cc4b5411cc73523b88166e75fba876b2cd78f1d9c9118b1367fa86ec21`
 and covers 38,144,480 bytes across those paths.
 
-| Source-head artifact | Bytes | SHA-256 |
+| Checkpoint artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `kernel/kernel.elf.pass1` | 9,605,148 | `e54c2fcefb432bc0cab314411a4dfb0dda377169c613497487f0eb6ec75c4b63` |
 | `kernel/kernel.elf` | 9,736,220 | `c4004b2b9b003b8c0174a32d11948a228b50ec57e97d69532c2c514834adc436` |
 | `kernel/kernel.bin` | 9,507,804 | `2efdc4df2a71cc6e889acd67f9322bf449692ee046d089762df3575dba90143f` |
 | `cupidos.img` | 209,715,200 | `1276de1dc03ed01cbcc90e95e9a4d0b71abd0751bd9c74251ab0ccac2719c9bc` |
 
-Those output identities come from the current normal build. It completed the
+Those output identities came from that normal build. It completed the
 431-input local-target and code-anchor scan, accepted the exact policy, and
 preserved the image's FAT contents while staging `hello.iso`. A private
 four-vCPU `max` and E1000 copy brought all CPUs online and completed the full
@@ -922,8 +921,9 @@ and pairs to the exact Linux manifest bytes.
 Candidate proof and promoted-seed self-consumption pass on both platforms,
 with all six initial images equal to stage two. ADR 0356 records the active
 seed refresh. CupidBuild owns the normal ISR, context-switch, bootloader, and
-SMP-trampoline recipes, while Python remains the coordinator and publisher for
-the other 448 transforms. ADR 0357 records the raw recipe transfer.
+SMP-trampoline recipes and runs 186 direct CupidObj calls. Python remains in
+the other 262 transforms. ADR 0357 records the raw recipe transfer, and ADR
+0362 records the direct CupidObj handoff.
 
 The preceding source-head cohort used the same pass-one and final ELF sizes
 with SHA-256 values

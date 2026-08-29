@@ -68,8 +68,10 @@ CUPIDASM_BUILD := toolchain/build/cupidasm$(HOST_EXE)
 CUPIDASM ?= $(CHECKED_SEED_RUN) --tool cupidasm --
 CUPIDASM_INPUTS ?= $(CHECKED_SEED_INPUTS)
 CUPIDOBJ_BUILD := toolchain/build/cupidobj$(HOST_EXE)
-CUPIDOBJ ?= $(CHECKED_SEED_RUN) --tool cupidobj --
-CUPIDOBJ_INPUTS ?= $(CHECKED_SEED_INPUTS)
+override CUPIDOBJ := $(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) run \
+	--seed-manifest $(PRODUCTION_SEED_MANIFEST) \
+	--root "$(CURDIR)" --tool cupidobj --
+override CUPIDOBJ_INPUTS := Makefile $(PRODUCTION_SEED_INPUTS)
 CUPIDLD_BUILD := toolchain/build/cupidld$(HOST_EXE)
 CUPIDLD ?= $(CHECKED_SEED_RUN) --tool cupidld --
 CUPIDLD_INPUTS ?= $(CHECKED_SEED_INPUTS)

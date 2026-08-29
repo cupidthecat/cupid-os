@@ -557,8 +557,10 @@ and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
 self-consumption pass on both platforms, including the normal SMP path, with
 all six initial images equal to stage two. CupidBuild owns the context-switch
 object and raw trampoline publications directly. Across the supported graph,
-CupidBuild participates in four transforms and Python in 448. ADR 0356 records
-the active seed refresh, and ADR 0357 records the raw recipe transfer.
+CupidBuild participates in 190 transforms and Python in 262. The additional
+CupidBuild work is 186 direct CupidObj recipes; it does not change the SMP
+transaction. ADR 0356 records the active seed refresh, ADR 0357 records the raw
+recipe transfer, and ADR 0362 records the direct CupidObj handoff.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
 seconds with all fourteen exact policy artifacts accepted. Its 4,096-byte

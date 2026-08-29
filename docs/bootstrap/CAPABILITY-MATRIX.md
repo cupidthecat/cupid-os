@@ -40,18 +40,18 @@ module completed eight tests in 0.962 seconds with four POSIX skips, and the
 dedicated Make contract passed. The six-test CupidASM source suite passed in
 3.771 seconds. Strict Windows and freestanding i386 adapter compilation passed,
 as did timeout-and-seed-drift precedence. The command is present in both
-promoted seeds and has no normal-build ownership until Make adopts it.
+promoted seeds and owns the 186 direct CupidObj recipes in the normal build.
 
-The final normal `make -j2 all` passed after the exact-size check rejected the
-112-byte CTXT growth and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,500,492 bytes for `kernel/kernel.bin`, 9,728,056 bytes
+The final top-level replay passed after the exact-size check rejected the
+edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
+The current sizes are 9,501,584 bytes for `kernel/kernel.bin`, 9,728,056 bytes
 for `kernel/kernel.elf`, and 9,596,984 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
-staging passed as part of the same build. A private four-vCPU E1000 QEMU smoke
-ran with `--cpu max --verify-smp-runtime`, executed `/bin/ls.cc`, and completed
-the strong runtime contract. Its 34,596-byte log has SHA-256
-`f20d3ddac10cf56af9f37842da05ded545ed275dc26a4d0aa1592f2bbba2b2bb`
-and no rejected runtime marker.
+staging passed as part of the same replay. A preceding 9,501,220-byte
+checkpoint, which differed only in embedded manual text, completed the strong
+four-vCPU E1000 runtime contract and ran `/bin/ls.cc`. The final image smoke
+could not start before its timeout while the Windows host was out of
+paging-file capacity, and it produced no serial log.
 
 The complete 129-case bootstrap-seed module finished with 126 passes. Its two
 fixed points built successfully, but three final assertions still described
@@ -59,8 +59,9 @@ the older seed transition and Windows producer suffix. After those expectations
 were corrected, the focused privacy case passed in 0.700 seconds. Complete
 reruns then passed the native Windows fixed point in 1,847.207 seconds and the
 Linux fixed point in 2,158.113 seconds. The complete module then passed all 129
-cases in 3,569.451 seconds. The capability remains Partial at the production
-boundary because seed carriage and normal-build ownership are separate steps.
+cases in 3,569.451 seconds. Production ownership is now observed for four
+guarded assembly publications and 186 direct CupidObj recipes. The six
+composite CupidObj paths still keep their Python contracts.
 
 CupidBuild guarded assembly publication is **Observed at source head**. It now
 parses the frozen manifest and enforces exact JSON fields, the host schema and
@@ -176,9 +177,9 @@ normal disk image, repository ISO fixture, and Doom profile manifest. Root
 `all` has 443 transforms, all with a Cupid participant. The size verifier emits
 no OS artifact; checked CupidC, CupidASM, and CupidLD build its private
 contract. CupidBuild participates in the two guarded assembly-object
-publications and both guarded raw-image publications. Host Python remains
-present in 448 transforms as the checked-tool
-launcher and host-side safety, parity, and publication layer.
+publications, both guarded raw-image publications, and 186 direct CupidObj
+recipes. Host Python remains present in 262 transforms as the host-side safety,
+parity, and publication layer.
 CupidDis participates in six root transforms: kernel-symbol text generation,
 strict mixed-mode inspection for the SMP trampoline and bootloader, guarded
 publication for the ISR and context-switch objects, and the composite
@@ -344,12 +345,12 @@ allowlists and the complete 291-file header space. Its input manifest detects
 membership and byte drift without changing its timestamp on an unchanged
 scan.
 
-CupidC participates in 250 transforms, CupidBuild participates in four, and no
-supported transform invokes a host C compiler. Host Python participates in the
-other 448 transforms, including the remaining checked root tool launches, the
-external-program ABI check, the Toolchain contract cohort, and two ISO fixture
-operations. The graph has no recursive Make transform. Checked paths freeze
-the complete seed before each command.
+CupidC participates in 250 transforms, CupidBuild participates in 190, and no
+supported transform invokes a host C compiler. Host Python participates in 262
+transforms, including the composite root publications, external-program ABI
+check, Toolchain contract cohort, and two ISO fixture operations. The graph
+has no recursive Make transform. Checked paths freeze the complete seed before
+each command.
 The shared runner checks the live cohort again after root tool, checked
 production CupidC, and checked user CupidLD commands. Make applies
 `$(sort ...)` to every wildcard-discovered output list before generators and
@@ -1094,8 +1095,8 @@ addresses, keeps nonprivate local, global, and weak text symbols, sorts by
 address and input order, and keeps the first name for a shared address. Core,
 CLI, fixed-point, and a real CupidASM to CupidDis to CupidObj contract cover
 exact output, useful failures, arena and output rollback, and same-job
-recovery. The current promoted image is 392,784 bytes with SHA-256
-`79c7b58aee81cdf68526c645f74b3a28d1179b0f6c0d7a4744463d26e285a3ed`.
+recovery. The current promoted image is 392,820 bytes with SHA-256
+`e9958b28c3230fe83c4bf409797208d735887c54d4ebffd0565b4a91f45142fb`.
 The normal build now preserves CupidDis's exact text and gives it to this
 checked command. Python independently renders the expected bytes and rejects
 output mismatch or live input drift before atomic publication. ADR 0222
@@ -1357,9 +1358,9 @@ relocation as a required failure. ADR 0290 records the capability, and ADR
 0291 records production adoption.
 
 The current source graph records 452 transforms across the three supported
-roots and 443 under root `all`. Its tool participation totals are Python 448,
+roots and 443 under root `all`. Its tool participation totals are Python 262,
 CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, CupidDis nine, and
-CupidBuild four. Four
+CupidBuild 190. Four
 transforms run Cupid-built semantic contracts. It retains the 25/6/32 Linux
 and 14/6/19 Windows fixed-point matrices. The source-current audit generated in about 115 seconds,
 and deterministic check mode passed in 122.30 seconds.
