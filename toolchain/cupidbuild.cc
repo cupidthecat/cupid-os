@@ -1210,13 +1210,16 @@ cupidbuild_artifact_matches(const cupidbuild_host_snapshot_t *snapshot,
          cupidbuild_digest_matches_hex(snapshot->sha256, artifact->sha256);
 }
 
-static int cupidbuild_validate_object(const unsigned char *bytes, size_t size) {
+static int cupidbuild_validate_relocatable(const unsigned char *bytes,
+                                           size_t size,
+                                           int require_executable) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = (ctool_job_t *)0;
   ctool_source_t source;
   ctool_elf32_object_t object;
   ctool_u32 index;
+  int relocatable = 0;
   int executable = 0;
   if (size > 4294967295u ||
       ctool_host_adapter_init(&adapter, ".") != CTOOL_OK) {
@@ -1230,6 +1233,7 @@ static int cupidbuild_validate_object(const unsigned char *bytes, size_t size) {
   source.contents = ctool_bytes(bytes, (ctool_u32)size);
   if (ctool_elf32_read(job, &source, &object) == CTOOL_OK &&
       object.file_type == CTOOL_ELF32_ET_REL) {
+    relocatable = 1;
     for (index = 0u; index < object.section_count; index++) {
       const ctool_elf32_section_t *section = &object.sections[index];
       if (section->type == CTOOL_ELF32_SHT_PROGBITS &&
@@ -1240,7 +1244,363 @@ static int cupidbuild_validate_object(const unsigned char *bytes, size_t size) {
     }
   }
   ctool_job_close(job);
-  return executable;
+  return relocatable != 0 &&
+         (require_executable == 0 || executable != 0);
+}
+
+static int cupidbuild_jpeg_symbol_name_matches(ctool_string_t actual,
+                                                const char *identity,
+                                                const char *suffix) {
+  static const char prefix[] = "_binary_";
+  size_t prefix_size = sizeof(prefix) - 1u;
+  size_t identity_size = strlen(identity);
+  size_t suffix_size = strlen(suffix);
+  size_t index;
+  if (identity_size > (size_t)-1 - prefix_size - suffix_size ||
+      prefix_size + identity_size + suffix_size != (size_t)actual.size ||
+      memcmp(actual.data, prefix, prefix_size) != 0 ||
+      memcmp(actual.data + prefix_size + identity_size, suffix,
+             suffix_size) != 0) {
+    return 0;
+  }
+  for (index = 0u; index < identity_size; index++) {
+    unsigned char character = (unsigned char)identity[index];
+    char expected = ((character >= (unsigned char)'a' &&
+                      character <= (unsigned char)'z') ||
+                     (character >= (unsigned char)'A' &&
+                      character <= (unsigned char)'Z') ||
+                     (character >= (unsigned char)'0' &&
+                      character <= (unsigned char)'9'))
+                        ? (char)character
+                        : '_';
+    if (actual.data[prefix_size + index] != expected) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+int cupidbuild_validate_jpeg_object_bytes(
+    const unsigned char *object_bytes, size_t object_size,
+    const unsigned char *jpeg_bytes, size_t jpeg_size,
+    const char *source_identity) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_elf32_object_t object;
+  const ctool_elf32_section_t *data_section =
+      (const ctool_elf32_section_t *)0;
+  const ctool_elf32_symbol_t *start_symbol =
+      (const ctool_elf32_symbol_t *)0;
+  const ctool_elf32_symbol_t *end_symbol =
+      (const ctool_elf32_symbol_t *)0;
+  const ctool_elf32_symbol_t *size_symbol =
+      (const ctool_elf32_symbol_t *)0;
+  ctool_u32 index;
+  int extra_allocated_data = 0;
+  int valid = 0;
+  if (object_bytes == (const unsigned char *)0 ||
+      jpeg_bytes == (const unsigned char *)0 ||
+      source_identity == (const char *)0 || source_identity[0] == '\0' ||
+      object_size > 4294967295u || jpeg_size > 4294967295u ||
+      ctool_host_adapter_init(&adapter, ".") != CTOOL_OK) {
+    return 0;
+  }
+  config = ctool_host_job_config(&adapter, ctool_default_limits());
+  if (ctool_job_open(&config, &job) != CTOOL_OK) {
+    return 0;
+  }
+  source.path.text = ctool_string("/candidate.o");
+  source.contents = ctool_bytes(object_bytes, (ctool_u32)object_size);
+  if (ctool_elf32_read(job, &source, &object) != CTOOL_OK ||
+      object.file_type != CTOOL_ELF32_ET_REL) {
+    goto done;
+  }
+  for (index = 0u; index < object.section_count; index++) {
+    const ctool_elf32_section_t *section = &object.sections[index];
+    if (section->name.size == 5u &&
+        memcmp(section->name.data, ".data", 5u) == 0) {
+      if (data_section != (const ctool_elf32_section_t *)0) {
+        goto done;
+      }
+      data_section = section;
+    } else if ((section->flags & CTOOL_ELF32_SHF_ALLOC) != 0u &&
+               section->size != 0u) {
+      extra_allocated_data = 1;
+    }
+  }
+  for (index = 0u; index < object.symbol_count; index++) {
+    const ctool_elf32_symbol_t *symbol = &object.symbols[index];
+    if (cupidbuild_jpeg_symbol_name_matches(symbol->name, source_identity,
+                                            "_start")) {
+      if (start_symbol != (const ctool_elf32_symbol_t *)0) {
+        goto done;
+      }
+      start_symbol = symbol;
+    } else if (cupidbuild_jpeg_symbol_name_matches(
+                   symbol->name, source_identity, "_end")) {
+      if (end_symbol != (const ctool_elf32_symbol_t *)0) {
+        goto done;
+      }
+      end_symbol = symbol;
+    } else if (cupidbuild_jpeg_symbol_name_matches(
+                   symbol->name, source_identity, "_size")) {
+      if (size_symbol != (const ctool_elf32_symbol_t *)0) {
+        goto done;
+      }
+      size_symbol = symbol;
+    }
+  }
+  if (object.symbol_count != 4u ||
+      data_section == (const ctool_elf32_section_t *)0 ||
+      data_section->type != CTOOL_ELF32_SHT_PROGBITS ||
+      data_section->flags !=
+          (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
+      data_section->alignment != 1u || data_section->entry_size != 0u ||
+      data_section->size != (ctool_u32)jpeg_size ||
+      data_section->contents.size != (ctool_u32)jpeg_size ||
+      (jpeg_size != 0u &&
+       memcmp(data_section->contents.data, jpeg_bytes, jpeg_size) != 0) ||
+      extra_allocated_data != 0 || object.relocation_count != 0u ||
+      start_symbol == (const ctool_elf32_symbol_t *)0 ||
+      end_symbol == (const ctool_elf32_symbol_t *)0 ||
+      size_symbol == (const ctool_elf32_symbol_t *)0 ||
+      start_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      start_symbol->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      start_symbol->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      start_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      start_symbol->section_file_index != data_section->file_index ||
+      start_symbol->value != 0u || start_symbol->size != 0u ||
+      end_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      end_symbol->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      end_symbol->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      end_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      end_symbol->section_file_index != data_section->file_index ||
+      end_symbol->value != (ctool_u32)jpeg_size || end_symbol->size != 0u ||
+      size_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      size_symbol->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      size_symbol->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      size_symbol->placement != CTOOL_ELF32_SYMBOL_ABSOLUTE ||
+      size_symbol->section_file_index != CTOOL_ELF32_NO_SECTION ||
+      size_symbol->value != (ctool_u32)jpeg_size || size_symbol->size != 0u) {
+    goto done;
+  }
+  valid = 1;
+
+done:
+  ctool_job_close(job);
+  return valid;
+}
+
+static int cupidbuild_jpeg_frame_marker(unsigned char marker) {
+  switch (marker) {
+  case 0xc0u:
+  case 0xc1u:
+  case 0xc2u:
+  case 0xc3u:
+  case 0xc5u:
+  case 0xc6u:
+  case 0xc7u:
+  case 0xc9u:
+  case 0xcau:
+  case 0xcbu:
+  case 0xcdu:
+  case 0xceu:
+  case 0xcfu:
+    return 1;
+  default:
+    return 0;
+  }
+}
+
+static int cupidbuild_jpeg_failure(char *reason, size_t reason_capacity,
+                                   const char *message) {
+  if (reason != (char *)0 && reason_capacity != 0u) {
+    (void)snprintf(reason, reason_capacity, "%s", message);
+  }
+  return 0;
+}
+
+static int cupidbuild_jpeg_marker_failure(char *reason,
+                                          size_t reason_capacity,
+                                          const char *prefix,
+                                          unsigned char marker,
+                                          const char *suffix) {
+  if (reason != (char *)0 && reason_capacity != 0u) {
+    (void)snprintf(reason, reason_capacity, "%s0x%02x%s", prefix,
+                   (unsigned int)marker, suffix);
+  }
+  return 0;
+}
+
+int cupidbuild_validate_jpeg_bytes(const unsigned char *bytes, size_t size,
+                                   char *reason, size_t reason_capacity) {
+  size_t offset = 2u;
+  unsigned char frame_marker = 0u;
+  int saw_scan = 0;
+  int saw_eoi = 0;
+  if (reason == (char *)0 || reason_capacity == 0u) {
+    return 0;
+  }
+  reason[0] = '\0';
+  if (bytes == (const unsigned char *)0 || size < 2u || bytes[0] != 0xffu ||
+      bytes[1] != 0xd8u) {
+    return cupidbuild_jpeg_failure(reason, reason_capacity,
+                                   "JPEG input has no SOI marker");
+  }
+  while (offset < size) {
+    size_t segment_size;
+    unsigned char marker;
+    if (bytes[offset] != 0xffu) {
+      return cupidbuild_jpeg_failure(
+          reason, reason_capacity,
+          "JPEG marker stream is malformed outside a scan");
+    }
+    while (offset < size && bytes[offset] == 0xffu) {
+      offset++;
+    }
+    if (offset >= size) {
+      break;
+    }
+    marker = bytes[offset++];
+    if (marker == 0x00u) {
+      return cupidbuild_jpeg_failure(
+          reason, reason_capacity,
+          "JPEG marker stream contains stuffed data before a scan");
+    }
+    if (marker == 0xd9u) {
+      saw_eoi = 1;
+      if (offset != size) {
+        return cupidbuild_jpeg_failure(
+            reason, reason_capacity,
+            "JPEG input has trailing bytes after the EOI marker");
+      }
+      break;
+    }
+    if (marker == 0x01u || marker == 0xd8u ||
+        (marker >= 0xd0u && marker <= 0xd7u)) {
+      if (marker != 0x01u) {
+        return cupidbuild_jpeg_marker_failure(
+            reason, reason_capacity, "unexpected standalone JPEG marker ",
+            marker, "");
+      }
+      continue;
+    }
+    if (size - offset < 2u) {
+      return cupidbuild_jpeg_failure(reason, reason_capacity,
+                                     "JPEG marker length is truncated");
+    }
+    segment_size = ((size_t)bytes[offset] << 8u) |
+                   (size_t)bytes[offset + 1u];
+    if (segment_size < 2u || segment_size > size - offset) {
+      return cupidbuild_jpeg_failure(reason, reason_capacity,
+                                     "JPEG marker length is invalid");
+    }
+    if (cupidbuild_jpeg_frame_marker(marker)) {
+      size_t component_count;
+      if (frame_marker != 0u) {
+        return cupidbuild_jpeg_failure(
+            reason, reason_capacity,
+            "JPEG input contains more than one frame header");
+      }
+      if (segment_size < 8u) {
+        return cupidbuild_jpeg_failure(reason, reason_capacity,
+                                       "JPEG frame header is truncated");
+      }
+      component_count = (size_t)bytes[offset + 7u];
+      if (component_count == 0u ||
+          segment_size != 8u + 3u * component_count) {
+        return cupidbuild_jpeg_failure(
+            reason, reason_capacity,
+            "JPEG frame header has an invalid component table");
+      }
+      if (bytes[offset + 2u] == 0u) {
+        return cupidbuild_jpeg_failure(
+            reason, reason_capacity,
+            "JPEG frame header has an invalid sample precision");
+      }
+      if ((bytes[offset + 3u] == 0u && bytes[offset + 4u] == 0u) ||
+          (bytes[offset + 5u] == 0u && bytes[offset + 6u] == 0u)) {
+        return cupidbuild_jpeg_failure(
+            reason, reason_capacity,
+            "JPEG frame header has an invalid image size");
+      }
+      frame_marker = marker;
+    }
+    if (marker == 0xdau) {
+      size_t scan_components;
+      if (frame_marker == 0u) {
+        return cupidbuild_jpeg_failure(
+            reason, reason_capacity,
+            "JPEG scan appears before its frame header");
+      }
+      if (segment_size < 6u) {
+        return cupidbuild_jpeg_failure(reason, reason_capacity,
+                                       "JPEG scan header is truncated");
+      }
+      scan_components = (size_t)bytes[offset + 2u];
+      if (scan_components == 0u ||
+          segment_size != 6u + 2u * scan_components) {
+        return cupidbuild_jpeg_failure(
+            reason, reason_capacity,
+            "JPEG scan header has an invalid component table");
+      }
+      saw_scan = 1;
+      offset += segment_size;
+      while (offset < size) {
+        size_t scan_marker_offset;
+        unsigned char scan_marker;
+        if (bytes[offset] != 0xffu) {
+          offset++;
+          continue;
+        }
+        scan_marker_offset = offset;
+        while (offset < size && bytes[offset] == 0xffu) {
+          offset++;
+        }
+        if (offset >= size) {
+          return cupidbuild_jpeg_failure(
+              reason, reason_capacity,
+              "JPEG entropy data ends with a partial marker");
+        }
+        scan_marker = bytes[offset++];
+        if (scan_marker == 0x00u ||
+            (scan_marker >= 0xd0u && scan_marker <= 0xd7u)) {
+          continue;
+        }
+        offset = scan_marker_offset;
+        break;
+      }
+      continue;
+    }
+    offset += segment_size;
+  }
+  if (frame_marker == 0xc2u) {
+    return cupidbuild_jpeg_failure(
+        reason, reason_capacity,
+        "unsupported progressive JPEG frame; check in a baseline SOF0/SOF1 "
+        "asset");
+  }
+  if (frame_marker != 0xc0u && frame_marker != 0xc1u) {
+    if (frame_marker == 0u) {
+      return cupidbuild_jpeg_failure(
+          reason, reason_capacity,
+          "JPEG input has no supported SOF0/SOF1 frame");
+    }
+    return cupidbuild_jpeg_marker_failure(
+        reason, reason_capacity, "unsupported JPEG frame marker ",
+        frame_marker, "; check in a baseline SOF0/SOF1 asset");
+  }
+  if (!saw_scan) {
+    return cupidbuild_jpeg_failure(reason, reason_capacity,
+                                   "JPEG input has no scan");
+  }
+  if (!saw_eoi) {
+    return cupidbuild_jpeg_failure(reason, reason_capacity,
+                                   "JPEG input has no EOI marker");
+  }
+  return 1;
 }
 
 #if defined(_WIN32)
@@ -1659,7 +2019,8 @@ static int cupidbuild_assemble(
     goto done;
   }
   if (kind == CUPIDBUILD_ASSEMBLY_OBJECT) {
-    if (!cupidbuild_validate_object(candidate, candidate_snapshot.size)) {
+    if (!cupidbuild_validate_relocatable(candidate, candidate_snapshot.size,
+                                         1)) {
       (void)fprintf(
           stderr,
           "cupidbuild: checked CupidASM relocatable object validation failed\n");
@@ -1766,6 +2127,111 @@ int cupidbuild_assemble_bootloader(
 int cupidbuild_assemble_smp_trampoline(
     const cupidbuild_assembly_request_t *request) {
   return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE);
+}
+
+int cupidbuild_embed_jpeg(const cupidbuild_jpeg_request_t *request) {
+  cupidbuild_host_transaction_t *transaction =
+      (cupidbuild_host_transaction_t *)0;
+  cupidbuild_seed_capture_t seed;
+  cupidbuild_host_snapshot_t candidate_snapshot;
+  unsigned char *candidate = (unsigned char *)0;
+  unsigned char *source = (unsigned char *)0;
+  size_t source_size = 0u;
+  char jpeg_reason[160];
+  const char *object_arguments[7];
+  int object_status;
+  int result = 1;
+  (void)memset(&seed, 0, sizeof(seed));
+  if (request == (const cupidbuild_jpeg_request_t *)0 ||
+      !cupidbuild_path_safe(request->repository_root, 0) ||
+      !cupidbuild_path_safe(request->source, 1) ||
+      !cupidbuild_path_safe(request->output, 1) ||
+      !cupidbuild_path_safe(request->seed_manifest, 0)) {
+    (void)fprintf(stderr, "cupidbuild: invalid JPEG embed request\n");
+    return 1;
+  }
+  if (!cupidbuild_host_transaction_open(request->repository_root,
+                                        request->source, request->output,
+                                        &transaction)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (!cupidbuild_seed_freeze(transaction, request->repository_root,
+                              request->seed_manifest, 1, 1, &seed)) {
+    goto done;
+  }
+  object_arguments[0] = "wrap-jpeg";
+  object_arguments[1] = cupidbuild_host_frozen_source(transaction);
+  object_arguments[2] = "--identity";
+  object_arguments[3] = request->source;
+  object_arguments[4] = "-o";
+  object_arguments[5] = cupidbuild_host_candidate(transaction);
+  object_arguments[6] = (const char *)0;
+  object_status = cupidbuild_host_run(transaction, seed.frozen_tools[4],
+                                      object_arguments, 60000u);
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
+    goto done;
+  }
+  if (object_status != 0) {
+    (void)fprintf(stderr, "cupidbuild: checked CupidObj failed\n");
+    goto done;
+  }
+  if (!cupidbuild_host_capture_candidate(transaction, &candidate_snapshot,
+                                         &candidate)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  source = cupidbuild_host_read_frozen_input(
+      transaction, cupidbuild_host_frozen_source(transaction),
+      CUPIDBUILD_TOOL_BYTES, &source_size);
+  if (source == (unsigned char *)0) {
+    (void)fprintf(stderr,
+                  "cupidbuild: frozen JPEG input cannot be inspected\n");
+    goto done;
+  }
+  if (!cupidbuild_validate_jpeg_object_bytes(
+          candidate, candidate_snapshot.size, source, source_size,
+          request->source)) {
+    (void)fprintf(
+        stderr,
+        "cupidbuild: checked CupidObj JPEG object validation failed\n");
+    goto done;
+  }
+  if (!cupidbuild_validate_jpeg_bytes(source, source_size, jpeg_reason,
+                                      sizeof(jpeg_reason))) {
+    (void)fprintf(stderr,
+                  "cupidbuild: independent JPEG validation failed: %s\n",
+                  jpeg_reason);
+    goto done;
+  }
+  free(candidate);
+  candidate = (unsigned char *)0;
+  free(source);
+  source = (unsigned char *)0;
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
+    goto done;
+  }
+  if (!cupidbuild_host_require_candidate(transaction, &candidate_snapshot)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (!cupidbuild_host_require_publication_boundary(transaction) ||
+      !cupidbuild_host_publish(transaction)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  result = 0;
+
+done:
+  free(source);
+  free(candidate);
+  cupidbuild_seed_capture_close(&seed);
+  cupidbuild_host_transaction_close(transaction);
+  return result;
 }
 
 int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {

@@ -67,7 +67,8 @@ checked PE compiler proved the complete current closure. ADR 0360 admits
 CupidLD to the native checked runner and makes the CupidObj runner part of
 both source-head fixed-point behavior matrices. ADR 0361 promotes that runner
 in the paired checked seeds, ADR 0362 moves the 186 ordinary CupidObj recipes
-onto it, and ADR 0363 moves both normal kernel links onto the same runner.
+onto it, ADR 0363 moves both normal kernel links onto the same runner, and ADR
+0364 adds the typed source-head JPEG publication boundary.
 
 ## 2026-08-29 source-current checkpoint
 
@@ -79,6 +80,18 @@ the checked boundary. A private native Windows run linked all 428 pass-one
 objects and reproduced the existing 9,596,984-byte ELF exactly. The graph still
 contains 452 transforms, with CupidBuild in 192 and Python in 260. ADR 0363
 records the handoff.
+
+Source-head CupidBuild now provides `embed-jpeg` as a guarded transaction, not
+a generic checked-tool call. It freezes the repository asset and complete v2
+seed, runs frozen CupidObj `wrap-jpeg` under the original logical identity,
+requires the exact JPEG payload and three identity symbols in the data-only
+i386 relocatable, and checks the frozen bytes with a separate native SOF0/SOF1
+parser. Lock, source, seed, candidate, destination, and parent drift all
+preserve the previous object. Both source-head fixed-point
+matrices compare the command across consecutive CupidBuild generations and
+prove progressive-input rollback, yielding 26/6/33 Linux and 15/6/20 native
+Windows inventories. The promoted seeds and production JPEG edge remain on the
+preceding contract until a paired refresh. ADR 0364 records the capability.
 
 The native Windows fixed point now uses the checked Windows execution seed for
 every stage-two producer. The checked Linux seed remains the reviewed build
@@ -141,8 +154,8 @@ ADR 0361 records seed promotion, and ADR 0362 records the recipe handoff.
 The final policy-bound build compiled all 83 Doom roots, linked both kernel
 stages with CupidLD, and passed strict CupidDis validation. A post-policy
 top-level replay accepted all 16 exact artifacts and published the image.
-`kernel/kernel.bin` is 9,502,016 bytes; the final and pass-one ELFs are
-9,728,056 and 9,596,984 bytes. A preceding 9,501,220-byte checkpoint, which
+`kernel/kernel.bin` is 9,504,508 bytes; the final and pass-one ELFs are
+9,732,152 and 9,601,080 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 smoke and ran
 `/bin/ls.cc` to normal JIT completion. The final documentation-bearing image
 then passed the same private four-vCPU E1000 gate with `--cpu max`, strong SMP
@@ -2408,7 +2421,7 @@ inputs remain valid. The contract does not assign CupidC ownership from the
 `.cc` suffix. It requires a checked compile edge, the checked Toolchain
 contract, or an exact runtime-delivery policy entry backed by a CupidObj edge.
 The policy fixes all seventeen residual `.c` paths, all 130 source-text
-deliveries, and the four unreachable `.cc` paths. A stale path, unknown
+deliveries, and the six unreachable `.cc` paths. A stale path, unknown
 `.cc`, or host-owned `.cc` fails before publication. Active evidence remains
 mandatory when an audited tree has no policy file. A nonproduction audit
 accepts policy, a recorded source relation, or an explicit Make exclusion for

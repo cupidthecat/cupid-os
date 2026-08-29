@@ -27,10 +27,21 @@ CupidBuild and 260 Python participations. ADR 0363 records the link handoff.
 The audit derives that split from each graph's evaluated `CUPIDOBJ` command;
 it does not treat the variable name itself as proof of CupidBuild ownership.
 
+Source-head CupidBuild now adds a typed `embed-jpeg` transaction. The command
+freezes the asset and complete v2 seed, runs private CupidObj `wrap-jpeg` with
+the original logical identity, requires the exact JPEG payload and three
+identity symbols in the data-only i386 relocatable, and checks the frozen JPEG
+with a separate native SOF0/SOF1 parser. It owns the
+lock, drift checks, rollback, and atomic publication boundary. Both source-head
+fixed-point matrices compare the operation and preserve sentinel outputs on a
+progressive input, giving 26/6/33 Linux and 15/6/20 native Windows behavior
+inventories. The active seeds and Make recipe still use the preceding path.
+ADR 0364 records this source capability.
+
 The policy-bound OS build passed all 83 Doom roots, both CupidLD links, strict
 CupidDis inspection, all 16 exact artifact rows, and image publication. The
-flat kernel is 9,502,016 bytes; the final and pass-one ELFs are 9,728,056 and
-9,596,984 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
+flat kernel is 9,504,508 bytes; the final and pass-one ELFs are 9,732,152 and
+9,601,080 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
 embedded manual text, passed a four-vCPU E1000 boot and ran `/bin/ls.cc`. The
 final documentation-bearing image passed the same private gate and reached
 normal `/bin/ls.cc` JIT completion.
@@ -67,8 +78,8 @@ timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,502,016 bytes for `kernel/kernel.bin`, 9,728,056 bytes
-for `kernel/kernel.elf`, and 9,596,984 bytes for
+The current sizes are 9,504,508 bytes for `kernel/kernel.bin`, 9,732,152 bytes
+for `kernel/kernel.elf`, and 9,601,080 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as part of that replay.
 
@@ -1746,7 +1757,7 @@ semantics. The audit rejects an active tracked `.c` source owned by CupidC. A
 `.cc` suffix does not supply the opposite ownership claim. Checked compile
 and Toolchain contract edges prove 280 active sources. An exact policy names
 the other 130 sources delivered as text by CupidObj, all seventeen residual
-`.c` paths, and the four unreachable `.cc` paths. A host or inactive source
+`.c` paths, and the six unreachable `.cc` paths. A host or inactive source
 therefore cannot claim CupidC ownership through a suffix-only rename. The safe
 rename set is empty. ADR 0284 records the first gate, and ADR 0291 records the
 independent provenance rule. Every audit requires active ownership evidence,

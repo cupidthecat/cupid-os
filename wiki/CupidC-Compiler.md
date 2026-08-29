@@ -1219,7 +1219,7 @@ C++ semantics. An active tracked `.c` source assigned to CupidC now fails the
 audit. The reverse claim needs independent evidence from a checked compile
 edge, the checked Toolchain contract, or an exact runtime-delivery policy entry
 with a CupidObj edge. That policy also locks the seventeen residual `.c` paths
-and three unreachable `.cc` paths. A `.cc` rename still follows a real checked
+and six unreachable `.cc` paths. A `.cc` rename still follows a real checked
 build and behavior proof. The safe suffix-only rename set is empty. ADR 0284
 records the first gate, and ADR 0291 records the complete provenance rule.
 Every audit requires the active ownership evidence, including an audit without

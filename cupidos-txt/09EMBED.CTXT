@@ -109,6 +109,14 @@ independently before the object is published. A failed private oracle copy
 and an acceptance mismatch are reported separately; either failure keeps the
 old object.
 
+Source-head CupidBuild now has a typed replacement for that publication
+boundary. It freezes the asset and six-tool v2 seed, runs CupidObj against the
+private bytes under the original identity, checks the exact data payload and
+three identity symbols in the data-only relocatable, and applies a separate
+native SOF0/SOF1 check before guarded publication. The
+active seeds do not contain the command yet, so the normal recipe remains on
+the Python path until paired promotion.
+
 bin_programs_gen.cc likewise finds new .cc files under bin/.
 
 The god/*.DD files are wrapped by CupidObj pattern rules; they are available at

@@ -5,9 +5,15 @@ cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-b
 The current build graph contains 452 transforms, including 443 under root
 `all`. CupidBuild directly coordinates the ISR and context-switch object
 publications plus the bootloader and SMP raw-image publications. It also runs
-186 direct CupidObj recipes, bringing its total to 190 transforms and leaving
-Python in 262. CupidASM remains the language owner, and CupidDis remains the
+186 direct CupidObj recipes and both normal kernel links, bringing its total to
+192 transforms and leaving Python in 260. CupidASM remains the language owner,
+and CupidDis remains the
 inspection owner for the four guarded assembly publications.
+
+Source-head CupidBuild also carries a typed JPEG publication transaction. It
+fits the existing guarded host layer with one asset, one manifest, and six
+tools. Paired seed promotion is still required before that source capability
+can replace the normal Python coordinator.
 
 ---
 

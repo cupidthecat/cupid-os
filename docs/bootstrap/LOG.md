@@ -32880,3 +32880,112 @@ The six composite CupidObj paths remain on their specialized Python contracts.
 The next safe transfers need typed CupidBuild transactions rather than the
 generic runner. All active Toolchain and OS C sources already use `.cc`, and
 `TempleOS/` remains unchanged.
+
+## 2026-08-29: add typed JPEG publication to source-head CupidBuild
+
+The JPEG wrapper is the smallest remaining composite CupidObj publication.
+Its transaction needs one 800,393-byte source, the v2 manifest, and six tools,
+so it fits CupidBuild's sixteen-input and 64 MiB file limits without weakening
+the production contract.
+
+Source-head CupidBuild now exposes `embed-jpeg`. It opens the existing guarded
+transaction, freezes the source and complete six-tool seed, and runs private
+CupidObj `wrap-jpeg` with the original repository-relative source as the symbol
+identity. It pins the candidate and requires a byte-aligned writable `.data`
+section containing the exact JPEG, the three identity-derived symbols at their
+exact offsets, no relocations, no extra allocated payload, and no extra symbol.
+It then parses the frozen JPEG independently before rechecking the source,
+seed, candidate, owner lock, output parent, and existing destination. The
+final replacement remains the transaction's commit point.
+
+The first implementation reused host diagnostics that named CupidASM and code
+outputs. That wording would have made JPEG failures misleading. The shared
+transaction now reports neutral source, output, and artifact boundaries, and
+the existing assembly drift tests use the same accurate terms.
+
+A review confirmed that malformed input stops inside CupidObj before the
+independent veto, preserving the tool-first ownership set by ADR 0235. A
+structural CLI regression now requires the transaction to call the object
+check and native parser in that order. The parser is a bounded public
+CupidBuild byte-validation seam with a dedicated native contract. The contract
+accepts SOF0, SOF1, stuffed entropy, and restart markers, then checks all 21
+established malformed or unsupported classes with exact diagnostics. A second
+review found that the first contract's zero-filled diagnostic buffer could
+hide a missing terminator and that four index-coupled arrays made the cases
+fragile. The final contract uses nonzero sentinels, requires an in-bounds NUL,
+and keeps each named case, payload, size, and expected message together. The
+object cases separately reject wrong bytes, code-only output, bad identity and
+symbol values, relocations, extra allocated payload, and extra symbols. A raw
+`SHT_NOTE` mutation proves that the allocated-section rejection is not limited
+to the writer's `PROGBITS` and `NOBITS` surface. Every ELF fixture must
+serialize successfully before a rejection can count.
+
+Both fixed-point source matrices now run the typed command through consecutive
+CupidBuild images. They require identical relocatable output, reject a
+progressive JPEG, and verify that both prior outputs survive. The source-head
+inventories move from 25/6/32 to 26/6/33 on Linux and from 14/6/19 to 15/6/20
+on native Windows. The active seeds still carry the preceding interface.
+
+Current focused evidence:
+
+- All 76 native Windows CupidBuild CLI tests passed in 86.227 seconds, with
+  three platform skips.
+- The dedicated native JPEG validator contract passed its three accepted forms
+  and 21 exact parser rejections, plus one accepted and twelve rejected object
+  shapes.
+- The three fixed-point registration, inventory, and transaction selectors
+  passed in 0.275 seconds.
+- The source-current fixed-point audit mutation test passed in 248.702 seconds.
+  It still rejects dead stage-pair calls, missing live success or failure
+  guards, and weakened validator or behavior-count evidence.
+- All 65 CupidC Toolchain contract tests passed in 4.907 seconds, including
+  compilation and linking of the changed CupidBuild sources.
+- A direct typed run produced the established 800,860-byte object with SHA-256
+  `74ab86d88302c90385bb0b858632b0d6c4ac983d6be28c976dd1a3a348204b3e`.
+
+This is a source capability commit. Moving the normal `%.jpg.o` and
+`%.jpeg.o` recipes now would break a clean checkout because the promoted
+CupidBuild images do not know the command. Paired seed promotion, a fixed-point
+reproof, and the production Make handoff remain separate green steps. The
+normal graph therefore stays at 452 transforms, with CupidBuild in 192 and
+Python in 260.
+
+All active Toolchain and OS C sources still use `.cc`. The new native contract
+also uses `.cc`, and `TempleOS/` was not modified.
+
+The generated active-source audit and its independent checked replay both
+passed after the behavior contract learned the typed JPEG helper. The audit
+records 26 failures, six help cases, and 33 successes for Linux, plus 15
+failures, six help cases, and 20 successes for native Windows. Its 2,770,808
+bytes have SHA-256
+`1bd0058ebdf89a9ce8820e41fb564535280bc3df0c77d90c2b26eb85c015f191`.
+
+The full `make -j2 all` path compiled the active kernel, drivers, in-kernel
+toolchain, browser, generated install sources, and all 83 Doom roots. Both
+kernel links ran through CupidBuild, and whole-image CupidDis validation
+passed. The size gate then rejected the three documentation-bearing kernel
+outputs, as intended: the flat kernel had grown 2,308 bytes, and the two ELFs
+had each crossed one 4,096-byte alignment boundary. Updating only those
+measured rows and replaying the graph accepted all 16 exact artifacts and
+published the image.
+
+Final review corrections expanded the semantic object contract and fixed the
+embedded `.cc` census, so a second full build repeated all 83 Doom compiles,
+both CupidBuild/CupidLD links, and whole-image CupidDis validation. The two ELF
+extents stayed fixed, while the flat kernel grew another 184 bytes. The exact
+gate rejected that stale row, then accepted all 16 artifacts after the single
+measured update.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,601,080 | `eb69dd23dab38ffebb854c05b1e928f4438f274aec680be4747a61470aecf0d1` |
+| `kernel/kernel.elf` | 9,732,152 | `70740dfd19c2bf1120463745e821c5c6a11e171adcdb0c81a088592bff639e3d` |
+| `kernel/kernel.bin` | 9,504,508 | `47c1e47997704276fe201e8d8b7c0b998eaf8d30b55af1796a40e131770518e2` |
+| `cupidos.img` | 209,715,200 | `604a48143344a0bbd3e18e1b625a689265b48ce8fb7510b787d9f6d2d337b09d` |
+
+The 3,382-byte artifact-size policy now covers 38,178,028 bytes and has
+SHA-256
+`4cf6dbbe470c907e6e95450399f7d500b10761c6c6a79b0a75109ad6f3abda8d`.
+A private four-vCPU E1000 smoke used `--cpu max --verify-smp-runtime` and ran
+`/bin/ls.cc` to normal JIT completion. Its 35,451-byte serial log has SHA-256
+`5ad14de3efdd72dc036f8f6c62fea3c868cfd10b946f88efe36427e9e8e9741b`.

@@ -9302,9 +9302,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 25,
+        "failure_cases": 26,
         "help_cases": 6,
-        "success_cases": 32,
+        "success_cases": 33,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -9757,6 +9757,147 @@ def _cupid_toolchain_fixed_point_contract(
         raise AuditError(
             "Cupid Toolchain fixed-point CupidBuild behavior differs: "
             f"{missing_cupidbuild_behavior_fragments!r}"
+        )
+    cupidbuild_jpeg_helpers = [
+        node
+        for node in bootstrap_tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_check_cupidbuild_embed_jpeg_behavior"
+    ]
+    if (
+        len(cupidbuild_jpeg_helpers) != 1
+        or live_linked_code_policy_call_count(
+            behavior_function,
+            "_check_cupidbuild_embed_jpeg_behavior",
+        )
+        != 1
+        or live_linked_code_policy_call_count(
+            cupidbuild_jpeg_helpers[0],
+            "_run_stage_pair",
+        )
+        != 2
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point JPEG publication differs: "
+            "Linux must call the helper once and the helper must compare "
+            "both success and failure across stages"
+        )
+    cupidbuild_jpeg_source = (
+        ast.get_source_segment(bootstrap_source, cupidbuild_jpeg_helpers[0])
+        or ""
+    )
+    cupidbuild_jpeg_helper = cupidbuild_jpeg_helpers[0]
+    cupidbuild_jpeg_parents = {
+        child: parent
+        for parent in ast.walk(cupidbuild_jpeg_helper)
+        for child in ast.iter_child_nodes(parent)
+    }
+    cupidbuild_jpeg_status_calls = [
+        node
+        for node in ast.walk(cupidbuild_jpeg_helper)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_expect_status"
+        and not _ast_node_is_statically_dead(
+            node,
+            cupidbuild_jpeg_helper,
+            cupidbuild_jpeg_parents,
+        )
+    ]
+    cupidbuild_jpeg_status_contract = {
+        (
+            call.args[0].id,
+            call.args[1].value,
+        )
+        for call in cupidbuild_jpeg_status_calls
+        if len(call.args) >= 2
+        and isinstance(call.args[0], ast.Name)
+        and isinstance(call.args[1], ast.Constant)
+        and isinstance(call.args[1].value, int)
+    }
+
+    def live_jpeg_guard_with_fragments(
+        error_fragment: str,
+        *fragments: str,
+    ) -> bool:
+        for guard in ast.walk(cupidbuild_jpeg_helper):
+            if (
+                not isinstance(guard, ast.If)
+                or _ast_node_is_statically_dead(
+                    guard,
+                    cupidbuild_jpeg_helper,
+                    cupidbuild_jpeg_parents,
+                )
+            ):
+                continue
+            guard_source = (
+                ast.get_source_segment(bootstrap_source, guard.test) or ""
+            )
+            if not all(fragment in guard_source for fragment in fragments):
+                continue
+            for raised in guard.body:
+                if (
+                    isinstance(raised, ast.Raise)
+                    and error_fragment
+                    in (ast.get_source_segment(bootstrap_source, raised) or "")
+                ):
+                    return True
+        return False
+
+    cupidbuild_jpeg_success_guard = live_jpeg_guard_with_fragments(
+        "CupidBuild JPEG output differs",
+        "success_result.stdout",
+        "success_result.stderr",
+        "stage_two_output.read_bytes() != stage_three_output.read_bytes()",
+    )
+    cupidbuild_jpeg_failure_guard = live_jpeg_guard_with_fragments(
+        "CupidBuild JPEG failure behavior differs",
+        "failure_result.stdout",
+        '"checked CupidObj failed" not in failure_result.stderr',
+        "stage_two_failure.read_bytes() != sentinel",
+        "stage_three_failure.read_bytes() != sentinel",
+    )
+    required_cupidbuild_jpeg_fragments = (
+        'jpeg_root = behavior_root / "cupidbuild-jpeg"',
+        "manifest_path = _materialize_behavior_seed(seed_inputs, jpeg_root)",
+        "asset.write_bytes(_CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD)",
+        '        "embed-jpeg",',
+        "success_result = _run_stage_pair(",
+        "stage_two_output.read_bytes() != stage_three_output.read_bytes()",
+        "_validate_i386_relocatable(stage_two_output)",
+        'progressive_asset = jpeg_root / "progressive.jpg"',
+        "stage_two_failure.write_bytes(sentinel)",
+        "stage_three_failure.write_bytes(sentinel)",
+        "failure_result = _run_stage_pair(",
+        '"checked CupidObj failed" not in failure_result.stderr',
+        "stage_two_failure.read_bytes() != sentinel",
+        "stage_three_failure.read_bytes() != sentinel",
+    )
+    missing_cupidbuild_jpeg_fragments = [
+        fragment
+        for fragment in required_cupidbuild_jpeg_fragments
+        if cupidbuild_jpeg_source.count(fragment)
+        != (2 if fragment == '        "embed-jpeg",' else 1)
+    ]
+    if (
+        missing_cupidbuild_jpeg_fragments
+        or cupidbuild_jpeg_source.count('        "cupidbuild",') != 2
+        or cupidbuild_jpeg_status_contract
+        != {("success_result", 0), ("failure_result", 1)}
+        or live_linked_code_policy_call_count(
+            cupidbuild_jpeg_helper,
+            "_validate_i386_relocatable",
+        )
+        != 1
+        or not cupidbuild_jpeg_success_guard
+        or not cupidbuild_jpeg_failure_guard
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point JPEG publication behavior differs: "
+            f"missing={missing_cupidbuild_jpeg_fragments!r}, "
+            f"statuses={cupidbuild_jpeg_status_contract!r}, "
+            f"success_guard={cupidbuild_jpeg_success_guard}, "
+            f"failure_guard={cupidbuild_jpeg_failure_guard}"
         )
     behavior_source = (
         ast.get_source_segment(bootstrap_source, behavior_function) or ""
@@ -12765,6 +12906,7 @@ def _cupid_toolchain_fixed_point_contract(
             "for tool_name in tool_names:",
             "_check_cupidbuild_cupidobj_runner_behavior(",
             "_check_cupidbuild_guarded_object_behavior(",
+            "_check_cupidbuild_embed_jpeg_behavior(",
             "failure_result = _run_stage_pair(",
             '"--definitely-invalid-option"',
             "stage_two_object.read_bytes()",
@@ -12818,9 +12960,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 8, "
+            "'failure_cases': len(tool_names) + 9, "
             "'help_cases': len(tool_names), "
-            "'success_cases': len(tool_names) + 13"
+            "'success_cases': len(tool_names) + 14"
             "}",
             mode="eval",
         ).body
@@ -12840,8 +12982,8 @@ def _cupid_toolchain_fixed_point_contract(
             )
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return fourteen failure, "
-                "six help, and nineteen success cases"
+                "_run_native_windows_behavior_checks: return fifteen failure, "
+                "six help, and twenty success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -12875,6 +13017,17 @@ def _cupid_toolchain_fixed_point_contract(
             missing_native_windows_fragments.append(
                 "_run_native_windows_behavior_checks: one guarded "
                 "CupidBuild object call"
+            )
+        if (
+            live_linked_code_policy_call_count(
+                behavior_function,
+                "_check_cupidbuild_embed_jpeg_behavior",
+            )
+            != 1
+        ):
+            missing_native_windows_fragments.append(
+                "_run_native_windows_behavior_checks: one typed "
+                "CupidBuild JPEG publication call"
             )
         behavior_parents = {
             child: parent
@@ -13482,13 +13635,14 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 6,
-        "windows_success_behavior_cases": 19,
-        "windows_failure_behavior_cases": 14,
+        "windows_success_behavior_cases": 20,
+        "windows_failure_behavior_cases": 15,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_checked_cupidobj_runner",
             "cupid.cupidbuild_guarded_object_transaction",
             "cupid.cupidbuild_guarded_raw_transaction",
+            "cupid.cupidbuild_typed_jpeg_transaction",
             "cupiddis.candidate_image_certification",
             "cupiddis.elf32_code_anchors",
             "cupidld.pe32_fixed_image",
@@ -14213,18 +14367,19 @@ def _ast_node_is_statically_dead(
         if isinstance(parent, ast.If) and isinstance(
             parent.test,
             ast.Constant,
-        ) and isinstance(parent.test.value, bool):
+        ):
+            condition_is_true = bool(parent.test.value)
             if (
-                not parent.test.value
+                not condition_is_true
                 and current in parent.body
-                or parent.test.value
+                or condition_is_true
                 and current in parent.orelse
             ):
                 return True
         if (
             isinstance(parent, ast.While)
             and isinstance(parent.test, ast.Constant)
-            and parent.test.value is False
+            and not bool(parent.test.value)
             and current in parent.body
         ):
             return True

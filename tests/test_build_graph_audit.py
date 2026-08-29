@@ -6103,15 +6103,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 6)
-        self.assertEqual(contract["success_behavior_cases"], 32)
-        self.assertEqual(contract["failure_behavior_cases"], 25)
+        self.assertEqual(contract["success_behavior_cases"], 33)
+        self.assertEqual(contract["failure_behavior_cases"], 26)
         self.assertEqual(contract["tool_c_sources"], 22)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 22)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 6)
-        self.assertEqual(contract["windows_success_behavior_cases"], 19)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 14)
+        self.assertEqual(contract["windows_success_behavior_cases"], 20)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 15)
         self.assertEqual(contract["contract_manifest_inputs"], 75)
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 75
@@ -6136,6 +6136,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "cupid.cupidbuild_checked_cupidobj_runner",
                 "cupid.cupidbuild_guarded_object_transaction",
                 "cupid.cupidbuild_guarded_raw_transaction",
+                "cupid.cupidbuild_typed_jpeg_transaction",
                 "cupiddis.candidate_image_certification",
                 "cupiddis.elf32_code_anchors",
                 "cupidld.pe32_fixed_image",
@@ -6615,20 +6616,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 33,\n',
                 '        "success_cases": 32,\n',
-                '        "success_cases": 31,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 26,\n',
                 '        "failure_cases": 25,\n',
-                '        "failure_cases": 24,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": len(tool_names) + 9,\n',
                 '        "failure_cases": len(tool_names) + 8,\n',
-                '        "failure_cases": len(tool_names) + 7,\n',
                 r"native Windows fixed-point behavior differs",
             ),
             "Linux fixed-point C objects skip CupidDis certification": (
@@ -6826,6 +6827,60 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '            "native Windows ",\n'
                 "        )\n",
                 r"checked CupidObj runner call",
+            ),
+            "JPEG success stage comparison moves under a dead block": (
+                "bootstrap",
+                "    success_result = _run_stage_pair(\n"
+                "        runner,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                '        "cupidbuild",\n'
+                "        [\n"
+                "            *common_arguments,\n"
+                '            "--output",\n'
+                "            stage_two_output.relative_to("
+                "source_root).as_posix(),\n"
+                "        ],\n"
+                "        [\n"
+                "            *common_arguments,\n"
+                '            "--output",\n'
+                "            stage_three_output.relative_to("
+                "source_root).as_posix(),\n"
+                "        ],\n"
+                "        180,\n"
+                "    )\n",
+                "    if 0:\n"
+                "        success_result = _run_stage_pair(\n"
+                "            runner,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                '            "cupidbuild",\n'
+                "            [\n"
+                "                *common_arguments,\n"
+                '                "--output",\n'
+                "                stage_two_output.relative_to("
+                "source_root).as_posix(),\n"
+                "            ],\n"
+                "            [\n"
+                "                *common_arguments,\n"
+                '                "--output",\n'
+                "                stage_three_output.relative_to("
+                "source_root).as_posix(),\n"
+                "            ],\n"
+                "            180,\n"
+                "        )\n"
+                "    else:\n"
+                "        success_result = None\n",
+                r"fixed-point JPEG publication differs",
+            ),
+            "JPEG success output guard stops rejecting drift": (
+                "bootstrap",
+                "        raise BootstrapError(\n"
+                "            f\"{label_prefix}CupidBuild JPEG output "
+                "differs\"\n"
+                "        )\n",
+                "        pass\n",
+                r"fixed-point JPEG publication behavior differs",
             ),
             "linked-target behavior helper disappears": (
                 "bootstrap",

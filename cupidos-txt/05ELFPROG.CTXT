@@ -60,6 +60,14 @@ This generic runner does not claim the locking, inspection, or atomic
 replacement owned by the typed assembly transactions. Both seeds carry the
 runner, and Make uses it for the direct recipes.
 
+Source-head CupidBuild now has a typed JPEG object transaction beside the
+assembly operations. It requires data-only i386 ET_REL output from CupidObj
+with the exact asset bytes and start, end, and size symbols derived from the
+original spelling. It independently validates the frozen sequential JPEG and
+publishes only after the lock, inputs, candidate, destination, and parent still
+match. Paired seed promotion
+must carry the command before the normal JPEG edge can use it.
+
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
 0.962 seconds with four POSIX skips, and its dedicated Make contract passed.

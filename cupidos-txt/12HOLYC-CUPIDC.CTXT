@@ -68,6 +68,13 @@ success cases. Make now runs 186 ordinary CupidObj recipes through that checked
 command without changing their output formats. Both normal kernel links use
 the same checked runner.
 
+The same represented hosted C profile now builds a typed CupidBuild JPEG
+transaction and its independent native validator. Both source-head fixed-point
+matrices run the command across consecutive CupidBuild images, compare the
+relocatable result, and prove rollback for a progressive JPEG. Their source
+inventories are 26/6/33 on Linux and 15/6/20 on native Windows. This is source
+capability only; the active seeds and normal JPEG rule remain unchanged.
+
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
 0.962 seconds with four POSIX skips, and its dedicated Make contract passed.

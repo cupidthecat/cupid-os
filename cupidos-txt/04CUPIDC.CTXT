@@ -46,6 +46,16 @@ identity still belongs to the runner and preserves a replacement identity.
 Both promoted seeds carry this command. Normal Make uses it for 175 text
 wrappers, eight binary wrappers, and three installation-source generators.
 
+Source-head CupidBuild also provides a typed embed-jpeg transaction. It
+freezes one asset and the complete v2 seed, runs private CupidObj wrap-jpeg
+under the original logical identity, checks the exact data payload and three
+identity symbols in the data-only i386 ET_REL, and validates the frozen JPEG
+with a separate native SOF0/SOF1 parser. The source-head
+fixed-point matrices compare the transaction and prove progressive-input
+rollback at 26/6/33 cases on Linux and 15/6/20 on native Windows. The active
+seeds do not carry this command yet, so normal JPEG publication still uses its
+Python coordinator.
+
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
 0.962 seconds with four POSIX skips, and the dedicated Make contract passed.
@@ -423,7 +433,7 @@ The audit rejects an active tracked .c source owned by CupidC. A .cc rename
 does not prove the opposite claim by itself. A checked compile edge, the
 checked Toolchain contract, or an exact runtime-delivery policy entry with a
 CupidObj edge supplies the ownership record. The policy fixes all seventeen
-residual .c paths, the 130 runtime-delivered .cc paths, and the three
+residual .c paths, the 130 runtime-delivered .cc paths, and the six
 unreachable .cc paths. A host or inactive source cannot claim CupidC ownership
 through a suffix-only rename. Every audit requires independent evidence for an
 active .cc, including an audit without a policy file. A nonproduction audit

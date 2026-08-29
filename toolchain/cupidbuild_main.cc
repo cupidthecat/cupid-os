@@ -12,6 +12,8 @@ static void cupidbuild_usage(FILE *stream) {
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild assemble-smp-trampoline "
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
+      "       cupidbuild embed-jpeg "
+      "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
       "--root ROOT --tool {cupidobj|cupidld} [--timeout SECONDS] -- "
       "TOOL_ARGS...\n");
@@ -83,6 +85,8 @@ int main(int argc, char **argv) {
       operation = 2;
     } else if (strcmp(argv[1], "assemble-smp-trampoline") == 0) {
       operation = 3;
+    } else if (strcmp(argv[1], "embed-jpeg") == 0) {
+      operation = 4;
     }
   }
   if (operation != 0) {
@@ -119,7 +123,10 @@ int main(int argc, char **argv) {
     if (operation == 2) {
       return cupidbuild_assemble_bootloader(&request);
     }
-    return cupidbuild_assemble_smp_trampoline(&request);
+    if (operation == 3) {
+      return cupidbuild_assemble_smp_trampoline(&request);
+    }
+    return cupidbuild_embed_jpeg(&request);
   }
   if (argc >= 2 && strcmp(argv[1], "run") == 0) {
     int separator = 0;

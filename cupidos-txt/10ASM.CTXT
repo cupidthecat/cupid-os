@@ -68,6 +68,14 @@ recipes and both normal kernel links through CupidBuild. Python stays on six
 composite CupidObj paths where
 it provides an independent check or controls publication.
 
+Source head now closes one of those composite designs with a typed embed-jpeg
+transaction. CupidBuild freezes the asset and complete v2 cohort, requires
+CupidObj's data-only relocatable to carry the exact payload and identity
+symbols, checks the JPEG with a separate native parser, and owns locking and
+publication. The source-head fixed-point matrices
+exercise exact output and progressive-input rollback. Seed promotion and the
+normal Make handoff remain separate steps.
+
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
 0.962 seconds with four POSIX skips, and the dedicated Make contract passed.

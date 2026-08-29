@@ -61,10 +61,24 @@ targets, and relocatable code anchors. The normal ISR, context-switch,
 bootloader, and SMP-trampoline recipes invoke this operation directly, so
 CupidBuild owns all four guarded publications. Fixed-point carriage or source
 capability alone still does not establish production ownership.
+
+Source head also has a typed JPEG transaction. It freezes one asset and the
+complete v2 seed, asks CupidObj to validate and wrap the private bytes under
+the original logical identity, and then checks the exact `.data` payload and
+three identity symbols in the data-only i386 relocatable. An independent
+native SOF0/SOF1 parser supplies the final semantic veto before publication.
+The active seeds do not carry this command yet, so the normal
+JPEG recipe remains on its guarded Python coordinator.
 _Avoid_: command wrapper, unchecked tool launch, production ownership from source presence
 
 **Hosted bootstrap runtime**:
 The static i386 C runtime linked into Cupid tool and contract images. It supplies the represented heap, file, memory, string, error, and working-directory interfaces without a host libc. Its string boundary includes binary `memchr`, which CupidBuild uses while validating frozen JSON. The active six-tool seeds contain CupidBuild beside CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. CupidBuild directly coordinates two guarded relocatable objects, two guarded raw images, 186 ordinary CupidObj calls, and both normal kernel links; Python participates in the other 260 transforms. The checked runner admits only CupidObj and CupidLD. On Linux, it freezes the manifest and six tools in fully sealed anonymous memfds, pins the working directory by descriptor, and calls `fchdir` before remapping captured streams. A retained tool descriptor in standard slot 0, 1, or 2 is duplicated above those slots before `fexecve` or `execveat`. The `dup2`, pipe read and write, and wait loops retry `EINTR`; `dup2` also retries `EBUSY`. Captured streams are sealed anonymous memfds, and a close-on-exec launch-status pipe preserves a genuine tool exit of 125. The static i386 startup supplies `cupid_linux_syscall5`. On Windows, the runner pins and rechecks the working-directory identity, pins its private root and files by handle, retains a tool handle without write or delete sharing through `CreateProcessA`, and forwards output in binary mode to preserve exact bytes. Cleanup deletes a file that changed in place when its identity still matches, but preserves a replacement with a different identity. Both fixed-point behavior matrices run checked CupidObj through consecutive CupidBuild generations and compare a real relocatable result plus an invalid-option diagnostic. The direct Make recipes use the promoted production seed and keep Makefile plus all six images in their prerequisite closure. Composite CupidObj publications retain their Python safety and parity layers.
+
+The source-head fixed-point matrices also run typed JPEG publication through
+both compared CupidBuild generations. They compare the relocatable output and
+prove that progressive input preserves both previous destinations. Their
+inventories are 26/6/33 on Linux and 15/6/20 on native Windows. The promoted
+seeds retain the preceding inventories until the next paired refresh.
 _Avoid_: host libc, production ownership from a source-head link
 
 **External executable arena**:
@@ -475,7 +489,7 @@ misstate its owner. The audit rejects any active tracked `.c` source owned by
 CupidC. It does not infer the reverse claim from `.cc`. A checked compile edge,
 the checked Toolchain contract, or an exact runtime-delivery policy entry with
 a CupidObj edge supplies independent ownership evidence. The policy also locks
-the seventeen residual `.c` paths and four unreachable `.cc` paths, so a host
+the seventeen residual `.c` paths and six unreachable `.cc` paths, so a host
 or inactive source cannot leave the census through a suffix-only rename. The
 active evidence rule applies even when an audited tree has no policy file. An
 unreferenced `.cc` in a nonproduction audit needs policy, a recorded source
@@ -1795,25 +1809,27 @@ The guest reported
 `[feature14-callback-raw-automatic-array] PASS zeroed=4 initialized=2 assigned=1 copied=2 later=1 calls=4`.
 The 143,084-byte serial log had SHA-256
 `6b5c6a4ca5daf9f19ec099d45609f385e0cf983f945a40433ebc3f1921e8ffab`.
-The final normal `make -j4 all` passed after the exact-size check rejected the
+The final normal build passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All sixteen exact artifacts
 passed, along with whole-image CupidDis inspection and disk-image staging. The
-current artifacts are a 9,596,984-byte `kernel/kernel.elf.pass1` with SHA-256
-`1b8fd538abd6577e817908fd6b308c3398381d1dbd446d105f9b799a3341378e`, a
-9,728,056-byte `kernel/kernel.elf` with SHA-256
-`73b120e46d19e3cba2117083a9b590c15cfdde2d08078b6e4b2d51566f96f379`,
-and a 9,502,016-byte `kernel/kernel.bin` with SHA-256
-`e5761dcd0d2851fc01f52f64669ea4b47fca9d1242bcd5b5c97af836ed8de7c3`.
-The current 3,382-byte exact-size policy covers 38,167,344 bytes and has
+current artifacts are a 9,601,080-byte `kernel/kernel.elf.pass1` with SHA-256
+`eb69dd23dab38ffebb854c05b1e928f4438f274aec680be4747a61470aecf0d1`, a
+9,732,152-byte `kernel/kernel.elf` with SHA-256
+`70740dfd19c2bf1120463745e821c5c6a11e171adcdb0c81a088592bff639e3d`,
+and a 9,504,508-byte `kernel/kernel.bin` with SHA-256
+`47c1e47997704276fe201e8d8b7c0b998eaf8d30b55af1796a40e131770518e2`.
+The current 3,382-byte exact-size policy covers 38,178,028 bytes and has
 SHA-256
-`ba48bf4609616faad06da2d2f6910d8091b4084951778d68fb7331d9d447a4ff`.
+`4cf6dbbe470c907e6e95450399f7d500b10761c6c6a79b0a75109ad6f3abda8d`.
 The normal 209,715,200-byte `cupidos.img` has SHA-256
-`5aeed8c2d792a2bc21efe6bc9c1a05e6fa2f1512385b900ab8f0ca5f02e7240d`.
+`604a48143344a0bbd3e18e1b625a689265b48ce8fb7510b787d9f6d2d337b09d`.
 A preceding 9,501,220-byte checkpoint, which differed only in embedded manual
 text, passed a private four-vCPU E1000 QEMU smoke with
 `--cpu max --verify-smp-runtime` and ran `/bin/ls.cc`. The final
 documentation-bearing image later passed the same private gate and reached
-normal `/bin/ls.cc` JIT completion. Neither smoke changed the image.
+normal `/bin/ls.cc` JIT completion. Its 35,451-byte log has SHA-256
+`5ad14de3efdd72dc036f8f6c62fea3c868cfd10b946f88efe36427e9e8e9741b`.
+Neither smoke changed the image.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
 duplicate, linked, nonregular, or differently sized members fail. An

@@ -30,10 +30,20 @@ skips. The dedicated Make contract passed, as did all six CupidASM source tests
 in 3.771 seconds, strict Windows and freestanding i386 adapter compilation, and
 timeout-and-seed-drift precedence.
 
+One of those six composite paths now has a source-head replacement ready for
+promotion. Typed `cupidbuild embed-jpeg` owns the lock, frozen asset and v2
+seed, private CupidObj candidate, exact payload and identity-symbol checks,
+the independent native JPEG veto, drift checks, and atomic publication. The
+active seeds do not contain the command yet, so
+Host Python still coordinates the normal JPEG edge and the production
+participation totals remain 192 CupidBuild and 260 Python. Source-head
+fixed-point behavior now includes the transaction at 26/6/33 on Linux and
+15/6/20 on native Windows.
+
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,502,016 bytes for `kernel/kernel.bin`, 9,728,056 bytes
-for `kernel/kernel.elf`, and 9,596,984 bytes for
+The current sizes are 9,504,508 bytes for `kernel/kernel.bin`, 9,732,152 bytes
+for `kernel/kernel.elf`, and 9,601,080 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as well.
 
@@ -281,12 +291,12 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`ba48bf4609616faad06da2d2f6910d8091b4084951778d68fb7331d9d447a4ff`.
+`4cf6dbbe470c907e6e95450399f7d500b10761c6c6a79b0a75109ad6f3abda8d`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,596,984, 9,728,056, and 9,502,016 bytes for the boot image, pass-one ELF,
+9,601,080, 9,732,152, and 9,504,508 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,167,344 bytes.
+sixteen rows, totaling 38,178,028 bytes.
 
 The paired-seed promotion replay passed both CupidLD links and strict
 inspection of all 431 production inputs. Its first size gate measured
@@ -655,7 +665,7 @@ independent ownership evidence for active `.cc` sources. Direct checked compile
 and Toolchain contract edges prove 280 sources. An exact policy and CupidObj
 delivery edge prove the remaining 130 runtime sources. That policy keeps all
 seventeen residual `.c`
-paths and four unreachable `.cc` paths visible. The safe suffix-only rename
+paths and six unreachable `.cc` paths visible. The safe suffix-only rename
 set is empty. Every audit requires independent evidence for an active `.cc`,
 even if the audited tree has no policy. A nonproduction audit accepts policy,
 a recorded relation, or an explicit Make exclusion for an unreachable `.cc`.

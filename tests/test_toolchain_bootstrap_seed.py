@@ -2764,6 +2764,24 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     if tool_name == "cupidld":
                         output += "i386pe\n"
                     return subprocess.CompletedProcess([], 0, output, "")
+                if arguments[0] == "embed-jpeg":
+                    source_name = arguments[arguments.index("--source") + 1]
+                    if Path(source_name).name == "progressive.jpg":
+                        return subprocess.CompletedProcess(
+                            [],
+                            1,
+                            "",
+                            "cupidbuild: checked CupidObj failed\n",
+                        )
+                    for command in (arguments, paired_arguments):
+                        command_root = Path(
+                            command[command.index("--root") + 1]
+                        )
+                        output_name = command[command.index("--output") + 1]
+                        (command_root / output_name).write_bytes(
+                            _unowned_relocation_object_payload()
+                        )
+                    return subprocess.CompletedProcess([], 0, "", "")
                 if arguments[0] == "run":
                     forwarded = arguments[arguments.index("--") + 1 :]
                     if forwarded == ("--definitely-invalid-option",):
@@ -2853,6 +2871,48 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 linux_calls[len(CANDIDATE_TOOL_NAMES) + 2][1][0],
+                "embed-jpeg",
+            )
+            linux_jpeg_root = linux_output / "behavior" / "cupidbuild-jpeg"
+            self.assertEqual(
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 2][1],
+                (
+                    "embed-jpeg",
+                    "--seed-manifest",
+                    str(linux_jpeg_root / "cupidbuild-seed" / "manifest.json"),
+                    "--root",
+                    str(root),
+                    "--source",
+                    (linux_jpeg_root / "asset.jpg")
+                    .relative_to(root)
+                    .as_posix(),
+                    "--output",
+                    (linux_jpeg_root / "stage-three-cupidbuild-jpeg.o")
+                    .relative_to(root)
+                    .as_posix(),
+                ),
+            )
+            self.assertEqual(
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 3][1][0],
+                "embed-jpeg",
+            )
+            self.assertEqual(
+                Path(
+                    linux_calls[len(CANDIDATE_TOOL_NAMES) + 3][1][
+                        linux_calls[len(CANDIDATE_TOOL_NAMES) + 3][1].index(
+                            "--source"
+                        )
+                        + 1
+                    ]
+                ).name,
+                "progressive.jpg",
+            )
+            self.assertEqual(
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 4][0],
+                "cupidbuild",
+            )
+            self.assertEqual(
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 4][1][0],
                 "assemble-cupidasm-object",
             )
 
@@ -2885,6 +2945,24 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     return subprocess.CompletedProcess(
                         [], 2, "", "usage: candidate\n"
                     )
+                if arguments[0] == "embed-jpeg":
+                    source_name = arguments[arguments.index("--source") + 1]
+                    if Path(source_name).name == "progressive.jpg":
+                        return subprocess.CompletedProcess(
+                            [],
+                            1,
+                            "",
+                            "cupidbuild: checked CupidObj failed\n",
+                        )
+                    for command in (arguments, paired_arguments):
+                        command_root = Path(
+                            command[command.index("--root") + 1]
+                        )
+                        output_name = command[command.index("--output") + 1]
+                        (command_root / output_name).write_bytes(
+                            _unowned_relocation_object_payload()
+                        )
+                    return subprocess.CompletedProcess([], 0, "", "")
                 if arguments[0] == "run":
                     forwarded = arguments[arguments.index("--") + 1 :]
                     if forwarded == ("--definitely-invalid-option",):
@@ -2981,6 +3059,54 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 windows_calls[len(expected_windows_calls) + 2][1][0],
+                "embed-jpeg",
+            )
+            windows_jpeg_root = (
+                windows_output / "behavior" / "cupidbuild-jpeg"
+            )
+            self.assertEqual(
+                windows_calls[len(expected_windows_calls) + 2][1],
+                (
+                    "embed-jpeg",
+                    "--seed-manifest",
+                    str(
+                        windows_jpeg_root
+                        / "cupidbuild-seed"
+                        / "manifest.json"
+                    ),
+                    "--root",
+                    str(windows_output),
+                    "--source",
+                    (windows_jpeg_root / "asset.jpg")
+                    .relative_to(windows_output)
+                    .as_posix(),
+                    "--output",
+                    (windows_jpeg_root / "stage-three-cupidbuild-jpeg.o")
+                    .relative_to(windows_output)
+                    .as_posix(),
+                ),
+            )
+            self.assertEqual(
+                windows_calls[len(expected_windows_calls) + 3][1][0],
+                "embed-jpeg",
+            )
+            self.assertEqual(
+                Path(
+                    windows_calls[len(expected_windows_calls) + 3][1][
+                        windows_calls[
+                            len(expected_windows_calls) + 3
+                        ][1].index("--source")
+                        + 1
+                    ]
+                ).name,
+                "progressive.jpg",
+            )
+            self.assertEqual(
+                windows_calls[len(expected_windows_calls) + 4][0],
+                "cupidbuild",
+            )
+            self.assertEqual(
+                windows_calls[len(expected_windows_calls) + 4][1][0],
                 "assemble-cupidasm-object",
             )
 
@@ -5227,9 +5353,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 14,
+                    "failure_cases": 15,
                     "help_cases": 6,
-                    "success_cases": 19,
+                    "success_cases": 20,
                 },
             )
             candidate_linux_plan = _candidate_build_plan(
@@ -5807,9 +5933,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            25,
+            26,
         )
-        self.assertEqual(returned["success_cases"].value, 32)
+        self.assertEqual(returned["success_cases"].value, 33)
         self.assertIsInstance(returned["help_cases"], ast.Call)
         self.assertEqual(returned["help_cases"].func.id, "len")
         self.assertEqual(returned["help_cases"].args[0].id, "tool_names")
@@ -5904,6 +6030,46 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertIn("('guarded-smp-trampoline.S', 4096)", rendered)
         self.assertIn("malformed-bootloader.asm", rendered)
         self.assertIn("preserved CupidBuild raw output", rendered)
+
+    def test_fixed_point_cupidbuild_checks_typed_jpeg_transaction(self):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+
+        def function(name):
+            return next(
+                node
+                for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name == name
+            )
+
+        behavior = function("_check_cupidbuild_embed_jpeg_behavior")
+        rendered = ast.unparse(behavior)
+        for expected in (
+            "'embed-jpeg'",
+            "'asset.jpg'",
+            "'progressive.jpg'",
+            "'checked CupidObj failed'",
+            "b'preserved CupidBuild JPEG output\\n'",
+            "stage_two_output.read_bytes() != "
+            "stage_three_output.read_bytes()",
+            "stage_two_failure.read_bytes() != sentinel",
+            "stage_three_failure.read_bytes() != sentinel",
+        ):
+            self.assertIn(expected, rendered)
+
+        for matrix_name in (
+            "_run_behavior_checks",
+            "_run_native_windows_behavior_checks",
+        ):
+            matrix = function(matrix_name)
+            calls = [
+                node
+                for node in ast.walk(matrix)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id
+                == "_check_cupidbuild_embed_jpeg_behavior"
+            ]
+            self.assertEqual(len(calls), 1)
 
     def test_fixed_point_relocation_fixture_is_a_valid_i386_object(self):
         payload = _unowned_relocation_object_payload()
@@ -9381,9 +9547,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 25,
+                    "failure_cases": 26,
                     "help_cases": 6,
-                    "success_cases": 32,
+                    "success_cases": 33,
                 },
             )
             self.assertEqual(
@@ -9752,7 +9918,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 initial_matches,
                 {
-                    name: False
+                    name: name != "cupidbuild"
                     for name in CANDIDATE_TOOL_NAMES
                 },
             )

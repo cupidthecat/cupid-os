@@ -20,6 +20,12 @@ from tools.bootstrap_toolchain import (
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
+BASELINE_JPEG = (
+    b"\xff\xd8"
+    b"\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00"
+    b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00"
+    b"\xff\xd9"
+)
 
 
 class CupidBuildCliTests(unittest.TestCase):
@@ -69,6 +75,22 @@ class CupidBuildCliTests(unittest.TestCase):
         self.assertIn("cupidbuild assemble-cupidasm-object", result.stdout)
         self.assertIn("cupidbuild assemble-bootloader", result.stdout)
         self.assertIn("cupidbuild assemble-smp-trampoline", result.stdout)
+
+    def test_help_names_the_typed_jpeg_transaction(self):
+        result = subprocess.run(
+            [str(self.cli_path), "--help"],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertRegex(
+            result.stdout,
+            r"cupidbuild embed-jpeg --seed-manifest MANIFEST\s+"
+            r"--root ROOT --source SOURCE --output OUTPUT",
+        )
 
     def test_invalid_command_returns_usage_status_without_output(self):
         result = subprocess.run(
@@ -879,6 +901,13 @@ class CupidBuildCliTests(unittest.TestCase):
             "assemble-cupidasm-object", source, output, manifest
         )
 
+    def _run_embed_jpeg(self, source, output, manifest=None):
+        return self._run_assembly("embed-jpeg", source, output, manifest)
+
+    @staticmethod
+    def _large_baseline_jpeg(entropy_size=8 * 1024 * 1024):
+        return BASELINE_JPEG[:-2] + b"\x12" * entropy_size + BASELINE_JPEG[-2:]
+
     def _private_roots(self):
         return {
             path
@@ -1173,6 +1202,233 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertEqual(result.stdout, "")
             self.assertEqual(result.stderr, "")
             self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
+    def test_embed_jpeg_preserves_the_original_source_identity(self):
+        before = self._private_roots()
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-jpeg-success-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "photo-with-original-name.jpg"
+            output = root / "output.o"
+            expected = root / "expected.o"
+            source.write_bytes(BASELINE_JPEG)
+            output.write_bytes(b"last known good object")
+            identity = source.relative_to(REPO_ROOT).as_posix()
+            oracle = subprocess.run(
+                [
+                    str(self._production_tool("cupidobj")),
+                    "wrap-jpeg",
+                    identity,
+                    "-o",
+                    expected.relative_to(REPO_ROOT).as_posix(),
+                    "--identity",
+                    identity,
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            self.assertEqual(oracle.returncode, 0, oracle.stderr)
+
+            result = self._run_embed_jpeg(source, output)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+            self.assertEqual(output.read_bytes(), expected.read_bytes())
+        self.assertEqual(self._private_roots(), before)
+
+    def test_embed_jpeg_rejects_malformed_input_without_clobbering(self):
+        before = self._private_roots()
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-jpeg-malformed-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "malformed.jpg"
+            output = root / "output.o"
+            source.write_bytes(b"not a JPEG frame")
+            output.write_bytes(b"last known good object")
+
+            result = self._run_embed_jpeg(source, output)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("checked CupidObj failed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good object")
+        self.assertEqual(self._private_roots(), before)
+
+    def test_embed_jpeg_keeps_the_independent_parser_after_cupidobj(self):
+        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        operation = source.split(
+            "int cupidbuild_embed_jpeg(", 1
+        )[1].split("int cupidbuild_run_checked_tool(", 1)[0]
+
+        tool_call = operation.index("cupidbuild_host_run(")
+        object_check = operation.index(
+            "cupidbuild_validate_jpeg_object_bytes("
+        )
+        parser_check = operation.index("cupidbuild_validate_jpeg_bytes(")
+
+        self.assertLess(tool_call, object_check)
+        self.assertLess(object_check, parser_check)
+        self.assertEqual(operation.count("cupidbuild_validate_jpeg_bytes("), 1)
+
+    def test_embed_jpeg_rejects_output_aliasing_the_seed_manifest(self):
+        before = self._private_roots()
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-jpeg-manifest-alias-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.jpg"
+            source.write_bytes(BASELINE_JPEG)
+            original_manifest = manifest.read_bytes()
+
+            result = self._run_embed_jpeg(source, manifest, manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("output may not replace an input", result.stderr)
+            self.assertNotIn("code output", result.stderr)
+            self.assertEqual(manifest.read_bytes(), original_manifest)
+        self.assertEqual(self._private_roots(), before)
+
+    def test_embed_jpeg_live_lock_preserves_the_previous_output(self):
+        before = self._private_roots()
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-jpeg-lock-contention-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "input.jpg"
+            output = root / "output.o"
+            lock = Path(str(output) + ".cupidbuild.lock")
+            source.write_bytes(BASELINE_JPEG)
+            output.write_bytes(b"last known good object")
+            lock.write_bytes(f"{os.getpid()}\n".encode("ascii"))
+
+            result = self._run_embed_jpeg(source, output)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("live process", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good object")
+            self.assertTrue(lock.is_file())
+        self.assertEqual(self._private_roots(), before)
+
+    def test_embed_jpeg_source_drift_preserves_the_previous_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-jpeg-source-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "input.jpg"
+            output = root / "output.o"
+            original_source = self._large_baseline_jpeg()
+            source.write_bytes(original_source)
+            output.write_bytes(b"last known good object")
+            before = self._private_roots()
+            changed = threading.Event()
+
+            def replace_source_when_transaction_opens():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    new_roots = self._private_roots() - before
+                    if any((path / "source.asm").is_file() for path in new_roots):
+                        source.write_bytes(original_source + b"\x00")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=replace_source_when_transaction_opens, daemon=True
+            )
+            mutator.start()
+            result = self._run_embed_jpeg(source, output)
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "JPEG transaction was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("source changed while checked tools ran", result.stderr)
+            self.assertNotIn("CupidASM source", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good object")
+            self.assertEqual(self._private_roots(), before)
+
+    def test_embed_jpeg_seed_drift_preserves_the_previous_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-jpeg-seed-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            suffix = ".exe" if os.name == "nt" else ".elf"
+            source = root / "input.jpg"
+            output = root / "output.o"
+            source.write_bytes(self._large_baseline_jpeg())
+            output.write_bytes(b"last known good object")
+            before = self._private_roots()
+            changed = threading.Event()
+
+            def change_manifest_after_freeze():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    new_roots = self._private_roots() - before
+                    if any(
+                        (path / f"cupidobj{suffix}").is_file()
+                        for path in new_roots
+                    ):
+                        with manifest.open("ab") as stream:
+                            stream.write(b"\n")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=change_manifest_after_freeze, daemon=True
+            )
+            mutator.start()
+            result = self._run_embed_jpeg(source, output, manifest)
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "frozen JPEG seed was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("checked seed inputs changed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good object")
+            self.assertEqual(self._private_roots(), before)
+
+    def test_embed_jpeg_output_drift_preserves_competing_bytes(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-jpeg-output-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "input.jpg"
+            output = root / "output.o"
+            source.write_bytes(self._large_baseline_jpeg())
+            output.write_bytes(b"last known good object")
+            before = self._private_roots()
+            changed = threading.Event()
+
+            def replace_output_after_wrapping():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    new_roots = self._private_roots() - before
+                    if any((path / "candidate.o").is_file() for path in new_roots):
+                        output.write_bytes(b"competing publisher")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=replace_output_after_wrapping, daemon=True
+            )
+            mutator.start()
+            result = self._run_embed_jpeg(source, output)
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "checked JPEG output was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("output changed while checked tools ran", result.stderr)
+            self.assertNotIn("code output", result.stderr)
+            self.assertEqual(output.read_bytes(), b"competing publisher")
+            self.assertEqual(self._private_roots(), before)
 
     def test_checked_tools_publish_the_active_raw_boot_artifacts(self):
         cases = (
@@ -2282,7 +2538,7 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertTrue(changed.is_set(), "transaction was not observed")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(
-                "CupidASM source changed while checked tools ran", result.stderr
+                "source changed while checked tools ran", result.stderr
             )
             self.assertNotIn("object source", result.stderr)
             self.assertEqual(output.read_bytes(), b"last known good raw image")
@@ -2573,7 +2829,7 @@ class CupidBuildCliTests(unittest.TestCase):
 
             self.assertTrue(changed.is_set(), "private object was not observed")
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("code output changed", result.stderr)
+            self.assertIn("output changed", result.stderr)
             self.assertEqual(output.read_bytes(), b"competing publisher")
 
     def test_output_parent_drift_preserves_the_original_parent(self):

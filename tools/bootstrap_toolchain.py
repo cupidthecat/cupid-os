@@ -3142,6 +3142,14 @@ def _materialize_behavior_seed(
     return manifest_path
 
 
+_CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD = (
+    b"\xff\xd8"
+    b"\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00"
+    b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00"
+    b"\xff\xd9"
+)
+
+
 def _check_cupidbuild_cupidobj_runner_behavior(
     runner: ToolRunner,
     behavior_root: Path,
@@ -3227,6 +3235,116 @@ def _check_cupidbuild_cupidobj_runner_behavior(
     ):
         raise BootstrapError(
             f"{label_prefix}CupidBuild checked CupidObj failure differs"
+        )
+
+
+def _check_cupidbuild_embed_jpeg_behavior(
+    runner: ToolRunner,
+    source_root: Path,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    label_prefix: str,
+) -> None:
+    jpeg_root = behavior_root / "cupidbuild-jpeg"
+    jpeg_root.mkdir()
+    manifest_path = _materialize_behavior_seed(seed_inputs, jpeg_root)
+    asset = jpeg_root / "asset.jpg"
+    asset.write_bytes(_CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD)
+    stage_two_output = jpeg_root / "stage-three-cupidbuild-jpeg.o"
+    stage_three_output = jpeg_root / "stage-four-cupidbuild-jpeg.o"
+    common_arguments: list[str | Path] = [
+        "embed-jpeg",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        source_root,
+        "--source",
+        asset.relative_to(source_root).as_posix(),
+    ]
+    success_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *common_arguments,
+            "--output",
+            stage_two_output.relative_to(source_root).as_posix(),
+        ],
+        [
+            *common_arguments,
+            "--output",
+            stage_three_output.relative_to(source_root).as_posix(),
+        ],
+        180,
+    )
+    _expect_status(
+        success_result,
+        0,
+        f"{label_prefix}CupidBuild JPEG embed",
+    )
+    if (
+        success_result.stdout
+        or success_result.stderr
+        or stage_two_output.read_bytes() != stage_three_output.read_bytes()
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild JPEG output differs"
+        )
+    _validate_i386_relocatable(stage_two_output)
+
+    progressive_asset = jpeg_root / "progressive.jpg"
+    progressive_asset.write_bytes(
+        _CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD[:3]
+        + b"\xc2"
+        + _CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD[4:]
+    )
+    sentinel = b"preserved CupidBuild JPEG output\n"
+    stage_two_failure = jpeg_root / "stage-three-jpeg-failure.o"
+    stage_three_failure = jpeg_root / "stage-four-jpeg-failure.o"
+    stage_two_failure.write_bytes(sentinel)
+    stage_three_failure.write_bytes(sentinel)
+    failure_arguments: list[str | Path] = [
+        "embed-jpeg",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        source_root,
+        "--source",
+        progressive_asset.relative_to(source_root).as_posix(),
+    ]
+    failure_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *failure_arguments,
+            "--output",
+            stage_two_failure.relative_to(source_root).as_posix(),
+        ],
+        [
+            *failure_arguments,
+            "--output",
+            stage_three_failure.relative_to(source_root).as_posix(),
+        ],
+        180,
+    )
+    _expect_status(
+        failure_result,
+        1,
+        f"{label_prefix}CupidBuild progressive JPEG",
+    )
+    if (
+        failure_result.stdout
+        or "checked CupidObj failed" not in failure_result.stderr
+        or stage_two_failure.read_bytes() != sentinel
+        or stage_three_failure.read_bytes() != sentinel
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild JPEG failure behavior differs"
         )
 
 
@@ -3590,6 +3708,16 @@ def _run_native_windows_behavior_checks(
         "native Windows ",
     )
 
+    _check_cupidbuild_embed_jpeg_behavior(
+        runner,
+        output_root,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "native Windows ",
+    )
+
     _check_cupidbuild_guarded_object_behavior(
         runner,
         output_root,
@@ -3817,9 +3945,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 8,
+        "failure_cases": len(tool_names) + 9,
         "help_cases": len(tool_names),
-        "success_cases": len(tool_names) + 13,
+        "success_cases": len(tool_names) + 14,
     }
 
 
@@ -4554,6 +4682,16 @@ def _run_behavior_checks(
         "",
     )
 
+    _check_cupidbuild_embed_jpeg_behavior(
+        runner,
+        source_root,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "",
+    )
+
     _check_cupidbuild_guarded_object_behavior(
         runner,
         source_root,
@@ -4726,16 +4864,10 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidDis local target failure output differs")
 
-    jpeg_payload = (
-        b"\xff\xd8"
-        b"\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00"
-        b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00"
-        b"\xff\xd9"
-    )
     asset = behavior_root / "asset.jpg"
     stage_two_wrapped = behavior_root / "stage-three-wrapped.o"
     stage_three_wrapped = behavior_root / "stage-four-wrapped.o"
-    asset.write_bytes(jpeg_payload)
+    asset.write_bytes(_CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD)
     wrap_result = _run_stage_pair(
         runner,
         stage_two,
@@ -4818,7 +4950,9 @@ def _run_behavior_checks(
     stage_two_jpeg_failure = behavior_root / "stage-three-jpeg-failure.o"
     stage_three_jpeg_failure = behavior_root / "stage-four-jpeg-failure.o"
     progressive_asset.write_bytes(
-        jpeg_payload[:3] + b"\xc2" + jpeg_payload[4:]
+        _CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD[:3]
+        + b"\xc2"
+        + _CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD[4:]
     )
     stage_two_jpeg_failure.write_bytes(sentinel)
     stage_three_jpeg_failure.write_bytes(sentinel)
@@ -7291,9 +7425,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 25,
+        "failure_cases": 26,
         "help_cases": len(tool_names),
-        "success_cases": 32,
+        "success_cases": 33,
     }
 
 

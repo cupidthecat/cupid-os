@@ -89,10 +89,20 @@ CupidBuild command. CupidBuild participates in 192 transforms and Python in
 260. ADR 0360 records the runner boundary, ADR 0361 records its paired seed
 promotion, ADR 0362 records the object-recipe handoff, and ADR 0363 records
 the kernel-link handoff.
+
+Source-head CupidBuild now has a typed `embed-jpeg` transaction. It freezes
+the asset and the promoted six-tool trust unit, lets CupidObj validate and wrap
+the private bytes under the original source identity, checks the exact JPEG
+payload and three identity symbols in the data-only i386 relocatable, and runs
+an independent native parser before guarded publication. The fixed-point
+source matrices carry exact success and rollback
+cases, bringing their inventories to 26/6/33 on Linux and 15/6/20 on native
+Windows. The active seeds and normal JPEG recipe have not moved yet; paired
+seed promotion is the next gate. ADR 0364 records this source boundary.
 The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
 strict CupidDis validation, all 16 exact artifacts, and image publication. The
-current flat kernel is 9,502,016 bytes; the final and pass-one ELFs are
-9,728,056 and 9,596,984 bytes. A preceding 9,501,220-byte checkpoint, which
+current flat kernel is 9,504,508 bytes; the final and pass-one ELFs are
+9,732,152 and 9,601,080 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 boot and ran
 `/bin/ls.cc`. The final documentation-bearing image then passed the same
 private four-vCPU E1000 gate with `--cpu max --verify-smp-runtime` and ran
@@ -1737,7 +1747,7 @@ select C++ semantics. Cupid OS renames a source to `.cc` only after CupidC owns
 its build and its behavior is proved. The audit derives that owner from a
 checked compile edge, the checked Toolchain contract, or an exact
 runtime-delivery policy entry backed by CupidObj. It locks all seventeen
-residual `.c` paths and the three unreachable `.cc` paths, so the suffix cannot
+residual `.c` paths and the six unreachable `.cc` paths, so the suffix cannot
 create its own ownership proof. Every audit applies the active evidence rule,
 whether or not the audited tree has a policy file. A nonproduction audit
 requires an unreferenced `.cc` to have policy, a recorded source relation, or

@@ -144,6 +144,8 @@ NATIVE_CUPIDASM_KERNEL_ELF_CONTRACT := \
 	$(BUILD_DIR)/cupidasm-kernel-elf-contract$(EXE)
 NATIVE_CUPIDOBJ_CONTRACT := $(BUILD_DIR)/cupidobj-contract$(EXE)
 NATIVE_CUPIDLD_CONTRACT := $(BUILD_DIR)/cupidld-contract$(EXE)
+NATIVE_CUPIDBUILD_JPEG_CONTRACT := \
+	$(BUILD_DIR)/cupidbuild-jpeg-contract$(EXE)
 NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT := \
 	$(BUILD_DIR)/cupidbuild-host-runner-contract$(EXE)
 CUPIDC := $(BUILD_DIR)/cupidc$(EXE)
@@ -345,6 +347,10 @@ CUPIDBUILD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                       $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidbuild_host.o \
                       $(BUILD_DIR)/cupidbuild.o \
                       $(BUILD_DIR)/cupidbuild_main.o
+CUPIDBUILD_JPEG_CONTRACT_OBJECTS := \
+	$(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o $(BUILD_DIR)/elf32.o \
+	$(BUILD_DIR)/cupidbuild_host.o $(BUILD_DIR)/cupidbuild.o \
+	$(BUILD_DIR)/cupidbuild_jpeg_contract.o
 CUPIDBUILD_HOST_RUNNER_CONTRACT_FLAGS := \
 	-DCUPIDBUILD_HOST_STREAM_LIMIT=4096
 ifneq ($(OS),Windows_NT)
@@ -544,6 +550,10 @@ $(BUILD_DIR)/cupidobj_contract.o: tests/cupidobj_contract.cc cupidobj.h elf32.h 
 $(BUILD_DIR)/cupidld_contract.o: tests/cupidld_contract.cc cupidld.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
+$(BUILD_DIR)/cupidbuild_jpeg_contract.o: \
+    tests/cupidbuild_jpeg_contract.cc cupidbuild.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
 $(BUILD_DIR)/cupidbuild_host_runner_contract.o: \
     tests/cupidbuild_host_runner_contract.cc cupidbuild_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(CUPIDBUILD_HOST_RUNNER_CONTRACT_FLAGS) \
@@ -625,6 +635,10 @@ $(CUPIDBUILD): $(CUPIDBUILD_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDBUILD_OBJECTS) \
 		$(CUPIDBUILD_HOST_LIBS) -o $@
 
+$(NATIVE_CUPIDBUILD_JPEG_CONTRACT): $(CUPIDBUILD_JPEG_CONTRACT_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) \
+		$(CUPIDBUILD_JPEG_CONTRACT_OBJECTS) $(CUPIDBUILD_HOST_LIBS) -o $@
+
 $(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT): \
     $(CUPIDBUILD_HOST_RUNNER_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) \
@@ -634,6 +648,7 @@ $(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT): \
 test: $(CONTRACT_MANIFEST) \
       $(X86_CONTRACT_SUPPORT) \
       $(CUPIDC_PP_ACTIVE_CASES) $(CUPIDC_HOSTED_I386_RUNTIME) \
+      $(NATIVE_CUPIDBUILD_JPEG_CONTRACT) \
       $(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT)
 	$(PYTHON) ../tools/cupidc_toolchain_contracts.py verify \
 		--root .. --output $(CONTRACT_DIR)
@@ -950,6 +965,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDLD_CONTRACT) merge-addends
 	$(CUPIDLD_CONTRACT) script-layout
 	$(CUPIDLD_CONTRACT) errors
+	$(NATIVE_CUPIDBUILD_JPEG_CONTRACT)
 	$(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT) all
 
 # Generated C sources remain explicit materialization boundaries.  The hosted
@@ -973,10 +989,14 @@ test-kernel-cupiddis-adapter: $(NATIVE_CUPIDDIS_KERNEL_ADAPTER_CONTRACT)
 test-cupidbuild-host-runner: $(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT)
 	$(NATIVE_CUPIDBUILD_HOST_RUNNER_CONTRACT) all
 
+test-cupidbuild-jpeg: $(NATIVE_CUPIDBUILD_JPEG_CONTRACT)
+	$(NATIVE_CUPIDBUILD_JPEG_CONTRACT)
+
 print-bootstrap-artifacts:
 	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
 
 .PHONY: all test test-cupidc-pp-active-generated \
-        test-kernel-cupiddis-adapter test-cupidbuild-host-runner \
+	test-kernel-cupiddis-adapter test-cupidbuild-host-runner \
+	test-cupidbuild-jpeg \
 	native-oracles clean \
         print-bootstrap-artifacts

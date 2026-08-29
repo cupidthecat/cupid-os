@@ -15,6 +15,13 @@ assembly publications, 186 ordinary CupidObj recipes, and both normal kernel
 links. This does not change the user-program ABI or ELF layout. Across the
 supported graph, CupidBuild participates in 192 transforms and Python in 260.
 
+Source head also has a typed JPEG-to-`ET_REL` transaction. It requires a
+data-only relocatable with the exact asset bytes and start, end, and size
+symbols derived from the original name. It independently checks the frozen
+sequential JPEG before guarded publication. This capability has not entered
+the promoted seeds or normal
+graph yet, so the participation totals above remain current.
+
 ---
 
 ## Quick Start

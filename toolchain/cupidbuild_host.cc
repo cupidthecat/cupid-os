@@ -2969,7 +2969,7 @@ int cupidbuild_host_freeze_input(cupidbuild_host_transaction_t *transaction,
       memcmp(transaction->initial_output_snapshot.identity, snapshot.identity,
              sizeof(snapshot.identity)) == 0) {
     cupidbuild_host_set_error(transaction,
-                              "code output may not replace an input");
+                              "output may not replace an input");
 #if !defined(_WIN32)
     if (frozen_descriptor >= 0) {
       cupidbuild_host_close_directory(frozen_descriptor);
@@ -3099,7 +3099,8 @@ int cupidbuild_host_transaction_open(
           transaction->output_parent, &transaction->output_parent_snapshot) ||
       snprintf(transaction->lock_path, sizeof(transaction->lock_path),
                "%s.cupidbuild.lock", transaction->output_path) < 0) {
-    cupidbuild_host_set_error(transaction, "guarded object paths are invalid");
+    cupidbuild_host_set_error(transaction,
+                              "guarded artifact paths are invalid");
     *transaction_out = transaction;
     return 0;
   }
@@ -3107,7 +3108,7 @@ int cupidbuild_host_transaction_open(
   transaction->output_parent_handle =
       cupidbuild_host_open_output_parent(transaction->output_parent);
   if (transaction->output_parent_handle == INVALID_HANDLE_VALUE) {
-    cupidbuild_host_set_error(transaction, "code output parent cannot be pinned");
+    cupidbuild_host_set_error(transaction, "output parent cannot be pinned");
     *transaction_out = transaction;
     return 0;
   }
@@ -3115,7 +3116,7 @@ int cupidbuild_host_transaction_open(
   transaction->output_parent_descriptor =
       cupidbuild_host_open_directory(transaction->output_parent);
   if (transaction->output_parent_descriptor < 0) {
-    cupidbuild_host_set_error(transaction, "code output parent cannot be pinned");
+    cupidbuild_host_set_error(transaction, "output parent cannot be pinned");
     *transaction_out = transaction;
     return 0;
   }
@@ -3169,7 +3170,7 @@ int cupidbuild_host_transaction_open(
                                     (unsigned char **)0)) {
     if (transaction->error[0] == '\0') {
       cupidbuild_host_set_error(transaction,
-                                "private object transaction cannot be opened");
+                                "private artifact transaction cannot be opened");
     }
     *transaction_out = transaction;
     return 0;
@@ -3179,7 +3180,7 @@ int cupidbuild_host_transaction_open(
              transaction->inputs[0].snapshot.identity,
              sizeof(transaction->initial_output_snapshot.identity)) == 0) {
     cupidbuild_host_set_error(transaction,
-                              "code output may not replace an input");
+                              "output may not replace an input");
     *transaction_out = transaction;
     return 0;
   }
@@ -3832,8 +3833,7 @@ int cupidbuild_host_capture_candidate(
       !cupidbuild_host_read_regular(transaction->candidate, 0,
                                     &transaction->candidate_snapshot,
                                     bytes_out)) {
-    cupidbuild_host_set_error(transaction,
-                              "checked CupidASM output cannot be pinned");
+    cupidbuild_host_set_error(transaction, "checked output cannot be pinned");
     return 0;
   }
   transaction->candidate_captured = 1;
@@ -3853,7 +3853,7 @@ int cupidbuild_host_require_candidate(
                                     (unsigned char **)0) ||
       !cupidbuild_host_snapshot_equal(&current, expected)) {
     cupidbuild_host_set_error(transaction,
-                              "checked CupidASM output changed while validation ran");
+                              "checked output changed while validation ran");
     return 0;
   }
   return 1;
@@ -3867,7 +3867,7 @@ int cupidbuild_host_capture_private_output(
                                     &transaction->private_output_snapshot,
                                     bytes_out)) {
     cupidbuild_host_set_error(transaction,
-                              "checked CupidASM private output cannot be pinned");
+                              "checked private output cannot be pinned");
     return 0;
   }
   transaction->private_output_captured = 1;
@@ -3889,7 +3889,7 @@ int cupidbuild_host_require_private_output(
       !cupidbuild_host_snapshot_equal(&current, expected)) {
     cupidbuild_host_set_error(
         transaction,
-        "checked CupidASM private output changed while validation ran");
+        "checked private output changed while validation ran");
     return 0;
   }
   return 1;
@@ -3910,7 +3910,7 @@ int cupidbuild_host_require_inputs(
       cupidbuild_host_set_error(
           transaction,
           index == 0u && transaction->runner_transaction == 0
-              ? "CupidASM source changed while checked tools ran"
+              ? "source changed while checked tools ran"
               : "checked seed inputs changed while checked tools ran");
       return 0;
     }
@@ -3977,7 +3977,7 @@ int cupidbuild_host_require_publication_boundary(
       memcmp(parent.identity, transaction->output_parent_snapshot.identity,
              sizeof(parent.identity)) != 0) {
     cupidbuild_host_set_error(transaction,
-                              "code output parent changed while checked tools ran");
+                              "output parent changed while checked tools ran");
     return 0;
   }
   if (!cupidbuild_host_require_lock(transaction)) {
@@ -3988,7 +3988,7 @@ int cupidbuild_host_require_publication_boundary(
       !cupidbuild_host_snapshot_equal(
           &output, &transaction->initial_output_snapshot)) {
     cupidbuild_host_set_error(transaction,
-                              "code output changed while checked tools ran");
+                              "output changed while checked tools ran");
     return 0;
   }
   return 1;
@@ -4008,7 +4008,7 @@ int cupidbuild_host_publish(cupidbuild_host_transaction_t *transaction) {
   }
   if (!cupidbuild_host_atomic_replace(transaction)) {
     cupidbuild_host_set_error(transaction,
-                              "validated CupidASM output could not be published");
+                              "validated output could not be published");
     return 0;
   }
   return 1;

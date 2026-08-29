@@ -26,6 +26,16 @@ CupidBuild generations, validate equal relocatable output, and require the
 same invalid-option failure. The resulting behavior totals are 25/6/32 on
 Linux and 14/6/19 on native Windows.
 
+Source head adds one typed publication beyond that promoted runner surface.
+`cupidbuild embed-jpeg` freezes the complete v2 cohort and asset, asks
+CupidObj to validate and wrap the private bytes, checks its exact `.data`
+payload and three identity symbols, runs an independent native JPEG parser,
+and owns rollback and
+publication. The source-head matrices carry it at 26/6/33 on Linux and
+15/6/20 on native Windows. The production JPEG edge remains on Python until
+the paired seeds are refreshed, so graph ownership counts do not change in
+this capability step.
+
 Make now runs all 186 direct root CupidObj calls through the promoted
 CupidBuild runner. Both normal kernel links use the same runner. Those object
 recipes cover 175 text wrappers, eight binary
@@ -42,8 +52,8 @@ and the timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,502,016 bytes for `kernel/kernel.bin`, 9,728,056 bytes
-for `kernel/kernel.elf`, and 9,596,984 bytes for
+The current sizes are 9,504,508 bytes for `kernel/kernel.bin`, 9,732,152 bytes
+for `kernel/kernel.elf`, and 9,601,080 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging also passed. A preceding 9,501,220-byte checkpoint, which differed
 only in embedded manual text, completed the strong four-vCPU E1000 runtime
@@ -465,7 +475,7 @@ semantics. The build audit rejects an active tracked `.c` source if the graph
 assigns it to CupidC, and it does not treat `.cc` as proof of the reverse
 claim. Checked compile or Toolchain contract edges prove 280 active sources.
 An exact policy records the other 130 source-text deliveries, all seventeen
-residual `.c` paths, and the four unreachable `.cc` paths. A `.cc` rename
+residual `.c` paths, and the six unreachable `.cc` paths. A `.cc` rename
 still follows a checked build and behavior proof. Active evidence is mandatory
 in every audit, including trees without a policy file. A nonproduction audit
 accepts policy, a recorded source relation, or an explicit Make exclusion for
@@ -1539,6 +1549,7 @@ the six-tool cohort that ADR 0353 later promoted into the paired checked seeds.
 | Kernel ELF layout and symbol resolution | CupidLD with `link.ld`, two passes | CupidLD with the used linker-script subset | Production-owned: all 425 pass-one and 426 final objects link with exact oracle section/segment layout and symbol projection, deterministic first-occurrence merge ordering, repeated `ASSERT` support, and no normal-build GNU/LLVM linker invocation |
 | Kernel symbol extraction | Checked-seed CupidDis `-n`, checked-seed CupidObj `ksyms-source`, then checked-seed CupidC; Python freezes inputs and checks parity | CupidDis inspection, CupidObj generation, CupidC compilation; Python orchestration if still useful | Production inspection, generation, and compilation ownership have transferred. CupidDis emits canonical text, CupidObj serializes the 114,851-byte logical blob, and the checked wrapper compiles its packed `.cc` translation. Python rejects malformed text, missing output, oracle mismatch, or live input drift before atomic publication. Every shared symbol keeps the same address between passes. The rebuilt image passes the four-vCPU GUI, terminal, audio, and in-OS CupidC runtime gate. ADR 0224 records the generation handoff. |
 | Source, documentation, font, image, and other binary wrapping | CupidObj, with Python snapshot, parity, drift, and publication checks for JPEG | CupidObj/shared object library | Production-owned. The 175 source, manual, demo, and vocabulary transforms canonicalize CRLF to LF without changing lone carriage returns. Eight direct binary wrappers stay byte-exact. Names, section policy, symbols, empty inputs, deterministic repeats, failure rollback, and final-form SMP wrapping are contracted. The JPEG path freezes the repository bytes, runs checked CupidObj `wrap-jpeg` first under the original source identity, and accepts only a regular non-symbolic candidate. Python checks the accepted snapshot independently, requires unchanged bytes, rechecks live inputs, and publishes atomically. Progressive, unsupported, or malformed marker streams fail without replacing the old object. Host image converters are not part of the root path. The 800,860-byte JPEG object has SHA-256 `74ab86d88302c90385bb0b858632b0d6c4ac983d6be28c976dd1a3a348204b3e` on both Windows and Linux. ADR 0235 records the transfer. |
+| JPEG publication coordination | Python guards the normal CupidObj `wrap-jpeg` publication; source-head CupidBuild has an equivalent typed transaction | Promoted CupidBuild owns the guarded JPEG publication | Source capability is complete. `cupidbuild embed-jpeg` freezes the asset and six-tool v2 seed, preserves the original symbol identity, requires the exact `.data` payload and three identity symbols, runs an independent native JPEG parser, and owns locking, drift checks, rollback, and atomic publication. The active seeds do not carry the command yet, so the normal graph remains on Python and its ownership totals stay unchanged. Paired seed promotion and the Make handoff remain. ADR 0364 records the source boundary. |
 | Linked kernel ELF to raw kernel binary | One checked-seed CupidDis and CupidObj hostbuild transaction | Hostbuild validates and flattens one frozen cohort, then publishes the raw kernel atomically | Production-owned: hostbuild freezes the selected seed manifest and six artifacts, the 431-entry input manifest and cohort, and the existing `kernel.bin` boundary. Checked CupidDis validates the private cohort. Checked CupidObj writes physical-address-ordered file-backed `PT_LOAD` bytes with zero-filled gaps and BSS exclusion from the frozen final ELF. Hostbuild rechecks live trust inputs and the output before parent-relative atomic publication. Every failure preserves the prior raw kernel. At the first reviewed transaction checkpoint, the operation passed with exit 0 in 187.054 seconds and published an 8,946,332-byte raw kernel with SHA-256 `4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d`. The earlier poisoned-host `make -j2` passed in 1,057.969 seconds when validation and flattening were separate. Definitive four-vCPU E1000 and RTL8139 boot frontiers passed with exits 0 in 794.034 and 758.667 seconds. Both passed SMP, frontier, framebuffer, AC97, and PC speaker checks without changing the source image. Later rows record the current kernel identities. |
 | Disk, FAT, and ISO fixture construction and staging | Checked-seed CupidObj authors the pristine FAT16 template and the complete ISO fixture; Python hostbuild manages mutable disk state and guards both publications | CupidObj owns both deterministic templates; Python orchestrates FAT reuse, tree safety, parity, drift checks, staging, and guarded publication | Production image ownership is shared. The normal disk recipe passes the checked seed manifest to `tools/hostbuild.py image`, which freezes the bootloader, kernel, stage inputs, seed, and live output. Checked `cupidobj disk-template` authors the MBR, boot and kernel reserve, FAT16 boot sector, two pristine FATs, and empty root directory through the byte before cluster 2. Python builds the same template independently and requires exact byte parity. It preserves a valid existing FAT filesystem or uses the complete template for a fresh image, stages the frozen files, extends the candidate, rechecks every frozen input plus the seed and output, and publishes under a cross-process lock with atomic replacement. Checked CupidASM assembles the 4,096-byte spanning ISO file, and Python verifies it. For the enclosing ECMA-119 and `RRIP_1991A` image, hostbuild freezes the checked manifest and typed inventory, runs checked `cupidobj iso-fixture` first, compares the complete result with an independent Python render, rechecks the seed and live inputs, and publishes under a per-output lock. ADR 0239 records the source capability, ADR 0240 records seed carriage, and ADR 0241 records the production transfer. |
 | Emulator verification | QEMU plus Python test harnesses | Same, augmented with staged bootstrap and tool parity tests | Retained test dependency; stabilize the observed GUI-terminal flake |
