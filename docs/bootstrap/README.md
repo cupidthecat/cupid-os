@@ -66,10 +66,19 @@ runner. ADR 0359 removes the Windows fixed-point CupidC bridge after the
 checked PE compiler proved the complete current closure. ADR 0360 admits
 CupidLD to the native checked runner and makes the CupidObj runner part of
 both source-head fixed-point behavior matrices. ADR 0361 promotes that runner
-in the paired checked seeds, and ADR 0362 moves the 186 ordinary CupidObj
-recipes onto it.
+in the paired checked seeds, ADR 0362 moves the 186 ordinary CupidObj recipes
+onto it, and ADR 0363 moves both normal kernel links onto the same runner.
 
 ## 2026-08-29 source-current checkpoint
+
+Both normal kernel links now use the promoted `cupidbuild run` command instead
+of the Python checked-seed launcher. Make keeps the linker command and its
+six-image prerequisite closure immutable. The audit evaluates the command
+before assigning the runner owner, and poisoned Make overrides cannot bypass
+the checked boundary. A private native Windows run linked all 428 pass-one
+objects and reproduced the existing 9,596,984-byte ELF exactly. The graph still
+contains 452 transforms, with CupidBuild in 192 and Python in 260. ADR 0363
+records the handoff.
 
 The native Windows fixed point now uses the checked Windows execution seed for
 every stage-two producer. The checked Linux seed remains the reviewed build
@@ -132,12 +141,12 @@ ADR 0361 records seed promotion, and ADR 0362 records the recipe handoff.
 The final policy-bound build compiled all 83 Doom roots, linked both kernel
 stages with CupidLD, and passed strict CupidDis validation. A post-policy
 top-level replay accepted all 16 exact artifacts and published the image.
-`kernel/kernel.bin` is 9,501,584 bytes; the final and pass-one ELFs are
+`kernel/kernel.bin` is 9,502,016 bytes; the final and pass-one ELFs are
 9,728,056 and 9,596,984 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 smoke and ran
-`/bin/ls.cc` to normal JIT completion. The final image smoke could not start
-before its timeout while the Windows host was out of paging-file capacity,
-and it produced no serial log.
+`/bin/ls.cc` to normal JIT completion. The final documentation-bearing image
+then passed the same private four-vCPU E1000 gate with `--cpu max`, strong SMP
+runtime verification, and `/bin/ls.cc` JIT completion.
 
 ## 2026-08-27 source-current checkpoint
 
@@ -669,8 +678,8 @@ direct suite includes a checked stage-four build and run of the author. The
 source graph retains 747
 active inputs, 452 transforms,
 255 feature requirements, and 27 accounted unreachable files. Participation
-is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, CupidBuild 190,
-and four Cupid-built contracts. Python participates in 262 transforms, but
+is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, CupidBuild 192,
+and four Cupid-built contracts. Python participates in 260 transforms, but
 none is Python-only. The latest complete schema v3 `CUPMAN4` publication passed. The
 Cupid author and Python oracle agreed on all 62 stage pairs. Every stage-three
 object and executable matched its stage-four counterpart. The hosted runtime
@@ -3139,8 +3148,8 @@ generated fixed-point inventory records failure, help, and success counts of
 25/6/32 for Linux and 14/6/19 for Windows.
 
 Across the three supported roots, CupidC participates in 250 transforms,
-CupidASM in nine, CupidLD in nine, CupidObj in 192, and CupidBuild in 190.
-Python participates in 262 as the host-side safety, parity, and publication
+CupidASM in nine, CupidLD in nine, CupidObj in 192, and CupidBuild in 192.
+Python participates in 260 as the host-side safety, parity, and publication
 layer. The direct CupidObj group accounts for 186 CupidBuild calls: 175 text
 wrappers, eight binary wrappers, and three installation-source generators.
 No transform invokes a host C compiler, and no recursive Make transform
@@ -3661,9 +3670,9 @@ and truncated code. ADR 0334 records the in-kernel request boundary.
 
 The ownership counts in the preceding long-form summary are superseded by
 CUPMAN4. CupidC participates in 250 transforms, CupidASM and CupidLD in nine
-each, CupidObj in 192, CupidDis in nine, and CupidBuild in 190. Four semantic
+each, CupidObj in 192, CupidDis in nine, and CupidBuild in 192. Four semantic
 contracts participate, and no transform is Python-only. Python remains present
-in 262 transforms for capture, safety, oracle comparison, and publication.
+in 260 transforms for capture, safety, oracle comparison, and publication.
 
 Checked-seed CupidDis also publishes a typed summary of known, unknown, invalid,
 and truncated instructions across selected code regions. The hosted
@@ -3939,7 +3948,8 @@ smokes:
 All three passed. Afterward, the clean normal image was restored to SHA-256
 `112a9764bc9c99382d06dabcbcf2cb6e28498d0076ccc1aec787f159b46a8bc3`.
 
-The promoted runner now carries the 186 ordinary CupidObj recipes. The four
+The promoted runner now carries the 186 ordinary CupidObj recipes and both
+normal kernel links. The four
 guarded assembly publications remain direct CupidBuild transactions. Host
 Python coordinates both fixed points, stages Linux tools through WSL where
 required, compares independent oracles, and guards the remaining publication

@@ -11,9 +11,9 @@ and receive a **syscall table**, a struct of function pointers passed to
 `_start()`.
 
 The same promoted six-tool cohort runs CupidBuild directly for four guarded
-assembly publications and 186 ordinary CupidObj recipes. This does not change
-the user-program ABI or ELF layout. Across the supported graph, CupidBuild
-participates in 190 transforms and Python in 262.
+assembly publications, 186 ordinary CupidObj recipes, and both normal kernel
+links. This does not change the user-program ABI or ELF layout. Across the
+supported graph, CupidBuild participates in 192 transforms and Python in 260.
 
 ---
 
@@ -922,8 +922,9 @@ Candidate proof and promoted-seed self-consumption pass on both platforms,
 with all six initial images equal to stage two. ADR 0356 records the active
 seed refresh. CupidBuild owns the normal ISR, context-switch, bootloader, and
 SMP-trampoline recipes and runs 186 direct CupidObj calls. Python remains in
-the other 262 transforms. ADR 0357 records the raw recipe transfer, and ADR
-0362 records the direct CupidObj handoff.
+the other 260 transforms after both normal kernel links moved to the same
+runner. ADR 0357 records the raw recipe transfer, ADR 0362 records the direct
+CupidObj handoff, and ADR 0363 records the kernel-link handoff.
 
 The preceding source-head cohort used the same pass-one and final ELF sizes
 with SHA-256 values

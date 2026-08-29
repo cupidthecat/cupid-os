@@ -22,17 +22,18 @@ Their behavior totals are 25/6/32 and 14/6/19. Both promoted cohorts passed
 self-consumption with all six initial images equal to stage two. ADR 0360
 records the runner boundary, and ADR 0361 records the paired promotion. The
 normal graph now runs 186 ordinary CupidObj recipes through CupidBuild. The
-audit records 190 CupidBuild and 262 Python participations.
+two normal kernel links use the same checked runner. The audit records 192
+CupidBuild and 260 Python participations. ADR 0363 records the link handoff.
 The audit derives that split from each graph's evaluated `CUPIDOBJ` command;
 it does not treat the variable name itself as proof of CupidBuild ownership.
 
 The policy-bound OS build passed all 83 Doom roots, both CupidLD links, strict
 CupidDis inspection, all 16 exact artifact rows, and image publication. The
-flat kernel is 9,501,584 bytes; the final and pass-one ELFs are 9,728,056 and
+flat kernel is 9,502,016 bytes; the final and pass-one ELFs are 9,728,056 and
 9,596,984 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
 embedded manual text, passed a four-vCPU E1000 boot and ran `/bin/ls.cc`. The
-final image smoke could not start before its timeout while the Windows host was
-out of paging-file capacity, and it produced no serial log.
+final documentation-bearing image passed the same private gate and reached
+normal `/bin/ls.cc` JIT completion.
 
 Source-head CupidBuild now has a native checked CupidObj runner. Linux creates
 no `.cupidbuild-run` namespace. It freezes the manifest and all six tools in
@@ -52,8 +53,10 @@ even if it changed in place, but preserves a replacement identity. Both paths
 recheck the live seed before forwarding output.
 
 The production seeds carry this interface, and the normal Make graph uses it
-for all 186 direct root CupidObj calls. ADR 0358 records the source capability,
-ADR 0361 records seed carriage, and ADR 0362 records the Make handoff.
+for all 186 direct root CupidObj calls and both normal kernel links. ADR 0358
+records the source capability, ADR 0361
+records seed carriage, ADR 0362 records the object-recipe handoff, and ADR 0363
+records the kernel-link handoff.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
@@ -64,16 +67,16 @@ timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,501,584 bytes for `kernel/kernel.bin`, 9,728,056 bytes
+The current sizes are 9,502,016 bytes for `kernel/kernel.bin`, 9,728,056 bytes
 for `kernel/kernel.elf`, and 9,596,984 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as part of that replay.
 
 A preceding 9,501,220-byte checkpoint, which differed only in embedded manual
 text, passed a private four-vCPU E1000 QEMU smoke with
-`--cpu max --verify-smp-runtime` and ran `/bin/ls.cc`. The final image smoke
-could not start before its timeout while the Windows host was out of
-paging-file capacity, and it produced no serial log.
+`--cpu max --verify-smp-runtime` and ran `/bin/ls.cc`. The final
+documentation-bearing image passed the same private gate and reached normal
+`/bin/ls.cc` JIT completion.
 
 The complete 129-case bootstrap-seed module finished with 126 passes. Both
 fixed points built successfully. The three failures were stale assertions
@@ -1694,7 +1697,7 @@ participations to CupidC and none to a host C compiler. Of those, 246 are
 ordinary C-output transforms; the checked native Windows user ABI,
 artifact-size, Toolchain manifest author, and Toolchain manifest verifier
 supply the other four.
-Python participates in 262 transforms, and CupidBuild in 190. The ordinary CupidC
+Python participates in 260 transforms, and CupidBuild in 192. The ordinary CupidC
 total is 240 normal transforms plus three generated installation tables and
 the `hello.cc`, `ls.cc`, and `cat.cc` programs. Root `all` has 443 transforms:
 all 443 have a Cupid participant. The size verifier emits no OS artifact; it
@@ -1716,9 +1719,9 @@ order across host locales.
 The stable audit counts record 747 active language inputs, 452 transforms, 255
 features, and 27 unreachable inputs across the three roots. It includes 443
 transforms under root `all`. Four transforms use Cupid-built semantic
-contracts, and no transform is Python-only. Python participates in 262 as
+contracts, and no transform is Python-only. Python participates in 260 as
 orchestrator, while CupidBuild participates in four guarded assembly
-publications and 186 direct CupidObj calls.
+publications, 186 direct CupidObj calls, and two normal kernel links.
 
 The assembly ownership contract covers all 32 active assembly sources. All are
 owned by CupidASM, including five Toolchain startup inputs. An ownerless source
@@ -2412,6 +2415,7 @@ ADR 0361 records the runner promotion and its self-consumption evidence.
 Seed presence alone does not establish ownership. The direct recipe transfer
 now gives CupidBuild all four guarded assembly publications: the bootloader,
 SMP trampoline, ISR object, and context-switch object. The later CupidObj
-handoff adds 186 ordinary recipes, leaving Python in 262 transforms. ADR 0357
+handoff adds 186 ordinary recipes, and the kernel-link handoff adds two more
+native runner calls, leaving Python in 260 transforms. ADR 0357
 records the raw-publication transfer, and ADR 0362 records the CupidObj
 handoff.

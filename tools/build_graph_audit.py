@@ -329,7 +329,6 @@ TOOL_MARKERS = (
     ("$(CUPIDLD_USER_LINK)", "cupid_linker"),
     ("$(CUPIDLD_USER_LINK)", "host_python"),
     ("$(CUPIDLD)", "cupid_linker"),
-    ("$(CUPIDLD)", "host_python"),
     ("$(CUPIDOBJ)", "cupid_object"),
     ("$(CUPIDC_PRODUCTION_COMPILE)", "cupid_c_compiler"),
     ("$(CUPIDC_PRODUCTION_COMPILE)", "host_python"),
@@ -1850,28 +1849,33 @@ def _recipe_tokens(recipe: list[str]) -> list[str]:
     ]
 
 
-def _cupidobj_runner_owner(command: str) -> str | None:
+def _checked_tool_runner_owner(command: str, tool: str) -> str | None:
     normalized = " ".join(command.replace("\\", "/").split())
     if (
         re.search(
             r"(?:^|\s)\S*cupidbuild\.(?:elf|exe)\s+run(?:\s|$)",
             normalized,
         )
-        and "--tool cupidobj --" in normalized
+        and f"--tool {tool} --" in normalized
     ):
         return "cupid_builder"
     if (
         "tools/bootstrap_toolchain.py" in normalized
-        and "--tool cupidobj --" in normalized
+        and f"--tool {tool} --" in normalized
     ):
         return "host_python"
     return None
+
+
+def _cupidobj_runner_owner(command: str) -> str | None:
+    return _checked_tool_runner_owner(command, "cupidobj")
 
 
 def _tools_for_recipe(
     recipe: list[str],
     *,
     cupidobj_runner_owner: str | None = None,
+    cupidld_runner_owner: str | None = None,
 ) -> list[str]:
     tokens = _recipe_tokens(recipe)
     joined = " ".join(tokens)
@@ -1888,6 +1892,13 @@ def _tools_for_recipe(
             and cupidobj_runner_owner not in tools
         ):
             tools.append(cupidobj_runner_owner)
+        if (
+            marker == "$(CUPIDLD)"
+            and marker in joined
+            and cupidld_runner_owner is not None
+            and cupidld_runner_owner not in tools
+        ):
+            tools.append(cupidld_runner_owner)
     if recipe and not tools:
         return ["host_shell"]
     return tools
@@ -2075,6 +2086,7 @@ def _build_transforms(
     rules: dict[str, MakeRule],
     *,
     cupidobj_runner_owner: str | None = None,
+    cupidld_runner_owner: str | None = None,
 ) -> list[dict[str, object]]:
     transforms = []
     host_object_outputs = {
@@ -2084,6 +2096,7 @@ def _build_transforms(
         in _tools_for_recipe(
             rules[local_output].recipe,
             cupidobj_runner_owner=cupidobj_runner_owner,
+            cupidld_runner_owner=cupidld_runner_owner,
         )
         and not local_output.lower().endswith((".o", ".obj"))
         and not re.search(
@@ -2100,6 +2113,7 @@ def _build_transforms(
         tools = _tools_for_recipe(
             rule.recipe,
             cupidobj_runner_owner=cupidobj_runner_owner,
+            cupidld_runner_owner=cupidld_runner_owner,
         )
         transforms.append(
             {
@@ -2177,6 +2191,7 @@ def _collect_build_model(
         generated_local,
     )
     cupidobj_runner_owner = None
+    cupidld_runner_owner = None
     if any(
         "$(CUPIDOBJ)" in " ".join(_recipe_tokens(rules[item].recipe))
         for item in reachable
@@ -2187,6 +2202,19 @@ def _collect_build_model(
             ("CUPIDOBJ",),
         )["CUPIDOBJ"]
         cupidobj_runner_owner = _cupidobj_runner_owner(cupidobj_command)
+    if any(
+        "$(CUPIDLD)" in " ".join(_recipe_tokens(rules[item].recipe))
+        for item in reachable
+    ):
+        cupidld_command = _read_evaluated_make_variables(
+            build_root,
+            make,
+            ("CUPIDLD",),
+        )["CUPIDLD"]
+        cupidld_runner_owner = _checked_tool_runner_owner(
+            cupidld_command,
+            "cupidld",
+        )
 
     return BuildModel(
         directory=normalized_directory,
@@ -2217,6 +2245,7 @@ def _collect_build_model(
             reachable,
             rules,
             cupidobj_runner_owner=cupidobj_runner_owner,
+            cupidld_runner_owner=cupidld_runner_owner,
         ),
     )
 

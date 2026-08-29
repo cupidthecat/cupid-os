@@ -73,8 +73,10 @@ override CUPIDOBJ := $(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SU
 	--root "$(CURDIR)" --tool cupidobj --
 override CUPIDOBJ_INPUTS := Makefile $(PRODUCTION_SEED_INPUTS)
 CUPIDLD_BUILD := toolchain/build/cupidld$(HOST_EXE)
-CUPIDLD ?= $(CHECKED_SEED_RUN) --tool cupidld --
-CUPIDLD_INPUTS ?= $(CHECKED_SEED_INPUTS)
+override CUPIDLD := $(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) run \
+	--seed-manifest $(PRODUCTION_SEED_MANIFEST) \
+	--root "$(CURDIR)" --tool cupidld --
+override CUPIDLD_INPUTS := Makefile $(PRODUCTION_SEED_INPUTS)
 HOSTED_TOOL_CORE_SOURCES := toolchain/ctool.cc toolchain/ctool.h \
 	toolchain/ctool_host.cc toolchain/ctool_host.h \
 	toolchain/elf32.cc toolchain/elf32.h

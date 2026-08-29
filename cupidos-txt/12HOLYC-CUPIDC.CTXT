@@ -65,7 +65,8 @@ their stage-three and stage-four CupidBuild images, compare the relocatable
 result, and check the invalid-option diagnostic. Linux has 25 failure, six
 help, and 32 success cases. Native Windows has 14 failure, six help, and 19
 success cases. Make now runs 186 ordinary CupidObj recipes through that checked
-command without changing their output formats.
+command without changing their output formats. Both normal kernel links use
+the same checked runner.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
@@ -708,7 +709,7 @@ measurements stay there because this manual is an image input.
 The active Linux and Windows v2 cohorts are complete six-tool trust units.
 CupidBuild is checked in both and owns four normal guarded assembly
 publications: two objects and two raw images. It also runs the 186 direct
-CupidObj recipes selected by Make.
+CupidObj recipes and both normal kernel links selected by Make.
 Their CupidDis images carry local-target validation for raw images,
 relocatable objects, and static linked executables. Active-source tests cover
 all nine bootloader targets and all four trampoline targets. Production also
@@ -759,8 +760,8 @@ log records the exact publication identity and completion evidence.
 Audit generation and checked reproduction pass. The audit records 747 active
 inputs, 452 transforms, 255 feature requirements,
 and 27 accounted unreachable files. Ownership participation is CupidC 250,
-CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and CupidBuild 190. Python
-participates in 262. Four transforms run Cupid-built contracts, and none is
+CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and CupidBuild 192. Python
+participates in 260. Four transforms run Cupid-built contracts, and none is
 Python-only. The host bootstrap log records
 the post-manual-freeze poisoned build and strong private four-vCPU e1000
 frontier. Exact OS identities and runtime measurements stay there because this
@@ -801,10 +802,11 @@ Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. All six initial images match stage two. The behavior inventories are
 25/6/32 on Linux and 14/6/19 on Windows. The normal ISR, context-switch,
 bootloader, and SMP-trampoline recipes use CupidBuild directly, as do the 186
-ordinary CupidObj recipes. Python participates in the remaining 262
+ordinary CupidObj recipes and both normal kernel links. Python participates in
+the remaining 260
 transforms. ADR 0357 records the raw recipe transfer, ADR 0360 records the
 checked runner, ADR 0361 records its paired seed promotion, and ADR 0362
-records the direct CupidObj handoff.
+records the direct CupidObj handoff. ADR 0363 records the kernel-link handoff.
 >endtree
 
 >h2 See Also

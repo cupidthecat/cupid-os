@@ -27,7 +27,8 @@ same invalid-option failure. The resulting behavior totals are 25/6/32 on
 Linux and 14/6/19 on native Windows.
 
 Make now runs all 186 direct root CupidObj calls through the promoted
-CupidBuild runner. Those recipes cover 175 text wrappers, eight binary
+CupidBuild runner. Both normal kernel links use the same runner. Those object
+recipes cover 175 text wrappers, eight binary
 wrappers, and three installation-source generators. The six composite
 CupidObj publications keep their Python verification and publication layers.
 ADR 0358 records the original runner, ADR 0360 records its extension and
@@ -41,14 +42,14 @@ and the timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,501,584 bytes for `kernel/kernel.bin`, 9,728,056 bytes
+The current sizes are 9,502,016 bytes for `kernel/kernel.bin`, 9,728,056 bytes
 for `kernel/kernel.elf`, and 9,596,984 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging also passed. A preceding 9,501,220-byte checkpoint, which differed
 only in embedded manual text, completed the strong four-vCPU E1000 runtime
-contract and ran `/bin/ls.cc`. The final image smoke could not start before
-its timeout while the Windows host was out of paging-file capacity, and it
-produced no serial log.
+contract and ran `/bin/ls.cc`. The final documentation-bearing image passed
+the same private four-vCPU E1000 gate and reached normal `/bin/ls.cc` JIT
+completion.
 
 The complete 129-case bootstrap-seed module finished with 126 passes. Both
 fixed points built successfully. The three failures were stale assertions
@@ -111,7 +112,7 @@ also avoids an unused parse-time Python calculation and passes
 owner, artifact producer, or recorded transform.
 Native hosted commands remain explicit oracle targets, but none is reachable
 from a supported root. The source-current three-root graph has 452 transforms,
-no recursive Make transform, 262 Python participants, 190 CupidBuild
+no recursive Make transform, 260 Python participants, 192 CupidBuild
 participants, 250 CupidC participants, four Cupid-built contract participants,
 and no host C transform. `toolchain:all`
 uses both rebuilt compiler stages for the fifteen published `.cc` contracts,
@@ -231,9 +232,10 @@ their section bytes, bindings, values, or relocations. Checked CupidDis
 requires each defined function to begin at an instruction in executable
 `PROGBITS`. CupidBuild selects the policy before publishing either active
 object, and both fixed-point drivers select it before any startup link. The
-current audit records 190 CupidBuild and 262 Python transforms. ADR 0335
+current audit records 192 CupidBuild and 260 Python transforms. ADR 0335
 records the source capability, ADR 0336 records carriage and adoption, and ADR
-0362 records the later direct CupidObj handoff.
+0362 records the later direct CupidObj handoff, and ADR 0363 records the
+kernel-link handoff.
 
 The hosted CupidC driver now exposes the shared frontend's Cupid profile as
 `--cupid`. Both preprocessing and parsing receive the same language mode.
@@ -1127,8 +1129,8 @@ ADRs 0107 and 0108 record fetch-or and its seed transition. ADR 0110 records
 the 40-source boundary, ADR 0111 records the 116-source expansion, and ADR
 0115 records the first 20-source transfer. Across the root and supplemental
 graphs, CupidC participates in 250 transforms, no supported transform invokes
-a host C compiler, CupidBuild participates in 190, and Python participates in
-262. The external-program
+a host C compiler, CupidBuild participates in 192, and Python participates in
+260. The external-program
 syscall ABI output, root size verifier, and Toolchain publication verifier each
 have CupidC, CupidASM, CupidLD, a Cupid-built contract, and Python participants.
 The three contracts outside the user ABI path emit no OS artifact. The
@@ -1609,9 +1611,9 @@ records the immutable first-opcode decoder index and checked 128 KiB throughput
 contract. ADR 0265 records seed carriage and production adoption.
 
 The current source graph records 452 transforms across the three supported
-roots and 443 under root `all`. Its tool participation totals are Python 262,
+roots and 443 under root `all`. Its tool participation totals are Python 260,
 CupidC 250, CupidObj 192, CupidASM nine, CupidLD nine, CupidDis nine, and
-CupidBuild 190. The
+CupidBuild 192. The
 user ABI, artifact-size, Toolchain manifest verification, and Toolchain
 manifest author operations account for four Cupid-built contracts. The active
 paired seed reports record failure, help, and success counts of 25/6/32 for
@@ -1764,8 +1766,8 @@ shape.
 | Capability audit | Every active source and generated input mapped to required C, ASM, ABI, object, linker, and inspector features | Complete for root `all`, `user:all`, and `toolchain:all`: 747 active inputs, 255 feature IDs, 452 transforms, 27 accounted unreachable source-like files, and a checked drift and coverage gate. Root `all` has 443 transforms. The graph contains 32 assembly files, 301 headers, 414 Cupid C files, and no ordinary C translation unit. All 32 active assembly sources are CupidASM-owned, including five Toolchain startup inputs. The checked graph uses canonical Windows conditionals and the C locale on every host. No supported transform invokes a host C compiler or recursive Make. The active paired fixed-point inventory records failure, help, and success counts of 25/6/32 for Linux and 14/6/19 for Windows. |
 | Assembly migration | Every active assembly source has a declared owner and production assembly is built by CupidASM | Complete: all 32 active assembly sources are CupidASM-owned, including five Toolchain startup sources. The normal graph has five production assembly transforms and no NASM-owned transform. Exact and semantic parity, the clean poisoned-tool build, ISO lane parity, interrupt and scheduler contracts, UP JIT, and four-CPU boot/runtime gates pass. ADR 0327 records the complete ownership audit. |
 | C migration | Every reachable kernel, tool, application, Doom, and vendored C cohort compiles and passes behavior gates with CupidC | In progress: all 239 checked-in normal roots plus the generated kernel-symbol translation compile through the checked seed. Three generated installation tables and three example programs add CupidC ownership outside that cohort. The 15 hosted Toolchain contracts also compile, link, and run through the checked i386 seed. The user ABI, artifact-size, `CUPMAN4` author, and `CUPMAN2` verifier contracts run as checked native PE files on Windows. The current author contract decides all 62 fixed-point stage equalities from raw bytes before Python's independent oracle. All Doom production objects compile, and the asset-free recovery and dual-NIC frontiers pass. Full IWAD gameplay, input, audio, and save behavior remain open. |
-| Toolchain self-hosting | Checked seeds rebuild host tools; consecutive post-transition generations are byte-identical on Windows and Linux | The active paired v2 seeds are six-tool trust units over the same 58-input source closure. Linux builds 22 C objects plus startup and all six tools; stages three and four are byte-identical and pass the 25/6/32 behavior matrix. Native Windows uses the PE seed for every stage-two producer; its plan adds the publication runtime, three startup objects, and CupidBuild and passes 14/6/19 behavior. The checked Linux seed supplies plan and provenance data without running during that reconstruction. The preceding generation's CupidDis certifies every generated C object and startup object before linking. Both final-stage CupidDis images strictly certify every corresponding image and reject an entry-corrupted CupidBuild copy. Python still coordinates both fixed points. Normal CupidBuild ownership covers the two guarded assembly objects, both guarded raw images, and 186 direct CupidObj calls. ADR 0336 records the parent seed pair, ADR 0341 records the former bridge, ADR 0345 records the six-tool plan, ADRs 0346 and 0347 record certification, ADR 0353 records promotion, ADR 0354 records direct object publication, ADR 0356 records the guarded-raw refresh, ADR 0357 records direct raw publication, ADR 0359 records the all-native Windows fixed point, ADR 0361 records the checked-runner promotion, and ADR 0362 records the direct CupidObj handoff. |
-| Normal-build cutover | Make invokes CupidC, CupidASM, CupidLD, CupidObj, CupidDis, and CupidBuild without GCC, Clang, NASM, LLVM, or binutils | In progress: all 443 root transforms have a Cupid participant. Across all three supported graphs, CupidC participates in 250 transforms, CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in nine, CupidBuild in 190, and Python in 262. No transform is Python-only. Windows selects the native checked execution seed for output-bearing tools. The `CUPMAN4` author keeps the converged Linux producer path but runs as a validated native PE on Windows. The raw boot paths use direct CupidBuild transactions with strict decode, local-target, and source-edge checks. The 186 ordinary CupidObj recipes also use the checked native runner. Linked kernel and user ELF publication selects local-target and code-anchor checks before publication. Python retains coordination, independent comparison, drift, locking, and publication work on the six composite CupidObj paths and the remaining hosted contracts. |
+| Toolchain self-hosting | Checked seeds rebuild host tools; consecutive post-transition generations are byte-identical on Windows and Linux | The active paired v2 seeds are six-tool trust units over the same 58-input source closure. Linux builds 22 C objects plus startup and all six tools; stages three and four are byte-identical and pass the 25/6/32 behavior matrix. Native Windows uses the PE seed for every stage-two producer; its plan adds the publication runtime, three startup objects, and CupidBuild and passes 14/6/19 behavior. The checked Linux seed supplies plan and provenance data without running during that reconstruction. The preceding generation's CupidDis certifies every generated C object and startup object before linking. Both final-stage CupidDis images strictly certify every corresponding image and reject an entry-corrupted CupidBuild copy. Python still coordinates both fixed points. Normal CupidBuild ownership covers the two guarded assembly objects, both guarded raw images, 186 direct CupidObj calls, and both normal kernel links. ADR 0336 records the parent seed pair, ADR 0341 records the former bridge, ADR 0345 records the six-tool plan, ADRs 0346 and 0347 record certification, ADR 0353 records promotion, ADR 0354 records direct object publication, ADR 0356 records the guarded-raw refresh, ADR 0357 records direct raw publication, ADR 0359 records the all-native Windows fixed point, ADR 0361 records the checked-runner promotion, ADR 0362 records the direct CupidObj handoff, and ADR 0363 records the kernel-link handoff. |
+| Normal-build cutover | Make invokes CupidC, CupidASM, CupidLD, CupidObj, CupidDis, and CupidBuild without GCC, Clang, NASM, LLVM, or binutils | In progress: all 443 root transforms have a Cupid participant. Across all three supported graphs, CupidC participates in 250 transforms, CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in nine, CupidBuild in 192, and Python in 260. No transform is Python-only. Windows selects the native checked execution seed for output-bearing tools. The `CUPMAN4` author keeps the converged Linux producer path but runs as a validated native PE on Windows. The raw boot paths use direct CupidBuild transactions with strict decode, local-target, and source-edge checks. The 186 ordinary CupidObj recipes and both normal kernel links also use the checked native runner. Linked kernel and user ELF publication selects local-target and code-anchor checks before publication. Python retains coordination, independent comparison, drift, locking, and publication work on the six composite CupidObj paths and the remaining hosted contracts. |
 
 The current fixed points bind revision
 `a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f` and snapshot

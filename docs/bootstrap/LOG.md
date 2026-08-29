@@ -32809,3 +32809,74 @@ No source suffix changes belong to this handoff: all active Toolchain and OS C
 sources already use `.cc`. `TempleOS/` remained read-only. ADR 0362 records
 the ownership decision. Issue #32 remains open for the six composite paths and
 the broader Python-coordinated bootstrap work.
+
+## 2026-08-29: run both kernel links through CupidBuild
+
+The pass-one and final kernel links now launch CupidLD through the promoted
+platform CupidBuild image. `CUPIDLD` and its prerequisite closure are immutable
+Make bindings, so command-line overrides cannot replace the checked command or
+remove any of the six seed images.
+
+The source contract first failed against the Python command. It passed after
+the native binding landed, including a negative case that supplied poisoned
+linker and prerequisite overrides. The audit resolves the evaluated linker
+command instead of treating the variable name as ownership evidence. This
+keeps native CupidBuild, Python-backed fixtures, and direct CupidLD commands
+separate.
+
+The regenerated graph retains 452 transforms and 443 under root `all`.
+CupidBuild rises from 190 to 192 participations, and Python falls from 262 to
+260. Both kernel ELF edges now list CupidLD and CupidBuild. No transform is
+Python-only.
+
+A private native Windows proof passed the exact 428 pass-one objects from the
+generated audit to the promoted CupidBuild and CupidLD images. It completed in
+5.5 seconds. The 9,596,984-byte result has SHA-256
+`43e5b716ce0eca66ebdae61c19fc4ca0e7451e388987379c55563de499e0f357`
+and matches the pre-documentation pass-one kernel byte for byte.
+
+The first private attempt copied the object list through a Make `echo` command,
+which truncated one token to `ker`. CupidLD correctly rejected that missing
+input. Reading the exact list from the generated audit removed the harness
+error and produced the matching ELF.
+
+The first full `make -j4 all` attempt stopped when one parallel direct wrapper
+reported `cupidobj: transformation failed (no_memory)`. A `make -j2 all` retry
+rebuilt the complete active corpus and passed that same wrapper. It compiled
+all 83 Doom roots, ran both kernel links through the promoted CupidBuild
+command, generated the symbol source, and passed strict inspection of all 431
+code inputs. The exact-size gate then rejected the old flat-kernel row, as
+expected, because the updated embedded manuals added 432 bytes.
+
+After the policy row moved to 9,502,016 bytes, `make -o FORCE -j2 all` accepted
+all sixteen exact artifacts and published the disk image while preserving its
+FAT data.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,596,984 | `1b8fd538abd6577e817908fd6b308c3398381d1dbd446d105f9b799a3341378e` |
+| `kernel/kernel.elf` | 9,728,056 | `73b120e46d19e3cba2117083a9b590c15cfdde2d08078b6e4b2d51566f96f379` |
+| `kernel/kernel.bin` | 9,502,016 | `e5761dcd0d2851fc01f52f64669ea4b47fca9d1242bcd5b5c97af836ed8de7c3` |
+| `cupidos.img` | 209,715,200 | `5aeed8c2d792a2bc21efe6bc9c1a05e6fa2f1512385b900ab8f0ca5f02e7240d` |
+
+The 3,382-byte exact-size policy covers 38,167,344 bytes and has SHA-256
+`ba48bf4609616faad06da2d2f6910d8091b4084951778d68fb7331d9d447a4ff`.
+The regenerated 2,769,536-byte audit has SHA-256
+`66645a6009c63dc13591202e38f001d89b6cc89b1d6a491dbeb7c6f786c3f60c`,
+and its independent checked replay passed.
+
+The three ownership-focused audit selectors passed in 49.231 seconds. A final
+fresh-process sweep passed all 112 audit selectors with no failure or
+allocation retry. The three artifact-policy modules passed all 54 tests in
+3.032 seconds, with four expected platform skips.
+
+A private four-vCPU E1000 QEMU smoke ran the final image with `--cpu max` and
+`--verify-smp-runtime`. It passed the strong runtime contract and ran
+`/bin/ls.cc` to normal JIT completion. The 33,786-byte serial log has SHA-256
+`c92606af6f3e30d5e0a7f674078dd380992474fa11bd94e729b2f670c36f08ce`.
+
+The six composite CupidObj paths remain on their specialized Python contracts.
+The next safe transfers need typed CupidBuild transactions rather than the
+generic runner. All active Toolchain and OS C sources already use `.cc`, and
+`TempleOS/` remains unchanged.

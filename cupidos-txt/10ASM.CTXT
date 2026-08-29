@@ -64,7 +64,8 @@ when its identity still matches, but preserves a replacement with a different
 identity.
 The command does not turn an ordinary object-wrapping call into a guarded
 CupidASM publication. The promoted seeds now run all 186 direct CupidObj
-recipes through CupidBuild. Python stays on six composite CupidObj paths where
+recipes and both normal kernel links through CupidBuild. Python stays on six
+composite CupidObj paths where
 it provides an independent check or controls publication.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
@@ -958,7 +959,7 @@ one strict rejection through the public adapter.
 >tree
 The active v2 manifests keep CupidASM as a producer and add CupidBuild as a
 checked tool and the coordinator for four guarded assembly publications and
-186 direct CupidObj recipes. Both bind revision
+186 direct CupidObj recipes and both normal kernel links. Both bind revision
 `a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, 58 source inputs, and snapshot
 `a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`.
 
@@ -976,7 +977,7 @@ Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. All six initial images match stage two. CupidBuild owns the normal ISR,
 context-switch, bootloader, and SMP-trampoline recipes and runs 186 direct
 CupidObj calls. Across the 452 supported transforms, CupidBuild participates
-in 190 and Python in 262. ADR 0356 records the active seed refresh, ADR 0357
+in 192 and Python in 260. ADR 0356 records the active seed refresh, ADR 0357
 records the raw recipe transfer, and ADR 0362 records the CupidObj handoff.
 >endtree
 

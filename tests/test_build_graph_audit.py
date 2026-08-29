@@ -937,6 +937,52 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 1,
             )
 
+    def test_checked_tool_runner_owner_requires_the_matching_command(self):
+        module = _load_audit_module()
+        cases = (
+            (
+                "native linker",
+                "seed/cupidbuild.exe run --seed-manifest seed/manifest.json "
+                "--root . --tool cupidld --",
+                "cupidld",
+                "cupid_builder",
+            ),
+            (
+                "Python linker",
+                "python tools/bootstrap_toolchain.py run "
+                "--seed-manifest seed/manifest.json --root . "
+                "--tool cupidld --",
+                "cupidld",
+                "host_python",
+            ),
+            (
+                "direct linker",
+                "seed/cupidld.exe -m elf_i386",
+                "cupidld",
+                None,
+            ),
+            (
+                "wrong tool",
+                "seed/cupidbuild.exe run --seed-manifest seed/manifest.json "
+                "--root . --tool cupidobj --",
+                "cupidld",
+                None,
+            ),
+            (
+                "missing argument boundary",
+                "seed/cupidbuild.exe run --seed-manifest seed/manifest.json "
+                "--root . --tool cupidld",
+                "cupidld",
+                None,
+            ),
+        )
+        for name, command, tool, expected in cases:
+            with self.subTest(name=name):
+                self.assertEqual(
+                    module._checked_tool_runner_owner(command, tool),
+                    expected,
+                )
+
     def test_inventory_attributes_nested_checked_seed_tools_once(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -9625,13 +9671,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
-                    "cupid_builder": 190,
+                    "cupid_builder": 192,
                     "cupid_object": 192,
                     "cupid_linker": 9,
                     "cupid_disassembler": 9,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 262,
+                    "host_python": 260,
                 },
             )
             self.assertFalse(
@@ -10097,7 +10143,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         for variable, tool_name in (
             ("CUPIDASM", "cupidasm"),
-            ("CUPIDLD", "cupidld"),
             ("CUPIDDIS", "cupiddis"),
         ):
             with self.subTest(command=variable):
@@ -10121,6 +10166,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertIn("override CUPIDOBJ_INPUTS :=", makefile_source)
         self.assertNotIn("CUPIDOBJ ?=", makefile_source)
 
+        cupidld_command = " ".join(commands["CUPIDLD"].split())
+        self.assertNotIn("tools/bootstrap_toolchain.py", cupidld_command)
+        self.assertRegex(
+            cupidld_command,
+            r"bootstrap/seeds/i386-(?:linux|windows)/cupidbuild\.(?:elf|exe) "
+            r"run --seed-manifest bootstrap/seeds/i386-(?:linux|windows)/"
+            r"manifest\.json --root .+ --tool cupidld --$",
+        )
+        self.assertIn("override CUPIDLD :=", makefile_source)
+        self.assertIn("override CUPIDLD_INPUTS :=", makefile_source)
+        self.assertNotIn("CUPIDLD ?=", makefile_source)
+
         poisoned = module._read_evaluated_make_variables(
             REPO_ROOT,
             make,
@@ -10139,6 +10196,30 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertTrue(
             set(WINDOWS_PRODUCTION_SEED_INPUTS).issubset(
                 set(poisoned["CUPIDOBJ_INPUTS"].split())
+            )
+        )
+
+        poisoned_linker = module._read_evaluated_make_variables(
+            REPO_ROOT,
+            make,
+            ("CUPIDLD", "CUPIDLD_INPUTS"),
+            make_variables=(
+                "CUPIDLD=python poison-cupidld.py",
+                "CUPIDLD_INPUTS=poison-link-seed.bin",
+            ),
+        )
+        self.assertEqual(
+            " ".join(poisoned_linker["CUPIDLD"].split()),
+            cupidld_command,
+        )
+        self.assertNotIn(
+            "poison-link-seed.bin",
+            poisoned_linker["CUPIDLD_INPUTS"],
+        )
+        self.assertIn("Makefile", poisoned_linker["CUPIDLD_INPUTS"].split())
+        self.assertTrue(
+            set(WINDOWS_PRODUCTION_SEED_INPUTS).issubset(
+                set(poisoned_linker["CUPIDLD_INPUTS"].split())
             )
         )
 
@@ -10198,6 +10279,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             for tool in transform["tools"]
         }
         self.assertNotIn("host_c_compiler", root_tools)
+        for output in ("kernel/kernel.elf.pass1", "kernel/kernel.elf"):
+            transform = next(
+                item
+                for item in root_transforms
+                if item["output"] == output
+            )
+            self.assertEqual(
+                transform["tools"],
+                ["cupid_linker", "cupid_builder"],
+            )
         self.assertFalse(
             any(
                 "kernel/gui/terminal_ansi.c" in transform["inputs"]
@@ -10463,7 +10554,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 6,
-            "cupid_builder": 190,
+            "cupid_builder": 192,
             "cupid_object": 192,
             "cupid_linker": 3,
             "cupid_disassembler": 6,

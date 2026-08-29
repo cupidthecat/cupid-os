@@ -292,8 +292,9 @@ produce ordinary C outputs. The native Windows user ABI, artifact-size policy,
 Toolchain manifest author, and Toolchain manifest verifier supply the other four
 CupidC contract checks. CupidObj participates 192 times, CupidASM and CupidLD
 participate nine times each, CupidDis participates nine times, and CupidBuild
-participates 190 times. Four transforms run Cupid-built semantic contracts. Host
-Python participates in 262 transforms, but none is Python-only. The normal Toolchain build uses checked
+participates 192 times. Four transforms run Cupid-built semantic contracts.
+Host Python participates in 260 transforms, but none is Python-only. The normal
+Toolchain build uses checked
 static i386 tools for its contract cohort; native contract binaries are optional
 oracles.
 
@@ -2374,10 +2375,11 @@ and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. All six initial images match stage two. CupidBuild now owns all four
-guarded assembly recipes and runs 186 direct CupidObj recipes. Python
-participates in the remaining 262 transforms. ADR 0357 records the raw recipe
+guarded assembly recipes, runs 186 direct CupidObj recipes, and launches both
+normal kernel links. Python
+participates in the remaining 260 transforms. ADR 0357 records the raw recipe
 transfer, ADR 0361 records the active runner promotion, and ADR 0362 records
-the direct CupidObj handoff.
+the direct CupidObj handoff. ADR 0363 records the kernel-link handoff.
 >endtree
 
 >h2 See Also

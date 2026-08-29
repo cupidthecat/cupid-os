@@ -35692,7 +35692,6 @@
           "kernel/cpu/ksyms_data.o",
           "link.ld",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -35708,7 +35707,7 @@
         ],
         "tools": [
           "cupid_linker",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -36143,7 +36142,6 @@
           "kernel/doom/src/z_zone.o",
           "link.ld",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -36159,7 +36157,7 @@
         ],
         "tools": [
           "cupid_linker",
-          "host_python"
+          "cupid_builder"
         ]
       },
       {
@@ -56125,7 +56123,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "f9ba937fa68af7fc5fdf6bd13c110329e7ce5588d53dd9c43fe64ffcb398cca4"
+        "sha256": "dbf26b129ae60e563192e1bface9c7bac6b82776d01eb82317bf455a8eacf3ac"
       },
       {
         "path": "user/Makefile",
@@ -56174,7 +56172,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "94f79305806210844241f3b7185a279b3ee883c308ba6244987ec71d13d80e7b"
+      "sha256": "2eb62256e35e34c85bf9a93b2823376b5d2eabccb2b7aa13f79a82f8cdc3f553"
     },
     "text_hash_policy": "canonical_lf"
   },
