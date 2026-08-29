@@ -47,10 +47,16 @@ pass.
 
 This repair changes source closure, not artifact ownership. Source head has 59
 inputs with snapshot SHA-256
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`;
-the Linux and native Windows plan hashes stay fixed. The promoted seeds remain
-the 58-input cohorts, and the JPEG recipe remains Python-owned until a fresh
-paired reconstruction converges and is promoted.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+The active paired seeds remain on the preceding 58-input closure. Source-head
+CupidBuild accepts a promoted v2 `source_input_count` of exactly 58 or 59 and
+rejects 57 and 60, so the active pair remains usable while the next generation
+that adds hosted `<stddef.h>` can be promoted. The first 59-input promotion
+attempt failed closed during the normal build with `fixed-point provenance
+differs`. No invalid seed became active. The Linux and native Windows plan
+hashes stay fixed. The JPEG recipe remains Python-owned until a fresh paired
+reconstruction converges and is promoted. ADR 0366 records this bounded
+compatibility rule.
 
 Make now runs all 186 direct root CupidObj calls through the promoted
 CupidBuild runner. Both normal kernel links use the same runner. Those object
@@ -68,8 +74,8 @@ and the timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,504,508 bytes for `kernel/kernel.bin`, 9,732,152 bytes
-for `kernel/kernel.elf`, and 9,601,080 bytes for
+The current sizes are 9,509,116 bytes for `kernel/kernel.bin`, 9,736,248 bytes
+for `kernel/kernel.elf`, and 9,605,176 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging also passed. A preceding 9,501,220-byte checkpoint, which differed
 only in embedded manual text, completed the strong four-vCPU E1000 runtime

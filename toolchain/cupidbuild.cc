@@ -681,14 +681,22 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
   size_t name_count = windows ? (promoted ? 14u : 9u)
                               : (promoted ? 10u : 7u);
   size_t lineage;
-  if (object >= count ||
-      !cupidbuild_json_exact(bytes, tokens, count, object, names,
+  int source_count_matches;
+  if (object >= count)
+    return 0;
+  source_count_matches =
+      promoted
+          ? (cupidbuild_json_number_field(bytes, tokens, count, object,
+                                           "source_input_count", 58u) ||
+             cupidbuild_json_number_field(bytes, tokens, count, object,
+                                           "source_input_count", 59u))
+          : cupidbuild_json_number_field(bytes, tokens, count, object,
+                                         "source_input_count", 50u);
+  if (!cupidbuild_json_exact(bytes, tokens, count, object, names,
                              name_count) ||
       !cupidbuild_json_string_field(bytes, tokens, count, object,
                                     "fixed_point_result", "pass") ||
-      !cupidbuild_json_number_field(bytes, tokens, count, object,
-                                    "source_input_count",
-                                    promoted ? 58u : 50u) ||
+      !source_count_matches ||
       (promoted
            ? (!cupidbuild_json_lower_hex_field(
                   bytes, tokens, count, object, "source_revision", 40u) ||

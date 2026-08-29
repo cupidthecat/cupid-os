@@ -73,7 +73,8 @@ transaction and its independent native validator. Both source-head fixed-point
 matrices run the command across consecutive CupidBuild images, compare the
 relocatable result, and prove rollback for a progressive JPEG. Their source
 inventories are 26/6/33 on Linux and 15/6/20 on native Windows. This is source
-capability only; the active seeds and normal JPEG rule remain unchanged.
+capability only; the active seeds remain unchanged, and the normal JPEG Make
+edge stays Python-owned.
 
 The first paired candidate refresh stopped before publication because the
 hosted include root had no stddef.h for CupidBuild's public size_t interface.
@@ -86,9 +87,13 @@ NULL, and offsetof contract without a host C library. The offsetof macro uses
 the typed __builtin_offsetof operation, which source-head CupidC accepts as
 strict C implementation support. The repaired fixed-point closure has 59
 inputs and snapshot SHA-256
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
-The active manifests still bind the preceding 58-input closure. A fresh paired
-fixed point and seed promotion remain pending. ADR 0365 records the repair.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+The active manifests still bind the preceding 58-input closure. Source
+CupidBuild accepts promoted-v2 source inventories with 58 or 59 entries and
+rejects inventories with 57 or 60. This preserves the current pair while
+allowing a 59-input seed. The first 59-input promotion attempt failed its
+provenance check before publication, so no invalid seed became active. ADR 0365
+records the repair, and ADR 0366 records the compatibility rule.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
@@ -812,7 +817,9 @@ tools. Both manifests bind revision
 `a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`.
 
 Those are the active promoted identities. The current source closure has 59
-inputs after adding hosted stddef.h, but that closure has not been promoted.
+inputs after adding hosted stddef.h and the compatibility rule. Its SHA-256 is
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`, but
+that closure has not been promoted.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.

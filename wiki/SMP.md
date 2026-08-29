@@ -562,6 +562,14 @@ CupidBuild work is 186 direct CupidObj recipes; it does not change the SMP
 transaction. ADR 0356 records the active seed refresh, ADR 0357 records the raw
 recipe transfer, and ADR 0362 records the direct CupidObj handoff.
 
+The source-head bootstrap closure has 59 inputs and SHA-256
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+Source CupidBuild accepts promoted-v2 source counts of 58 or 59 and rejects 57
+or 60. This compatibility window covers the active seeds and the next seed
+generation. The first promotion attempt failed closed on provenance, so no
+invalid seed became active. ADR 0366 records the compatibility decision. The
+normal JPEG Make edge remains Python-coordinated.
+
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
 seconds with all fourteen exact policy artifacts accepted. Its 4,096-byte
 `kernel/smp_trampoline.bin` has SHA-256

@@ -139,10 +139,15 @@ only when GNU extensions are enabled.
 
 Adding this header grows the source-head fixed-point closure to 59 inputs with
 snapshot SHA-256
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
 The active Linux and Windows manifests still bind their preceding 58-input
-snapshot. They must be refreshed together before this source repair becomes a
-promoted seed capability. ADR 0365 records the header and compiler boundary.
+snapshot. Source-head CupidBuild accepts a promoted v2 manifest with
+`source_input_count` 58 or 59 and rejects 57 or 60. The compatibility lets the
+active pair run while making a later 59-input pair consumable. The first
+promotion attempt failed closed with `fixed-point provenance differs`; no
+invalid seed became active. The normal JPEG recipe remains Python-owned. ADR
+0365 records the header and compiler boundary, and ADR 0366 records the
+manifest compatibility rule.
 
 ### Private typedef declarators
 
@@ -3228,6 +3233,12 @@ The Windows native plan has SHA-256
 Its 2,852-byte manifest has SHA-256
 `917817122a36331a0ec77ba06d6ce40a8eacacc4224d8ed468d8d77272b8b974`
 and pairs to the exact Linux manifest bytes.
+
+This 58-input pair remains active. The first 59-input promotion attempt failed
+closed with `fixed-point provenance differs`, so it did not replace either
+seed. Source-head CupidBuild accepts promoted v2 source counts 58 and 59 and
+rejects 57 and 60. The normal JPEG recipe remains Python-owned. ADR 0366
+records the compatibility boundary.
 
 Candidate fixed-point and behavior proof passed on both platforms. The active
 v2 cohorts also pass promoted-seed self-consumption, with all six initial images

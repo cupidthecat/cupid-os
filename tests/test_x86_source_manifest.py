@@ -183,7 +183,7 @@ class X86SourceManifestTests(unittest.TestCase):
 
         self.assertEqual(len(paths), 32)
         self.assertEqual(len({record[0] for record in records}), 30)
-        self.assertEqual(len(records), 1520)
+        self.assertEqual(len(records), 1557)
         self.assertEqual(len({record[4] for record in records}), 91)
         self.assertEqual(len({key[1] for key in selected}), 166)
         self.assertEqual(len(selected), 189)

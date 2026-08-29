@@ -2321,10 +2321,14 @@ diagnostics. GNU alignment spellings still require GNU mode.
 
 The new header raises the source-head fixed-point closure to 59 inputs. Its
 snapshot SHA-256 is
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
 The active Linux and Windows seed manifests still bind the preceding 58-input
-snapshot. A paired fixed point and seed promotion are still required.
-ADR 0365 records this boundary.
+snapshot. Source-head CupidBuild accepts promoted-v2 source inventories with
+58 or 59 entries and rejects inventories with 57 or 60. This keeps the active
+pair usable and permits a 59-input successor. The first 59-input promotion
+attempt failed its provenance check before publication, so no invalid seed
+became active. ADR 0365 records the header boundary, and ADR 0366 records the
+compatibility rule.
 >endtree
 
 >h2 Hosted Large Frames
@@ -2356,7 +2360,7 @@ normal bootloader and SMP trampoline recipes invoke them directly.
 
 Those values describe the active promoted seeds. Source head now has 59 inputs
 after adding the hosted stddef.h contract, with snapshot SHA-256
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
 That source closure has not replaced the 58-input seed manifests yet.
 
 These standalone compiler seeds do not contain the private in-kernel callback

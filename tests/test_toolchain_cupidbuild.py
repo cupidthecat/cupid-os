@@ -1614,6 +1614,50 @@ class CupidBuildCliTests(unittest.TestCase):
                     output.read_bytes()[:7], b"\x7fELF\x01\x01\x01"
                 )
 
+    def test_six_tool_v2_contract_accepts_58_and_59_source_inputs(self):
+        for source_input_count in (58, 59):
+            with self.subTest(
+                source_input_count=source_input_count
+            ), tempfile.TemporaryDirectory(
+                prefix=".cupidbuild-object-v2-source-count-", dir=REPO_ROOT
+            ) as temporary:
+                root = Path(temporary)
+                manifest = self._copy_checked_assembly_seed(root / "seed")
+                document = self._promote_seed_contract(manifest)
+                document["provenance"][
+                    "source_input_count"
+                ] = source_input_count
+                manifest.write_text(
+                    json.dumps(document, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+                source = root / "input.asm"
+                output = root / "output.o"
+                source.write_text(
+                    "bits 32\nsection .text\nglobal entry:function\nentry: ret\n",
+                    encoding="utf-8",
+                )
+                output.write_bytes(b"last known good object")
+
+                result = self._run_object(source, output, manifest)
+
+                self.assertNotIn(
+                    "fixed-point provenance differs", result.stderr
+                )
+                if os.name == "nt":
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn("execution profile mismatch", result.stderr)
+                    self.assertEqual(
+                        output.read_bytes(), b"last known good object"
+                    )
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(result.stderr, "")
+                    self.assertEqual(
+                        output.read_bytes()[:7], b"\x7fELF\x01\x01\x01"
+                    )
+
     def test_six_tool_v2_contract_rejects_parent_and_revision_drift(self):
         def uppercase_revision(document):
             revision = document["provenance"]["source_revision"]
@@ -1630,6 +1674,24 @@ class CupidBuildCliTests(unittest.TestCase):
         cases = (
             ("uppercase source revision", uppercase_revision),
             ("wrong parent manifest", change_parent),
+            (
+                "preceding source input count",
+                lambda document: document["provenance"].update(
+                    {"source_input_count": 57}
+                ),
+            ),
+            (
+                "unpublished source input count",
+                lambda document: document["provenance"].update(
+                    {"source_input_count": 60}
+                ),
+            ),
+            (
+                "non-numeric source input count",
+                lambda document: document["provenance"].update(
+                    {"source_input_count": "59"}
+                ),
+            ),
         )
         if os.name == "nt":
             cases += (

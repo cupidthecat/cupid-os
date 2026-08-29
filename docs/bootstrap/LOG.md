@@ -33066,3 +33066,71 @@ contents, and staged `hello.iso`.
 The 3,382-byte exact-size policy covers 38,189,064 bytes and has SHA-256
 `ba505b1fc1440de997eb2fd75f4da0ef9ae1a6df9403a3f1c67ba8dcb6ec1b37`.
 The complete build-graph module passed all 112 tests in 1,060.065 seconds.
+
+## 2026-08-29: admit the 59-input seed transition
+
+The first provisional seed promotion after the hosted-header repair exposed a
+second closed gate. Both candidate fixed points had converged over 59 inputs,
+but their CupidBuild images still required a promoted v2 manifest to report
+exactly 58. A normal `make -j4 all` stopped at the first guarded bootloader and
+ISR transactions with `fixed-point provenance differs`. CupidBuild did not run
+CupidASM or replace either output.
+
+Those provisional manifests and images were removed from the active tree. The
+source parser now accepts only the 58-input active generation or the next
+59-input generation. Legacy v1 remains fixed at 50, and new negative cases
+reject 57 and 60 while preserving the previous output. This retains the
+provenance boundary instead of treating the count as decorative metadata.
+
+The transition regression was run before the source change. The 58 case passed,
+and the 59 case failed with the same production diagnostic. After the change,
+both accepted counts reached the checked execution profile. The paired
+provenance test, including the new rejected counts, passed beside it. The two
+tests completed in 2.328 seconds.
+
+Source head still freezes 59 inputs. The changed CupidBuild parser moves the
+snapshot SHA-256 to
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`;
+both platform build-plan hashes remain unchanged. The complete CupidBuild
+module passed 77 tests in 70.602 seconds with three expected platform skips.
+The manifest and runner contract modules passed 65 tests in 84.164 seconds
+with three expected Windows skips. Their first overlapping run found the audit
+changing at the root-stability boundary; the uncontended rerun passed.
+
+The 65 CupidC publication and coordinator contracts also passed. A following
+x86 source-manifest check found an older exact count and four source-location
+labels that no longer matched the active assembly inventory. The audit reports
+1,557 instruction records across the same 32 active assembly paths; opcode,
+signature, and selected-case counts remain 91, 166, and 189. Updating that
+count and the two Linux and two Windows startup labels made both x86 manifest
+tests pass. The instruction bytes and active assembly sources did not change.
+
+The canonical audit and its independent replay both pass. The 2,777,757-byte
+JSON audit has SHA-256
+`a0d813887c292f22f81e79e0e4738007cc2f342f4be085e1d8bbd36d1dc7a462`.
+Its 13,192-byte summary has SHA-256
+`408269efeb372fbabbb8113d2fa931fa0a5cd7630226721c313dcb557b2d19df`.
+Both active 58-input seed cohorts passed their manifest checks unchanged.
+
+The full `make -j4 all` replay compiled the active kernel, generated sources,
+drivers, in-kernel tools, browser, and all 83 Doom roots. Both CupidLD links
+passed, and CupidDis accepted the pass-one and final linked images with its
+strict known-instruction, local-target, and code-anchor checks. The first
+exact-size replay rejected only the flat kernel: documentation had raised it
+from 9,507,352 to 9,509,116 bytes. Updating that measured row and replaying the
+complete graph accepted all 16 exact artifacts and staged `hello.iso` while
+preserving existing FAT data.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,605,176 | `23c158fe403046cd09af3a2e639abd06f80f82e8110eedf6f5f983afc7f4cbb1` |
+| `kernel/kernel.elf` | 9,736,248 | `2eab3e545fc5545612c7ddaf1bc36f9ddccbdf2b52370b37d3ce96b6f51bf5ec` |
+| `kernel/kernel.bin` | 9,509,116 | `16fdefd2f2362edadeaafed837dc0336d40c74bbab2e2d87d70e28e4967aa456` |
+| `cupidos.img` | 209,715,200 | `b907084e2122e7016db5b41488b3f48135cf369d73f33e8e17219cb3bece9665` |
+
+The 3,382-byte exact-size policy covers 38,190,828 bytes and has SHA-256
+`144748afc34f3c6cceb91bf0c021e8905dd583f4eb458077be370b484aa4ea0d`.
+The three artifact-policy and checked-runner modules passed 54 tests in 4.234
+seconds, with four expected Windows skips. The complete build-graph module
+passed all 112 tests in 893.289 seconds.
+Post-commit fixed-point evidence follows this entry.

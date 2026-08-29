@@ -45,8 +45,8 @@ links in the normal build.
 
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,504,508 bytes for `kernel/kernel.bin`, 9,732,152 bytes
-for `kernel/kernel.elf`, and 9,601,080 bytes for
+The current sizes are 9,509,116 bytes for `kernel/kernel.bin`, 9,736,248 bytes
+for `kernel/kernel.elf`, and 9,605,176 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as part of the same replay. A preceding 9,501,220-byte
 checkpoint, which differed only in embedded manual text, completed the strong
@@ -78,10 +78,16 @@ separate.
 The first Linux and native Windows candidates stopped on the missing header
 before they could publish. Source head now freezes 59 inputs with snapshot
 SHA-256
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`,
-and both plan hashes are unchanged. Fixed-point carriage is still **Pending**:
-the promoted seeds retain the preceding 58-input snapshot until a fresh paired
-proof converges.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+The active paired seeds retain the preceding 58-input closure. Source-head
+CupidBuild accepts a promoted v2 `source_input_count` of exactly 58 or 59 and
+rejects 57 and 60. This bounded transition keeps the active seeds usable and
+allows the next generation that adds hosted `<stddef.h>` to be promoted
+without weakening the other provenance checks. The first 59-input promotion
+attempt failed closed during the normal build with `fixed-point provenance
+differs`. No invalid seed became active. Both platform plan hashes remain
+unchanged, and the normal JPEG recipe remains Python-coordinated. Fixed-point
+carriage is still **Pending**. ADR 0366 records the compatibility boundary.
 
 CupidBuild guarded assembly publication is **Observed at source head**. It now
 parses the frozen manifest and enforces exact JSON fields, the host schema and

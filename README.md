@@ -108,15 +108,20 @@ standard `offsetof` macro, and strict CupidC accepts its typed
 `__builtin_offsetof` implementation path. A checked-seed regression reproduces
 the original failure and now compiles the public CupidBuild API plus the full
 header contract. Source head has 59 frozen inputs with snapshot SHA-256
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`;
-the Linux and Windows plan hashes did not change. The active seeds remain on
-their 58-input snapshot while the repaired paired candidate proof is pending.
-ADR 0365 records the repair.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`;
+the Linux and Windows plan hashes did not change. Source CupidBuild now accepts
+the active 58-input v2 manifests and the next 59-input v2 generation while
+rejecting 57 and 60. The first promotion attempt found the former 58-only
+check when the normal build failed closed with `fixed-point provenance
+differs`; none of those candidate bytes became an active seed. The active
+pair remains on its 58-input snapshot while the repaired fixed point is
+pending. ADR 0365 records the hosted header, and ADR 0366 records the bounded
+manifest transition.
 
 The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
 strict CupidDis validation, all 16 exact artifacts, and image publication. The
-current flat kernel is 9,504,508 bytes; the final and pass-one ELFs are
-9,732,152 and 9,601,080 bytes. A preceding 9,501,220-byte checkpoint, which
+current flat kernel is 9,509,116 bytes; the final and pass-one ELFs are
+9,736,248 and 9,605,176 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 boot and ran
 `/bin/ls.cc`. The final documentation-bearing image then passed the same
 private four-vCPU E1000 gate with `--cpu max --verify-smp-runtime` and ran

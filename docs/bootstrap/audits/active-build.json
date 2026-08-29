@@ -39359,13 +39359,13 @@
             },
             {
               "directive": "if",
-              "line": 816,
+              "line": 824,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1146,
+              "line": 1154,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
@@ -40522,31 +40522,31 @@
             },
             {
               "directive": "if",
-              "line": 1079,
+              "line": 1087,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1606,
+              "line": 1614,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1642,
+              "line": 1650,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1866,
+              "line": 1874,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1910,
+              "line": 1918,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -47456,7 +47456,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 42359
+      "occurrences": 42360
     },
     {
       "category": "control",
@@ -47833,7 +47833,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 26258
+      "occurrences": 26259
     },
     {
       "category": "control",
@@ -53735,7 +53735,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 24456
+      "occurrences": 24457
     },
     {
       "category": "type",
@@ -56236,7 +56236,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "5fa632f424cf8817d16063d465b62582f208e9566683086225c804fdaa3cfe02",
+    "active_source_digest": "db362c8c713fdb4ca1ddfb2e41bd498b2ba69a5e8e2f50b265503d95581a0d0d",
     "control_files": [
       {
         "path": "Makefile",
@@ -81048,12 +81048,12 @@
         "toolchain/pe32_impl.h"
       ],
       "language": "cupid_c",
-      "lines": 2310,
+      "lines": 2318,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b2a9881f9032432bf8883c9c862c773a4ffe5264dacc762131f3d613f6faa071"
+      "sha256": "ffaabc09ef4d2a4cf9fbb27b99b1e253bbb96876c85e8960c989a7b1b08b48ed"
     },
     {
       "build_owners": [

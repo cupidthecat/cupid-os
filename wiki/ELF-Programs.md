@@ -19,8 +19,8 @@ Source head also has a typed JPEG-to-`ET_REL` transaction. It requires a
 data-only relocatable with the exact asset bytes and start, end, and size
 symbols derived from the original name. It independently checks the frozen
 sequential JPEG before guarded publication. This capability has not entered
-the promoted seeds or normal
-graph yet, so the participation totals above remain current.
+the promoted seeds, and the normal JPEG Make edge remains Python-coordinated.
+The participation totals above therefore remain current.
 
 ---
 
@@ -932,6 +932,13 @@ SMP-trampoline recipes and runs 186 direct CupidObj calls. Python remains in
 the other 260 transforms after both normal kernel links moved to the same
 runner. ADR 0357 records the raw recipe transfer, ADR 0362 records the direct
 CupidObj handoff, and ADR 0363 records the kernel-link handoff.
+
+The source-head bootstrap closure has 59 inputs and SHA-256
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+Source CupidBuild accepts promoted-v2 source counts of 58 or 59 and rejects 57
+or 60. This admits the active 58-input seeds and the next 59-input generation.
+The first promotion attempt failed closed on provenance, so no invalid seed
+became active. ADR 0366 records the compatibility decision.
 
 The preceding source-head cohort used the same pass-one and final ELF sizes
 with SHA-256 values

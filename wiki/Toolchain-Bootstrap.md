@@ -47,16 +47,22 @@ contract. Source-head CupidC treats the typed `__builtin_offsetof` operation as
 strict C implementation support instead of a GNU-only extension.
 
 The repaired source-head closure has 59 inputs and snapshot SHA-256
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
-The Linux and Windows build-plan hashes do not change. The active manifests
-and seed images still bind the earlier 58-input closure, so a fresh paired
-fixed point and seed promotion remain pending. Neither failed attempt produced
-a candidate report or promotion artifact. ADR 0365 records this repair.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+The Linux and Windows build-plan hashes do not change. Source-head CupidBuild
+accepts a promoted v2 manifest with `source_input_count` 58 or 59 and rejects
+57 or 60. This keeps the active 58-input pair usable and makes a later
+59-input promotion consumable.
+
+The first promotion attempt failed closed with
+`fixed-point provenance differs`. It did not replace either active seed, and
+no invalid seed became active. The normal JPEG recipe remains Python-owned.
+ADR 0365 records the hosted header repair, and ADR 0366 records the manifest
+compatibility rule.
 
 The policy-bound OS build passed all 83 Doom roots, both CupidLD links, strict
 CupidDis inspection, all 16 exact artifact rows, and image publication. The
-flat kernel is 9,504,508 bytes; the final and pass-one ELFs are 9,732,152 and
-9,601,080 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
+flat kernel is 9,509,116 bytes; the final and pass-one ELFs are 9,736,248 and
+9,605,176 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
 embedded manual text, passed a four-vCPU E1000 boot and ran `/bin/ls.cc`. The
 final documentation-bearing image passed the same private gate and reached
 normal `/bin/ls.cc` JIT completion.
@@ -93,8 +99,8 @@ timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,504,508 bytes for `kernel/kernel.bin`, 9,732,152 bytes
-for `kernel/kernel.elf`, and 9,601,080 bytes for
+The current sizes are 9,509,116 bytes for `kernel/kernel.bin`, 9,736,248 bytes
+for `kernel/kernel.elf`, and 9,605,176 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as part of that replay.
 
@@ -2427,6 +2433,12 @@ The 2,852-byte Windows manifest has SHA-256
 and binds native plan
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its pairing field names the SHA-256 of the exact Linux manifest bytes.
+
+This 58-input pair remains active. Source-head CupidBuild accepts promoted v2
+source counts 58 and 59 and rejects 57 and 60. The first 59-input promotion
+attempt failed closed with `fixed-point provenance differs`, so it did not
+replace either seed. The normal JPEG recipe remains Python-owned. ADR 0366
+records this compatibility boundary.
 
 The refreshed CupidBuild images carried the guarded bootloader and SMP
 trampoline commands before the normal Make recipes adopted them. At that

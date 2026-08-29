@@ -30,8 +30,8 @@ skips. The dedicated Make contract passed, as did all six CupidASM source tests
 in 3.771 seconds, strict Windows and freestanding i386 adapter compilation, and
 timeout-and-seed-drift precedence.
 
-One of those six composite paths now has a source-head replacement ready for
-promotion. Typed `cupidbuild embed-jpeg` owns the lock, frozen asset and v2
+One of those six composite paths now has a source-head implementation. Typed
+`cupidbuild embed-jpeg` owns the lock, frozen asset and v2
 seed, private CupidObj candidate, exact payload and identity-symbol checks,
 the independent native JPEG veto, drift checks, and atomic publication. The
 active seeds do not contain the command yet, so
@@ -50,15 +50,23 @@ also accepts the target-aware `__builtin_offsetof` operation used by the
 standard macro.
 
 Source head freezes 59 inputs with snapshot SHA-256
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
-Both build-plan hashes remain unchanged. The active checked seeds still carry
-their 58-input snapshot; no failed candidate or report was promoted. The full
-paired rerun remains the gate before the seed and JPEG recipe can move.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+Source CupidBuild accepts a promoted v2 manifest when `source_input_count` is
+58 or 59 and rejects 57 and 60. This compatibility rule preserves the current
+58-input seeds while admitting the next 59-input source generation. Both
+build-plan hashes remain unchanged.
+
+The first seed candidate produced after the header repair was not accepted.
+Stage-four CupidBuild still required 58 inputs, so the normal build failed
+closed with `fixed-point provenance differs`. The active Linux and Windows
+pair remains on the preceding 58-input cohort, and no invalid seed is active.
+Host Python still coordinates the normal JPEG recipe. ADR 0366 records the
+v2 source-count compatibility rule.
 
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,504,508 bytes for `kernel/kernel.bin`, 9,732,152 bytes
-for `kernel/kernel.elf`, and 9,601,080 bytes for
+The current sizes are 9,509,116 bytes for `kernel/kernel.bin`, 9,736,248 bytes
+for `kernel/kernel.elf`, and 9,605,176 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as well.
 
@@ -306,12 +314,12 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`4cf6dbbe470c907e6e95450399f7d500b10761c6c6a79b0a75109ad6f3abda8d`.
+`144748afc34f3c6cceb91bf0c021e8905dd583f4eb458077be370b484aa4ea0d`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,601,080, 9,732,152, and 9,504,508 bytes for the boot image, pass-one ELF,
+9,605,176, 9,736,248, and 9,509,116 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,178,028 bytes.
+sixteen rows, totaling 38,190,828 bytes.
 
 The paired-seed promotion replay passed both CupidLD links and strict
 inspection of all 431 production inputs. Its first size gate measured

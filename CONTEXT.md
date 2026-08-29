@@ -87,7 +87,12 @@ from `cupid_host_abi.h`. CupidC accepts the implementation
 `__builtin_offsetof` operation in strict C so the standard macro can resolve a
 member against Cupid's target layout. Source head has 59 frozen inputs with
 snapshot SHA-256
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+Source CupidBuild accepts the 58-input active v2 manifests and the next
+59-input v2 generation. Counts below 58 or above 59 fail provenance
+validation. This narrow transition keeps the checked seeds usable while a
+new paired fixed point is proved. The first promotion attempt exposed the old
+58-only check and failed before it could publish a normal-build artifact.
 The checked seeds still describe their preceding 58-input snapshot until the
 paired refresh is proved and promoted.
 _Avoid_: host libc, production ownership from a source-head link
@@ -1826,17 +1831,17 @@ The 143,084-byte serial log had SHA-256
 The final normal build passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All sixteen exact artifacts
 passed, along with whole-image CupidDis inspection and disk-image staging. The
-current artifacts are a 9,601,080-byte `kernel/kernel.elf.pass1` with SHA-256
-`eb69dd23dab38ffebb854c05b1e928f4438f274aec680be4747a61470aecf0d1`, a
-9,732,152-byte `kernel/kernel.elf` with SHA-256
-`70740dfd19c2bf1120463745e821c5c6a11e171adcdb0c81a088592bff639e3d`,
-and a 9,504,508-byte `kernel/kernel.bin` with SHA-256
-`47c1e47997704276fe201e8d8b7c0b998eaf8d30b55af1796a40e131770518e2`.
-The current 3,382-byte exact-size policy covers 38,178,028 bytes and has
+current artifacts are a 9,605,176-byte `kernel/kernel.elf.pass1` with SHA-256
+`23c158fe403046cd09af3a2e639abd06f80f82e8110eedf6f5f983afc7f4cbb1`, a
+9,736,248-byte `kernel/kernel.elf` with SHA-256
+`2eab3e545fc5545612c7ddaf1bc36f9ddccbdf2b52370b37d3ce96b6f51bf5ec`,
+and a 9,509,116-byte `kernel/kernel.bin` with SHA-256
+`16fdefd2f2362edadeaafed837dc0336d40c74bbab2e2d87d70e28e4967aa456`.
+The current 3,382-byte exact-size policy covers 38,190,828 bytes and has
 SHA-256
-`4cf6dbbe470c907e6e95450399f7d500b10761c6c6a79b0a75109ad6f3abda8d`.
+`144748afc34f3c6cceb91bf0c021e8905dd583f4eb458077be370b484aa4ea0d`.
 The normal 209,715,200-byte `cupidos.img` has SHA-256
-`604a48143344a0bbd3e18e1b625a689265b48ce8fb7510b787d9f6d2d337b09d`.
+`b907084e2122e7016db5b41488b3f48135cf369d73f33e8e17219cb3bece9665`.
 A preceding 9,501,220-byte checkpoint, which differed only in embedded manual
 text, passed a private four-vCPU E1000 QEMU smoke with
 `--cpu max --verify-smp-runtime` and ran `/bin/ls.cc`. The final

@@ -69,7 +69,8 @@ both source-head fixed-point behavior matrices. ADR 0361 promotes that runner
 in the paired checked seeds, ADR 0362 moves the 186 ordinary CupidObj recipes
 onto it, ADR 0363 moves both normal kernel links onto the same runner, and ADR
 0364 adds the typed source-head JPEG publication boundary. ADR 0365 provides
-the hosted `stddef` contract that boundary exposed during reconstruction.
+the hosted `stddef` contract that boundary exposed during reconstruction, and
+ADR 0366 records the v2 source-count compatibility boundary.
 
 ## 2026-08-29 source-current checkpoint
 
@@ -108,11 +109,18 @@ green after the repair; a separate strict frontend test did the same for
 
 The new header raises the source-head closure to 59 inputs with snapshot
 SHA-256
-`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
-The Linux and native Windows plan hashes are unchanged. The promoted manifests
-continue to name their 58-input snapshot, and the normal JPEG recipe stays on
-Hostbuild until a fresh paired proof converges and those candidates are
-promoted. ADR 0365 records this source repair.
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+Source CupidBuild accepts a promoted v2 manifest when `source_input_count` is
+58 or 59 and rejects 57 and 60. This keeps the current 58-input seeds usable
+while admitting the next 59-input source generation. The Linux and native
+Windows plan hashes are unchanged.
+
+The first seed candidate produced after the header repair was not accepted.
+Stage-four CupidBuild still required 58 inputs, so the normal build failed
+closed with `fixed-point provenance differs`. The active Linux and Windows
+pair remains on the preceding 58-input cohort, and no invalid seed is active.
+The normal JPEG recipe stays on Hostbuild until a paired proof converges. ADR
+0365 records the source repair, and ADR 0366 records the compatibility rule.
 
 The native Windows fixed point now uses the checked Windows execution seed for
 every stage-two producer. The checked Linux seed remains the reviewed build
@@ -175,8 +183,8 @@ ADR 0361 records seed promotion, and ADR 0362 records the recipe handoff.
 The final policy-bound build compiled all 83 Doom roots, linked both kernel
 stages with CupidLD, and passed strict CupidDis validation. A post-policy
 top-level replay accepted all 16 exact artifacts and published the image.
-`kernel/kernel.bin` is 9,504,508 bytes; the final and pass-one ELFs are
-9,732,152 and 9,601,080 bytes. A preceding 9,501,220-byte checkpoint, which
+`kernel/kernel.bin` is 9,509,116 bytes; the final and pass-one ELFs are
+9,736,248 and 9,605,176 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 smoke and ran
 `/bin/ls.cc` to normal JIT completion. The final documentation-bearing image
 then passed the same private four-vCPU E1000 gate with `--cpu max`, strong SMP

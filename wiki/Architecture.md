@@ -15,6 +15,15 @@ fits the existing guarded host layer with one asset, one manifest, and six
 tools. Paired seed promotion is still required before that source capability
 can replace the normal Python coordinator.
 
+The source-head fixed-point closure contains 59 inputs with snapshot SHA-256
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+CupidBuild accepts a promoted v2 manifest whose `source_input_count` is 58 or
+59 and rejects 57 or 60. This keeps the active 58-input pair usable while
+making a later 59-input promotion consumable. The first promotion attempt
+failed closed with `fixed-point provenance differs`, so no invalid seed became
+active. The normal JPEG recipe remains Python-owned. ADR 0366 records this
+compatibility boundary.
+
 ---
 
 ## Boot Sequence

@@ -74,7 +74,8 @@ CupidObj's data-only relocatable to carry the exact payload and identity
 symbols, checks the JPEG with a separate native parser, and owns locking and
 publication. The source-head fixed-point matrices
 exercise exact output and progressive-input rollback. Seed promotion and the
-normal Make handoff remain separate steps.
+normal Make handoff remain separate steps. The current JPEG Make edge remains
+Python-owned.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
@@ -971,6 +972,14 @@ checked tool and the coordinator for four guarded assembly publications and
 186 direct CupidObj recipes and both normal kernel links. Both bind revision
 `a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, 58 source inputs, and snapshot
 `a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`.
+
+The source-head closure contains 59 inputs and has SHA-256
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+Source CupidBuild accepts promoted-v2 source inventories with 58 or 59 entries
+and rejects inventories with 57 or 60. This keeps the active pair usable while
+allowing a 59-input seed. The first 59-input promotion attempt failed its
+provenance check before publication, so no invalid seed became active. ADR 0366
+records the compatibility rule.
 
 The Linux form binds the 22-source, six-link plan with SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
