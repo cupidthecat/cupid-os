@@ -138,6 +138,41 @@ def _expected_cupid_type(return_type):
     return "TYPE_INT"
 
 
+def _declaration_parameter_count(source, parameter_start):
+    depth = 1
+    index = parameter_start
+    comma_count = 0
+    has_token = False
+    while index < len(source):
+        char = source[index]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                parameters = source[parameter_start:index].strip()
+                if not has_token or parameters == "void":
+                    return 0
+                if parameters.endswith("..."):
+                    return comma_count
+                return comma_count + 1
+        elif depth == 1 and char == ",":
+            comma_count += 1
+        elif not char.isspace():
+            has_token = True
+        index += 1
+    raise AssertionError("kernel binding declaration has no closing parenthesis")
+
+
+def _declared_parameter_counts(source):
+    counts = {}
+    for match in DECLARATION_RE.finditer(source):
+        counts[match.group("pointer")] = _declaration_parameter_count(
+            source, match.end()
+        )
+    return counts
+
+
 def _binding_contract(source):
     body = _registration_body(source)
     declarations = {}
@@ -213,6 +248,44 @@ def _binding_contract(source):
 
 
 class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
+    def test_guest_allocator_wrapper_owns_provenance_and_one_argument_abi(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        self.assertRegex(
+            source,
+            r'static void \*cc_kmalloc\(size_t size\)\s*\{\s*'
+            r'return kmalloc_debug\(size, "cupidc", 0\);\s*\}',
+        )
+
+        _declarations, bindings, violations = _binding_contract(source)
+        self.assertEqual(violations, [])
+        kmalloc_binding = next(
+            binding
+            for binding in bindings.values()
+            if binding["name"] == "kmalloc"
+        )
+        self.assertEqual(kmalloc_binding["macro"], "BIND_FIXED")
+        self.assertEqual(kmalloc_binding["parameter_count"], 1)
+        self.assertEqual(kmalloc_binding["return_type"], "TYPE_PTR")
+        self.assertEqual(kmalloc_binding["parameter_types"], ["TYPE_UINT"])
+
+    def test_every_kernel_binding_advertises_its_declared_arity(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        body = _registration_body(source)
+        declared_parameter_counts = _declared_parameter_counts(body)
+        _declarations, bindings, violations = _binding_contract(source)
+        self.assertEqual(violations, [])
+
+        mismatches = []
+        for pointer, binding in bindings.items():
+            declared_count = declared_parameter_counts[pointer]
+            if binding["parameter_count"] != declared_count:
+                mismatches.append(
+                    f"{binding['name']}: declaration has {declared_count} "
+                    f"parameters, registration advertises "
+                    f"{binding['parameter_count']}"
+                )
+        self.assertEqual(mismatches, [])
+
     def test_every_kernel_binding_publishes_its_declared_result_type(self):
         source = BINDING_SOURCE.read_text(encoding="utf-8")
         declarations, bindings, violations = _binding_contract(source)

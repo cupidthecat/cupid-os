@@ -13,6 +13,7 @@ from tools import gui_terminal_smoke
 REPO_ROOT = Path(__file__).resolve().parents[1]
 JPEG_FIXTURE = REPO_ROOT / "test_iso" / "fixtures" / "jpeg_baseline_8x8.jpg"
 GFXGUI_SOURCE = REPO_ROOT / "bin" / "gfxgui_test.cc"
+FEATURE7_SOURCE = REPO_ROOT / "bin" / "feature7_new_del.cc"
 
 
 def _smp_runtime_log():
@@ -117,6 +118,11 @@ def _frontier_command_outputs():
             "[cupidc] JIT compile: /bin/test_fpaug.cc\n"
             "[test_fpaug-parity] PASS equal=1 unequal=1 truth=1\n"
             "PASS test_fpaug\n"
+            "[cupidc] JIT execution complete\n"
+        ),
+        (
+            "[cupidc] JIT compile: /bin/feature7_new_del.cc\n"
+            "feature7_new_del: PASS\n"
             "[cupidc] JIT execution complete\n"
         ),
         (
@@ -1415,6 +1421,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "as /demos/syscall_vfs_extended_demo.asm",
                 "dis /bin/test_fpaug.cc",
                 "/bin/test_fpaug.cc",
+                "/bin/feature7_new_del.cc",
                 "/bin/feature13_double.cc",
                 "ccc /bin/feature13_derived_aot.cc -o /feature13_derived_aot",
                 "exec /feature13_derived_aot",
@@ -1445,6 +1452,28 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         self.assertGreater(len(commands[-1].followup_keys), 5)
         self.assertEqual(commands[1].followup_keys, ("shift",))
         self.assertEqual(commands[1].followup_settle_seconds, 0.0)
+        feature7_command = _frontier_command("/bin/feature7_new_del.cc")
+        self.assertIn(
+            r"\[cupidc\] JIT compile: /bin/feature7_new_del\.cc",
+            feature7_command.expected_pattern,
+        )
+        self.assertIn(
+            "feature7_new_del: PASS",
+            feature7_command.expected_pattern,
+        )
+        self.assertIn(
+            gui_terminal_smoke.CUPIDC_COMPLETION_PATTERN,
+            feature7_command.expected_pattern,
+        )
+        feature7_source = FEATURE7_SOURCE.read_text(encoding="utf-8")
+        self.assertIn(
+            'serial_printf("feature7_new_del: PASS\\n");',
+            feature7_source,
+        )
+        self.assertIn(
+            'serial_printf("feature7_new_del: FAIL\\n");',
+            feature7_source,
+        )
         self.assertIn(
             "waiting for USB Shift",
             commands[1].interaction_pattern,

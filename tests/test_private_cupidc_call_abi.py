@@ -276,6 +276,22 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                           cc, "native_variadic", 0x01001240u, TYPE_INT, 1, 1,
                           TYPE_INT, TYPE_VOID, TYPE_VOID, TYPE_VOID))
                     return;
+                  if (!bind_fixed_kernel(
+                          cc, "kmalloc", 0x01001300u, TYPE_PTR, 1, 0,
+                          TYPE_UINT, TYPE_VOID, TYPE_VOID, TYPE_VOID))
+                    return;
+                  if (!bind_fixed_kernel(
+                          cc, "kfree", 0x01001360u, TYPE_VOID, 1, 0,
+                          TYPE_PTR, TYPE_VOID, TYPE_VOID, TYPE_VOID))
+                    return;
+                  if (!bind_fixed_kernel(
+                          cc, "memset", 0x01001380u, TYPE_PTR, 3, 0,
+                          TYPE_PTR, TYPE_INT, TYPE_UINT, TYPE_VOID))
+                    return;
+                  if (!bind_fixed_kernel(
+                          cc, "native_free_count", 0x010013c0u, TYPE_INT, 0, 0,
+                          TYPE_VOID, TYPE_VOID, TYPE_VOID, TYPE_VOID))
+                    return;
                   {
                     cc_function_pointer_signature_t callback;
                     init_binding_signature(&callback, TYPE_VOID, 2);
@@ -1093,6 +1109,66 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 1:
                   ret
 
+                .org 0x1300
+                test_kmalloc:
+                  movl 4(%esp), %ecx
+                  testl %ecx, %ecx
+                  jz 1f
+                  cmpl $4096, %ecx
+                  ja 1f
+                  movl test_heap_next, %eax
+                  addl $3, %ecx
+                  andl $-4, %ecx
+                  addl %eax, %ecx
+                  cmpl $test_heap_end, %ecx
+                  ja 1f
+                  movl %ecx, test_heap_next
+                  ret
+                1:
+                  xorl %eax, %eax
+                  ret
+
+                .org 0x1360
+                test_kfree:
+                  movl 4(%esp), %eax
+                  testl %eax, %eax
+                  jz 1f
+                  incl test_free_calls
+                1:
+                  ret
+
+                .org 0x1380
+                test_memset:
+                  pushl %edi
+                  movl 8(%esp), %edi
+                  movl %edi, %eax
+                  movb 12(%esp), %dl
+                  movl 16(%esp), %ecx
+                1:
+                  testl %ecx, %ecx
+                  jz 2f
+                  movb %dl, (%edi)
+                  incl %edi
+                  decl %ecx
+                  jmp 1b
+                2:
+                  popl %edi
+                  ret
+
+                .org 0x13c0
+                test_native_free_count:
+                  movl test_free_calls, %eax
+                  ret
+
+                .section .testruntime,"aw",@progbits
+                test_heap_next:
+                  .long test_heap
+                test_free_calls:
+                  .long 0
+                test_heap:
+                  .space 4096
+                test_heap_end:
+
                 .section .cupidcode,"ax",@progbits
                 .global cupid_code
                 cupid_code:
@@ -1113,6 +1189,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 SECTIONS {
                   . = 0x01000000;
                   .text : { *(.text) }
+                  . = 0x01008000;
+                  .testruntime : { *(.testruntime) }
                   . = 0x01100000;
                   .cupidcode : { *(.cupidcode) }
                   . = 0x01200000;
@@ -1230,6 +1308,41 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
               if (sqrt(small) != 5.0) return 3;
               if (native_mixed(1, 2, 3, 4) != 10) return 4;
               if (native_variadic(1, (char)2, 3.0f) != 6) return 5;
+              return 0;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(aot=aot):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode, 0, result.stdout + result.stderr
+                )
+
+    def test_new_and_del_use_typed_allocator_bindings_in_jit_and_aot(self):
+        source = """
+            class Pair {
+              int a;
+              int b;
+            };
+
+            int main(void) {
+              Pair *pair = new Pair;
+              U8 *bytes = new U8[8];
+              int index = 0;
+              if (!pair || !bytes) return 1;
+              if (pair->a != 0 || pair->b != 0) return 2;
+              while (index < 8) {
+                if (bytes[index] != 0) return 3;
+                index += 1;
+              }
+              pair->a = 20;
+              pair->b = 22;
+              bytes[0] = 42;
+              if (pair->a + pair->b != 42 || bytes[0] != 42) return 4;
+              del pair;
+              del bytes;
+              if (pair != 0 || bytes != 0) return 5;
+              if (native_free_count() != 2) return 6;
               return 0;
             }
         """

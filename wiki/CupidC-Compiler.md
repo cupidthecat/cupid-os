@@ -306,6 +306,13 @@ pointers. A result from `input_dialog`, for example, can control an `if`
 without losing its integer type, while a high-bit `htonl` result keeps
 unsigned comparison.
 
+The binding audit also compares each registration's arity with its declared C
+function pointer. The `kmalloc` binding has one unsigned size parameter and
+uses a wrapper that supplies allocator provenance to `kmalloc_debug`. This
+keeps `new`, array `new`, and `del` on the typed call path without relying on
+undeclared stack words. JIT and AOT tests cover the complete allocation and
+release path, and the guest frontier runs `feature7_new_del.cc`.
+
 The reviewed `libm` cohort publishes exact floating prototypes, including
 `double sqrt(double)` and `float sqrtf(float)`. Integer inputs convert to the
 declared width before the call, and a binary32 input widens for a binary64

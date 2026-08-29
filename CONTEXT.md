@@ -977,7 +977,12 @@ slice. A stale, repeated, or out-of-context compiler error remains fatal. A
 host oracle compiles the active emitter helpers and interprets their exact
 bytes against binary32 and binary64 payloads. The kernel bridge publishes the
 declared result type of all 557 bindings: 326 return a value and 231 return
-`void`. The value group has 208 promoted integer, 41 unsigned-word, 25
+`void`. A source contract also compares each binding's advertised arity with
+its C function-pointer declaration. The `kmalloc` entry uses a real
+one-argument wrapper around `kmalloc_debug`, so `new` and `new T[n]` cannot
+pass missing provenance arguments into the kernel allocator. JIT and AOT
+tests exercise allocation, zeroing, access, `del`, and pointer reset through
+that binding. The value group has 208 promoted integer, 41 unsigned-word, 25
 `float`, 25 `double`, 19 character-pointer, and eight other pointer results.
 Forty-six bindings for graphics effects, bitmap fonts, transforms, GUI
 modules, and themes complete private AOT compilation for all 107 runnable

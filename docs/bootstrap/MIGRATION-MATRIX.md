@@ -523,6 +523,13 @@ The kernel binding table preserves every declared result type. Its 557
 registrations split into 326 typed value results and 231 verified `void`
 results. The value group contains 208 promoted integers, 41 unsigned words,
 25 `float`, 25 `double`, 19 character pointers, and eight other pointers.
+The same source contract checks that every registration advertises the arity
+of its C function-pointer declaration. The `kmalloc` registration now points
+at a one-argument wrapper that supplies stable provenance to `kmalloc_debug`;
+it no longer calls the three-argument allocator through a one-argument
+descriptor. Private JIT and AOT execution covers class and array allocation,
+zeroing, access, deletion, and pointer reset. The runtime frontier requires the
+active `feature7_new_del.cc` program to complete as well.
 Explicit `uint32_t`, `size_t`, and `swap_handle_t` results use the unsigned lane;
 `uint8_t` and `uint16_t` retain integer promotion. Reviewed console, string,
 port, and `libm` entries now publish fixed or variadic parameter metadata

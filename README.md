@@ -335,6 +335,15 @@ and fixed-address AOT tests cover floating conversions, mixed-width slots,
 diagnostics, descriptor limits, rollback, and same-state recovery. ADR 0332
 records this boundary.
 
+The binding census also checks declared and advertised arity for all 557
+entries. `kmalloc` is a one-argument native call backed by a wrapper that adds
+stable allocator provenance before calling `kmalloc_debug`. The old direct
+three-argument function-pointer assignment could leave the missing file and
+line words undefined. Private JIT and AOT gates now allocate and delete a
+class and an array through the typed `kmalloc`, `memset`, and `kfree` path.
+The four-CPU frontier also runs `/bin/feature7_new_del.cc` and requires its
+success marker and clean JIT completion.
+
 The active `set_icon_drawer(int, void (*)(int, int))` binding now retains its
 inner callback through that same recursive graph and publishes the handle in
 the outer native descriptor. Nested result, parameter, record-identity, and

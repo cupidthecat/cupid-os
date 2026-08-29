@@ -47919,7 +47919,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 26221
+      "occurrences": 26222
     },
     {
       "category": "control",
@@ -52590,7 +52590,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10250
+      "occurrences": 10251
     },
     {
       "category": "type",
@@ -53810,7 +53810,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 24437
+      "occurrences": 24435
     },
     {
       "category": "type",
@@ -55392,7 +55392,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 15586
+      "occurrences": 15581
     },
     {
       "category": "declaration",
@@ -56306,7 +56306,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "7e0ded137906fbceb0ccac3387613c350af9a83f40c5181007b55dc194098340",
+    "active_source_digest": "74e87c569e008e9e37c7595d2ab0f672a9a8ed77e35e6f94b54dedf83d251aa5",
     "control_files": [
       {
         "path": "Makefile",
@@ -59185,12 +59185,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 37,
+      "lines": 39,
       "origin": "tracked",
       "path": "bin/feature7_new_del.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "0fb02287ea4bc3d641fdad422efc012808345775f4e66286b2bb26ce8ea55a90"
+      "sha256": "61c0064bde5331b55949102679b52ad7ac303546474f8ed2629697913a9c6467"
     },
     {
       "build_owners": [
@@ -76949,12 +76949,12 @@
         "kernel/util/calendar.h"
       ],
       "language": "cupid_c",
-      "lines": 4236,
+      "lines": 4237,
       "origin": "tracked",
       "path": "kernel/lang/cupidc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "333540ba64a8adee87227596a56ff8074113133ad5e8dd6fb1fb0f8a8eb3f1f6"
+      "sha256": "7751edc7b566088e3cd2836202df210b3214be8d0f011377810468a61d72c97e"
     },
     {
       "build_owners": [

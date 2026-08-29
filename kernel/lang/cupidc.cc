@@ -351,6 +351,10 @@ static void cc_yield(void) { process_yield(); }
 
 static void cc_exit(void) { process_exit(); }
 
+static void *cc_kmalloc(size_t size) {
+  return kmalloc_debug(size, "cupidc", 0);
+}
+
 /* Open a file in GUI notepad from CupidC apps. */
 static void cc_notepad_open_file(const char *path) {
   if (!path || path[0] == '\0')
@@ -358,8 +362,8 @@ static void cc_notepad_open_file(const char *path) {
   desktop_notepad_launch_with_file(path, path);
 }
 
-static void cc_clipboard_set(int ptr, int len) {
-  clipboard_copy((const char *)(uint32_t)ptr, len);
+static void cc_clipboard_set(const char *ptr, int len) {
+  clipboard_copy(ptr, len);
 }
 
 static int cc_clipboard_get(void) {
@@ -369,9 +373,7 @@ static int cc_clipboard_get(void) {
 
 static int cc_clipboard_len(void) { return clipboard_get_length(); }
 
-static void cc_notepad_get_open_path(int out_ptr, int out_save_ptr) {
-  char *out = (char *)(uint32_t)out_ptr;
-  char *out_save = (char *)(uint32_t)out_save_ptr;
+static void cc_notepad_get_open_path(char *out, char *out_save) {
   int i = 0;
   while (cc_notepad_open_path[i] && i < 255) {
     out[i] = cc_notepad_open_path[i];
@@ -1097,11 +1099,8 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
                 TYPE_CHAR_PTR);
 
   /* Memory management */
-  /* kmalloc_debug takes (size, file, line) but CupidC programs should
-   * just call kmalloc(size).  We bind to a wrapper that fills in
-   * a dummy file/line.*/
-  void *(*p_malloc)(size_t, const char *, uint32_t) = kmalloc_debug;
-  BIND_T("kmalloc", p_malloc, 1, TYPE_PTR);
+  void *(*p_malloc)(size_t) = cc_kmalloc;
+  BIND_FIXED("kmalloc", p_malloc, 1, TYPE_PTR, TYPE_UINT);
 
   void (*p_free)(void *) = kfree;
   BIND_FIXED("kfree", p_free, 1, TYPE_VOID, TYPE_PTR);
@@ -2481,8 +2480,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_icons_save)(void) = gfx2d_icons_save;
   BIND("icons_save", p_icons_save, 0);
 
-  void (*p_cbset)(void) = (void (*)(void))cc_clipboard_set;
-  BIND("clipboard_set", p_cbset, 2);
+  void (*p_cbset)(const char *, int) = cc_clipboard_set;
+  BIND_FIXED("clipboard_set", p_cbset, 2, TYPE_VOID, TYPE_CHAR_PTR,
+             TYPE_INT);
 
   int (*p_cbget)(void) = cc_clipboard_get;
   BIND_T("clipboard_get", p_cbget, 0, TYPE_INT);
@@ -2490,8 +2490,9 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int (*p_cblen)(void) = cc_clipboard_len;
   BIND_T("clipboard_len", p_cblen, 0, TYPE_INT);
 
-  void (*p_nop_get_path)(void) = (void (*)(void))cc_notepad_get_open_path;
-  BIND("notepad_get_open_path", p_nop_get_path, 2);
+  void (*p_nop_get_path)(char *, char *) = cc_notepad_get_open_path;
+  BIND_FIXED("notepad_get_open_path", p_nop_get_path, 2, TYPE_VOID,
+             TYPE_CHAR_PTR, TYPE_CHAR_PTR);
 
   /* libm hardware fast-paths (sqrt/sin/cos/tan/atan/atan2, plus
    * f-suffixed float variants).  These functions follow the CupidC

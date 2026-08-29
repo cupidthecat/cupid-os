@@ -243,7 +243,7 @@ These functions are available in every CupidC program without any includes. See 
 | `strncmp(char* a, char* b, int n)` | Compare up to n characters |
 | `memset(void* p, int v, int n)` | Fill memory |
 | `memcpy(void* dst, void* src, int n)` | Copy memory |
-| `kmalloc(int size)` | Allocate heap memory |
+| `kmalloc(int size)` | Allocate heap memory through the typed one-argument CupidC wrapper |
 | `kfree(void* ptr)` | Free heap memory |
 
 ### Block Cache

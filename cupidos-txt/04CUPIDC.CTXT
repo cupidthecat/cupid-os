@@ -1925,6 +1925,13 @@ outer native descriptor. Unreviewed entries use the named legacy result-only
 path and keep their previous source-width arguments. ADR 0333 records the
 nested binding.
 
+The binding audit also checks every advertised argument count against the C
+function-pointer declaration. kmalloc accepts one unsigned size and calls a
+wrapper that adds stable file and line provenance before kmalloc_debug. New,
+array new, and del therefore use typed allocator calls without missing stack
+arguments. Host JIT and AOT tests cover allocation, zeroing, access, deletion,
+and pointer reset. The guest frontier runs feature7_new_del.cc too.
+
 Plain function initializers must match the retained result, record identity,
 fixed parameters, and variadic boundary. An explicit void-pointer cast erases
 that comparison. Named local copies use the same check. Later target addresses

@@ -363,6 +363,11 @@ All kernel bindings carry their declared result type. The private compiler
 uses that metadata to keep returned integers, pointers, floats, and doubles
 in later expressions and conditions.
 
+Each binding's advertised argument count must match its C declaration.
+kmalloc takes one unsigned size and uses a kernel wrapper that supplies stable
+debug provenance. New and array new return zeroed storage through that typed
+binding. Del releases the storage through kfree and resets the pointer.
+
 Scalar float and double lvalues support prefix and postfix ++ and --.
 Postfix expressions return the old payload, while all four forms store the
 one-unit update. The same path handles locals, parameters, globals, pointer

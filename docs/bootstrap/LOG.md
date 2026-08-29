@@ -32525,3 +32525,68 @@ The paired seeds still need a later source-head refresh for CupidBuild, and
 Python still owns the remaining build transactions. No active `.c` source
 changed ownership in this step, so no suffix rename was due. `TempleOS/`
 remained untouched reference material.
+
+## 2026-08-28: fix the private CupidC allocator ABI
+
+The private binding audit found that `kmalloc` advertised one argument while
+its function pointer still named the three-argument `kmalloc_debug` entry.
+`new` and `new T[n]` supplied only the size word, leaving file and line
+provenance to whatever happened to follow it on the stack. Leak diagnostics
+could later treat that unowned word as a string pointer.
+
+The kernel now exposes `cc_kmalloc(size_t)`. It forwards the size with stable
+`"cupidc"` and line-zero provenance, and the binding publishes the fixed
+`TYPE_UINT` to `TYPE_PTR` signature. The same source audit found two more
+erased declarations. `clipboard_set` and `notepad_get_open_path` now keep their
+real character-pointer parameters and fixed signatures.
+
+A new contract compares every one of the 557 advertised argument counts with
+its C function-pointer declaration. A focused allocator contract also pins the
+wrapper body and signature. The public private-compiler harness runs class and
+array allocation, zero initialization, access, `del`, pointer reset, and two
+observed frees in JIT and fixed-address AOT modes. The four-CPU frontier now
+requires the active `/bin/feature7_new_del.cc` program, its success marker, and
+clean JIT completion.
+
+The focused binding, private ABI, and terminal-harness modules passed 12, 319,
+and 129 tests. Checked-seed CupidC compiled the changed
+`kernel/lang/cupidc.cc` into a validated 282,560-byte temporary object. Both
+the specification and repository-standards reviews found no actionable issue.
+
+The first clean OS build stopped at the exact-size gate after the compiler,
+linker, disassembler, and all 83 Doom roots had passed. A detached build of the
+starting revision produced a 299,208-byte `cupidc.o`; the corrected source
+produced 282,560 bytes. Its text section fell from 224,766 to 207,997 bytes.
+The relocation tables still contain all 557 registration calls, with three
+calls moving from the legacy registrar to the typed registrar. That matches
+the three bindings changed here and rules out an accidentally skipped tail of
+the registration function. The measured linked sizes are 9,499,760 bytes for
+`kernel.bin`, 9,728,056 bytes for the final ELF, and 9,596,984 bytes for the
+pass-one ELF. The exact-size policy now records those deterministic outputs.
+
+The first guest run proved that the allocator program reached `print_int(42)`
+and `JIT execution complete`, but it also exposed a weak success check:
+`println` wrote the program's PASS line only to the GUI. The source-backed
+frontier test failed first, as intended, until the active program gained a
+matching `serial_printf` marker. That marker added 104 bytes to `kernel.bin`
+without changing either ELF size. The old 9,499,760-byte policy row then
+failed closed against the measured 9,499,864-byte binary before the policy was
+updated.
+
+The final `make -j2 all` compiled the active kernel, generated programs, and
+all 83 Doom translation units. CupidLD linked both kernel stages, CupidDis
+accepted the linked code under the known-instruction, local-target, and
+code-anchor checks, all 16 exact artifact rows matched, and the image recipe
+staged both `/hello.iso` and the FreeDoom WAD. The published artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.bin` | 9,499,864 | `8d5feb1c7e4c40bea6c4cbe1b954d4b116d3cea868a406b77db38f0beecb27ed` |
+| `kernel/kernel.elf` | 9,728,056 | `95903c85eff8a1bc71105cd75a0ca78e8617355f075d770e461c4f1fa687c1ce` |
+| `kernel/kernel.elf.pass1` | 9,596,984 | `6f0d90fa946dbb1fb56e986b021297b249d59a4fd17ee07dfd44f572cd2cede7` |
+| `cupidos.img` | 209,715,200 | `61b3084c32c2920ee84bc99f7be97f3da94b281407242d7fd5b7c6b729fd4e83` |
+
+A private four-vCPU e1000 smoke then ran `/bin/feature7_new_del.cc` from that
+image. It observed the JIT start, the serial `feature7_new_del: PASS` marker,
+and normal JIT completion in order. The 34,779-byte log has SHA-256
+`a91ea3b667ba3166b2986061b0f8f695cb9a13f143cdeab6f11ea7a6b1cbe69e`.

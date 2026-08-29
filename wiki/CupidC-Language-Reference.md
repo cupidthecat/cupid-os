@@ -322,6 +322,11 @@ and SIMD vectors are rejected as truth operands.
 
 Pre-registered kernel calls retain their declared result type in later
 expressions. Only bindings whose functions return no value have type `void`.
+Their registered arity must also match the C function-pointer declaration.
+`kmalloc(U32 size)` uses a one-argument wrapper around the kernel's diagnostic
+allocator, so `new T` and `new T[count]` receive stable provenance and return
+a typed pointer. `del pointer` calls the typed `kfree` binding and resets the
+source pointer to null.
 
 Scalar `float` and `double` lvalues accept prefix and postfix `++` and `--`.
 Prefix returns the updated value; postfix returns the exact old payload after

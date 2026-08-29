@@ -1140,6 +1140,16 @@ path. A source-contract test parses the complete table, checks its exact size,
 and rejects an untyped non-void fixture. This prevents a returned control value
 from being mistaken for a `void` expression.
 
+The source contract also compares every binding's advertised arity with its C
+function-pointer declaration. `kmalloc` now registers a real one-argument
+wrapper instead of assigning the three-argument `kmalloc_debug` function to a
+one-argument descriptor. The wrapper supplies stable `cupidc` provenance and
+line zero before entering the diagnostic allocator. Public JIT and AOT tests
+exercise class and array allocation, zero initialization, field and byte
+access, `del`, and pointer reset through typed `kmalloc`, `memset`, and `kfree`
+bindings. The four-CPU frontier runs `/bin/feature7_new_del.cc` and waits for
+its success marker and clean JIT return.
+
 Private CupidC also supports prefix and postfix `++` and `--` on scalar
 `float` and `double` lvalues. One typed helper serves expression updates,
 statement shortcuts, and `for` increments. Direct locals, parameters, and

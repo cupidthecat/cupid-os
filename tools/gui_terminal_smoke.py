@@ -194,6 +194,14 @@ FRONTIER_RUNTIME_COMMANDS = (
         ),
     ),
     TerminalCommand(
+        "/bin/feature7_new_del.cc",
+        (
+            r"\[cupidc\] JIT compile: /bin/feature7_new_del\.cc"
+            r".*?feature7_new_del: PASS"
+            rf".*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
         "/bin/feature13_double.cc",
         (
             FEATURE13_COMPILE_PATTERN
