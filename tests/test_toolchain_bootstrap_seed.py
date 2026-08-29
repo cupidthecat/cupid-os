@@ -4122,7 +4122,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "fe0ed161a586b39544bd02018b1a288927b4fb7f6663a01f653dd5e0032670c8",
+                "de94a135ed2b55ee0c38cc07c5e5e2aa57af9bddda1e690c909c591cfb328759",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):

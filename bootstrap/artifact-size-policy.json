@@ -7,37 +7,37 @@
       "reason": "The disk builder consumes exactly five boot sectors, so extra output would be ignored."
     },
     {
-      "exact_bytes": 496628,
+      "exact_bytes": 496664,
       "path": "bootstrap/seeds/i386-linux/cupidasm.elf",
       "producer": "CupidASM",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 276788,
+      "exact_bytes": 298540,
       "path": "bootstrap/seeds/i386-linux/cupidbuild.elf",
       "producer": "CupidBuild",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 2691720,
+      "exact_bytes": 2691756,
       "path": "bootstrap/seeds/i386-linux/cupidc.elf",
       "producer": "CupidC",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 538516,
+      "exact_bytes": 538556,
       "path": "bootstrap/seeds/i386-linux/cupiddis.elf",
       "producer": "CupidDis",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 312888,
+      "exact_bytes": 312928,
       "path": "bootstrap/seeds/i386-linux/cupidld.elf",
       "producer": "CupidLD",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 392784,
+      "exact_bytes": 392820,
       "path": "bootstrap/seeds/i386-linux/cupidobj.elf",
       "producer": "CupidObj",
       "reason": "The checked seed is immutable between reviewed promotions."
@@ -49,7 +49,7 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 293888,
+      "exact_bytes": 316928,
       "path": "bootstrap/seeds/i386-windows/cupidbuild.exe",
       "producer": "CupidBuild",
       "reason": "The checked seed is immutable between reviewed promotions."
@@ -79,7 +79,7 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 9500380,
+      "exact_bytes": 9500492,
       "path": "kernel/kernel.bin",
       "producer": "CupidObj",
       "reason": "CupidObj emits deterministic bytes, and the disk image copies this output verbatim."

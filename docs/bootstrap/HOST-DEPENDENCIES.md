@@ -18,26 +18,26 @@ mode to preserve exact bytes. Cleanup deletes a file that changed in place
 when its identity still matches, but preserves a replacement with a different
 identity. Both platforms recheck the live seed before releasing output.
 
-The promoted seeds do not carry this command, so Python still coordinates all
-186 direct root CupidObj calls. This closes source capability without changing
-normal-build ownership or the current graph counts. The Windows CupidBuild CLI
+The promoted seeds carry this command, but Python still coordinates all 186
+direct root CupidObj calls. Seed carriage does not change normal-build
+ownership or the current graph counts. The Windows CupidBuild CLI
 suite completed 66 tests in 65.934 seconds with three expected skips. The
 host-runner Python module completed eight tests in 0.962 seconds with four POSIX
 skips. The dedicated Make contract passed, as did all six CupidASM source tests
 in 3.771 seconds, strict Windows and freestanding i386 adapter compilation, and
 timeout-and-seed-drift precedence.
 
-The final normal `make -j2 all` passed after the exact-size check failed closed
-and its policy was updated. All 16 exact artifacts passed. The current sizes
-are 9,515,752 bytes for `kernel/kernel.bin`, 9,744,412 bytes for
-`kernel/kernel.elf`, and 9,613,340 bytes for `kernel/kernel.elf.pass1`.
-Whole-image CupidDis inspection and disk-image staging passed as well.
+The final normal `make -j2 all` passed after the exact-size check rejected the
+112-byte CTXT growth and its policy was updated. All 16 exact artifacts passed.
+The current sizes are 9,500,492 bytes for `kernel/kernel.bin`, 9,728,056 bytes
+for `kernel/kernel.elf`, and 9,596,984 bytes for
+`kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
+staging passed as well.
 
 A private four-vCPU E1000 QEMU smoke used
-`--cpu max --verify-smp-runtime`, ran `/bin/ls.cc`, and passed in about 47.5
-seconds. CupidC compiled 911 code bytes and 71 data bytes and completed JIT
-execution. The 33,248-byte log has SHA-256
-`8bdd3b1ea5dfde3a61d068b1d4debbb8fcc91626ee63f13487f647240c2fb49d`
+`--cpu max --verify-smp-runtime`, ran `/bin/ls.cc`, and completed the strong
+runtime contract. The 34,596-byte log has SHA-256
+`f20d3ddac10cf56af9f37842da05ded545ed275dc26a4d0aa1592f2bbba2b2bb`
 and no rejected runtime marker.
 
 The complete 129-case bootstrap-seed module finished with 126 passes. Both
@@ -97,14 +97,14 @@ stage pairs. Publication verification recreates the checked plan before it
 recaptures the 58-file live source inventory.
 
 The active pair binds revision
-`43c747f0e683d0527984bae05bf944879e64a07b`, the 58-input snapshot
-`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`,
+`a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, the 58-input snapshot
+`a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`,
 and the Linux plan
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 The 6,602-byte Linux manifest has SHA-256
-`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
+`f1bee18b9b1506ff5a665e76d57d028702ae7c701c4e9d432ed4b87c68ee258b`.
 The 2,852-byte Windows manifest has SHA-256
-`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
+`917817122a36331a0ec77ba06d6ce40a8eacacc4224d8ed468d8d77272b8b974`
 and binds native plan
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`
 to those exact Linux manifest and plan bytes. The Linux v2 record names parent
@@ -142,8 +142,8 @@ same semantic shapes. The audit records 32
 assembly inputs, 301 headers, 414 Cupid C
 files, 255 feature requirements, and 26 accounted unreachable files. No
 ordinary C translation unit remained in a supported root. Its active-source
-audit records failure, help, and success counts of 24/6/31 for Linux and
-13/6/18 for Windows. The source-head figures include CupidBuild; each promoted
+audit records failure, help, and success counts of 25/6/32 for Linux and
+14/6/19 for Windows. The active figures include CupidBuild; each promoted
 host cohort still includes one successful and one failing static code-anchor
 case. Audit generation and its checked-file comparison both pass.
 The pre-promotion poisoned OS build reached the exact-size gate after the
@@ -225,7 +225,7 @@ the reviewed plan and paired provenance input, but its executables do not run
 during that path. The complete source-current Windows proof passed while WSL
 was unavailable, matching 23 C objects, three assembly objects, and all six
 tools between stages three and four. The current Windows and Linux behavior
-inventories are 13/6/18 and 24/6/31, respectively. ADR 0359 records removal of
+inventories are 14/6/19 and 25/6/32, respectively. ADR 0359 records removal of
 the temporary compiler bridge.
 Python-free coordination remains open.
 
@@ -275,12 +275,12 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`176784825f42f9145138630c0dacb8e93fb90db600edab412fe94c2c7da66f8f`.
+`1e97d2816719e544ec5fc9960474c61f3e0dc5b777e7e553bd69e4eef139aa26`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,613,340, 9,744,412, and 9,515,752 bytes for the boot image, pass-one ELF,
+9,596,984, 9,728,056, and 9,500,492 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,168,812 bytes.
+sixteen rows, totaling 38,165,820 bytes.
 
 The paired-seed promotion replay passed both CupidLD links and strict
 inspection of all 431 production inputs. Its first size gate measured

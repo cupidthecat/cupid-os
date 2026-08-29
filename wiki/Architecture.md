@@ -298,16 +298,16 @@ code-anchor pair, and ADR 0336 records the earlier five-tool pair.
 
 The current seed pair uses the Linux and Windows v2 schemas and lists six tool
 images, including CupidBuild with a non-producing fixed-point plan role. Both manifests bind revision
-`43c747f0e683d0527984bae05bf944879e64a07b`, 58 inputs, and source snapshot
-`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`.
+`a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, 58 inputs, and source snapshot
+`a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`.
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
 its 6,602-byte manifest has SHA-256
-`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
+`f1bee18b9b1506ff5a665e76d57d028702ae7c701c4e9d432ed4b87c68ee258b`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
 its 2,852-byte manifest has SHA-256
-`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
+`917817122a36331a0ec77ba06d6ce40a8eacacc4224d8ed468d8d77272b8b974`
 and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
 self-consumption pass on both platforms, with all six initial images equal to
 stage two. CupidBuild publishes the two assembly objects and both raw images

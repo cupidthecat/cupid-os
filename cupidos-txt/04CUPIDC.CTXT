@@ -1277,7 +1277,7 @@ manifest and a typed list of logical directories and loaded files, then writes
 the complete deterministic ECMA-119 and Rock Ridge fixture. Its output matches
 the tracked 61,440-byte image exactly. The preceding v1 fixed-point gate
 exercised the command and its rollback path in the 5/22/21 behavior matrix.
-The active Linux v2 seed retains the command and passes the 24/6/31 matrix. The
+The active Linux v2 seed retains the command and passes the 25/6/32 matrix. The
 normal recipe runs that checked command first on frozen ordinal file snapshots.
 Python compares an independent render, rechecks live state, and publishes
 under a per-output lock. ADR 0239 records the source boundary, ADR 0240 records
@@ -1290,7 +1290,7 @@ computes SHA-256 internally, sorts the logical sets, and writes the canonical
 69,366-byte JSON. The preceding v1 seed passed a 5/22/21 behavior matrix with
 padding, repeated-block, unsafe-path, case-collision, rollback, and recovery
 coverage. The active v2 seeds retain the command. Their fixed-point behavior
-matrices are 24/6/31 on Linux and 13/6/18 on Windows. The normal recipe passes
+matrices are 25/6/32 on Linux and 14/6/19 on Windows. The normal recipe passes
 that seed manifest. The wrapper derives the
 snapshot and independent Python oracle from one stable capture, runs CupidObj
 from the exact frozen seed, and requires byte parity. Under an adjacent
@@ -2313,9 +2313,9 @@ The active Linux and Windows v2 cohorts are complete six-tool trust units.
 Their manifests include CupidBuild. It directly coordinates four normal
 guarded assembly publications: two relocatable objects and two raw images.
 Both bind
-revision `43c747f0e683d0527984bae05bf944879e64a07b`, 58 source inputs, and
+revision `a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, 58 source inputs, and
 snapshot
-`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`.
+`a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`.
 Candidate fixed-point and behavior proof passed on both platforms. The
 promoted compiler carries wide integer conversion to float and double. The
 refreshed CupidBuild images carry the guarded raw assembly commands, and the
@@ -2350,8 +2350,8 @@ Windows reconstruction.
 Native stage two builds stage three, native stage three builds stage four, and
 the final objects and tools must match before the report is published. The
 source-current proof matched 23 C objects, three assembly objects, and all six
-tool images between the final two stages. All 13 failure, six help, and 18
-success behavior cases passed while WSL was unavailable.
+tool images between the final two stages. All 14 failure, six help, and 19
+success behavior cases pass in the active fixed point.
 >endtree
 
 >h2 Active Six-Tool Seed Contract
@@ -2365,18 +2365,18 @@ platform image checks.
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
+`f1bee18b9b1506ff5a665e76d57d028702ae7c701c4e9d432ed4b87c68ee258b`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
+`917817122a36331a0ec77ba06d6ce40a8eacacc4224d8ed468d8d77272b8b974`
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. All six initial images match stage two. CupidBuild now owns all four
 guarded assembly recipes. Python participates in the remaining 448 transforms.
-ADR 0356 records the active seed refresh, and ADR 0357 records the raw recipe
-transfer.
+ADR 0357 records the raw recipe transfer, and ADR 0361 records the active
+runner promotion.
 >endtree
 
 >h2 See Also

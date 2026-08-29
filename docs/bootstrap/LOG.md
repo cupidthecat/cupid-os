@@ -32642,3 +32642,67 @@ contract and ran `/bin/ls.cc` through CupidC to normal JIT completion. The
 `a4294594a847eadb82cd5d6b6fafed70608294a8b16ee948603d15234464a609`.
 All 54 artifact-size tests passed in 4.171 seconds with four expected platform
 skips. The checked active-source audit and whitespace validation also passed.
+
+## 2026-08-28: promote the checked-tool runner seeds
+
+The checked Linux and native Windows seeds predated the `cupidbuild run`
+boundary. That kept the 186 ordinary CupidObj recipes on the Python runner
+even though source head could launch the checked tool directly. The new seed
+pair carries the native runner without changing recipe ownership.
+
+Both source-head candidates bind revision
+`a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, the same 58-input source
+snapshot, and their existing build-plan digests. Linux matched 22 C objects,
+startup, and all six stage-three/stage-four images while passing 25 failure,
+six help, and 32 success cases. Its 51,396-byte candidate report has SHA-256
+`3efd5d9c436a94726b6cc57f07567737c4e7f4d08a9e1521a24dc16caa85dc25`.
+All six Linux images changed because the runner added shared static runtime and
+startup support.
+
+Native Windows matched 23 C objects, three assembly objects, and all six final
+images while passing 14 failure, six help, and 19 success cases. Its
+64,500-byte report has SHA-256
+`154d5ce7922aa43cd2920eba01448c3dbe483ae47d5ad9d298c238e2eb740a12`.
+Five images remained byte-identical; only CupidBuild changed.
+
+After promotion, both manifests rebuilt their complete cohorts. Every initial
+image matched stage two, and stages three and four remained identical. The
+51,390-byte Linux reproof report has SHA-256
+`0e8f340a29000582b9ef4fef66f1ca0ea04066a9ffc3c854952b9cb94cfb4df1`.
+The 64,499-byte Windows report has SHA-256
+`d0e9b5f34949c5f7d968fb01794b12d3ffebf93549913ef303b4d71318305d13`.
+
+The corrected promoted-seed selector passed five tests. The manifest and
+artifact contract group passed 80 tests with four expected Windows locking
+skips. Both six-image manifests verified, and active-audit generation plus its
+checked comparison passed. An earlier combined command used a removed test
+class name; discovery rejected that selector, while the 64 real contract tests
+in the same command passed. No result from that discovery error is counted as
+a test pass.
+
+The first production replay completed every compiler, both CupidLD links, all
+83 Doom roots, and strict CupidDis validation before the size gate stopped it.
+The settled CTXT text made `kernel.bin` 112 bytes larger than the old
+9,500,380-byte row. After the measured row moved to 9,500,492 bytes, the full
+policy-bound replay passed all sixteen exact artifacts and published the disk
+image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,596,984 | `cf2f6d08ceddbc86900ebfa3ff8d8ddf038819812f36696142f4e35720dd26ef` |
+| `kernel/kernel.elf` | 9,728,056 | `6ad75c6cb5235403edfcf10d114aca2926c7b9228029ce29eac075849a843197` |
+| `kernel/kernel.bin` | 9,500,492 | `7e58359449bed98b02a514e0ee5f578470a3647b190c21d4b9110b965cb41bff` |
+| `cupidos.img` | 209,715,200 | `cad08d77d4fe9bfc6150d7f559211ce2c7ac45239575635ea87df4438995efd5` |
+
+The 3,382-byte policy has SHA-256
+`1e97d2816719e544ec5fc9960474c61f3e0dc5b777e7e553bd69e4eef139aa26`
+and totals 38,165,820 checked bytes. The first private guest attempt reached
+mounted homefs at 36 seconds but hit the default desktop deadline while the
+larger home image was still flushing. It showed no panic. Repeating the same
+four-vCPU `max`/E1000 `/bin/ls.cc` check with a 180-second ceiling passed the
+strong SMP runtime contract. The 34,596-byte log has SHA-256
+`f20d3ddac10cf56af9f37842da05ded545ed275dc26a4d0aa1592f2bbba2b2bb`.
+
+ADR 0361 records the promotion. The graph still records four CupidBuild and
+448 Python participations. Moving the 186 direct CupidObj recipes is a
+separate ownership change.

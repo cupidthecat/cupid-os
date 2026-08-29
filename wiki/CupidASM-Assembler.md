@@ -1667,23 +1667,23 @@ ADR 0318 records the seed identities.
 The active Linux and Windows v2 manifests carry CupidASM as a producer and
 CupidBuild as both a checked tool and the coordinator for four normal guarded
 assembly publications. Both list six images and bind revision
-`43c747f0e683d0527984bae05bf944879e64a07b`, the 58-input snapshot
-`4cd9d583933d8a9f1dbfb63425bc3665fe6c306db8ae76606f40a0ade49afe70`,
+`a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, the 58-input snapshot
+`a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`,
 and their exact build plans.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`78d26d7ce3aa0393c8c27a33f2b1f2fad6fe5f6f6300267bf674b36ce51a4dd8`.
+`f1bee18b9b1506ff5a665e76d57d028702ae7c701c4e9d432ed4b87c68ee258b`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`019d6ddd54e183752bd6c579215d4c56bf91dbbef9db9cc0854cdce5f4017288`
+`917817122a36331a0ec77ba06d6ce40a8eacacc4224d8ed468d8d77272b8b974`
 and pairs to the exact Linux manifest bytes.
 
-Linux and native Windows candidate proof passed. Linux covers 24 failure, six
-help, and 31 success groups; Windows covers 13 failure, six help, and 18
+Linux and native Windows candidate proof passed. Linux covers 25 failure, six
+help, and 32 success groups; Windows covers 14 failure, six help, and 19
 success groups. Promoted-seed self-consumption also passed on both platforms,
 with all six initial tool images equal to stage two. ADR 0353 records the v2
-promotion, ADR 0356 records the active refresh, and ADR 0357 records the raw
-recipe transfer. Python-free coordination remains open.
+contract, ADR 0357 records the raw recipe transfer, and ADR 0361 records the
+active runner promotion. Python-free coordination remains open.
