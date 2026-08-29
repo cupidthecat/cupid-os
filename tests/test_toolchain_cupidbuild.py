@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import stat
+import struct
 import subprocess
 import tempfile
 import threading
@@ -94,41 +95,119 @@ class CupidBuildCliTests(unittest.TestCase):
         self.assertRegex(
             result.stdout,
             r"cupidbuild run --seed-manifest MANIFEST\s+"
-            r"--root ROOT --tool cupidobj \[--timeout SECONDS\]\s+"
+            r"--root ROOT --tool \{cupidobj\|cupidld\} "
+            r"\[--timeout SECONDS\]\s+"
             r"-- TOOL_ARGS\.\.\.",
         )
 
-    def test_checked_tool_runner_matches_cupidobj_success_and_failure(self):
+    def test_checked_tool_runner_matches_admitted_tools_success_and_failure(self):
         cases = (
             ("help", ["--help"], 30),
-            ("invalid option", ["--not-a-cupidobj-option"], None),
+            ("invalid option", ["--not-a-tool-option"], None),
         )
-        cupidobj = self._production_tool("cupidobj")
-        for name, arguments, timeout in cases:
-            with self.subTest(name=name):
-                direct = subprocess.run(
-                    [str(cupidobj), *arguments],
-                    cwd=REPO_ROOT,
-                    text=True,
-                    capture_output=True,
-                    timeout=90,
-                )
-                checked = self._run_checked_tool(
-                    "cupidobj", arguments, timeout=timeout
-                )
+        for tool in ("cupidobj", "cupidld"):
+            executable = self._production_tool(tool)
+            for name, arguments, timeout in cases:
+                with self.subTest(tool=tool, name=name):
+                    direct = subprocess.run(
+                        [str(executable), *arguments],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                        timeout=90,
+                    )
+                    checked = self._run_checked_tool(
+                        tool, arguments, timeout=timeout
+                    )
 
-                self.assertEqual(
-                    (
-                        checked.returncode,
-                        checked.stdout,
-                        checked.stderr,
-                    ),
-                    (
-                        direct.returncode,
-                        direct.stdout,
-                        direct.stderr,
-                    ),
-                )
+                    self.assertEqual(
+                        (
+                            checked.returncode,
+                            checked.stdout,
+                            checked.stderr,
+                        ),
+                        (
+                            direct.returncode,
+                            direct.stdout,
+                            direct.stderr,
+                        ),
+                    )
+
+    def test_checked_cupidld_runner_links_one_exact_fixed_elf(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-cupidld-link-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "entry.asm"
+            object_path = root / "entry.o"
+            direct_output = root / "direct.elf"
+            checked_output = root / "checked.elf"
+            source.write_text(
+                "BITS 32\n"
+                "global _start:function\n"
+                "section .text\n"
+                "_start:\n"
+                "    ret\n",
+                encoding="ascii",
+            )
+            assembled = subprocess.run(
+                [
+                    str(self._production_tool("cupidasm")),
+                    "-f",
+                    "elf32",
+                    source.name,
+                    "-o",
+                    object_path.name,
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            self.assertEqual((assembled.stdout, assembled.stderr), ("", ""))
+            common = [
+                "-m",
+                "elf_i386",
+                "--text-address",
+                "0x01C00000",
+                "--entry",
+                "_start",
+            ]
+            direct = subprocess.run(
+                [
+                    str(self._production_tool("cupidld")),
+                    *common,
+                    "-o",
+                    direct_output.name,
+                    object_path.name,
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            checked = self._run_checked_tool(
+                "cupidld",
+                [*common, "-o", checked_output.name, object_path.name],
+                root=root,
+            )
+
+            self.assertEqual(direct.returncode, 0, direct.stderr)
+            self.assertEqual(
+                (checked.returncode, checked.stdout, checked.stderr),
+                (direct.returncode, direct.stdout, direct.stderr),
+            )
+            direct_image = direct_output.read_bytes()
+            checked_image = checked_output.read_bytes()
+            self.assertEqual(checked_image, direct_image)
+            self.assertGreater(len(checked_image), 52)
+            self.assertEqual(checked_image[:4], b"\x7fELF")
+            self.assertEqual(
+                struct.unpack_from("<HHII", checked_image, 16),
+                (2, 3, 1, 0x01C00000),
+            )
+            self.assertEqual(list(root.glob("*.cupid-tmp-*")), [])
 
     def test_checked_tool_runner_forwards_more_than_thirty_one_arguments(self):
         with tempfile.TemporaryDirectory(

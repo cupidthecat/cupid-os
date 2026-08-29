@@ -63,7 +63,9 @@ CupidBuild, ADR 0355 records its typed source-head raw-image interface, ADR
 0356 records its carriage in the paired seeds, ADR 0357 records direct raw
 publication ownership, and ADR 0358 records the source-head native CupidObj
 runner. ADR 0359 removes the Windows fixed-point CupidC bridge after the
-checked PE compiler proved the complete current closure.
+checked PE compiler proved the complete current closure. ADR 0360 admits
+CupidLD to the native checked runner and makes the CupidObj runner part of
+both source-head fixed-point behavior matrices.
 
 ## 2026-08-28 source-current checkpoint
 
@@ -112,6 +114,23 @@ CupidBuild, whose checked CupidObj runner still awaits paired seed promotion.
 In the initial 129-case module run, 126 cases passed; three stale expectations
 failed and were rerun directly after correction. The complete module then
 passed all 129 cases in 3,569.451 seconds.
+
+Source-head `cupidbuild run` now accepts checked CupidLD alongside CupidObj
+and rejects the other four tools. The CLI contract links a real i386 object at
+`0x01C00000` through direct and checked CupidLD paths and requires identical
+ELF bytes. Linux and native Windows fixed-point behavior now run checked
+CupidObj `wrap-text` through both compared CupidBuild generations, validate
+the matching relocatable objects, and require the same invalid-option result.
+That raises the source-head matrices to 25/6/32 failure, help, and success
+cases on Linux and 14/6/19 on Windows. This is source capability; the promoted
+seeds and normal Make ownership remain unchanged. ADR 0360 records the
+boundary.
+
+The final policy-bound build repeated all 83 Doom roots, linked both kernel
+stages with CupidLD, passed strict CupidDis validation, accepted all 16 exact
+artifacts, and published the image. A four-vCPU e1000 smoke then ran
+`/bin/ls.cc` to normal JIT completion. `kernel/kernel.bin` is 9,500,380 bytes;
+the final and pass-one ELFs are 9,728,056 and 9,596,984 bytes.
 
 ## 2026-08-27 source-current checkpoint
 

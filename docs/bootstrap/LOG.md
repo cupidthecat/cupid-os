@@ -32590,3 +32590,55 @@ A private four-vCPU e1000 smoke then ran `/bin/feature7_new_del.cc` from that
 image. It observed the JIT start, the serial `feature7_new_del: PASS` marker,
 and normal JIT completion in order. The 34,779-byte log has SHA-256
 `a91ea3b667ba3166b2986061b0f8f695cb9a13f143cdeab6f11ea7a6b1cbe69e`.
+
+## 2026-08-28: extend and prove the native checked-tool runner
+
+The first `cupidbuild run` boundary admitted only CupidObj. That was enough to
+prepare the 186 ordinary CupidObj calls for a later Make handoff, but the
+fixed-point behavior matrix did not execute the runner through its compared
+CupidBuild generations. CupidLD also lacked the same checked invocation seam
+for future link ownership work.
+
+The command now admits exactly CupidObj and CupidLD. Both the CLI and library
+entry reject the other tool names. The existing seed freeze, execution-profile
+checks, host isolation, timeout, stream capture, live recheck, and cleanup
+rules apply to either selected image. A real CupidASM object is linked at
+`0x01C00000` through direct and checked CupidLD paths; the two ELF files must
+match byte for byte and leave no temporary output behind.
+
+Both fixed-point drivers now run checked CupidObj `wrap-text` through their
+stage-three and stage-four CupidBuild images. The calls share one source and
+identity while writing separate outputs. The gate requires empty streams,
+equal bytes, and a valid i386 relocatable object. It also requires both
+generations to forward CupidObj's status-2 invalid-option result and usage
+diagnostic. The source-head matrices therefore contain 25 failure, six help,
+and 32 success cases on Linux, plus 14 failure, six help, and 19 success cases
+on native Windows.
+
+The native Windows CupidBuild CLI module passed 67 tests in 67.228 seconds
+with three expected platform skips. Its WSL run passed with five expected
+platform skips. The build-graph mutation sweep passed in 208.676 seconds and
+rejects removal or dead-block placement of either live runner check. ADR 0360 records why this
+generic invocation still makes no claim about destination locking, inspection,
+or atomic replacement.
+
+The first complete OS build passed all compilers, both CupidLD links, and the
+strict CupidDis scan before the exact-size gate rejected the old flat-kernel
+row. The updated CTXT manual moved `kernel.bin` from 9,499,864 to 9,500,380
+bytes. Both ELF lengths stayed fixed. After the measured row was updated, the
+policy-bound rebuild repeated all 83 Doom roots and both links, passed strict
+inspection, accepted all 16 exact artifacts, and published the image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.bin` | 9,500,380 | `68d3b94523c2d2d05736c77597deb067556e4d73a6420b95d739fd92e72412f2` |
+| `kernel/kernel.elf` | 9,728,056 | `91ee82e41d7a2037ee67368679aff9fc278765a4be70aab7248a041d9d194a49` |
+| `kernel/kernel.elf.pass1` | 9,596,984 | `3d0c862955a936f6d95e728d9cf606aa6ce04d6636cd50d1d6ba44c76829988c` |
+| `cupidos.img` | 209,715,200 | `848ef97ef3555d2882944de5fdff143d448b8c7e55dc8f72e4e5f0e8850184b0` |
+
+A private four-vCPU e1000 smoke booted that image under the strong SMP runtime
+contract and ran `/bin/ls.cc` through CupidC to normal JIT completion. The
+33,471-byte log has SHA-256
+`a4294594a847eadb82cd5d6b6fafed70608294a8b16ee948603d15234464a609`.
+All 54 artifact-size tests passed in 4.171 seconds with four expected platform
+skips. The checked active-source audit and whitespace validation also passed.

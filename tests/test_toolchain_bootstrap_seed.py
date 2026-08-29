@@ -2741,21 +2741,45 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _stage_three,
                 tool_name,
                 stage_two_arguments,
+                stage_three_arguments=None,
                 *_args,
             ):
                 arguments = tuple(str(item) for item in stage_two_arguments)
-                linux_calls.append((tool_name, arguments))
-                if arguments != ("--help",):
-                    raise BehaviorBoundaryReached
-                output = "usage: candidate\n"
-                if tool_name == "cupidobj":
-                    output += (
-                        "wrap-jpeg disk-template iso-fixture "
-                        "profile-manifest\n"
+                paired_arguments = tuple(
+                    str(item)
+                    for item in (
+                        stage_three_arguments
+                        if stage_three_arguments is not None
+                        else stage_two_arguments
                     )
-                if tool_name == "cupidld":
-                    output += "i386pe\n"
-                return subprocess.CompletedProcess([], 0, output, "")
+                )
+                linux_calls.append((tool_name, arguments))
+                if arguments == ("--help",):
+                    output = "usage: candidate\n"
+                    if tool_name == "cupidobj":
+                        output += (
+                            "wrap-jpeg disk-template iso-fixture "
+                            "profile-manifest\n"
+                        )
+                    if tool_name == "cupidld":
+                        output += "i386pe\n"
+                    return subprocess.CompletedProcess([], 0, output, "")
+                if arguments[0] == "run":
+                    forwarded = arguments[arguments.index("--") + 1 :]
+                    if forwarded == ("--definitely-invalid-option",):
+                        return subprocess.CompletedProcess(
+                            [], 2, "", "usage: cupidobj\n"
+                        )
+                    for command in (arguments, paired_arguments):
+                        command_root = Path(
+                            command[command.index("--root") + 1]
+                        )
+                        output_name = command[command.index("-o") + 1]
+                        (command_root / output_name).write_bytes(
+                            _unowned_relocation_object_payload()
+                        )
+                    return subprocess.CompletedProcess([], 0, "", "")
+                raise BehaviorBoundaryReached
 
             with mock.patch(
                 "tools.bootstrap_toolchain._run_stage_pair",
@@ -2780,11 +2804,55 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     for name in CANDIDATE_TOOL_NAMES
                 ],
             )
+            linux_runner_root = linux_output / "behavior" / "cupidobj-runner"
+            linux_runner_success = linux_calls[len(CANDIDATE_TOOL_NAMES)]
+            self.assertEqual(linux_runner_success[0], "cupidbuild")
+            self.assertEqual(linux_runner_success[1][0], "run")
             self.assertEqual(
-                linux_calls[len(CANDIDATE_TOOL_NAMES)][0], "cupidbuild"
+                Path(
+                    linux_runner_success[1][
+                        linux_runner_success[1].index("--root") + 1
+                    ]
+                ),
+                linux_runner_root,
             )
             self.assertEqual(
-                linux_calls[len(CANDIDATE_TOOL_NAMES)][1][0],
+                linux_runner_success[1][
+                    linux_runner_success[1].index("--tool") :
+                ],
+                (
+                    "--tool",
+                    "cupidobj",
+                    "--",
+                    "wrap-text",
+                    "runner-input.txt",
+                    "--identity",
+                    "fixed-point-runner.txt",
+                    "-o",
+                    "stage-three-cupidobj-runner.o",
+                ),
+            )
+            linux_runner_failure = linux_calls[
+                len(CANDIDATE_TOOL_NAMES) + 1
+            ]
+            self.assertEqual(linux_runner_failure[0], "cupidbuild")
+            self.assertEqual(
+                linux_runner_failure[1][
+                    linux_runner_failure[1].index("--tool") :
+                ],
+                (
+                    "--tool",
+                    "cupidobj",
+                    "--",
+                    "--definitely-invalid-option",
+                ),
+            )
+            self.assertEqual(
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 2][0],
+                "cupidbuild",
+            )
+            self.assertEqual(
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 2][1][0],
                 "assemble-cupidasm-object",
             )
 
@@ -2796,9 +2864,18 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _stage_three,
                 tool_name,
                 stage_two_arguments,
+                stage_three_arguments=None,
                 *_args,
             ):
                 arguments = tuple(str(item) for item in stage_two_arguments)
+                paired_arguments = tuple(
+                    str(item)
+                    for item in (
+                        stage_three_arguments
+                        if stage_three_arguments is not None
+                        else stage_two_arguments
+                    )
+                )
                 windows_calls.append((tool_name, arguments))
                 if arguments == ("--help",):
                     return subprocess.CompletedProcess(
@@ -2808,6 +2885,21 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     return subprocess.CompletedProcess(
                         [], 2, "", "usage: candidate\n"
                     )
+                if arguments[0] == "run":
+                    forwarded = arguments[arguments.index("--") + 1 :]
+                    if forwarded == ("--definitely-invalid-option",):
+                        return subprocess.CompletedProcess(
+                            [], 2, "", "usage: cupidobj\n"
+                        )
+                    for command in (arguments, paired_arguments):
+                        command_root = Path(
+                            command[command.index("--root") + 1]
+                        )
+                        output_name = command[command.index("-o") + 1]
+                        (command_root / output_name).write_bytes(
+                            _unowned_relocation_object_payload()
+                        )
+                    return subprocess.CompletedProcess([], 0, "", "")
                 raise BehaviorBoundaryReached
 
             with mock.patch(
@@ -2838,12 +2930,57 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_calls[: len(expected_windows_calls)],
                 expected_windows_calls,
             )
+            windows_runner_root = (
+                windows_output / "behavior" / "cupidobj-runner"
+            )
+            windows_runner_success = windows_calls[len(expected_windows_calls)]
+            self.assertEqual(windows_runner_success[0], "cupidbuild")
+            self.assertEqual(windows_runner_success[1][0], "run")
             self.assertEqual(
-                windows_calls[len(expected_windows_calls)][0],
+                Path(
+                    windows_runner_success[1][
+                        windows_runner_success[1].index("--root") + 1
+                    ]
+                ),
+                windows_runner_root,
+            )
+            self.assertEqual(
+                windows_runner_success[1][
+                    windows_runner_success[1].index("--tool") :
+                ],
+                (
+                    "--tool",
+                    "cupidobj",
+                    "--",
+                    "wrap-text",
+                    "runner-input.txt",
+                    "--identity",
+                    "fixed-point-runner.txt",
+                    "-o",
+                    "stage-three-cupidobj-runner.o",
+                ),
+            )
+            windows_runner_failure = windows_calls[
+                len(expected_windows_calls) + 1
+            ]
+            self.assertEqual(windows_runner_failure[0], "cupidbuild")
+            self.assertEqual(
+                windows_runner_failure[1][
+                    windows_runner_failure[1].index("--tool") :
+                ],
+                (
+                    "--tool",
+                    "cupidobj",
+                    "--",
+                    "--definitely-invalid-option",
+                ),
+            )
+            self.assertEqual(
+                windows_calls[len(expected_windows_calls) + 2][0],
                 "cupidbuild",
             )
             self.assertEqual(
-                windows_calls[len(expected_windows_calls)][1][0],
+                windows_calls[len(expected_windows_calls) + 2][1][0],
                 "assemble-cupidasm-object",
             )
 
@@ -2953,7 +3090,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 side_effect=linux_pair,
             ), mock.patch(
                 "tools.bootstrap_toolchain."
-                "_check_cupidbuild_guarded_object_behavior",
+                "_check_cupidbuild_cupidobj_runner_behavior",
                 side_effect=BehaviorBoundaryReached,
             ), self.assertRaises(BehaviorBoundaryReached):
                 _run_behavior_checks(
@@ -3042,7 +3179,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 side_effect=windows_pair,
             ), mock.patch(
                 "tools.bootstrap_toolchain."
-                "_check_cupidbuild_guarded_object_behavior",
+                "_check_cupidbuild_cupidobj_runner_behavior",
                 side_effect=BehaviorBoundaryReached,
             ), self.assertRaises(BehaviorBoundaryReached):
                 _run_native_windows_behavior_checks(
@@ -5090,9 +5227,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 13,
+                    "failure_cases": 14,
                     "help_cases": 6,
-                    "success_cases": 18,
+                    "success_cases": 19,
                 },
             )
             candidate_linux_plan = _candidate_build_plan(
@@ -5670,9 +5807,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            24,
+            25,
         )
-        self.assertEqual(returned["success_cases"].value, 31)
+        self.assertEqual(returned["success_cases"].value, 32)
         self.assertIsInstance(returned["help_cases"], ast.Call)
         self.assertEqual(returned["help_cases"].func.id, "len")
         self.assertEqual(returned["help_cases"].args[0].id, "tool_names")
@@ -9244,9 +9381,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 24,
+                    "failure_cases": 25,
                     "help_cases": 6,
-                    "success_cases": 31,
+                    "success_cases": 32,
                 },
             )
             self.assertEqual(

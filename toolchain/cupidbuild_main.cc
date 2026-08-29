@@ -13,13 +13,14 @@ static void cupidbuild_usage(FILE *stream) {
       "       cupidbuild assemble-smp-trampoline "
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
-      "--root ROOT --tool cupidobj [--timeout SECONDS] -- TOOL_ARGS...\n");
+      "--root ROOT --tool {cupidobj|cupidld} [--timeout SECONDS] -- "
+      "TOOL_ARGS...\n");
 }
 
 static void cupidbuild_run_usage(FILE *stream) {
   (void)fprintf(stream,
                 "usage: cupidbuild run --seed-manifest MANIFEST "
-                "--root ROOT --tool cupidobj [--timeout SECONDS] "
+                "--root ROOT --tool {cupidobj|cupidld} [--timeout SECONDS] "
                 "-- TOOL_ARGS...\n");
 }
 
@@ -163,7 +164,8 @@ int main(int argc, char **argv) {
     if (separator == 0 || run_request.seed_manifest == (const char *)0 ||
         run_request.working_directory == (const char *)0 ||
         run_request.tool == (const char *)0 ||
-        strcmp(run_request.tool, "cupidobj") != 0 ||
+        (strcmp(run_request.tool, "cupidobj") != 0 &&
+         strcmp(run_request.tool, "cupidld") != 0) ||
         (timeout != (const char *)0 &&
          !cupidbuild_parse_timeout(timeout, &run_request.timeout_seconds))) {
       cupidbuild_run_usage(stderr);

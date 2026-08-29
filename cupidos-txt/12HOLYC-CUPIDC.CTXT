@@ -58,6 +58,14 @@ identity. Both paths withhold captured output if the live cohort changes.
 The command remains a source capability until both checked seeds carry it and
 Make adopts it.
 
+The checked runner now admits CupidLD as well as CupidObj and rejects every
+other tool name. A direct and checked fixed-address CupidLD link must produce
+the same ELF bytes. Both source-head fixed points run checked CupidObj through
+their stage-three and stage-four CupidBuild images, compare the relocatable
+result, and check the invalid-option diagnostic. Linux has 25 failure, six
+help, and 32 success cases. Native Windows has 14 failure, six help, and 19
+success cases. This does not move a normal Make recipe.
+
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
 0.962 seconds with four POSIX skips, and its dedicated Make contract passed.

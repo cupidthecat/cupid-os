@@ -1772,6 +1772,7 @@ int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   cupidbuild_seed_capture_t seed;
+  size_t tool_index;
   int status;
   int result = 1;
   (void)memset(&seed, 0, sizeof(seed));
@@ -1780,11 +1781,13 @@ int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
       !cupidbuild_path_safe(request->seed_manifest, 0) ||
       request->arguments == (const char *const *)0 ||
       request->tool == (const char *)0 ||
-      strcmp(request->tool, "cupidobj") != 0 ||
+      (strcmp(request->tool, "cupidobj") != 0 &&
+       strcmp(request->tool, "cupidld") != 0) ||
       request->timeout_seconds == 0u || request->timeout_seconds > 86400u) {
     (void)fprintf(stderr, "cupidbuild: invalid checked tool request\n");
     return 1;
   }
+  tool_index = strcmp(request->tool, "cupidld") == 0 ? 3u : 4u;
   if (!cupidbuild_host_runner_open(request->working_directory,
                                     &transaction)) {
     (void)fprintf(stderr, "cupidbuild: %s\n",
@@ -1801,7 +1804,7 @@ int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
     goto done;
   }
   status = cupidbuild_host_run_captured(
-      transaction, seed.frozen_tools[4], request->arguments,
+      transaction, seed.frozen_tools[tool_index], request->arguments,
       request->timeout_seconds * 1000u);
   if (!cupidbuild_seed_require_live(transaction, &seed)) {
     goto done;
@@ -1812,7 +1815,8 @@ int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
     goto done;
   }
   if (status == -2) {
-    (void)fprintf(stderr, "cupidbuild: checked CupidObj timed out\n");
+    (void)fprintf(stderr, "cupidbuild: checked %s timed out\n",
+                  cupidbuild_seed_names[tool_index]);
     goto done;
   }
   if (status < 0) {

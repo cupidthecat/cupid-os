@@ -6047,15 +6047,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 6)
-        self.assertEqual(contract["success_behavior_cases"], 31)
-        self.assertEqual(contract["failure_behavior_cases"], 24)
+        self.assertEqual(contract["success_behavior_cases"], 32)
+        self.assertEqual(contract["failure_behavior_cases"], 25)
         self.assertEqual(contract["tool_c_sources"], 22)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 22)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 6)
-        self.assertEqual(contract["windows_success_behavior_cases"], 18)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 13)
+        self.assertEqual(contract["windows_success_behavior_cases"], 19)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 14)
         self.assertEqual(contract["contract_manifest_inputs"], 75)
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 75
@@ -6077,6 +6077,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(
             contract["source_head_capabilities"],
             [
+                "cupid.cupidbuild_checked_cupidobj_runner",
                 "cupid.cupidbuild_guarded_object_transaction",
                 "cupid.cupidbuild_guarded_raw_transaction",
                 "cupiddis.candidate_image_certification",
@@ -6558,20 +6559,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 32,\n',
                 '        "success_cases": 31,\n',
-                '        "success_cases": 30,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 25,\n',
                 '        "failure_cases": 24,\n',
-                '        "failure_cases": 23,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": len(tool_names) + 8,\n',
                 '        "failure_cases": len(tool_names) + 7,\n',
-                '        "failure_cases": len(tool_names) + 6,\n',
                 r"native Windows fixed-point behavior differs",
             ),
             "Linux fixed-point C objects skip CupidDis certification": (
@@ -6714,6 +6715,61 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '            "native Windows ",\n'
                 "        )\n",
                 r"candidate image certification call",
+            ),
+            "checked CupidObj runner helper disappears": (
+                "bootstrap",
+                "def _check_cupidbuild_cupidobj_runner_behavior(\n",
+                "def _removed_cupidbuild_cupidobj_runner_behavior(\n",
+                r"checked CupidObj runner call differs",
+            ),
+            "checked CupidObj runner stops comparing output": (
+                "bootstrap",
+                "        or stage_two_output.read_bytes() "
+                "!= stage_three_output.read_bytes()\n",
+                "        or False\n",
+                r"checked CupidObj runner behavior differs",
+            ),
+            "Linux checked CupidObj runner moves under a dead block": (
+                "bootstrap",
+                "    _check_cupidbuild_cupidobj_runner_behavior(\n"
+                "        runner,\n"
+                "        behavior_root,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                "        seed_inputs,\n"
+                '        "",\n'
+                "    )\n",
+                "    if False:\n"
+                "        _check_cupidbuild_cupidobj_runner_behavior(\n"
+                "            runner,\n"
+                "            behavior_root,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                "            seed_inputs,\n"
+                '            "",\n'
+                "        )\n",
+                r"checked CupidObj runner call",
+            ),
+            "Windows checked CupidObj runner moves under a dead block": (
+                "bootstrap",
+                "    _check_cupidbuild_cupidobj_runner_behavior(\n"
+                "        runner,\n"
+                "        behavior_root,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                "        seed_inputs,\n"
+                '        "native Windows ",\n'
+                "    )\n",
+                "    if False:\n"
+                "        _check_cupidbuild_cupidobj_runner_behavior(\n"
+                "            runner,\n"
+                "            behavior_root,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                "            seed_inputs,\n"
+                '            "native Windows ",\n'
+                "        )\n",
+                r"checked CupidObj runner call",
             ),
             "linked-target behavior helper disappears": (
                 "bootstrap",

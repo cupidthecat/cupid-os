@@ -3142,6 +3142,94 @@ def _materialize_behavior_seed(
     return manifest_path
 
 
+def _check_cupidbuild_cupidobj_runner_behavior(
+    runner: ToolRunner,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    label_prefix: str,
+) -> None:
+    runner_root = behavior_root / "cupidobj-runner"
+    runner_root.mkdir()
+    manifest_path = _materialize_behavior_seed(seed_inputs, runner_root)
+    input_path = runner_root / "runner-input.txt"
+    input_path.write_bytes(b"first\r\nsecond\r\n")
+    stage_two_output = runner_root / "stage-three-cupidobj-runner.o"
+    stage_three_output = runner_root / "stage-four-cupidobj-runner.o"
+    common_arguments: list[str | Path] = [
+        "run",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        runner_root,
+        "--tool",
+        "cupidobj",
+        "--",
+    ]
+    success_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *common_arguments,
+            "wrap-text",
+            input_path.name,
+            "--identity",
+            "fixed-point-runner.txt",
+            "-o",
+            stage_two_output.name,
+        ],
+        [
+            *common_arguments,
+            "wrap-text",
+            input_path.name,
+            "--identity",
+            "fixed-point-runner.txt",
+            "-o",
+            stage_three_output.name,
+        ],
+        180,
+    )
+    _expect_status(
+        success_result,
+        0,
+        f"{label_prefix}CupidBuild checked CupidObj runner",
+    )
+    if (
+        success_result.stdout
+        or success_result.stderr
+        or stage_two_output.read_bytes() != stage_three_output.read_bytes()
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild checked CupidObj output differs"
+        )
+    _validate_i386_relocatable(stage_two_output)
+
+    failure_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [*common_arguments, "--definitely-invalid-option"],
+        [*common_arguments, "--definitely-invalid-option"],
+        180,
+    )
+    _expect_status(
+        failure_result,
+        2,
+        f"{label_prefix}CupidBuild checked CupidObj invalid option",
+    )
+    if (
+        failure_result.stdout
+        or "usage: cupidobj" not in failure_result.stderr
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild checked CupidObj failure differs"
+        )
+
+
 _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE = (
     "bits 16\n"
     "org 0x7c00\n"
@@ -3493,6 +3581,15 @@ def _run_native_windows_behavior_checks(
         "native Windows ",
     )
 
+    _check_cupidbuild_cupidobj_runner_behavior(
+        runner,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "native Windows ",
+    )
+
     _check_cupidbuild_guarded_object_behavior(
         runner,
         output_root,
@@ -3720,9 +3817,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 7,
+        "failure_cases": len(tool_names) + 8,
         "help_cases": len(tool_names),
-        "success_cases": len(tool_names) + 12,
+        "success_cases": len(tool_names) + 13,
     }
 
 
@@ -4445,6 +4542,15 @@ def _run_behavior_checks(
         behavior_root,
         stage_two,
         stage_three,
+        "",
+    )
+
+    _check_cupidbuild_cupidobj_runner_behavior(
+        runner,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
         "",
     )
 
@@ -7185,9 +7291,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 24,
+        "failure_cases": 25,
         "help_cases": len(tool_names),
-        "success_cases": 31,
+        "success_cases": 32,
     }
 
 

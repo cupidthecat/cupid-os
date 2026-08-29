@@ -15,6 +15,20 @@ After WSL restarted, both the Linux and native Windows end-to-end fixed-point
 tests passed. Source head differs from the initial Linux seed for all six tools;
 Windows differs only for CupidBuild pending the next paired seed refresh.
 
+Source-head `cupidbuild run` now admits checked CupidLD alongside CupidObj and
+rejects the remaining tools. A real fixed-address ELF link matches the direct
+CupidLD output. The Linux and native Windows fixed-point drivers also run
+checked CupidObj `wrap-text` through both compared CupidBuild generations,
+require byte-identical relocatable objects, and check the invalid-option path.
+Their source-head behavior totals are 25/6/32 and 14/6/19. The promoted seeds
+and production graph remain unchanged until a later promotion and handoff.
+ADR 0360 records this boundary.
+
+The policy-bound OS build passed all 83 Doom roots, both CupidLD links, strict
+CupidDis inspection, all 16 exact artifact rows, and a four-vCPU e1000 boot
+that ran `/bin/ls.cc`. The flat kernel is 9,500,380 bytes; the final and
+pass-one ELFs are 9,728,056 and 9,596,984 bytes.
+
 Source-head CupidBuild now has a native checked CupidObj runner. Linux creates
 no `.cupidbuild-run` namespace. It freezes the manifest and all six tools in
 fully sealed anonymous memfds and pins the working directory by descriptor.

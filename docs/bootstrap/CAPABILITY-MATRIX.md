@@ -7,8 +7,8 @@ The matrix uses these statuses:
 - **Missing**: no implementation satisfying the bootstrap contract was found.
 - **Required**: the checked active-source audit proves the capability is exercised, but the Cupid implementation does not yet satisfy it.
 
-Native checked CupidObj launch is **Partial at source head** while final runtime
-evidence is pending. `cupidbuild run` validates a promoted manifest, all six
+Native checked CupidObj and CupidLD launch is **Partial at source head** while
+paired-seed carriage is pending. `cupidbuild run` validates a promoted manifest, all six
 tools, seed membership, declared bytes, and host execution profiles. Linux
 creates no `.cupidbuild-run` namespace. It freezes every seed input in a fully
 sealed anonymous memfd and pins the working directory by descriptor. The child
@@ -19,6 +19,13 @@ loops retry `EINTR`; `dup2` also retries `EBUSY`. Captured streams are
 anonymous memfds that become fully sealed before reading. A close-on-exec
 launch-status pipe preserves an exact child exit of 125. The static i386
 startup exports `cupid_linux_syscall5` for this descriptor path.
+
+The admitted list contains only CupidObj and CupidLD. Direct and checked
+CupidLD paths produce the same fixed-address ELF, and both fixed-point drivers
+run a checked CupidObj success and failure through consecutive CupidBuild
+generations. Their source-head matrices contain 25/6/32 failure, help, and
+success cases on Linux and 14/6/19 on native Windows. ADR 0360 records the
+runner extension and behavior gate.
 
 Windows pins and rechecks the working-directory identity. It uses a
 handle-pinned private root and files, retains a tool handle without write or

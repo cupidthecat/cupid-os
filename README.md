@@ -76,6 +76,20 @@ paired seed refresh. In the initial 129-case module run, 126 cases passed;
 three stale expectations failed and were rerun directly after correction. The
 complete module then passed all 129 cases in 3,569.451 seconds.
 
+Source-head `cupidbuild run` now admits checked CupidLD as well as CupidObj,
+while rejecting every other tool name. A real fixed-address ELF link matches
+the direct CupidLD output byte for byte. Both fixed-point drivers also run
+checked CupidObj `wrap-text` through their stage-three and stage-four
+CupidBuild images, compare the relocatable output, and require the matching
+invalid-option failure. The source-head behavior totals are 25 failures, six
+help cases, and 32 successes on Linux, plus 14 failures, six help cases, and
+19 successes on native Windows. The promoted seeds and normal Make graph are
+unchanged until the next paired promotion. ADR 0360 records this boundary.
+The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
+strict CupidDis validation, all 16 exact artifacts, and a four-vCPU e1000 boot
+that ran `/bin/ls.cc`. The current flat kernel is 9,500,380 bytes; the final
+and pass-one ELFs are 9,728,056 and 9,596,984 bytes.
+
 ## 2026-08-27 source-current checkpoint
 
 Source-head CupidBuild now has a native checked runner for ordinary CupidObj

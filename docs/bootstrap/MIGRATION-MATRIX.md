@@ -2,7 +2,7 @@
 
 `TempleOS/` is excluded: it is reference material, not a source cohort. Statuses describe ownership, not how much code exists.
 
-Source-head CupidBuild can now launch checked CupidObj without Python. Linux
+Source-head CupidBuild can now launch checked CupidObj and CupidLD without Python. Linux
 creates no `.cupidbuild-run` namespace. It freezes the manifest and all six
 tools in fully sealed anonymous memfds and pins the working directory by
 descriptor. The child calls `fchdir` before remapping its stream descriptors.
@@ -19,9 +19,17 @@ files are handle-pinned. Cleanup removes a mutated file when its identity still
 belongs to the runner and preserves a replacement identity. Both hosts recheck
 the live cohort before they expose the result.
 
+Only those two tools are admitted. A real fixed-address ELF linked through the
+checked CupidLD path matches direct CupidLD byte for byte. Both source-head
+fixed points also run checked CupidObj `wrap-text` through their compared
+CupidBuild generations, validate equal relocatable output, and require the
+same invalid-option failure. The resulting behavior totals are 25/6/32 on
+Linux and 14/6/19 on native Windows.
+
 This is source capability, not a graph transfer: the promoted seeds and all
 186 direct root CupidObj calls still use the Python runner at this checkpoint.
-ADR 0358 records the boundary. The Windows CupidBuild CLI suite completed 66
+ADR 0358 records the original runner, and ADR 0360 records the extension and
+fixed-point gate. The Windows CupidBuild CLI suite completed 67
 tests in 65.934 seconds with three expected skips. The host-runner Python
 module completed eight tests in 0.962 seconds with four POSIX skips. The
 dedicated Make contract passed. All six CupidASM source tests passed in 3.771
