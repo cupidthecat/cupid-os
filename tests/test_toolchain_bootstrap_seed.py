@@ -290,7 +290,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             _build_plan_sha256(checked_plan),
         )
         source_inventory = capture_source_snapshot(REPO_ROOT, candidate_plan)
-        self.assertEqual(len(source_inventory), 58)
+        self.assertEqual(len(source_inventory), 59)
         for path in (
             "toolchain/cupidbuild.cc",
             "toolchain/cupidbuild_host.cc",
@@ -2208,6 +2208,85 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 source_root, plan, frozen.inventory
             )
             require_frozen_source_snapshot(frozen, plan)
+
+    @unittest.skipIf(
+        os.name == "nt" and shutil.which("wsl") is None,
+        "WSL is required to execute the checked Linux seed",
+    )
+    def test_checked_seed_compiles_the_public_cupidbuild_size_api(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-cupidbuild-api-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "cupidbuild-api.cc"
+            output = root / "cupidbuild-api.o"
+            stddef_source = root / "stddef-contract.cc"
+            stddef_output = root / "stddef-contract.o"
+            source.write_text(
+                '#include "cupidbuild.h"\n'
+                "size_t cupidbuild_api_size(void) {\n"
+                "  return sizeof(cupidbuild_jpeg_request_t);\n"
+                "}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            stddef_source.write_text(
+                "#include <stddef.h>\n"
+                "struct stddef_record { char prefix; int value; };\n"
+                "max_align_t stddef_alignment;\n"
+                "ptrdiff_t stddef_contract(wchar_t value) {\n"
+                "  return (ptrdiff_t)(\n"
+                "      offsetof(struct stddef_record, value) +\n"
+                "      sizeof(stddef_alignment) + sizeof(value));\n"
+                "}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+            result = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "-c",
+                    "/" + source.relative_to(REPO_ROOT).as_posix(),
+                    "-I",
+                    "/toolchain",
+                    "--include-angle",
+                    "/toolchain/hosted/i386-linux/include",
+                    "-o",
+                    "/" + output.relative_to(REPO_ROOT).as_posix(),
+                ],
+                60,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+            validate_i386_relocatable_bytes(output.read_bytes())
+
+            stddef_result = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "--gnu",
+                    "-c",
+                    "/" + stddef_source.relative_to(REPO_ROOT).as_posix(),
+                    "--include-angle",
+                    "/toolchain/hosted/i386-linux/include",
+                    "-o",
+                    "/" + stddef_output.relative_to(REPO_ROOT).as_posix(),
+                ],
+                60,
+            )
+            self.assertEqual(
+                stddef_result.returncode, 0, stddef_result.stderr
+            )
+            self.assertEqual(stddef_result.stdout, "")
+            self.assertEqual(stddef_result.stderr, "")
+            validate_i386_relocatable_bytes(stddef_output.read_bytes())
 
     def test_private_source_mutation_is_rejected(self):
         with tempfile.TemporaryDirectory(
@@ -5378,7 +5457,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["source_snapshot_sha256"],
                 candidate_snapshot,
             )
-            self.assertEqual(report["source_inputs"]["count"], 58)
+            self.assertEqual(report["source_inputs"]["count"], 59)
             self.assertEqual(
                 report["source_inputs"]["sha256"],
                 report["source_snapshot_sha256"],
@@ -5386,7 +5465,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
                 {
-                    name: name != "cupidbuild"
+                    name: name not in {"cupidbuild", "cupidc"}
                     for name in CANDIDATE_TOOL_NAMES
                 },
             )
@@ -9918,11 +9997,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 initial_matches,
                 {
-                    name: name != "cupidbuild"
+                    name: name not in {"cupidbuild", "cupidc"}
                     for name in CANDIDATE_TOOL_NAMES
                 },
             )
-            self.assertEqual(report["source_inputs"]["count"], 58)
+            self.assertEqual(report["source_inputs"]["count"], 59)
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
                 64,
@@ -9933,7 +10012,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                58,
+                59,
             )
             for tool_name in CANDIDATE_TOOL_NAMES:
                 stage_three = output / "stage-three" / f"{tool_name}.elf"

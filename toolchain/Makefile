@@ -54,6 +54,7 @@ TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS := \
 	hosted/i386-linux/include/cupid_host_abi.h \
 	hosted/i386-linux/include/direct.h \
 	hosted/i386-linux/include/errno.h \
+	hosted/i386-linux/include/stddef.h \
 	hosted/i386-linux/include/stdint.h \
 	hosted/i386-linux/include/stdio.h \
 	hosted/i386-linux/include/stdlib.h \
@@ -159,6 +160,7 @@ CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.cc \
 CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
                               hosted/i386-linux/include/direct.h \
                               hosted/i386-linux/include/errno.h \
+                              hosted/i386-linux/include/stddef.h \
                               hosted/i386-linux/include/stdint.h \
                               hosted/i386-linux/include/stdio.h \
                                hosted/i386-linux/include/stdlib.h \

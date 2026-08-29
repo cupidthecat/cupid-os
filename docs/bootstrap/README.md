@@ -68,7 +68,8 @@ CupidLD to the native checked runner and makes the CupidObj runner part of
 both source-head fixed-point behavior matrices. ADR 0361 promotes that runner
 in the paired checked seeds, ADR 0362 moves the 186 ordinary CupidObj recipes
 onto it, ADR 0363 moves both normal kernel links onto the same runner, and ADR
-0364 adds the typed source-head JPEG publication boundary.
+0364 adds the typed source-head JPEG publication boundary. ADR 0365 provides
+the hosted `stddef` contract that boundary exposed during reconstruction.
 
 ## 2026-08-29 source-current checkpoint
 
@@ -92,6 +93,26 @@ matrices compare the command across consecutive CupidBuild generations and
 prove progressive-input rollback, yielding 26/6/33 Linux and 15/6/20 native
 Windows inventories. The promoted seeds and production JPEG edge remain on the
 preceding contract until a paired refresh. ADR 0364 records the capability.
+
+The first paired seed refresh stopped before candidate publication because the
+hosted Linux include root had no `<stddef.h>`. The public CupidBuild JPEG API
+uses `size_t` and includes that standard header, so both Linux and native
+Windows fixed points failed closed with the same missing-include diagnostic.
+The hosted library now supplies the target `ptrdiff_t`, `wchar_t`,
+`max_align_t`, and `offsetof` surface while preserving `size_t` and `NULL` from
+`cupid_host_abi.h`. CupidC's typed `__builtin_offsetof` path is available in
+strict C for the macro and still reports invalid member paths precisely. A
+focused checked-seed test went red on the original public-header failure and
+green after the repair; a separate strict frontend test did the same for
+`__builtin_offsetof`.
+
+The new header raises the source-head closure to 59 inputs with snapshot
+SHA-256
+`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+The Linux and native Windows plan hashes are unchanged. The promoted manifests
+continue to name their 58-input snapshot, and the normal JPEG recipe stays on
+Hostbuild until a fresh paired proof converges and those candidates are
+promoted. ADR 0365 records this source repair.
 
 The native Windows fixed point now uses the checked Windows execution seed for
 every stage-two producer. The checked Linux seed remains the reviewed build
@@ -688,9 +709,9 @@ installed packages. The direct module passes 40 tests in 51.723 seconds, the
 publisher passes 65 tests in 7.258 seconds, and the pinned verifier runner
 executes 25 tests in 32.773 seconds with three POSIX-only skips on Windows. The
 direct suite includes a checked stage-four build and run of the author. The
-source graph retains 747
+source graph retains 748
 active inputs, 452 transforms,
-255 feature requirements, and 27 accounted unreachable files. Participation
+255 feature requirements, and 28 accounted unreachable files. Participation
 is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, CupidBuild 192,
 and four Cupid-built contracts. Python participates in 260 transforms, but
 none is Python-only. The latest complete schema v3 `CUPMAN4` publication passed. The
@@ -1803,8 +1824,8 @@ modification. The initial contract snapshot, private copy, and newly discovered
 live contract inventory must match in membership and hashes. This catches additions,
 removals, and a transient edit copied before its live source is restored.
 Every run derives the cohort from its requested executable, requires a named
-manifest artifact, and verifies all artifact hashes, the live 75-input
-contract set, the checked seed manifest, and the 58-file candidate source
+manifest artifact, and verifies all artifact hashes, the source-current
+76-input contract set, the checked seed manifest, and the 59-file candidate source
 inventory before execution. The contract set includes the user syscall ABI
 contract and its six declarations, both Windows runtime paths, the CupidLD
 publication runtime and bridge, the direct Windows runtime contract,
@@ -3058,9 +3079,9 @@ The preprocessing module owns translation-phase tokenization, ordered
 object, function, and variadic macros, C11 conditionals and predefined macros,
 `#line` locations, direct and macro-expanded includes, forced inputs,
 guarded traversal, canonical once identity, pack metadata, and typed Cupid
-`#exe` markers. Checked manifests classify all 2,495 include operands as
-2,218 direct quoted plus 277 direct angle forms with zero macro operands
-across 711 active C-family inputs. The generated manifest drives 403 tracked
+`#exe` markers. Checked manifests classify all 2,503 include operands as
+2,220 direct quoted plus 283 direct angle forms with zero macro operands
+across 712 active C-family inputs. The generated manifest drives 403 tracked
 profile runs under twelve profiles plus four generated kernel roots. The
 profile counts are 156 kernel, three Doom compatibility, 80 Doom tree, three
 user, 108 Cupid programs, 38 strict hosted i386 Linux, seven strict hosted i386
@@ -3090,7 +3111,7 @@ mode consumes `CUPMAN2` and follows the host-selected execution cohort, so it
 runs as a native PE on Windows. Author mode consumes independent `CUPMAN4`
 facts. The converged stage-four Linux tools build a static ELF on Linux or a
 validated PE on Windows. Together the
-modes bind all 22 artifacts, 75 publication inputs, 58 bootstrap inputs, the
+modes bind all 22 artifacts, 76 publication inputs, 59 bootstrap inputs, the
 Linux publication seed, and 62 raw stage pairs. The pairs cover 17 contract
 objects, 16 contract executables, 22 bootstrap C objects, one startup object,
 and six tool images. The author requires regular, nonempty, byte-identical
@@ -3112,7 +3133,7 @@ resolve `tools` from this checkout. The direct manifest module passes 40 tests
 in 54.623 seconds, the publisher passes 64 in 12.144 seconds, and the pinned
 verifier runner executes 25 tests in 32.773 seconds with three
 POSIX-only skips on Windows.
-That publication records the current 75/58 inventories and carries the
+That publication records the preceding 75/58 inventories and carries the
 six-tool candidate without promoting a new checked seed.
 The publisher gives `x86_contract.cc` its sibling `/toolchain/tests`
 quoted-include root so checked CupidC can read both frozen x86 `.inc`
@@ -3138,15 +3159,15 @@ failures there. The checked seed parses all
 29 declarations in `simd_intrin.h` under the Cupid profile. That mode now
 maps `U0`, the signed and unsigned sized integer spellings, `Bool`, `bool`,
 `float4`, and `double2` directly into the shared type graph. C11 continues to
-treat those spellings as ordinary identifiers. The graph contains 747 active
-language inputs: 32 assembly files, 301 headers, and 414 Cupid C files. No
+treat those spellings as ordinary identifiers. The graph contains 748 active
+language inputs: 32 assembly files, 302 headers, and 414 Cupid C files. No
 ordinary C translation unit remains in the supported roots. The assembly
 ownership contract assigns all 32 active assembly sources to CupidASM,
 including five Toolchain startup inputs, and rejects any ownerless addition.
 ADR 0327 records this complete assembly inventory. The audit records 255
-feature IDs, 452 transforms, and 27 accounted unreachable files. The preprocessor
-inventory covers 711 files and 2,495 include occurrences, split into 2,218
-quoted and 277 angle forms. Its active roots contain 403 tracked and four
+feature IDs, 452 transforms, and 28 accounted unreachable files. The preprocessor
+inventory covers 712 files and 2,503 include occurrences, split into 2,220
+quoted and 283 angle forms. Its active roots contain 403 tracked and four
 generated translation units.
 
 The ADR 0302 audit remains historical. Its active-source digest is

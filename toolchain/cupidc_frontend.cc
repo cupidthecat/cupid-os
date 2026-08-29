@@ -3828,11 +3828,6 @@ static ctool_status_t cfront_parse_offsetof_query(
   cfront_zero(&record_layout, (ctool_u32)sizeof(record_layout));
   cfront_zero(&root_node, (ctool_u32)sizeof(root_node));
   cfront_zero(&final_member, (ctool_u32)sizeof(final_member));
-  if (context->request->gnu_extensions == CTOOL_FALSE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, diagnostic_code, builtin_token,
-        "__builtin_offsetof requires GNU extensions");
-  }
   status = cfront_enter_syntax(context, builtin_token);
   if (status != CTOOL_OK) {
     return status;

@@ -79,6 +79,17 @@ both compared CupidBuild generations. They compare the relocatable output and
 prove that progressive input preserves both previous destinations. Their
 inventories are 26/6/33 on Linux and 15/6/20 on native Windows. The promoted
 seeds retain the preceding inventories until the next paired refresh.
+
+The hosted Linux library now provides `<stddef.h>` as part of Cupid's static
+i386 bootstrap environment. It publishes `ptrdiff_t`, `wchar_t`, `max_align_t`,
+and standard `offsetof` while reusing the target `size_t` and `NULL` contract
+from `cupid_host_abi.h`. CupidC accepts the implementation
+`__builtin_offsetof` operation in strict C so the standard macro can resolve a
+member against Cupid's target layout. Source head has 59 frozen inputs with
+snapshot SHA-256
+`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+The checked seeds still describe their preceding 58-input snapshot until the
+paired refresh is proved and promoted.
 _Avoid_: host libc, production ownership from a source-head link
 
 **External executable arena**:
@@ -733,8 +744,9 @@ declaration membership, reproduces that inventory under a private root,
 compares seventeen objects and sixteen executables across the converged
 compiler pair, runs the stage-four runtime behavior probe, and publishes the
 stage-four executables with the six candidate tools as 22 artifacts plus a
-manifest. Its source-current inventory contains 75 inputs, including the exact-decimal
-fixture, fingerprint-bound x86 catalogue corpus, `toolchain/x86.cc`, native
+manifest. Its source-current inventory contains 76 inputs, including the exact-decimal
+fixture, fingerprint-bound x86 catalogue corpus, `toolchain/x86.cc`, hosted
+`stddef.h`, native
 Windows runtime and startup, publication bridges, direct runtime contract,
 hosted Windows declarations, six external-program ABI declarations, the
 artifact-size and Toolchain manifest contract sources, both PE32 reader
@@ -745,8 +757,10 @@ edits that changed a private copy. The output must be a dedicated
 must already verify, and arbitrary directories, source trees, files, or
 symbolic links remain untouched. A run derives the cohort from its requested
 executable and verifies the named artifact, all recorded hashes, and current
-inputs first. The audit keeps the 75-file publication inventory distinct from
-the publisher's 95 Make prerequisites. `toolchain:all` owns this path. Native
+inputs first. The audit keeps the 76-file publication inventory distinct from
+the publisher's 138 declared transform inputs. The latest complete publication
+retains its preceding 75-input and 58-file inventories until the repaired
+source is reconstructed. `toolchain:all` owns this path. Native
 GCC or Clang builds are optional oracles under `native-oracles`, not normal
 build inputs.
 _Avoid_: checked seed, native contract suite, five-tool seed proof
@@ -754,8 +768,8 @@ _Avoid_: checked seed, native contract suite, five-tool seed proof
 **Cupid Toolchain manifest contract**:
 The strict C11 program that verifies and authors the 22-artifact Toolchain
 publication. Verification consumes a pinned `CUPMAN2` snapshot. Author mode
-consumes a pinned `CUPMAN4` snapshot. It carries the independent artifact,
-75-input, 58-bootstrap-input, Linux-seed, build-plan, and generation facts,
+consumes a pinned `CUPMAN4` snapshot. At source head, it carries the independent
+artifact, 76-input, 59-bootstrap-input, Linux-seed, build-plan, and generation facts,
 plus four exact raw stage-pair inventories. Those inventories contain 17
 contract objects, 16 contract executables, 23 bootstrap objects, and six
 bootstrap tools. The author compares and hashes both byte streams in every
@@ -1840,13 +1854,13 @@ fourteen-artifact expansion.
 _Avoid_: output-quality oracle, approximate size budget, hard-coded seed directory
 
 **Frozen fixed-point source closure**:
-The source-current 58 candidate inputs copied into one private compiler root
+The source-current 59 candidate inputs copied into one private compiler root
 before a checked-seed bootstrap runs. The closure adds the three CupidBuild
 `.cc` roots to the preceding source set. It also includes the small Windows probe,
 the native Windows tool runtime and startup, CupidLD's publication runtime and
 bridge, the direct runtime contract, the hosted Windows declarations, the
-PE32 reader interface and implementation header, and the first CupidBuild
-headers and Windows startup. All
+PE32 reader interface and implementation header, hosted `stddef.h`, and the
+first CupidBuild headers and Windows startup. All
 built stages and their behavior checks consume that root. The
 harness rehashes the private and live closures at each boundary, then publishes
 stages two through four, behavior evidence, and the report as one complete directory only

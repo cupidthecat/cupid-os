@@ -75,6 +75,21 @@ relocatable result, and prove rollback for a progressive JPEG. Their source
 inventories are 26/6/33 on Linux and 15/6/20 on native Windows. This is source
 capability only; the active seeds and normal JPEG rule remain unchanged.
 
+The first paired candidate refresh stopped before publication because the
+hosted include root had no stddef.h for CupidBuild's public size_t interface.
+The Linux run stopped after about 412.25 seconds, and the native Windows run
+stopped after about 449.43 seconds. Neither run produced a candidate report or
+seed image.
+
+Source head now provides the i386 size_t, ptrdiff_t, wchar_t, max_align_t,
+NULL, and offsetof contract without a host C library. The offsetof macro uses
+the typed __builtin_offsetof operation, which source-head CupidC accepts as
+strict C implementation support. The repaired fixed-point closure has 59
+inputs and snapshot SHA-256
+`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+The active manifests still bind the preceding 58-input closure. A fresh paired
+fixed point and seed promotion remain pending. ADR 0365 records the repair.
+
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
 0.962 seconds with four POSIX skips, and its dedicated Make contract passed.
@@ -756,17 +771,18 @@ author as a static ELF. Windows runs a validated native PE built by the same
 Linux stage-four CupidC, CupidASM, and CupidLD producers with the checked
 Windows runtime, startup, and exact imports. The publisher uses
 a private pending bootstrap path and gives the author all 62 raw stage pairs
-before Python performs its independent comparisons. A valid schema-v3
-publication binds exactly 22 artifacts, 75 publication inputs, 58 bootstrap
-inputs, and 17 object comparisons. Both checked Python contract launchers put
+before Python performs its independent comparisons. The next schema-v3
+publication from source head must bind exactly 22 artifacts, 76 publication
+inputs, 59 bootstrap inputs, and 17 object comparisons. The latest complete
+publication retains 75 publication inputs and 58 bootstrap inputs. Both checked Python contract launchers put
 this checkout ahead of installed packages before importing `tools`. The direct
 contract passes 40 tests in 51.723 seconds, the publisher passes 65 in 7.258
 seconds, and the pinned runner passes 25 in 32.773 seconds. The host bootstrap
 log records the exact publication identity and completion evidence.
 
-Audit generation and checked reproduction pass. The audit records 747 active
+Audit generation and checked reproduction pass. The audit records 748 active
 inputs, 452 transforms, 255 feature requirements,
-and 27 accounted unreachable files. Ownership participation is CupidC 250,
+and 28 accounted unreachable files. Ownership participation is CupidC 250,
 CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and CupidBuild 192. Python
 participates in 260. Four transforms run Cupid-built contracts, and none is
 Python-only. The host bootstrap log records
@@ -794,6 +810,9 @@ The active v2 checked-seed format includes CupidBuild with the five existing
 tools. Both manifests bind revision
 `a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, 58 source inputs, and snapshot
 `a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`.
+
+Those are the active promoted identities. The current source closure has 59
+inputs after adding hosted stddef.h, but that closure has not been promoted.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.

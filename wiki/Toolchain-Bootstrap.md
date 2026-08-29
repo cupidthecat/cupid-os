@@ -38,6 +38,21 @@ progressive input, giving 26/6/33 Linux and 15/6/20 native Windows behavior
 inventories. The active seeds and Make recipe still use the preceding path.
 ADR 0364 records this source capability.
 
+The first paired refresh for that command stopped before either candidate
+could publish. Linux failed after about 412.25 seconds, and native Windows
+failed after about 449.43 seconds, because `cupidbuild.h` included the missing
+hosted `<stddef.h>`. The hosted i386 header set now provides the target
+`size_t`, `ptrdiff_t`, `wchar_t`, `max_align_t`, `NULL`, and `offsetof`
+contract. Source-head CupidC treats the typed `__builtin_offsetof` operation as
+strict C implementation support instead of a GNU-only extension.
+
+The repaired source-head closure has 59 inputs and snapshot SHA-256
+`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+The Linux and Windows build-plan hashes do not change. The active manifests
+and seed images still bind the earlier 58-input closure, so a fresh paired
+fixed point and seed promotion remain pending. Neither failed attempt produced
+a candidate report or promotion artifact. ADR 0365 records this repair.
+
 The policy-bound OS build passed all 83 Doom roots, both CupidLD links, strict
 CupidDis inspection, all 16 exact artifact rows, and image publication. The
 flat kernel is 9,504,508 bytes; the final and pass-one ELFs are 9,732,152 and
@@ -276,18 +291,18 @@ and the repository runtime, and Linux or WSL runs the result. The normal
 Toolchain publication owns fifteen `.cc` contract programs. Stage-two and
 stage-three CupidC compile them at the checked i386 ABI, CupidLD links each
 one against matching stage objects, and the harness requires all seventeen new
-objects and sixteen executables to match across stages. It freezes 75
-publication inputs and reconstructs that exact inventory under a private
+objects and sixteen executables to match across stages. At source head, it freezes
+76 publication inputs and reconstructs that exact inventory under a private
 source root. The inventory includes the exact-decimal and x86 catalogue
 fixtures, small Windows probe, native Windows tool runtime and startup,
 CupidLD publication runtime and
 bridge, direct runtime contract, `direct.h`, `windows.h`, user syscall ABI
 contract and its six declarations, CupidBuild and its hosted declarations and
-startup, the PE32 reader, Toolchain Makefile, publisher, and independent Python
+startup, hosted `stddef.h`, the PE32 reader, Toolchain Makefile, publisher, and independent Python
 ABI oracle.
 Newly discovered contract inventories catch additions, removals, and a
 transient edit copied before the live file is restored. The public manifest
-also binds the checked seed, build plan, and 58-file candidate source
+also binds the checked seed, build plan, and 59-file candidate source
 inventory. Verify and run reconstruct both inventories before execution.
 Hashing, JSON decoding, schema checks, and build-plan use share one captured
 seed-manifest byte sequence. Replacing the file during validation cannot mix
@@ -335,12 +350,13 @@ The final poisoned build and private guest results are in the latest complete
 production checkpoint.
 
 The audit assigns generation ownership for the author only to those 20 build inputs.
-The 75 publication inputs and 58 bootstrap inputs are observed facts, so they
+The 76 publication inputs and 59 bootstrap inputs are observed facts, so they
 do not inherit compiler or assembler ownership from the author transform.
 
-Source head adds the PE32 reader, CupidBuild publication surface, and their
-private implementation headers to the checked Toolchain source closure. The
-published inventories contain 75 publication inputs and 58 candidate files.
+Source head adds the PE32 reader, CupidBuild publication surface, and hosted
+`stddef.h` to the checked Toolchain source closure. The source-current
+inventories contain 76 publication inputs and 59 candidate files. The latest
+complete publication above retains its preceding 75-input and 58-file shape.
 The compiled candidate plan contains 22 C objects. Hosted CupidDis uses
 the new reader to inspect the deterministic static i386 PE32 profile emitted
 by CupidLD. It reports headers, sections, and named imports, decodes every
@@ -1727,8 +1743,8 @@ frozen captures. It rechecks the complete live seed cohort after each command.
 Make passes wildcard-discovered output sources through `$(sort ...)`
 before generation or link. Windows and Linux therefore consume the same root
 order across host locales.
-The stable audit counts record 747 active language inputs, 452 transforms, 255
-features, and 27 unreachable inputs across the three roots. It includes 443
+The stable audit counts record 748 active language inputs, 452 transforms, 255
+features, and 28 unreachable inputs across the three roots. It includes 443
 transforms under root `all`. Four transforms use Cupid-built semantic
 contracts, and no transform is Python-only. Python participates in 260 as
 orchestrator, while CupidBuild participates in four guarded assembly
@@ -2377,9 +2393,11 @@ The [current production checkpoint](#current-production-checkpoint) records the
 latest schema v3 publication, settled audit, definitive poisoned build, final
 artifact identities, and strong full private frontier smoke. Earlier build and
 guest results on this page remain dated checkpoints.
-The stable audit counts are 747 active language inputs, 452 transforms, 255
+The stable audit counts are 748 active language inputs, 452 transforms, 255
 feature requirements, six CupidDis production checks, and no active
 CupidC-owned `.c` source.
+
+### Current production checkpoint
 
 ### Windows private-tool cleanup
 

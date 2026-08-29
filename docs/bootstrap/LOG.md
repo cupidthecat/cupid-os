@@ -32989,3 +32989,80 @@ SHA-256
 A private four-vCPU E1000 smoke used `--cpu max --verify-smp-runtime` and ran
 `/bin/ls.cc` to normal JIT completion. Its 35,451-byte serial log has SHA-256
 `5ad14de3efdd72dc036f8f6c62fea3c868cfd10b946f88efe36427e9e8e9741b`.
+
+## 2026-08-29: provide hosted stddef for bootstrap
+
+The first paired seed refresh for typed JPEG publication failed closed on both
+platforms before it wrote a candidate report. Linux stopped after about
+412.25 seconds, and native Windows stopped after about 449.43 seconds. Both
+reported `/toolchain/cupidbuild.h:5:1: error CT9000009: CupidC include file was
+not found`. The missing file was `<stddef.h>`, included by CupidBuild's public
+`size_t` API.
+
+A focused checked-seed test captured the failure in 5.109 seconds. It compiles
+a small source that includes `cupidbuild.h`, returns the size of the typed JPEG
+request, and validates the i386 relocatable output. The test passed after the
+hosted header was added. Its second source covers `ptrdiff_t`, `wchar_t`,
+`max_align_t`, and `offsetof` through the same checked seed.
+
+The hosted i386 Linux library now provides `<stddef.h>` and reuses
+`cupid_host_abi.h` for the target `size_t` and `NULL` definitions. CupidC also
+treats `__builtin_offsetof` as implementation machinery in strict C. A strict
+frontend test first failed with the old GNU-extension diagnostic, then passed
+and folded a valid member offset. An exact negative still rejects a missing
+member by name.
+
+Every frozen bootstrap, manifest, artifact, and audit closure now includes the
+new header. Source head therefore has 59 inputs with snapshot SHA-256
+`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+The Linux plan remains
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`,
+and the native Windows plan remains
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
+
+Changing the public API back to an ad hoc integer or depending on prior
+inclusion of `cupid_host_abi.h` would have concealed the missing standard
+header. The repair keeps the typed interface and extends Cupid's hosted
+library instead.
+
+No seed was promoted from the failed attempt. The active manifests still name
+their preceding 58-input snapshot, the normal JPEG edge remains on Hostbuild,
+and a complete paired candidate rerun is pending.
+
+The first generated-audit replay found two declaration gaps rather than an
+implementation fault. The root artifact-size contract and the user syscall
+ABI contract had not added the new header to their Makefile inputs. Their
+native and Python inventories already expected it. Adding the header to both
+Make closures made the source declarations, test oracles, and audit agree.
+
+The complete frontend and Toolchain groups passed 162 tests in 19.761 seconds.
+The manifest and artifact-policy groups passed 119 tests in 94.918 seconds,
+with seven expected platform skips. The two final audit selectors passed in
+68.727 seconds. The regenerated active-source audit and its independent
+checked replay both passed. Its 2,777,757 bytes have SHA-256
+`2e332146990c657026c200fc67e668e7d3f0d15cb9d0193943572db9abe01e3f`.
+
+The first full OS replay compiled the kernel, drivers, in-kernel tooling,
+browser, generated installation sources, and all 83 Doom roots. Both CupidLD
+links and whole-image CupidDis validation passed. The final exact-size gate
+then rejected only the three documentation-bearing kernel outputs. The flat
+kernel grew by 2,392 bytes, and both ELF files crossed one 4,096-byte alignment
+boundary. Those measured sizes now form the policy rows for the final replay.
+
+The final wording review then added 452 bytes to the embedded CTXT manuals.
+The next replay completed every compiler, linker, and disassembler gate before
+the exact-size contract rejected only that stale flat-kernel row. After the
+measured value replaced it, an uncontended `make -j4 all` passed in 1,117.168
+seconds. It accepted all sixteen exact artifacts, preserved the image's FAT
+contents, and staged `hello.iso`.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,605,176 | `8d0b8c56b24ed44d118d7a546bdcb4ee59681a2c5ded3464831c87ef10558b2a` |
+| `kernel/kernel.elf` | 9,736,248 | `202a9280f5ea24c86843a1d9729db6e036e9b5438488573f1c3a7e7b8522f8ea` |
+| `kernel/kernel.bin` | 9,507,352 | `6f396b741e9a119675d0c62f717f70b5539bbcdc4f21f781252af8cc4c0e6951` |
+| `cupidos.img` | 209,715,200 | `b7d131263d7243e20cabd00760626ffa75ec8a1cfef88ceb81139ab135f787b1` |
+
+The 3,382-byte exact-size policy covers 38,189,064 bytes and has SHA-256
+`ba505b1fc1440de997eb2fd75f4da0ef9ae1a6df9403a3f1c67ba8dcb6ec1b37`.
+The complete build-graph module passed all 112 tests in 1,060.065 seconds.

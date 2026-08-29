@@ -69,6 +69,7 @@ NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS := \
 	../toolchain/hosted/i386-linux/include/cupid_host_abi.h \
 	../toolchain/hosted/i386-linux/include/direct.h \
 	../toolchain/hosted/i386-linux/include/errno.h \
+	../toolchain/hosted/i386-linux/include/stddef.h \
 	../toolchain/hosted/i386-linux/include/stdint.h \
 	../toolchain/hosted/i386-linux/include/stdio.h \
 	../toolchain/hosted/i386-linux/include/stdlib.h \
@@ -107,6 +108,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS := \
 	../toolchain/hosted/i386-linux/include/cupid_host_abi.h \
 	../toolchain/hosted/i386-linux/include/direct.h \
 	../toolchain/hosted/i386-linux/include/errno.h \
+	../toolchain/hosted/i386-linux/include/stddef.h \
 	../toolchain/hosted/i386-linux/include/stdint.h \
 	../toolchain/hosted/i386-linux/include/stdio.h \
 	../toolchain/hosted/i386-linux/include/stdlib.h \
@@ -183,6 +185,7 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS := \
 	../toolchain/hosted/i386-linux/include/cupid_host_abi.h \
 	../toolchain/hosted/i386-linux/include/direct.h \
 	../toolchain/hosted/i386-linux/include/errno.h \
+	../toolchain/hosted/i386-linux/include/stddef.h \
 	../toolchain/hosted/i386-linux/include/stdint.h \
 	../toolchain/hosted/i386-linux/include/stdio.h \
 	../toolchain/hosted/i386-linux/include/stdlib.h \

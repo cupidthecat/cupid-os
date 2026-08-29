@@ -122,6 +122,28 @@ profile and cannot be combined with Cupid mode. Without an explicit language
 switch, the hosted driver keeps its C11 default. ADR 0270 records this command
 boundary.
 
+### Hosted standard definitions
+
+The hosted i386 include root now provides `<stddef.h>` without importing a host
+C library. It takes the target's unsigned 32-bit `size_t` and `NULL` definition
+from `cupid_host_abi.h`, defines `ptrdiff_t` and `wchar_t` as signed 32-bit
+integers, and defines `max_align_t` with `long long`, `long double`, and pointer
+alignment members.
+
+The standard `offsetof(type, member)` macro expands to CupidC's typed
+`__builtin_offsetof` operation. Source-head CupidC accepts that implementation
+operation in strict C11 mode. It still requires a complete record or union,
+uses the target member layout, and rejects an invalid, missing, or bit-field
+member with a specific diagnostic. GNU alignment spellings remain available
+only when GNU extensions are enabled.
+
+Adding this header grows the source-head fixed-point closure to 59 inputs with
+snapshot SHA-256
+`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+The active Linux and Windows manifests still bind their preceding 58-input
+snapshot. They must be refreshed together before this source repair becomes a
+promoted seed capability. ADR 0365 records the header and compiler boundary.
+
 ### Private typedef declarators
 
 Private JIT, AOT, and persistent REPL source accepts comma-separated value and
@@ -901,8 +923,8 @@ source trees, files, and symbolic links remain untouched. The initial,
 private, and newly discovered contract inventories must match exactly, which
 catches added or removed inputs and restored edits that changed a copied
 file. Every run derives its cohort from the requested executable, requires a
-named manifest artifact, and verifies the complete cohort, live 75-input
-publication set, checked seed manifest, and 58-file candidate source
+named manifest artifact, and verifies the complete cohort, source-current
+76-input publication set, checked seed manifest, and 59-file candidate source
 inventory before execution. The publication set includes the user syscall ABI
 contract and its six declarations, both PE32 reader headers, the CupidBuild
 declarations and Windows startup, the Toolchain Makefile, the publisher, and
@@ -1680,10 +1702,10 @@ SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. The stable
-audit counts cover 747 active language inputs, 452 transforms, 255 features,
-and 27 unreachable inputs. Python participates in 262 transforms.
+audit counts cover 748 active language inputs, 452 transforms, 255 features,
+and 28 unreachable inputs. Python participates in 260 transforms.
 CupidC participates in 250, CupidObj in 192, CupidASM in nine, CupidLD in nine,
-CupidDis in nine, and CupidBuild in 190. Four transforms use Cupid-built
+CupidDis in nine, and CupidBuild in 192. Four transforms use Cupid-built
 semantic contracts, and no transform is Python-only. Root `all` has 443
 transforms, and every one has a Cupid participant. The size verifier emits no OS artifact; it runs a private
 CupidC contract with CupidASM startup and a CupidLD link. The normal graph runs
@@ -3211,6 +3233,6 @@ Candidate fixed-point and behavior proof passed on both platforms. The active
 v2 cohorts also pass promoted-seed self-consumption, with all six initial images
 equal to stage two. CupidBuild owns the normal ISR, context-switch, bootloader,
 and SMP-trampoline recipes and runs 186 direct CupidObj recipes. Python
-participates in the remaining 262 transforms. ADR 0356 records the active seed
+participates in the remaining 260 transforms. ADR 0356 records the active seed
 refresh, ADR 0357 records the raw recipe transfer, and ADR 0362 records the
 direct CupidObj handoff.

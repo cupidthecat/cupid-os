@@ -32,6 +32,7 @@ EXPECTED_BUILD_INPUTS = (
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
     "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
+    "toolchain/hosted/i386-linux/include/stddef.h",
     "toolchain/hosted/i386-linux/include/stdint.h",
     "toolchain/hosted/i386-linux/include/stdio.h",
     "toolchain/hosted/i386-linux/include/stdlib.h",
@@ -109,8 +110,8 @@ def _expected_report():
     return {
         "artifact_count": 22,
         "artifact_total_bytes": 682,
-        "bootstrap_source_input_count": 58,
-        "input_count": 75,
+        "bootstrap_source_input_count": 59,
+        "input_count": 76,
         "schema": "cupid.toolchain-manifest-verification.v1",
     }
 
@@ -448,7 +449,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 decoded["artifact_observations"],
                 sorted(observations),
             )
-            self.assertEqual(len(decoded["input_observations"]), 75)
+            self.assertEqual(len(decoded["input_observations"]), 76)
             self.assertIn(
                 "toolchain/x86.cc",
                 {
@@ -458,7 +459,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                     ]
                 },
             )
-            self.assertEqual(len(decoded["bootstrap_observations"]), 58)
+            self.assertEqual(len(decoded["bootstrap_observations"]), 59)
             self.assertEqual(len(decoded["seed_observations"]), 6)
             self.assertEqual(
                 decoded["seed_path"],

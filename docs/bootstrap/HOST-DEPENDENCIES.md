@@ -40,6 +40,21 @@ participation totals remain 192 CupidBuild and 260 Python. Source-head
 fixed-point behavior now includes the transaction at 26/6/33 on Linux and
 15/6/20 on native Windows.
 
+That promotion attempt found a Cupid library dependency, not a host compiler
+dependency. Both candidate proofs stopped because the hosted Linux include
+root lacked `<stddef.h>`, which CupidBuild's public `size_t` API includes. The
+first-party hosted header now provides the i386 `ptrdiff_t`, `wchar_t`,
+`max_align_t`, and `offsetof` contract without a host libc. A checked-seed
+compile covers the public API and the complete header surface. Strict CupidC
+also accepts the target-aware `__builtin_offsetof` operation used by the
+standard macro.
+
+Source head freezes 59 inputs with snapshot SHA-256
+`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+Both build-plan hashes remain unchanged. The active checked seeds still carry
+their 58-input snapshot; no failed candidate or report was promoted. The full
+paired rerun remains the gate before the seed and JPEG recipe can move.
+
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
 The current sizes are 9,504,508 bytes for `kernel/kernel.bin`, 9,732,152 bytes
@@ -152,8 +167,8 @@ omitted the Windows seed verifier. The current recipe uses one
 checkpoint. Its AST behavior locks
 ignore empty interpreter-specific fields, so Python 3.12 and 3.14 check the
 same semantic shapes. The audit records 32
-assembly inputs, 301 headers, 414 Cupid C
-files, 255 feature requirements, and 27 accounted unreachable files. No
+assembly inputs, 302 headers, 414 Cupid C
+files, 255 feature requirements, and 28 accounted unreachable files. No
 ordinary C translation unit remained in a supported root. Its active-source
 audit records failure, help, and success counts of 25/6/32 for Linux and
 14/6/19 for Windows. The active figures include CupidBuild; each promoted
@@ -843,13 +858,13 @@ existing destination must already verify as a complete cohort. Arbitrary
 directories, source trees, files, and symbolic links are rejected without
 modification. Exact initial, private, and newly discovered contract
 inventories catch added or removed inputs and restored edits that changed a
-copied file. The live manifest contract binds a 75-input inventory, including the
+copied file. The source-current manifest contract binds a 76-input inventory, including the
 Windows startup, runtime, publication bridge and runtime, direct runtime
-contract, `direct.h`, `windows.h`, both PE32 reader headers, the CupidBuild
+contract, `direct.h`, `windows.h`, hosted `stddef.h`, both PE32 reader headers, the CupidBuild
 declarations and Windows startup, the user syscall ABI contract and its six
 declarations, the Toolchain Makefile, both strict C11 contract sources, the
 publisher, and the independent Python ABI oracle. It separately binds the
-checked seed and 58-file candidate source inventory. The latest complete
+checked seed and 59-file candidate source inventory. The latest complete
 publication records those 75/58 inventories and 22 artifacts. Each run
 derives its cohort from the requested executable and verifies all artifact
 hashes and both

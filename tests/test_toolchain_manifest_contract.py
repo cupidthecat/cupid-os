@@ -122,6 +122,7 @@ INPUT_PATHS = (
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
     "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
+    "toolchain/hosted/i386-linux/include/stddef.h",
     "toolchain/hosted/i386-linux/include/stdint.h",
     "toolchain/hosted/i386-linux/include/stdio.h",
     "toolchain/hosted/i386-linux/include/stdlib.h",
@@ -212,6 +213,7 @@ BOOTSTRAP_PATHS = (
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
     "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
+    "toolchain/hosted/i386-linux/include/stddef.h",
     "toolchain/hosted/i386-linux/include/stdint.h",
     "toolchain/hosted/i386-linux/include/stdio.h",
     "toolchain/hosted/i386-linux/include/stdlib.h",
@@ -676,7 +678,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             '{"artifact_count":22,"artifact_total_bytes":682,'
-            '"bootstrap_source_input_count":58,"input_count":75,'
+            '"bootstrap_source_input_count":59,"input_count":76,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -1599,12 +1601,12 @@ class ToolchainManifestContractTests(unittest.TestCase):
 
     def test_current_publication_inventory_counts_are_exact(self):
         self.assertEqual(len(ARTIFACT_NAMES), 22)
-        self.assertEqual(len(INPUT_PATHS), 75)
-        self.assertEqual(len(BOOTSTRAP_PATHS), 58)
+        self.assertEqual(len(INPUT_PATHS), 76)
+        self.assertEqual(len(BOOTSTRAP_PATHS), 59)
         self.assertEqual(len(OBJECT_COMPARISON_NAMES), 17)
         self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 23)
         self.assertEqual(len(BOOTSTRAP_TOOL_NAMES), 6)
-        for input_count in (74, 76):
+        for input_count in (75, 77):
             with self.subTest(input_count=input_count):
                 manifest, observations = _fixture()
                 manifest["inputs"] = {
@@ -1620,7 +1622,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     _request(manifest=manifest, observations=observations)
                 )
 
-        for source_count in (57, 59):
+        for source_count in (58, 60):
             with self.subTest(source_count=source_count):
                 manifest, observations = _fixture()
                 bootstrap_files = {

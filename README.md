@@ -99,6 +99,20 @@ source matrices carry exact success and rollback
 cases, bringing their inventories to 26/6/33 on Linux and 15/6/20 on native
 Windows. The active seeds and normal JPEG recipe have not moved yet; paired
 seed promotion is the next gate. ADR 0364 records this source boundary.
+
+The first paired refresh attempt exposed a missing hosted C library header
+before either platform could publish a candidate. CupidBuild's public JPEG
+interface includes `<stddef.h>` for `size_t`, but the hosted Linux include root
+did not contain that header. Cupid now supplies the i386 `stddef` types and
+standard `offsetof` macro, and strict CupidC accepts its typed
+`__builtin_offsetof` implementation path. A checked-seed regression reproduces
+the original failure and now compiles the public CupidBuild API plus the full
+header contract. Source head has 59 frozen inputs with snapshot SHA-256
+`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`;
+the Linux and Windows plan hashes did not change. The active seeds remain on
+their 58-input snapshot while the repaired paired candidate proof is pending.
+ADR 0365 records the repair.
+
 The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
 strict CupidDis validation, all 16 exact artifacts, and image publication. The
 current flat kernel is 9,504,508 bytes; the final and pass-one ELFs are
@@ -440,8 +454,8 @@ pinned verifier runner executes 25 tests in 32.773 seconds with three
 POSIX-only skips on Windows. [ADR 0307](docs/adr/0307-author-toolchain-fixed-point-evidence-from-stage-pairs.md)
 records the paired-evidence boundary, [ADR 0311](docs/adr/0311-pin-checked-contract-imports-to-the-checkout.md)
 records checkout-local contract imports, and [ADR 0322](docs/adr/0322-run-the-toolchain-manifest-author-natively-on-windows.md)
-records native Windows author execution. The source graph has 747 active inputs,
-452 transforms, 255 feature requirements, and 27 accounted unreachable files.
+records native Windows author execution. The source graph has 748 active inputs,
+452 transforms, 255 feature requirements, and 28 accounted unreachable files.
 Participation
 is CupidC 250, CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, CupidBuild 192,
 and four Cupid-built semantic contracts. Python participates in 260 transforms,
@@ -465,8 +479,8 @@ recipe has one `$(ARTIFACT_SIZE_CONTRACT)` command, and that command carries
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The source-current
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-25/6/32 for Linux and 14/6/19 for Windows. The audit records 747 active
-sources, 452 transforms, 255 feature requirements, and 27 accounted unreachable
+25/6/32 for Linux and 14/6/19 for Windows. The audit records 748 active
+sources, 452 transforms, 255 feature requirements, and 28 accounted unreachable
 files.
 [ADR 0304](docs/adr/0304-author-toolchain-publication-manifests-with-cupidc.md)
 records this split.
@@ -1767,8 +1781,8 @@ private, and live contract inventories must match exactly, including
 membership and hashes, so additions, removals, and a transient edit copied
 before its live source is restored all fail. Normal build and test entry points derive
 the cohort from each requested executable, require a named manifest artifact,
-    and verify the complete artifact inventory, the 75 contract inputs, the
-    58-file candidate source inventory, and the checked seed manifest before
+    and verify the complete artifact inventory, the source-current 76 contract
+    inputs, the 59-file candidate source inventory, and the checked seed manifest before
 execution. The contract inventory includes the Windows startup and runtime
 probe, the native Windows tool runtime and startup, CupidLD publication
 runtime and bridge, the direct runtime contract, `direct.h`, `windows.h`, the
@@ -2491,13 +2505,13 @@ validation or `make bootstrap-from-seed` for the complete rebuild. The normal
 Toolchain build then uses those two compiler stages for fifteen contract
 programs and the runtime probe. It compares all seventeen new objects and
 sixteen linked executables. Its private contract tree must reproduce the
-current 75-file inventory exactly. That inventory includes the native Windows
+current 76-file inventory exactly. That inventory includes the native Windows
 tool runtime and startup, publication bridges, direct runtime contract, hosted
 Windows declarations, the user ABI contract and its six declarations,
-CupidBuild and its hosted declarations and startup, the PE32 reader, the
+CupidBuild and its hosted declarations and startup, hosted `stddef.h`, the PE32 reader, the
 Toolchain Makefile, the publisher, and the independent Python oracle. Each live
 check discovers the set again before comparing hashes. The public manifest also
-records the checked build plan, seed manifest, and complete 58-file candidate
+records the checked build plan, seed manifest, and complete 59-file candidate
 source inventory.
 Seed-manifest hashing, decoding, and validation use one captured byte
 sequence. A replacement during verification cannot pair one digest with
@@ -3190,7 +3204,7 @@ The [source-current checkpoint](#2026-08-29-source-current-checkpoint) records
 the completed source slices, schema v3 Toolchain publication, final post-CTXT
 audit, fully poisoned build, and strong private guest frontier. Earlier build,
 artifact, and guest identities remain historical. The
-source graph contains 747 language
+source graph contains 748 language
 inputs, 452 transforms, and 255 feature requirements.
 At that checkpoint, the checked Linux and Windows seeds bound revision
 `a17c9465911da41d59b7ada71733d36c39faa5ea` and carried strict executable

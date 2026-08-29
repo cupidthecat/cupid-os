@@ -14,8 +14,8 @@ static const char manifest_report_schema[] =
 
 #define MANIFEST_ARTIFACT_COUNT 22u
 #define MANIFEST_INPUT_LIMIT 256u
-#define MANIFEST_EXPECTED_INPUT_COUNT 75u
-#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 58u
+#define MANIFEST_EXPECTED_INPUT_COUNT 76u
+#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 59u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
 #define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 22u
@@ -59,6 +59,7 @@ static const char *const
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
         "toolchain/hosted/i386-linux/include/direct.h",
         "toolchain/hosted/i386-linux/include/errno.h",
+        "toolchain/hosted/i386-linux/include/stddef.h",
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
         "toolchain/hosted/i386-linux/include/stdlib.h",
@@ -151,6 +152,7 @@ static const char *const manifest_expected_bootstrap_paths
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
         "toolchain/hosted/i386-linux/include/direct.h",
         "toolchain/hosted/i386-linux/include/errno.h",
+        "toolchain/hosted/i386-linux/include/stddef.h",
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
         "toolchain/hosted/i386-linux/include/stdlib.h",

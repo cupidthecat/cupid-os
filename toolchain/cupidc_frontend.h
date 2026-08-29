@@ -754,7 +754,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * record-scope C11 static
  * assertions validate the shared integer-constant grammar, including target
  * relational/equality conversions, target `sizeof` type/expression queries,
- * standard/GNU alignment queries, and GNU `__builtin_offsetof` member paths
+ * standard/GNU alignment queries, and implementation `__builtin_offsetof`
+ * member paths
  * for complete objects at that declaration point. Assertions publish no
  * entity, member, or expression node;
  * semantic types constructed by their type names remain in the immutable

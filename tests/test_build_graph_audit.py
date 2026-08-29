@@ -422,7 +422,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             transform["operation"], "verify_user_syscall_abi"
         )
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS), 26
+            len(module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS), 27
         )
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 7
@@ -439,7 +439,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             input_variables["USER_SYSCALL_ABI_PLATFORM_ARGUMENTS"],
             "--windows-manifest ../bootstrap/seeds/i386-windows/manifest.json",
         )
-        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 33)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 34)
         self.assertEqual(
             module.USER_SYSCALL_ABI_AUDIT_INPUTS,
             tuple(
@@ -2161,7 +2161,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 711)
+            self.assertEqual(contract["source_files"], 712)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -2182,7 +2182,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 711 source files; max conditional depth 0",
+                "0 numeric markers; 712 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2538,9 +2538,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 210)
+            self.assertEqual(contract["if_occurrences"], 211)
             self.assertEqual(contract["elif_occurrences"], 11)
-            self.assertEqual(contract["expression_occurrences"], 221)
+            self.assertEqual(contract["expression_occurrences"], 222)
             self.assertEqual(contract["unique_expressions"], 41)
             self.assertEqual(contract["directive_expression_pairs"], 43)
             self.assertTrue(
@@ -3964,10 +3964,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 711)
-            self.assertEqual(contract["include_occurrences"], 2501)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2219)
-            self.assertEqual(contract["direct_angle_occurrences"], 282)
+            self.assertEqual(contract["source_files"], 712)
+            self.assertEqual(contract["include_occurrences"], 2503)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2220)
+            self.assertEqual(contract["direct_angle_occurrences"], 283)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -6112,15 +6112,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["windows_help_cases"], 6)
         self.assertEqual(contract["windows_success_behavior_cases"], 20)
         self.assertEqual(contract["windows_failure_behavior_cases"], 15)
-        self.assertEqual(contract["contract_manifest_inputs"], 75)
+        self.assertEqual(contract["contract_manifest_inputs"], 76)
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 75
+            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 76
         )
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
         )
-        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 105)
+        self.assertEqual(len(module.TOOLCHAIN_CONTRACT_LINUX_INPUTS), 106)
         self.assertTrue(
             set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS).issubset(
                 module.TOOLCHAIN_CONTRACT_LINUX_INPUTS
@@ -9173,10 +9173,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 747,
+                    "active_sources": 748,
                     "features": 255,
                     "transforms": 452,
-                    "unreachable_sources": 27,
+                    "unreachable_sources": 28,
                 },
             )
             features = {
@@ -9184,8 +9184,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6656, 179),
-                "c.extension.builtin.offsetof": (12, 6),
+                "c.expression.sizeof": (6659, 179),
+                "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
             for feature_id, expected_counts in (
@@ -9755,7 +9755,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 96)
+            self.assertEqual(toolchain_cohort["source_count"], 97)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]

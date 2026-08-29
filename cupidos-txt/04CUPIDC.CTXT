@@ -295,8 +295,8 @@ The pass-one and final kernels project the same text symbols at the same
 addresses.
 
 Across root and supplemental builds, audit generation and checked reproduction
-pass. The audit covers 747 active language inputs,
-452 transforms, 255 feature requirements, and 27 accounted unreachable files.
+pass. The audit covers 748 active language inputs,
+452 transforms, 255 feature requirements, and 28 accounted unreachable files.
 It reports 250 CupidC participations and no host C transform. Of those, 246
 produce ordinary C outputs. The native Windows user ABI, artifact-size policy,
 Toolchain manifest author, and Toolchain manifest verifier supply the other four
@@ -321,13 +321,13 @@ Initial, private, and newly discovered contract inventories must match exactly,
 which catches additions, removals, and restored edits that changed a copied
 input. Every run derives the cohort from its requested executable, requires a
 named manifest artifact, and verifies the manifest, target, fixed-point
-record, filenames, sizes, artifact hashes, 75 publication-input digest and
+record, filenames, sizes, artifact hashes, 76 publication-input digest and
 size records, the
-checked seed manifest, and the 58-file candidate source inventory before
-execution. The publication inventory contains 75 files, including both
+checked seed manifest, and the 59-file candidate source inventory before
+execution. The publication inventory contains 76 files, including both
 manifest contract sources, the small Windows probe, the native Windows tool
 runtime and startup, CupidLD publication runtime and bridge, direct contract,
-direct.h, windows.h, both PE32 reader headers, the CupidBuild declarations and
+direct.h, windows.h, hosted stddef.h, both PE32 reader headers, the CupidBuild declarations and
 Windows startup, the user syscall ABI contract and its six declarations,
 the Toolchain Makefile, the publisher, and the independent Python ABI oracle.
 The manifest digest, decoded data, schema checks, and build plan come from one
@@ -376,7 +376,7 @@ a descriptor whose identity is checked before and after the read.
 
 The same contract source handles CUPMAN2 verification in check mode. Its
 request carries the publication manifest, all 22 artifact observations, the
-exact 75-file publication inventory, the 58-file bootstrap inventory, the Linux
+exact 76-file publication inventory, the 59-file bootstrap inventory, the Linux
 publication seed, and its six tool images. Checked CupidC compiles the
 verifier, CupidASM supplies startup, and CupidLD links a static ELF on Linux or
 native PE on Windows. Python keeps the no-follow filesystem capture, launch,
@@ -390,9 +390,10 @@ compiler or assembler owner.
 The CUPMAN4 publication gate makes all 62 stage-pair decisions before Python's
 independent comparisons. It also checks the hosted runtime, live inputs, and
 the native Windows CUPMAN2 verifier. The source audit enforces the graph and
-ownership counts above. A valid schema-v3 publication records exactly 22
-artifacts, 75 publication inputs, 58 bootstrap inputs, and 17 object
-comparisons, and CUPMAN2 must accept it. Both checked Python launchers resolve
+ownership counts above. The next schema-v3 publication from source head must
+record exactly 22 artifacts, 76 publication inputs, 59 bootstrap inputs, and
+17 object comparisons, and CUPMAN2 must accept it. The latest complete
+publication retains 75 publication inputs and 58 bootstrap inputs. Both checked Python launchers resolve
 `tools` from this checkout. The direct module passes 40 tests in 51.723 seconds,
 the publisher passes 65 tests in 7.258 seconds, and the pinned runner passes 25 in
 32.773 seconds. The host bootstrap log records exact publication
@@ -2305,6 +2306,27 @@ described above. It lets the shared bootstrap frontend compile declarations
 that use U0, U8, U16, U32, U64, I8, I16, I32, I64, Bool, float4, and double2.
 >endtree
 
+>h2 Hosted Standard Definitions
+>tree open Hosted Standard Definitions
+The hosted i386 include root provides stddef.h without using a host C library.
+It gets the target's unsigned 32-bit size_t and NULL definition from
+cupid_host_abi.h. ptrdiff_t and wchar_t are signed 32-bit integers.
+max_align_t has long long, long double, and pointer alignment members.
+
+The offsetof(type, member) macro uses CupidC's typed __builtin_offsetof
+operation. Source-head CupidC accepts that implementation operation in strict
+C11 mode. It still requires a complete record or union, reads the target member
+layout, and rejects invalid, missing, and bit-field members with specific
+diagnostics. GNU alignment spellings still require GNU mode.
+
+The new header raises the source-head fixed-point closure to 59 inputs. Its
+snapshot SHA-256 is
+`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+The active Linux and Windows seed manifests still bind the preceding 58-input
+snapshot. A paired fixed point and seed promotion are still required.
+ADR 0365 records this boundary.
+>endtree
+
 >h2 Hosted Large Frames
 >tree open Hosted Large Frames
 Hosted CupidC probes each page of a fixed frame larger than 4,096 bytes.
@@ -2331,6 +2353,11 @@ Candidate fixed-point and behavior proof passed on both platforms. The
 promoted compiler carries wide integer conversion to float and double. The
 refreshed CupidBuild images carry the guarded raw assembly commands, and the
 normal bootloader and SMP trampoline recipes invoke them directly.
+
+Those values describe the active promoted seeds. Source head now has 59 inputs
+after adding the hosted stddef.h contract, with snapshot SHA-256
+`b69906a897a10f0a0b2464024ee4255aa2d10f2fe75014c3ab34b7be983e387b`.
+That source closure has not replaced the 58-input seed manifests yet.
 
 These standalone compiler seeds do not contain the private in-kernel callback
 parser or AOT writer. The focused private tests and the feature14 guest contract

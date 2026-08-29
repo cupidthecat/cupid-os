@@ -1274,6 +1274,14 @@ static int run_header_sweep(const char *host_root, int header_count,
                            forced_includes) != 0) {
     return 1;
   }
+  if (pp_request.include_root_count >= ARRAY_COUNT(include_roots)) {
+    return 1;
+  }
+  include_roots[pp_request.include_root_count].directory.text =
+      ctool_string("/toolchain/hosted/i386-linux/include");
+  include_roots[pp_request.include_root_count].forms =
+      CTOOL_C_PP_INCLUDE_ANGLE;
+  pp_request.include_root_count++;
   (void)memset(&parse_request, 0, sizeof(parse_request));
   parse_request.mode = CTOOL_C_PP_MODE_C11;
   parse_request.gnu_extensions = CTOOL_TRUE;
@@ -7779,7 +7787,7 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 368u, 9323u,
        77764u, 1132u, 755u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 463u,
-       17775u, 116566u, 2647u, 1597u, 0u, 0u},
+       17772u, 116542u, 2647u, 1597u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 88u, 3280u,
        21579u, 358u, 200u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -16839,6 +16847,9 @@ static int run_pointer_expressions(const char *host_root) {
       "int add_bits(int left, word_bits_t value) {\n"
       "  return left += value.bits;\n"
       "}\n";
+  static const char strict_offsetof_source[] =
+      "struct standard_layout { char prefix; int member; };\n"
+      "_Static_assert(__builtin_offsetof(struct standard_layout, member) == 4, \"strict offsetof\");\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"dot scalar operand",
         "int bad(int value) { return value.member; }\n", CTOOL_ERR_INPUT,
@@ -16929,8 +16940,14 @@ static int run_pointer_expressions(const char *host_root) {
        "unsigned int bad(int value) { return __alignof__(value); }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       0u, 0u, "GNU alignment queries require GNU extensions"};
+  static const frontend_exact_failure_case_t strict_offsetof_failure_case = {
+      {"strict offsetof missing member",
+       "struct value { int member; }; unsigned int bad(void) { return __builtin_offsetof(struct value, missing); }\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      0u, 0u, "record or union has no member with this name"};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t byte_bit_field_unit;
+  ctool_c_translation_unit_t strict_offsetof_unit;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
   int failed = 1;
@@ -16959,7 +16976,15 @@ static int run_pointer_expressions(const char *host_root) {
   }
   fixture.pp_request.gnu_extensions = CTOOL_FALSE;
   fixture.parse_request.gnu_extensions = CTOOL_FALSE;
-  if (expect_frontend_failure_at_message(
+  if (parse_valid_fixture(&fixture, "/strict-offsetof.c",
+                          strict_offsetof_source,
+                          &strict_offsetof_unit) != 0 ||
+      expect_frontend_failure_at_message(
+          &fixture, &strict_offsetof_failure_case.failure,
+          "/strict-offsetof-failure.c", strict_offsetof_failure_case.line,
+          strict_offsetof_failure_case.column,
+          strict_offsetof_failure_case.message) != 0 ||
+      expect_frontend_failure_at_message(
           &fixture, &disabled_gnu_case.failure,
           "/pointer-expression-gnu-disabled.c", disabled_gnu_case.line,
           disabled_gnu_case.column, disabled_gnu_case.message) != 0 ||

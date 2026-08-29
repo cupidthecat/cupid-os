@@ -223,6 +223,7 @@ ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS := \
 	toolchain/hosted/i386-linux/include/cupid_host_abi.h \
 	toolchain/hosted/i386-linux/include/direct.h \
 	toolchain/hosted/i386-linux/include/errno.h \
+	toolchain/hosted/i386-linux/include/stddef.h \
 	toolchain/hosted/i386-linux/include/stdint.h \
 	toolchain/hosted/i386-linux/include/stdio.h \
 	toolchain/hosted/i386-linux/include/stdlib.h \

@@ -189,11 +189,11 @@ source trees, files, and symbolic links remain untouched. Exact initial,
 private, and newly discovered contract inventories catch additions, removals,
 and restored edits that changed a copied input. Every contract run derives the
 cohort from its executable, requires a named manifest artifact, and verifies
-all artifact hashes, the current 75-input publication set, the checked seed
-manifest, and the 58-file candidate source inventory before execution. The
+all artifact hashes, the source-current 76-input publication set, the checked seed
+manifest, and the 59-file candidate source inventory before execution. The
 contract inventory includes the small Windows probe, the native Windows tool
 runtime and startup, CupidLD publication runtime and bridge, direct contract,
-`direct.h`, `windows.h`, both PE32 reader headers, the CupidBuild declarations
+`direct.h`, `windows.h`, hosted `stddef.h`, both PE32 reader headers, the CupidBuild declarations
 and Windows startup, the user syscall ABI contract and its six declarations,
 the Toolchain Makefile, the publisher, and the independent Python ABI oracle.
 One captured seed-manifest byte sequence supplies the digest, decoded data, schema
@@ -201,7 +201,7 @@ checks, and build plan. Seventeen objects and sixteen executables must match
 across stages before the 22-artifact candidate cohort can be published. Contract runs
 use a private copy of the verified cohort. The user ABI check also gives the
 Cupid contract and Python oracle one shared six-file snapshot. Linux runs the
-published ELF contract. Windows freezes a separate 26-file closure, builds a
+published ELF contract. Windows freezes a separate 27-file closure, builds a
 private PE with checked CupidC, CupidASM, and CupidLD, and runs it directly.
 The Windows path rechecks its source and seed closures and never touches the
 Linux publication. For publication, the checked stage-four Linux tools build
@@ -242,12 +242,12 @@ compiler or assembler ownership from that transform.
 The publication records 75 publication inputs, 58 candidate inputs, 22
 artifacts, and 62 stage pairs. The active v2 seed carries CupidBuild, which now
 owns four guarded assembly publications and runs 186 direct CupidObj recipes.
-The stable audit counts cover 747 active language inputs, 452 transforms, 255
-features, and 27 unreachable inputs.
+The stable audit counts cover 748 active language inputs, 452 transforms, 255
+features, and 28 unreachable inputs.
 CupidC participates in 250 transforms,
 CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in nine, and
-CupidBuild in 190. Four transforms use Cupid-built semantic contracts. Python
-participates in 262, but no transform is Python-only. All 443 transforms under
+CupidBuild in 192. Four transforms use Cupid-built semantic contracts. Python
+participates in 260, but no transform is Python-only. All 443 transforms under
 root `all` have a Cupid participant.
 
 The first attempt at this audit stopped after 65.183 seconds because the test
