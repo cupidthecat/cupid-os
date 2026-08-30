@@ -1397,13 +1397,15 @@ cupidos-txt/%.o: cupidos-txt/%.CTXT $(CUPIDOBJ_INPUTS)
 %.png.o: %.png $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap $< -o $@
 
-%.jpg.o: %.jpg tools/hostbuild.py $(CHECKED_SEED_INPUTS)
-	$(PYTHON) tools/hostbuild.py embed-jpeg \
-		--seed-manifest $(PRODUCTION_SEED_MANIFEST) $< $@
+%.jpg.o: %.jpg Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) embed-jpeg \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source $< --output $@
 
-%.jpeg.o: %.jpeg tools/hostbuild.py $(CHECKED_SEED_INPUTS)
-	$(PYTHON) tools/hostbuild.py embed-jpeg \
-		--seed-manifest $(PRODUCTION_SEED_MANIFEST) $< $@
+%.jpeg.o: %.jpeg Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) embed-jpeg \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source $< --output $@
 
 # Pattern rule: embed any system/fonts/*.ttf file with CupidObj.
 # Object exposes _binary_system_fonts_<name>_ttf_{start,end} symbols

@@ -89,7 +89,7 @@ contract. ADR 0367 records the active pair.
 The normal Make graph launches these three generators and its 183 ordinary
 text and binary wrappers through the promoted CupidBuild runner. The runner
 freezes and rechecks the selected six-tool seed around each CupidObj call.
-Python remains on the six composite paths that add an independent format check
+Python remains on the five composite paths that add an independent format check
 or a controlled publication boundary.
 
 Makefile variable definitions:
@@ -104,18 +104,17 @@ The next build finds new .CTXT files in cupidos-txt/ through
 docs_programs_gen.cc. It also embeds new top-level .bmp, .png, .jpg, and .jpeg
 files, which the boot path installs under /home with their original names.
 Checked CupidObj accepts sequential SOF0 or SOF1 JPEG files and rejects
-progressive, unsupported, or malformed input. Python checks accepted bytes
-independently before the object is published. A failed private oracle copy
-and an acceptance mismatch are reported separately; either failure keeps the
-old object.
+progressive, unsupported, or malformed input. The promoted CupidBuild
+transaction checks the exact relocatable payload and identity symbols, applies
+an independent native JPEG parser, and publishes only after every guarded
+boundary still matches.
 
-Source-head CupidBuild now has a typed replacement for that publication
-boundary. It freezes the asset and six-tool v2 seed, runs CupidObj against the
+The normal Make edge now uses CupidBuild's typed publication boundary. It
+freezes the asset and six-tool v2 seed, runs CupidObj against the
 private bytes under the original identity, checks the exact data payload and
 three identity symbols in the data-only relocatable, and applies a separate
-native SOF0/SOF1 check before guarded publication. The active seeds carry the
-command, while the normal recipe remains on its Python coordinator until the
-separate production handoff.
+native SOF0/SOF1 check before guarded publication. Both active seeds carry the
+command. ADR 0368 records the production handoff.
 
 bin_programs_gen.cc likewise finds new .cc files under bin/.
 

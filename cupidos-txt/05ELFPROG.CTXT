@@ -32,8 +32,9 @@ match all six final tool images. Their behavior gate also runs
 the guarded object command with both images, compares the relocatable output,
 and checks missing-source rollback. The normal ISR, context-switch,
 bootloader, and SMP-trampoline recipes invoke CupidBuild directly. CupidBuild
-also runs the 186 direct CupidObj recipes and both normal kernel links; Python
-remains on the six composite CupidObj paths and the other checked publications.
+also runs the typed JPEG transaction, 186 ordinary CupidObj recipes, and both
+normal kernel links; Python remains on the five composite CupidObj paths and
+the other checked publications.
 Source head now validates every fixed-point C object structurally and then
 requires known decode, local targets, and code anchors before linking. The
 Windows CupidBuild startup marks all fourteen exports as functions. Fresh
@@ -65,8 +66,8 @@ assembly operations. It requires data-only i386 ET_REL output from CupidObj
 with the exact asset bytes and start, end, and size symbols derived from the
 original spelling. It independently validates the frozen sequential JPEG and
 publishes only after the lock, inputs, candidate, destination, and parent still
-match. Both active seed cohorts carry the command. The current Make edge
-remains Python-owned until its separate handoff.
+match. Both active seed cohorts carry the command, and the current Make edges
+invoke it directly.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
@@ -553,11 +554,11 @@ and pairs to the exact Linux manifest bytes.
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. In the self-consumption runs, all six initial images equal stage two.
 CupidBuild owns the normal ISR,
-context-switch, bootloader, and SMP-trampoline recipes. Across all 452
-transforms, CupidBuild participates in 192 and Python in 260. ADR 0356 records
+context-switch, bootloader, SMP-trampoline, and JPEG recipes. Across all 452
+transforms, CupidBuild participates in 193 and Python in 259. ADR 0356 records
 the guarded-raw refresh, ADR 0357 records the raw recipe transfer, ADR 0362
 records the direct CupidObj handoff, ADR 0363 records the kernel-link handoff,
-and ADR 0367 records the active seed pair.
+ADR 0367 records the active seed pair, and ADR 0368 records the JPEG handoff.
 >endtree
 
 >h2 See Also

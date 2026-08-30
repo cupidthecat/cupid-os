@@ -79,8 +79,9 @@ help cases, and 33 successes on Linux, plus 15 failures, six help cases, and
 and the typed JPEG transaction into both active six-tool seeds. Only CupidC
 and CupidBuild changed from the preceding cohorts. The normal Make graph now
 runs 186 ordinary CupidObj recipes and both kernel links through that checked
-CupidBuild command. CupidBuild participates in 192 transforms and Python in
-260. ADR 0360 records the runner boundary, ADR 0361 records its paired seed
+CupidBuild command. The typed JPEG transaction adds one direct production
+edge, so CupidBuild participates in 193 transforms and Python in 259. ADR 0360
+records the runner boundary, ADR 0361 records its paired seed
 promotion, ADR 0362 records the object-recipe handoff, and ADR 0363 records
 the kernel-link handoff.
 
@@ -92,9 +93,10 @@ an independent native parser before guarded publication. The fixed-point
 source matrices carry exact success and rollback
 cases, bringing their inventories to 26/6/33 on Linux and 15/6/20 on native
 Windows. Both active seed cohorts now carry the command and its behavior
-checks. The normal JPEG recipe remains on its guarded Python coordinator until
-the separate Make handoff. ADR 0364 records the source boundary, and ADR 0367
-records its paired seed carriage.
+checks. The normal `%.jpg.o` and `%.jpeg.o` recipes invoke that promoted
+transaction directly with the complete production seed closure. ADR 0364
+records the source boundary, ADR 0367 records paired seed carriage, and ADR
+0368 records production ownership.
 
 The first paired refresh attempt exposed a missing hosted C library header
 before either platform could publish a candidate. CupidBuild's public JPEG
@@ -116,7 +118,7 @@ records the bounded transition, and ADR 0367 records the promotion.
 
 The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
 strict CupidDis validation, all 16 exact artifacts, and image publication. The
-current flat kernel is 9,509,748 bytes; the final and pass-one ELFs are
+current flat kernel is 9,509,800 bytes; the final and pass-one ELFs are
 9,736,248 and 9,605,176 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 boot and ran
 `/bin/ls.cc`. The final documentation-bearing image then passed the same
@@ -1407,13 +1409,11 @@ Checked-seed CupidObj provides `wrap-jpeg`. It validates one sequential
 SOF0 or SOF1 frame, the scan structure, entropy stuffing and restart markers,
 and a terminal EOI, then applies the byte-exact binary wrapper. Three positive
 forms, the active repository image, and 21 useful rejections match the Python
-validator. The production JPEG recipe now runs checked `wrap-jpeg` first on a
-private source snapshot. It accepts only a regular, non-symbolic object. Python
-then checks the same frozen bytes independently, requires exact byte parity,
-rechecks the manifest and live input, and publishes the candidate atomically.
-An oracle rejection is reported as an acceptance mismatch. A failed private
-oracle copy is reported separately as an I/O error and leaves the old object
-in place.
+validator. The production JPEG recipe now enters the promoted
+`cupidbuild embed-jpeg` transaction. CupidBuild freezes the source and seed,
+runs checked `wrap-jpeg` under the original identity, verifies the exact
+payload and identity symbols, applies an independent native JPEG parser, and
+publishes atomically only after every live boundary still matches.
 [ADR 0231](docs/adr/0231-validate-sequential-jpeg-input-with-cupidobj.md)
 records the capability, and
 [ADR 0234](docs/adr/0234-promote-long-double-and-jpeg-toolchain-seed.md)
@@ -1983,11 +1983,11 @@ destination lock, directory pin, or crash-durability guarantee.
 The first direct host comparison matched 426 of 430 kernel artifacts and
 traced all four differences to one JPEG object. Host FFmpeg had rewritten the
 tracked progressive image differently on Windows and Linux. The repository
-stores the accepted sequential baseline bytes. Hostbuild freezes the exact
-input and gives the private snapshot to checked CupidObj `wrap-jpeg`, which
-rejects progressive, unsupported, or malformed frames. Python checks accepted
-input through an independent parity path and controls publication. The root
-build no longer calls FFmpeg, `jpegtran`, `djpeg`, or `cjpeg`. The Linux kernel build
+stores the accepted sequential baseline bytes. Hostbuild's JPEG path remains
+as test and oracle coverage for the preceding publisher. The normal build now
+uses the promoted CupidBuild transaction, whose independent native parser
+rejects progressive, unsupported, or malformed frames. The root build no
+longer calls FFmpeg, `jpegtran`, `djpeg`, or `cjpeg`. The Linux kernel build
 passed in 607.7 seconds, and the Windows root build passed in 341.6 seconds.
 All 430 frozen kernel artifacts match byte for byte.
 
@@ -3240,13 +3240,13 @@ paired with another valid plan seed.
 The validators still accept v1 manifests in compatibility and transition
 tests. Production closures, artifact-size verification, and Toolchain
 publication freeze and recheck all six active images. CupidBuild directly owns
-the two guarded relocatable objects and both guarded raw images. It also runs
-the 186 direct CupidObj recipes and both normal kernel links. Python
-participates in the remaining 260
-transforms. ADR 0353 records the paired v2 contract, ADR 0354 records the first
+the two guarded relocatable objects, both guarded raw images, and the typed
+JPEG publication. It also runs the 186 ordinary CupidObj recipes and both
+normal kernel links. Python participates in the remaining 259 transforms. ADR
+0353 records the paired v2 contract, ADR 0354 records the first
 normal recipe transfer, ADR 0357 records the raw publication handoff, ADR 0362
 records the direct CupidObj handoff, ADR 0363 records the kernel-link handoff,
-and ADR 0367 records the active pair.
+ADR 0367 records the active pair, and ADR 0368 records the JPEG handoff.
 The audit obtains this ownership from the evaluated Make binding, so a
 Python-backed or direct CupidObj command cannot be mislabeled as CupidBuild.
 

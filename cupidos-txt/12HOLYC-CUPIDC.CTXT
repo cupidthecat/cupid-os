@@ -72,8 +72,8 @@ transaction and its independent native validator. Both source-head fixed-point
 matrices run the command across consecutive CupidBuild images, compare the
 relocatable result, and prove rollback for a progressive JPEG. Their source
 inventories are 26/6/33 on Linux and 15/6/20 on native Windows. Both active
-seed cohorts carry the capability; the normal JPEG Make edge remains
-Python-coordinated until the separate handoff.
+seed cohorts carry the capability, and the normal JPEG Make edges now invoke
+it directly.
 
 The first paired candidate refresh stopped before publication because the
 hosted include root had no stddef.h for CupidBuild's public size_t interface.
@@ -789,8 +789,8 @@ log records the exact publication identity and completion evidence.
 Audit generation and checked reproduction pass. The audit records 748 active
 inputs, 452 transforms, 255 feature requirements,
 and 28 accounted unreachable files. Ownership participation is CupidC 250,
-CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and CupidBuild 192. Python
-participates in 260. Four transforms run Cupid-built contracts, and none is
+CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and CupidBuild 193. Python
+participates in 259. Four transforms run Cupid-built contracts, and none is
 Python-only. The host bootstrap log records
 the post-manual-freeze poisoned build and strong private four-vCPU e1000
 frontier. Exact OS identities and runtime measurements stay there because this
@@ -834,13 +834,12 @@ Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. In the self-consumption runs, all six initial images equal stage two.
 The behavior inventories are
 26/6/33 on Linux and 15/6/20 on Windows. The normal ISR, context-switch,
-bootloader, and SMP-trampoline recipes use CupidBuild directly, as do the 186
-ordinary CupidObj recipes and both normal kernel links. Python participates in
-the remaining 260
-transforms. ADR 0357 records the raw recipe transfer, ADR 0360 records the
+bootloader, SMP-trampoline, and JPEG recipes use CupidBuild directly, as do
+the 186 ordinary CupidObj recipes and both normal kernel links. Python
+participates in the remaining 259 transforms. ADR 0357 records the raw recipe transfer, ADR 0360 records the
 checked runner, ADR 0361 records its first paired seed promotion, ADR 0362
 records the direct CupidObj handoff, ADR 0363 records the kernel-link handoff,
-and ADR 0367 records the active pair.
+ADR 0367 records the active pair, and ADR 0368 records the JPEG handoff.
 >endtree
 
 >h2 See Also

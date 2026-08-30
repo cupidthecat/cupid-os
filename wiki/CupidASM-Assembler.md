@@ -1668,7 +1668,8 @@ ADR 0318 records the seed identities.
 
 The active Linux and Windows v2 manifests carry CupidASM as a producer and
 CupidBuild as both a checked tool and the coordinator for four guarded assembly
-publications and 186 direct CupidObj recipes. Both list six images and bind revision
+publications, the typed JPEG publication, and 186 ordinary CupidObj recipes.
+Both list six images and bind revision
 `cac3c08fb0dd7c22299e1a2475a49f51982549a2`, the 59-input snapshot
 `3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`,
 and their exact build plans.
@@ -1698,6 +1699,5 @@ or 60. This compatibility window covers the preceding seeds and the active
 generation. The first promotion attempt failed closed on provenance, so no
 invalid seed became active. Fresh candidates then converged. After promotion,
 separate self-consumption reproofs passed on both hosts. ADR 0366 records the
-compatibility decision, and ADR
-0367 records the promotion. The normal JPEG Make edge remains
-Python-coordinated.
+compatibility decision, ADR 0367 records the promotion, and ADR 0368 records
+the direct JPEG handoff.

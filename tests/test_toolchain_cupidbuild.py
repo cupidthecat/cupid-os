@@ -92,6 +92,86 @@ class CupidBuildCliTests(unittest.TestCase):
             r"--root ROOT --source SOURCE --output OUTPUT",
         )
 
+    def test_normal_jpeg_recipes_use_the_typed_checked_transaction(self):
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        for suffix in ("jpg", "jpeg"):
+            with self.subTest(suffix=suffix):
+                start = makefile.index(f"%.{suffix}.o: %.{suffix}")
+                end = makefile.index("\n\n", start)
+                rule = makefile[start:end]
+                logical_rule = " ".join(rule.replace("\\\n", " ").split())
+                self.assertEqual(
+                    logical_rule,
+                    f"%.{suffix}.o: %.{suffix} Makefile "
+                    "$(PRODUCTION_SEED_INPUTS) "
+                    "$(PRODUCTION_SEED_DIRECTORY)"
+                    "cupidbuild.$(PRODUCTION_SEED_SUFFIX) embed-jpeg "
+                    "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
+                    '--root "$(CURDIR)" --source $< --output $@',
+                )
+                self.assertNotIn("$(PYTHON)", rule)
+                self.assertNotIn("tools/hostbuild.py", rule)
+                self.assertNotIn("$(CHECKED_SEED_INPUTS)", rule)
+
+    def test_both_jpeg_suffixes_ignore_host_runner_overrides(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        fixture = tempfile.NamedTemporaryFile(
+            prefix=".cupidbuild-make-",
+            suffix=".jpeg",
+            dir=REPO_ROOT,
+            delete=False,
+        )
+        fixture_path = Path(fixture.name)
+        try:
+            fixture.write(BASELINE_JPEG)
+            fixture.close()
+            for target in (
+                "file_example_JPG_1MB.jpg.o",
+                fixture_path.name + ".o",
+            ):
+                with self.subTest(target=target):
+                    result = subprocess.run(
+                        [
+                            make,
+                            "--no-print-directory",
+                            "-n",
+                            "-B",
+                            "PYTHON=python-that-must-not-run",
+                            "CUPIDOBJ=poison-cupidobj",
+                            target,
+                        ],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    logical_output = " ".join(result.stdout.split())
+                    self.assertRegex(
+                        logical_output,
+                        r"bootstrap/seeds/i386-(?:linux|windows)/"
+                        r"cupidbuild\.(?:elf|exe) embed-jpeg ",
+                    )
+                    self.assertRegex(
+                        logical_output,
+                        r"--seed-manifest bootstrap/seeds/i386-"
+                        r"(?:linux|windows)/manifest\.json",
+                    )
+                    self.assertIn(f"--source {target[:-2]}", logical_output)
+                    self.assertIn(f"--output {target}", logical_output)
+                    self.assertNotIn(
+                        "python-that-must-not-run",
+                        logical_output,
+                    )
+                    self.assertNotIn("poison-cupidobj", logical_output)
+        finally:
+            fixture.close()
+            fixture_path.unlink(missing_ok=True)
+            fixture_path.with_name(fixture_path.name + ".o").unlink(
+                missing_ok=True
+            )
+
     def test_invalid_command_returns_usage_status_without_output(self):
         result = subprocess.run(
             [str(self.cli_path), "unknown"],

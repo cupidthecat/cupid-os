@@ -558,9 +558,9 @@ self-consumption pass on both platforms, including the SMP-trampoline
 transaction used by the normal build. In the self-consumption runs, all six
 initial images equal stage two. CupidBuild owns the context-switch
 object and raw trampoline publications directly. Across the supported graph,
-CupidBuild participates in 192 transforms and Python in 260. The additional
-CupidBuild work is 186 direct CupidObj recipes; it does not change the SMP
-transaction. ADR 0356 records the preceding seed refresh, ADR 0357 records the
+CupidBuild participates in 193 transforms and Python in 259. The additional
+CupidBuild work is 186 ordinary CupidObj recipes plus the typed JPEG
+transaction; it does not change the SMP transaction. ADR 0356 records the preceding seed refresh, ADR 0357 records the
 raw recipe transfer, ADR 0362 records the direct CupidObj handoff, and ADR 0367
 records the active seed pair.
 
@@ -570,7 +570,7 @@ Source CupidBuild accepts promoted-v2 source counts of 58 or 59 and rejects 57
 or 60. This compatibility window covers the preceding 58-input pair and the
 active 59-input pair. The first promotion attempt failed closed on provenance, so no
 invalid seed became active. ADR 0366 records the compatibility decision. The
-normal JPEG Make edge remains Python-coordinated.
+normal JPEG Make edges now invoke the promoted typed transaction directly.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260
 seconds with all fourteen exact policy artifacts accepted. Its 4,096-byte

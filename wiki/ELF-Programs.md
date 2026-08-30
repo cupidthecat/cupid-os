@@ -11,16 +11,17 @@ and receive a **syscall table**, a struct of function pointers passed to
 `_start()`.
 
 The same promoted six-tool cohort runs CupidBuild directly for four guarded
-assembly publications, 186 ordinary CupidObj recipes, and both normal kernel
-links. This does not change the user-program ABI or ELF layout. Across the
-supported graph, CupidBuild participates in 192 transforms and Python in 260.
+assembly publications, the typed JPEG publication, 186 ordinary CupidObj
+recipes, and both normal kernel links. This does not change the user-program
+ABI or ELF layout. Across the supported graph, CupidBuild participates in 193
+transforms and Python in 259.
 
 Source head also has a typed JPEG-to-`ET_REL` transaction. It requires a
 data-only relocatable with the exact asset bytes and start, end, and size
 symbols derived from the original name. It independently checks the frozen
 sequential JPEG before guarded publication. Both promoted seeds carry this
-capability, while the normal JPEG Make edge remains Python-coordinated.
-The participation totals above therefore remain current.
+capability, and the normal JPEG Make edges now invoke it directly with the
+complete production seed closure.
 
 ---
 
@@ -929,10 +930,11 @@ and pairs to the exact Linux manifest bytes.
 Candidate proof and promoted-seed self-consumption pass on both platforms,
 and all six initial images equal stage two in the self-consumption runs. ADR
 0367 records the active seed pair. CupidBuild owns the normal ISR, context-switch, bootloader, and
-SMP-trampoline recipes and runs 186 direct CupidObj calls. Python remains in
-the other 260 transforms after both normal kernel links moved to the same
-runner. ADR 0357 records the raw recipe transfer, ADR 0362 records the direct
-CupidObj handoff, and ADR 0363 records the kernel-link handoff.
+SMP-trampoline and JPEG recipes and runs 186 ordinary CupidObj calls. Python
+remains in the other 259 transforms after both normal kernel links moved to the
+same runner. ADR 0357 records the raw recipe transfer, ADR 0362 records the
+direct CupidObj handoff, ADR 0363 records the kernel-link handoff, and ADR 0368
+records the JPEG handoff.
 
 The source-head bootstrap closure has 59 inputs and SHA-256
 `3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.

@@ -1,13 +1,13 @@
 # CupidC Compiler
 
 CupidC builds CupidBuild as part of the promoted Linux and Windows six-tool
-cohorts. The normal ISR, context-switch, bootloader, and SMP-trampoline recipes
-run that checked CupidBuild image directly, which establishes production
-ownership for four guarded publications. Fixed-point carriage and the
-remaining Python transactions stay distinct. ADR 0339 records the original
+cohorts. The normal ISR, context-switch, bootloader, SMP-trampoline, and JPEG
+recipes run that checked CupidBuild image directly, which establishes
+production ownership for five guarded publications. Fixed-point carriage and
+the remaining Python transactions stay distinct. ADR 0339 records the original
 source-head seam, ADR 0353 records the paired v2 contract, ADR 0354 records the
-object recipe transfer, ADR 0357 records the raw recipe transfer, and ADR 0367
-records the active pair.
+object recipe transfer, ADR 0357 records the raw recipe transfer, ADR 0367
+records the active pair, and ADR 0368 records the JPEG handoff.
 
 CupidC is a HolyC-inspired C compiler built into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code. Programs run directly in ring 0 without a virtual machine or interpreter. Every active CupidC translation unit already uses `.cc`; this transfer has no C source to rename.
 
@@ -146,8 +146,8 @@ accepts a promoted v2 manifest with `source_input_count` 58 or 59 and rejects
 57 or 60, retaining a bounded path from the preceding pair. The first
 promotion attempt failed closed with `fixed-point provenance differs`; no
 invalid seed became active. Fresh candidates converged. After promotion,
-separate self-consumption reproofs passed on both hosts. The normal JPEG recipe
-remains Python-owned. ADR 0365 records
+separate self-consumption reproofs passed on both hosts. The normal JPEG
+recipes now enter the promoted typed transaction directly. ADR 0365 records
 the header and compiler boundary, ADR 0366 records manifest compatibility, and
 ADR 0367 records the promotion.
 
@@ -1712,9 +1712,9 @@ execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. The stable
 audit counts cover 748 active language inputs, 452 transforms, 255 features,
-and 28 unreachable inputs. Python participates in 260 transforms.
+and 28 unreachable inputs. Python participates in 259 transforms.
 CupidC participates in 250, CupidObj in 192, CupidASM in nine, CupidLD in nine,
-CupidDis in nine, and CupidBuild in 192. Four transforms use Cupid-built
+CupidDis in nine, and CupidBuild in 193. Four transforms use Cupid-built
 semantic contracts, and no transform is Python-only. Root `all` has 443
 transforms, and every one has a Cupid participant. The size verifier emits no OS artifact; it runs a private
 CupidC contract with CupidASM startup and a CupidLD link. The normal graph runs
@@ -3241,13 +3241,15 @@ and pairs to the exact Linux manifest bytes.
 This 59-input pair is active. The first promotion attempt failed closed with
 `fixed-point provenance differs`, so it did not replace either seed. CupidBuild
 accepts promoted v2 source counts 58 and 59 and rejects 57 and 60. The normal
-JPEG recipe remains Python-owned. ADR 0366 records the compatibility boundary,
-and ADR 0367 records the accepted pair.
+JPEG recipes now invoke the promoted typed transaction directly. ADR 0366
+records the compatibility boundary, ADR 0367 records the accepted pair, and
+ADR 0368 records the handoff.
 
 Candidate fixed-point and behavior proof passed on both platforms. The active
 v2 cohorts also pass promoted-seed self-consumption, with all six initial images
 equal to stage two. CupidBuild owns the normal ISR, context-switch, bootloader,
-and SMP-trampoline recipes and runs 186 direct CupidObj recipes. Python
-participates in the remaining 260 transforms. ADR 0356 records the guarded-raw
+and SMP-trampoline recipes, the typed JPEG publication, and 186 ordinary
+CupidObj recipes. Python participates in the remaining 259 transforms. ADR
+0356 records the guarded-raw
 refresh, ADR 0357 records the raw recipe transfer, ADR 0362 records the direct
 CupidObj handoff, and ADR 0367 records the current seed generation.

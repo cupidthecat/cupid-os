@@ -33323,3 +33323,73 @@ E1000, and the SMP runtime check. Cupid OS reported all four CPUs online,
 opened the GUI terminal, completed `/bin/ls.cc` JIT execution, and returned
 without a panic or exception marker. The 32,346-byte log has SHA-256
 `d0e417cf2af686c1f49351f6a4e7034f584762361b2c18a4a9578eb15a94c58e`.
+
+## 2026-08-29: move normal JPEG publication to CupidBuild
+
+The normal `%.jpg.o` and `%.jpeg.o` recipes now call the promoted
+`cupidbuild embed-jpeg` transaction directly. Each rule depends on Makefile,
+the production manifest, and all six production seed images. It passes the
+repository root, source, and output explicitly; neither `PYTHON` nor
+`CUPIDOBJ` can redirect the command.
+
+The recipe contract first failed against the two Hostbuild rules, then passed
+after the handoff. A second Make dry-run contract instantiates both suffixes
+with poisoned host-runner overrides. The active `.jpg` transform also appears
+in the generated audit with the asset, Makefile, manifest, and complete seed
+closure. Its only owners are CupidBuild and CupidObj.
+
+A forced rebuild with `PYTHON=python-that-must-not-run` published
+`file_example_JPG_1MB.jpg.o` through the Windows production CupidBuild seed.
+The 800,860-byte object has SHA-256
+`74ab86d88302c90385bb0b858632b0d6c4ac983d6be28c976dd1a3a348204b3e`,
+matching the established object exactly. The complete CupidBuild CLI module
+passed 79 tests in 79.180 seconds with three expected platform skips.
+
+The supported graph remains at 452 transforms, including 443 under root
+`all`. CupidBuild participation rises from 192 to 193 and Python falls from
+260 to 259. CupidObj remains at 192. Five composite CupidObj paths still use
+Python for their separate safety or parity contracts: kernel flattening,
+kernel-symbol generation, disk-image publication, ISO publication, and Doom
+profile-manifest publication. No transform is Python-only.
+
+ADR 0368 records the ownership decision. The first CTXT-bearing build compiled
+the full kernel and all 83 Doom roots, completed both CupidLD links and both
+CupidDis inspections, then failed closed at the exact-size gate. The flat
+kernel measured 9,509,800 bytes against the older 9,509,748-byte row. No other
+row failed. Updating only that row kept the boundary exact.
+
+The fresh `make -j4 all` replay exercised the direct JPEG transaction again,
+rebuilt the same full source cohort, passed both links and both inspection
+passes, accepted all 16 exact artifacts, and published the disk image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,605,176 | `3ff301daed69cc78fce3a57f9bf15284e18fbee1787cb7f5ea164805fc0ebb1a` |
+| `kernel/kernel.elf` | 9,736,248 | `f15e72b94eaf045c667d44a321cadf18cde8d6414f2a1d198dc076dbf2071c6a` |
+| `kernel/kernel.bin` | 9,509,800 | `e62d55dbd5f82535b508c32ae57c2b46802b2ea738c9191bf2234579cc246b89` |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `16e797a294fe173a7e8bb16816fa45d019c59788c0a181ec8073a522bc3452a6` |
+| `file_example_JPG_1MB.jpg.o` | 800,860 | `74ab86d88302c90385bb0b858632b0d6c4ac983d6be28c976dd1a3a348204b3e` |
+
+The 3,382-byte policy contains 16 rows covering 38,224,608 bytes and has
+SHA-256
+`5e0d6ba4c8b4be4e2365a90eaad9a0540ac3009933f86d6d554b587866d0e04e`.
+The standalone verifier accepted the full cohort. Its three policy and runner
+modules passed all 56 tests in 5.746 seconds with four expected Windows skips.
+
+Audit regeneration and independent check mode both passed at 748 active
+inputs, 452 transforms, 255 features, and 28 accounted unreachable inputs.
+The 2,777,776-byte JSON has SHA-256
+`69798df3dbeaf693c0d21238218f1225086def2ce71827d5d6cf94a92cb24da7`.
+The 13,192-byte summary has SHA-256
+`5f9629b5ff947b7d33922bcf7528c0f3d5452e962d504aab659ae30486056a50`.
+The focused root ownership test passed in 38.910 seconds.
+
+The final private-image QEMU smoke used four vCPUs, the `max` CPU model,
+E1000, and the strong SMP runtime check. Cupid OS reported all four CPUs
+online, passed the core, ELF32 object, x86 model, CupidDis, and CupidASM
+self-tests, opened the GUI terminal, and JIT-compiled `/bin/ls.cc` to 911 code
+bytes and 71 data bytes. It completed without a panic or exception marker.
+The 34,553-byte log has SHA-256
+`a2704b44778a1ea070571c70a197de691301d252d14cca2f92e73929187cadd3`.

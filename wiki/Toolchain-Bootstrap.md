@@ -23,8 +23,9 @@ self-consumption with all six initial images equal to stage two. ADR 0360
 records the runner boundary, ADR 0361 records the preceding paired promotion,
 and ADR 0367 records the active pair. The
 normal graph now runs 186 ordinary CupidObj recipes through CupidBuild. The
-two normal kernel links use the same checked runner. The audit records 192
-CupidBuild and 260 Python participations. ADR 0363 records the link handoff.
+two normal kernel links use the same checked runner. With the typed JPEG
+handoff, the audit records 193 CupidBuild and 259 Python participations. ADR
+0363 records the link handoff.
 The audit derives that split from each graph's evaluated `CUPIDOBJ` command;
 it does not treat the variable name itself as proof of CupidBuild ownership.
 
@@ -36,9 +37,10 @@ with a separate native SOF0/SOF1 parser. It owns the
 lock, drift checks, rollback, and atomic publication boundary. Both source-head
 fixed-point matrices compare the operation and preserve sentinel outputs on a
 progressive input, giving 26/6/33 Linux and 15/6/20 native Windows behavior
-inventories. Both active seed cohorts carry the command. The Make recipe stays
-on its guarded Python coordinator until the separate handoff. ADR 0364 records
-the source capability, and ADR 0367 records seed carriage.
+inventories. Both active seed cohorts carry the command. The normal Make
+recipes invoke it directly with the complete production seed closure. ADR 0364
+records the source capability, ADR 0367 records seed carriage, and ADR 0368
+records the handoff.
 
 The first paired refresh for that command stopped before either candidate
 could publish. Linux failed after about 412.25 seconds, and native Windows
@@ -60,14 +62,14 @@ The first promotion attempt failed closed with
 `fixed-point provenance differs`. It did not replace either active seed, and
 no invalid seed became active. Fresh candidates from revision
 `cac3c08fb0dd7c22299e1a2475a49f51982549a2` converged. After promotion,
-separate self-consumption reproofs passed on both hosts. The normal JPEG recipe
-remains Python-owned. ADR 0365
-records the hosted header repair, ADR 0366 records manifest compatibility, and
-ADR 0367 records the accepted pair.
+separate self-consumption reproofs passed on both hosts. The normal JPEG
+recipes now enter the promoted typed transaction directly. ADR 0365 records
+the hosted header repair, ADR 0366 records manifest compatibility, ADR 0367
+records the accepted pair, and ADR 0368 records the handoff.
 
 The policy-bound OS build passed all 83 Doom roots, both CupidLD links, strict
 CupidDis inspection, all 16 exact artifact rows, and image publication. The
-flat kernel is 9,509,748 bytes; the final and pass-one ELFs are 9,736,248 and
+flat kernel is 9,509,800 bytes; the final and pass-one ELFs are 9,736,248 and
 9,605,176 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
 embedded manual text, passed a four-vCPU E1000 boot and ran `/bin/ls.cc`. The
 final documentation-bearing image passed the same private gate and reached
@@ -105,7 +107,7 @@ timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,509,748 bytes for `kernel/kernel.bin`, 9,736,248 bytes
+The current sizes are 9,509,800 bytes for `kernel/kernel.bin`, 9,736,248 bytes
 for `kernel/kernel.elf`, and 9,605,176 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as part of that replay.
@@ -1742,7 +1744,7 @@ participations to CupidC and none to a host C compiler. Of those, 246 are
 ordinary C-output transforms; the checked native Windows user ABI,
 artifact-size, Toolchain manifest author, and Toolchain manifest verifier
 supply the other four.
-Python participates in 260 transforms, and CupidBuild in 192. The ordinary CupidC
+Python participates in 259 transforms, and CupidBuild in 193. The ordinary CupidC
 total is 240 normal transforms plus three generated installation tables and
 the `hello.cc`, `ls.cc`, and `cat.cc` programs. Root `all` has 443 transforms:
 all 443 have a Cupid participant. The size verifier emits no OS artifact; it
@@ -1764,9 +1766,10 @@ order across host locales.
 The stable audit counts record 748 active language inputs, 452 transforms, 255
 features, and 28 unreachable inputs across the three roots. It includes 443
 transforms under root `all`. Four transforms use Cupid-built semantic
-contracts, and no transform is Python-only. Python participates in 260 as
+contracts, and no transform is Python-only. Python participates in 259 as
 orchestrator, while CupidBuild participates in four guarded assembly
-publications, 186 direct CupidObj calls, and two normal kernel links.
+publications, the typed JPEG publication, 186 ordinary CupidObj calls, and two
+normal kernel links.
 
 The assembly ownership contract covers all 32 active assembly sources. All are
 owned by CupidASM, including five Toolchain startup inputs. An ownerless source
@@ -2449,8 +2452,9 @@ Its pairing field names the SHA-256 of the exact Linux manifest bytes.
 This 59-input pair is active. CupidBuild accepts promoted v2 source counts 58
 and 59 and rejects 57 and 60. The first promotion attempt failed closed with
 `fixed-point provenance differs`, so it did not replace either seed. The
-normal JPEG recipe remains Python-owned. ADR 0366 records the compatibility
-boundary, and ADR 0367 records the accepted pair.
+normal JPEG recipes now use the typed transaction. ADR 0366 records the
+compatibility boundary, ADR 0367 records the accepted pair, and ADR 0368
+records the handoff.
 
 The refreshed CupidBuild images carried the guarded bootloader and SMP
 trampoline commands before the normal Make recipes adopted them. At that
@@ -2468,7 +2472,8 @@ ADR 0367 records the promotion and its self-consumption evidence.
 Seed presence alone does not establish ownership. The direct recipe transfer
 now gives CupidBuild all four guarded assembly publications: the bootloader,
 SMP trampoline, ISR object, and context-switch object. The later CupidObj
-handoff adds 186 ordinary recipes, and the kernel-link handoff adds two more
-native runner calls, leaving Python in 260 transforms. ADR 0357
+handoff adds 186 ordinary recipes, the kernel-link handoff adds two more native
+runner calls, and the JPEG handoff adds one typed transaction, leaving Python
+in 259 transforms. ADR 0357
 records the raw-publication transfer, and ADR 0362 records the CupidObj
 handoff.

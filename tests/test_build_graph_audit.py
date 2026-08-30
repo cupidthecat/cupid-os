@@ -9726,13 +9726,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
-                    "cupid_builder": 192,
+                    "cupid_builder": 193,
                     "cupid_object": 192,
                     "cupid_linker": 9,
                     "cupid_disassembler": 9,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 260,
+                    "host_python": 259,
                 },
             )
             self.assertFalse(
@@ -10344,6 +10344,23 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 transform["tools"],
                 ["cupid_linker", "cupid_builder"],
             )
+        jpeg_transform = next(
+            item
+            for item in root_transforms
+            if item["output"] == "file_example_JPG_1MB.jpg.o"
+        )
+        self.assertEqual(
+            jpeg_transform["tools"],
+            ["cupid_builder", "cupid_object"],
+        )
+        self.assertEqual(
+            jpeg_transform["operation"],
+            "wrap_binary_as_elf32_relocatable",
+        )
+        self.assertIn(
+            "bootstrap/seeds/i386-windows/cupidbuild.exe",
+            jpeg_transform["inputs"],
+        )
         self.assertFalse(
             any(
                 "kernel/gui/terminal_ansi.c" in transform["inputs"]
@@ -10609,7 +10626,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 6,
-            "cupid_builder": 192,
+            "cupid_builder": 193,
             "cupid_object": 192,
             "cupid_linker": 3,
             "cupid_disassembler": 6,

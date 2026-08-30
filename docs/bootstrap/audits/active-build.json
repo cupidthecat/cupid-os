@@ -4650,9 +4650,7 @@
       {
         "inputs": [
           "file_example_JPG_1MB.jpg",
-          "tools/hostbuild.py",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4664,12 +4662,13 @@
         "operation": "wrap_binary_as_elf32_relocatable",
         "output": "file_example_JPG_1MB.jpg.o",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py embed-jpeg \\",
-          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) $< $@"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) embed-jpeg \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source $< --output $@"
         ],
         "tools": [
-          "cupid_object",
-          "host_python"
+          "cupid_builder",
+          "cupid_object"
         ]
       },
       {
@@ -56240,7 +56239,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "da688dea92338462d387032ea5307d44eef23cf0f01e928f577fae10abf75cbc"
+        "sha256": "73c75e4a788b2fa0267984e9824085cdd49a07a77fc0a8f170223c3169f76a3c"
       },
       {
         "path": "user/Makefile",
