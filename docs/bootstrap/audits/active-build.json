@@ -39365,13 +39365,13 @@
             },
             {
               "directive": "if",
-              "line": 855,
+              "line": 883,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1185,
+              "line": 1213,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
@@ -40522,31 +40522,31 @@
             },
             {
               "directive": "if",
-              "line": 1118,
+              "line": 1146,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1645,
+              "line": 1673,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1681,
+              "line": 1709,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1905,
+              "line": 1933,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1949,
+              "line": 1977,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -48547,7 +48547,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2970
+      "occurrences": 2973
     },
     {
       "category": "declarator",
@@ -52003,7 +52003,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 17349
+      "occurrences": 17352
     },
     {
       "category": "qualifier",
@@ -52550,7 +52550,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10285
+      "occurrences": 10288
     },
     {
       "category": "type",
@@ -52999,7 +52999,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 10567
+      "occurrences": 10570
     },
     {
       "category": "type",
@@ -56273,7 +56273,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "b199c59dfd3b0352cde7e80f2d7781c01d49138cb840ee57002732b31fb61e67",
+    "active_source_digest": "f64fc2653e2909c3b1b4213a2de58a93b0efb6850b050b7d2d4b48b5f6fddef1",
     "control_files": [
       {
         "path": "Makefile",
@@ -56301,11 +56301,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "95e434eeeca06b4acb22b8ba0de8226641f22996f0ddab43bd9fa9d6302c7163"
+        "sha256": "b04b621a1b3a97c24ce26671aa72c703fece6e6966ffd7b2bfc2b6e9eb0dc4ad"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db"
+        "sha256": "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
       },
       {
         "path": "tools/cupidc_production_compile.py",
@@ -81085,12 +81085,12 @@
         "toolchain/pe32_impl.h"
       ],
       "language": "cupid_c",
-      "lines": 3440,
+      "lines": 3468,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e9c2a8624cf267b08ad717954a1533fe85bb1482f6d63d0c544052c6e2df87fa"
+      "sha256": "a14293252dba07993b86a3315a5110bb3625774998310bbd166fd1c0b310ca16"
     },
     {
       "build_owners": [
@@ -83848,7 +83848,7 @@
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "05acc2f59259a06d487b93f52941c6a0c20efa8bbf9181a6540270d72f207800"
+      "sha256": "f24c06d72093ec019b3d9a578f1de590754c9205a7ef9e9345384f4b9866bd7a"
     },
     {
       "build_owners": [

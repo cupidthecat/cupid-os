@@ -12,8 +12,17 @@ A CupidC-built source-head image reproduced the tracked 9,513,536-byte kernel
 with SHA-256
 `3aac627568da71fe5478732c3b1adf8bf3c0cbf8678d63868a4f5982b5097773`.
 The fixed-point matrices include a successful pair and malformed-manifest
-rollback, but the active seeds and normal Make recipe have not moved. ADR 0372
-records the source capability.
+rollback. Both active seeds now carry the transaction, while the normal Make
+recipe remains on Hostbuild until its separate handoff. ADR 0372 records the
+source capability, and ADR 0374 records paired seed carriage.
+
+The normal build then compiled the complete kernel and all 83 Doom roots,
+linked both kernel stages with CupidLD, and passed broad CupidDis inspection.
+Its first artifact check exposed a stale parent-lineage rule in the independent
+Cupid-built contract. That contract now accepts either complete adjacent
+parent pair and rejects mixed digest/revision combinations. The corrected
+replay accepts all 16 exact rows, publishes a 9,513,992-byte flat kernel, and
+passes a private four-vCPU E1000 `/bin/ls.cc` smoke with strong SMP checks.
 
 The native Windows fixed point now runs every stage-two producer from the
 checked PE32 execution seed. The checked Linux seed remains the reviewed plan
@@ -33,7 +42,7 @@ rejects the remaining tools. A real fixed-address ELF link matches the direct
 CupidLD output. The Linux and native Windows fixed-point drivers also run
 checked CupidObj `wrap-text` through both compared CupidBuild generations,
 require byte-identical relocatable objects, and check the invalid-option path.
-The current source-head behavior totals are 27/6/34 and 16/6/21. Both promoted cohorts passed
+The current source-head behavior totals are 28/6/35 and 17/6/22. Both promoted cohorts passed
 self-consumption with all six initial images equal to stage two. ADR 0360
 records the runner boundary, ADR 0361 records the preceding paired promotion,
 ADR 0367 records the preceding pair, and ADR 0370 records the active pair. The
@@ -76,8 +85,8 @@ hosted `<stddef.h>`. The hosted i386 header set now provides the target
 contract. Source-head CupidC treats the typed `__builtin_offsetof` operation as
 strict C implementation support instead of a GNU-only extension.
 
-The repaired source-head closure has 59 inputs and snapshot SHA-256
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+The promoted source closure has 59 inputs and snapshot SHA-256
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 The Linux and Windows build-plan hashes do not change. Source-head CupidBuild
 accepts a promoted v2 manifest with `source_input_count` 58 or 59 and rejects
 57 or 60. Paired artifact verification also requires the Linux and Windows
@@ -93,9 +102,20 @@ recipes now enter the promoted typed transaction directly. ADR 0365 records
 the hosted header repair, ADR 0366 records manifest compatibility, ADR 0367
 records the accepted pair, and ADR 0368 records the handoff.
 
+The kernel-flatten refresh also failed closed twice before promotion. The
+first behavior fixture used the wrong linked-kernel identities; the second did
+not create its separate behavior workspace. Neither attempt published a
+candidate. Corrected candidates from revision
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd` converged on Linux and native
+Windows. The active manifests have SHA-256
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`
+and
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`.
+ADR 0374 records the accepted pair.
+
 The policy-bound OS build passed all 83 Doom roots, both CupidLD links, strict
 CupidDis inspection, all 16 exact artifact rows, and image publication. The
-flat kernel is 9,512,036 bytes; the final and pass-one ELFs are 9,740,344 and
+flat kernel is 9,513,992 bytes; the final and pass-one ELFs are 9,740,344 and
 9,609,272 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
 embedded manual text, passed a four-vCPU E1000 boot and ran `/bin/ls.cc`. The
 final documentation-bearing image passed the same private gate and reached
@@ -133,7 +153,7 @@ timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,512,036 bytes for `kernel/kernel.bin`, 9,740,344 bytes
+The current sizes are 9,513,992 bytes for `kernel/kernel.bin`, 9,740,344 bytes
 for `kernel/kernel.elf`, and 9,609,272 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as part of that replay.
@@ -2462,16 +2482,16 @@ The bootstrap readers still accept the historical v1 five-tool format. The
 active Linux and Windows seed directories now use v2. Each manifest lists
 CupidASM, CupidC, CupidDis, CupidLD, CupidObj, and CupidBuild with a
 non-producing fixed-point plan role. Both
-bind revision `9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, source snapshot
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`,
+bind revision `0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`, source snapshot
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`,
 and 59 source inputs.
 
 The 6,602-byte Linux manifest has SHA-256
-`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`
 and binds build plan
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 The 2,852-byte Windows manifest has SHA-256
-`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
 and binds native plan
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its pairing field names the SHA-256 of the exact Linux manifest bytes.
@@ -2491,15 +2511,15 @@ retained both raw recipes.
 
 Candidate fixed-point and behavior proof passed on Linux and native Windows.
 The promoted v2 cohorts also pass self-consumption. In those runs, all six
-initial images match stage two. Linux carries the 27/6/34 behavior inventory;
-Windows carries 16/6/21. The 51,567-byte Linux candidate report has SHA-256
-`d94e1f8908bbecb9331a6e6b20c007b64f24a5b6b18b1f2562d000973402d2c2`;
-the 64,673-byte Windows candidate report has SHA-256
-`1eb9a1d1f0572a226436afcc2e6cde033a39e8466799a6e4f636a09f02b83ab0`.
-The promoted-seed reproof reports are 51,566 and 64,672 bytes with SHA-256
-`1630a9a157bd726f5b121d16d6663332ad172d7e189dcf6fc599f4d6a45cfc78`
-and `6cc52a01a3eb747467c0f640cad23d006f169dc219fd257b56cd4c950b01aa08`.
-ADR 0370 records the promotion and its self-consumption evidence.
+initial images match stage two. Linux carries the 28/6/35 behavior inventory;
+Windows carries 17/6/22. The 51,575-byte Linux candidate report has SHA-256
+`a27e157398790b29c9c53b1c2957c9ec6b2ed531a94082383e84fc0c9b50e627`;
+the 64,681-byte Windows candidate report has SHA-256
+`5671a1afc538183477df876e7bb746debfe2ab9f92b3dba45751ec4364a8221d`.
+The promoted-seed reproof reports are 51,569 and 64,675 bytes with SHA-256
+`fdcfaf61182eb5e7cf1063067a5e7bb69901cd6276746ee49ad2dc391bf31c03`
+and `c722c702b5ffde37eeb8b135fca36fde641a8e831eee11388d5ddb37f6342994`.
+ADR 0374 records the promotion and its self-consumption evidence.
 Seed presence alone does not establish ownership. The direct recipe transfer
 now gives CupidBuild all four guarded assembly publications: the bootloader,
 SMP trampoline, ISR object, and context-switch object. The later CupidObj

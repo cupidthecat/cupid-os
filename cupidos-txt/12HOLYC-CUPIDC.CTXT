@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-08-29
+Verified against source on: 2026-08-30
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -28,6 +28,8 @@ attempted checked commands, including failure and timeout paths.
 The hosted i386 string runtime now supplies standard binary memchr so the same
 CupidBuild source compiles and links through CupidC. The runtime probe checks
 matching, absent, embedded-zero, unsigned-byte, and empty-range searches.
+It also supplies standard strrchr for the promoted kernel-flatten path, with
+runtime coverage for matches, misses, and the terminating null byte.
 The current checked Toolchain run rebuilt all 22 hosted artifacts and passed
 the full contract surface. Its Linux candidate proof freezes 59 inputs and
 matches 22 C objects, one startup object, and all six tool images between
@@ -38,6 +40,9 @@ images equal to stage two on both platforms. This changes hosted bootstrap
 evidence, not CupidC language behavior. CupidBuild owns the ISR,
 context-switch, bootloader, and SMP-trampoline recipes, while Python retains
 coordination and publication elsewhere.
+The active Linux and native Windows cohorts now carry flatten-kernel from
+revision 0232cb57aad5d6bdfd7bd77499762514b2f0ebfd. This changes hosted
+bootstrap evidence, not the CupidC language surface.
 Source-head CupidBuild now adds a native checked CupidObj runner without adding
 language syntax. Linux creates no .cupidbuild-run namespace. It freezes the
 manifest and six tools in fully sealed anonymous memfds and pins the working
@@ -72,8 +77,8 @@ The same represented hosted C profile now builds a typed CupidBuild JPEG
 transaction and its independent native validator. Both source-head fixed-point
 matrices run the command across consecutive CupidBuild images, compare the
 relocatable result, and prove rollback for a progressive JPEG. Typed
-kernel-symbol publication brings the complete inventories to 27/6/34 on Linux
-and 16/6/21 on native Windows. Both active seed cohorts carry both capabilities,
+kernel-symbol publication brings the complete inventories to 28/6/35 on Linux
+and 17/6/22 on native Windows. Both active seed cohorts carry both capabilities,
 and the normal JPEG Make edges now invoke CupidBuild directly.
 
 The first paired candidate refresh stopped before publication because the
@@ -87,7 +92,7 @@ NULL, and offsetof contract without a host C library. The offsetof macro uses
 the typed __builtin_offsetof operation, which source-head CupidC accepts as
 strict C implementation support. The repaired fixed-point closure has 59
 inputs and snapshot SHA-256
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 The active manifests bind this 59-input closure. CupidBuild accepts
 promoted-v2 source inventories with 58 or 59 entries and rejects inventories
 with 57 or 60. This preserves the preceding pair while allowing the current
@@ -815,8 +820,8 @@ manual is an image input.
 >tree
 The active v2 checked-seed format includes CupidBuild with the five existing
 tools. Both manifests bind revision
-`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, 59 source inputs, and snapshot
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`, 59 source inputs, and snapshot
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 
 Those are the active promoted identities. The pair carries hosted stddef.h,
 typed __builtin_offsetof, and the guarded CupidBuild JPEG transaction.
@@ -824,17 +829,17 @@ typed __builtin_offsetof, and the guarded CupidBuild JPEG transaction.
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. In the self-consumption runs, all six initial images equal stage two.
 The behavior inventories are
-27/6/34 on Linux and 16/6/21 on Windows. The normal ISR, context-switch,
+28/6/35 on Linux and 17/6/22 on Windows. The normal ISR, context-switch,
 bootloader, SMP-trampoline, JPEG, and kernel-symbol recipes use CupidBuild
 directly, as do the 186 ordinary CupidObj recipes and both normal kernel links. Python
 participates in the remaining 258 transforms. ADR 0357 records the raw recipe transfer, ADR 0360 records the

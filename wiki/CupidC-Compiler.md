@@ -8,7 +8,13 @@ the remaining Python transactions stay distinct. ADR 0339 records the original
 source-head seam, ADR 0353 records the paired v2 contract, ADR 0354 records the
 object recipe transfer, ADR 0357 records the raw recipe transfer, ADR 0367
 records the preceding pair, ADR 0368 records the JPEG handoff, ADR 0370 records
-the active pair, and ADR 0371 records the kernel-symbol handoff.
+the kernel-symbol pair, ADR 0371 records its handoff, and ADR 0374 records the
+active pair.
+
+Both active CupidBuild images now also carry `flatten-kernel`. The command
+validates the complete manifest-driven kernel cohort and requires CupidObj
+output to match an independent ELF renderer. The Make recipe remains on
+Hostbuild until its separate production handoff.
 
 CupidC now compiles the promoted `generate-ksyms` transaction as part of
 CupidBuild. The operation combines private CupidDis capture, CupidObj source
@@ -150,7 +156,7 @@ only when GNU extensions are enabled.
 
 Adding this header grows the source-head fixed-point closure to 59 inputs with
 snapshot SHA-256
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 The active Linux and Windows manifests bind this 59-input snapshot. CupidBuild
 accepts a promoted v2 manifest with `source_input_count` 58 or 59 and rejects
 57 or 60, retaining a bounded path from the preceding pair. The first
@@ -3235,19 +3241,19 @@ The source image was unchanged at SHA-256
 CupidBuild and the host bootstrap coordinator still understand the historical
 v1 five-tool format. The active Linux and Windows compiler seeds use v2 and
 list CupidBuild beside the five existing tools. Both
-manifests bind revision `9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, the
+manifests bind revision `0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`, the
 59-input snapshot
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`,
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`,
 and the exact platform build plan.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
 and pairs to the exact Linux manifest bytes.
 
 This 59-input pair is active. The first promotion attempt failed closed with

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-08-29
+Verified against source on: 2026-08-30
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -43,8 +43,8 @@ relocatables and preserve prior output on a missing-source failure. Each
 final-stage CupidDis also checks all six corresponding images for known code,
 local targets, and code anchors. Both generations reject a private CupidBuild
 copy whose entry instruction was replaced with an invalid opcode. The fresh
-candidates pass 27 failure, six help, and 34 success cases on Linux and 16,
-six, and 21 on Windows. Their promoted-seed self-consumption reproof passes
+candidates pass 28 failure, six help, and 35 success cases on Linux and 17,
+six, and 22 on Windows. Their promoted-seed self-consumption reproof passes
 with all six initial images equal to stage two on both platforms.
 Source-head CupidBuild also has a narrow checked runner for CupidObj. Linux
 creates no .cupidbuild-run namespace: it fully seals the manifest and six
@@ -558,7 +558,7 @@ reconstructs the exact .idata layout, and
 the report retains both object and image pairs plus the observed Windows
 result. The preceding Linux v1 seed carried this command in its 5/22/21
 behavior matrix. The active paired v2 seeds retain the command and pass the
-27/6/34 Linux and 16/6/21 Windows matrices.
+28/6/35 Linux and 17/6/22 Windows matrices.
 
 Checked-seed CupidLD uses an adjacent candidate created with exclusive-create
 semantics for both ELF and PE output. It writes and closes the candidate, then
@@ -969,11 +969,11 @@ one strict rejection through the public adapter.
 The active v2 manifests keep CupidASM as a producer and add CupidBuild as a
 checked tool and the coordinator for four guarded assembly publications and
 186 direct CupidObj recipes and both normal kernel links. Both bind revision
-`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, 59 source inputs, and snapshot
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`, 59 source inputs, and snapshot
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 
 The source-head closure contains 59 inputs and has SHA-256
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 Source CupidBuild accepts promoted-v2 source inventories with 58 or 59 entries
 and rejects inventories with 57 or 60. This keeps the preceding pair usable
 while allowing the active 59-input seed. The first promotion attempt failed
@@ -985,11 +985,11 @@ reproofs passed on both hosts. ADR
 The Linux form binds the 22-source, six-link plan with SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native

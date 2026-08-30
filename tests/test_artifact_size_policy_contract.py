@@ -373,10 +373,32 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
     def test_promoted_59_input_seed_pair_is_accepted(self):
         manifest = _manifest()
         manifest["provenance"]["source_input_count"] = 59
+        manifest["provenance"]["parent_seed_manifest_sha256"] = (
+            "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+        )
+        manifest["provenance"]["parent_seed_source_revision"] = (
+            "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+        )
         manifest_bytes = _json_bytes(manifest)
         manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
         windows_manifest = _windows_manifest(manifest_digest)
         windows_manifest["provenance"]["source_input_count"] = 59
+        windows_manifest["provenance"][
+            "parent_execution_seed_manifest_sha256"
+        ] = (
+            "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db"
+        )
+        windows_manifest["provenance"][
+            "parent_execution_seed_source_revision"
+        ] = "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+        windows_manifest["provenance"][
+            "parent_plan_seed_manifest_sha256"
+        ] = (
+            "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+        )
+        windows_manifest["provenance"][
+            "parent_plan_seed_source_revision"
+        ] = "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
 
         result = self.run_request(
             _request(
@@ -389,6 +411,40 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, SUCCESS_REPORT)
         self.assertEqual(result.stderr, "")
+
+    def test_promoted_linux_parent_digest_and_revision_cannot_be_mixed(self):
+        manifest = _manifest()
+        manifest["provenance"]["parent_seed_manifest_sha256"] = (
+            "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+        )
+        self.assert_contract_failure(_request(manifest=manifest))
+
+    def test_promoted_windows_parent_digest_and_revision_cannot_be_mixed(self):
+        promoted_parents = (
+            (
+                "parent_execution_seed_manifest_sha256",
+                "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db",
+            ),
+            (
+                "parent_plan_seed_manifest_sha256",
+                "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae",
+            ),
+        )
+        for field, digest in promoted_parents:
+            with self.subTest(field=field):
+                manifest = _manifest()
+                manifest_bytes = _json_bytes(manifest)
+                manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+                windows_manifest = _windows_manifest(manifest_digest)
+                windows_manifest["provenance"][field] = digest
+                self.assert_contract_failure(
+                    _request(
+                        manifest=manifest,
+                        manifest_bytes=manifest_bytes,
+                        linux_manifest_digest=manifest_digest,
+                        windows_manifest=windows_manifest,
+                    )
+                )
 
     def test_seed_pair_requires_matching_source_input_counts(self):
         for linux_count, windows_count in ((58, 59), (59, 58)):

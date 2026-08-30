@@ -160,16 +160,16 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "native_build_plan_sha256": PROMOTED_WINDOWS_PLAN_SHA256,
                 "plan_seed_manifest_sha256": "3" * 64,
                 "parent_execution_seed_manifest_sha256": (
-                    "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef"
+                    "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db"
                 ),
                 "parent_execution_seed_source_revision": (
-                    "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
                 ),
                 "parent_plan_seed_manifest_sha256": (
-                    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+                    "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
                 ),
                 "parent_plan_seed_source_revision": (
-                    "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
                 ),
                 "producer_lineage": lineage,
                 "source_input_count": PROMOTED_SOURCE_INPUT_COUNT,
@@ -186,10 +186,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "fixed_point_command": "make bootstrap-from-seed",
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+                    "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
                 ),
                 "parent_seed_source_revision": (
-                    "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
                 ),
                 "producer_lineage": lineage,
                 "seed_generation": "stage-four",

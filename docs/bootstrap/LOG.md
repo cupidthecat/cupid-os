@@ -33499,6 +33499,36 @@ Their 6,602-byte and 2,852-byte manifests have SHA-256
 `770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`
 and
 `bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`.
+
+The replacement pair from commit
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd` passed. Linux again matched
+22 C objects, startup, and six tools before completing the 28/6/35 behavior
+matrix. Native Windows matched 23 C objects, three assembly objects, and six
+tools before completing 17/6/22. Their 51,575-byte and 64,681-byte reports
+have SHA-256
+`a27e157398790b29c9c53b1c2957c9ec6b2ed531a94082383e84fc0c9b50e627`
+and
+`5671a1afc538183477df876e7bb746debfe2ab9f92b3dba45751ec4364a8221d`.
+Only CupidBuild changed from the first passing candidate: the Linux image is
+361,632 bytes with SHA-256
+`51b366d7ec6423b76b91e17720c1b77ea1387163c175c692779853dd8d2b8e71`,
+and the native Windows image is 378,880 bytes with SHA-256
+`ff47743b7963691142dd2ef818dac40d66dc81869828fe1efcbd91ac1e872c27`.
+
+Self-consumption from the copied pair then passed on both hosts. Every one of
+the six initial seed images matched its stage-two rebuild, and both later
+stage comparisons retained the 28/6/35 Linux and 17/6/22 Windows behavior
+inventories. The 51,569-byte Linux report has SHA-256
+`fdcfaf61182eb5e7cf1063067a5e7bb69901cd6276746ee49ad2dc391bf31c03`;
+the 64,675-byte Windows report has SHA-256
+`c722c702b5ffde37eeb8b135fca36fde641a8e831eee11388d5ddb37f6342994`.
+
+Audit regeneration and check-only replay stayed at 748 inputs, 452
+transforms, 255 feature requirements, and 28 accounted unreachable inputs.
+The 2,779,034-byte JSON has SHA-256
+`0d1e40ebf5f76eb9003f95541f51817ef1e789abe22ee523c92b2cbf5dd0ab1f`;
+the 13,192-byte summary has SHA-256
+`9620de35da18ed8ebb8d0a98a2d9e1372b08468d3d145d85188973e45396143b`.
 The Windows pairing field names the exact Linux manifest. The original v1
 parent lineage remains intact.
 
@@ -33750,3 +33780,102 @@ mistake: moving the ELFs removed the incidental creation of the behavior
 workspace used for its seed manifest. The bootstrap driver now creates both
 directories explicitly. A focused red-then-green test protects the two-root
 layout, and neither failed run published a candidate.
+
+The third paired run from commit
+`4908b67982f26ed19af6124e99ab9ab4319de9c8` passed on both hosts. Linux
+matched 22 C objects, startup, and all six tools between stages three and four,
+then passed 28 failure, six help, and 35 success groups. Native Windows matched
+23 C objects, three assembly objects, and all six tools, then passed 17
+failure, six help, and 22 success groups. Independent hashes confirmed every
+stage-three image matched its stage-four counterpart. The 51,575-byte Linux
+report has SHA-256
+`0cb94b81248beb26a3b7e58e5696070cff537c4ebc9e4b6a24d21d07b1bc28a2`;
+the 64,681-byte Windows report has SHA-256
+`bfe7214a24cada989269c097120b3f849d33265f2a76f69e4fa9c7d8d56279c8`.
+
+The promoted pair binds the same 59-file snapshot,
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
+The 6,602-byte Linux manifest has SHA-256
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`;
+the 2,852-byte Windows manifest has SHA-256
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
+and names those exact Linux bytes as its plan seed. Hosted `strrchr` changes
+the runtime linked into every tool, so all twelve seed images moved together.
+Both checked-seed verifiers, the 40-test manifest contract, seven focused
+promotion and source-snapshot tests, and the 56-test artifact-policy group
+pass. ADR 0374 records the promotion. The Make kernel-flatten edge remains on
+Hostbuild for the next green handoff commit.
+
+The first promoted-seed reproof caught a provenance transition that the
+candidate run could not exercise. Its stage-built CupidBuild accepted only
+the parent pair in the committed v2 manifests, then rejected the newly copied
+Windows manifest as `fixed-point provenance differs`. Linux was stopped after
+the common cause was confirmed. No candidate publication was committed. The
+source validator now admits the exact committed and replacement parent pairs,
+keeps each digest coupled to its matching revision, and rejects a mixed pair.
+Replacement candidates are being built from an archived copy of the committed
+seeds whose Linux and Windows manifest hashes were rechecked as
+`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`
+and
+`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`.
+
+## 2026-08-30: promote the kernel-flattening CupidBuild seeds
+
+Replacement candidates from commit
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd` passed on both hosts. Linux
+completed 28 failure, six help, and 35 success groups; native Windows completed
+17 failure, six help, and 22 success groups. Every stage-three tool matched
+its stage-four image. The 51,575-byte Linux candidate report has SHA-256
+`a27e157398790b29c9c53b1c2957c9ec6b2ed531a94082383e84fc0c9b50e627`,
+and the 64,681-byte Windows report has SHA-256
+`5671a1afc538183477df876e7bb746debfe2ab9f92b3dba45751ec4364a8221d`.
+
+After publication, both checked cohorts consumed themselves again. All six
+initial tools matched stage two on both hosts, and stages two through four
+matched for the complete cohort. The 51,569-byte Linux reproof report has
+SHA-256
+`fdcfaf61182eb5e7cf1063067a5e7bb69901cd6276746ee49ad2dc391bf31c03`;
+the 64,675-byte native Windows report has SHA-256
+`c722c702b5ffde37eeb8b135fca36fde641a8e831eee11388d5ddb37f6342994`.
+The final Linux and Windows manifests have SHA-256
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`
+and
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`.
+
+Audit regeneration and check-only mode passed at 748 inputs, 452 transforms,
+255 feature requirements, and 28 accounted unreachable inputs. The
+2,779,034-byte JSON has SHA-256
+`0d1e40ebf5f76eb9003f95541f51817ef1e789abe22ee523c92b2cbf5dd0ab1f`;
+the 13,192-byte summary has SHA-256
+`9620de35da18ed8ebb8d0a98a2d9e1372b08468d3d145d85188973e45396143b`.
+
+The first normal build reached the size gate with a 9,513,992-byte kernel
+against the preceding 9,513,536-byte row. Updating that one intentional row
+let the rebuild finish its full source, 83-root Doom, two-link, and broad
+CupidDis workload. The final artifact invocation then found a separate stale
+reader in the Cupid-built size contract: it recognized only the preceding
+parent digests. The contract now accepts either exact adjacent digest/revision
+pair for the Linux parent and both Windows parents, while mixed pairs fail.
+The new test failed before the implementation and passed afterward. The three
+artifact modules now pass 58 tests in 4.974 seconds, with four platform skips.
+
+The corrected full replay accepted all 16 exact artifact rows. The final
+artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,609,272 | `83c25eca995f1162d2c7eebbc10514364bba7fe44dea9e722f58610bf5013d47` |
+| `kernel/kernel.elf` | 9,740,344 | `21263705b36e50542e7701313b0a465151e74a7f19c4e4dc50cabc8bef53a0cd` |
+| `kernel/kernel.bin` | 9,513,992 | `8d764164c3bef57ee01062f899922aa1a8344f02d1ce53dfc68b68dae6365d4e` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `b178c07944f9e1653396a01a832b3b501d7327ac9ae4897ffb8fae5280c4322a` |
+
+The 3,382-byte policy covers 38,330,596 bytes and has SHA-256
+`ea0fd0ff6b88ef9ad0a89e0548f3d932c2533126a5d89270b7384d7ff9545706`.
+A private image then passed the four-vCPU `max`/E1000 strong SMP gate and ran
+`/bin/ls.cc` to normal JIT completion. Its 21,888-byte serial log has SHA-256
+`9eee7b49f11df1bd28ef1e1065c4c7e74c5f6b600351ecf0949d90b16652847b`.
+ADR 0374 records the accepted promotion. Issue #34 remains open because the
+normal kernel-flatten edge and the disk, ISO, Doom-manifest, and fixed-point
+coordination paths still contain Python.

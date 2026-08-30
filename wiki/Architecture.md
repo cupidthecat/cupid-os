@@ -24,15 +24,27 @@ directly with the manifest and complete six-image closure. ADR 0369 records
 the source capability, ADR 0370 records paired seed carriage, and ADR 0371
 records production ownership.
 
-The source-head fixed-point closure contains 59 inputs with snapshot SHA-256
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+The same pair now carries `flatten-kernel`. It freezes the complete 431-input
+cohort, runs the broad and linked CupidDis checks, requires CupidObj to match
+an independent ELF renderer, and publishes transactionally. Make remains on
+Hostbuild until the separate production handoff. ADR 0374 records carriage.
+
+The active fixed-point closure contains 59 inputs with snapshot SHA-256
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 CupidBuild accepts a promoted v2 manifest whose `source_input_count` is 58 or
 59 and rejects 57 or 60. This keeps the preceding 58-input pair usable while
 making the active 59-input generation consumable. The first promotion attempt
 failed closed with `fixed-point provenance differs`, so no invalid seed became
 active. Fresh candidates converged and replaced the checked pair together.
-ADR 0366 records the compatibility boundary, ADR 0367 records the preceding promotion, and ADR 0370 records the active promotion,
-and ADR 0368 records the JPEG handoff.
+The independent Cupid-built artifact verifier follows the same narrow
+transition: it accepts either complete adjacent parent pair and rejects a
+digest paired with the other generation's revision. The promoted normal build
+passes all 16 exact artifact rows with a 9,513,992-byte flat kernel, and its
+private four-vCPU E1000 smoke reaches `/bin/ls.cc` JIT completion under the
+strong SMP runtime check.
+ADR 0366 records the compatibility boundary, ADR 0367 and ADR 0370 record
+preceding promotions, ADR 0374 records the active promotion, and ADR 0368
+records the JPEG handoff.
 
 ---
 
@@ -326,16 +338,16 @@ code-anchor pair, and ADR 0336 records the earlier five-tool pair.
 
 The current seed pair uses the Linux and Windows v2 schemas and lists six tool
 images, including CupidBuild with a non-producing fixed-point plan role. Both manifests bind revision
-`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, 59 inputs, and source snapshot
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`, 59 inputs, and source snapshot
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
 its 6,602-byte manifest has SHA-256
-`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
 its 2,852-byte manifest has SHA-256
-`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
 and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
 self-consumption pass on both platforms. In the self-consumption runs, all six
 initial images equal stage two. CupidBuild publishes the two assembly objects and both raw images

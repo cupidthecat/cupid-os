@@ -1,15 +1,14 @@
 # Host dependency inventory
 
-Source-head CupidBuild now contains the complete kernel-flatten coordinator.
+Both promoted CupidBuild seeds now contain the complete kernel-flatten coordinator.
 It replaces the Python algorithm with pinned manifest and seed capture, one
 broad CupidDis invocation, strict linked-image checks, CupidObj flattening, an
 independent native ELF renderer, byte parity, rollback, and atomic
 publication. A real 431-input run reproduced the tracked kernel. This is not a
-production dependency change yet because the promoted CupidBuild images do
-not carry `flatten-kernel`; the normal Make edge still enters
-`tools/hostbuild.py validate-code`. After promotion, only the Make and audit
-handoff is needed for this path. The disk, ISO, and Doom profile composite
-paths remain Python-coordinated.
+production dependency change yet because the normal Make edge still enters
+`tools/hostbuild.py validate-code`. Only the Make and audit handoff remains for
+this path. The disk, ISO, and Doom profile composite paths remain
+Python-coordinated. ADR 0374 records the paired seed promotion.
 
 CupidBuild's source head can now launch CupidObj through a native checked-seed
 runner. Linux creates no `.cupidbuild-run` namespace: the manifest and six
@@ -32,7 +31,7 @@ identity. Both platforms recheck the live seed before releasing output.
 The normal graph now runs all 186 direct root CupidObj calls through the
 promoted CupidBuild command. These calls cover 175 text wrappers, eight binary
 wrappers, and three installation-source generators. Both normal kernel links
-use the same runner. Python retains five
+use the same runner. Python retains four
 composite CupidObj paths that add independent validation or controlled
 publication. The Windows CupidBuild CLI
 suite completed 66 tests in 65.934 seconds with three expected skips. The
@@ -48,8 +47,8 @@ the independent native JPEG veto, drift checks, and atomic publication. The
 active Linux and Windows seeds contain the command. Make invokes it directly
 for both JPEG suffixes. The later kernel-symbol handoff moves one more
 production transform, bringing the current totals to 194 CupidBuild and 258
-Python. The full source-head behavior matrices are 27/6/34 on Linux and
-16/6/21 on native Windows.
+Python. The full behavior matrices are 28/6/35 on Linux and 17/6/22 on native
+Windows.
 
 That promotion attempt found a Cupid library dependency, not a host compiler
 dependency. Both candidate proofs stopped because the hosted Linux include
@@ -60,9 +59,9 @@ compile covers the public API and the complete header surface. Strict CupidC
 also accepts the target-aware `__builtin_offsetof` operation used by the
 standard macro.
 
-Source head still freezes 59 inputs. Its current kernel-symbol-capable snapshot
+The active pair freezes 59 inputs. Its kernel-flatten-capable snapshot
 has SHA-256
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 Source CupidBuild accepts a promoted v2 manifest when `source_input_count` is
 58 or 59 and rejects 57 and 60. This compatibility rule preserves the
 preceding 58-input seeds while admitting the active 59-input source generation. Both
@@ -72,15 +71,15 @@ The first seed candidate produced after the header repair was not accepted.
 Stage-four CupidBuild still required 58 inputs, so the normal build failed
 closed with `fixed-point provenance differs`. No invalid seed entered either
 checked directory. The latest candidates from revision
-`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6` converged, and the promoted
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd` converged, and the promoted
 cohorts consumed themselves with all six initial images equal to stage two.
 ADR 0366 records the v2 source-count compatibility rule, ADR 0367 records the
-preceding pair, ADR 0368 records the JPEG handoff, and ADR 0370 records the
-active pair.
+preceding pair, ADR 0368 records the JPEG handoff, ADR 0370 records the
+kernel-symbol pair, and ADR 0374 records the active pair.
 
 The final top-level replay passed after the exact-size check rejected the
 updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,512,036 bytes for `kernel/kernel.bin`, 9,740,344 bytes
+The current sizes are 9,513,992 bytes for `kernel/kernel.bin`, 9,740,344 bytes
 for `kernel/kernel.elf`, and 9,609,272 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as well.
@@ -150,21 +149,21 @@ stage pairs. Publication verification recreates the checked plan before it
 recaptures the 59-file live source inventory.
 
 The active pair binds revision
-`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, the 59-input snapshot
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`,
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`, the 59-input snapshot
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`,
 and the Linux plan
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 The 6,602-byte Linux manifest has SHA-256
-`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`.
 The 2,852-byte Windows manifest has SHA-256
-`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
 and binds native plan
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`
 to those exact Linux manifest and plan bytes. The Linux v2 record names parent
-manifest `b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b`,
+manifest `770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`,
 and the Windows v2 record names parent manifest
-`751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef`.
-Both parents bind revision `a17c9465911da41d59b7ada71733d36c39faa5ea`.
+`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`.
+Both parents bind revision `9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`.
 The candidate fixed points passed before promotion. Reproof from both promoted
 v2 seeds also passed, with all six initial images equal to stage two. The
 refreshed audit and 16-artifact check pass; the normal OS build and runtime
@@ -195,8 +194,8 @@ same semantic shapes. The audit records 32
 assembly inputs, 302 headers, 414 Cupid C
 files, 255 feature requirements, and 28 accounted unreachable files. No
 ordinary C translation unit remained in a supported root. Its active-source
-audit records failure, help, and success counts of 27/6/34 for Linux and
-16/6/21 for Windows. The active figures include CupidBuild; each promoted
+audit records failure, help, and success counts of 28/6/35 for Linux and
+17/6/22 for Windows. The active figures include CupidBuild; each promoted
 host cohort still includes one successful and one failing static code-anchor
 case. Audit generation and its checked-file comparison both pass.
 The pre-promotion poisoned OS build reached the exact-size gate after the
@@ -321,7 +320,7 @@ expanded policy, an unsafe file, or any byte drift prevents image publication
 and preserves the existing image. The transform publishes no OS artifact.
 Before promotion, the focused semantic-contract, checked-runner, and
 independent-policy modules contained 22, 16, and 13 tests, for 51 total. The
-expanded modules now pass 56 tests with four platform-specific skips, and the
+expanded modules now pass 58 tests with four platform-specific skips, and the
 16-artifact contract verifies successfully. The last pre-promotion kernel outputs
 were:
 
@@ -333,12 +332,14 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`ad2177cd477e92a11d6b5bb1adcb8e3f70a12e1600476e587d341755a1b890d7`.
+`ea0fd0ff6b88ef9ad0a89e0548f3d932c2533126a5d89270b7384d7ff9545706`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,609,272, 9,740,344, and 9,512,036 bytes for the boot image, pass-one ELF,
+9,609,272, 9,740,344, and 9,513,992 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,282,348 bytes.
+sixteen rows, totaling 38,330,596 bytes. The contract accepts the complete
+preceding or promoted seed-parent pair and rejects mixed digest/revision
+lineage for the Linux seed and both Windows parent links.
 
 The paired-seed promotion replay passed both CupidLD links and strict
 inspection of all 431 production inputs. Its first size gate measured

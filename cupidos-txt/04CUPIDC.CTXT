@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-29
+Verified against source on: 2026-08-30
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -16,7 +16,7 @@ Verified against source on: 2026-08-29
 
 >h2 Hosted CupidBuild Source
 >tree open Hosted CupidBuild Source
-Source-head CupidBuild now has a typed flatten-kernel transaction. It freezes
+Promoted CupidBuild now has a typed flatten-kernel transaction. It freezes
 the strict production manifest, up to 500 code inputs, and the complete
 six-tool seed. One broad CupidDis request checks the entire cohort. A second
 request validates local targets and code anchors in both linked kernel ELFs.
@@ -26,9 +26,10 @@ native ELF renderer byte for byte before publication.
 The transaction pins every frozen POSIX file by descriptor. Windows pins its
 private working directory and uses short private input names so the broad
 request remains one command. The hosted runtime supplies strrchr for this
-path handling. A CupidC-built source-head image processed all 431 active inputs
-and reproduced the tracked 9,513,536-byte kernel exactly. The checked seeds and
-normal Make recipe have not adopted this command yet.
+path handling. A CupidC-built image processed all 431 active inputs and
+reproduced the tracked 9,513,536-byte kernel exactly. Both checked seeds carry
+the command from revision 0232cb57aad5d6bdfd7bd77499762514b2f0ebfd.
+The normal Make recipe remains on Hostbuild until its separate handoff.
 
 The checked Linux and Windows command suites cover CupidBuild's policy and
 hosted transaction modules, including the guarded object and raw-image paths.
@@ -66,8 +67,8 @@ under the original logical identity, checks the exact data payload and three
 identity symbols in the data-only i386 ET_REL, and validates the frozen JPEG
 with a separate native SOF0/SOF1 parser. The fixed-point matrices compare the
 transaction and prove progressive-input rollback. With the kernel-symbol
-behavior pair, source head runs 27/6/34 cases on Linux and 16/6/21 on native
-Windows. Both active seed cohorts carry the JPEG command. The
+behavior pairs, source head runs 28/6/35 cases on Linux and 17/6/22 on native
+Windows. Both active seed cohorts carry the JPEG and kernel-flatten commands. The
 normal JPEG Make edges invoke it directly with the complete production seed.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
@@ -1304,7 +1305,7 @@ manifest and a typed list of logical directories and loaded files, then writes
 the complete deterministic ECMA-119 and Rock Ridge fixture. Its output matches
 the tracked 61,440-byte image exactly. The preceding v1 fixed-point gate
 exercised the command and its rollback path in the 5/22/21 behavior matrix.
-The active Linux v2 seed retains the command and passes the 27/6/34 matrix. The
+The active Linux v2 seed retains the command and passes the 28/6/35 matrix. The
 normal recipe runs that checked command first on frozen ordinal file snapshots.
 Python compares an independent render, rechecks live state, and publishes
 under a per-output lock. ADR 0239 records the source boundary, ADR 0240 records
@@ -1317,7 +1318,7 @@ computes SHA-256 internally, sorts the logical sets, and writes the canonical
 69,366-byte JSON. The preceding v1 seed passed a 5/22/21 behavior matrix with
 padding, repeated-block, unsafe-path, case-collision, rollback, and recovery
 coverage. The active v2 seeds retain the command. Their fixed-point behavior
-matrices are 27/6/34 on Linux and 16/6/21 on Windows. The normal recipe passes
+matrices are 28/6/35 on Linux and 17/6/22 on Windows. The normal recipe passes
 that seed manifest. The wrapper derives the
 snapshot and independent Python oracle from one stable capture, runs CupidObj
 from the exact frozen seed, and requires byte parity. Under an adjacent
@@ -2336,7 +2337,7 @@ diagnostics. GNU alignment spellings still require GNU mode.
 
 The new header raises the source-head fixed-point closure to 59 inputs. Its
 snapshot SHA-256 is
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 The active Linux and Windows seed manifests bind this 59-input snapshot.
 CupidBuild accepts promoted-v2 source inventories with 58 or 59 entries and
 rejects inventories with 57 or 60. This keeps the preceding pair usable and
@@ -2367,9 +2368,9 @@ The active Linux and Windows v2 cohorts are complete six-tool trust units.
 Their manifests include CupidBuild. It directly coordinates four normal
 guarded assembly publications: two relocatable objects and two raw images.
 Both bind
-revision `9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, 59 source inputs, and
+revision `0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`, 59 source inputs, and
 snapshot
-`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 Candidate fixed-point and behavior proof passed on both platforms. The
 promoted compiler carries wide integer conversion to float and double. The
 refreshed CupidBuild images carry the guarded raw assembly commands, and the
@@ -2438,11 +2439,11 @@ platform image checks.
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native

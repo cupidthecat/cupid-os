@@ -51,6 +51,8 @@ typedef struct {
   uint64_t sizes[SEED_ARTIFACT_COUNT];
   int seen[SEED_ARTIFACT_COUNT];
   uint64_t source_input_count;
+  text_t parent_manifest_sha256;
+  text_t parent_source_revision;
   text_t source_revision;
   text_t source_snapshot_sha256;
 } seed_manifest_t;
@@ -80,6 +82,18 @@ static const char policy_schema[] = "cupid.artifact-size-policy.v1";
 static const char seed_schema[] = "cupid.bootstrap-seed.v2";
 static const char windows_seed_schema[] = "cupid.execution-seed.v2";
 static const char report_schema[] = "cupid.artifact-size-verification.v1";
+static const char legacy_parent_revision[] =
+    "a17c9465911da41d59b7ada71733d36c39faa5ea";
+static const char legacy_linux_parent_manifest[] =
+    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b";
+static const char legacy_windows_parent_manifest[] =
+    "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef";
+static const char promoted_parent_revision[] =
+    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6";
+static const char promoted_linux_parent_manifest[] =
+    "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae";
+static const char promoted_windows_parent_manifest[] =
+    "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db";
 static const char *const seed_names[SEED_ARTIFACT_COUNT] = {
     "cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild"};
 static const char *const seed_files[SEED_ARTIFACT_COUNT] = {
@@ -146,6 +160,16 @@ static int slice_equals_literal(const byte_slice_t *slice,
 static int text_equals_text(const text_t *left, const text_t *right) {
   return left->size == right->size &&
          memcmp(left->bytes, right->bytes, left->size) == 0;
+}
+
+static int parent_pair_matches(const text_t *manifest,
+                               const text_t *revision,
+                               const char *legacy_manifest,
+                               const char *promoted_manifest) {
+  return (text_equals_literal(manifest, legacy_manifest) &&
+          text_equals_literal(revision, legacy_parent_revision)) ||
+         (text_equals_literal(manifest, promoted_manifest) &&
+          text_equals_literal(revision, promoted_parent_revision));
 }
 
 static int lower_hex_valid(const unsigned char *bytes, size_t size,
@@ -960,16 +984,19 @@ static int parse_seed_provenance(json_reader_t *reader,
     } else if (text_equals_literal(&key, "parent_seed_manifest_sha256") &&
                (fields & 8u) == 0u) {
       fields |= 8u;
-      ok = parse_expected_text(
-          reader,
-          "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b",
-          "seed manifest parent digest differs");
+      ok = json_parse_string(reader, &manifest->parent_manifest_sha256);
+      if (ok && !lower_hex_valid(manifest->parent_manifest_sha256.bytes,
+                                 manifest->parent_manifest_sha256.size, 64u)) {
+        ok = set_error("seed manifest parent digest is invalid");
+      }
     } else if (text_equals_literal(&key, "parent_seed_source_revision") &&
                (fields & 16u) == 0u) {
       fields |= 16u;
-      ok = parse_expected_text(
-          reader, "a17c9465911da41d59b7ada71733d36c39faa5ea",
-          "seed manifest parent revision differs");
+      ok = json_parse_string(reader, &manifest->parent_source_revision);
+      if (ok && !lower_hex_valid(manifest->parent_source_revision.bytes,
+                                 manifest->parent_source_revision.size, 40u)) {
+        ok = set_error("seed manifest parent revision is invalid");
+      }
     } else if (text_equals_literal(&key, "producer_lineage") &&
                (fields & 32u) == 0u) {
       fields |= 32u;
@@ -1026,10 +1053,18 @@ static int parse_seed_provenance(json_reader_t *reader,
   if (fields != 1023u) {
     return set_error("seed manifest provenance fields are missing");
   }
+  if (!parent_pair_matches(&manifest->parent_manifest_sha256,
+                           &manifest->parent_source_revision,
+                           legacy_linux_parent_manifest,
+                           promoted_linux_parent_manifest)) {
+    return set_error("seed manifest parent provenance differs");
+  }
   return 1;
 }
 
 static void seed_manifest_release(seed_manifest_t *manifest) {
+  text_release(&manifest->parent_manifest_sha256);
+  text_release(&manifest->parent_source_revision);
   text_release(&manifest->source_revision);
   text_release(&manifest->source_snapshot_sha256);
 }
@@ -1373,7 +1408,11 @@ static int parse_windows_producer_lineage(json_reader_t *reader) {
 static int parse_windows_provenance(json_reader_t *reader,
                                     const seed_manifest_t *seed_manifest,
                                     const byte_slice_t *seed_manifest_digest) {
+  text_t execution_parent_manifest = {(unsigned char *)0, 0u};
+  text_t execution_parent_revision = {(unsigned char *)0, 0u};
   text_t plan_manifest_digest = {(unsigned char *)0, 0u};
+  text_t plan_parent_manifest = {(unsigned char *)0, 0u};
+  text_t plan_parent_revision = {(unsigned char *)0, 0u};
   text_t source_revision = {(unsigned char *)0, 0u};
   text_t source_snapshot = {(unsigned char *)0, 0u};
   unsigned int fields = 0u;
@@ -1424,32 +1463,38 @@ static int parse_windows_provenance(json_reader_t *reader,
                    &key, "parent_execution_seed_manifest_sha256") &&
                (fields & 32u) == 0u) {
       fields |= 32u;
-      ok = parse_expected_text(
-          reader,
-          "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef",
-          "Windows seed execution parent digest differs");
+      ok = json_parse_string(reader, &execution_parent_manifest);
+      if (ok && !lower_hex_valid(execution_parent_manifest.bytes,
+                                 execution_parent_manifest.size, 64u)) {
+        ok = set_error("Windows seed execution parent digest is invalid");
+      }
     } else if (text_equals_literal(
                    &key, "parent_execution_seed_source_revision") &&
                (fields & 64u) == 0u) {
       fields |= 64u;
-      ok = parse_expected_text(
-          reader, "a17c9465911da41d59b7ada71733d36c39faa5ea",
-          "Windows seed execution parent revision differs");
+      ok = json_parse_string(reader, &execution_parent_revision);
+      if (ok && !lower_hex_valid(execution_parent_revision.bytes,
+                                 execution_parent_revision.size, 40u)) {
+        ok = set_error("Windows seed execution parent revision is invalid");
+      }
     } else if (text_equals_literal(
                    &key, "parent_plan_seed_manifest_sha256") &&
                (fields & 128u) == 0u) {
       fields |= 128u;
-      ok = parse_expected_text(
-          reader,
-          "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b",
-          "Windows seed plan parent digest differs");
+      ok = json_parse_string(reader, &plan_parent_manifest);
+      if (ok && !lower_hex_valid(plan_parent_manifest.bytes,
+                                 plan_parent_manifest.size, 64u)) {
+        ok = set_error("Windows seed plan parent digest is invalid");
+      }
     } else if (text_equals_literal(
                    &key, "parent_plan_seed_source_revision") &&
                (fields & 256u) == 0u) {
       fields |= 256u;
-      ok = parse_expected_text(
-          reader, "a17c9465911da41d59b7ada71733d36c39faa5ea",
-          "Windows seed plan parent revision differs");
+      ok = json_parse_string(reader, &plan_parent_revision);
+      if (ok && !lower_hex_valid(plan_parent_revision.bytes,
+                                 plan_parent_revision.size, 40u)) {
+        ok = set_error("Windows seed plan parent revision is invalid");
+      }
     } else if (text_equals_literal(&key, "plan_seed_manifest_sha256") &&
                (fields & 512u) == 0u) {
       fields |= 512u;
@@ -1510,6 +1555,18 @@ static int parse_windows_provenance(json_reader_t *reader,
   if (ok && fields != 16383u) {
     ok = set_error("Windows seed manifest provenance fields are missing");
   }
+  if (ok && !parent_pair_matches(&execution_parent_manifest,
+                                 &execution_parent_revision,
+                                 legacy_windows_parent_manifest,
+                                 promoted_windows_parent_manifest)) {
+    ok = set_error("Windows seed execution parent provenance differs");
+  }
+  if (ok && !parent_pair_matches(&plan_parent_manifest,
+                                 &plan_parent_revision,
+                                 legacy_linux_parent_manifest,
+                                 promoted_linux_parent_manifest)) {
+    ok = set_error("Windows seed plan parent provenance differs");
+  }
   if (ok && !slice_equals_text(seed_manifest_digest,
                                &plan_manifest_digest)) {
     ok = set_error("Windows seed plan manifest differs");
@@ -1522,7 +1579,11 @@ static int parse_windows_provenance(json_reader_t *reader,
                               &seed_manifest->source_snapshot_sha256)) {
     ok = set_error("Windows seed source snapshot differs");
   }
+  text_release(&execution_parent_manifest);
+  text_release(&execution_parent_revision);
   text_release(&plan_manifest_digest);
+  text_release(&plan_parent_manifest);
+  text_release(&plan_parent_revision);
   text_release(&source_revision);
   text_release(&source_snapshot);
   return ok;
