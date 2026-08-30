@@ -23,7 +23,8 @@ Add `cupidbuild flatten-kernel` with explicit seed manifest, repository root,
 input manifest, and output arguments. The input manifest accepts at most 500
 canonical relative paths. It rejects missing final newlines, CRLF, blank or
 comment rows, whitespace, backslashes, absolute paths, traversal, dot
-components, and case-insensitive duplicates. Both
+components, colons, and case-insensitive duplicates. Rejecting every colon
+also prevents a manifest row from naming a Windows alternate data stream. Both
 `kernel/kernel.elf.pass1` and `kernel/kernel.elf` must be present.
 
 Grow transaction input storage on demand to a bounded 512 entries. Normal
@@ -60,8 +61,9 @@ absolute path used for descriptor-backed reads.
 
 The typed CLI tests cover successful checked-tool parity, independent-renderer
 ordering, malformed and unsafe manifest forms, the 500-input bound, the linked
-kernel pair, and rollback after malformed ELF input. The focused cases pass on
-native Windows. The CupidBuild host-runner and JPEG Make contracts also pass.
+kernel pair, an independently rejected span beyond 64 MiB, and rollback after
+malformed ELF input. The focused cases pass on native Windows. The CupidBuild
+host-runner and JPEG Make contracts also pass.
 
 The native self-host contract compiled every tool source with CupidC and
 linked all six static i386 tools. The generated runtime passed its allocator,
@@ -78,6 +80,8 @@ The regenerated source audit and its check-only replay pass with the expanded
 Linux and native Windows behavior totals. A final four-vCPU QEMU smoke using
 the `max` CPU model, E1000, and the strong SMP runtime check reached the GUI
 terminal and completed `/bin/ls.cc` without a panic or exception marker.
+After review hardening, the expanded 96-test CupidBuild module, six-tool
+self-host link, 431-input source-built replay, and check-only audit also pass.
 
 ## Rejected alternatives
 

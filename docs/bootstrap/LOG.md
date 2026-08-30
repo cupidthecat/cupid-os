@@ -33713,9 +33713,9 @@ negative mutation test now agree on 28/6/35 and 17/6/22. Regeneration and
 check-only mode passed with 748 active inputs, 452 transforms, 255 feature
 requirements, and 28 accounted unreachable inputs. The 2,779,034-byte JSON
 has SHA-256
-`b6539c450f72a6243f59edc1e42a865099fb55933b769fb73ac82a049c3ec0d3`;
+`1f236a892c180eb0118a4f69b04e12d8a956e493e01d699ca5858ac6b27c72ba`;
 the 13,192-byte summary has SHA-256
-`293c6bf4b409233da5eb85218aa9ad9174f2f7efaaa5920da204cfd8a825dff0`.
+`a73352b86db8c2dd08b4d4f678185e16b4e22767ba68a29cce2bfc63b7fcba02`.
 
 The first runtime attempt timed out while the fresh disk imported HomeFS. A
 second run reached the desktop and completed `/bin/ls.cc`, but its command had
@@ -33723,3 +33723,17 @@ not requested four virtual CPUs, so the strong SMP checker correctly rejected
 the missing ACPI marker. The final run explicitly used four vCPUs, the `max`
 CPU model, E1000, and the strong SMP runtime check. It reached the GUI terminal
 and completed `/bin/ls.cc` without a panic or exception marker.
+
+The two-axis review found no documented standards violation. Its API review
+did identify that the typed command still carried `--input-manifest` through a
+generic `source` member. Kernel flattening now has a distinct public request
+with an `input_manifest` field. The spec review also found that a colon after
+the second byte of a logical path could reach native Windows as an alternate
+data stream. Relative CupidBuild paths now reject colons everywhere, and a
+rollback test covers the unsafe spelling. A second negative fixture keeps
+valid known instructions and code anchors but adds a non-executable load more
+than 64 MiB from the image base. CupidDis accepts the linked image, the
+independent renderer rejects its span, and the previous kernel remains intact.
+The expanded 96-test CupidBuild module, six-tool self-host link, source-built
+431-input replay, audit regeneration, and check-only audit all pass. The final
+source-built output still matches the 9,513,536-byte tracked kernel exactly.

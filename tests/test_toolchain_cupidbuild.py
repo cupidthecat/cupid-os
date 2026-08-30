@@ -220,6 +220,7 @@ class CupidBuildCliTests(unittest.TestCase):
             ("blank", b"kernel/a.o\n\n", "line is blank"),
             ("comment", b"#comment\n", "may not be a comment"),
             ("backslash", b"kernel\\a.o\n", "must use forward slashes"),
+            ("colon", b"kernel/a:b.o\n", "code input path is unsafe"),
             ("whitespace", b"kernel/a file.o\n", "may not contain whitespace"),
             ("absolute", b"/kernel/a.o\n", "not canonical and relative"),
             ("traversal", b"kernel/../a.o\n", "not canonical and relative"),
@@ -322,6 +323,69 @@ class CupidBuildCliTests(unittest.TestCase):
                 output.read_bytes(), b"last known good flat kernel"
             )
 
+    def test_typed_kernel_flatten_rejects_an_oversized_initialized_span(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-kernel-flat-span-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            kernel = root / "kernel"
+            kernel.mkdir()
+            seed_manifest = self._copy_checked_assembly_seed(root / "seed")
+            built = self._build_ksyms_elf(
+                root,
+                "BITS 32\n"
+                "global _start:function\n"
+                "section .text\n"
+                "_start:\n"
+                "    ret\n",
+            )
+            image = bytearray(built.read_bytes())
+            program_offset = struct.unpack_from("<I", image, 28)[0]
+            program_size = struct.unpack_from("<H", image, 42)[0]
+            program_count = struct.unpack_from("<H", image, 44)[0]
+            self.assertGreaterEqual(program_count, 2)
+            self.assertEqual(
+                struct.unpack_from("<I", image, program_offset)[0], 1
+            )
+            first_program = image[
+                program_offset : program_offset + program_size
+            ]
+            second_program = program_offset + program_size
+            image[
+                second_program : second_program + program_size
+            ] = first_program
+            first_address = struct.unpack_from(
+                "<I", image, program_offset + 12
+            )[0]
+            second_address = first_address + 64 * 1024 * 1024
+            struct.pack_into("<I", image, second_program + 8, second_address)
+            struct.pack_into("<I", image, second_program + 12, second_address)
+            struct.pack_into("<I", image, second_program + 24, 4)
+            struct.pack_into("<I", image, second_program + 28, 1)
+            (kernel / "kernel.elf.pass1").write_bytes(image)
+            (kernel / "kernel.elf").write_bytes(image)
+            manifest = root / "code-inputs.txt"
+            manifest.write_text(
+                "kernel/kernel.elf.pass1\nkernel/kernel.elf\n",
+                encoding="ascii",
+                newline="\n",
+            )
+            output = kernel / "kernel.bin"
+            sentinel = b"last known good flat kernel"
+            output.write_bytes(sentinel)
+
+            result = self._run_flatten_kernel(
+                root, manifest, output, seed_manifest
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "independent flat kernel validation failed: "
+                "flat kernel exceeds the 64 MiB transaction limit",
+                result.stderr,
+            )
+            self.assertEqual(output.read_bytes(), sentinel)
+
     def test_typed_kernel_flatten_keeps_an_independent_byte_parity_gate(self):
         source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
         operation = source.split(
@@ -345,6 +409,21 @@ class CupidBuildCliTests(unittest.TestCase):
         self.assertIn("disassembler_arguments, 300000u", operation)
         self.assertIn("linked_arguments, 600000u", operation)
         self.assertNotIn("CUPIDBUILD_CODE_BATCH", source)
+
+    def test_typed_kernel_flatten_names_its_manifest_in_the_public_request(self):
+        header = (TOOLCHAIN_ROOT / "cupidbuild.h").read_text(encoding="utf-8")
+        main = (TOOLCHAIN_ROOT / "cupidbuild_main.cc").read_text(
+            encoding="utf-8"
+        )
+        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+
+        self.assertIn("const char *input_manifest;", header)
+        self.assertNotIn(
+            "typedef cupidbuild_assembly_request_t cupidbuild_kernel_request_t;",
+            header,
+        )
+        self.assertIn("&kernel_request.input_manifest", main)
+        self.assertIn("request->input_manifest", source)
 
     def test_typed_kernel_symbol_transaction_matches_checked_tools(self):
         with tempfile.TemporaryDirectory(

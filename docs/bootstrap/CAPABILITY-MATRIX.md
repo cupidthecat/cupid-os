@@ -10,6 +10,8 @@ The matrix uses these statuses:
 Typed kernel flattening is **Observed at source head**. CupidBuild accepts the
 strict production input manifest, freezes up to 500 named inputs plus the
 six-tool seed, and preserves ADR 0318's one-call broad CupidDis contract. It
+rejects colons in every logical input path so Windows alternate data streams
+cannot enter the frozen cohort. It
 then applies linked local-target and code-anchor checks, runs CupidObj `flat`,
 and compares those bytes with an independent `PT_LOAD` or allocated-section
 renderer before guarded publication. A CupidC-built source-head image

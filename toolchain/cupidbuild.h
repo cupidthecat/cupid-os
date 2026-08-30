@@ -15,7 +15,13 @@ typedef struct {
 typedef cupidbuild_assembly_request_t cupidbuild_object_request_t;
 typedef cupidbuild_assembly_request_t cupidbuild_jpeg_request_t;
 typedef cupidbuild_assembly_request_t cupidbuild_ksyms_request_t;
-typedef cupidbuild_assembly_request_t cupidbuild_kernel_request_t;
+
+typedef struct {
+  const char *seed_manifest;
+  const char *repository_root;
+  const char *input_manifest;
+  const char *output;
+} cupidbuild_kernel_request_t;
 
 typedef struct {
   const char *seed_manifest;

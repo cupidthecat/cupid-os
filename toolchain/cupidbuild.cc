@@ -101,7 +101,8 @@ static int cupidbuild_path_safe(const char *path, int relative) {
   if (path == (const char *)0 || path[0] == '\0' || strchr(path, '"') != 0) {
     return 0;
   }
-  if (relative != 0 && (path[0] == '/' || path[0] == '\\' || path[1] == ':')) {
+  if (relative != 0 &&
+      (path[0] == '/' || path[0] == '\\' || strchr(path, ':') != 0)) {
     return 0;
   }
   cursor = path;
@@ -3188,14 +3189,15 @@ int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request) {
   (void)memset(&seed, 0, sizeof(seed));
   if (request == (const cupidbuild_kernel_request_t *)0 ||
       !cupidbuild_path_safe(request->repository_root, 0) ||
-      !cupidbuild_path_safe(request->source, 1) ||
+      !cupidbuild_path_safe(request->input_manifest, 1) ||
       !cupidbuild_path_safe(request->output, 1) ||
       !cupidbuild_path_safe(request->seed_manifest, 0)) {
     (void)fprintf(stderr, "cupidbuild: invalid kernel flatten request\n");
     return 1;
   }
   if (!cupidbuild_host_transaction_open(request->repository_root,
-                                        request->source, request->output,
+                                        request->input_manifest,
+                                        request->output,
                                         &transaction)) {
     (void)fprintf(stderr, "cupidbuild: %s\n",
                   cupidbuild_host_error(transaction));
