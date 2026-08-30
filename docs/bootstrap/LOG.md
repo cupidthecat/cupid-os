@@ -33713,7 +33713,7 @@ negative mutation test now agree on 28/6/35 and 17/6/22. Regeneration and
 check-only mode passed with 748 active inputs, 452 transforms, 255 feature
 requirements, and 28 accounted unreachable inputs. The 2,779,034-byte JSON
 has SHA-256
-`1f236a892c180eb0118a4f69b04e12d8a956e493e01d699ca5858ac6b27c72ba`;
+`e4a9966424b55f6498436540b40596207786527f626bb480e6a684f2582374da`;
 the 13,192-byte summary has SHA-256
 `a73352b86db8c2dd08b4d4f678185e16b4e22767ba68a29cce2bfc63b7fcba02`.
 
@@ -33737,3 +33737,12 @@ independent renderer rejects its span, and the previous kernel remains intact.
 The expanded 96-test CupidBuild module, six-tool self-host link, source-built
 431-input replay, audit regeneration, and check-only audit all pass. The final
 source-built output still matches the 9,513,536-byte tracked kernel exactly.
+
+The first paired candidate run reached native Windows stage-four image
+certification, then the new success case failed closed before publication. Its
+fixture placed the linked ELFs below the behavior directory, so the manifest
+did not contain the production identities `kernel/kernel.elf.pass1` and
+`kernel/kernel.elf`. Linux was stopped before it reached the same fixture, and
+neither candidate root was published. The fixture now creates both ELFs below
+the private source root's `kernel` directory, and its structural test requires
+that exact placement.

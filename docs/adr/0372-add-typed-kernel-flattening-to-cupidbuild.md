@@ -82,6 +82,10 @@ the `max` CPU model, E1000, and the strong SMP runtime check reached the GUI
 terminal and completed `/bin/ls.cc` without a panic or exception marker.
 After review hardening, the expanded 96-test CupidBuild module, six-tool
 self-host link, 431-input source-built replay, and check-only audit also pass.
+The first paired candidate attempt found and rejected a behavior fixture whose
+linked paths did not use the required `kernel/` identities. The corrected
+fixture binds those exact production paths; no candidate from the failed run
+was published.
 
 ## Rejected alternatives
 
