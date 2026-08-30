@@ -33478,3 +33478,85 @@ and the strong SMP runtime check. Cupid OS brought all four CPUs online, opened
 the terminal, ran `/bin/ls.cc`, and completed without a panic or exception
 marker. The 35,175-byte serial log has SHA-256
 `631d2104af9cacd28bac9c2fe2121a10cbaf5a3e9b24242598bba3f9fa5abc30`.
+
+## 2026-08-30: promote the kernel-symbol CupidBuild seeds
+
+The paired Linux and native Windows trust units now carry the typed
+`cupidbuild generate-ksyms` transaction. Both manifests bind revision
+`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6` and the same 59-input snapshot,
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
+The Linux and Windows plan hashes remain
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`
+and
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
+
+Only CupidBuild changed. The other ten tool images match the preceding pair
+byte for byte. The 340,548-byte Linux CupidBuild image has SHA-256
+`b83daf1d4e37739501c56045da30a035477d539bbf20f13994c7c8ada0781b01`;
+the 355,328-byte Windows image has SHA-256
+`3ec41c553ee26e37ed1153a13cf666c0ae5de860f92a7f18279c2943046f7588`.
+Their 6,602-byte and 2,852-byte manifests have SHA-256
+`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`
+and
+`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`.
+The Windows pairing field names the exact Linux manifest. The original v1
+parent lineage remains intact.
+
+Candidate fixed points matched 22 C objects, startup, and six Linux tools, and
+23 C objects, three assembly objects, and six Windows tools. Their 27/6/34 and
+16/6/21 behavior matrices passed. The 51,567-byte Linux report has SHA-256
+`d94e1f8908bbecb9331a6e6b20c007b64f24a5b6b18b1f2562d000973402d2c2`;
+the 64,673-byte Windows report has SHA-256
+`1eb9a1d1f0572a226436afcc2e6cde033a39e8466799a6e4f636a09f02b83ab0`.
+
+Direct promoted-seed reproofs then reproduced all six initial images on both
+hosts and retained the same behavior totals. The 51,566-byte Linux report has
+SHA-256
+`1630a9a157bd726f5b121d16d6663332ad172d7e189dcf6fc599f4d6a45cfc78`;
+the 64,672-byte Windows report has SHA-256
+`6cc52a01a3eb747467c0f640cad23d006f169dc219fd257b56cd4c950b01aa08`.
+Both direct seed-verification targets passed.
+
+The manifest and publication groups passed 65 tests in 85.381 seconds, with
+three expected skips. The full 132-case bootstrap-seed run completed both
+expensive platform fixed points; 130 cases passed, while two stale Windows
+test callbacks reported signature errors because they lacked the newly paired
+Linux seed input. After those mocks were corrected, the two focused Windows
+contracts passed in 0.151 seconds. This records the interrupted full result
+without treating the callback errors as product failures or claiming a clean
+132-case rerun. The artifact policy modules passed all 56 tests in 3.928
+seconds, with four expected Windows skips.
+
+The documentation-bearing OS build reached the exact-size gate with only one
+stale row: `kernel/kernel.bin` measured 9,511,584 bytes against 9,511,132. The
+row was updated from that measurement. The next `make -j4 all` replay compiled
+all 83 Doom roots, completed both CupidLD links, passed strict whole-image
+CupidDis inspection, accepted all 16 exact artifacts, and published the disk
+image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,609,272 | `40306732a745ad69779f207615e8cd40cba2bce1bc706c9ab783943456a46b42` |
+| `kernel/kernel.elf` | 9,740,344 | `4c527d9e39f5e03da7a23cc94efd1a7a635ca94df066d3503aff273bfb3976dc` |
+| `kernel/kernel.bin` | 9,511,584 | `9d57063a1b1b025231f8da1dd31fcafc8cefa9385aa02d6f4350e8b4534b7493` |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `67d703bf71fb113fb1dc60cf7b80116b777540cb96fe1e708ad9fbf1fa38a1be` |
+
+The 3,382-byte policy covers 38,281,896 bytes and has SHA-256
+`15f81a3843309c0b6ddd4f69775bccf9eb716e3f90de593d94bf5aa080a462d7`.
+The final private-image smoke used four vCPUs, the `max` CPU model, E1000, and
+the strong SMP runtime check. Cupid OS opened the terminal, ran `/bin/ls.cc`,
+and completed without a panic or exception marker. The smoke was observed
+directly and did not publish a separate log artifact.
+
+The regenerated audit and independent check passed at 748 active inputs, 452
+transforms, 255 feature requirements, and 28 accounted unreachable inputs.
+The 2,778,204-byte JSON has SHA-256
+`1e1e344b80d261d893e368f7b8284f4ee07fea31f0f5f5dd4d1fe51e11a5a448`.
+The unchanged 13,192-byte summary has SHA-256
+`dd5b6e960c5482e2a9eb7c5c013c51ba3c1137662a85b9e9cd1ecea4f7eebc35`.
+Ownership remains at 193 CupidBuild, 259 Python, and 192 CupidObj transforms.
+Five composite CupidObj paths remain Python-coordinated because this commit
+only promotes the seed capability; the normal kernel-symbol Make handoff is
+the next ownership step. ADR 0370 records the promotion.

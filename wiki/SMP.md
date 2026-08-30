@@ -543,16 +543,16 @@ these recipes falls back to Clang or GCC.
 
 The active Linux and Windows seeds use v2 and contain six tool images,
 including CupidBuild. Both bind revision
-`cac3c08fb0dd7c22299e1a2475a49f51982549a2`, the exact 59-input snapshot
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`,
+`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, the exact 59-input snapshot
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`,
 and their platform build plan. The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
 its 6,602-byte manifest has SHA-256
-`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
+`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
 its 2,852-byte manifest has SHA-256
-`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
+`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
 and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
 self-consumption pass on both platforms, including the SMP-trampoline
 transaction used by the normal build. In the self-consumption runs, all six
@@ -565,7 +565,7 @@ raw recipe transfer, ADR 0362 records the direct CupidObj handoff, and ADR 0367
 records the active seed pair.
 
 The source-head bootstrap closure has 59 inputs and SHA-256
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 Source CupidBuild accepts promoted-v2 source counts of 58 or 59 and rejects 57
 or 60. This compatibility window covers the preceding 58-input pair and the
 active 59-input pair. The first promotion attempt failed closed on provenance, so no

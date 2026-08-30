@@ -2806,9 +2806,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 manifest_sha256="1" * 64,
                 live_manifest_path=root / "manifest.json",
                 artifact_bytes=tuple(
-                    (name, b"seed") for name in TOOL_NAMES
+                    (name, b"seed") for name in CANDIDATE_TOOL_NAMES
                 ),
-                tools={name: root / f"{name}.elf" for name in TOOL_NAMES},
+                tools={
+                    name: root / f"{name}.elf"
+                    for name in CANDIDATE_TOOL_NAMES
+                },
             )
             linux_output = root / "linux"
             linux_output.mkdir()
@@ -2995,7 +2998,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 linux_calls[len(CANDIDATE_TOOL_NAMES) + 4][1][0],
-                "assemble-cupidasm-object",
+                "generate-ksyms",
             )
 
             windows_calls: list[tuple[str, tuple[str, ...]]] = []
@@ -3075,6 +3078,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     stage,
                     stage,
                     {},
+                    seed_inputs,
                     seed_inputs,
                 )
 
@@ -3189,7 +3193,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 windows_calls[len(expected_windows_calls) + 4][1][0],
-                "assemble-cupidasm-object",
+                "generate-ksyms",
             )
 
     def test_candidate_entry_corruption_requires_two_file_backed_pe_bytes(
@@ -3241,9 +3245,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 manifest_sha256="1" * 64,
                 live_manifest_path=root / "manifest.json",
                 artifact_bytes=tuple(
-                    (name, b"seed") for name in TOOL_NAMES
+                    (name, b"seed") for name in CANDIDATE_TOOL_NAMES
                 ),
-                tools={name: root / f"{name}.elf" for name in TOOL_NAMES},
+                tools={
+                    name: root / f"{name}.elf"
+                    for name in CANDIDATE_TOOL_NAMES
+                },
             )
 
             linux_calls = []
@@ -3396,6 +3403,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     windows_stage,
                     windows_stage,
                     {},
+                    seed_inputs,
                     seed_inputs,
                 )
 
@@ -3828,6 +3836,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _stage_four,
                 _native_plan,
                 _seed_inputs,
+                _linux_seed_inputs,
             ):
                 (private_source_root / "behavior").mkdir()
                 return {"success_cases": 0}
@@ -4034,6 +4043,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _stage_four,
                 _native_plan,
                 _seed_inputs,
+                _linux_seed_inputs,
             ):
                 (private_source_root / "behavior").mkdir()
                 return {"success_cases": 0}

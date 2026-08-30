@@ -351,7 +351,7 @@ ADR 0305 records raw-image carriage. ADR 0312 records the relocatable-object
 promotion and production adoption. ADR 0318 records the preceding linked-image
 promotion, ADR 0323 records the preceding code-anchor promotion, and ADR 0336
 records the parent v1 promotion. ADR 0353 records the paired v2 contract, and
-ADR 0367 records the active promotion.
+ADR 0367 records the preceding promotion, and ADR 0370 records the active promotion.
 
 CupidDis can apply the same explicit option to a static ELF32
 relocatable object:
@@ -404,7 +404,7 @@ anchors. Both promoted seeds carry the option. Production checks the ISR,
 context-switch, hosted startup, and linked kernel boundaries. ADR 0320 records
 the linked source rule, ADR 0335 records the object rule, and ADR 0336 records
 its v1 promotion and adoption. ADR 0353 records the paired v2 contract, and
-ADR 0367 records active carriage.
+ADR 0367 records preceding carriage, and ADR 0370 records active carriage.
 
 ### Requiring complete code coverage
 
@@ -568,7 +568,7 @@ record native reconstruction and convergence. ADRs 0280, 0281, and 0292
 record preceding Linux and Windows promotions. ADR 0318 records the preceding
 linked-image promotion, ADR 0323 records the preceding code-anchor promotion,
 and ADR 0336 records the parent v1 promotion. ADR 0353 records the paired v2
-contract, and ADR 0367 records the active promotion.
+contract, and ADR 0367 records the preceding promotion, and ADR 0370 records the active promotion.
 
 ### Function Example
 
@@ -1670,34 +1670,34 @@ The active Linux and Windows v2 manifests carry CupidASM as a producer and
 CupidBuild as both a checked tool and the coordinator for four guarded assembly
 publications, the typed JPEG publication, and 186 ordinary CupidObj recipes.
 Both list six images and bind revision
-`cac3c08fb0dd7c22299e1a2475a49f51982549a2`, the 59-input snapshot
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`,
+`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, the 59-input snapshot
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`,
 and their exact build plans.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
+`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
+`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
 and pairs to the exact Linux manifest bytes.
 
-Linux and native Windows candidate proof passed. Linux covers 26 failure, six
-help, and 33 success groups; Windows covers 15 failure, six help, and 20
+Linux and native Windows candidate proof passed. Linux covers 27 failure, six
+help, and 34 success groups; Windows covers 16 failure, six help, and 21
 success groups. Promoted-seed self-consumption also passed on both platforms,
 with all six initial tool images equal to stage two. ADR 0353 records the v2
 contract, ADR 0357 records the raw recipe transfer, ADR 0361 records the
-checked runner, and ADR 0367 records the active pair. Python-free coordination
-remains open.
+checked runner, ADR 0367 records the preceding pair, and ADR 0370 records the
+active pair. Python-free coordination remains open.
 
 The source-head bootstrap closure has 59 inputs and SHA-256
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 Source CupidBuild accepts promoted-v2 source counts of 58 or 59 and rejects 57
 or 60. This compatibility window covers the preceding seeds and the active
 generation. The first promotion attempt failed closed on provenance, so no
 invalid seed became active. Fresh candidates then converged. After promotion,
 separate self-consumption reproofs passed on both hosts. ADR 0366 records the
-compatibility decision, ADR 0367 records the promotion, and ADR 0368 records
-the direct JPEG handoff.
+compatibility decision, ADR 0367 records the preceding promotion, ADR 0368
+records the direct JPEG handoff, and ADR 0370 records the active promotion.

@@ -9,13 +9,13 @@ source-head seam, ADR 0353 records the paired v2 contract, ADR 0354 records the
 object recipe transfer, ADR 0357 records the raw recipe transfer, ADR 0367
 records the active pair, and ADR 0368 records the JPEG handoff.
 
-CupidC now compiles the source-head `generate-ksyms` transaction as part of
+CupidC now compiles the promoted `generate-ksyms` transaction as part of
 CupidBuild. The operation combines private CupidDis capture, CupidObj source
 generation, and an independent native KSYM renderer under one guarded
 publication. Its Linux and native Windows fixed-point cases prove exact output
-and malformed-ELF rollback. The active promoted CupidBuild images predate this
-command, so the normal kernel-symbol recipe has not moved yet. ADR 0369 records
-the source boundary.
+and malformed-ELF rollback. Both active CupidBuild images carry the command,
+but the normal kernel-symbol recipe has not moved yet. ADR 0369 records the
+source boundary, and ADR 0370 records paired seed carriage.
 
 CupidC is a HolyC-inspired C compiler built into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code. Programs run directly in ring 0 without a virtual machine or interpreter. Every active CupidC translation unit already uses `.cc`; this transfer has no C source to rename.
 
@@ -148,7 +148,7 @@ only when GNU extensions are enabled.
 
 Adding this header grows the source-head fixed-point closure to 59 inputs with
 snapshot SHA-256
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 The active Linux and Windows manifests bind this 59-input snapshot. CupidBuild
 accepts a promoted v2 manifest with `source_input_count` 58 or 59 and rejects
 57 or 60, retaining a bounded path from the preceding pair. The first
@@ -157,7 +157,7 @@ invalid seed became active. Fresh candidates converged. After promotion,
 separate self-consumption reproofs passed on both hosts. The normal JPEG
 recipes now enter the promoted typed transaction directly. ADR 0365 records
 the header and compiler boundary, ADR 0366 records manifest compatibility, and
-ADR 0367 records the promotion.
+ADR 0367 records the preceding promotion, and ADR 0370 records the active promotion.
 
 ### Private typedef declarators
 
@@ -3231,26 +3231,26 @@ The source image was unchanged at SHA-256
 CupidBuild and the host bootstrap coordinator still understand the historical
 v1 five-tool format. The active Linux and Windows compiler seeds use v2 and
 list CupidBuild beside the five existing tools. Both
-manifests bind revision `cac3c08fb0dd7c22299e1a2475a49f51982549a2`, the
+manifests bind revision `9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, the
 59-input snapshot
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`,
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`,
 and the exact platform build plan.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
+`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
+`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
 and pairs to the exact Linux manifest bytes.
 
 This 59-input pair is active. The first promotion attempt failed closed with
 `fixed-point provenance differs`, so it did not replace either seed. CupidBuild
 accepts promoted v2 source counts 58 and 59 and rejects 57 and 60. The normal
 JPEG recipes now invoke the promoted typed transaction directly. ADR 0366
-records the compatibility boundary, ADR 0367 records the accepted pair, and
+records the compatibility boundary, ADR 0367 records the preceding pair, and ADR 0370 records the active pair, and
 ADR 0368 records the handoff.
 
 Candidate fixed-point and behavior proof passed on both platforms. The active

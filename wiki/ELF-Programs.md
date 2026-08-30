@@ -23,12 +23,12 @@ sequential JPEG before guarded publication. Both promoted seeds carry this
 capability, and the normal JPEG Make edges now invoke it directly with the
 complete production seed closure.
 
-Source-head CupidBuild also understands the pass-one ELF to kernel-symbol
+The promoted CupidBuild seeds also understand the pass-one ELF to kernel-symbol
 source boundary. It captures bounded CupidDis symbol rows privately, gives the
 same bytes to CupidObj, and independently reconstructs the KSYM table and
 word-packed `.cc` output. Exact parity, source and seed stability, and the
 guarded destination checks are required before publication. The normal edge
-still uses Host Python until the command reaches both promoted seeds.
+still uses Host Python until the separate production handoff.
 
 ---
 
@@ -922,16 +922,16 @@ and no rejected runtime marker.
 
 The active Linux and Windows seeds use v2 and carry six tool images, including
 CupidBuild with a non-producing fixed-point plan role. Both bind revision
-`cac3c08fb0dd7c22299e1a2475a49f51982549a2`, 59 source inputs, and snapshot
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, 59 source inputs, and snapshot
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
 its 6,602-byte manifest has SHA-256
-`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
+`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
 its 2,852-byte manifest has SHA-256
-`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
+`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on both platforms,
@@ -944,7 +944,7 @@ direct CupidObj handoff, ADR 0363 records the kernel-link handoff, and ADR 0368
 records the JPEG handoff.
 
 The source-head bootstrap closure has 59 inputs and SHA-256
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 Source CupidBuild accepts promoted-v2 source counts of 58 or 59 and rejects 57
 or 60. This admits the preceding 58-input seeds and the active 59-input
 generation. The first promotion attempt failed closed on provenance, so no

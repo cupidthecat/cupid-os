@@ -39,8 +39,8 @@
       "file": "cupidbuild.exe",
       "name": "cupidbuild",
       "producer": false,
-      "sha256": "fea9253e9d571433dee56e92e8801bd12635020b6838839dfd8096a20b6d5908",
-      "size": 333312
+      "sha256": "3ec41c553ee26e37ed1153a13cf666c0ae5de860f92a7f18279c2943046f7588",
+      "size": 355328
     }
   ],
   "provenance": {
@@ -53,15 +53,15 @@
     "parent_execution_seed_source_revision": "a17c9465911da41d59b7ada71733d36c39faa5ea",
     "parent_plan_seed_manifest_sha256": "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b",
     "parent_plan_seed_source_revision": "a17c9465911da41d59b7ada71733d36c39faa5ea",
-    "plan_seed_manifest_sha256": "f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f",
+    "plan_seed_manifest_sha256": "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae",
     "producer_lineage": {
       "assembly": "native stage-three CupidASM from the checked i386 Windows bootstrap",
       "c": "native stage-three CupidC from the checked i386 Windows bootstrap",
       "link": "native stage-three CupidLD from the checked i386 Windows bootstrap"
     },
     "source_input_count": 59,
-    "source_revision": "cac3c08fb0dd7c22299e1a2475a49f51982549a2",
-    "source_snapshot_sha256": "3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef"
+    "source_revision": "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6",
+    "source_snapshot_sha256": "bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd"
   },
   "schema": "cupid.execution-seed.v2",
   "target": {

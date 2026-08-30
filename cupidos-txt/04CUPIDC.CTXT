@@ -1289,7 +1289,7 @@ manifest and a typed list of logical directories and loaded files, then writes
 the complete deterministic ECMA-119 and Rock Ridge fixture. Its output matches
 the tracked 61,440-byte image exactly. The preceding v1 fixed-point gate
 exercised the command and its rollback path in the 5/22/21 behavior matrix.
-The active Linux v2 seed retains the command and passes the 26/6/33 matrix. The
+The active Linux v2 seed retains the command and passes the 27/6/34 matrix. The
 normal recipe runs that checked command first on frozen ordinal file snapshots.
 Python compares an independent render, rechecks live state, and publishes
 under a per-output lock. ADR 0239 records the source boundary, ADR 0240 records
@@ -1302,7 +1302,7 @@ computes SHA-256 internally, sorts the logical sets, and writes the canonical
 69,366-byte JSON. The preceding v1 seed passed a 5/22/21 behavior matrix with
 padding, repeated-block, unsafe-path, case-collision, rollback, and recovery
 coverage. The active v2 seeds retain the command. Their fixed-point behavior
-matrices are 26/6/33 on Linux and 15/6/20 on Windows. The normal recipe passes
+matrices are 27/6/34 on Linux and 16/6/21 on Windows. The normal recipe passes
 that seed manifest. The wrapper derives the
 snapshot and independent Python oracle from one stable capture, runs CupidObj
 from the exact frozen seed, and requires byte parity. Under an adjacent
@@ -1333,7 +1333,7 @@ indexed decoding, and ADR 0265
 records that transition and promotion. ADRs 0280, 0281, 0292, and 0312 record
 preceding seeds, ADR 0318 records the preceding linked-image seeds, ADR 0323
 records the preceding code-anchor seeds, ADR 0336 records the parent seeds,
-and ADR 0353 records the paired v2 contract. ADR 0367 records the active pair. The first
+and ADR 0353 records the paired v2 contract. ADR 0367 records the preceding pair, and ADR 0370 records the active pair. The first
 separate gate covered 427 audited root objects and two kernel ELFs. Its
 9,028-byte, 429-path manifest had SHA-256
 48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e,
@@ -2321,7 +2321,7 @@ diagnostics. GNU alignment spellings still require GNU mode.
 
 The new header raises the source-head fixed-point closure to 59 inputs. Its
 snapshot SHA-256 is
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 The active Linux and Windows seed manifests bind this 59-input snapshot.
 CupidBuild accepts promoted-v2 source inventories with 58 or 59 entries and
 rejects inventories with 57 or 60. This keeps the preceding pair usable and
@@ -2352,9 +2352,9 @@ The active Linux and Windows v2 cohorts are complete six-tool trust units.
 Their manifests include CupidBuild. It directly coordinates four normal
 guarded assembly publications: two relocatable objects and two raw images.
 Both bind
-revision `cac3c08fb0dd7c22299e1a2475a49f51982549a2`, 59 source inputs, and
+revision `9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, 59 source inputs, and
 snapshot
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 Candidate fixed-point and behavior proof passed on both platforms. The
 promoted compiler carries wide integer conversion to float and double. The
 refreshed CupidBuild images carry the guarded raw assembly commands, and the
@@ -2399,16 +2399,16 @@ checks typed kernel-symbol generation and malformed-ELF rollback.
 
 >h2 Typed Kernel Symbol Source
 >tree
-Source-head CupidBuild provides generate-ksyms for the pass-one kernel ELF.
+Both promoted CupidBuild seeds provide generate-ksyms for the pass-one kernel ELF.
 It freezes the complete promoted seed, captures CupidDis symbol rows in a
 private transaction file, and gives those same rows to CupidObj. CupidBuild
 also reconstructs the KSYM blob and word-packed source with an independent
 bounded renderer. The candidate must match exactly before the guarded lock,
 drift, destination, and parent checks allow publication.
 
-The normal Make edge still uses the Python coordinator because the active
-promoted CupidBuild images predate this command. ADR 0369 records the source
-capability.
+The normal Make edge still uses the Python coordinator until the separate
+production handoff. ADR 0369 records the source capability, and ADR 0370
+records paired seed carriage.
 >endtree
 
 >h2 Active Six-Tool Seed Contract
@@ -2422,11 +2422,11 @@ platform image checks.
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
+`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
+`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native

@@ -39,8 +39,8 @@
       "file": "cupidbuild.elf",
       "name": "cupidbuild",
       "producer": false,
-      "sha256": "3947aee09776ab5f6c79daba443b47fc67de5ea0805741533cf4c2d42a039300",
-      "size": 315252
+      "sha256": "b83daf1d4e37739501c56045da30a035477d539bbf20f13994c7c8ada0781b01",
+      "size": 340548
     }
   ],
   "build_plan": {
@@ -248,8 +248,8 @@
     },
     "seed_generation": "stage-four",
     "source_input_count": 59,
-    "source_revision": "cac3c08fb0dd7c22299e1a2475a49f51982549a2",
-    "source_snapshot_sha256": "3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef"
+    "source_revision": "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6",
+    "source_snapshot_sha256": "bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd"
   },
   "schema": "cupid.bootstrap-seed.v2",
   "target": {

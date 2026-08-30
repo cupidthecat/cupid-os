@@ -43,8 +43,8 @@ relocatables and preserve prior output on a missing-source failure. Each
 final-stage CupidDis also checks all six corresponding images for known code,
 local targets, and code anchors. Both generations reject a private CupidBuild
 copy whose entry instruction was replaced with an invalid opcode. The fresh
-candidates pass 26 failure, six help, and 33 success cases on Linux and 15,
-six, and 20 on Windows. Their promoted-seed self-consumption reproof passes
+candidates pass 27 failure, six help, and 34 success cases on Linux and 16,
+six, and 21 on Windows. Their promoted-seed self-consumption reproof passes
 with all six initial images equal to stage two on both platforms.
 Source-head CupidBuild also has a narrow checked runner for CupidObj. Linux
 creates no .cupidbuild-run namespace: it fully seals the manifest and six
@@ -558,7 +558,7 @@ reconstructs the exact .idata layout, and
 the report retains both object and image pairs plus the observed Windows
 result. The preceding Linux v1 seed carried this command in its 5/22/21
 behavior matrix. The active paired v2 seeds retain the command and pass the
-26/6/33 Linux and 15/6/20 Windows matrices.
+27/6/34 Linux and 16/6/21 Windows matrices.
 
 Checked-seed CupidLD uses an adjacent candidate created with exclusive-create
 semantics for both ELF and PE output. It writes and closes the candidate, then
@@ -760,7 +760,7 @@ records the preceding seed, ADR 0252 records the x87 integer forms, ADR 0258
 records the preceding seed, and ADR 0259 records the parity predicates. ADRs
 0265, 0280, 0292, 0312, and 0318 record preceding promotions. ADR 0323 records
 the preceding code-anchor promotion, ADR 0336 records the parent promotion,
-and ADR 0353 records the paired v2 contract. ADR 0367 records the active pair.
+and ADR 0353 records the paired v2 contract. ADR 0367 records the preceding pair, and ADR 0370 records the active pair.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR
@@ -969,27 +969,27 @@ one strict rejection through the public adapter.
 The active v2 manifests keep CupidASM as a producer and add CupidBuild as a
 checked tool and the coordinator for four guarded assembly publications and
 186 direct CupidObj recipes and both normal kernel links. Both bind revision
-`cac3c08fb0dd7c22299e1a2475a49f51982549a2`, 59 source inputs, and snapshot
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, 59 source inputs, and snapshot
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 
 The source-head closure contains 59 inputs and has SHA-256
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 Source CupidBuild accepts promoted-v2 source inventories with 58 or 59 entries
 and rejects inventories with 57 or 60. This keeps the preceding pair usable
 while allowing the active 59-input seed. The first promotion attempt failed
 its provenance check before publication, so no invalid seed became active.
 Fresh candidates then converged. After promotion, separate self-consumption
 reproofs passed on both hosts. ADR
-0366 records the compatibility rule, and ADR 0367 records the active pair.
+0366 records the compatibility rule, and ADR 0367 records the preceding pair, and ADR 0370 records the active pair.
 
 The Linux form binds the 22-source, six-link plan with SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
+`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
+`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
 and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native

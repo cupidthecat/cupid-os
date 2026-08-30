@@ -15,21 +15,21 @@ The promoted CupidBuild seeds also carry the typed JPEG publication
 transaction. The normal recipe enters it directly with one asset, one manifest,
 and all six tools.
 
-Source head adds a typed kernel-symbol transaction. CupidBuild captures
+The promoted seeds now carry a typed kernel-symbol transaction. CupidBuild captures
 CupidDis `-n` rows from the frozen pass-one ELF, runs CupidObj
 `ksyms-source`, and checks the candidate with an independent KSYM renderer
 before guarded publication. This is not yet a production ownership change;
-the promoted seeds and normal Make edge still use the Python coordinator. ADR
-0369 records the source capability.
+the normal Make edge still uses the Python coordinator. ADR 0369 records the
+source capability, and ADR 0370 records paired seed carriage.
 
 The source-head fixed-point closure contains 59 inputs with snapshot SHA-256
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 CupidBuild accepts a promoted v2 manifest whose `source_input_count` is 58 or
 59 and rejects 57 or 60. This keeps the preceding 58-input pair usable while
 making the active 59-input generation consumable. The first promotion attempt
 failed closed with `fixed-point provenance differs`, so no invalid seed became
 active. Fresh candidates converged and replaced the checked pair together.
-ADR 0366 records the compatibility boundary, ADR 0367 records the promotion,
+ADR 0366 records the compatibility boundary, ADR 0367 records the preceding promotion, and ADR 0370 records the active promotion,
 and ADR 0368 records the JPEG handoff.
 
 ---
@@ -324,16 +324,16 @@ code-anchor pair, and ADR 0336 records the earlier five-tool pair.
 
 The current seed pair uses the Linux and Windows v2 schemas and lists six tool
 images, including CupidBuild with a non-producing fixed-point plan role. Both manifests bind revision
-`cac3c08fb0dd7c22299e1a2475a49f51982549a2`, 59 inputs, and source snapshot
-`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6`, 59 inputs, and source snapshot
+`bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
 its 6,602-byte manifest has SHA-256
-`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
+`770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
 its 2,852-byte manifest has SHA-256
-`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
+`bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db`
 and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
 self-consumption pass on both platforms. In the self-consumption runs, all six
 initial images equal stage two. CupidBuild publishes the two assembly objects and both raw images

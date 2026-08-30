@@ -84,7 +84,7 @@ preceding checked seed. ADRs 0280, 0281, and 0292 preserve the preceding
 promotions. ADR 0312 records the preceding local-target seed, ADR 0318 records
 the preceding linked-image seeds, ADR 0323 records the preceding code-anchor
 seeds, ADR 0336 records the parent pair, and ADR 0353 records the paired v2
-contract. ADR 0367 records the active pair.
+contract. ADR 0367 records the preceding pair, and ADR 0370 records the active pair.
 
 The normal Make graph launches these three generators and its 183 ordinary
 text and binary wrappers through the promoted CupidBuild runner. The runner

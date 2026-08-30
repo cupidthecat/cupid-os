@@ -56248,7 +56248,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "41dde02b61ebdf2aa76102d55f9fea0e36aac2d2dfd21eeffd26a2be91330d27",
+    "active_source_digest": "1b544fbbb70ce746dd41f2f7d2347e5d155ad82cd2bd55fcdb4a76718a081dbc",
     "control_files": [
       {
         "path": "Makefile",
@@ -56276,11 +56276,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "35f4a6a75484b55da3d6b42ced2863a241fba7db2039ab809ed3d7fa625a089b"
+        "sha256": "0040fbdada8b37581c7714a8f0074b5b5ee3372689cc418def805038bd91f4d2"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573"
+        "sha256": "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db"
       },
       {
         "path": "tools/cupidc_production_compile.py",
@@ -83823,7 +83823,7 @@
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "13403cd8d7a1496a7b477ddd294279f784019ecce8ee3a3bdbdb2d2023462b25"
+      "sha256": "05acc2f59259a06d487b93f52941c6a0c20efa8bbf9181a6540270d72f207800"
     },
     {
       "build_owners": [
