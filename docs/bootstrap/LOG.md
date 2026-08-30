@@ -33560,3 +33560,86 @@ Ownership remains at 193 CupidBuild, 259 Python, and 192 CupidObj transforms.
 Five composite CupidObj paths remain Python-coordinated because this commit
 only promotes the seed capability; the normal kernel-symbol Make handoff is
 the next ownership step. ADR 0370 records the promotion.
+
+## 2026-08-30: transfer kernel-symbol publication to CupidBuild
+
+The normal two-pass kernel link now hands `kernel/kernel.elf.pass1` directly
+to the promoted platform CupidBuild seed. The `generate-ksyms` rule binds the
+selected manifest, all six seed images, Makefile, and the pass-one ELF. It no
+longer enters Python or Hostbuild and does not trust redirectable CupidDis,
+CupidObj, checked-seed, or production directory, suffix, and aggregate-closure
+variables. Make derives those three `override` values from the selected
+platform manifest and host branch.
+
+The exact recipe test was written before the Make change and failed in 1.718
+seconds because the old rule still called Hostbuild through Python. It passed
+in 1.719 seconds after the direct typed transaction was installed. The full
+CupidBuild CLI module then passed 87 tests in 68.577 seconds, with three
+expected platform skips. The Hostbuild symbol oracle passed all 20 tests in
+0.277 seconds.
+
+The build-graph tests poison Python, the CupidDis and CupidObj commands and
+input closures, the checked-seed closure, and the production directory,
+suffix, and seed closure in both platform Make databases. The kernel-symbol
+prerequisites still resolve to Makefile, the pass-one ELF, the platform
+manifest, and its six images. Focused
+marker, poison, generated-source, and root-trust cases passed. The combined
+manifest and audit-drift case passed in 197.765 seconds.
+
+When the poison case was widened to the production directory and suffix, both
+host branches initially failed while Make tried to resolve `cupidasm.poison`.
+Making the suffix and manifest-derived directory `override` assignments kept
+the invoked CupidBuild image and prerequisite closure together; the expanded
+test then passed on both branches.
+
+The wider kernel-compile Make contract then found eight object rules whose
+audited transitive include closure reached `toolchain/pe32.h` without naming it
+as a prerequisite. The rules now carry that dependency, and the loop reports
+each source as a subtest instead of stopping at the first mismatch. All 35
+kernel-compile tests passed in 95.384 seconds.
+
+Promoted Windows CupidBuild and the optional Hostbuild oracle generated the
+same 432,591-byte source from the real pass-one kernel. Its SHA-256 is
+`0f4ef6cd6c1c1cb14fd82efbe3905d33628d7627b00ab1bd7e1b1fed72764e6a`;
+the packed logical blob is 130,506 bytes. This comparison keeps the old reader
+useful as an oracle without leaving it on the publication path.
+
+Audit regeneration and independent check mode passed at 748 active inputs,
+452 transforms, 255 feature requirements, and 28 accounted unreachable
+inputs. The 2,778,471-byte JSON has SHA-256
+`ecd37bf7176e61816daaeb41cb7b16e5270a181610689a75ec9aeae91ff11241`.
+The 13,192-byte summary has SHA-256
+`6ddfdd218568f7148121028c2f867b35f104146f85a25231d6a3d5b4a2a7e278`.
+Ownership is now 194 CupidBuild, 258 Python, and 192 CupidObj transforms. Four
+composite Python paths remain: kernel flattening, disk-image publication, ISO
+publication, and Doom profile-input manifest publication.
+
+The first full build reached the exact-size gate with one stale row:
+`kernel/kernel.bin` measured 9,512,036 bytes against 9,511,584. Updating only
+that row kept the contract exact. Its three policy and runner modules passed
+56 tests in 3.850 seconds, with four expected Windows skips.
+
+The next `make -j4 all` replay compiled the complete kernel and all 83 Doom
+roots, completed both CupidLD links, ran the promoted kernel-symbol
+transaction, passed strict whole-image CupidDis inspection, accepted all 16
+exact artifacts, and published the image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,609,272 | `22bfd1a1e8a2e697ab4982da019264be48a419b346091312c7b2e33ce8667f24` |
+| `kernel/kernel.elf` | 9,740,344 | `246c64271f087c5040ab83818054977fc026fbbcbafe1f4aafcc1a4694a636bf` |
+| `kernel/kernel.bin` | 9,512,036 | `ef7e3af28ed92a403149742c81036b3e339e737c2a685e70f7cbbd9034492d0b` |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `12bf722ac627cf8634422e5b134d0f225dd7df97f42daec74a71b6000b0f67de` |
+
+The 3,382-byte policy covers 38,282,348 bytes and has SHA-256
+`ad2177cd477e92a11d6b5bb1adcb8e3f70a12e1600476e587d341755a1b890d7`.
+A final replay after the override and prerequisite hardening reproduced every
+fingerprint in the table. The private-image QEMU smoke was also repeated with
+four vCPUs, the `max` CPU model, E1000, and the strong SMP runtime check. Cupid
+OS opened the GUI terminal, ran `/bin/ls.cc`, and completed without a panic or
+exception marker. The smoke was observed directly and did not publish a
+serial-log artifact. ADR 0371 records the handoff. Issues #13, #32, and #34
+remain open because their broader self-hosting, Python-removal, and fixed-point
+coordination work is not yet complete.

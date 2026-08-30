@@ -320,6 +320,8 @@ TOOL_MARKERS = (
         "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX)",
         "cupid_builder",
     ),
+    ("generate-ksyms --seed-manifest", "cupid_disassembler"),
+    ("generate-ksyms --seed-manifest", "cupid_object"),
     ("validate-code --seed-manifest", "cupid_disassembler"),
     ("validate-code --seed-manifest", "cupid_object"),
     ("mksyms --seed-manifest", "cupid_disassembler"),
@@ -2024,7 +2026,10 @@ def _operation_for_recipe(
         and "cupid_assembler" in tools
     ):
         return "assemble_flat_binary"
-    if " mksyms " in f" {joined} " and "cupid_object" in tools:
+    if (
+        ("mksyms" in tokens or "generate-ksyms" in tokens)
+        and "cupid_object" in tools
+    ):
         return "generate_ksyms_source"
     if (
         posixpath.basename(output.replace("\\", "/"))

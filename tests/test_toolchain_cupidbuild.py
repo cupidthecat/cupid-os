@@ -339,6 +339,32 @@ class CupidBuildCliTests(unittest.TestCase):
             )
             self.assertTrue(lock.is_file())
 
+    def test_normal_kernel_symbol_recipe_uses_the_typed_checked_transaction(
+        self,
+    ):
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        start = makefile.index(
+            "kernel/cpu/ksyms_data.cc: kernel/kernel.elf.pass1"
+        )
+        end = makefile.index("\n\n", start)
+        rule = makefile[start:end]
+        logical_rule = " ".join(rule.replace("\\\n", " ").split())
+
+        self.assertEqual(
+            logical_rule,
+            "kernel/cpu/ksyms_data.cc: kernel/kernel.elf.pass1 Makefile "
+            "$(PRODUCTION_SEED_INPUTS) "
+            "$(PRODUCTION_SEED_DIRECTORY)"
+            "cupidbuild.$(PRODUCTION_SEED_SUFFIX) generate-ksyms "
+            "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
+            '--root "$(CURDIR)" --source $< --output $@',
+        )
+        self.assertNotIn("$(PYTHON)", rule)
+        self.assertNotIn("tools/hostbuild.py", rule.lower())
+        self.assertNotIn("$(CUPIDDIS)", rule)
+        self.assertNotIn("$(CUPIDOBJ)", rule)
+        self.assertNotIn(">", rule)
+
     def test_normal_jpeg_recipes_use_the_typed_checked_transaction(self):
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
         for suffix in ("jpg", "jpeg"):

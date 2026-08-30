@@ -286,10 +286,11 @@ link. Its normal recipe uses the checked CupidC wrapper. The source stores the
 packed symbol blob as little-endian unsigned int words and records its
 meaningful byte length separately. Zero padding completes the last word but
 is not part of that length. Generation runs private snapshots of the pass-one
-kernel and checked seed. Checked CupidDis emits canonical text, and checked
-CupidObj turns that exact text into the source. Python independently renders
-the expected bytes and rejects malformed rows, missing output, mismatches, or
-live input drift before atomic publication. The compiler wrapper freezes the
+kernel and checked seed inside promoted CupidBuild. Checked CupidDis emits
+canonical text, and checked CupidObj turns those exact bytes into the source.
+CupidBuild independently renders the expected bytes and rejects malformed
+rows, missing output, mismatches, lock contention, or live input drift before
+atomic publication. The compiler wrapper freezes the
 source and its two-header closure before object validation and publication.
 The pass-one and final kernels project the same text symbols at the same
 addresses.
@@ -302,8 +303,8 @@ produce ordinary C outputs. The native Windows user ABI, artifact-size policy,
 Toolchain manifest author, and Toolchain manifest verifier supply the other four
 CupidC contract checks. CupidObj participates 192 times, CupidASM and CupidLD
 participate nine times each, CupidDis participates nine times, and CupidBuild
-participates 193 times. Four transforms run Cupid-built semantic contracts.
-Host Python participates in 259 transforms, but none is Python-only. The normal
+participates 194 times. Four transforms run Cupid-built semantic contracts.
+Host Python participates in 258 transforms, but none is Python-only. The normal
 Toolchain build uses checked
 static i386 tools for its contract cohort; native contract binaries are optional
 oracles.
@@ -2406,9 +2407,10 @@ also reconstructs the KSYM blob and word-packed source with an independent
 bounded renderer. The candidate must match exactly before the guarded lock,
 drift, destination, and parent checks allow publication.
 
-The normal Make edge still uses the Python coordinator until the separate
-production handoff. ADR 0369 records the source capability, and ADR 0370
-records paired seed carriage.
+The normal Make edge invokes the platform CupidBuild seed directly with the
+manifest and complete six-image closure. Hostbuild remains an optional parity
+oracle. ADR 0369 records the source capability, ADR 0370 records paired seed
+carriage, and ADR 0371 records production ownership.
 >endtree
 
 >h2 Active Six-Tool Seed Contract
@@ -2433,7 +2435,7 @@ Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. In the self-consumption runs, all six initial images equal stage two.
 CupidBuild now owns all four guarded assembly recipes, the typed JPEG
 publication, 186 ordinary CupidObj recipes, and both normal kernel links.
-Python participates in the remaining 259 transforms. ADR 0357 records the raw recipe
+Python participates in the remaining 258 transforms. ADR 0357 records the raw recipe
 transfer, ADR 0361 records the checked runner, ADR 0362 records the direct
 CupidObj handoff, ADR 0363 records the kernel-link handoff, ADR 0367 records
 the active seed generation, and ADR 0368 records the JPEG handoff.

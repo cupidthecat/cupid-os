@@ -4962,6 +4962,7 @@
           "toolchain/ctool.h",
           "toolchain/cupiddis.h",
           "toolchain/elf32.h",
+          "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
@@ -5408,9 +5409,7 @@
       {
         "inputs": [
           "kernel/kernel.elf.pass1",
-          "tools/hostbuild.py",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5422,13 +5421,14 @@
         "operation": "generate_ksyms_source",
         "output": "kernel/cpu/ksyms_data.cc",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py mksyms \\",
-          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) $< $@"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) generate-ksyms \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source $< --output $@"
         ],
         "tools": [
+          "cupid_builder",
           "cupid_disassembler",
-          "cupid_object",
-          "host_python"
+          "cupid_object"
         ]
       },
       {
@@ -36322,6 +36322,7 @@
           "toolchain/cupiddis.h",
           "toolchain/cupidld.h",
           "toolchain/elf32.h",
+          "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
@@ -36393,6 +36394,7 @@
           "toolchain/ctool.h",
           "toolchain/cupiddis.h",
           "toolchain/elf32.h",
+          "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
@@ -36506,6 +36508,7 @@
           "toolchain/ctool.h",
           "toolchain/cupiddis.h",
           "toolchain/elf32.h",
+          "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
@@ -36544,6 +36547,7 @@
           "toolchain/ctool.h",
           "toolchain/cupiddis.h",
           "toolchain/elf32.h",
+          "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
@@ -36577,6 +36581,7 @@
           "toolchain/ctool.h",
           "toolchain/cupiddis.h",
           "toolchain/elf32.h",
+          "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
@@ -36613,6 +36618,7 @@
           "toolchain/ctool.h",
           "toolchain/cupiddis.h",
           "toolchain/elf32.h",
+          "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
@@ -36723,6 +36729,7 @@
           "toolchain/ctool.h",
           "toolchain/cupiddis.h",
           "toolchain/elf32.h",
+          "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
@@ -56252,7 +56259,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "73c75e4a788b2fa0267984e9824085cdd49a07a77fc0a8f170223c3169f76a3c"
+        "sha256": "8862f2b7d3f2b7fefb3d23efd089a8c04513e349ef3095983ec847cd64ad430c"
       },
       {
         "path": "user/Makefile",
@@ -56301,7 +56308,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "15de97b20c81ef105fcbe6676a603bcb14790c02386d5b789e5f3cc6fc2e3b14"
+      "sha256": "056204a2a504d5922570afc326629e34003ee8f8a50036cbae83448186bb0310"
     },
     "text_hash_policy": "canonical_lf"
   },

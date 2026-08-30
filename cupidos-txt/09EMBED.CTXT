@@ -89,7 +89,7 @@ contract. ADR 0367 records the preceding pair, and ADR 0370 records the active p
 The normal Make graph launches these three generators and its 183 ordinary
 text and binary wrappers through the promoted CupidBuild runner. The runner
 freezes and rechecks the selected six-tool seed around each CupidObj call.
-Python remains on the five composite paths that add an independent format check
+Python remains on the four composite paths that add an independent format check
 or a controlled publication boundary.
 
 Makefile variable definitions:

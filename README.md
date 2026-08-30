@@ -82,20 +82,22 @@ help cases, and 34 successes on Linux, plus 16 failures, six help cases, and
 generation and malformed-ELF rollback. Fresh paired fixed points carried the runner
 and the typed JPEG transaction into both active six-tool seeds. Only CupidC
 and CupidBuild changed from the preceding cohorts. The normal Make graph now
-runs 186 ordinary CupidObj recipes and both kernel links through that checked
-CupidBuild command. The typed JPEG transaction adds one direct production
-edge, so CupidBuild participates in 193 transforms and Python in 259. ADR 0360
+runs 186 ordinary CupidObj recipes, both kernel links, the typed JPEG
+publication, and kernel-symbol generation through that checked CupidBuild
+command. The kernel-symbol handoff raises CupidBuild participation to 194
+transforms and reduces Python participation to 258. ADR 0360
 records the runner boundary, ADR 0361 records its paired seed
 promotion, ADR 0362 records the object-recipe handoff, and ADR 0363 records
 the kernel-link handoff.
 
-Both promoted CupidBuild seeds now provide `generate-ksyms`. The transaction captures
-private CupidDis symbol rows, renders the expected KSYM source independently,
-and accepts CupidObj output only when every byte agrees. Its lock and drift
-checks preserve the previous source on malformed input or any failed
-validation. The normal Make edge remains Python-coordinated until a separate
-production handoff. ADR 0369 records the source boundary, and ADR 0370 records
-paired seed carriage.
+Both promoted CupidBuild seeds now provide `generate-ksyms`. The transaction
+captures private CupidDis symbol rows, renders the expected KSYM source
+independently, and accepts CupidObj output only when every byte agrees. Its
+lock and drift checks preserve the previous source on malformed input or any
+failed validation. The normal Make edge invokes the platform CupidBuild seed
+directly with the manifest and complete six-image closure. ADR 0369 records
+the source boundary, ADR 0370 records paired seed carriage, and ADR 0371
+records production ownership.
 
 Source-head CupidBuild now has a typed `embed-jpeg` transaction. It freezes
 the asset and the promoted six-tool trust unit, lets CupidObj validate and wrap
@@ -131,7 +133,7 @@ ADR 0370 records the active promotion.
 
 The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
 strict CupidDis validation, all 16 exact artifacts, and image publication. The
-current flat kernel is 9,511,584 bytes; the final and pass-one ELFs are
+current flat kernel is 9,512,036 bytes; the final and pass-one ELFs are
 9,740,344 and 9,609,272 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 boot and ran
 `/bin/ls.cc`. The final documentation-bearing image then passed the same
@@ -289,10 +291,9 @@ source snapshot. Linux matches 22 C objects, startup, and six tools with a
 27/6/34 behavior matrix. Windows matches 23 C objects, three assembly objects,
 and six tools with a 16/6/21 matrix. Their stage-four images are the active
 paired seeds and carry hosted `<stddef.h>`, the typed JPEG transaction, and
-typed kernel-symbol publication. JPEG production already uses CupidBuild;
-kernel-symbol production remains Python-coordinated until its separate Make
-handoff. ADRs 0344, 0345, 0352, 0353, 0367, and 0370 record the path to this
-boundary.
+typed kernel-symbol publication. JPEG and kernel-symbol production now use
+their typed CupidBuild transactions directly. ADRs 0344, 0345, 0352, 0353,
+0367, 0370, and 0371 record the path to this boundary.
 
 ## 2026-08-24 source-current checkpoint
 
@@ -935,7 +936,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - `kernel/gfx/fontsys.cc` registers the bundled Liberation fonts, rasterizes UTF-8 text, stores the default in `/etc/font.conf`, exposes CupidC bindings, and supplies text to the browser and `fontswitch`.
 - `kernel/audio/ac97.cc` drives the PCI AC97 codec with a 32-entry BDL ring and IOC refills. `kernel/audio/mixer.cc` provides 16 signed 16-bit slots for PCM and streamed sources. The repository also carries the LGPL-2.1 Nuked-OPL3 emulator, the GPL-2 chocolate-doom MUS-to-MIDI converter, and an 18-voice dispatcher in `kernel/audio/midiopl.cc`. The dispatcher loads GENMIDI patches and handles the percussion bank, two-voice patches, pan, sustain, master-volume re-leveling, and single-pass resampling. `audiotest all` runs the sine, sweep, pan, OPL, and AC97-routed OPL checks.
 - The vendored doomgeneric core lives under `kernel/doom/src/` with BSD and GPL-2 components. The platform shim sends `DG_DrawFrame` to the VBE back buffer, connects `DG_GetKey` to the raw-scancode subscriber ring, and implements `DG_SleepMs` and `DG_GetTicksMs` with the PIT. `dglibc` supplies the required heap, string, stdio, formatting, checked conversion, and nonlocal-exit routines. Sound effects go straight to the mixer, while music passes from MUS to MIDI, `midiopl`, Nuked-OPL3, and mixer slot 8. The shell command `doom` finds Freedoom WADs under `/disk/wads/`; `doom -iwad <path>` selects another IWAD. Savegames and `default.cfg` use temporary files and native VFS rename beneath `/home/doom/`. HomeFS reserves its FAT container, rejects corrupt or duplicate mounts, and can batch related mutations behind one checked publish. FAT16 publishes replacement and deletion state before releasing old storage, while failed cache reads leave the victim's identity intact. The asset-free `dglibc_test` exercises repeated quit and error sessions plus VFS, cache, FAT, and HomeFS failure boundaries. A staged WAD is still required for gameplay and menu-driven save/load proof.
-- A two-pass kernel link generates and embeds a `.ksyms` blob. The build freezes the pass-one kernel and checked seed, asks CupidDis for canonical symbol text, and gives that exact text to CupidObj for `.cc` generation. Python checks the result against an independent byte oracle, rejects live input drift, and publishes only a complete match. Checked-seed CupidC compiles the source. `kernel_panic` uses `ksym_lookup` and a frame-pointer walk to print `function_name+offset` for each return address. It prints raw addresses if the blob is missing or corrupt.
+- A two-pass kernel link generates and embeds a `.ksyms` blob. Promoted CupidBuild freezes the pass-one kernel and six-tool seed, captures CupidDis's canonical symbol text, gives those exact rows to CupidObj, checks the result with an independent native renderer, and publishes only a complete match. Hostbuild remains an optional byte oracle rather than the production coordinator. Checked-seed CupidC compiles the generated `.cc`. `kernel_panic` uses `ksym_lookup` and a frame-pointer walk to print `function_name+offset` for each return address. It prints raw addresses if the blob is missing or corrupt.
 
 The fixed no-IWAD frontier runs `doom`, then
 `doom -iwad /disk/missing.wad`, requires the shell-return marker, and runs a
@@ -1404,20 +1405,22 @@ records the preceding raw local-target seeds. [ADR 0318](docs/adr/0318-promote-a
 records the preceding linked-target seeds, [ADR 0323](docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
 records the later code-anchor seeds, and [ADR 0336](docs/adr/0336-promote-and-adopt-assembly-function-anchors.md)
 records the final five-tool v1 seeds. [ADR 0353](docs/adr/0353-promote-paired-six-tool-seeds.md)
-records the paired six-tool contract, and [ADR 0367](docs/adr/0367-promote-stddef-and-typed-jpeg-seeds.md)
+records the paired six-tool contract. [ADR 0367](docs/adr/0367-promote-stddef-and-typed-jpeg-seeds.md)
+records the preceding pair, and [ADR 0370](docs/adr/0370-promote-kernel-symbol-cupidbuild-seeds.md)
 records the active paired seeds.
 
-Checked-seed CupidObj now owns the normal `ksyms-source` generation step. It
-turns canonical CupidDis symbol text into the exact packed kernel-symbol `.cc`
-source, with stable address ordering, first-name deduplication, line-specific
-errors, and transactional recovery. The build keeps Python as an independent
-parity oracle and publication coordinator; a mismatch or changed input leaves
-the previous source untouched. A real CupidASM object also passes through
+Promoted CupidBuild now owns the normal `generate-ksyms` transaction. It
+freezes the pass-one ELF and six-tool seed, captures canonical CupidDis rows,
+asks CupidObj to render the packed kernel-symbol `.cc`, repeats the rendering
+independently, and publishes atomically only when the bytes and live inputs
+still agree. Hostbuild remains an optional parity oracle; Python is no longer
+the production coordinator. A real CupidASM object also passes through
 CupidDis and CupidObj in the hosted suite. [ADR 0222](docs/adr/0222-generate-kernel-symbol-source-with-cupidobj.md)
 records the capability, [ADR 0223](docs/adr/0223-promote-cupidobj-kernel-symbol-source.md)
 records seed carriage, and
 [ADR 0224](docs/adr/0224-transfer-kernel-symbol-source-to-cupidobj.md)
-records the production transfer.
+records the first production transfer. [ADR 0371](docs/adr/0371-transfer-kernel-symbol-publication-to-cupidbuild.md)
+records the direct CupidBuild handoff.
 
 Checked-seed CupidObj provides `wrap-jpeg`. It validates one sequential
 SOF0 or SOF1 frame, the scan structure, entropy stuffing and restart markers,
@@ -1534,9 +1537,9 @@ CupidC accepts GNU `used` and `__used__` on file-scope objects and functions.
 Redeclarations merge the flag into one canonical entity, and the Linear IR
 and object boundaries validate it before use. The generated
 `kernel/cpu/ksyms_data.cc` source is part of the normal checked CupidC graph.
-Its i386-word initializer preserves the current 114,851-byte symbol blob. The
-checked wrapper produces a 115,264-byte object with SHA-256
-`a5eb7e848b156754dc87203e806411ed006694167b5a67dd8233d8ef9f71a65c`.
+Its i386-word initializer preserves the current 130,506-byte symbol blob. The
+checked wrapper produces a 130,920-byte object with SHA-256
+`f66ac55454b7032e6962be065caa4dbcf69eb0aff182a99ef8d53673dcd67431`.
 
 The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.
@@ -3255,13 +3258,15 @@ paired with another valid plan seed.
 The validators still accept v1 manifests in compatibility and transition
 tests. Production closures, artifact-size verification, and Toolchain
 publication freeze and recheck all six active images. CupidBuild directly owns
-the two guarded relocatable objects, both guarded raw images, and the typed
-JPEG publication. It also runs the 186 ordinary CupidObj recipes and both
-normal kernel links. Python participates in the remaining 259 transforms. ADR
+the two guarded relocatable objects, both guarded raw images, the typed JPEG
+publication, and the generated kernel-symbol source. It also runs the 186
+ordinary CupidObj recipes and both normal kernel links. Python participates in
+the remaining 258 transforms. ADR
 0353 records the paired v2 contract, ADR 0354 records the first
 normal recipe transfer, ADR 0357 records the raw publication handoff, ADR 0362
 records the direct CupidObj handoff, ADR 0363 records the kernel-link handoff,
-ADR 0367 records the preceding pair, ADR 0368 records the JPEG handoff, and ADR 0370 records the active pair.
+ADR 0367 records the preceding pair, ADR 0368 records the JPEG handoff, ADR
+0370 records the active pair, and ADR 0371 records the kernel-symbol handoff.
 The audit obtains this ownership from the evaluated Make binding, so a
 Python-backed or direct CupidObj command cannot be mislabeled as CupidBuild.
 

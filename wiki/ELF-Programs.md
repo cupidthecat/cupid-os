@@ -10,11 +10,12 @@ CupidLD output to match the checked seed. Programs run as ring-0 kernel threads
 and receive a **syscall table**, a struct of function pointers passed to
 `_start()`.
 
-The same promoted six-tool cohort runs CupidBuild directly for four guarded
-assembly publications, the typed JPEG publication, 186 ordinary CupidObj
-recipes, and both normal kernel links. This does not change the user-program
-ABI or ELF layout. Across the supported graph, CupidBuild participates in 193
-transforms and Python in 259.
+The same promoted six-tool cohort runs CupidBuild directly for two guarded
+assembly objects, two guarded raw images, the typed JPEG publication, the
+generated kernel-symbol source, 186 ordinary CupidObj recipes, and both normal
+kernel links. This does not change the user-program
+ABI or ELF layout. Across the supported graph, CupidBuild participates in 194
+transforms and Python in 258.
 
 Source head also has a typed JPEG-to-`ET_REL` transaction. It requires a
 data-only relocatable with the exact asset bytes and start, end, and size
@@ -28,7 +29,8 @@ source boundary. It captures bounded CupidDis symbol rows privately, gives the
 same bytes to CupidObj, and independently reconstructs the KSYM table and
 word-packed `.cc` output. Exact parity, source and seed stability, and the
 guarded destination checks are required before publication. The normal edge
-still uses Host Python until the separate production handoff.
+invokes the platform CupidBuild seed directly with the complete six-image
+closure. Hostbuild remains an optional parity oracle.
 
 ---
 
@@ -155,8 +157,8 @@ records the preceding Windows promotion. [ADR 0292](../docs/adr/0292-promote-str
 records the preceding strict-relocation promotion. [ADR
 0323](../docs/adr/0323-promote-and-adopt-static-elf-code-anchor-checks.md)
 records the preceding code-anchor promotion and production adoption. ADR 0336
-records the parent v1 pair. ADR 0353 records the paired v2 contract, and ADR
-0367 records the active pair.
+records the parent v1 pair. ADR 0353 records the paired v2 contract, ADR 0367
+records the preceding pair, and ADR 0370 records the active pair.
 
 Source-head hosted CupidDis can inspect the same deterministic static i386
 PE32 profile that CupidLD emits. `--headers`, `--sections`, and `--imports`
@@ -936,12 +938,14 @@ and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on both platforms,
 and all six initial images equal stage two in the self-consumption runs. ADR
-0367 records the active seed pair. CupidBuild owns the normal ISR, context-switch, bootloader, and
-SMP-trampoline and JPEG recipes and runs 186 ordinary CupidObj calls. Python
-remains in the other 259 transforms after both normal kernel links moved to the
+0367 records the preceding seed pair. CupidBuild owns the normal ISR,
+context-switch, bootloader, SMP-trampoline, JPEG, and kernel-symbol recipes and
+runs 186 ordinary CupidObj calls. Python
+remains in the other 258 transforms after both normal kernel links moved to the
 same runner. ADR 0357 records the raw recipe transfer, ADR 0362 records the
-direct CupidObj handoff, ADR 0363 records the kernel-link handoff, and ADR 0368
-records the JPEG handoff.
+direct CupidObj handoff, ADR 0363 records the kernel-link handoff, ADR 0368
+records the JPEG handoff, ADR 0370 records the active pair, and ADR 0371 records
+the kernel-symbol handoff.
 
 The source-head bootstrap closure has 59 inputs and SHA-256
 `bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.

@@ -1,21 +1,23 @@
 # CupidC Compiler
 
 CupidC builds CupidBuild as part of the promoted Linux and Windows six-tool
-cohorts. The normal ISR, context-switch, bootloader, SMP-trampoline, and JPEG
-recipes run that checked CupidBuild image directly, which establishes
-production ownership for five guarded publications. Fixed-point carriage and
+cohorts. The normal ISR, context-switch, bootloader, SMP-trampoline, JPEG, and
+kernel-symbol recipes run that checked CupidBuild image directly, which
+establishes production ownership for six guarded publications. Fixed-point carriage and
 the remaining Python transactions stay distinct. ADR 0339 records the original
 source-head seam, ADR 0353 records the paired v2 contract, ADR 0354 records the
 object recipe transfer, ADR 0357 records the raw recipe transfer, ADR 0367
-records the active pair, and ADR 0368 records the JPEG handoff.
+records the preceding pair, ADR 0368 records the JPEG handoff, ADR 0370 records
+the active pair, and ADR 0371 records the kernel-symbol handoff.
 
 CupidC now compiles the promoted `generate-ksyms` transaction as part of
 CupidBuild. The operation combines private CupidDis capture, CupidObj source
 generation, and an independent native KSYM renderer under one guarded
 publication. Its Linux and native Windows fixed-point cases prove exact output
 and malformed-ELF rollback. Both active CupidBuild images carry the command,
-but the normal kernel-symbol recipe has not moved yet. ADR 0369 records the
-source boundary, and ADR 0370 records paired seed carriage.
+and the normal Make recipe invokes the platform seed directly with the complete
+six-image closure. ADR 0369 records the source boundary, ADR 0370 records
+paired seed carriage, and ADR 0371 records production ownership.
 
 CupidC is a HolyC-inspired C compiler built into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code. Programs run directly in ring 0 without a virtual machine or interpreter. Every active CupidC translation unit already uses `.cc`; this transfer has no C source to rename.
 
@@ -784,7 +786,7 @@ signed underflow zero, extreme exponents, and the 95-character token boundary.
 ADR 0312 first carried this capability. The preceding linked-image cohort
 carried it under ADR 0318.
 ADR 0353 records the paired v2 contract, and the active cohort retains it under
-ADR 0367.
+ADR 0370.
 Non-atomic `long double` values now use twelve-byte target objects and x87
 80-bit memory loads and stores. Bounded finite normal decimal `L` tokens
 round an exact integer ratio to a 64-bit explicit significand with ties to
@@ -979,7 +981,7 @@ host import boundary.
 The active v2 cohort contains all six tools. CupidBuild is a checked
 non-producer, and the paired Linux and Windows manifests freeze the same 58
 inputs at that checkpoint. ADR 0345 records the first six-tool boundary. The
-active manifests now freeze 59 inputs, and ADR 0367 records that pair.
+active manifests now freeze 59 inputs, and ADR 0370 records that pair.
 The settled audit is recorded in the
 build-graph evidence below. The final poisoned build and private guest evidence
 appear in the current checked-seed proof.
@@ -1702,13 +1704,15 @@ RDRAND, all 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline
 JPEG decode, the desktop, terminal, and in-OS CupidC execution. Both runs
 print `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
 `FPU boot smoke passed`, then finish
-`feature16_asm_fpu.cc`. Checked CupidObj generates the symbol source from
-canonical CupidDis text, while Python checks the bytes before publication. The
-current 156-source production build passes. The broader two-pass frontier
+`feature16_asm_fpu.cc`. Promoted CupidBuild freezes the pass-one kernel and
+six-tool seed, captures canonical CupidDis text, asks CupidObj to generate the
+symbol source, checks it with an independent native renderer, and publishes
+atomically. Hostbuild remains an optional byte oracle. The current 156-source
+production build passes. The broader two-pass frontier
 targets 156 sources and 312 checked compilations. Its latest rerun exceeded
 2,340 seconds without a compiler diagnostic and remains incomplete. The
-current 114,851-byte logical blob uses little-endian `unsigned int` words with
-one trailing pad byte.
+current 130,506-byte logical blob uses little-endian `unsigned int` words with
+two trailing pad bytes.
 
 Forced poisoned-host builds cover every production wrapper recipe, and each
 recipe declares its exact recursive header closure. A valid data-only object
@@ -1720,9 +1724,9 @@ execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. The stable
 audit counts cover 748 active language inputs, 452 transforms, 255 features,
-and 28 unreachable inputs. Python participates in 259 transforms.
+and 28 unreachable inputs. Python participates in 258 transforms.
 CupidC participates in 250, CupidObj in 192, CupidASM in nine, CupidLD in nine,
-CupidDis in nine, and CupidBuild in 193. Four transforms use Cupid-built
+CupidDis in nine, and CupidBuild in 194. Four transforms use Cupid-built
 semantic contracts, and no transform is Python-only. Root `all` has 443
 transforms, and every one has a Cupid participant. The size verifier emits no OS artifact; it runs a private
 CupidC contract with CupidASM startup and a CupidLD link. The normal graph runs
@@ -3249,15 +3253,18 @@ and pairs to the exact Linux manifest bytes.
 This 59-input pair is active. The first promotion attempt failed closed with
 `fixed-point provenance differs`, so it did not replace either seed. CupidBuild
 accepts promoted v2 source counts 58 and 59 and rejects 57 and 60. The normal
-JPEG recipes now invoke the promoted typed transaction directly. ADR 0366
-records the compatibility boundary, ADR 0367 records the preceding pair, and ADR 0370 records the active pair, and
-ADR 0368 records the handoff.
+JPEG and kernel-symbol recipes now invoke promoted typed transactions directly.
+ADR 0366 records the compatibility boundary, ADR 0367 records the preceding
+pair, ADR 0368 records the JPEG handoff, ADR 0370 records the active pair, and
+ADR 0371 records the kernel-symbol handoff.
 
 Candidate fixed-point and behavior proof passed on both platforms. The active
 v2 cohorts also pass promoted-seed self-consumption, with all six initial images
 equal to stage two. CupidBuild owns the normal ISR, context-switch, bootloader,
-and SMP-trampoline recipes, the typed JPEG publication, and 186 ordinary
-CupidObj recipes. Python participates in the remaining 259 transforms. ADR
+and SMP-trampoline recipes, the typed JPEG publication, the generated
+kernel-symbol source, and 186 ordinary CupidObj recipes. Python participates in
+the remaining 258 transforms. ADR
 0356 records the guarded-raw
 refresh, ADR 0357 records the raw recipe transfer, ADR 0362 records the direct
-CupidObj handoff, and ADR 0367 records the current seed generation.
+CupidObj handoff, ADR 0367 records the preceding seed generation, ADR 0370
+records the active pair, and ADR 0371 records kernel-symbol production.

@@ -26,13 +26,13 @@ BOOTSTRAP_WINDOWS_SEED_MANIFEST ?= bootstrap/seeds/i386-windows/manifest.json
 BOOTSTRAP_WINDOWS_SEED_DIRECTORY := $(dir $(BOOTSTRAP_WINDOWS_SEED_MANIFEST))
 ifeq ($(OS),Windows_NT)
 PRODUCTION_SEED_MANIFEST ?= bootstrap/seeds/i386-windows/manifest.json
-PRODUCTION_SEED_SUFFIX := exe
+override PRODUCTION_SEED_SUFFIX := exe
 else
 PRODUCTION_SEED_MANIFEST ?= bootstrap/seeds/i386-linux/manifest.json
-PRODUCTION_SEED_SUFFIX := elf
+override PRODUCTION_SEED_SUFFIX := elf
 endif
-PRODUCTION_SEED_DIRECTORY := $(dir $(PRODUCTION_SEED_MANIFEST))
-PRODUCTION_SEED_INPUTS := \
+override PRODUCTION_SEED_DIRECTORY := $(dir $(PRODUCTION_SEED_MANIFEST))
+override PRODUCTION_SEED_INPUTS := \
 	$(PRODUCTION_SEED_MANIFEST) \
 	$(PRODUCTION_SEED_DIRECTORY)cupidasm.$(PRODUCTION_SEED_SUFFIX) \
 	$(PRODUCTION_SEED_DIRECTORY)cupidc.$(PRODUCTION_SEED_SUFFIX) \
@@ -910,7 +910,7 @@ kernel/util/calendar.o: kernel/util/calendar.cc drivers/rtc.h kernel/core/string
 kernel/gui/desktop.o: kernel/gui/desktop.cc drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/app_launch.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/terminal_app.h kernel/gui/ui.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/desktop.cc --output kernel/gui/desktop.o
 
-kernel/core/app_launch.o: kernel/core/app_launch.cc kernel/core/app_launch.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/gui/ctxt_image_worker.h kernel/gui/gui.h kernel/gui/terminal_app.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/core/app_launch.o: kernel/core/app_launch.cc kernel/core/app_launch.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/gui/ctxt_image_worker.h kernel/gui/gui.h kernel/gui/terminal_app.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/app_launch.cc --output kernel/core/app_launch.o
 
 # Terminal application
@@ -967,7 +967,7 @@ kernel/lang/cupidscript_lex.o: kernel/lang/cupidscript_lex.cc drivers/serial.h k
 kernel/lang/cupidscript_parse.o: kernel/lang/cupidscript_parse.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_parse.cc --output kernel/lang/cupidscript_parse.o
 
-kernel/lang/cupidscript_exec.o: kernel/lang/cupidscript_exec.cc drivers/rtc.h drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fs.h kernel/fs/vfs.h kernel/gui/ansi.h kernel/lang/cupidc.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/lang/dis.h kernel/lang/exec.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/lang/cupidscript_exec.o: kernel/lang/cupidscript_exec.cc drivers/rtc.h drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fs.h kernel/fs/vfs.h kernel/gui/ansi.h kernel/lang/cupidc.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/lang/dis.h kernel/lang/exec.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_exec.cc --output kernel/lang/cupidscript_exec.o
 
 kernel/lang/cupidscript_runtime.o: kernel/lang/cupidscript_runtime.cc drivers/rtc.h drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -1126,7 +1126,7 @@ toolchain/cupidasm.o: toolchain/cupidasm.cc toolchain/ctool.h toolchain/cupidasm
 toolchain/cupidld.o: toolchain/cupidld.cc toolchain/ctool.h toolchain/cupidld.h toolchain/elf32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidld.cc --output toolchain/cupidld.o
 
-kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.cc drivers/serial.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/lang/ctool_kernel.h kernel/lang/dis.h kernel/mm/memory.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.cc drivers/serial.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/lang/ctool_kernel.h kernel/lang/dis.h kernel/mm/memory.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ctool_kernel.cc --output kernel/lang/ctool_kernel.o
 
 kernel/lang/cupidc.o: kernel/lang/cupidc.cc drivers/ata.h drivers/keyboard.h \
@@ -1158,20 +1158,21 @@ kernel/lang/cupidc.o: kernel/lang/cupidc.cc drivers/ata.h drivers/keyboard.h \
 	kernel/network/net_if.h kernel/network/socket.h kernel/network/udp.h \
 	kernel/smp/bkl.h kernel/smp/lapic.h kernel/smp/percpu.h kernel/smp/smp.h \
 	kernel/usb/usb.h kernel/usb/usb_hc.h kernel/util/calendar.h \
-	toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h \
+	toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h \
+	toolchain/x86.h \
 	$(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc.cc --output kernel/lang/cupidc.o
 
 kernel/lang/cupidc_string.o: kernel/lang/cupidc_string.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc_string.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_string.cc --output kernel/lang/cupidc_string.o
 
-kernel/lang/cupidc_lex.o: kernel/lang/cupidc_lex.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/lang/cupidc_lex.o: kernel/lang/cupidc_lex.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_lex.cc --output kernel/lang/cupidc_lex.o
 
-kernel/lang/cupidc_parse.o: kernel/lang/cupidc_parse.cc drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/lang/cupidc.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/lang/cupidc_parse.o: kernel/lang/cupidc_parse.cc drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/lang/cupidc.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_parse.cc --output kernel/lang/cupidc_parse.o
 
-kernel/lang/cupidc_elf.o: kernel/lang/cupidc_elf.cc drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/exec.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/lang/cupidc_elf.o: kernel/lang/cupidc_elf.cc drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/exec.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_elf.cc --output kernel/lang/cupidc_elf.o
 
 kernel/lang/ssh_io.o: kernel/lang/ssh_io.cc drivers/keyboard.h drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/gui/gui.h kernel/gui/terminal_app.h kernel/lang/shell.h kernel/lang/ssh_io.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -1202,7 +1203,7 @@ kernel/lang/as.o: kernel/lang/as.cc drivers/ata.h drivers/keyboard.h \
 	kernel/smp/lapic.h kernel/smp/percpu.h kernel/smp/smp.h \
 	kernel/usb/usb.h kernel/usb/usb_hc.h kernel/util/calendar.h \
 	toolchain/ctool.h toolchain/cupidasm.h toolchain/cupiddis.h \
-	toolchain/cupidld.h toolchain/elf32.h toolchain/x86.h \
+	toolchain/cupidld.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h \
 	$(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as.cc --output kernel/lang/as.o
 
@@ -1428,8 +1429,9 @@ god/%.o: god/%.DD $(CUPIDOBJ_INPUTS)
 #   Pass 1: link all KERNEL_OBJS into kernel.elf.pass1.  ksyms.o ships a
 #           weak empty .ksyms blob, so this link succeeds with no symbol
 #           data.
-#   mksyms: CupidDis reads kernel.elf.pass1's symbol table, then CupidObj
-#           generates kernel/cpu/ksyms_data.cc with the populated blob.
+#   generate-ksyms: the platform CupidBuild seed freezes the six-tool trust
+#           unit and pass-one ELF, then drives CupidDis and CupidObj to publish
+#           kernel/cpu/ksyms_data.cc through one checked transaction.
 #   Pass 2: link kernel.elf again with ksyms_data.o added. The strong
 #           ksym_blob symbol overrides the weak one from ksyms.o. The
 #           .ksyms section is placed after .data in link.ld so code
@@ -1439,10 +1441,11 @@ god/%.o: god/%.DD $(CUPIDOBJ_INPUTS)
 kernel/kernel.elf.pass1: $(KERNEL_OBJS) link.ld $(CUPIDLD_INPUTS)
 	$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS)
 
-kernel/cpu/ksyms_data.cc: kernel/kernel.elf.pass1 tools/hostbuild.py \
-	$(CHECKED_SEED_INPUTS)
-	$(PYTHON) tools/hostbuild.py mksyms \
-		--seed-manifest $(PRODUCTION_SEED_MANIFEST) $< $@
+kernel/cpu/ksyms_data.cc: kernel/kernel.elf.pass1 Makefile \
+	$(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) generate-ksyms \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source $< --output $@
 
 kernel/cpu/ksyms_data.o: kernel/cpu/ksyms_data.cc kernel/cpu/ksyms.h \
 	kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)

@@ -220,9 +220,9 @@ and no rejected runtime marker.
 
 Both active v2 seeds carry the same source snapshot. ADR 0318 records the
 preceding linked-image
-promotion, ADR 0323 records the preceding code-anchor promotion, ADR 0336
-records the parent v1 pair. ADR 0353 records the paired v2 contract, and ADR
-0367 records the active pair.
+promotion, ADR 0323 records the preceding code-anchor promotion, and ADR 0336
+records the parent v1 pair. ADR 0353 records the paired v2 contract, ADR 0367
+records the preceding pair, and ADR 0370 records the active pair.
 
 The preceding source-head checkpoint had a 9,504,760-byte raw kernel with
 SHA-256

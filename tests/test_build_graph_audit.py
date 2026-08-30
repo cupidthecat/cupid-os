@@ -9187,7 +9187,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6659, 179),
+                "c.expression.sizeof": (6664, 179),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -9343,19 +9343,23 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ]
             self.assertEqual(
                 symbol_transform["tools"],
-                ["cupid_disassembler", "cupid_object", "host_python"],
+                [
+                    "cupid_builder",
+                    "cupid_disassembler",
+                    "cupid_object",
+                ],
             )
             self.assertEqual(
                 symbol_transform["operation"], "generate_ksyms_source"
             )
-            for checked_seed_input in (
-                "tools/bootstrap_toolchain.py",
-                *WINDOWS_PRODUCTION_SEED_INPUTS,
-            ):
-                self.assertIn(
-                    checked_seed_input,
-                    symbol_transform["inputs"],
-                )
+            self.assertEqual(
+                set(symbol_transform["inputs"]),
+                {
+                    "Makefile",
+                    "kernel/kernel.elf.pass1",
+                    *WINDOWS_PRODUCTION_SEED_INPUTS,
+                },
+            )
             self.assertFalse(
                 any(
                     "host_symbol_reader" in transform["tools"]
@@ -9729,13 +9733,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
-                    "cupid_builder": 193,
+                    "cupid_builder": 194,
                     "cupid_object": 192,
                     "cupid_linker": 9,
                     "cupid_disassembler": 9,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 259,
+                    "host_python": 258,
                 },
             )
             self.assertFalse(
@@ -10629,7 +10633,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 6,
-            "cupid_builder": 193,
+            "cupid_builder": 194,
             "cupid_object": 192,
             "cupid_linker": 3,
             "cupid_disassembler": 6,
@@ -11357,6 +11361,90 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                             self.assertNotIn("custom-python", recipe)
                             self.assertNotIn("tools/hostbuild.py", recipe)
 
+    def test_kernel_symbol_transaction_keeps_seed_closure_under_overrides(
+        self,
+    ):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory(
+            prefix=".audit-ksyms-poison-",
+            dir=REPO_ROOT,
+        ) as td:
+            poison_root = Path(td)
+            poison_inputs = {}
+            for name in (
+                "cupiddis",
+                "cupidobj",
+                "checked-seed",
+                "production-seed",
+            ):
+                path = poison_root / f"poison-{name}.bin"
+                path.write_bytes(b"poison\n")
+                poison_inputs[name] = path.relative_to(REPO_ROOT).as_posix()
+            for host, seed_inputs in (
+                ("Windows_NT", WINDOWS_PRODUCTION_SEED_INPUTS),
+                ("Linux", LINUX_BOOTSTRAP_SEED_INPUTS),
+            ):
+                variables = (
+                    f"OS={host}",
+                    "PYTHON=custom-python",
+                    "CUPIDDIS=custom-cupiddis",
+                    f"CUPIDDIS_INPUTS={poison_inputs['cupiddis']}",
+                    "CUPIDOBJ=custom-cupidobj",
+                    f"CUPIDOBJ_INPUTS={poison_inputs['cupidobj']}",
+                    f"CHECKED_SEED_INPUTS={poison_inputs['checked-seed']}",
+                    f"PRODUCTION_SEED_DIRECTORY={poison_root.as_posix()}/",
+                    "PRODUCTION_SEED_SUFFIX=poison",
+                    "PRODUCTION_SEED_INPUTS="
+                    f"{poison_inputs['production-seed']}",
+                )
+                with self.subTest(host=host), mock.patch.object(
+                    module,
+                    "CANONICAL_MAKE_VARIABLES",
+                    variables,
+                ):
+                    rules = module._parse_make_rules(
+                        module._run_make_database(
+                            REPO_ROOT,
+                            make,
+                            "kernel/cpu/ksyms_data.cc",
+                        )
+                    )
+                    rule = rules["kernel/cpu/ksyms_data.cc"]
+                    self.assertEqual(
+                        set(rule.prerequisites),
+                        {
+                            "Makefile",
+                            "kernel/kernel.elf.pass1",
+                            *seed_inputs,
+                        },
+                    )
+                    self.assertEqual(
+                        rule.recipe,
+                        [
+                            "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                            "$(PRODUCTION_SEED_SUFFIX) generate-ksyms \\",
+                            "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
+                            '--root "$(CURDIR)" \\',
+                            "--source $< --output $@",
+                        ],
+                    )
+                    serialized = "\n".join(
+                        [*rule.prerequisites, *rule.recipe]
+                    )
+                    for poison in (
+                        "custom-python",
+                        "custom-cupiddis",
+                        "custom-cupidobj",
+                        ".poison",
+                        *poison_inputs.values(),
+                        "tools/hostbuild.py",
+                        "tools/bootstrap_toolchain.py",
+                    ):
+                        self.assertNotIn(poison, serialized)
+
     def test_generated_kernel_symbols_use_the_checked_cupidc_graph(self):
         with tempfile.TemporaryDirectory() as td:
             output = Path(td) / "audit.json"
@@ -11382,7 +11470,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             generated = transforms["kernel/cpu/ksyms_data.cc"]
             self.assertEqual(
                 generated["tools"],
-                ["cupid_disassembler", "cupid_object", "host_python"],
+                [
+                    "cupid_builder",
+                    "cupid_disassembler",
+                    "cupid_object",
+                ],
             )
             self.assertEqual(
                 generated["operation"], "generate_ksyms_source"
@@ -11391,9 +11483,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 set(generated["inputs"]),
                 {
                     "kernel/kernel.elf.pass1",
-                    "tools/hostbuild.py",
                     "Makefile",
-                    "tools/bootstrap_toolchain.py",
                     *WINDOWS_PRODUCTION_SEED_INPUTS,
                 },
             )

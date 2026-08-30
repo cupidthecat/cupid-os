@@ -5,8 +5,9 @@ cupid-os is a monolithic, single-address-space, ring-0 operating system for 32-b
 The current build graph contains 452 transforms, including 443 under root
 `all`. CupidBuild directly coordinates the ISR and context-switch object
 publications plus the bootloader and SMP raw-image publications. It also runs
-the typed JPEG publication, 186 ordinary CupidObj recipes, and both normal
-kernel links, bringing its total to 193 transforms and leaving Python in 259.
+the typed JPEG publication, generated kernel-symbol source, 186 ordinary
+CupidObj recipes, and both normal kernel links, bringing its total to 194
+transforms and leaving Python in 258.
 CupidASM remains the language owner,
 and CupidDis remains the
 inspection owner for the four guarded assembly publications.
@@ -18,9 +19,10 @@ and all six tools.
 The promoted seeds now carry a typed kernel-symbol transaction. CupidBuild captures
 CupidDis `-n` rows from the frozen pass-one ELF, runs CupidObj
 `ksyms-source`, and checks the candidate with an independent KSYM renderer
-before guarded publication. This is not yet a production ownership change;
-the normal Make edge still uses the Python coordinator. ADR 0369 records the
-source capability, and ADR 0370 records paired seed carriage.
+before guarded publication. The normal Make edge invokes the platform seed
+directly with the manifest and complete six-image closure. ADR 0369 records
+the source capability, ADR 0370 records paired seed carriage, and ADR 0371
+records production ownership.
 
 The source-head fixed-point closure contains 59 inputs with snapshot SHA-256
 `bac22f6a59871326ec40a58ab143eea1675b689251c76950d43d860cb2539fcd`.
@@ -258,14 +260,14 @@ compiler or assembler ownership from that transform.
 
 The current source contract records 76 publication inputs, 59 candidate inputs, 22
 artifacts, and 62 stage pairs. The active v2 seed carries CupidBuild, which now
-owns four guarded assembly publications, the typed JPEG publication, and 186
-ordinary CupidObj recipes.
+owns two guarded assembly objects, two guarded raw images, the typed JPEG
+object, the generated kernel-symbol source, and 186 ordinary CupidObj recipes.
 The stable audit counts cover 748 active language inputs, 452 transforms, 255
 features, and 28 unreachable inputs.
 CupidC participates in 250 transforms,
 CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in nine, and
-CupidBuild in 193. Four transforms use Cupid-built semantic contracts. Python
-participates in 259, but no transform is Python-only. All 443 transforms under
+CupidBuild in 194. Four transforms use Cupid-built semantic contracts. Python
+participates in 258, but no transform is Python-only. All 443 transforms under
 root `all` have a Cupid participant.
 
 The first attempt at this audit stopped after 65.183 seconds because the test

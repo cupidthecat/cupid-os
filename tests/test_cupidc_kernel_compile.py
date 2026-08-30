@@ -1218,7 +1218,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
         )
         self.assertEqual(actual_compile_inputs, expected_compile_inputs)
         production_inputs_match = re.search(
-            r"(?ms)^PRODUCTION_SEED_INPUTS := (.+?)\n"
+            r"(?ms)^override PRODUCTION_SEED_INPUTS := (.+?)\n"
             r"(?=[A-Z][A-Z0-9_]*\s*[:?]?=)",
             makefile,
         )
@@ -1236,6 +1236,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 "$(PRODUCTION_SEED_DIRECTORY)cupiddis.$(PRODUCTION_SEED_SUFFIX)",
                 "$(PRODUCTION_SEED_DIRECTORY)cupidld.$(PRODUCTION_SEED_SUFFIX)",
                 "$(PRODUCTION_SEED_DIRECTORY)cupidobj.$(PRODUCTION_SEED_SUFFIX)",
+                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX)",
             },
         )
         recipe_pattern = re.compile(
@@ -1358,22 +1359,23 @@ class KernelCompileMakefileTests(unittest.TestCase):
             return closure
 
         for source in NEW_PRODUCTION_SOURCES + SOURCE_DRIVEN_SOURCES:
-            output = Path(source).with_suffix(".o").as_posix()
-            match = re.search(
-                rf"^{re.escape(output)}: ([^\n]+)$",
-                logical_makefile,
-                re.MULTILINE,
-            )
-            self.assertIsNotNone(match, source)
-            self.assertEqual(
-                set(match.group(1).split()),
-                {
+            with self.subTest(source=source):
+                output = Path(source).with_suffix(".o").as_posix()
+                match = re.search(
+                    rf"^{re.escape(output)}: ([^\n]+)$",
+                    logical_makefile,
+                    re.MULTILINE,
+                )
+                self.assertIsNotNone(match, source)
+                self.assertEqual(
+                    set(match.group(1).split()),
+                    {
+                        source,
+                        *recursive_includes(source),
+                        "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+                    },
                     source,
-                    *recursive_includes(source),
-                    "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
-                },
-                source,
-            )
+                )
         self.assertIn(
             "kernel/usb/usb_hc.h",
             recursive_includes("kernel/usb/usb.cc"),
