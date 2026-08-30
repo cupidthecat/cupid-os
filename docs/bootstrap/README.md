@@ -75,7 +75,7 @@ the preceding paired seed promotion, ADR 0368 records direct JPEG publication,
 ADR 0369 records typed kernel-symbol publication, ADR 0370 records its paired
 seed carriage, ADR 0371 records production ownership, and ADR 0372 records
 typed source-head kernel flattening. ADR 0374 records the paired seed promotion
-that carries that transaction.
+that carries that transaction, and ADR 0375 records its normal-build handoff.
 
 ## 2026-08-30 source-current checkpoint
 
@@ -99,8 +99,10 @@ seeds now carry the command from revision
 `0232cb57aad5d6bdfd7bd77499762514b2f0ebfd` and the shared 59-file snapshot
 `0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 The Linux 28/6/35 and native Windows 17/6/22 candidate matrices passed. Make
-still uses Hostbuild until the separate production handoff. ADR 0372 records
-the capability boundary, and ADR 0374 records seed carriage.
+now invokes the promoted transaction directly for `kernel/kernel.bin`.
+Hostbuild remains an optional parity oracle. ADR 0372 records the capability
+boundary, ADR 0374 records seed carriage, and ADR 0375 records production
+ownership.
 
 Both normal kernel links now use the promoted `cupidbuild run` command instead
 of the Python checked-seed launcher. Make keeps the linker command and its
@@ -109,9 +111,10 @@ before assigning the runner owner, and poisoned Make overrides cannot bypass
 the checked boundary. A private native Windows run linked all 428 pass-one
 objects and reproduced the existing 9,596,984-byte ELF exactly. The graph still
 contains 452 transforms. The later JPEG checkpoint reached 193 CupidBuild and
-259 Python participations. Direct kernel-symbol publication now moves the
-current split to 194 and 258. ADR 0363 records the link handoff, and ADR 0371
-records the kernel-symbol handoff.
+259 Python participations. Direct kernel-symbol publication moved the split to
+194 and 258; direct kernel flattening moves it again to 195 and 257. ADR 0363
+records the link handoff, ADR 0371 records the kernel-symbol handoff, and ADR
+0375 records the kernel-flatten handoff.
 
 Source-head CupidBuild now provides `embed-jpeg` as a guarded transaction, not
 a generic checked-tool call. It freezes the repository asset and complete v2

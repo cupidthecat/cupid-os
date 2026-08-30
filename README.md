@@ -66,9 +66,10 @@ independent native ELF renderer. A CupidC-built source-head image produced a
 `3aac627568da71fe5478732c3b1adf8bf3c0cbf8678d63868a4f5982b5097773`,
 identical to the tracked image. This source checkpoint did not transfer the
 normal Make edge. The paired checked seeds now carry the command from revision
-`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`; Make still uses Hostbuild until
-the separate production handoff. ADR 0372 records the source capability, and
-ADR 0374 records seed carriage.
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`. The normal Make rule now invokes
+that promoted `flatten-kernel` transaction directly. Hostbuild remains an
+optional parity oracle. ADR 0372 records the source capability, ADR 0374
+records seed carriage, and ADR 0375 records the production handoff.
 
 The native Windows fixed point runs every stage-two producer from the checked
 PE32 execution seed. The Linux seed supplies the reviewed build plan and paired
@@ -100,8 +101,8 @@ and the typed JPEG transaction into both active six-tool seeds. Only CupidC
 and CupidBuild changed from the preceding cohorts. The normal Make graph now
 runs 186 ordinary CupidObj recipes, both kernel links, the typed JPEG
 publication, and kernel-symbol generation through that checked CupidBuild
-command. The kernel-symbol handoff raises CupidBuild participation to 194
-transforms and reduces Python participation to 258. ADR 0360
+command. The kernel-flatten handoff raises CupidBuild participation to 195
+transforms and reduces Python participation to 257. ADR 0360
 records the runner boundary, ADR 0361 records its paired seed
 promotion, ADR 0362 records the object-recipe handoff, and ADR 0363 records
 the kernel-link handoff.
@@ -309,9 +310,10 @@ source snapshot. Linux matches 22 C objects, startup, and six tools with a
 28/6/35 behavior matrix. Windows matches 23 C objects, three assembly objects,
 and six tools with a 17/6/22 matrix. Their stage-four images are the active
 paired seeds and carry hosted `<stddef.h>`, the typed JPEG transaction, and
-typed kernel-symbol and kernel-flatten publication. JPEG and kernel-symbol production now use
-their typed CupidBuild transactions directly. ADRs 0344, 0345, 0352, 0353,
-0367, 0370, and 0371 record the path to this boundary.
+typed kernel-symbol and kernel-flatten publication. JPEG, kernel-symbol, and
+final raw-kernel production now use their typed CupidBuild transactions
+directly. ADRs 0344, 0345, 0352, 0353, 0367, 0370, 0371, and 0375 record the
+path to this boundary.
 
 ## 2026-08-24 source-current checkpoint
 
@@ -2410,7 +2412,8 @@ records the guarded-raw refresh, and [ADR 0361](docs/adr/0361-promote-the-checke
 records the checked runner. [ADR 0367](docs/adr/0367-promote-stddef-and-typed-jpeg-seeds.md)
 records the preceding paired promotion. [ADR 0370](docs/adr/0370-promote-kernel-symbol-cupidbuild-seeds.md)
 records the preceding pair. [ADR 0374](docs/adr/0374-promote-kernel-flattening-cupidbuild-seeds.md)
-records the active pair. [ADR 0336](docs/adr/0336-promote-and-adopt-assembly-function-anchors.md),
+records the active pair. [ADR 0375](docs/adr/0375-transfer-kernel-flatten-to-cupidbuild.md)
+records the production handoff. [ADR 0336](docs/adr/0336-promote-and-adopt-assembly-function-anchors.md),
 [ADR 0312](docs/adr/0312-promote-and-adopt-relocatable-local-target-checks.md),
 [ADR 0292](docs/adr/0292-promote-strict-relocation-production-seeds.md),
 [ADR 0280](docs/adr/0280-promote-the-clean-stage-four-linux-seed.md),
@@ -2448,8 +2451,8 @@ outputs:
 | `kernel/kernel.bin` | 8,946,332 | `4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d` |
 | `cupidos.img` | 209,715,200 | `4548005bd0aa1a3cffb74620c2309d53c6b291ea2505ed187034bf6b13f1bb37` |
 
-The current kernel path combines strict validation and flattening in one
-hostbuild transaction. Hostbuild freezes the selected seed manifest and all
+At the ADR 0318 checkpoint, the kernel path combined strict validation and
+flattening in one Hostbuild transaction. Hostbuild froze the selected seed manifest and all
 six artifacts, the 431-entry input manifest and cohort, and the existing
 `kernel.bin` boundary. Checked CupidDis validates the private cohort. Checked
 CupidObj then flattens the frozen final ELF into a private candidate. Hostbuild
@@ -3279,14 +3282,16 @@ The validators still accept v1 manifests in compatibility and transition
 tests. Production closures, artifact-size verification, and Toolchain
 publication freeze and recheck all six active images. CupidBuild directly owns
 the two guarded relocatable objects, both guarded raw images, the typed JPEG
-publication, and the generated kernel-symbol source. It also runs the 186
-ordinary CupidObj recipes and both normal kernel links. Python participates in
-the remaining 258 transforms. ADR
+publication, the generated kernel-symbol source, and final kernel flattening.
+It also runs the 186 ordinary CupidObj recipes and both normal kernel links.
+CupidBuild participates in 195 transforms, while Python participates in the
+remaining 257. ADR
 0353 records the paired v2 contract, ADR 0354 records the first
 normal recipe transfer, ADR 0357 records the raw publication handoff, ADR 0362
 records the direct CupidObj handoff, ADR 0363 records the kernel-link handoff,
 ADR 0367 records the preceding pair, ADR 0368 records the JPEG handoff, ADR
-0370 records the active pair, and ADR 0371 records the kernel-symbol handoff.
+0370 records the active pair, ADR 0371 records the kernel-symbol handoff, and
+ADR 0375 records the kernel-flatten handoff.
 The audit obtains this ownership from the evaluated Make binding, so a
 Python-backed or direct CupidObj command cannot be mislabeled as CupidBuild.
 

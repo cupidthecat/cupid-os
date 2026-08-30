@@ -12,10 +12,10 @@ and receive a **syscall table**, a struct of function pointers passed to
 
 The same promoted six-tool cohort runs CupidBuild directly for two guarded
 assembly objects, two guarded raw images, the typed JPEG publication, the
-generated kernel-symbol source, 186 ordinary CupidObj recipes, and both normal
-kernel links. This does not change the user-program
-ABI or ELF layout. Across the supported graph, CupidBuild participates in 194
-transforms and Python in 258.
+generated kernel-symbol source, final kernel flattening, 186 ordinary CupidObj
+recipes, and both normal kernel links. This does not change the user-program
+ABI or ELF layout. Across the supported graph, CupidBuild participates in 195
+transforms and Python in 257.
 
 Source head also has a typed JPEG-to-`ET_REL` transaction. It requires a
 data-only relocatable with the exact asset bytes and start, end, and size

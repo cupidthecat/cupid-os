@@ -29,7 +29,9 @@ request remains one command. The hosted runtime supplies strrchr for this
 path handling. A CupidC-built image processed all 431 active inputs and
 reproduced the tracked 9,513,536-byte kernel exactly. Both checked seeds carry
 the command from revision 0232cb57aad5d6bdfd7bd77499762514b2f0ebfd.
-The normal Make recipe remains on Hostbuild until its separate handoff.
+The normal Make recipe now invokes the promoted platform seed directly with
+the exact 431-entry manifest and complete seed closure. Hostbuild remains an
+optional parity oracle.
 
 The checked Linux and Windows command suites cover CupidBuild's policy and
 hosted transaction modules, including the guarded object and raw-image paths.
@@ -318,8 +320,8 @@ produce ordinary C outputs. The native Windows user ABI, artifact-size policy,
 Toolchain manifest author, and Toolchain manifest verifier supply the other four
 CupidC contract checks. CupidObj participates 192 times, CupidASM and CupidLD
 participate nine times each, CupidDis participates nine times, and CupidBuild
-participates 194 times. Four transforms run Cupid-built semantic contracts.
-Host Python participates in 258 transforms, but none is Python-only. The normal
+participates 195 times. Four transforms run Cupid-built semantic contracts.
+Host Python participates in 257 transforms, but none is Python-only. The normal
 Toolchain build uses checked
 static i386 tools for its contract cohort; native contract binaries are optional
 oracles.
@@ -2448,12 +2450,14 @@ and pairs to the exact Linux manifest bytes.
 
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. In the self-consumption runs, all six initial images equal stage two.
-CupidBuild now owns all four guarded assembly recipes, the typed JPEG
-publication, 186 ordinary CupidObj recipes, and both normal kernel links.
-Python participates in the remaining 258 transforms. ADR 0357 records the raw recipe
+CupidBuild now owns all four guarded assembly recipes, the typed JPEG and
+kernel-symbol publications, 186 ordinary CupidObj recipes, both normal kernel
+links, and final kernel flattening. Python participates in the remaining 257
+transforms. ADR 0357 records the raw recipe
 transfer, ADR 0361 records the checked runner, ADR 0362 records the direct
 CupidObj handoff, ADR 0363 records the kernel-link handoff, ADR 0367 records
-the active seed generation, and ADR 0368 records the JPEG handoff.
+the active seed generation, ADR 0368 records the JPEG handoff, and ADR 0375
+records the kernel-flatten handoff.
 >endtree
 
 >h2 See Also

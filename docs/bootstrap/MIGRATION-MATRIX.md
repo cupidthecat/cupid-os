@@ -2,15 +2,17 @@
 
 `TempleOS/` is excluded: it is reference material, not a source cohort. Statuses describe ownership, not how much code exists.
 
-Kernel flattening is seed-carried but not production-owned. Promoted
+Kernel flattening is production-owned by the promoted CupidBuild seed.
+Promoted
 `cupidbuild flatten-kernel` freezes the exact manifest cohort, performs the
 one broad and one linked CupidDis checks required by ADR 0318, runs CupidObj
 `flat`, and requires byte parity with an independent native renderer before
 atomic publication. A CupidC-built image reproduced the real 431-input kernel
 exactly. The Linux and Windows fixed-point matrices define carriage cases, and
-both checked seeds now contain the command. The Make recipe remains on
-Hostbuild until its separate handoff. ADR 0372 records the source boundary,
-and ADR 0374 records seed carriage.
+both checked seeds contain the command. The normal Make recipe invokes it
+directly with the exact 431-entry input manifest and complete seed closure;
+Hostbuild remains an optional parity oracle. ADR 0372 records the source
+boundary, ADR 0374 records seed carriage, and ADR 0375 records the handoff.
 
 The promoted CupidBuild images can launch checked CupidObj and CupidLD without Python. Linux
 creates no `.cupidbuild-run` namespace. It freezes the manifest and all six
@@ -166,7 +168,7 @@ also avoids an unused parse-time Python calculation and passes
 owner, artifact producer, or recorded transform.
 Native hosted commands remain explicit oracle targets, but none is reachable
 from a supported root. The source-current three-root graph has 452 transforms,
-no recursive Make transform, 258 Python participants, 194 CupidBuild
+no recursive Make transform, 257 Python participants, 195 CupidBuild
 participants, 250 CupidC participants, four Cupid-built contract participants,
 and no host C transform. `toolchain:all`
 uses both rebuilt compiler stages for the fifteen published `.cc` contracts,
@@ -182,8 +184,9 @@ no OS artifact; checked CupidC, CupidASM, and CupidLD build its private policy
 contract. CupidDis participates
 in six root transforms: kernel symbols, the SMP trampoline, the bootloader,
 the ISR object, the context-switch object, and `kernel.bin`. The `kernel.bin`
-transform runs strict validation and flat extraction against one frozen
-cohort, with all 431 code inputs represented.
+transform runs the promoted typed CupidBuild transaction against one frozen
+cohort, with all 431 code inputs represented. Its graph edge has no Hostbuild,
+bootstrap-runner, standalone CupidDis, or standalone CupidObj input.
 ADR 0190 records the root handoff, and ADR 0196 records the contract handoff.
 ADR 0238 records the disk-image transfer, ADR 0241 records the ISO transfer, ADR
 0244 records the profile-manifest transfer, ADR 0245 records publisher-owned
@@ -286,7 +289,7 @@ their section bytes, bindings, values, or relocations. Checked CupidDis
 requires each defined function to begin at an instruction in executable
 `PROGBITS`. CupidBuild selects the policy before publishing either active
 object, and both fixed-point drivers select it before any startup link. The
-current audit records 194 CupidBuild and 258 Python transforms. ADR 0335
+current audit records 195 CupidBuild and 257 Python transforms. ADR 0335
 records the source capability, ADR 0336 records carriage and adoption, and ADR
 0362 records the later direct CupidObj handoff, ADR 0363 records the
 kernel-link handoff, and ADR 0368 records the JPEG handoff.
@@ -1186,8 +1189,8 @@ ADRs 0107 and 0108 record fetch-or and its seed transition. ADR 0110 records
 the 40-source boundary, ADR 0111 records the 116-source expansion, and ADR
 0115 records the first 20-source transfer. Across the root and supplemental
 graphs, CupidC participates in 250 transforms, no supported transform invokes
-a host C compiler, CupidBuild participates in 194, and Python participates in
-258. The external-program
+a host C compiler, CupidBuild participates in 195, and Python participates in
+257. The external-program
 syscall ABI output, root size verifier, and Toolchain publication verifier each
 have CupidC, CupidASM, CupidLD, a Cupid-built contract, and Python participants.
 The three contracts outside the user ABI path emit no OS artifact. The

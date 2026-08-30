@@ -565,6 +565,11 @@ _Avoid_: every generated C file, Python-free generation, kernel source cohort
 **Production checked-seed tool cohort**:
 The following paragraph records the current six-tool production boundary.
 The root image transforms are owned by CupidASM, CupidObj, CupidLD, CupidDis, and CupidBuild. The normal graph verifies and freezes the manifest-bound six-tool seed before each command, then checks the live trust unit again after the command. Checked production kernel, generated-install, and user CupidC calls plus checked user CupidLD links use that same invocation contract. Each wrapper supplies its existing frozen cohort, and the shared runner rejects manifest or image drift detected after the private tool returns. It contains six CupidASM transforms, 192 CupidObj transforms, three CupidLD links, six CupidDis participations, and 194 CupidBuild participations. The extra assembly and link operations build the artifact-size contract, whose policy logic is compiled by CupidC. CupidDis supplies kernel-symbol text, participates with CupidObj in the transactional `kernel.bin` publication, strictly checks the mixed-mode SMP trampoline and bootloader, and guards the ISR and context-switch objects before publication. The two objects use direct CupidBuild transactions. The runner freezes the source and seed, validates a private i386 relocatable with executable bytes, requires complete CupidDis coverage of those bytes, rechecks the live boundaries, and publishes atomically. The final kernel gate remains an independent whole-kernel check. The SMP and bootloader paths share one checked raw-image transaction. It owns output locking, source and seed freezing, drift checks, private candidates, publication-boundary checks, and atomic replacement. Each caller retains its image and map policy. The normal boot rule enters that transaction through CupidBuild with the production manifest and complete seed closure, so standalone tool overrides cannot bypass the checked boundary. Root `all` has 443 transforms, and every transform has a Cupid participant. The artifact-size verifier builds and runs a private CupidC contract while Python pins the files, launches the checked tools, and checks an independent oracle. The Toolchain `all` verifier applies the same division to the publication, exact input inventory, bootstrap closure, and Linux publication seed. The fifth CupidASM transform assembles the ISO spanning fixture from checked-in CupidASM source. Python verifies its exact byte lane and controls publication. The CupidObj total includes the three installation-source generators, kernel-symbol source generator, pristine disk-template author, repository ISO author, and guarded Doom profile-manifest author. Across all three roots, CupidC participates in 250 transforms, CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in nine, CupidBuild in 194, and Python in 258. Four transforms run Cupid-built semantic contracts. The 186 ordinary CupidObj recipes, typed JPEG and kernel-symbol transactions, and both normal kernel links use CupidBuild without Python; Python remains on the four composite CupidObj paths and the broader orchestration, safety, parity, and publication work. Windows runs the checked native PE execution seed directly; Linux runs the checked static ELF seed. Contract publication remains rooted in the Linux bootstrap seed. Both fixed-point drivers rebuild and compare the six-tool cohort. The checked user compiler and Toolchain contract publisher create the output directories needed for their artifacts, so empty-directory setup is not a separate graph transform. The compiler pins every POSIX component with no-follow descriptors and every Windows component with parent-relative directory handles until its final resolved-output check. Make applies `$(sort ...)` to every wildcard-discovered output list, so generators and links receive the same order under Windows and Linux host locales. The repository stores its runtime JPEG as a sequential SOF0 frame. The typed CupidBuild publisher freezes the JPEG and complete seed, asks checked CupidObj `wrap-jpeg` to validate and wrap the private snapshot under the original source identity, verifies the exact relocatable payload and identity symbols, and applies an independent native JPEG parser before atomic publication. Source, seed, candidate, destination, lock, or parent drift preserves the previous object. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` do not participate. The first cross-host comparison matched 426 of 430 kernel artifacts and traced all four remaining differences to the old host JPEG conversion. After the replacement, Linux and Windows root builds produced all 430 frozen kernel artifacts byte for byte. A fresh normal image then passed a private `/bin/ls.cc` JIT boot. ADR 0190 records the root tool handoff, ADR 0204 records installation-source ownership, ADR 0224 records kernel-symbol source ownership, ADR 0227 records the fixture transfer, ADR 0235 records the JPEG acceptance transfer, ADR 0238 records disk-template production ownership, ADR 0241 records ISO production ownership, ADR 0244 records profile-manifest production ownership, ADR 0245 records publisher-owned output directories, ADR 0246 records the shared invocation boundary, ADR 0271 records trampoline inspection, ADR 0272 records native Windows execution-seed adoption, ADR 0277 records the raw-map transaction, ADR 0280 records the clean Linux stage-four promotion, ADR 0281 records the clean Windows stage-four promotion, ADR 0282 records stage-four contract publication, ADR 0283 records the normal bootloader cutover, ADR 0286 records guarded assembly-object publication, ADR 0295 records the native Windows ABI gate, ADR 0297 records the artifact-size contract, ADR 0302 records Toolchain manifest verification, ADR 0362 records the direct CupidObj handoff, ADR 0363 records the kernel-link handoff, ADR 0368 records the JPEG handoff, and ADR 0371 records the kernel-symbol handoff.
+ADR 0375 supersedes the ownership totals in the preceding root-graph
+checkpoint: the same 452-transform graph now records 195 CupidBuild and 257
+Python participations. Final kernel flattening runs inside promoted CupidBuild
+with the exact 431-entry manifest and six-image seed closure.
+
 The current production cohort freezes a six-image v2 seed on either host. The
 latest recorded Toolchain publication checkpoint contains 22 artifacts, keeps
 75 publication inputs, and binds its historical 58-file bootstrap closure.
@@ -586,17 +591,18 @@ Both checked CupidDis images carry executable-relocation,
 raw, relocatable, linked local-target, and static ELF code-anchor checks.
 CupidBuild selects the raw form for the nine bootloader and four SMP targets
 proved by active-source tests and the relocatable form for both active
-CupidASM objects. Hostbuild retains both linked checks for the two kernel ELFs
-before flattening. The
+CupidASM objects. Promoted CupidBuild applies both linked checks to the two
+kernel ELFs before flattening and publishes the final raw image transactionally.
+Hostbuild retains the same operation as an optional oracle. The
 artifact-size policy covers
 four OS outputs, six Linux seed images, and six Windows seed images.
 
 The source-current three-root graph records 452 transforms, including 443
 under root `all`. CupidC participates in 250 transforms, CupidObj in 192,
-CupidBuild in 194, and CupidASM, CupidLD, and CupidDis in nine each. Four
+CupidBuild in 195, and CupidASM, CupidLD, and CupidDis in nine each. Four
 transforms run Cupid-built semantic contracts. Its assembly ownership contract
 covers all 32 active assembly sources, including five Toolchain startup
-sources, with no ownerless input. Python participates in 258 for coordination
+sources, with no ownerless input. Python participates in 257 for coordination
 and safety, but no transform is Python-only. The Toolchain publisher now gives a checked strict
 C11 author its artifact and source facts plus 62 raw stage pairs through
 `CUPMAN4`. The pairs cover 17 contract objects, 16 contract executables, 22
@@ -642,8 +648,11 @@ matched between stages three and four.
 Both generations also reject a private CupidBuild copy with an invalid
 file-backed entry instruction. The preceding five-tool seeds retained their
 recorded behavior matrices and the same static ELF code-anchor check. The
-normal linked-kernel pass selects that rule
-before CupidObj flattening.
+normal linked-kernel pass selects that rule inside the promoted
+`flatten-kernel` transaction before CupidObj extraction. The rule consumes the
+exact 431-entry manifest and six-image production seed closure, rejects
+standalone tool and Python overrides, and preserves the prior raw kernel on
+failure. ADR 0375 records the production boundary.
 A pre-final-CTXT build reached the exact-size gate after 668.414 seconds. The
 later poisoned-host build passed in 684.260 seconds, and its private four-vCPU
 e1000 smoke passed in 64.601 seconds. Those records are preceding checkpoint
@@ -1689,9 +1698,9 @@ hostbuild transaction also predates linked-image adoption. It published an
 8,946,332-byte `kernel.bin` with SHA-256
 `4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d`.
 
-The current production path freezes the selected seed manifest and six
+At that checkpoint, the production path froze the selected seed manifest and six
 artifacts, the 431-entry input manifest and cohort, and the existing
-`kernel.bin` boundary in one hostbuild transaction. Checked CupidDis validates
+`kernel.bin` boundary in one Hostbuild transaction. Checked CupidDis validates
 the private cohort, applies strict linked local-target and static code-anchor
 validation to the frozen pass-one and final ELFs, then checked CupidObj flattens the final image into a
 private candidate. Hostbuild rechecks the live trust inputs and output before
@@ -2043,5 +2052,5 @@ record names the exact Linux v2 plan-manifest digest, and the host driver binds
 that field to the supplied bytes. Python pins the promoted artifact identities;
 CupidBuild validates the structural source identity so its own binary does not
 create a self-reference. That non-producer lineage role is separate from
-CupidBuild's 194 normal-build participations.
+CupidBuild's 195 normal-build participations.
 _Avoid_: self-referential seed, provisional promotion

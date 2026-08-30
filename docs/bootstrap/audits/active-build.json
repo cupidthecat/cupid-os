@@ -35317,9 +35317,7 @@
           "kernel/cpu/ksyms_data.o",
           "kernel/kernel.elf.pass1",
           "bootstrap/cupiddis-production-inputs.txt",
-          "tools/hostbuild.py",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -35331,15 +35329,15 @@
         "operation": "extract_raw_binary",
         "output": "kernel/kernel.bin",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py validate-code \\",
-          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
           "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
           "--output $(KERNEL)"
         ],
         "tools": [
+          "cupid_builder",
           "cupid_disassembler",
-          "cupid_object",
-          "host_python"
+          "cupid_object"
         ]
       },
       {
@@ -47493,7 +47491,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 42524
+      "occurrences": 42533
     },
     {
       "category": "control",
@@ -47870,7 +47868,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 26333
+      "occurrences": 26335
     },
     {
       "category": "control",
@@ -48547,7 +48545,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2973
+      "occurrences": 2979
     },
     {
       "category": "declarator",
@@ -52003,7 +52001,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 17352
+      "occurrences": 17362
     },
     {
       "category": "qualifier",
@@ -52550,7 +52548,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10288
+      "occurrences": 10295
     },
     {
       "category": "type",
@@ -52999,7 +52997,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 10570
+      "occurrences": 10582
     },
     {
       "category": "type",
@@ -53772,7 +53770,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 24532
+      "occurrences": 24533
     },
     {
       "category": "type",
@@ -54745,7 +54743,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 3431
+      "occurrences": 3435
     },
     {
       "category": "type",
@@ -56273,11 +56271,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "f64fc2653e2909c3b1b4213a2de58a93b0efb6850b050b7d2d4b48b5f6fddef1",
+    "active_source_digest": "d86811a322ea4a4448f87b587c9efec06ba64624160648ae254e36925d87f61b",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "8862f2b7d3f2b7fefb3d23efd089a8c04513e349ef3095983ec847cd64ad430c"
+        "sha256": "34f5578cc7fcbff1e78d1859d0f96b7ac77e242d213c10ffda74ff5e96ae9762"
       },
       {
         "path": "user/Makefile",
@@ -56326,7 +56324,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "34d32389c2156ea4277b130f127e721ef4bc319c5c541ec5e98c5641f3dc10ba"
+      "sha256": "f4bf8c8f1d6a7cfb7bd143df54fe03f794c1f34ef5f19ba6c8c3c28fa20234d6"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -82929,12 +82927,12 @@
         "kernel/doom/src/include_stubs/stdlib.h"
       ],
       "language": "cupid_c",
-      "lines": 2218,
+      "lines": 2279,
       "origin": "tracked",
       "path": "toolchain/tests/artifact_size_policy_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f449dc76efdbda09625369214d7cba8b96216c76b4b7bc36f68eff395cad8448"
+      "sha256": "fe3768274061bdb37d4a42170b0e0b9504760ebfde59f027937dd48f3f75d00b"
     },
     {
       "build_owners": [

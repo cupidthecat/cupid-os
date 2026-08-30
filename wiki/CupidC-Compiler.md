@@ -1730,9 +1730,9 @@ execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. The stable
 audit counts cover 748 active language inputs, 452 transforms, 255 features,
-and 28 unreachable inputs. Python participates in 258 transforms.
+and 28 unreachable inputs. Python participates in 257 transforms.
 CupidC participates in 250, CupidObj in 192, CupidASM in nine, CupidLD in nine,
-CupidDis in nine, and CupidBuild in 194. Four transforms use Cupid-built
+CupidDis in nine, and CupidBuild in 195. Four transforms use Cupid-built
 semantic contracts, and no transform is Python-only. Root `all` has 443
 transforms, and every one has a Cupid participant. The size verifier emits no OS artifact; it runs a private
 CupidC contract with CupidASM startup and a CupidLD link. The normal graph runs

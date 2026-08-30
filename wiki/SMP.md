@@ -558,9 +558,10 @@ self-consumption pass on both platforms, including the SMP-trampoline
 transaction used by the normal build. In the self-consumption runs, all six
 initial images equal stage two. CupidBuild owns the context-switch
 object and raw trampoline publications directly. Across the supported graph,
-CupidBuild participates in 194 transforms and Python in 258. Its publication
-work includes 186 ordinary CupidObj recipes plus the typed JPEG and
-kernel-symbol transactions; neither changes the SMP transaction. ADR 0356
+CupidBuild participates in 195 transforms and Python in 257. Its publication
+work includes 186 ordinary CupidObj recipes plus the typed JPEG,
+kernel-symbol, and kernel-flatten transactions; none changes the SMP
+transaction. ADR 0356
 records the preceding seed refresh, ADR 0357 records the raw recipe transfer,
 ADR 0362 records the direct CupidObj handoff, ADR 0367 records the preceding
 pair, and ADR 0370 records the active seed pair.

@@ -813,9 +813,9 @@ KERNEL_OBJS += $(DOOM_SRC_OBJS)
 # joined KERNEL_OBJS. The checked-in manifest repeats this exact graph order,
 # followed by the generated symbols object and both linked kernel images. The
 # recipe passes the manifest instead of expanding this list through cmd.exe.
-CUPIDDIS_PRODUCTION_INPUT_MANIFEST := \
+override CUPIDDIS_PRODUCTION_INPUT_MANIFEST := \
 	bootstrap/cupiddis-production-inputs.txt
-CUPIDDIS_PRODUCTION_INPUTS := $(KERNEL_OBJS) \
+override CUPIDDIS_PRODUCTION_INPUTS := $(KERNEL_OBJS) \
 	kernel/cpu/ksyms_data.o \
 	kernel/kernel.elf.pass1 \
 	kernel/kernel.elf
@@ -1456,10 +1456,10 @@ kernel/kernel.elf: $(KERNEL_OBJS) kernel/cpu/ksyms_data.o link.ld \
 	$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
 
 $(KERNEL): kernel/kernel.elf $(CUPIDDIS_PRODUCTION_INPUTS) \
-	$(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) tools/hostbuild.py \
-	$(CUPIDDIS_INPUTS) $(CUPIDOBJ_INPUTS)
-	$(PYTHON) tools/hostbuild.py validate-code \
-		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \
+	$(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) Makefile \
+	$(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) flatten-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
 		--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \
 		--output $(KERNEL)
 

@@ -320,6 +320,8 @@ TOOL_MARKERS = (
         "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX)",
         "cupid_builder",
     ),
+    ("flatten-kernel --seed-manifest", "cupid_disassembler"),
+    ("flatten-kernel --seed-manifest", "cupid_object"),
     ("generate-ksyms --seed-manifest", "cupid_disassembler"),
     ("generate-ksyms --seed-manifest", "cupid_object"),
     ("validate-code --seed-manifest", "cupid_disassembler"),
@@ -568,9 +570,7 @@ CUPIDC_KERNEL_CONTROL_FILES = (
     "tools/bootstrap_toolchain.py",
     "bootstrap/seeds/i386-windows/manifest.json",
 )
-_CUPIDOBJ_PROFILE_MANIFEST_OUTPUT = (
-    "build/bootstrap/doom-cupidc-inputs.json"
-)
+_CUPIDOBJ_PROFILE_MANIFEST_OUTPUT = "build/bootstrap/doom-cupidc-inputs.json"
 _CUPIDOBJ_PROFILE_MANIFEST_RECIPE = [
     "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\",
     "--manifest $(PRODUCTION_SEED_MANIFEST) \\",
@@ -588,9 +588,7 @@ _CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_FILES = (
     "CONTEXT.md",
     "docs/bootstrap/README.md",
 )
-_CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_DIRECTORIES = (
-    "kernel/doom/src",
-)
+_CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_DIRECTORIES = ("kernel/doom/src",)
 CUPIDC_PRODUCTION_CONTROL_FILES = (
     "tools/cupidc_production_compile.py",
     "tools/cupidc_production_frontier.py",
@@ -606,7 +604,10 @@ EXCLUDED_SOURCE_TREES = {".agents", ".git", "__pycache__", "build", "templeos"}
 KNOWN_SOURCE_RELATIONS = {
     "bin/cupidc.c": ("historical_copy_of", "kernel/lang/cupidc.cc"),
     "bin/cupidc_lex.c": ("historical_copy_of", "kernel/lang/cupidc_lex.cc"),
-    "bin/cupidc_parse.c": ("historical_copy_of", "kernel/lang/cupidc_parse.cc"),
+    "bin/cupidc_parse.c": (
+        "historical_copy_of",
+        "kernel/lang/cupidc_parse.cc",
+    ),
     "bin/fat16.c": ("historical_copy_of", "kernel/fs/fat16.cc"),
     "bin/fat16_vfs.c": ("historical_copy_of", "kernel/fs/fat16_vfs.cc"),
     "bin/kernel.c": ("historical_copy_of", "kernel/core/kernel.cc"),
@@ -741,9 +742,7 @@ class CPreprocessorActiveCasesManifest:
     deferred_hosted: tuple[tuple[str, str], ...]
 
 
-_C_PP_INCLUDE_BOTH = (
-    "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)"
-)
+_C_PP_INCLUDE_BOTH = "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)"
 _C_PP_PROFILE_ROWS = (
     CPreprocessorProfile(
         name="KERNEL_I386",
@@ -1146,11 +1145,46 @@ ASM_DIRECTIVES = {
 
 ASM_PREFIXES = {"a16", "a32", "lock", "o16", "o32", "rep", "repe", "repne"}
 ASM_REGISTERS = {
-    "al", "ah", "ax", "eax", "bl", "bh", "bx", "ebx",
-    "cl", "ch", "cx", "ecx", "dl", "dh", "dx", "edx",
-    "si", "esi", "di", "edi", "sp", "esp", "bp", "ebp",
-    "cs", "ds", "es", "fs", "gs", "ss", "cr0", "cr2", "cr3", "cr4",
-    "dr0", "dr1", "dr2", "dr3", "dr6", "dr7",
+    "al",
+    "ah",
+    "ax",
+    "eax",
+    "bl",
+    "bh",
+    "bx",
+    "ebx",
+    "cl",
+    "ch",
+    "cx",
+    "ecx",
+    "dl",
+    "dh",
+    "dx",
+    "edx",
+    "si",
+    "esi",
+    "di",
+    "edi",
+    "sp",
+    "esp",
+    "bp",
+    "ebp",
+    "cs",
+    "ds",
+    "es",
+    "fs",
+    "gs",
+    "ss",
+    "cr0",
+    "cr2",
+    "cr3",
+    "cr4",
+    "dr0",
+    "dr1",
+    "dr2",
+    "dr3",
+    "dr6",
+    "dr7",
     *(f"mm{index}" for index in range(8)),
     *(f"xmm{index}" for index in range(8)),
     *(f"st{index}" for index in range(8)),
@@ -1238,9 +1272,13 @@ def _read_make_json_list(root: Path, make: str, target: str) -> list[str]:
             value = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        if isinstance(value, list) and all(
+            isinstance(item, str) for item in value
+        ):
             return value
-    raise AuditError(f"GNU Make target {target!r} did not emit a JSON string list")
+    raise AuditError(
+        f"GNU Make target {target!r} did not emit a JSON string list"
+    )
 
 
 def _parse_make_rules(database: str) -> dict[str, MakeRule]:
@@ -1336,7 +1374,9 @@ def _c_include_directives(
                         operand, display_path, line_number
                     )
                 )
-                evidence = f"{marker}{directive} {normalized} at line {line_number}"
+                evidence = (
+                    f"{marker}{directive} {normalized} at line {line_number}"
+                )
             else:
                 evidence = f"{marker}{directive} at line {line_number}"
             if directive in {"if", "ifdef", "ifndef"}:
@@ -1441,14 +1481,12 @@ def _make_include_configuration(root: Path) -> tuple[list[str], list[str]]:
     include_paths: list[str] = []
     forced_includes: list[str] = []
     for match in re.finditer(r"(?:^|[\s=])-I\s*([^\s]+)", logical_text):
-        value = match.group(1).strip('"\'').replace("\\", "/")
+        value = match.group(1).strip("\"'").replace("\\", "/")
         value = re.sub(r"^\./", "", value)
         if "$" not in value and value not in include_paths:
             include_paths.append(value)
-    for match in re.finditer(
-        r"(?:^|[\s=])-include\s+([^\s]+)", logical_text
-    ):
-        value = match.group(1).strip('"\'').replace("\\", "/")
+    for match in re.finditer(r"(?:^|[\s=])-include\s+([^\s]+)", logical_text):
+        value = match.group(1).strip("\"'").replace("\\", "/")
         value = re.sub(r"^\./", "", value)
         if "$" not in value and value not in forced_includes:
             forced_includes.append(value)
@@ -1463,7 +1501,9 @@ def _read_evaluated_make_variables(
     make_variables: tuple[str, ...] = (),
 ) -> dict[str, str]:
     target = "__cupid_audit_profile_values__"
-    value_names = [f"__CUPID_AUDIT_VALUE_{index}" for index in range(len(variables))]
+    value_names = [
+        f"__CUPID_AUDIT_VALUE_{index}" for index in range(len(variables))
+    ]
     origin_names = [
         f"__CUPID_AUDIT_ORIGIN_{index}" for index in range(len(variables))
     ]
@@ -1497,8 +1537,7 @@ def _read_evaluated_make_variables(
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip()
         raise AuditError(
-            f"GNU Make could not evaluate CupidC profile variables in "
-            f"{root}: {detail}"
+            f"GNU Make could not evaluate CupidC profile variables in {root}: {detail}"
         )
     wanted = set(value_names) | set(origin_names)
     evaluated: dict[str, str] = {}
@@ -1518,8 +1557,7 @@ def _read_evaluated_make_variables(
     for index, variable in enumerate(variables):
         if evaluated[origin_names[index]] == "undefined":
             raise AuditError(
-                f"missing Make variable in CupidC preprocessing profile: "
-                f"{variable}"
+                f"missing Make variable in CupidC preprocessing profile: {variable}"
             )
         values[variable] = evaluated[value_names[index]]
     return values
@@ -1555,12 +1593,13 @@ def _validate_cupidc_kernel_compile_make_binding(
     if not python_tokens:
         raise AuditError("CupidC kernel wrapper has an empty PYTHON binding")
 
-    executable = Path(
-        python_tokens[0].replace("\\", "/")
-    ).name.lower()
+    executable = Path(python_tokens[0].replace("\\", "/")).name.lower()
     if executable.endswith(".exe"):
         executable = executable[:-4]
-    if re.fullmatch(r"(?:py|python(?:[0-9]+(?:\.[0-9]+)*)?)", executable) is None:
+    if (
+        re.fullmatch(r"(?:py|python(?:[0-9]+(?:\.[0-9]+)*)?)", executable)
+        is None
+    ):
         raise AuditError(
             "CupidC kernel wrapper PYTHON binding is not a Python launcher: "
             f"{python_tokens[0]!r}"
@@ -1598,9 +1637,10 @@ def _python_make_tokens(value: str, label: str) -> list[str]:
     executable = Path(tokens[0].replace("\\", "/")).name.lower()
     if executable.endswith(".exe"):
         executable = executable[:-4]
-    if re.fullmatch(
-        r"(?:py|python(?:[0-9]+(?:\.[0-9]+)*)?)", executable
-    ) is None:
+    if (
+        re.fullmatch(r"(?:py|python(?:[0-9]+(?:\.[0-9]+)*)?)", executable)
+        is None
+    ):
         raise AuditError(f"{label} is not a Python launcher: {tokens[0]!r}")
     return tokens
 
@@ -1672,8 +1712,7 @@ def _validate_cupidc_production_make_bindings(
                 )
             except ValueError as error:
                 raise AuditError(
-                    "CupidC production wrapper binding cannot be tokenized: "
-                    f"{error}"
+                    f"CupidC production wrapper binding cannot be tokenized: {error}"
                 ) from error
             if actual_compile != expected_compile:
                 raise AuditError(
@@ -1699,8 +1738,7 @@ def _validate_cupidc_production_make_bindings(
                 actual_link = shlex.split(values["CUPIDLD_USER_LINK"])
             except ValueError as error:
                 raise AuditError(
-                    "CupidLD user wrapper binding cannot be tokenized: "
-                    f"{error}"
+                    f"CupidLD user wrapper binding cannot be tokenized: {error}"
                 ) from error
             if actual_link != expected_link:
                 raise AuditError(
@@ -1735,7 +1773,9 @@ def _make_preprocessor_flags(
         if token == "-I":
             index += 1
             if index >= len(tokens):
-                raise AuditError(f"missing -I operand in Make variable {variable}")
+                raise AuditError(
+                    f"missing -I operand in Make variable {variable}"
+                )
             include_paths.append(tokens[index])
         elif token.startswith("-I") and len(token) > 2:
             include_paths.append(token[2:])
@@ -1749,7 +1789,9 @@ def _make_preprocessor_flags(
         elif token == "-D":
             index += 1
             if index >= len(tokens):
-                raise AuditError(f"missing -D operand in Make variable {variable}")
+                raise AuditError(
+                    f"missing -D operand in Make variable {variable}"
+                )
             definition = tokens[index]
             macro_name, separator, replacement = definition.partition("=")
             defines[macro_name] = replacement if separator else "1"
@@ -1841,7 +1883,10 @@ def _include_closure(
                 kind,
                 include_paths,
             )
-            if included_relative is None or _language(included_relative) is None:
+            if (
+                included_relative is None
+                or _language(included_relative) is None
+            ):
                 continue
             resolved.append(included_relative)
             if included_relative not in seen:
@@ -1851,11 +1896,7 @@ def _include_closure(
 
 
 def _recipe_tokens(recipe: list[str]) -> list[str]:
-    return [
-        token
-        for token in "\n".join(recipe).split()
-        if token != "\\"
-    ]
+    return [token for token in "\n".join(recipe).split() if token != "\\"]
 
 
 def _checked_tool_runner_owner(command: str, tool: str) -> str | None:
@@ -1964,33 +2005,32 @@ def _operation_for_recipe(
         and "cupid_c_contract" in tools
     ):
         return "verify_toolchain_manifest"
-    if (
-        "$(artifact_size_contract)" in joined
-        and "cupid_c_contract" in tools
-    ):
+    if "$(artifact_size_contract)" in joined and "cupid_c_contract" in tools:
         return "verify_artifact_size_policy"
-    if (
-        "cupidc_toolchain_contracts.py build" in joined
-        and tools
-        == [
-            "cupid_assembler",
-            "cupid_c_compiler",
-            "cupid_c_contract",
-            "cupid_linker",
-            "host_python",
-        ]
-    ):
+    if "cupidc_toolchain_contracts.py build" in joined and tools == [
+        "cupid_assembler",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
+        "host_python",
+    ]:
         return "generate_toolchain_manifest"
-    if (
-        "cupid_object" in tools
-        and "--write-profile-input-manifest"
-        in (token.lower() for token in _recipe_tokens(recipe))
+    if "cupid_object" in tools and "--write-profile-input-manifest" in (
+        token.lower() for token in _recipe_tokens(recipe)
     ):
         return "generate_profile_manifest"
     if "hostbuild.py build-iso " in joined:
         return "package_iso9660_image"
     if "hostbuild.py image " in joined:
         return "package_disk_image"
+    if (
+        "flatten-kernel" in tokens
+        and "--output" in tokens
+        and "cupid_builder" in tools
+        and "cupid_disassembler" in tools
+        and "cupid_object" in tools
+    ):
+        return "extract_raw_binary"
     if (
         "hostbuild.py validate-code " in joined
         and "--output" in _recipe_tokens(recipe)
@@ -2013,8 +2053,8 @@ def _operation_for_recipe(
     if (
         (
             "hostbuild.py assemble-cupidasm-object " in joined
-            or "cupidbuild.$(production_seed_suffix) "
-            "assemble-cupidasm-object " in joined
+            or "cupidbuild.$(production_seed_suffix) assemble-cupidasm-object "
+            in joined
         )
         and "cupid_assembler" in tools
         and "cupid_disassembler" in tools
@@ -2027,19 +2067,16 @@ def _operation_for_recipe(
     ):
         return "assemble_flat_binary"
     if (
-        ("mksyms" in tokens or "generate-ksyms" in tokens)
-        and "cupid_object" in tools
-    ):
+        "mksyms" in tokens or "generate-ksyms" in tokens
+    ) and "cupid_object" in tools:
         return "generate_ksyms_source"
-    if (
-        posixpath.basename(output.replace("\\", "/"))
-        == "test-syscall-abi"
-        and any(
-            posixpath.normpath(path.replace("\\", "/")).endswith(
-                "tools/user_syscall_abi.py"
-            )
-            for path in inputs
+    if posixpath.basename(
+        output.replace("\\", "/")
+    ) == "test-syscall-abi" and any(
+        posixpath.normpath(path.replace("\\", "/")).endswith(
+            "tools/user_syscall_abi.py"
         )
+        for path in inputs
     ):
         return "verify_user_syscall_abi"
     if "host_c_compiler" in tools or "cupid_c_compiler" in tools:
@@ -2080,8 +2117,7 @@ def _operation_for_recipe(
         return "transform_object"
     if "host_python" in tools:
         if " mksyms " in joined or (
-            " gen-" in joined
-            and output.lower().endswith((".c", ".cc"))
+            " gen-" in joined and output.lower().endswith((".c", ".cc"))
         ):
             return "generate_c_source"
         if " gen-" in joined:
@@ -2159,7 +2195,9 @@ def _collect_build_model(
     directory: str,
 ) -> BuildModel:
     normalized_directory = directory.replace("\\", "/").strip("/") or "."
-    build_root = root if normalized_directory == "." else root / normalized_directory
+    build_root = (
+        root if normalized_directory == "." else root / normalized_directory
+    )
     if not (build_root / "Makefile").is_file():
         raise AuditError(
             f"supplemental build directory has no Makefile: {normalized_directory}"
@@ -2184,7 +2222,9 @@ def _collect_build_model(
         for item in graph_sources
         if (build_root / item).is_file() or item in generated_local
     }
-    include_paths, forced_include_names = _make_include_configuration(build_root)
+    include_paths, forced_include_names = _make_include_configuration(
+        build_root
+    )
     forced_local: set[str] = set()
     for include in forced_include_names:
         resolved = _resolve_include(
@@ -2234,13 +2274,16 @@ def _collect_build_model(
         rules=rules,
         reachable=reachable,
         direct_sources={
-            _prefix_repo_path(normalized_directory, path) for path in direct_local
+            _prefix_repo_path(normalized_directory, path)
+            for path in direct_local
         },
         generated_sources={
-            _prefix_repo_path(normalized_directory, path) for path in generated_local
+            _prefix_repo_path(normalized_directory, path)
+            for path in generated_local
         },
         forced_sources={
-            _prefix_repo_path(normalized_directory, path) for path in forced_local
+            _prefix_repo_path(normalized_directory, path)
+            for path in forced_local
         },
         includes_by_source={
             _prefix_repo_path(normalized_directory, source): [
@@ -2250,7 +2293,8 @@ def _collect_build_model(
             for source, includes in includes_local.items()
         },
         include_search_paths=[
-            _prefix_repo_path(normalized_directory, path) for path in include_paths
+            _prefix_repo_path(normalized_directory, path)
+            for path in include_paths
         ],
         transforms=_build_transforms(
             normalized_directory,
@@ -2378,7 +2422,11 @@ def _roadmap(
             "shared_i386_abi_and_instruction_model",
             "Share one i386 ABI and instruction model",
             ("kernel_assembly",),
-            ("c.extension.inline_assembly", "asm.instruction.", "asm.register."),
+            (
+                "c.extension.inline_assembly",
+                "asm.instruction.",
+                "asm.register.",
+            ),
             "C code generation, assembly encoding, and disassembly exercise the same 16/32-bit machine domain.",
         ),
         (
@@ -2406,7 +2454,11 @@ def _roadmap(
             "cupidasm_symbols_and_relocations",
             "Emit ELF32 sections, symbols, and i386 relocations",
             ("kernel_assembly",),
-            ("asm.directive.global", "asm.directive.extern", "asm.relocation."),
+            (
+                "asm.directive.global",
+                "asm.directive.extern",
+                "asm.relocation.",
+            ),
             "ISR and context-switch objects must interoperate with host- and CupidC-produced objects.",
         ),
         (
@@ -2449,7 +2501,9 @@ def _roadmap(
     capability_priorities = []
     for identifier, title, cohorts, feature_prefixes, rationale in definitions:
         cohort_paths = {
-            path for cohort in cohorts for path in sources_by_cohort.get(cohort, [])
+            path
+            for cohort in cohorts
+            for path in sources_by_cohort.get(cohort, [])
         }
         matched_features = sorted(
             feature_id
@@ -2506,7 +2560,10 @@ def _roadmap(
                     cohort
                     for cohort in sources_by_cohort
                     if cohort == "driver"
-                    or (cohort.startswith("kernel_") and cohort not in {"kernel_assembly"})
+                    or (
+                        cohort.startswith("kernel_")
+                        and cohort not in {"kernel_assembly"}
+                    )
                 )
             ),
             "Move foundational strict C before vendored compatibility cohorts.",
@@ -2535,7 +2592,11 @@ def _roadmap(
     source_cohort_order = []
     for identifier, cohorts, rationale in cohort_definitions:
         paths = sorted(
-            {path for cohort in cohorts for path in sources_by_cohort.get(cohort, [])}
+            {
+                path
+                for cohort in cohorts
+                for path in sources_by_cohort.get(cohort, [])
+            }
         )
         if not paths:
             continue
@@ -2555,7 +2616,9 @@ def _roadmap(
     }
 
 
-def _abi_inventory(root: Path, transforms: list[dict[str, object]]) -> dict[str, object] | None:
+def _abi_inventory(
+    root: Path, transforms: list[dict[str, object]]
+) -> dict[str, object] | None:
     makefile = root / "Makefile"
     if not makefile.is_file():
         return None
@@ -2654,8 +2717,7 @@ def _provenance(
             path = root / relative
             if not path.is_file():
                 raise AuditError(
-                    "CupidC ownership control file is missing: "
-                    f"{relative}"
+                    f"CupidC ownership control file is missing: {relative}"
                 )
             control_files.append(
                 {
@@ -2678,8 +2740,7 @@ def _provenance(
             path = root / relative
             if not path.is_file():
                 raise AuditError(
-                    "CupidC production ownership control file is missing: "
-                    f"{relative}"
+                    f"CupidC production ownership control file is missing: {relative}"
                 )
             control_files.append(
                 {
@@ -2707,7 +2768,9 @@ def _provenance(
 
 
 def _is_excluded_source_path(path: str) -> bool:
-    return any(part.lower() in EXCLUDED_SOURCE_TREES for part in Path(path).parts)
+    return any(
+        part.lower() in EXCLUDED_SOURCE_TREES for part in Path(path).parts
+    )
 
 
 def _tracked_paths(root: Path) -> list[str] | None:
@@ -2795,7 +2858,9 @@ def _load_source_suffix_ownership_policy(root: Path) -> dict[str, object]:
             f"source suffix ownership policy is invalid: {relative}: {error}"
         ) from error
     if not isinstance(decoded, dict):
-        raise AuditError("source suffix ownership policy root must be an object")
+        raise AuditError(
+            "source suffix ownership policy root must be an object"
+        )
     if set(decoded) != SOURCE_SUFFIX_POLICY_KEYS:
         missing = sorted(SOURCE_SUFFIX_POLICY_KEYS - set(decoded))
         unknown = sorted(set(decoded) - SOURCE_SUFFIX_POLICY_KEYS)
@@ -2824,16 +2889,14 @@ def _load_source_suffix_ownership_policy(root: Path) -> dict[str, object]:
         isinstance(value, str) for value in deliveries
     ):
         raise AuditError(
-            "source suffix ownership runtime_delivery_sources must be a "
-            "string list"
+            "source suffix ownership runtime_delivery_sources must be a string list"
         )
     if not isinstance(unreachable_cupid_c, dict) or not all(
         isinstance(key, str) and isinstance(value, str)
         for key, value in unreachable_cupid_c.items()
     ):
         raise AuditError(
-            "source suffix ownership unreachable_cupid_c_sources must be a "
-            "string map"
+            "source suffix ownership unreachable_cupid_c_sources must be a string map"
         )
 
     def validate_path(value: str, suffix: str, subject: str) -> None:
@@ -2855,15 +2918,16 @@ def _load_source_suffix_ownership_policy(root: Path) -> dict[str, object]:
         raise AuditError(
             "source suffix ownership residual_c_sources must be path-sorted"
         )
-    if deliveries != sorted(deliveries) or len(deliveries) != len(set(deliveries)):
+    if deliveries != sorted(deliveries) or len(deliveries) != len(
+        set(deliveries)
+    ):
         raise AuditError(
             "source suffix ownership runtime_delivery_sources must be a "
             "unique path-sorted list"
         )
     if list(unreachable_cupid_c) != sorted(unreachable_cupid_c):
         raise AuditError(
-            "source suffix ownership unreachable_cupid_c_sources must be "
-            "path-sorted"
+            "source suffix ownership unreachable_cupid_c_sources must be path-sorted"
         )
     for policy_path, role in residual.items():
         validate_path(policy_path, ".c", "residual C")
@@ -2957,7 +3021,9 @@ def _unreachable_inventory(
         ):
             classification = "historical_copy"
             reason = "diverged historical copy of an active implementation"
-        elif any(relation["kind"] == "superseded_by" for relation in relations):
+        elif any(
+            relation["kind"] == "superseded_by" for relation in relations
+        ):
             classification = "superseded"
             reason = "replaced by the recorded active implementation"
         elif known_policy is not None:
@@ -2977,9 +3043,9 @@ def _unreachable_inventory(
                 "duplicate_of": duplicate_paths,
                 "relations": relations,
                 "lines": len(
-                    (root / path).read_text(
-                        encoding="utf-8", errors="replace"
-                    ).splitlines()
+                    (root / path)
+                    .read_text(encoding="utf-8", errors="replace")
+                    .splitlines()
                 ),
                 "sha256": digests[path],
             }
@@ -3038,8 +3104,7 @@ def _c_source_ownership_contract(
         str(source["path"]): source for source in unreachable_tracked_c
     }
     unreachable_cupid_c_by_path = {
-        str(source["path"]): source
-        for source in unreachable_tracked_cupid_c
+        str(source["path"]): source for source in unreachable_tracked_cupid_c
     }
     residual_policy = policy["residual_c_sources"]
     delivery_policy = policy["runtime_delivery_sources"]
@@ -3058,8 +3123,7 @@ def _c_source_ownership_contract(
         if role == "active_host":
             if active is None or active["runtime_owner"] is not None:
                 raise AuditError(
-                    "source suffix ownership policy expected active host C: "
-                    f"{path}"
+                    f"source suffix ownership policy expected active host C: {path}"
                 )
             if "host_c_compiler" not in active["build_owners"]:
                 raise AuditError(
@@ -3121,8 +3185,7 @@ def _c_source_ownership_contract(
         if unknown_unreachable_cupid_c:
             raise AuditError(
                 "unreachable tracked .cc source lacks explicit ownership "
-                "policy: "
-                + ", ".join(unknown_unreachable_cupid_c)
+                "policy: " + ", ".join(unknown_unreachable_cupid_c)
             )
 
     cupidc_owned = [
@@ -3163,11 +3226,13 @@ def _c_source_ownership_contract(
             relation["kind"] in {"historical_copy_of", "superseded_by"}
             for relation in source["relations"]
         )
-        if source["classification"] == "explicitly_excluded" or has_explicit_relation:
+        if (
+            source["classification"] == "explicitly_excluded"
+            or has_explicit_relation
+        ):
             continue
         raise AuditError(
-            "unreachable tracked .cc source lacks explicit ownership policy: "
-            f"{path}"
+            f"unreachable tracked .cc source lacks explicit ownership policy: {path}"
         )
     return {
         "status": "pass",
@@ -3178,7 +3243,8 @@ def _c_source_ownership_contract(
             "runtime_delivery_sources": len(delivery_policy),
             "unreachable_cupid_c_sources": len(unreachable_cupid_c_policy),
         },
-        "tracked_c_sources": len(active_tracked_c) + len(unreachable_tracked_c),
+        "tracked_c_sources": len(active_tracked_c)
+        + len(unreachable_tracked_c),
         "active_tracked_c_sources": len(active_tracked_c),
         "cupidc_owned_tracked_c_sources": 0,
         "unreachable_tracked_c_sources": len(unreachable_tracked_c),
@@ -3666,7 +3732,9 @@ def _normalize_c_preprocessing_tokens(
         if identifier_width != 0:
             end = index + identifier_width
             while end < len(expression):
-                width = _c_identifier_unit_width(expression, end, initial=False)
+                width = _c_identifier_unit_width(
+                    expression, end, initial=False
+                )
                 if width == 0:
                     break
                 end += width
@@ -3714,7 +3782,10 @@ def _scan_c_macro_features(
         )
         if macro_match:
             collector.add(
-                "c.preprocessor.function_macro", path, line_number, original_line
+                "c.preprocessor.function_macro",
+                path,
+                line_number,
+                original_line,
             )
             if "..." in macro_match.group(1):
                 collector.add(
@@ -3729,7 +3800,9 @@ def _scan_c_macro_features(
         )
         if define_match:
             replacement = define_match.group(1)
-            paste_count, stringify_count = _c_macro_operator_counts(replacement)
+            paste_count, stringify_count = _c_macro_operator_counts(
+                replacement
+            )
             collector.add(
                 "c.preprocessor.token_paste",
                 path,
@@ -3750,9 +3823,7 @@ def _scan_c_macro_features(
                 line_number,
                 original_line,
                 len(
-                    re.findall(
-                        r",\s*(?:##|%:%:)\s*__VA_ARGS__\b", replacement
-                    )
+                    re.findall(r",\s*(?:##|%:%:)\s*__VA_ARGS__\b", replacement)
                 ),
             )
 
@@ -3778,7 +3849,9 @@ def _c_macro_operator_counts(replacement: str) -> tuple[int, int]:
             width = 1
         if width != 0:
             operand = index + width
-            while operand < len(replacement) and replacement[operand].isspace():
+            while (
+                operand < len(replacement) and replacement[operand].isspace()
+            ):
                 operand += 1
             if operand < len(replacement) and (
                 replacement[operand] == "_"
@@ -3929,19 +4002,16 @@ def _scan_c_features(
                     tokens.count(token),
                 )
 
-        directive_match = re.match(
-            r"\s*(?:#|%:)\s*([A-Za-z_]\w*)", code_line
-        )
+        directive_match = re.match(r"\s*(?:#|%:)\s*([A-Za-z_]\w*)", code_line)
         if directive_match:
             directive = directive_match.group(1).lower()
             feature_id = (
                 f"c.preprocessor.{directive}"
-                if directive in C_PREPROCESSOR_DIRECTIVES or language != "cupid_c"
+                if directive in C_PREPROCESSOR_DIRECTIVES
+                or language != "cupid_c"
                 else f"cupid_c.directive.{directive}"
             )
-            collector.add(
-                feature_id, path, line_number, original_line
-            )
+            collector.add(feature_id, path, line_number, original_line)
         if re.match(r"\s*(?:#|%:)\s*pragma\s+pack\b", code_line):
             collector.add(
                 "c.preprocessor.pragma.pack", path, line_number, original_line
@@ -4023,7 +4093,7 @@ def _scan_c_features(
             r"\(\s*(?:(?:struct|union)\s+)?[A-Za-z_]\w*(?:\s*\*)?\s*\)\s*\{",
             code_line,
         ):
-            prefix = code_line[:match.start()].rstrip()
+            prefix = code_line[: match.start()].rstrip()
             if prefix.endswith((")", "]")):
                 continue
             if prefix and (prefix[-1].isalnum() or prefix[-1] == "_"):
@@ -4075,7 +4145,9 @@ def _scan_c_features(
             code_line,
             r"\b(?:typeof|__typeof|__typeof__)\b",
         )
-        for builtin in sorted(set(re.findall(r"\b(__builtin_[A-Za-z_]\w*)\b", code_line))):
+        for builtin in sorted(
+            set(re.findall(r"\b(__builtin_[A-Za-z_]\w*)\b", code_line))
+        ):
             collector.add(
                 f"c.extension.builtin.{builtin.removeprefix('__builtin_').lower()}",
                 path,
@@ -4083,6 +4155,8 @@ def _scan_c_features(
                 original_line,
                 code_line.count(builtin),
             )
+
+
 def _mask_asm_strings(line: str) -> str:
     """Replace quoted ASM data with spaces while preserving source positions."""
     output = list(line)
@@ -4117,7 +4191,9 @@ def _asm_bracketed_directive(line: str) -> str | None:
     return match.group(1).lower() if match is not None else None
 
 
-def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> None:
+def _scan_asm_features(
+    path: str, text: str, collector: FeatureCollector
+) -> None:
     extern_symbols: set[str] = set()
     for raw_line in text.splitlines():
         declaration = re.match(
@@ -4139,18 +4215,22 @@ def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> Non
         if label_match:
             label = label_match.group(1)
             collector.add(
-                "asm.label.local" if label.startswith(".") else "asm.label.global",
+                "asm.label.local"
+                if label.startswith(".")
+                else "asm.label.global",
                 path,
                 line_number,
                 original_line,
             )
-            code_line = code_line[label_match.end():].lstrip()
+            code_line = code_line[label_match.end() :].lstrip()
             if not code_line:
                 continue
 
         bracketed_directive = _asm_bracketed_directive(code_line)
         scan_line = (
-            bracketed_directive if bracketed_directive is not None else code_line
+            bracketed_directive
+            if bracketed_directive is not None
+            else code_line
         )
         first_match = re.match(r"([^\s,]+)", scan_line)
         if first_match is None:
@@ -4159,7 +4239,10 @@ def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> Non
         mnemonic: str | None = None
         if first.startswith("%"):
             collector.add(
-                f"asm.preprocessor.{first[1:]}", path, line_number, original_line
+                f"asm.preprocessor.{first[1:]}",
+                path,
+                line_number,
+                original_line,
             )
         else:
             tokens = re.findall(r"[A-Za-z_][\w.$@?]*", scan_line.lower())
@@ -4170,7 +4253,10 @@ def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> Non
                 directive = tokens[1]
             if directive is not None:
                 collector.add(
-                    f"asm.directive.{directive}", path, line_number, original_line
+                    f"asm.directive.{directive}",
+                    path,
+                    line_number,
+                    original_line,
                 )
             if directive is None:
                 if first in ASM_PREFIXES:
@@ -4189,7 +4275,9 @@ def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> Non
                         )
             if first == "times":
                 for data_directive in ("db", "dw", "dd", "dq", "dt"):
-                    if re.search(rf"\b{data_directive}\b", code_line, re.IGNORECASE):
+                    if re.search(
+                        rf"\b{data_directive}\b", code_line, re.IGNORECASE
+                    ):
                         collector.add(
                             f"asm.directive.{data_directive}",
                             path,
@@ -4209,7 +4297,9 @@ def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> Non
         memory_line = _mask_asm_strings(code_line)
         memory_operands = re.findall(r"\[[^\[\]]*\]", memory_line)
         if bracketed_directive is None and memory_operands:
-            collector.add("asm.addressing.memory", path, line_number, original_line)
+            collector.add(
+                "asm.addressing.memory", path, line_number, original_line
+            )
             if any(
                 re.search(r"\*\s*(?:2|4|8)\b", operand)
                 for operand in memory_operands
@@ -4222,32 +4312,52 @@ def _scan_asm_features(path: str, text: str, collector: FeatureCollector) -> Non
                 )
         if re.search(r"\b(?:cs|ds|es|fs|gs|ss)\s*:", code_line, re.IGNORECASE):
             collector.add(
-                "asm.addressing.segment_override", path, line_number, original_line
+                "asm.addressing.segment_override",
+                path,
+                line_number,
+                original_line,
             )
         for size in ("byte", "word", "dword", "qword", "tword"):
-            if re.search(rf"\b{size}\s*(?:ptr\s*)?\[", code_line, re.IGNORECASE):
+            if re.search(
+                rf"\b{size}\s*(?:ptr\s*)?\[", code_line, re.IGNORECASE
+            ):
                 collector.add(
-                    f"asm.addressing.size.{size}", path, line_number, original_line
+                    f"asm.addressing.size.{size}",
+                    path,
+                    line_number,
+                    original_line,
                 )
         if "$$" in code_line:
             collector.add(
-                "asm.expression.section_origin", path, line_number, original_line
+                "asm.expression.section_origin",
+                path,
+                line_number,
+                original_line,
             )
         elif "$" in code_line:
             collector.add(
-                "asm.expression.current_offset", path, line_number, original_line
+                "asm.expression.current_offset",
+                path,
+                line_number,
+                original_line,
             )
         if first != "extern":
             referenced_externals = [
                 symbol
                 for symbol in extern_symbols
-                if re.search(rf"(?<![\w.$@?]){re.escape(symbol)}(?![\w.$@?])", code_line)
+                if re.search(
+                    rf"(?<![\w.$@?]){re.escape(symbol)}(?![\w.$@?])", code_line
+                )
             ]
             if referenced_externals:
                 relocation = (
                     "pc_relative_external"
                     if mnemonic is not None
-                    and (mnemonic == "call" or mnemonic == "jmp" or mnemonic.startswith("j"))
+                    and (
+                        mnemonic == "call"
+                        or mnemonic == "jmp"
+                        or mnemonic.startswith("j")
+                    )
                     else "absolute_external"
                 )
                 collector.add(
@@ -4340,8 +4450,7 @@ def _c_preprocessor_line_directives_contract(
         path
         for path in active_sources
         if _language(path) in {"c", "c_header", "cupid_c"}
-        and path.replace("\\", "/").split("/", 1)[0].casefold()
-        == "templeos"
+        and path.replace("\\", "/").split("/", 1)[0].casefold() == "templeos"
     )
     if temple_sources:
         raise AuditError(
@@ -4356,15 +4465,16 @@ def _c_preprocessor_line_directives_contract(
         logical_lines = _c_raw_logical_lines(text)
         if not logical_lines:
             continue
-        logical_text = "\n".join(code_line for _, _, code_line in logical_lines)
+        logical_text = "\n".join(
+            code_line for _, _, code_line in logical_lines
+        )
         directive_lines = _mask_c_noncode(logical_text).split("\n")
         payload_lines = _mask_c_comments_preserve_literals(logical_text).split(
             "\n"
         )
-        if (
-            len(directive_lines) != len(logical_lines)
-            or len(payload_lines) != len(logical_lines)
-        ):
+        if len(directive_lines) != len(logical_lines) or len(
+            payload_lines
+        ) != len(logical_lines):
             raise AuditError("C masking changed the logical line count")
         conditional_depth = 0
         for (
@@ -4519,15 +4629,16 @@ def _c_preprocessor_conditionals_contract(
         logical_lines = _c_raw_logical_lines(text)
         if not logical_lines:
             continue
-        logical_text = "\n".join(code_line for _, _, code_line in logical_lines)
-        directive_lines = _mask_c_noncode(logical_text).split("\n")
-        expression_lines = _mask_c_comments_preserve_literals(logical_text).split(
-            "\n"
+        logical_text = "\n".join(
+            code_line for _, _, code_line in logical_lines
         )
-        if (
-            len(directive_lines) != len(logical_lines)
-            or len(expression_lines) != len(logical_lines)
-        ):
+        directive_lines = _mask_c_noncode(logical_text).split("\n")
+        expression_lines = _mask_c_comments_preserve_literals(
+            logical_text
+        ).split("\n")
+        if len(directive_lines) != len(logical_lines) or len(
+            expression_lines
+        ) != len(logical_lines):
             raise AuditError("C masking changed the logical line count")
         for (
             (line_number, _original_line, raw_line),
@@ -4539,9 +4650,7 @@ def _c_preprocessor_conditionals_contract(
             expression_lines,
             strict=True,
         ):
-            match = re.match(
-                r"\s*(?:#|%:)\s*(if|elif)\b", directive_line
-            )
+            match = re.match(r"\s*(?:#|%:)\s*(if|elif)\b", directive_line)
             if match is None:
                 continue
             directive = match.group(1)
@@ -4595,9 +4704,9 @@ def _c_preprocessor_pragmas_contract(
     active_sources: set[str],
     generated_sources: set[str],
 ) -> dict[str, object]:
-    by_form: dict[
-        tuple[str, str, int | None], list[dict[str, object]]
-    ] = collections.defaultdict(list)
+    by_form: dict[tuple[str, str, int | None], list[dict[str, object]]] = (
+        collections.defaultdict(list)
+    )
     once_occurrences = 0
     pack_push_occurrences = 0
     pack_pop_occurrences = 0
@@ -4611,15 +4720,16 @@ def _c_preprocessor_pragmas_contract(
         logical_lines = _c_raw_logical_lines(text)
         if not logical_lines:
             continue
-        logical_text = "\n".join(code_line for _, _, code_line in logical_lines)
+        logical_text = "\n".join(
+            code_line for _, _, code_line in logical_lines
+        )
         directive_lines = _mask_c_noncode(logical_text).split("\n")
         payload_lines = _mask_c_comments_preserve_literals(logical_text).split(
             "\n"
         )
-        if (
-            len(directive_lines) != len(logical_lines)
-            or len(payload_lines) != len(logical_lines)
-        ):
+        if len(directive_lines) != len(logical_lines) or len(
+            payload_lines
+        ) != len(logical_lines):
             raise AuditError("C masking changed the logical line count")
         pack_depth = 0
         for (
@@ -4643,8 +4753,7 @@ def _c_preprocessor_pragmas_contract(
             payload = payload_line[match.end() :]
             if not payload.strip():
                 raise AuditError(
-                    f"{path}:{line_number}: unclassified active #pragma form: "
-                    "<empty>"
+                    f"{path}:{line_number}: unclassified active #pragma form: <empty>"
                 )
             tokens = _normalize_c_preprocessing_tokens(
                 payload, path, line_number
@@ -4727,9 +4836,9 @@ def _c_preprocessor_cupid_exe_contract(
     active_sources: set[str],
     generated_sources: set[str],
 ) -> dict[str, object]:
-    by_form: dict[
-        tuple[str, str, int], list[dict[str, object]]
-    ] = collections.defaultdict(list)
+    by_form: dict[tuple[str, str, int], list[dict[str, object]]] = (
+        collections.defaultdict(list)
+    )
     ordinary_marker_occurrences = 0
     digraph_marker_occurrences = 0
     max_conditional_depth = 0
@@ -4740,15 +4849,16 @@ def _c_preprocessor_cupid_exe_contract(
         logical_lines = _c_raw_logical_lines(text)
         if not logical_lines:
             continue
-        logical_text = "\n".join(code_line for _, _, code_line in logical_lines)
+        logical_text = "\n".join(
+            code_line for _, _, code_line in logical_lines
+        )
         directive_lines = _mask_c_noncode(logical_text).split("\n")
         payload_lines = _mask_c_comments_preserve_literals(logical_text).split(
             "\n"
         )
-        if (
-            len(directive_lines) != len(logical_lines)
-            or len(payload_lines) != len(logical_lines)
-        ):
+        if len(directive_lines) != len(logical_lines) or len(
+            payload_lines
+        ) != len(logical_lines):
             raise AuditError("C masking changed the logical line count")
         conditional_depth = 0
         for (
@@ -4761,9 +4871,7 @@ def _c_preprocessor_cupid_exe_contract(
             payload_lines,
             strict=True,
         ):
-            match = re.match(
-                r"\s*(#|%:)\s*([A-Za-z_]\w*)\b", directive_line
-            )
+            match = re.match(r"\s*(#|%:)\s*([A-Za-z_]\w*)\b", directive_line)
             if match is None:
                 continue
             marker, directive = match.groups()
@@ -4856,9 +4964,14 @@ def _scan_build_features(
                 and operation == "compile_c_to_elf32_object"
             ):
                 feature_id = "cupid_c.output.elf32_relocatable"
-            elif language == "assembly" and operation == "assemble_flat_binary":
+            elif (
+                language == "assembly" and operation == "assemble_flat_binary"
+            ):
                 feature_id = "asm.output.flat_binary"
-            elif language == "assembly" and operation == "assemble_elf32_relocatable":
+            elif (
+                language == "assembly"
+                and operation == "assemble_elf32_relocatable"
+            ):
                 feature_id = "asm.output.elf32_relocatable"
             elif language == "assembly" and operation in {
                 "wrap_binary_as_elf32_relocatable",
@@ -4919,8 +5032,7 @@ def _read_checked_seed_runner_module(
         return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     except (OSError, SyntaxError) as error:
         raise AuditError(
-            f"checked-seed runner contract file is unavailable: {relative}: "
-            f"{error}"
+            f"checked-seed runner contract file is unavailable: {relative}: {error}"
         ) from error
 
 
@@ -5164,41 +5276,53 @@ def _validate_shared_seed_runner(
         return matches[0]
 
     executable_index = direct_index(
-        lambda statement: isinstance(statement, ast.Try)
-        and len(statement.body) == 1
-        and ast.unparse(statement.body[0])
-        == "executable = seed_inputs.tools[tool_name]"
+        lambda statement: (
+            isinstance(statement, ast.Try)
+            and len(statement.body) == 1
+            and ast.unparse(statement.body[0])
+            == "executable = seed_inputs.tools[tool_name]"
+        )
     )
     runner_index = direct_index(
-        lambda statement: isinstance(statement, ast.Assign)
-        and ast.unparse(statement)
-        == "active_runner = runner if runner is not None else ToolRunner(root)"
+        lambda statement: (
+            isinstance(statement, ast.Assign)
+            and ast.unparse(statement)
+            == "active_runner = runner if runner is not None else ToolRunner(root)"
+        )
     )
     execution_index = direct_index(
-        lambda statement: isinstance(statement, ast.Try)
-        and len(statement.body) == 1
-        and ast.unparse(statement.body[0])
-        == "result = active_runner.run(executable, arguments, timeout)"
+        lambda statement: (
+            isinstance(statement, ast.Try)
+            and len(statement.body) == 1
+            and ast.unparse(statement.body[0])
+            == "result = active_runner.run(executable, arguments, timeout)"
+        )
     )
     live_index = direct_index(
-        lambda statement: isinstance(statement, ast.Try)
-        and len(statement.body) == 1
-        and ast.unparse(statement.body[0])
-        == "live_seed = _load_seed_inputs(manifest_path, None)"
+        lambda statement: (
+            isinstance(statement, ast.Try)
+            and len(statement.body) == 1
+            and ast.unparse(statement.body[0])
+            == "live_seed = _load_seed_inputs(manifest_path, None)"
+        )
     )
     comparison_index = direct_index(
-        lambda statement: isinstance(statement, ast.If)
-        and ast.unparse(statement.test)
-        == "live_seed.manifest_sha256 != seed_inputs.manifest_sha256"
-        and not statement.orelse
-        and len(statement.body) == 1
-        and isinstance(statement.body[0], ast.Raise)
-        and isinstance(statement.body[0].exc, ast.Call)
-        and ast.unparse(statement.body[0].exc.func) == "BootstrapError"
+        lambda statement: (
+            isinstance(statement, ast.If)
+            and ast.unparse(statement.test)
+            == "live_seed.manifest_sha256 != seed_inputs.manifest_sha256"
+            and not statement.orelse
+            and len(statement.body) == 1
+            and isinstance(statement.body[0], ast.Raise)
+            and isinstance(statement.body[0].exc, ast.Call)
+            and ast.unparse(statement.body[0].exc.func) == "BootstrapError"
+        )
     )
     return_index = direct_index(
-        lambda statement: isinstance(statement, ast.Return)
-        and ast.unparse(statement.value) == "result"
+        lambda statement: (
+            isinstance(statement, ast.Return)
+            and ast.unparse(statement.value) == "result"
+        )
     )
     for checked_try in (body[execution_index], body[live_index]):
         if any(
@@ -5279,7 +5403,9 @@ def _validate_checked_seed_wrapper(
             and node.id in protected_names
         )
         or (
-            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            )
             and node.name in protected_names
         )
     ]
@@ -5318,8 +5444,7 @@ def _validate_checked_seed_wrapper(
     matching_calls = [
         call
         for call in calls
-        if len(call.args) >= 3
-        and ast.unparse(call.args[2]) == repr(tool_name)
+        if len(call.args) >= 3 and ast.unparse(call.args[2]) == repr(tool_name)
     ]
     if len(matching_calls) != 1:
         raise AuditError(
@@ -5327,7 +5452,12 @@ def _validate_checked_seed_wrapper(
             f"{tool_name} invocation is not unique"
         )
     call = matching_calls[0]
-    expected_arguments = ["manifest_path", "root", repr(tool_name), "arguments"]
+    expected_arguments = [
+        "manifest_path",
+        "root",
+        repr(tool_name),
+        "arguments",
+    ]
     if [ast.unparse(argument) for argument in call.args] != expected_arguments:
         raise AuditError(
             f"checked-seed runner contract changed in {relative}: "
@@ -5428,8 +5558,10 @@ def _validate_checked_seed_wrapper(
             "inspected.stderr",
         ):
             statement = guard_checks.get(expected_test)
-            if statement is None or not statement.body or not isinstance(
-                statement.body[-1], ast.Raise
+            if (
+                statement is None
+                or not statement.body
+                or not isinstance(statement.body[-1], ast.Raise)
             ):
                 raise AuditError(
                     f"checked-seed runner contract changed in {relative}: "
@@ -5550,8 +5682,7 @@ def _validate_checked_seed_wrapper(
             )
         branch_parent = parents.get(branch)
         if not (
-            isinstance(branch_parent, ast.Try)
-            and branch in branch_parent.body
+            isinstance(branch_parent, ast.Try) and branch in branch_parent.body
         ):
             raise AuditError(
                 f"checked-seed runner contract changed in {relative}: "
@@ -5622,10 +5753,7 @@ def _validate_checked_seed_wrapper(
             "publication_output.write_bytes(candidate_payload)",
         }
         and (
-            (
-                isinstance(node.func, ast.Name)
-                and node.func.id == "open"
-            )
+            (isinstance(node.func, ast.Name) and node.func.id == "open")
             or (
                 isinstance(node.func, ast.Attribute)
                 and node.func.attr
@@ -5686,10 +5814,14 @@ def _validate_checked_seed_wrapper(
             != "os.replace(publication_output, output)"
         )
         or alternate_publications
-        or not freeze_calls[0].lineno < call.lineno < publication_calls[0].lineno
+        or not freeze_calls[0].lineno
+        < call.lineno
+        < publication_calls[0].lineno
         or (
             guard_call is not None
-            and not call.lineno < guard_call.lineno < publication_calls[0].lineno
+            and not call.lineno
+            < guard_call.lineno
+            < publication_calls[0].lineno
         )
     ):
         raise AuditError(
@@ -6061,8 +6193,7 @@ def _validate_checked_assembly_publication(
         )
     for tool_name, expected in expected_calls.items():
         if [
-            ast.unparse(argument)
-            for argument in calls_by_tool[tool_name].args
+            ast.unparse(argument) for argument in calls_by_tool[tool_name].args
         ] != expected:
             raise AuditError(
                 "checked-seed runner contract changed in "
@@ -6219,6 +6350,12 @@ def build_audit(
         for directory, supplemental_target in (supplemental_builds or [])
     ]
     models = [root_model, *supplemental_models]
+    if production_root:
+        _validate_kernel_flatten_delivery(
+            root,
+            make,
+            root_model.transforms,
+        )
     _validate_cupidobj_profile_manifest_delivery(
         root,
         root_model.transforms,
@@ -6231,7 +6368,9 @@ def build_audit(
     _validate_cupidc_production_make_bindings(root, make, models)
 
     direct_sources = set().union(*(model.direct_sources for model in models))
-    generated_sources = set().union(*(model.generated_sources for model in models))
+    generated_sources = set().union(
+        *(model.generated_sources for model in models)
+    )
     forced_sources = set().union(*(model.forced_sources for model in models))
     includes_by_source: dict[str, list[str]] = {}
     build_memberships: dict[str, set[str]] = collections.defaultdict(set)
@@ -6310,20 +6449,14 @@ def build_audit(
         elif language == "cupid_c" and relative in runtime_delivery_policy:
             runtime_owner = "CupidC"
             runtime_owner_evidence = "explicit_runtime_delivery_policy"
-        elif (
-            language in {"c", "c_header"}
-            and "cupid_c_compiler" in owners
-        ):
+        elif language in {"c", "c_header"} and "cupid_c_compiler" in owners:
             runtime_owner = "CupidC"
             runtime_owner_evidence = "checked_cupidc_compile"
-        elif (
-            language == "assembly"
-            and (
-                "cupid_assembler" in owners
-                or (
-                    {"host_object_copy", "cupid_object"}.intersection(owners)
-                    and "nasm" not in owners
-                )
+        elif language == "assembly" and (
+            "cupid_assembler" in owners
+            or (
+                {"host_object_copy", "cupid_object"}.intersection(owners)
+                and "nasm" not in owners
             )
         ):
             runtime_owner = "CupidASM"
@@ -6357,7 +6490,11 @@ def build_audit(
                 "lines": (
                     None
                     if generated
-                    else len(path.read_text(encoding="utf-8", errors="replace").splitlines())
+                    else len(
+                        path.read_text(
+                            encoding="utf-8", errors="replace"
+                        ).splitlines()
+                    )
                 ),
                 "sha256": None if generated else _source_digest(path),
             }
@@ -6410,12 +6547,10 @@ def build_audit(
         all_sources,
         generated_sources,
     )
-    contracts["c_preprocessor_cupid_exe"] = (
-        _c_preprocessor_cupid_exe_contract(
-            root,
-            all_sources,
-            generated_sources,
-        )
+    contracts["c_preprocessor_cupid_exe"] = _c_preprocessor_cupid_exe_contract(
+        root,
+        all_sources,
+        generated_sources,
     )
     feature_inventory = feature_collector.inventory()
     roadmap = _roadmap(sources, feature_inventory)
@@ -6502,9 +6637,7 @@ def _c_preprocessor_compile_recipe_tokens(
         )
     try:
         tokens = shlex.split(recipe[0], comments=False, posix=True)
-        uncommented_tokens = shlex.split(
-            recipe[0], comments=True, posix=True
-        )
+        uncommented_tokens = shlex.split(recipe[0], comments=True, posix=True)
     except ValueError as exc:
         raise AuditError(
             f"could not tokenize CupidC compile recipe for {output}: {exc}"
@@ -6560,9 +6693,10 @@ def _c_preprocessor_require_compiler_invocation(
         )
         if marker_match is not None:
             marker = marker_match.group(1) or marker_match.group(2)
-            if re.search(
-                rf"(?<!\S){re.escape(token)}(?!\S)", recipe[0]
-            ) is None:
+            if (
+                re.search(rf"(?<!\S){re.escape(token)}(?!\S)", recipe[0])
+                is None
+            ):
                 raise AuditError(
                     f"CupidC active preprocessing compiler argument profile "
                     f"differs for {subject}: Make marker {marker!r} is not an "
@@ -6632,7 +6766,7 @@ def _c_preprocessor_recipe_markers(
             continue
         raise AuditError(
             f"CupidC active preprocessing found an unmodeled recipe dollar "
-            f"reference for {output}: {recipe_text[index:index + 2]!r}"
+            f"reference for {output}: {recipe_text[index : index + 2]!r}"
         )
     unknown = sorted(set(markers) - allowed)
     if unknown:
@@ -6680,11 +6814,7 @@ def _c_preprocessor_one_c_root(transform: dict[str, object]) -> str:
         raise AuditError(
             f"CupidC active preprocessing inputs are absent for {output}"
         )
-    roots = [
-        path
-        for path in inputs
-        if _language(path) in {"c", "cupid_c"}
-    ]
+    roots = [path for path in inputs if _language(path) in {"c", "cupid_c"}]
     if len(roots) != 1:
         rendered = ", ".join(roots) if roots else "<none>"
         raise AuditError(
@@ -6730,8 +6860,7 @@ def _c_preprocessor_profile_for_c_transform(
                     "user/examples/ls.cc",
                 }:
                     raise AuditError(
-                        "CupidC user wrapper found an unapproved root: "
-                        f"{root}"
+                        f"CupidC user wrapper found an unapproved root: {root}"
                     )
                 source_argument = "user/$<"
                 output_argument = "user/$@"
@@ -6834,9 +6963,7 @@ def _c_preprocessor_profile_for_c_transform(
             "CFLAGS_DOOM_TREE": "DOOM_TREE_I386",
         }
     elif directory == "user":
-        markers = _c_preprocessor_recipe_markers(
-            transform, {"CC", "CFLAGS"}
-        )
+        markers = _c_preprocessor_recipe_markers(transform, {"CC", "CFLAGS"})
         profiles = {"CFLAGS": "USER_I386"}
     elif directory == "toolchain":
         markers = _c_preprocessor_recipe_markers(
@@ -6868,9 +6995,7 @@ def _c_preprocessor_profile_for_c_transform(
         )
     selected_marker = selected_markers[0]
     if directory != "toolchain":
-        expected_markers = collections.Counter(
-            {"CC": 1, selected_marker: 1}
-        )
+        expected_markers = collections.Counter({"CC": 1, selected_marker: 1})
         if directory == "." and "OPT" in markers:
             expected_markers["OPT"] = 1
         if markers != expected_markers:
@@ -6923,11 +7048,7 @@ def _c_preprocessor_profile_for_c_transform(
         _c_preprocessor_require_compiler_invocation(
             transform, recipe_tokens, expected_argument_profile, logical
         )
-        return (
-            "HOSTED_KERNEL_BRIDGE_64"
-            if bridge_source
-            else selected[0]
-        )
+        return "HOSTED_KERNEL_BRIDGE_64" if bridge_source else selected[0]
     if literal_flags:
         raise AuditError(
             f"CupidC active preprocessing found literal preprocessor "
@@ -6959,9 +7080,7 @@ def _c_preprocessor_profile_configuration() -> tuple[
                 (profile, root, _C_PP_INCLUDE_BOTH)
                 for root in _C_PP_DOOM_EXTRA_INCLUDE_ROOTS
             )
-    include_roots.append(
-        ("USER_I386", "/user", _C_PP_INCLUDE_BOTH)
-    )
+    include_roots.append(("USER_I386", "/user", _C_PP_INCLUDE_BOTH))
     include_roots.extend(
         (
             ("HOSTED_TOOLCHAIN_64", "/toolchain", _C_PP_INCLUDE_BOTH),
@@ -7061,9 +7180,7 @@ def _c_preprocessor_profile_configuration() -> tuple[
             ("HOSTED_I386_LINUX_GNU", "__SIZEOF_POINTER__", "4"),
         )
     )
-    forced_includes = (
-        ("DOOM_TREE_I386", "/kernel/doom/dglibc_compat.h"),
-    )
+    forced_includes = (("DOOM_TREE_I386", "/kernel/doom/dglibc_compat.h"),)
     return tuple(include_roots), tuple(macros), forced_includes
 
 
@@ -7145,9 +7262,7 @@ def _validate_hosted_i386_contract_profiles(root: Path) -> None:
             f"{contract_path}"
         ) from exc
 
-    array_start = (
-        "static const host_tool_source_case_t source_cases[] = {"
-    )
+    array_start = "static const host_tool_source_case_t source_cases[] = {"
     array_end = "  static const ctool_u32 cupidasm_objects[] = {"
     start = source.find(array_start)
     end = source.find(array_end, start + len(array_start))
@@ -7174,8 +7289,7 @@ def _validate_hosted_i386_contract_profiles(root: Path) -> None:
     for path, kind, gnu_extensions in rows:
         if path in actual:
             raise AuditError(
-                "CupidC hosted i386 source-profile table duplicates "
-                f"{path}"
+                f"CupidC hosted i386 source-profile table duplicates {path}"
             )
         actual[path] = (kind, gnu_extensions)
     expected = {
@@ -7214,9 +7328,7 @@ def _validate_hosted_i386_contract_profiles(root: Path) -> None:
         emitter_start + 1,
     )
     if emitter_start < 0 or emitter_end < 0:
-        raise AuditError(
-            "CupidC hosted i386 profile emitter shape changed"
-        )
+        raise AuditError("CupidC hosted i386 profile emitter shape changed")
     emitter = source[emitter_start:emitter_end]
     required_emitter_fragments = (
         "pp_request = profile->request;",
@@ -7251,9 +7363,7 @@ def _cupid_toolchain_fixed_point_contract(
     linker_cli_path = root / "toolchain" / "cupidld_main.cc"
     linker_core_path = root / "toolchain" / "cupidld.cc"
     bootstrap_path = root / "tools" / "bootstrap_toolchain.py"
-    contract_publisher_path = (
-        root / "tools" / "cupidc_toolchain_contracts.py"
-    )
+    contract_publisher_path = root / "tools" / "cupidc_toolchain_contracts.py"
     windows_runtime_contract_path = (
         root
         / "toolchain"
@@ -7356,8 +7466,8 @@ def _cupid_toolchain_fixed_point_contract(
         'stream = fopen(output_path, "ab");',
         "fseek(stream, 0L, 0) != 0 ||",
         "memcmp(contents, expected, 8u) != 0",
-        "fopen_s((FILE **)0, output_path, \"rb\") != EINVAL",
-        "fopen_s(&stream, missing_path, \"rb\") != ENOENT",
+        'fopen_s((FILE **)0, output_path, "rb") != EINVAL',
+        'fopen_s(&stream, missing_path, "rb") != ENOENT',
         "static int directory_contract(void)",
         "getcwd(directory, sizeof(directory)) != directory",
         "_getcwd(small, 1) != (char *)0 || errno != ERANGE",
@@ -7520,26 +7630,26 @@ def _cupid_toolchain_fixed_point_contract(
             r"const\s+char\s*\*\s*missing_path\s*\)\s*\{",
             "b76b9f30fea04b33b20c96f7756ad7dccf599a1d5025b9d9aa6c410f1e8bd9cc",
             (
-                "if (fopen_s(&stream, output_path, \"wb\") != 0 || "
+                'if (fopen_s(&stream, output_path, "wb") != 0 || '
                 "stream == (FILE *)0) { return 21; }",
                 "if (fwrite(first, 1u, 4u, stream) != 4u || "
                 "fclose(stream) != 0) { return 22; }",
-                "stream = fopen(output_path, \"ab\"); "
+                'stream = fopen(output_path, "ab"); '
                 "if (stream == (FILE *)0) { return 23; }",
                 "if (fseek(stream, 0L, 0) != 0 || "
                 "fwrite(appended, 1u, 4u, stream) != 4u || "
                 "fclose(stream) != 0) { return 24; }",
-                "stream = fopen(output_path, \"rb\"); "
+                'stream = fopen(output_path, "rb"); '
                 "if (stream == (FILE *)0) { return 25; }",
                 "(void)memset(contents, 0, sizeof(contents)); "
                 "if (fread(contents, 1u, 8u, stream) != 8u || "
                 "fread(contents + 8, 1u, 1u, stream) != 0u || "
                 "ferror(stream) != 0 || fclose(stream) != 0 || "
                 "memcmp(contents, expected, 8u) != 0) { return 26; }",
-                "errno = 0; if (fopen_s((FILE **)0, output_path, \"rb\") "
+                'errno = 0; if (fopen_s((FILE **)0, output_path, "rb") '
                 "!= EINVAL || errno != EINVAL) { return 27; }",
                 "errno = 0; stream = (FILE *)0; "
-                "if (fopen_s(&stream, missing_path, \"rb\") != ENOENT || "
+                'if (fopen_s(&stream, missing_path, "rb") != ENOENT || '
                 "stream != (FILE *)0 || errno != ENOENT) { return 28; } "
                 "return 0;",
             ),
@@ -7573,8 +7683,7 @@ def _cupid_toolchain_fixed_point_contract(
             )
         )
         != expected_digest
-        for signature, expected_digest, snippets
-        in windows_runtime_function_contracts
+        for signature, expected_digest, snippets in windows_runtime_function_contracts
     ):
         raise AuditError(
             "Cupid Toolchain fixed-point Windows runtime contract differs"
@@ -7610,9 +7719,10 @@ def _cupid_toolchain_fixed_point_contract(
     if (
         token_digest(windows_runtime_main_tokens)
         != "c6c0bbe07e559de9de38198ad8a921b9539a598ed7a3eee503da11cb47c3ed1f"
-        or
-        len(windows_runtime_main_positions) != 3
-        or any(len(positions) != 1 for positions in windows_runtime_main_positions)
+        or len(windows_runtime_main_positions) != 3
+        or any(
+            len(positions) != 1 for positions in windows_runtime_main_positions
+        )
         or not all(
             brace_depth(windows_runtime_main_tokens, positions[0]) == 0
             for positions in windows_runtime_main_positions
@@ -7988,8 +8098,7 @@ def _cupid_toolchain_fixed_point_contract(
         'cupidld_take_value(argc, argv, &index, argument, "--import",',
         "cli->imports[cli->import_count] = value;",
         "cli->import_count++;",
-        "if (cli->import_count != 0u && "
-        'strcmp(cli->machine, "i386pe") != 0)',
+        'if (cli->import_count != 0u && strcmp(cli->machine, "i386pe") != 0)',
         "equals = strchr(text, '=');",
         ": strchr(equals + 1, ':');",
         "import_out->symbol_name.data = text;",
@@ -8157,7 +8266,9 @@ def _cupid_toolchain_fixed_point_contract(
     publication_order = (
         [positions[0] for positions in publication_sequence_positions]
         if len(publication_sequence_positions) == len(publication_sequences)
-        and all(len(positions) == 1 for positions in publication_sequence_positions)
+        and all(
+            len(positions) == 1 for positions in publication_sequence_positions
+        )
         else []
     )
     verifier_size_check = (
@@ -8292,8 +8403,8 @@ def _cupid_toolchain_fixed_point_contract(
         or brace_depth(publication_tokens, verified_replace_positions[0]) != 0
         or len(publication_top_level_returns) != 1
         or publication_tokens[
-            publication_top_level_returns[0] :
-            publication_top_level_returns[0] + 3
+            publication_top_level_returns[0] : publication_top_level_returns[0]
+            + 3
         ]
         != ("return", "status", ";")
         or len(sequence_positions(publication_tokens, ("ops", "->", "verify")))
@@ -8306,7 +8417,10 @@ def _cupid_toolchain_fixed_point_contract(
         or any(len(positions) != 1 for positions in verifier_positions)
         or verifier_order != sorted(verifier_order)
         or len(verifier_order) != len(verifier_requirements)
-        or [brace_depth(verifier_tokens, position) for position in verifier_order]
+        or [
+            brace_depth(verifier_tokens, position)
+            for position in verifier_order
+        ]
         != [0, 1, 1, 0]
         or len(verifier_top_level_returns) != 1
         or verifier_tokens[
@@ -8410,8 +8524,14 @@ def _cupid_toolchain_fixed_point_contract(
         ('"CupidLD PE32 requires text address 0x00401000"',),
         image_rva_limit_guard,
         ("ld_put_pe32_dos_header", "(", "output", ")"),
-        ("ld_put_pe32_optional_header", "(",),
-        ("ld_put_pe32_section_header", "(",),
+        (
+            "ld_put_pe32_optional_header",
+            "(",
+        ),
+        (
+            "ld_put_pe32_section_header",
+            "(",
+        ),
         (
             "result_out",
             "->",
@@ -8969,8 +9089,7 @@ def _cupid_toolchain_fixed_point_contract(
     )
     required_core_import_fragments = (
         "request->pe32_import_count != 0u &&",
-        "request->pe32_imports == "
-        "(const ctool_ld_pe32_import_t *)0",
+        "request->pe32_imports == (const ctool_ld_pe32_import_t *)0",
         "CupidLD imports require the fixed PE32 image profile",
         'ld_begin_output(link, ctool_string(".idata"), address,',
         "section->flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;",
@@ -9041,8 +9160,7 @@ def _cupid_toolchain_fixed_point_contract(
             assignments[target.id] = ast.literal_eval(node.value)
         except (TypeError, ValueError) as exc:
             raise AuditError(
-                "Cupid Toolchain fixed-point manifest is not literal: "
-                f"{target.id}"
+                f"Cupid Toolchain fixed-point manifest is not literal: {target.id}"
             ) from exc
 
     expected_compiler_sources = (
@@ -9162,19 +9280,15 @@ def _cupid_toolchain_fixed_point_contract(
     )
     expected_assignments = {
         "CUPIDC_FIXED_POINT_SOURCES": expected_compiler_sources,
-        "CUPIDC_FIXED_POINT_INCLUDE_ARGUMENTS":
-            expected_include_arguments,
+        "CUPIDC_FIXED_POINT_INCLUDE_ARGUMENTS": expected_include_arguments,
         "CUPIDC_FIXED_POINT_LINK_ORDER": expected_link_order,
-        "CUPID_TOOLCHAIN_FIXED_POINT_SOURCES":
-            expected_toolchain_sources,
-        "CUPID_TOOLCHAIN_FIXED_POINT_LINKS":
-            expected_toolchain_links,
+        "CUPID_TOOLCHAIN_FIXED_POINT_SOURCES": expected_toolchain_sources,
+        "CUPID_TOOLCHAIN_FIXED_POINT_LINKS": expected_toolchain_links,
     }
     for name, expected in expected_assignments.items():
         if assignments.get(name) != expected:
             raise AuditError(
-                "Cupid Toolchain fixed-point manifest differs: "
-                f"{name}"
+                f"Cupid Toolchain fixed-point manifest differs: {name}"
             )
 
     candidate_toolchain_sources = expected_toolchain_sources + (
@@ -9202,11 +9316,9 @@ def _cupid_toolchain_fixed_point_contract(
         "[--include-angle PATH]",
         "[-include FILE]",
         'if (strcmp(argument, "--include-angle") == 0)',
-        "cli->include_forms[cli->include_count] = "
-        "CTOOL_C_PP_INCLUDE_ANGLE;",
+        "cli->include_forms[cli->include_count] = CTOOL_C_PP_INCLUDE_ANGLE;",
         '"-include", &value);',
-        "context->include_roots[index].forms = "
-        "context->include_forms[index];",
+        "context->include_roots[index].forms = context->include_forms[index];",
         "pp_request.forced_includes = context->forced_includes;",
         "pp_request.forced_include_count = context->forced_include_count;",
         "cupidc: --root requires logical include paths",
@@ -9257,15 +9369,12 @@ def _cupid_toolchain_fixed_point_contract(
         "                    stage_two_tools[tool_name].read_bytes(),",
         "def run_stage_pair(",
         "stage_two_run = self.run_cupid_linux_tool(\n"
-        '                    stage_two_tools[tool_name],',
+        "                    stage_two_tools[tool_name],",
         "stage_three_run = self.run_cupid_linux_tool(\n"
-        '                    stage_three_tools[tool_name],',
-        "stage_three_run.returncode,\n"
-        "                    stage_two_run.returncode,",
-        "stage_three_run.stdout,\n"
-        "                    stage_two_run.stdout,",
-        "stage_three_run.stderr,\n"
-        "                    stage_two_run.stderr,",
+        "                    stage_three_tools[tool_name],",
+        "stage_three_run.returncode,\n                    stage_two_run.returncode,",
+        "stage_three_run.stdout,\n                    stage_two_run.stdout,",
+        "stage_three_run.stderr,\n                    stage_two_run.stderr,",
         "for tool_name in generation_one_tools:\n"
         "                stage_two_help, _stage_three_help = run_stage_pair(\n"
         '                    tool_name, ["--help"]\n'
@@ -9344,17 +9453,19 @@ def _cupid_toolchain_fixed_point_contract(
         for name in candidate_image_helper_names
     }
     if any(
-        len(functions) != 1
-        for functions in candidate_image_helpers.values()
+        len(functions) != 1 for functions in candidate_image_helpers.values()
     ):
         raise AuditError(
             "Cupid Toolchain candidate image certification differs: "
             "all three helpers must be unique"
         )
-    candidate_entry_offset_source = ast.get_source_segment(
-        bootstrap_source,
-        candidate_image_helpers["_file_backed_entry_offset"][0],
-    ) or ""
+    candidate_entry_offset_source = (
+        ast.get_source_segment(
+            bootstrap_source,
+            candidate_image_helpers["_file_backed_entry_offset"][0],
+        )
+        or ""
+    )
     required_candidate_entry_offset_fragments = (
         "relative_entry = entry - virtual_address",
         "file_backed_size = min(virtual_size, file_size)",
@@ -9388,12 +9499,15 @@ def _cupid_toolchain_fixed_point_contract(
         ).count("_file_backed_entry_offset(")
         != 1
     ]
-    candidate_image_certification_source = ast.get_source_segment(
-        bootstrap_source,
-        candidate_image_helpers[
-            "_check_candidate_image_certification_behavior"
-        ][0],
-    ) or ""
+    candidate_image_certification_source = (
+        ast.get_source_segment(
+            bootstrap_source,
+            candidate_image_helpers[
+                "_check_candidate_image_certification_behavior"
+            ][0],
+        )
+        or ""
+    )
     required_candidate_image_certification_fragments = (
         "for tool_name in CANDIDATE_TOOL_NAMES:",
         '"--require-known",',
@@ -9401,8 +9515,7 @@ def _cupid_toolchain_fixed_point_contract(
         '"--require-code-anchors",',
         "stage_two.tools[tool_name]",
         "stage_three.tools[tool_name]",
-        "(*strict_flags, stage_three.tools[tool_name]),\n"
-        "            360,",
+        "(*strict_flags, stage_three.tools[tool_name]),\n            360,",
         'source_image = stage_two.tools["cupidbuild"]',
         "_corrupt_candidate_entry_instruction(",
         "(*strict_flags, corrupted_image),\n        360,",
@@ -9416,10 +9529,13 @@ def _cupid_toolchain_fixed_point_contract(
         for fragment in required_candidate_image_certification_fragments
         if candidate_image_certification_source.count(fragment) != 1
     ]
-    corrupt_candidate_image_source = ast.get_source_segment(
-        bootstrap_source,
-        candidate_image_helpers["_corrupt_candidate_entry_instruction"][0],
-    ) or ""
+    corrupt_candidate_image_source = (
+        ast.get_source_segment(
+            bootstrap_source,
+            candidate_image_helpers["_corrupt_candidate_entry_instruction"][0],
+        )
+        or ""
+    )
     required_corruption_fragments = (
         'if image[:4] == b"\\x7fELF":',
         'elif image[:2] == b"MZ":',
@@ -9437,9 +9553,7 @@ def _cupid_toolchain_fixed_point_contract(
         or missing_candidate_entry_offset_users
         or missing_candidate_image_fragments
         or missing_corruption_fragments
-        or corrupt_candidate_image_source.count(
-            "_file_backed_entry_offset("
-        )
+        or corrupt_candidate_image_source.count("_file_backed_entry_offset(")
         != 2
         or candidate_image_certification_source.count('"cupiddis",') != 2
         or candidate_image_certification_source.count(
@@ -9499,11 +9613,9 @@ def _cupid_toolchain_fixed_point_contract(
             and isinstance(statement.value.func, ast.Name)
             and statement.value.func.id == "_run_clean"
         ]
-        if (
-            len(helper_calls) != 1
-            or ast.dump(helper_calls[0], include_attributes=False)
-            != ast.dump(expected_helper_call, include_attributes=False)
-        ):
+        if len(helper_calls) != 1 or ast.dump(
+            helper_calls[0], include_attributes=False
+        ) != ast.dump(expected_helper_call, include_attributes=False):
             fixed_point_object_certification_errors.append(
                 "the helper must run CupidDis with all three strict policies"
             )
@@ -9518,9 +9630,9 @@ def _cupid_toolchain_fixed_point_contract(
                 "f'{stage_name} native CupidC for {logical_source}'",
             ),
         ):
-            builder = fixed_point_object_certification_functions[
-                builder_name
-            ][0]
+            builder = fixed_point_object_certification_functions[builder_name][
+                0
+            ]
             compile_functions = [
                 statement
                 for statement in builder.body
@@ -9544,9 +9656,7 @@ def _cupid_toolchain_fixed_point_contract(
                 f"{expected_label})",
                 mode="eval",
             ).body
-            expected_return = ast.parse(
-                "return name, object_path"
-            ).body[0]
+            expected_return = ast.parse("return name, object_path").body[0]
             validation_statements = [
                 statement
                 for statement in compile_function.body
@@ -9574,9 +9684,7 @@ def _cupid_toolchain_fixed_point_contract(
                 or len(return_statements) != 1
                 or not (
                     compile_function.body.index(validation_statements[0])
-                    < compile_function.body.index(
-                        certification_statements[0]
-                    )
+                    < compile_function.body.index(certification_statements[0])
                     < compile_function.body.index(return_statements[0])
                 )
             ):
@@ -9613,6 +9721,7 @@ def _cupid_toolchain_fixed_point_contract(
             "Cupid Toolchain fixed-point linked-code policy helpers "
             "differ: all three helpers must be unique"
         )
+
     def live_linked_code_policy_call_count(
         function: ast.FunctionDef | ast.AsyncFunctionDef,
         helper_name: str,
@@ -9670,9 +9779,7 @@ def _cupid_toolchain_fixed_point_contract(
             "differs: Linux must call the helper once"
         )
     cupidbuild_runner_source = (
-        ast.get_source_segment(
-            bootstrap_source, cupidbuild_runner_helpers[0]
-        )
+        ast.get_source_segment(bootstrap_source, cupidbuild_runner_helpers[0])
         or ""
     )
     required_cupidbuild_runner_fragments = (
@@ -9833,13 +9940,10 @@ def _cupid_toolchain_fixed_point_contract(
         *fragments: str,
     ) -> bool:
         for guard in ast.walk(cupidbuild_jpeg_helper):
-            if (
-                not isinstance(guard, ast.If)
-                or _ast_node_is_statically_dead(
-                    guard,
-                    cupidbuild_jpeg_helper,
-                    cupidbuild_jpeg_parents,
-                )
+            if not isinstance(guard, ast.If) or _ast_node_is_statically_dead(
+                guard,
+                cupidbuild_jpeg_helper,
+                cupidbuild_jpeg_parents,
             ):
                 continue
             guard_source = (
@@ -9848,10 +9952,8 @@ def _cupid_toolchain_fixed_point_contract(
             if not all(fragment in guard_source for fragment in fragments):
                 continue
             for raised in guard.body:
-                if (
-                    isinstance(raised, ast.Raise)
-                    and error_fragment
-                    in (ast.get_source_segment(bootstrap_source, raised) or "")
+                if isinstance(raised, ast.Raise) and error_fragment in (
+                    ast.get_source_segment(bootstrap_source, raised) or ""
                 ):
                     return True
         return False
@@ -9946,7 +10048,7 @@ def _cupid_toolchain_fixed_point_contract(
         '        "generate-ksyms",',
         "success_result = _run_stage_pair(",
         "stage_two_output.read_bytes() != stage_three_output.read_bytes()",
-        'b\'__attribute__((section(".ksyms"), used, aligned(4)))\'',
+        "b'__attribute__((section(\".ksyms\"), used, aligned(4)))'",
         'malformed.write_bytes(b"not an ELF image\\n")',
         "stage_two_failure.write_bytes(sentinel)",
         "stage_three_failure.write_bytes(sentinel)",
@@ -10133,7 +10235,7 @@ def _cupid_toolchain_fixed_point_contract(
     status_result, positive_status, status_index = positive_profile_status
     positive_checks = [
         statement
-        for statement in behavior_function.body[status_index + 1:]
+        for statement in behavior_function.body[status_index + 1 :]
         if isinstance(statement, ast.If)
     ]
     positive_read_names = (
@@ -10202,9 +10304,7 @@ def _cupid_toolchain_fixed_point_contract(
                         "Cupid Toolchain fixed-point profile behavior differs: "
                         "the failure loop does not run both stages"
                     )
-                failure_stage_pairs.append(
-                    (node.targets[0].id, node.value)
-                )
+                failure_stage_pairs.append((node.targets[0].id, node.value))
         if (
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
@@ -10288,7 +10388,9 @@ def _cupid_toolchain_fixed_point_contract(
             return None
         tokens: list[object] = []
         for token in command.elts:
-            if isinstance(token, ast.Constant) and isinstance(token.value, str):
+            if isinstance(token, ast.Constant) and isinstance(
+                token.value, str
+            ):
                 tokens.append(("literal", token.value))
             elif isinstance(token, ast.Name):
                 tokens.append(("name", token.id))
@@ -10374,21 +10476,15 @@ def _cupid_toolchain_fixed_point_contract(
     windows_link_status = named_status(
         "windows_link_result", 0, "CupidLD imported Windows image"
     )
-    windows_tool_compile = named_stage_pair(
-        "windows_tool_compile_result"
-    )
+    windows_tool_compile = named_stage_pair("windows_tool_compile_result")
     windows_tool_compile_status = named_status(
         "windows_tool_compile_result", 0, "CupidC Windows tool runtime"
     )
-    windows_tool_assembly = named_stage_pair(
-        "windows_tool_assembly_result"
-    )
+    windows_tool_assembly = named_stage_pair("windows_tool_assembly_result")
     windows_tool_assembly_status = named_status(
         "windows_tool_assembly_result", 0, "CupidASM Windows tool startup"
     )
-    windows_host_adapter = named_stage_pair(
-        "windows_host_adapter_result"
-    )
+    windows_host_adapter = named_stage_pair("windows_host_adapter_result")
     windows_host_adapter_status = named_status(
         "windows_host_adapter_result", 0, "CupidC Windows host adapter"
     )
@@ -10408,9 +10504,7 @@ def _cupid_toolchain_fixed_point_contract(
         0,
         "CupidASM Windows publication startup",
     )
-    windows_cupiddis_link = named_stage_pair(
-        "windows_cupiddis_link_result"
-    )
+    windows_cupiddis_link = named_stage_pair("windows_cupiddis_link_result")
     windows_cupiddis_link_status = named_status(
         "windows_cupiddis_link_result", 0, "CupidLD Windows CupidDis"
     )
@@ -10520,6 +10614,7 @@ def _cupid_toolchain_fixed_point_contract(
             "Cupid Toolchain fixed-point PE32 behavior differs: "
             "the paired image, Windows runtime, or failure proof is absent"
         )
+
     def final_command_name(command: ast.expr) -> str | None:
         if (
             isinstance(command, (ast.List, ast.Tuple))
@@ -10540,14 +10635,12 @@ def _cupid_toolchain_fixed_point_contract(
         for argument_index in (4, 5)
         if len(invalid_import[1].args) == 6
     )
-    if (
-        invalid_import_assembly_object_names
-        != (
-            "stage_two_invalid_import_object",
-            "stage_three_invalid_import_object",
-        )
-        or invalid_import_link_object_names
-        != ("invalid_import_object", "invalid_import_object")
+    if invalid_import_assembly_object_names != (
+        "stage_two_invalid_import_object",
+        "stage_three_invalid_import_object",
+    ) or invalid_import_link_object_names != (
+        "invalid_import_object",
+        "invalid_import_object",
     ):
         raise AuditError(
             "Cupid Toolchain fixed-point PE32 behavior differs: "
@@ -10649,10 +10742,13 @@ def _cupid_toolchain_fixed_point_contract(
         "idata_raw_offset\n"
         "                    + min(idata_raw_size, idata_virtual_size)",
     )
-    import_parser_is_confined = all(
-        parser_source.count(fragment) == 1
-        for fragment in required_import_parser_fragments
-    ) and "for section in sections.values()" not in parser_source
+    import_parser_is_confined = (
+        all(
+            parser_source.count(fragment) == 1
+            for fragment in required_import_parser_fragments
+        )
+        and "for section in sections.values()" not in parser_source
+    )
 
     def expression_shape(source: str) -> str:
         return _stable_ast_shape(ast.parse(source, mode="eval").body)
@@ -10698,8 +10794,7 @@ def _cupid_toolchain_fixed_point_contract(
             and statement.targets[0].id == name
         ]
         == [expected]
-        for name, expected
-        in expected_windows_publication_assignment_fingerprints.items()
+        for name, expected in expected_windows_publication_assignment_fingerprints.items()
     )
 
     publication_compile_guards = named_top_level_guards(
@@ -10753,7 +10848,10 @@ def _cupid_toolchain_fixed_point_contract(
                 continue
             matched_raise = False
             for statement in node.body:
-                if not isinstance(statement, ast.Raise) or statement.exc is None:
+                if (
+                    not isinstance(statement, ast.Raise)
+                    or statement.exc is None
+                ):
                     continue
                 constants = tuple(
                     child.value
@@ -10764,7 +10862,9 @@ def _cupid_toolchain_fixed_point_contract(
                 if isinstance(message, str):
                     matched_raise = message in constants
                 else:
-                    matched_raise = all(fragment in constants for fragment in message)
+                    matched_raise = all(
+                        fragment in constants for fragment in message
+                    )
                 if matched_raise:
                     break
             if not matched_raise:
@@ -10811,15 +10911,13 @@ def _cupid_toolchain_fixed_point_contract(
         ),
         "runtime_contract": (
             "native_contract.returncode != 0",
-            "native_contract.stdout != "
-            "'Cupid-built Windows tool runtime: ok\\n'",
+            "native_contract.stdout != 'Cupid-built Windows tool runtime: ok\\n'",
             "native_contract.stderr",
             "not contract_output.is_file()",
             "contract_output.read_bytes() != b'headtail'",
             "native_contract_failure.returncode != 41",
             "native_contract_failure.stdout",
-            "'windows runtime arguments: bad' not in "
-            "native_contract_failure.stderr",
+            "'windows runtime arguments: bad' not in native_contract_failure.stderr",
         ),
         "native_tools": (
             "reference_help.returncode != 0",
@@ -10851,8 +10949,7 @@ def _cupid_toolchain_fixed_point_contract(
             "remaining_cupidld_candidates != [occupied_cupidld_candidate]",
             "native_cupidld_failure.returncode != 1",
             "native_cupidld_failure.stdout",
-            "'cupidld: link failed (io)' not in "
-            "native_cupidld_failure.stderr",
+            "'cupidld: link failed (io)' not in native_cupidld_failure.stderr",
             "not blocked_cupidld_output.is_dir()",
             "remaining_blocked_candidates",
         ),
@@ -10871,7 +10968,7 @@ def _cupid_toolchain_fixed_point_contract(
         and len(native_tool_loops) == 1
         and behavior_guard_terms(
             native_windows_blocks[2][1].body,
-            "Cupid-built Windows CupidDis behavior differs"
+            "Cupid-built Windows CupidDis behavior differs",
         )
         == frozenset(
             expression_shape(term)
@@ -10879,7 +10976,7 @@ def _cupid_toolchain_fixed_point_contract(
         )
         and behavior_guard_terms(
             native_windows_blocks[3][1].body,
-            "Cupid-built Windows runtime contract behavior differs"
+            "Cupid-built Windows runtime contract behavior differs",
         )
         == frozenset(
             expression_shape(term)
@@ -10887,7 +10984,7 @@ def _cupid_toolchain_fixed_point_contract(
         )
         and behavior_guard_terms(
             native_tool_loops[0].body,
-            ("Cupid-built Windows ", " behavior differs")
+            ("Cupid-built Windows ", " behavior differs"),
         )
         == frozenset(
             expression_shape(term)
@@ -10921,18 +11018,16 @@ def _cupid_toolchain_fixed_point_contract(
                 and node.targets[0].id == "contract_arguments"
             ):
                 runtime_contract_argument_shapes.append(node_shape(node.value))
-    native_workloads_match = (
-        cupiddis_raw_argument_shapes
-        == [expression_shape(
-            "['--raw', '--mode', '32', '--base', '0', "
-            "windows_cupiddis_input]"
-        )]
-        and runtime_contract_argument_shapes
-        == [expression_shape(
+    native_workloads_match = cupiddis_raw_argument_shapes == [
+        expression_shape(
+            "['--raw', '--mode', '32', '--base', '0', windows_cupiddis_input]"
+        )
+    ] and runtime_contract_argument_shapes == [
+        expression_shape(
             "['plain', 'space arg', 'quote\"arg', 'trailing\\\\', "
             "str(contract_output), str(contract_missing)]"
-        )]
-    )
+        )
+    ]
 
     windows_helper_functions = [
         node
@@ -10961,39 +11056,53 @@ def _cupid_toolchain_fixed_point_contract(
         if len(windows_helper_functions) == 1
         else []
     )
-    helper_stage_tools = tuple(sorted(
-        call.args[3].value
-        for call in helper_stage_pairs
-        if len(call.args) >= 4
-        and isinstance(call.args[3], ast.Constant)
-        and isinstance(call.args[3].value, str)
-    ))
-    helper_status_count = sum(
-        1
-        for node in windows_helper_functions[0].body
-        if isinstance(node, ast.Expr)
-        and isinstance(node.value, ast.Call)
-        and isinstance(node.value.func, ast.Name)
-        and node.value.func.id == "_expect_status"
-    ) if len(windows_helper_functions) == 1 else 0
-    helper_relocatable_count = sum(
-        1
-        for loop in windows_helper_functions[0].body
-        if isinstance(loop, ast.For)
-        for node in loop.body
-        if isinstance(node, ast.Expr)
-        and isinstance(node.value, ast.Call)
-        and isinstance(node.value.func, ast.Name)
-        and node.value.func.id == "_validate_i386_relocatable"
-    ) if len(windows_helper_functions) == 1 else 0
-    helper_pe_count = sum(
-        1
-        for node in windows_helper_functions[0].body
-        if isinstance(node, ast.Expr)
-        and isinstance(node.value, ast.Call)
-        and isinstance(node.value.func, ast.Name)
-        and node.value.func.id == "_validate_static_i386_pe32"
-    ) if len(windows_helper_functions) == 1 else 0
+    helper_stage_tools = tuple(
+        sorted(
+            call.args[3].value
+            for call in helper_stage_pairs
+            if len(call.args) >= 4
+            and isinstance(call.args[3], ast.Constant)
+            and isinstance(call.args[3].value, str)
+        )
+    )
+    helper_status_count = (
+        sum(
+            1
+            for node in windows_helper_functions[0].body
+            if isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "_expect_status"
+        )
+        if len(windows_helper_functions) == 1
+        else 0
+    )
+    helper_relocatable_count = (
+        sum(
+            1
+            for loop in windows_helper_functions[0].body
+            if isinstance(loop, ast.For)
+            for node in loop.body
+            if isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "_validate_i386_relocatable"
+        )
+        if len(windows_helper_functions) == 1
+        else 0
+    )
+    helper_pe_count = (
+        sum(
+            1
+            for node in windows_helper_functions[0].body
+            if isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "_validate_static_i386_pe32"
+        )
+        if len(windows_helper_functions) == 1
+        else 0
+    )
     helper_source_values: list[object] = []
     helper_replacement_shapes: list[str] = []
     helper_loop_compile_shapes: list[tuple[str, ...]] = []
@@ -11085,20 +11194,42 @@ def _cupid_toolchain_fixed_point_contract(
     )
     expected_native_plans = {
         "cupidasm": (
-            "publication_start", "cupidasm_main", "cupidasm", "ctool_host",
-            "ctool", "elf32", "x86", "publication_runtime",
+            "publication_start",
+            "cupidasm_main",
+            "cupidasm",
+            "ctool_host",
+            "ctool",
+            "elf32",
+            "x86",
+            "publication_runtime",
         ),
         "cupidc": (
-            "cupidc_main", "cupidc_emit", "cupidc_ir", "cupidc_frontend",
-            "cupidc_type", "cupidc_pp", "ctool_host", "ctool", "elf32",
+            "cupidc_main",
+            "cupidc_emit",
+            "cupidc_ir",
+            "cupidc_frontend",
+            "cupidc_type",
+            "cupidc_pp",
+            "ctool_host",
+            "ctool",
+            "elf32",
             "x86",
         ),
         "cupidld": (
-            "publication_start", "cupidld_main", "cupidld", "ctool_host",
-            "ctool", "elf32", "publication_runtime",
+            "publication_start",
+            "cupidld_main",
+            "cupidld",
+            "ctool_host",
+            "ctool",
+            "elf32",
+            "publication_runtime",
         ),
         "cupidobj": (
-            "cupidobj_main", "cupidobj", "ctool_host", "ctool", "elf32",
+            "cupidobj_main",
+            "cupidobj",
+            "ctool_host",
+            "ctool",
+            "elf32",
         ),
     }
     expected_native_checks_shape = expression_shape(
@@ -11128,7 +11259,11 @@ def _cupid_toolchain_fixed_point_contract(
         "'not_found')}"
     )
     helper_compile_loops = (
-        [node for node in windows_helper_functions[0].body if isinstance(node, ast.For)]
+        [
+            node
+            for node in windows_helper_functions[0].body
+            if isinstance(node, ast.For)
+        ]
         if len(windows_helper_functions) == 1
         else []
     )
@@ -11163,7 +11298,8 @@ def _cupid_toolchain_fixed_point_contract(
         [
             node
             for node in windows_helper_functions[0].body
-            if isinstance(node, ast.FunctionDef) and node.name == "link_arguments"
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "link_arguments"
         ]
         if len(windows_helper_functions) == 1
         else []
@@ -11186,14 +11322,18 @@ def _cupid_toolchain_fixed_point_contract(
     return arguments
 """
     ).body[0]
-    helper_link_result_shapes = [
-        node_shape(node)
-        for node in windows_helper_functions[0].body
-        if isinstance(node, ast.Assign)
-        and len(node.targets) == 1
-        and isinstance(node.targets[0], ast.Name)
-        and node.targets[0].id == "link_result"
-    ] if len(windows_helper_functions) == 1 else []
+    helper_link_result_shapes = (
+        [
+            node_shape(node)
+            for node in windows_helper_functions[0].body
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "link_result"
+        ]
+        if len(windows_helper_functions) == 1
+        else []
+    )
     expected_helper_link_result = ast.parse(
         """link_result = _run_stage_pair(
     runner, stage_two, stage_three, "cupidld",
@@ -11207,15 +11347,19 @@ def _cupid_toolchain_fixed_point_contract(
 )
 """
     ).body[0]
-    helper_link_guard_shapes = [
-        node_shape(node)
-        for node in windows_helper_functions[0].body
-        if isinstance(node, ast.If)
-        and any(
-            isinstance(child, ast.Name) and child.id == "link_result"
-            for child in ast.walk(node.test)
-        )
-    ] if len(windows_helper_functions) == 1 else []
+    helper_link_guard_shapes = (
+        [
+            node_shape(node)
+            for node in windows_helper_functions[0].body
+            if isinstance(node, ast.If)
+            and any(
+                isinstance(child, ast.Name) and child.id == "link_result"
+                for child in ast.walk(node.test)
+            )
+        ]
+        if len(windows_helper_functions) == 1
+        else []
+    )
     expected_helper_link_guard = ast.parse(
         """if (link_result.stdout or link_result.stderr or
         stage_two_image.read_bytes() != stage_three_image.read_bytes()):
@@ -11248,7 +11392,7 @@ def _cupid_toolchain_fixed_point_contract(
         "stage_two_object.read_bytes() != stage_three_object.read_bytes()",
         "tuple(reversed(import_selectors))",
         "stage_two_image.read_bytes() != stage_three_image.read_bytes()",
-        "((\"KERNEL32.dll\", tuple(item[2] for item in windows_imports)),)",
+        '(("KERNEL32.dll", tuple(item[2] for item in windows_imports)),)',
         "return stage_two_image, stage_three_image, _artifact_inventory(",
     )
     windows_helper_matches = (
@@ -11260,44 +11404,50 @@ def _cupid_toolchain_fixed_point_contract(
         and helper_relocatable_count == 1
         and helper_pe_count == 1
         and helper_source_values
-        == [{
-            "cupidasm": ("cupidasm_main",),
-            "cupidc": ("cupidc_main",),
-            "cupidld": ("cupidld_main",),
-            "cupidobj": ("cupidobj_main",),
-        }]
+        == [
+            {
+                "cupidasm": ("cupidasm_main",),
+                "cupidc": ("cupidc_main",),
+                "cupidld": ("cupidld_main",),
+                "cupidobj": ("cupidobj_main",),
+            }
+        ]
         and helper_replacement_shapes
         == [expression_shape("windows_sources.get(tool_name, ())")]
         and helper_loop_compile_shapes
-        == [(
-            expression_shape("runner"),
-            expression_shape("stage_two"),
-            expression_shape("stage_three"),
-            expression_shape("'cupidc'"),
-            expression_shape(
-                "['--root', source_root, '-D', '_WIN32=1', '-c', "
-                "f'/toolchain/{source_name}.cc', '-I', '/toolchain', "
-                "'--include-angle', "
-                "'/toolchain/hosted/i386-linux/include', '-o', "
-                "_logical_path(source_root, stage_two_object)]"
-            ),
-            expression_shape(
-                "['--root', source_root, '-D', '_WIN32=1', '-c', "
-                "f'/toolchain/{source_name}.cc', '-I', '/toolchain', "
-                "'--include-angle', "
-                "'/toolchain/hosted/i386-linux/include', '-o', "
-                "_logical_path(source_root, stage_three_object)]"
-            ),
-            expression_shape("360"),
-        )]
+        == [
+            (
+                expression_shape("runner"),
+                expression_shape("stage_two"),
+                expression_shape("stage_three"),
+                expression_shape("'cupidc'"),
+                expression_shape(
+                    "['--root', source_root, '-D', '_WIN32=1', '-c', "
+                    "f'/toolchain/{source_name}.cc', '-I', '/toolchain', "
+                    "'--include-angle', "
+                    "'/toolchain/hosted/i386-linux/include', '-o', "
+                    "_logical_path(source_root, stage_two_object)]"
+                ),
+                expression_shape(
+                    "['--root', source_root, '-D', '_WIN32=1', '-c', "
+                    "f'/toolchain/{source_name}.cc', '-I', '/toolchain', "
+                    "'--include-angle', "
+                    "'/toolchain/hosted/i386-linux/include', '-o', "
+                    "_logical_path(source_root, stage_three_object)]"
+                ),
+                expression_shape("360"),
+            )
+        ]
         and len(helper_compile_loops) == 1
         and node_shape(helper_compile_loops[0])
         == node_shape(expected_helper_compile_loop)
         and len(helper_link_functions) == 1
         and node_shape(helper_link_functions[0])
         == node_shape(expected_helper_link_function)
-        and helper_link_result_shapes == [node_shape(expected_helper_link_result)]
-        and helper_link_guard_shapes == [node_shape(expected_helper_link_guard)]
+        and helper_link_result_shapes
+        == [node_shape(expected_helper_link_result)]
+        and helper_link_guard_shapes
+        == [node_shape(expected_helper_link_guard)]
         and native_plan_values == [expected_native_plans]
         and native_check_shapes == [expected_native_checks_shape]
         and helper_invocation_count == 1
@@ -11307,7 +11457,11 @@ def _cupid_toolchain_fixed_point_contract(
         and native_execution_loop_matches
         and all(
             windows_helper_source.count(fragment)
-            == (2 if fragment in {'"_WIN32=1"', 'f"/toolchain/{source_name}.cc"'} else 1)
+            == (
+                2
+                if fragment in {'"_WIN32=1"', 'f"/toolchain/{source_name}.cc"'}
+                else 1
+            )
             for fragment in required_windows_helper_fragments
         )
     )
@@ -11318,8 +11472,7 @@ def _cupid_toolchain_fixed_point_contract(
             for statement in node.body
             if isinstance(statement, ast.Raise)
             for child in ast.walk(statement)
-            if isinstance(child, ast.Constant)
-            and isinstance(child.value, str)
+            if isinstance(child, ast.Constant) and isinstance(child.value, str)
         }
 
     def guarded_terms(message: str) -> frozenset[str] | None:
@@ -11343,12 +11496,9 @@ def _cupid_toolchain_fixed_point_contract(
 
     expected_guard_terms = {
         "noncanonical DOS stub": (
-            "data[:len(_FIXED_PE32_DOS_STUB)] "
-            "!= _FIXED_PE32_DOS_STUB",
+            "data[:len(_FIXED_PE32_DOS_STUB)] != _FIXED_PE32_DOS_STUB",
         ),
-        "no PE signature": (
-            "data[pe_offset:pe_offset + 4] != b'PE\\0\\0'",
-        ),
+        "no PE signature": ("data[pe_offset:pe_offset + 4] != b'PE\\0\\0'",),
         "invalid PE32 COFF header": (
             "machine != 0x014C",
             "section_count == 0",
@@ -11359,27 +11509,19 @@ def _cupid_toolchain_fixed_point_contract(
             "optional_size != 0x00E0",
             "characteristics != 0x0103",
         ),
-        "is not PE32": (
-            "read_u16(optional_offset, 'PE32 magic') != 0x010B",
-        ),
+        "is not PE32": ("read_u16(optional_offset, 'PE32 magic') != 0x010B",),
         "invalid PE32 image layout": (
             "linker_major != 0",
             "linker_minor != 0",
             "image_base != 0x00400000",
             "section_alignment != 0x1000",
             "file_alignment != 0x0200",
-            "read_u16(optional_offset + 40, "
-            "'PE32 OS major version') != 6",
-            "read_u16(optional_offset + 42, "
-            "'PE32 OS minor version') != 0",
-            "read_u16(optional_offset + 44, "
-            "'PE32 image major version') != 0",
-            "read_u16(optional_offset + 46, "
-            "'PE32 image minor version') != 0",
-            "read_u16(optional_offset + 48, "
-            "'PE32 subsystem major version') != 6",
-            "read_u16(optional_offset + 50, "
-            "'PE32 subsystem minor version') != 0",
+            "read_u16(optional_offset + 40, 'PE32 OS major version') != 6",
+            "read_u16(optional_offset + 42, 'PE32 OS minor version') != 0",
+            "read_u16(optional_offset + 44, 'PE32 image major version') != 0",
+            "read_u16(optional_offset + 46, 'PE32 image minor version') != 0",
+            "read_u16(optional_offset + 48, 'PE32 subsystem major version') != 6",
+            "read_u16(optional_offset + 50, 'PE32 subsystem minor version') != 0",
             "read_u32(optional_offset + 52, 'PE32 Win32 version') != 0",
             "image_size == 0",
             "image_size % section_alignment != 0",
@@ -11399,12 +11541,10 @@ def _cupid_toolchain_fixed_point_contract(
             "entry_rva != expected_entry - image_base",
         ),
         "unexpected PE32 data directory": (
-            "directory not in ((1, 12) if has_imports else ()) "
-            "and entry != (0, 0)",
+            "directory not in ((1, 12) if has_imports else ()) and entry != (0, 0)",
         ),
         "omits its PE32 import directories": (
-            "has_imports and (directories[1] == (0, 0) "
-            "or directories[12] == (0, 0))",
+            "has_imports and (directories[1] == (0, 0) or directories[12] == (0, 0))",
         ),
         "noncanonical PE32 header extent": (
             "headers_size != expected_headers_size",
@@ -11420,15 +11560,11 @@ def _cupid_toolchain_fixed_point_contract(
             "read_u16(offset + 32, 'PE32 relocation count') != 0",
             "read_u16(offset + 34, 'PE32 line count') != 0",
         ),
-        "has an empty PE32 section": (
-            "virtual_size == 0",
-        ),
+        "has an empty PE32 section": ("virtual_size == 0",),
         "noncanonical PE32 section address": (
             "virtual_address != expected_virtual_address",
         ),
-        "PE32 section outside its image": (
-            "virtual_end > image_size",
-        ),
+        "PE32 section outside its image": ("virtual_end > image_size",),
         "invalid PE32 file section": (
             "name == '.bss'",
             "raw_offset != expected_raw_offset",
@@ -11456,9 +11592,7 @@ def _cupid_toolchain_fixed_point_contract(
         "entry is not file-backed PE32 executable code": (
             "not entry_is_file_backed_executable",
         ),
-        "omits its PE32 import section": (
-            "'.idata' not in sections",
-        ),
+        "omits its PE32 import section": ("'.idata' not in sections",),
         "noncanonical PE32 import directory": (
             "import_rva != idata_virtual_address",
             "import_size != expected_import_size",
@@ -11487,8 +11621,7 @@ def _cupid_toolchain_fixed_point_contract(
             "read_u16(hint_offset, 'PE32 import hint') != 0",
             "data[hint_offset + 2:hint_offset + 2 + "
             "len(encoded_procedure)] != encoded_procedure",
-            "rva_string(expected_hint_rva + 2, 'import procedure') "
-            "!= procedure",
+            "rva_string(expected_hint_rva + 2, 'import procedure') != procedure",
         ),
         "unterminated PE32 import thunk table": (
             "read_u32(lookup_offset + len(procedures) * 4, "
@@ -11496,9 +11629,7 @@ def _cupid_toolchain_fixed_point_contract(
             "read_u32(iat_offset + len(procedures) * 4, "
             "'PE32 import address terminator') != 0",
         ),
-        "has nonzero PE32 import alignment": (
-            "data[alignment_offset] != 0",
-        ),
+        "has nonzero PE32 import alignment": ("data[alignment_offset] != 0",),
         "has no null PE32 import descriptor": (
             "any(data[descriptor_offset + len(expected_imports) * 20:"
             "descriptor_offset + (len(expected_imports) + 1) * 20])",
@@ -11581,8 +11712,7 @@ def _cupid_toolchain_fixed_point_contract(
             "read_u32(offset + 36, 'PE32 section characteristics')"
         ),
         "expected_section_raw_size": (
-            "(virtual_size + file_alignment - 1) "
-            "// file_alignment * file_alignment"
+            "(virtual_size + file_alignment - 1) // file_alignment * file_alignment"
         ),
         "expected_image_size": (
             "(greatest_virtual_end + section_alignment - 1) "
@@ -11604,7 +11734,9 @@ def _cupid_toolchain_fixed_point_contract(
                 and node.targets[0].id == "expected_sections"
             ):
                 try:
-                    expected_sections_values.append(ast.literal_eval(node.value))
+                    expected_sections_values.append(
+                        ast.literal_eval(node.value)
+                    )
                 except (TypeError, ValueError):
                     expected_sections_values.append(None)
 
@@ -11685,8 +11817,7 @@ def _cupid_toolchain_fixed_point_contract(
         ),
         expression_shape("struct.unpack_from('<IIII', data, offset + 8)"),
         expression_shape(
-            "struct.unpack_from('<IIIII', data, "
-            "descriptor_offset + library_index * 20)"
+            "struct.unpack_from('<IIIII', data, descriptor_offset + library_index * 20)"
         ),
     }
     dos_range_indices = (
@@ -11718,14 +11849,11 @@ def _cupid_toolchain_fixed_point_contract(
     validators_by_image = {
         validator.args[0].id: (index, validator)
         for index, validator in validators
-        if validator.args
-        and isinstance(validator.args[0], ast.Name)
+        if validator.args and isinstance(validator.args[0], ast.Name)
     }
     fixed_validator = validators_by_image.get("stage_two_pe32")
     import_validator = validators_by_image.get("stage_two_windows_image")
-    cupiddis_validator = validators_by_image.get(
-        "stage_two_windows_cupiddis"
-    )
+    cupiddis_validator = validators_by_image.get("stage_two_windows_cupiddis")
     runtime_contract_validator = validators_by_image.get(
         "stage_two_windows_runtime_contract_image"
     )
@@ -11742,8 +11870,7 @@ def _cupid_toolchain_fixed_point_contract(
         index
         for index, statement in enumerate(behavior_function.body)
         if isinstance(statement, ast.If)
-        and node_shape(statement.test)
-        == expression_shape("os.name == 'nt'")
+        and node_shape(statement.test) == expression_shape("os.name == 'nt'")
     ]
 
     def direct_behavior_assignment(name: str) -> ast.AST | None:
@@ -11840,8 +11967,8 @@ def _cupid_toolchain_fixed_point_contract(
         '"Cupid-built Windows CupidDis behavior differs"',
         '"cupiddis": {',
         '"stage-four-main": (\n'
-        '                            stage_three_windows_cupiddis_main\n'
-        '                        )',
+        "                            stage_three_windows_cupiddis_main\n"
+        "                        )",
         '"stage-three-main": stage_two_windows_cupiddis_main',
         "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "windows_runtime_contract_compile_result = _run_stage_pair(",
@@ -11850,7 +11977,7 @@ def _cupid_toolchain_fixed_point_contract(
         "windows_runtime_contract_link_result = _run_stage_pair(",
         "stage_two_windows_runtime_contract_image.read_bytes()\n"
         "        != stage_three_windows_runtime_contract_image.read_bytes()",
-        'str(stage_two_windows_runtime_contract_image)',
+        "str(stage_two_windows_runtime_contract_image)",
         '"Cupid-built Windows runtime contract behavior differs"',
         '"runtime_contract": {',
         "_build_windows_tool_image(",
@@ -11910,8 +12037,7 @@ def _cupid_toolchain_fixed_point_contract(
         and "stage-four-" in windows_helper_source
     )
     if (
-        positive_byte_comparisons
-        != [("stage_two_pe32", "stage_three_pe32")]
+        positive_byte_comparisons != [("stage_two_pe32", "stage_three_pe32")]
         or positive_result_attributes != {"stdout", "stderr"}
         or len(validators) != 4
         or len(positive_checks) != 1
@@ -11941,15 +12067,15 @@ def _cupid_toolchain_fixed_point_contract(
         or cupiddis_validator[1].args[1].value != 0x00401000
         or runtime_contract_validator[1].keywords
         or len(runtime_contract_validator[1].args) != 3
-        or not isinstance(
-            runtime_contract_validator[1].args[1], ast.Constant
-        )
+        or not isinstance(runtime_contract_validator[1].args[1], ast.Constant)
         or runtime_contract_validator[1].args[1].value != 0x00401000
         or import_expectation
-        != ((
-            "KERNEL32.dll",
-            ("ExitProcess", "GetStdHandle", "WriteFile"),
-        ),)
+        != (
+            (
+                "KERNEL32.dll",
+                ("ExitProcess", "GetStdHandle", "WriteFile"),
+            ),
+        )
         or not windows_helper_matches
         or not windows_publication_stage_shapes_match
         or not windows_publication_assignments_match
@@ -11992,17 +12118,17 @@ def _cupid_toolchain_fixed_point_contract(
         or dos_range_indices[0] >= dos_guard_indices[0]
     ):
         raise AuditError(
-        "Cupid Toolchain fixed-point PE32 behavior differs: "
-        "the staged bytes or independent parser are not checked; "
-        f"validators={len(validators)}, "
-        f"native_windows={native_windows_indices!r}, "
-        f"helper={windows_helper_matches}, "
-        f"guards={native_guards_match}, "
-        f"workloads={native_workloads_match}, "
-        f"control_flow={native_windows_control_flow_matches}, "
-        f"cupiddis_profile={windows_cupiddis_profile_matches}, "
-        f"labels={behavior_generation_labels_match}, "
-        f"missing={missing_windows_behavior_fragments!r}"
+            "Cupid Toolchain fixed-point PE32 behavior differs: "
+            "the staged bytes or independent parser are not checked; "
+            f"validators={len(validators)}, "
+            f"native_windows={native_windows_indices!r}, "
+            f"helper={windows_helper_matches}, "
+            f"guards={native_guards_match}, "
+            f"workloads={native_workloads_match}, "
+            f"control_flow={native_windows_control_flow_matches}, "
+            f"cupiddis_profile={windows_cupiddis_profile_matches}, "
+            f"labels={behavior_generation_labels_match}, "
+            f"missing={missing_windows_behavior_fragments!r}"
         )
     sentinel_writes = [
         statement.value.func.value.id
@@ -12185,8 +12311,9 @@ def _cupid_toolchain_fixed_point_contract(
         missing_bootstrap_fragments.append(
             "candidate source constants must match the audited inventory"
         )
-    if bootstrap_assignment("CANDIDATE_CUPIDBUILD_LINK") != (
-        candidate_toolchain_links[-1][1]
+    if (
+        bootstrap_assignment("CANDIDATE_CUPIDBUILD_LINK")
+        != (candidate_toolchain_links[-1][1])
     ):
         missing_bootstrap_fragments.append(
             "CupidBuild link constants must match the audited plan"
@@ -12223,7 +12350,9 @@ def _cupid_toolchain_fixed_point_contract(
             "_bootstrap_windows_from_frozen_seed",
         )
     }
-    if any(len(functions) != 1 for functions in fixed_point_functions.values()):
+    if any(
+        len(functions) != 1 for functions in fixed_point_functions.values()
+    ):
         missing_bootstrap_fragments.append(
             "the Linux and Windows fixed-point drivers must each be unique"
         )
@@ -12313,11 +12442,8 @@ def _cupid_toolchain_fixed_point_contract(
             and not value.keywords
             and len(value.args) == len(argument_names)
             and all(
-                isinstance(argument, ast.Name)
-                and argument.id == expected
-                for argument, expected in zip(
-                    value.args, argument_names
-                )
+                isinstance(argument, ast.Name) and argument.id == expected
+                for argument, expected in zip(value.args, argument_names)
             )
         )
 
@@ -12331,9 +12457,7 @@ def _cupid_toolchain_fixed_point_contract(
         return (
             len(live_name_writes(function, target_name)) == 1
             and len(values) == 1
-            and direct_name_call(
-                values[0], function_name, argument_names
-            )
+            and direct_name_call(values[0], function_name, argument_names)
         )
 
     def has_exact_live_expression_assignment(
@@ -12541,10 +12665,10 @@ def _cupid_toolchain_fixed_point_contract(
         "stage_four = _build_stage(\n"
         "            runner,\n"
         "            private_source_root,\n"
-        "            private_source_root / \"stage-four\",\n"
+        '            private_source_root / "stage-four",\n'
         "            stage_three_producers,\n"
         "            plan,\n"
-        "            \"stage four\",\n"
+        '            "stage four",\n'
         "        )",
         "comparisons = (\n"
         "            _compare_stages(stage_three, stage_four, source_names)\n"
@@ -12559,17 +12683,16 @@ def _cupid_toolchain_fixed_point_contract(
         "            stage_three,\n"
         "            stage_four,",
         "            seed_inputs,\n",
-        "            behavior_evidence,\n"
-        "        )",
+        "            behavior_evidence,\n        )",
         '"behavior_generations": ["stage-three", "stage-four"],',
         '"stage-four": {\n'
         '                    "objects": _artifact_inventory(stage_four.objects),\n'
         '                    "producer_generation": "stage-three",',
         '"status": (\n'
         '                "pass"\n'
-        '                if compare_fixed_point\n'
+        "                if compare_fixed_point\n"
         '                else "pending-fixed-point-author"\n'
-        '            ),',
+        "            ),",
         'windows_runtime = behavior_evidence.get("windows_runtime")',
         'windows_cupiddis = windows_runtime.get("cupiddis")',
         'windows_runtime_contract = windows_runtime.get("runtime_contract")',
@@ -12618,18 +12741,18 @@ def _cupid_toolchain_fixed_point_contract(
         "stage_two = _build_windows_stage(\n"
         "            runner,\n"
         "            private_source_root,\n"
-        "            private_source_root / \"stage-two\",",
+        '            private_source_root / "stage-two",',
         "stage_three = _build_windows_stage(\n"
         "            runner,\n"
         "            private_source_root,\n"
-        "            private_source_root / \"stage-three\",",
+        '            private_source_root / "stage-three",',
         "stage_four = _build_windows_stage(\n"
         "            runner,\n"
         "            private_source_root,\n"
-        "            private_source_root / \"stage-four\",\n"
+        '            private_source_root / "stage-four",\n'
         "            stage_three_producers,\n"
         "            native_plan,\n"
-        "            \"stage four\",\n"
+        '            "stage four",\n'
         "        )",
         "comparisons = _compare_windows_stages(\n"
         "            stage_three,\n"
@@ -12659,7 +12782,7 @@ def _cupid_toolchain_fixed_point_contract(
     windows_inventory_guard = (
         "if tuple(tool_names) != tuple(expected_tool_names):\n"
         "        raise BootstrapError(\n"
-        "            \"native Windows stage-three tool inventory differs\"\n"
+        '            "native Windows stage-three tool inventory differs"\n'
         "        )"
     )
     if bootstrap_source.count(windows_inventory_guard) != 1:
@@ -12726,9 +12849,7 @@ def _cupid_toolchain_fixed_point_contract(
         name: [
             statement
             for statement in bootstrap_tree.body
-            if isinstance(
-                statement, (ast.FunctionDef, ast.AsyncFunctionDef)
-            )
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
             and statement.name == name
         ]
         for name in (
@@ -12748,9 +12869,7 @@ def _cupid_toolchain_fixed_point_contract(
         seed_policy = bootstrap_policy_functions[
             "_bootstrap_from_seed_with_policy"
         ][0]
-        public_bootstrap = bootstrap_policy_functions[
-            "bootstrap_from_seed"
-        ][0]
+        public_bootstrap = bootstrap_policy_functions["bootstrap_from_seed"][0]
         author_bootstrap = bootstrap_policy_functions[
             "_bootstrap_for_manifest_author"
         ][0]
@@ -12803,8 +12922,7 @@ def _cupid_toolchain_fixed_point_contract(
             )
         }
         if (
-            seed_policy_defaults.get("compare_fixed_point", False)
-            is not None
+            seed_policy_defaults.get("compare_fixed_point", False) is not None
             or not forwards_policy
             or not isinstance(forwarded_value, ast.Name)
             or forwarded_value.id != "compare_fixed_point"
@@ -12850,9 +12968,10 @@ def _cupid_toolchain_fixed_point_contract(
         missing_bootstrap_fragments.append(
             "Linux driver: five live and frozen closure checks"
         )
-    if source_closure_call_count(
-        windows_bootstrap_function, "linux_plan"
-    ) != 5:
+    if (
+        source_closure_call_count(windows_bootstrap_function, "linux_plan")
+        != 5
+    ):
         missing_bootstrap_fragments.append(
             "Windows driver: five live and frozen closure checks"
         )
@@ -12880,9 +12999,12 @@ def _cupid_toolchain_fixed_point_contract(
         missing_bootstrap_fragments.append(
             "Linux driver: five live seed cohort checks"
         )
-    if live_seed_call_count(
-        windows_bootstrap_function, ["seed_inputs", "plan_inputs"]
-    ) != 5:
+    if (
+        live_seed_call_count(
+            windows_bootstrap_function, ["seed_inputs", "plan_inputs"]
+        )
+        != 5
+    ):
         missing_bootstrap_fragments.append(
             "Windows driver: five live execution and plan seed checks"
         )
@@ -12908,9 +13030,7 @@ def _cupid_toolchain_fixed_point_contract(
     native_windows_sources: dict[str, str] = {}
     for name, functions in native_windows_functions.items():
         if len(functions) != 1:
-            missing_native_windows_fragments.append(
-                f"{name} must be unique"
-            )
+            missing_native_windows_fragments.append(f"{name} must be unique")
             native_windows_sources[name] = ""
         else:
             native_windows_sources[name] = (
@@ -12930,8 +13050,7 @@ def _cupid_toolchain_fixed_point_contract(
             '"publication_runtime.cc"',
             '"/toolchain/hosted/i386-windows/tool_start.asm"',
             '"publication_start.asm"',
-            'raw_links = _require_object(linux_plan.get("links"), '
-            '"build_plan.links")',
+            'raw_links = _require_object(linux_plan.get("links"), "build_plan.links")',
             'known_linux_objects = {"start", *source_names}',
             "native_order = list(linux_order)",
             'if tool_name in ("cupidasm", "cupidld"):',
@@ -12954,18 +13073,18 @@ def _cupid_toolchain_fixed_point_contract(
             "_validate_i386_relocatable(object_path)\n"
             "        _certify_relocatable_code_anchors(\n"
             "            runner,\n"
-            "            producers[\"cupiddis\"],\n"
+            '            producers["cupiddis"],\n'
             "            object_path,\n"
-            "            f\"{stage_name} native CupidC for "
-            "{logical_source}\",\n"
+            '            f"{stage_name} native CupidC for '
+            '{logical_source}",\n'
             "        )\n"
             "        return name, object_path",
             "_validate_i386_relocatable(object_path)\n"
             "        _certify_relocatable_code_anchors(\n"
             "            runner,\n"
-            "            producers[\"cupiddis\"],\n"
+            '            producers["cupiddis"],\n'
             "            object_path,\n"
-            "            f\"{stage_name} native {name} startup\",\n"
+            '            f"{stage_name} native {name} startup",\n'
             "        )\n"
             "        objects[name] = object_path",
             'native_plan.get("links"), "Windows build plan links"',
@@ -12992,8 +13111,7 @@ def _cupid_toolchain_fixed_point_contract(
             "stage_two_object.read_bytes()",
             "stage_three_object.read_bytes()",
             'stage_two_binary.read_bytes() != b"\\xb8\\x34\\x12\\xc3"',
-            "stage_three_binary.read_bytes()\n"
-            "        != stage_two_binary.read_bytes()",
+            "stage_three_binary.read_bytes()\n        != stage_two_binary.read_bytes()",
             "stage_two_wrapped.read_bytes()",
             "stage_three_wrapped.read_bytes()",
             'native_plan.get("links"), "Windows build plan links"',
@@ -13014,9 +13132,10 @@ def _cupid_toolchain_fixed_point_contract(
             for fragment in fragments
             if source.count(fragment) != 1
         )
-    if "EXPECTED_INCLUDE_ARGUMENTS" in native_windows_sources[
-        "_windows_build_plan"
-    ]:
+    if (
+        "EXPECTED_INCLUDE_ARGUMENTS"
+        in native_windows_sources["_windows_build_plan"]
+    ):
         missing_native_windows_fragments.append(
             "_windows_build_plan: include arguments bypass the Linux plan"
         )
@@ -13027,9 +13146,7 @@ def _cupid_toolchain_fixed_point_contract(
     if len(behavior_functions) == 1:
         behavior_function = behavior_functions[0]
         if any(
-            live_linked_code_policy_call_count(
-                behavior_function, helper_name
-            )
+            live_linked_code_policy_call_count(behavior_function, helper_name)
             != 1
             for helper_name in linked_code_policy_helper_names
         ):
@@ -13052,14 +13169,10 @@ def _cupid_toolchain_fixed_point_contract(
             if isinstance(statement, ast.Return)
             and statement.value is not None
         ]
-        if (
-            len(native_windows_behavior_returns) != 1
-            or ast.dump(
-                native_windows_behavior_returns[0], include_attributes=False
-            )
-            != ast.dump(
-                expected_native_windows_behavior, include_attributes=False
-            )
+        if len(native_windows_behavior_returns) != 1 or ast.dump(
+            native_windows_behavior_returns[0], include_attributes=False
+        ) != ast.dump(
+            expected_native_windows_behavior, include_attributes=False
         ):
             missing_native_windows_fragments.append(
                 "_run_native_windows_behavior_checks: return seventeen failure, "
@@ -13169,8 +13282,7 @@ def _cupid_toolchain_fixed_point_contract(
         [
             node.value
             for node in ast.walk(source_input_functions[0])
-            if isinstance(node, ast.Constant)
-            and isinstance(node.value, str)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
         ]
         if len(source_input_functions) == 1
         else []
@@ -13332,9 +13444,7 @@ return tuple(
         name: [
             statement
             for statement in contract_publisher_tree.body
-            if isinstance(
-                statement, (ast.FunctionDef, ast.AsyncFunctionDef)
-            )
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
             and statement.name == name
         ]
         for name in (
@@ -13369,9 +13479,7 @@ return tuple(
                 )
             ]
 
-        bootstrap_calls = live_build_calls(
-            "_bootstrap_for_manifest_author"
-        )
+        bootstrap_calls = live_build_calls("_bootstrap_for_manifest_author")
         public_bootstrap_calls = live_build_calls("bootstrap_from_seed")
         if len(bootstrap_calls) != 1 or public_bootstrap_calls:
             publisher_protocol_errors.append(
@@ -13385,8 +13493,7 @@ return tuple(
             verify_inputs_function, "live_bootstrap_inputs"
         )
         expected_recapture = ast.parse(
-            "capture_source_snapshot("
-            "root, _candidate_build_plan(build_plan))",
+            "capture_source_snapshot(root, _candidate_build_plan(build_plan))",
             mode="eval",
         ).body
         if (
@@ -13397,9 +13504,7 @@ return tuple(
             )
             != 1
             or len(recapture_values) != 1
-            or ast.dump(
-                recapture_values[0], include_attributes=False
-            )
+            or ast.dump(recapture_values[0], include_attributes=False)
             != ast.dump(expected_recapture, include_attributes=False)
         ):
             publisher_protocol_errors.append(
@@ -13490,8 +13595,7 @@ return tuple(
                 or not isinstance(node.ops[0], ast.NotEq)
                 or len(node.comparators) != 1
                 or not isinstance(node.comparators[0], ast.Constant)
-                or node.comparators[0].value
-                != "pending-fixed-point-author"
+                or node.comparators[0].value != "pending-fixed-point-author"
                 or _ast_node_is_statically_dead(
                     node, build_function, build_parents
                 )
@@ -13542,9 +13646,7 @@ return tuple(
                 "each stage pair must use two checked regular-file captures"
             )
 
-        capture_regular = publisher_functions[
-            "_capture_regular_stage_file"
-        ][0]
+        capture_regular = publisher_functions["_capture_regular_stage_file"][0]
         capture_parents = {
             child: parent
             for parent in ast.walk(capture_regular)
@@ -13691,14 +13793,10 @@ return tuple(
         "tool_c_sources": len(candidate_toolchain_sources),
         "compiler_c_sources": len(expected_compiler_sources),
         "strict_c_sources": sum(
-            1
-            for _name, _path, gnu in candidate_toolchain_sources
-            if not gnu
+            1 for _name, _path, gnu in candidate_toolchain_sources if not gnu
         ),
         "gnu_c_sources": sum(
-            1
-            for _name, _path, gnu in candidate_toolchain_sources
-            if gnu
+            1 for _name, _path, gnu in candidate_toolchain_sources if gnu
         ),
         "include_roots": [
             {
@@ -13769,13 +13867,9 @@ def _c_preprocessor_user_wrapper_flags(root: Path) -> str:
         ) from error
     value = None
     for statement in module.body:
-        if (
-            isinstance(statement, ast.Assign)
-            and any(
-                isinstance(target, ast.Name)
-                and target.id == "USER_I386_ARGUMENTS"
-                for target in statement.targets
-            )
+        if isinstance(statement, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "USER_I386_ARGUMENTS"
+            for target in statement.targets
         ):
             try:
                 value = ast.literal_eval(statement.value)
@@ -13933,9 +14027,7 @@ def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
                 f"CupidC profile {profile} lost target flag(s) in Make "
                 f"{variable}: {missing_flags!r}"
             )
-        implicit_function_flag = (
-            "-Wno-implicit-function-declaration" in flags
-        )
+        implicit_function_flag = "-Wno-implicit-function-declaration" in flags
         expects_implicit_functions = next(
             policy.implicit_function_declarations == "CTOOL_TRUE"
             for policy in _C_PP_PROFILE_ROWS
@@ -13949,13 +14041,9 @@ def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
                 f"actual={implicit_function_flag!r}"
             )
         profile_flags = (
-            {"-std=c11"}
-            if hosted_profile
-            else _C_PP_I386_MODELED_FLAGS
+            {"-std=c11"} if hosted_profile else _C_PP_I386_MODELED_FLAGS
         )
-        unsupported = _c_preprocessor_unmodeled_flags(
-            flags, profile_flags
-        )
+        unsupported = _c_preprocessor_unmodeled_flags(flags, profile_flags)
         if unsupported:
             raise AuditError(
                 f"CupidC profile {profile} has unmodeled preprocessor flag(s) "
@@ -14059,8 +14147,7 @@ def _validate_user_syscall_abi_transform(
     )
     if markers != collections.Counter({"USER_SYSCALL_ABI": 1}):
         raise AuditError(
-            "user syscall ABI verifier recipe marker changed; "
-            f"actual={dict(markers)!r}"
+            f"user syscall ABI verifier recipe marker changed; actual={dict(markers)!r}"
         )
 
 
@@ -14076,8 +14163,7 @@ def _toolchain_contract_cupidc_ownership_inputs(
             if (
                 transform.get("output")
                 != "toolchain/build/cupidc-contracts/manifest.json"
-                or transform.get("operation")
-                != "generate_toolchain_manifest"
+                or transform.get("operation") != "generate_toolchain_manifest"
                 or transform.get("tools")
                 != [
                     "cupid_assembler",
@@ -14115,8 +14201,7 @@ def _toolchain_contract_cupidasm_ownership_inputs(
             if (
                 transform.get("output")
                 != "toolchain/build/cupidc-contracts/manifest.json"
-                or transform.get("operation")
-                != "generate_toolchain_manifest"
+                or transform.get("operation") != "generate_toolchain_manifest"
                 or transform.get("tools")
                 != [
                     "cupid_assembler",
@@ -14194,12 +14279,17 @@ def _cupidobj_profile_argument_sets(
     )
     arguments: dict[str, tuple[str, ...]] = {}
     for statement in tree.body:
-        if not isinstance(statement, ast.Assign) or len(statement.targets) != 1:
+        if (
+            not isinstance(statement, ast.Assign)
+            or len(statement.targets) != 1
+        ):
             continue
         target = statement.targets[0]
         if not isinstance(target, ast.Name) or target.id not in profile_names:
             continue
-        if target.id in arguments or not isinstance(statement.value, ast.Tuple):
+        if target.id in arguments or not isinstance(
+            statement.value, ast.Tuple
+        ):
             raise AuditError(
                 "CupidObj profile manifest wrapper profile declarations "
                 f"changed: {target.id} is not one literal tuple"
@@ -14338,23 +14428,169 @@ def _normalized_make_lines(source: str) -> list[str]:
 
 
 def _is_cupidobj_profile_manifest_production_root(root: Path) -> bool:
-    return (
-        all(
-            (root / relative).is_file()
-            for relative in _CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_FILES
+    return all(
+        (root / relative).is_file()
+        for relative in _CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_FILES
+    ) and all(
+        (root / relative).is_dir()
+        for relative in _CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_DIRECTORIES
+    )
+
+
+_KERNEL_FLATTEN_RECIPE = [
+    "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+    "$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
+    '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+    "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
+    "--output $(KERNEL)",
+]
+_KERNEL_FLATTEN_TOOLS = [
+    "cupid_builder",
+    "cupid_disassembler",
+    "cupid_object",
+]
+
+
+def _validate_kernel_flatten_transform(
+    transform: dict[str, object],
+    *,
+    code_inputs: list[str],
+    input_manifest: str,
+    seed_inputs: list[str],
+) -> None:
+    inputs = transform.get("inputs")
+    actual_inputs = inputs if isinstance(inputs, list) else []
+    expected_inputs = {
+        "Makefile",
+        input_manifest,
+        *code_inputs,
+        *seed_inputs,
+    }
+    missing = sorted(expected_inputs - set(actual_inputs))
+    unexpected = sorted(set(actual_inputs) - expected_inputs)
+    duplicate_inputs = sorted(
+        path
+        for path, count in collections.Counter(actual_inputs).items()
+        if count != 1
+    )
+    if (
+        transform.get("output") != "kernel/kernel.bin"
+        or transform.get("operation") != "extract_raw_binary"
+        or transform.get("tools") != _KERNEL_FLATTEN_TOOLS
+        or transform.get("recipe") != _KERNEL_FLATTEN_RECIPE
+        or missing
+        or unexpected
+        or duplicate_inputs
+    ):
+        raise AuditError(
+            "kernel flatten delivery differs from its checked target, "
+            "operation, tool, recipe, or input contract; "
+            f"missing={missing!r}, unexpected={unexpected!r}, "
+            f"duplicates={duplicate_inputs!r}"
         )
-        and all(
-            (root / relative).is_dir()
-            for relative in _CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_DIRECTORIES
+
+
+def _validate_kernel_flatten_delivery(
+    root: Path,
+    make: str,
+    transforms: list[dict[str, object]],
+) -> None:
+    values = _read_evaluated_make_variables(
+        root,
+        make,
+        (
+            "KERNEL",
+            "PRODUCTION_SEED_MANIFEST",
+            "PRODUCTION_SEED_DIRECTORY",
+            "PRODUCTION_SEED_SUFFIX",
+            "PRODUCTION_SEED_INPUTS",
+            "CUPIDDIS_PRODUCTION_INPUT_MANIFEST",
+            "CUPIDDIS_PRODUCTION_INPUTS",
+        ),
+    )
+    if values["KERNEL"] != "kernel/kernel.bin":
+        raise AuditError(
+            f"kernel flatten Make target changed: {values['KERNEL']!r}"
         )
+    input_manifest = values["CUPIDDIS_PRODUCTION_INPUT_MANIFEST"]
+    if input_manifest != "bootstrap/cupiddis-production-inputs.txt":
+        raise AuditError(
+            f"kernel flatten input manifest changed: {input_manifest!r}"
+        )
+    code_inputs = values["CUPIDDIS_PRODUCTION_INPUTS"].split()
+    if not code_inputs or len(code_inputs) != len(set(code_inputs)):
+        raise AuditError(
+            "kernel flatten Make input cohort is empty or contains duplicates"
+        )
+    try:
+        manifest_inputs = (
+            (root / input_manifest).read_text(encoding="utf-8").splitlines()
+        )
+    except OSError as error:
+        raise AuditError(
+            f"kernel flatten input manifest is unavailable: {error}"
+        ) from error
+    if manifest_inputs != code_inputs or len(manifest_inputs) != len(
+        set(manifest_inputs)
+    ):
+        raise AuditError(
+            "kernel flatten input manifest differs from the distinct Make input cohort"
+        )
+    if manifest_inputs[-2:] != [
+        "kernel/kernel.elf.pass1",
+        "kernel/kernel.elf",
+    ]:
+        raise AuditError(
+            "kernel flatten input manifest lost the two linked kernel identities"
+        )
+
+    seed_manifest = values["PRODUCTION_SEED_MANIFEST"]
+    seed_directory = values["PRODUCTION_SEED_DIRECTORY"]
+    seed_suffix = values["PRODUCTION_SEED_SUFFIX"]
+    seed_inputs = values["PRODUCTION_SEED_INPUTS"].split()
+    expected_seed_inputs = [
+        seed_manifest,
+        *[
+            f"{seed_directory}{tool}.{seed_suffix}"
+            for tool in (
+                "cupidasm",
+                "cupidc",
+                "cupiddis",
+                "cupidld",
+                "cupidobj",
+                "cupidbuild",
+            )
+        ],
+    ]
+    if seed_inputs != expected_seed_inputs or len(seed_inputs) != len(
+        set(seed_inputs)
+    ):
+        raise AuditError(
+            "kernel flatten production seed closure differs from its "
+            "manifest-derived trust unit"
+        )
+
+    deliveries = [
+        transform
+        for transform in transforms
+        if transform.get("output") == "kernel/kernel.bin"
+    ]
+    if len(deliveries) != 1:
+        raise AuditError(
+            f"kernel flatten delivery must appear exactly once; found {len(deliveries)}"
+        )
+    _validate_kernel_flatten_transform(
+        deliveries[0],
+        code_inputs=code_inputs,
+        input_manifest=input_manifest,
+        seed_inputs=seed_inputs,
     )
 
 
 def _validate_cupidobj_profile_manifest_make_source(source: str) -> None:
     lines = _normalized_make_lines(source)
     required_lines = (
-        "DOOM_CUPIDC_INPUT_MANIFEST := "
-        "build/bootstrap/doom-cupidc-inputs.json",
+        "DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json",
         "$(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) "
         "$(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py",
         "$(PYTHON) tools/cupidc_kernel_compile.py --root . "
@@ -14451,10 +14687,13 @@ def _ast_node_is_statically_dead(
     current = node
     while current is not publisher and current in parents:
         parent = parents[current]
-        if isinstance(
-            parent,
-            (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
-        ) and parent is not publisher:
+        if (
+            isinstance(
+                parent,
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+            )
+            and parent is not publisher
+        ):
             return True
         if isinstance(parent, ast.If) and isinstance(
             parent.test,
@@ -14550,8 +14789,7 @@ def _validate_cupidobj_profile_manifest_wrapper(root: Path) -> None:
     frozen_seed = _single_cupidobj_wrapper_node(
         publisher,
         ast.Assign,
-        "frozen_seed = freeze_seed_inputs(manifest_path, private / "
-        "'checked-seed')",
+        "frozen_seed = freeze_seed_inputs(manifest_path, private / 'checked-seed')",
         "private checked-seed freeze",
     )
     frozen_seed_check = _single_cupidobj_wrapper_if(
@@ -14710,9 +14948,7 @@ def _validate_cupidobj_profile_manifest_wrapper(root: Path) -> None:
         _cupidobj_wrapper_structure_error(
             "a required safety step is in statically dead code"
         )
-    locations = [
-        (node.lineno, node.col_offset) for node in ordered_nodes
-    ]
+    locations = [(node.lineno, node.col_offset) for node in ordered_nodes]
     if locations != sorted(locations) or len(set(locations)) != len(locations):
         _cupidobj_wrapper_structure_error(
             "the safety steps are not in their checked order"
@@ -14833,7 +15069,9 @@ def _validate_cupidobj_profile_manifest_delivery(
     inputs = delivery.get("inputs")
     if inputs != expected_inputs:
         actual_inputs = inputs if isinstance(inputs, list) else []
-        missing = [path for path in expected_inputs if path not in actual_inputs]
+        missing = [
+            path for path in expected_inputs if path not in actual_inputs
+        ]
         unexpected = [
             path for path in actual_inputs if path not in expected_inputs
         ]
@@ -14898,17 +15136,12 @@ def _cupidobj_install_source_expected_content(
             if operation == "wrap_text_as_elf32_relocatable"
             else wrapped_binary
         )
-        destination.update(
-            path for path in inputs if isinstance(path, str)
-        )
+        destination.update(path for path in inputs if isinstance(path, str))
 
     bin_content = {
         path
         for path in wrapped_text
-        if (
-            path.startswith("bin/")
-            and path.endswith((".cc", ".h"))
-        )
+        if (path.startswith("bin/") and path.endswith((".cc", ".h")))
     }
     documents = {
         path
@@ -14929,8 +15162,7 @@ def _cupidobj_install_source_expected_content(
     missing_assets = sorted(assets - wrapped_binary)
     if missing_assets:
         raise AuditError(
-            "CupidObj install-source asset wraps changed; missing="
-            f"{missing_assets!r}"
+            f"CupidObj install-source asset wraps changed; missing={missing_assets!r}"
         )
     return {
         "kernel/util/bin_programs_gen.cc": bin_content,
@@ -14968,12 +15200,9 @@ def _validate_cupidobj_install_source_delivery(
     missing_inputs = sorted(required_inputs - set(inputs))
     if missing_inputs:
         raise AuditError(
-            "CupidObj install-source delivery lost checked inputs: "
-            f"{missing_inputs!r}"
+            f"CupidObj install-source delivery lost checked inputs: {missing_inputs!r}"
         )
-    content_inputs = [
-        path for path in inputs if path not in required_inputs
-    ]
+    content_inputs = [path for path in inputs if path not in required_inputs]
     if len(content_inputs) != len(set(content_inputs)):
         raise AuditError(
             "CupidObj install-source delivery has duplicate content inputs"
@@ -15044,9 +15273,7 @@ def _validate_cupidobj_install_source_delivery(
             f"unexpected={unexpected_content!r}"
         )
     expected_markers = contract[1]
-    markers = _c_preprocessor_recipe_markers(
-        transform, set(expected_markers)
-    )
+    markers = _c_preprocessor_recipe_markers(transform, set(expected_markers))
     if markers != expected_markers:
         raise AuditError(
             "CupidObj install-source delivery recipe markers changed; "
@@ -15059,7 +15286,9 @@ def _c_preprocessor_active_cases_manifest(
 ) -> CPreprocessorActiveCasesManifest:
     sources = audit.get("sources")
     if not isinstance(sources, list):
-        raise AuditError("CupidC active preprocessing source inventory is absent")
+        raise AuditError(
+            "CupidC active preprocessing source inventory is absent"
+        )
     source_entries: dict[str, dict[str, object]] = {}
     for entry in sources:
         if not isinstance(entry, dict) or "path" not in entry:
@@ -15076,7 +15305,9 @@ def _c_preprocessor_active_cases_manifest(
     root_build = audit.get("build")
     supplemental = audit.get("supplemental_builds")
     if not isinstance(root_build, dict) or not isinstance(supplemental, list):
-        raise AuditError("CupidC active preprocessing build inventory is absent")
+        raise AuditError(
+            "CupidC active preprocessing build inventory is absent"
+        )
     builds: list[dict[str, object]] = [root_build]
     for build in supplemental:
         if not isinstance(build, dict):
@@ -15108,8 +15339,7 @@ def _c_preprocessor_active_cases_manifest(
             )
         has_install_source_delivery = any(
             isinstance(transform, dict)
-            and transform.get("output")
-            in _CUPIDOBJ_INSTALL_SOURCE_DELIVERIES
+            and transform.get("output") in _CUPIDOBJ_INSTALL_SOURCE_DELIVERIES
             for transform in transforms
         )
         install_source_content = (
@@ -15119,9 +15349,9 @@ def _c_preprocessor_active_cases_manifest(
         )
         for transform_value in sorted(
             transforms,
-            key=lambda item: str(item.get("output", ""))
-            if isinstance(item, dict)
-            else "",
+            key=lambda item: (
+                str(item.get("output", "")) if isinstance(item, dict) else ""
+            ),
         ):
             if not isinstance(transform_value, dict):
                 raise AuditError(
@@ -15134,8 +15364,7 @@ def _c_preprocessor_active_cases_manifest(
             output = str(transform.get("output", ""))
             if (
                 directory == "toolchain"
-                and output
-                == "toolchain/build/cupidc-contracts/manifest.json"
+                and output == "toolchain/build/cupidc-contracts/manifest.json"
             ):
                 expected_tools = [
                     "cupid_assembler",
@@ -15293,11 +15522,11 @@ def _c_preprocessor_active_cases_manifest(
                     directory != "."
                     or output != "verify-artifact-sizes"
                     or tools != expected_tools
-                    or transform.get("recipe")
-                    != ARTIFACT_SIZE_CONTRACT_RECIPE
+                    or transform.get("recipe") != ARTIFACT_SIZE_CONTRACT_RECIPE
                     or not isinstance(inputs, list)
                     or not all(isinstance(path, str) for path in inputs)
-                    or len(inputs) != len(ARTIFACT_SIZE_CONTRACT_TRANSFORM_INPUTS)
+                    or len(inputs)
+                    != len(ARTIFACT_SIZE_CONTRACT_TRANSFORM_INPUTS)
                     or set(inputs) != ARTIFACT_SIZE_CONTRACT_TRANSFORM_INPUTS
                 ):
                     raise AuditError(
@@ -15319,10 +15548,7 @@ def _c_preprocessor_active_cases_manifest(
             if operation == "verify_user_syscall_abi":
                 _validate_user_syscall_abi_transform(directory, transform)
                 continue
-            if (
-                directory == "user"
-                and output == "user/native-user-tools"
-            ):
+            if directory == "user" and output == "user/native-user-tools":
                 _validate_native_user_tools_transform(directory, transform)
                 continue
             if (
@@ -15348,12 +15574,9 @@ def _c_preprocessor_active_cases_manifest(
                         f"CupidC active preprocessing compile transform has "
                         f"unexpected tools for {transform.get('output')}: {tools!r}"
                     )
-                if (
-                    tools == ["cupid_c_compiler", "host_python"]
-                    and (
-                        directory not in {".", "user"}
-                        or operation != "compile_c_to_elf32_object"
-                    )
+                if tools == ["cupid_c_compiler", "host_python"] and (
+                    directory not in {".", "user"}
+                    or operation != "compile_c_to_elf32_object"
                 ):
                     raise AuditError(
                         "CupidC checked compile transform differs from its "
@@ -15440,7 +15663,10 @@ def _c_preprocessor_active_cases_manifest(
                     )
                 )
             ]
-            if delivered_inputs and operation != "wrap_text_as_elf32_relocatable":
+            if (
+                delivered_inputs
+                and operation != "wrap_text_as_elf32_relocatable"
+            ):
                 raise AuditError(
                     f"CupidC active preprocessing found an unclassified Cupid "
                     f"delivery transform: {transform.get('output')} ({operation})"
@@ -15528,9 +15754,7 @@ def _c_preprocessor_active_cases_manifest(
         for profile in _C_PP_PROFILE_ROWS
         for path in sorted(active_by_profile[profile.name])
     )
-    generated_rows = tuple(
-        ("KERNEL_I386", path) for path in sorted(generated)
-    )
+    generated_rows = tuple(("KERNEL_I386", path) for path in sorted(generated))
     return CPreprocessorActiveCasesManifest(
         profiles=_C_PP_PROFILE_ROWS,
         include_roots=include_roots,
@@ -15595,12 +15819,10 @@ def _c_preprocessor_translation_unit_contract(
                     == "CTOOL_TRUE"
                 ),
                 "tracked_translation_units": sum(
-                    profile == name
-                    for profile, _ in manifest.active_cases
+                    profile == name for profile, _ in manifest.active_cases
                 ),
                 "generated_translation_units": sum(
-                    profile == name
-                    for profile, _ in manifest.generated_cases
+                    profile == name for profile, _ in manifest.generated_cases
                 ),
                 "include_roots": roots,
                 "macro_actions": macros,
@@ -15874,8 +16096,9 @@ def _render_markdown(audit: dict[str, object]) -> str:
                     f"`{linker['path']}` has SHA-256 `{linker['sha256']}` and uses "
                     f"{', '.join(f'`{feature}`' for feature in linker['features'])}.",
                     "It is referenced by linker flags but is not a declared Make "
-                    "prerequisite." if not linker["declared_make_prerequisite"] else
-                    "It is also a declared Make prerequisite.",
+                    "prerequisite."
+                    if not linker["declared_make_prerequisite"]
+                    else "It is also a declared Make prerequisite.",
                     "",
                 ]
             )
@@ -16165,7 +16388,9 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="additional supported Make root (repeatable)",
     )
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--summary", type=Path, help="generated Markdown summary")
+    parser.add_argument(
+        "--summary", type=Path, help="generated Markdown summary"
+    )
     parser.add_argument(
         "--c-preprocessor-active-cases",
         type=Path,
@@ -16219,21 +16444,27 @@ def main(argv: list[str] | None = None) -> int:
         stale = []
         if not _check_text(args.output, json_payload):
             stale.append(args.output)
-        if args.summary and not _check_text(args.summary, markdown_payload or ""):
+        if args.summary and not _check_text(
+            args.summary, markdown_payload or ""
+        ):
             stale.append(args.summary)
         if args.c_preprocessor_active_cases and not _check_text(
             args.c_preprocessor_active_cases, active_cases_payload or ""
         ):
             stale.append(args.c_preprocessor_active_cases)
         for path in stale:
-            print(f"build graph audit out of date: {path.name}", file=sys.stderr)
+            print(
+                f"build graph audit out of date: {path.name}", file=sys.stderr
+            )
         failed_contracts = [
             name
             for name, contract in audit["contracts"].items()
             if contract.get("status") != "pass"
         ]
         for name in failed_contracts:
-            print(f"build graph audit contract failed: {name}", file=sys.stderr)
+            print(
+                f"build graph audit contract failed: {name}", file=sys.stderr
+            )
         return 1 if stale or failed_contracts else 0
 
     _write_text_atomic(args.output, json_payload)

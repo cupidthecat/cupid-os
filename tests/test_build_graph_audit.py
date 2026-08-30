@@ -23,7 +23,9 @@ CONDITIONAL_MANIFEST = (
 ACTIVE_CASE_MANIFEST = (
     REPO_ROOT / "toolchain" / "tests" / "cupidc_pp_active_cases.inc"
 )
-CUPIDC_PP_CONTRACT = REPO_ROOT / "toolchain" / "tests" / "cupidc_pp_contract.cc"
+CUPIDC_PP_CONTRACT = (
+    REPO_ROOT / "toolchain" / "tests" / "cupidc_pp_contract.cc"
+)
 TOOLCHAIN_MAKEFILE = REPO_ROOT / "toolchain" / "Makefile"
 LINUX_BOOTSTRAP_SEED_INPUTS = (
     "bootstrap/seeds/i386-linux/manifest.json",
@@ -72,8 +74,7 @@ def _write_source_suffix_policy(
 def _json_list_recipe(values):
     python = Path(sys.executable).resolve().as_posix()
     return (
-        f'\t@"{python}" -c "import json; '
-        f"print(json.dumps({list(values)!r}))\""
+        f'\t@"{python}" -c "import json; print(json.dumps({list(values)!r}))"'
     )
 
 
@@ -89,7 +90,9 @@ def _conditional_manifest_records():
             continue
         expression, if_count, elif_count, expected = match.groups()
         if expression in records:
-            raise AssertionError(f"duplicate conditional manifest: {expression}")
+            raise AssertionError(
+                f"duplicate conditional manifest: {expression}"
+            )
         records[expression] = (
             int(if_count),
             int(elif_count),
@@ -114,7 +117,9 @@ def _load_audit_module():
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
-    def test_tracked_audit_attributes_toolchain_startup_assembly_to_cupidasm(self):
+    def test_tracked_audit_attributes_toolchain_startup_assembly_to_cupidasm(
+        self,
+    ):
         audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
         sources = {source["path"]: source for source in audit["sources"]}
 
@@ -148,7 +153,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             markdown,
         )
 
-    def test_toolchain_startup_assembly_ownership_rejects_a_missing_input(self):
+    def test_toolchain_startup_assembly_ownership_rejects_a_missing_input(
+        self,
+    ):
         module = _load_audit_module()
         inputs = list(module.TOOLCHAIN_CONTRACT_CUPIDASM_OWNERSHIP_INPUTS)
         inputs.remove("toolchain/hosted/i386-windows/start.asm")
@@ -184,7 +191,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         ):
             module._toolchain_contract_cupidasm_ownership_inputs([model])
 
-    def test_toolchain_startup_assembly_ownership_rejects_a_mutated_input(self):
+    def test_toolchain_startup_assembly_ownership_rejects_a_mutated_input(
+        self,
+    ):
         module = _load_audit_module()
         inputs = list(module.TOOLCHAIN_CONTRACT_CUPIDASM_OWNERSHIP_INPUTS)
         inputs.remove("toolchain/hosted/i386-windows/start.asm")
@@ -244,8 +253,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 [],
                 0,
                 stdout=(
-                    "__CUPID_AUDIT_VALUE_0 := value\n"
-                    "__CUPID_AUDIT_ORIGIN_0 := file\n"
+                    "__CUPID_AUDIT_VALUE_0 := value\n__CUPID_AUDIT_ORIGIN_0 := file\n"
                 ),
                 stderr="",
             ),
@@ -318,7 +326,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             r"(?m)^\.DEFAULT_GOAL\s*:=\s*(\S+)\s*$",
             result.stdout,
         )
-        self.assertIsNotNone(match, "GNU Make omitted its selected default goal")
+        self.assertIsNotNone(
+            match, "GNU Make omitted its selected default goal"
+        )
         self.assertEqual(match.group(1), "all")
 
     def test_root_make_database_omits_unused_fat_offset_variable(self):
@@ -353,8 +363,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "tools": ["make"],
             "operation": "recursive_make",
             "recipe": [
-                "$(MAKE) -C ../toolchain "
-                "build/cupidc.exe build/cupidld.exe"
+                "$(MAKE) -C ../toolchain build/cupidc.exe build/cupidld.exe"
             ],
         }
         module._validate_native_user_tools_transform("user", transform)
@@ -418,15 +427,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "host_python",
             ],
         )
-        self.assertEqual(
-            transform["operation"], "verify_user_syscall_abi"
-        )
-        self.assertEqual(
-            len(module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS), 27
-        )
-        self.assertEqual(
-            len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 7
-        )
+        self.assertEqual(transform["operation"], "verify_user_syscall_abi")
+        self.assertEqual(len(module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS), 27)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 7)
         self.assertEqual(
             repo_inputs("NATIVE_WINDOWS_USER_SYSCALL_ABI_INPUTS"),
             module.USER_SYSCALL_ABI_NATIVE_BUILD_INPUTS,
@@ -455,7 +458,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         module._validate_user_syscall_abi_transform("user", transform)
 
-    def test_syscall_abi_oracle_input_does_not_relabel_contract_publication(self):
+    def test_syscall_abi_oracle_input_does_not_relabel_contract_publication(
+        self,
+    ):
         module = _load_audit_module()
         transform = module._build_transforms(
             "toolchain",
@@ -486,9 +491,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "host_python",
             ],
         )
-        self.assertEqual(
-            transform["operation"], "generate_toolchain_manifest"
-        )
+        self.assertEqual(transform["operation"], "generate_toolchain_manifest")
         model = mock.Mock(directory="toolchain", transforms=[transform])
         self.assertEqual(
             module._toolchain_contract_cupidc_ownership_inputs([model]),
@@ -594,9 +597,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             },
         }
         for name, changed in changes.items():
-            with self.subTest(name=name), self.assertRaisesRegex(
-                module.AuditError,
-                "user syscall ABI verifier",
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(
+                    module.AuditError,
+                    "user syscall ABI verifier",
+                ),
             ):
                 module._validate_user_syscall_abi_transform("user", changed)
 
@@ -642,7 +648,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             audit = json.loads(output.read_text(encoding="utf-8"))
             transforms = {
-                entry["output"]: entry for entry in audit["build"]["transforms"]
+                entry["output"]: entry
+                for entry in audit["build"]["transforms"]
             }
             self.assertEqual(
                 transforms["boot.bin"]["tools"],
@@ -656,7 +663,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ["cupid_assembler", "host_python"],
             )
             self.assertEqual(
-                transforms["entry.o"]["operation"], "assemble_elf32_relocatable"
+                transforms["entry.o"]["operation"],
+                "assemble_elf32_relocatable",
             )
             sources = {entry["path"]: entry for entry in audit["sources"]}
             self.assertEqual(sources["boot.asm"]["runtime_owner"], "CupidASM")
@@ -732,7 +740,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ],
         )
 
-    def test_inventory_maps_reachable_language_inputs_to_tool_owned_outputs(self):
+    def test_inventory_maps_reachable_language_inputs_to_tool_owned_outputs(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _write(
@@ -814,20 +824,32 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             sources = {entry["path"]: entry for entry in audit["sources"]}
             self.assertEqual(
                 set(sources),
-                {"api.h", "app.cc", "boot.asm", "demo.asm", "main.c", "types.h"},
+                {
+                    "api.h",
+                    "app.cc",
+                    "boot.asm",
+                    "demo.asm",
+                    "main.c",
+                    "types.h",
+                },
             )
             self.assertEqual(sources["main.c"]["language"], "c")
             self.assertEqual(sources["app.cc"]["language"], "cupid_c")
             self.assertEqual(sources["boot.asm"]["language"], "assembly")
-            self.assertEqual(sources["types.h"]["reachability"], "transitive_include")
+            self.assertEqual(
+                sources["types.h"]["reachability"], "transitive_include"
+            )
             self.assertEqual(sources["app.cc"]["runtime_owner"], "CupidC")
             self.assertEqual(sources["demo.asm"]["runtime_owner"], "CupidASM")
             self.assertIsNone(sources["boot.asm"]["runtime_owner"])
 
             transforms = {
-                entry["output"]: entry for entry in audit["build"]["transforms"]
+                entry["output"]: entry
+                for entry in audit["build"]["transforms"]
             }
-            self.assertEqual(transforms["main.o"]["tools"], ["host_c_compiler"])
+            self.assertEqual(
+                transforms["main.o"]["tools"], ["host_c_compiler"]
+            )
             self.assertEqual(transforms["boot.bin"]["tools"], ["nasm"])
             self.assertEqual(
                 transforms["boot.bin"]["operation"], "assemble_flat_binary"
@@ -839,7 +861,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 transforms["app.o"]["tools"],
                 ["cupid_object", "cupid_builder"],
             )
-            self.assertEqual(transforms["demo.o"]["tools"], ["host_object_copy"])
+            self.assertEqual(
+                transforms["demo.o"]["tools"], ["host_object_copy"]
+            )
             self.assertEqual(
                 transforms["kernel.elf"]["inputs"], ["main.o", "boot.bin"]
             )
@@ -908,7 +932,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             audit = json.loads(output.read_text(encoding="utf-8"))
             transforms = {
-                entry["output"]: entry for entry in audit["build"]["transforms"]
+                entry["output"]: entry
+                for entry in audit["build"]["transforms"]
             }
             self.assertEqual(
                 transforms["kernel.elf"]["tools"],
@@ -933,7 +958,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "wrap_text_as_elf32_relocatable",
             )
             self.assertEqual(
-                audit["contracts"]["bootstrap_artifact_coverage"]["linked_objects"],
+                audit["contracts"]["bootstrap_artifact_coverage"][
+                    "linked_objects"
+                ],
                 1,
             )
 
@@ -1129,7 +1156,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 \t$(CC) -c $< -o $@
                 """,
             )
-            _write(root / "child" / "child.c", "int child(void) { return 1; }\n")
+            _write(
+                root / "child" / "child.c", "int child(void) { return 1; }\n"
+            )
 
             output = root / "audit.json"
             result = subprocess.run(
@@ -1332,11 +1361,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "cupid_c.type.i64",
                 "cupid_c.type.u0",
             }
-            self.assertTrue(expected.issubset(features), expected - set(features))
-            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 1)
+            self.assertTrue(
+                expected.issubset(features), expected - set(features)
+            )
+            self.assertEqual(
+                features["asm.addressing.memory"]["occurrences"], 1
+            )
             self.assertEqual(features["asm.directive.bits"]["occurrences"], 2)
             self.assertEqual(features["asm.directive.org"]["occurrences"], 2)
-            self.assertEqual(features["asm.instruction.call"]["occurrences"], 1)
+            self.assertEqual(
+                features["asm.instruction.call"]["occurrences"], 1
+            )
             self.assertEqual(
                 features["c.preprocessor.function_macro"]["occurrences"], 12
             )
@@ -1373,9 +1408,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertNotIn("asm.instruction.bits", features)
             self.assertNotIn("asm.instruction.org", features)
             self.assertNotIn("asm.instruction.table", features)
-            self.assertEqual(features["c.expression.compound_literal"]["occurrences"], 1)
-            self.assertEqual(features["c.declarator.bit_field"]["occurrences"], 1)
-            self.assertEqual(features["c.initializer.designated"]["occurrences"], 1)
+            self.assertEqual(
+                features["c.expression.compound_literal"]["occurrences"], 1
+            )
+            self.assertEqual(
+                features["c.declarator.bit_field"]["occurrences"], 1
+            )
+            self.assertEqual(
+                features["c.initializer.designated"]["occurrences"], 1
+            )
             self.assertIn("cupid_c.directive.exe", features)
             self.assertNotIn("c.preprocessor.exe", features)
             self.assertEqual(
@@ -1383,7 +1424,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ["feature.c"],
             )
             self.assertEqual(
-                features["c.extension.attribute.packed"]["examples"][0]["line"],
+                features["c.extension.attribute.packed"]["examples"][0][
+                    "line"
+                ],
                 21,
             )
             for attribute_name in ("aligned", "section", "weak"):
@@ -1457,7 +1500,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 features[f"c.extension.attribute.{name}"]["files"],
             )
 
-    def test_c_logical_lines_use_only_real_newlines_and_preserve_evidence(self):
+    def test_c_logical_lines_use_only_real_newlines_and_preserve_evidence(
+        self,
+    ):
         spec = importlib.util.spec_from_file_location(
             "_cupid_build_graph_audit_test", AUDIT_TOOL
         )
@@ -1579,7 +1624,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             _write(
                 root / "main.c",
-                r'''
+                r"""
                 /* #line 1 "comment.c" */
                 static const char ignored[] = "#line 2 \"string.c\"";
                 #define LINE_NUMBER 70
@@ -1591,7 +1636,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 #endif
                 #line 90 /* separator */ "direct.c"
                 int value;
-                ''',
+                """,
             )
 
             output = root / "audit.json"
@@ -1626,9 +1671,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "features"
                 ]
             }
-            self.assertEqual(
-                features["c.preprocessor.line"]["occurrences"], 3
-            )
+            self.assertEqual(features["c.preprocessor.line"]["occurrences"], 3)
 
             forms = {
                 (
@@ -1662,16 +1705,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 forms[("pp_tokens", "%:", 1)]["evidence"][0]["operand"],
                 "LINE_NUMBER FILE_NAME",
             )
-            self.assertIsNone(
-                forms[("pp_tokens", "%:", 1)]["has_filename"]
-            )
-            self.assertTrue(
-                forms[("numeric_marker", "#", 1)]["has_filename"]
-            )
+            self.assertIsNone(forms[("pp_tokens", "%:", 1)]["has_filename"])
+            self.assertTrue(forms[("numeric_marker", "#", 1)]["has_filename"])
             self.assertEqual(
-                forms[("numeric_marker", "#", 1)]["evidence"][0][
-                    "operand"
-                ],
+                forms[("numeric_marker", "#", 1)]["evidence"][0]["operand"],
                 '88 "generated.c" 1 3',
             )
 
@@ -1842,7 +1879,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(shared["occurrences"], 2)
             self.assertEqual(shared["files"], ["main.c"])
             self.assertEqual(
-                [(item["directive"], item["line"]) for item in shared["evidence"]],
+                [
+                    (item["directive"], item["line"])
+                    for item in shared["evidence"]
+                ],
                 [("if", 3), ("elif", 8)],
             )
             self.assertIn(
@@ -2101,7 +2141,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
             )
             self.assertEqual(
-                [(item["path"], item["line"]) for item in forms["once"]["evidence"]],
+                [
+                    (item["path"], item["line"])
+                    for item in forms["once"]["evidence"]
+                ],
                 [("bin/ctxt.cc", 1)],
             )
             self.assertEqual(
@@ -2158,9 +2201,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             checked = json.loads(
                 ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
             )
-            contract = generated["contracts"][
-                "c_preprocessor_line_directives"
-            ]
+            contract = generated["contracts"]["c_preprocessor_line_directives"]
             self.assertEqual(contract["source_files"], 712)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
@@ -2261,9 +2302,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            contract = json.loads(output.read_text(encoding="utf-8"))["contracts"][
-                "c_preprocessor_cupid_exe"
-            ]
+            contract = json.loads(output.read_text(encoding="utf-8"))[
+                "contracts"
+            ]["c_preprocessor_cupid_exe"]
             self.assertEqual(
                 contract,
                 {
@@ -2290,7 +2331,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                                     "path": "ordinary.cc",
                                     "line": 2,
                                     "text": "#exe {",
-                                }
+                                },
                             ],
                         },
                         {
@@ -2538,9 +2579,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 211)
+            self.assertEqual(contract["if_occurrences"], 216)
             self.assertEqual(contract["elif_occurrences"], 11)
-            self.assertEqual(contract["expression_occurrences"], 222)
+            self.assertEqual(contract["expression_occurrences"], 227)
             self.assertEqual(contract["unique_expressions"], 41)
             self.assertEqual(contract["directive_expression_pairs"], 43)
             self.assertTrue(
@@ -2567,7 +2608,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     (entry["if_occurrences"], entry["elif_occurrences"]),
                 )
             self.assertEqual(
-                {expression: values[2] for expression, values in manifest.items()},
+                {
+                    expression: values[2]
+                    for expression, values in manifest.items()
+                },
                 {
                     "! defined ( CUPIDBUILD_HOST_STREAM_LIMIT )": 1,
                     "! defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 1,
@@ -2578,8 +2622,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "! defined ( _WIN32 )": 1,
                     "! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && "
                     "! defined ( __DJGPP__ )": 1,
-                    "! defined ( __SIZEOF_POINTER__ ) || "
-                    "__SIZEOF_POINTER__ != 4": 0,
+                    "! defined ( __SIZEOF_POINTER__ ) || __SIZEOF_POINTER__ != 4": 0,
                     "! defined ( __STDC_VERSION__ ) || "
                     "( __STDC_VERSION__ < 202311L )": 1,
                     "! defined ( __cplusplus )": 1,
@@ -2595,8 +2638,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "OPL_QUIRK_CHANNELSAMPLEDELAY": 1,
                     "ORIGCODE": 0,
                     "defined ( DOOM_PORT_CUPIDOS )": 0,
-                    "defined ( ORIGCODE ) || "
-                    "defined ( DOOM_PORT_CUPIDOS )": 0,
+                    "defined ( ORIGCODE ) || defined ( DOOM_PORT_CUPIDOS )": 0,
                     "_MSC_VER < 1400": 1,
                     "_WIN64": 0,
                     "defined ( _MSC_VER ) && ! defined ( __cplusplus )": 0,
@@ -2613,8 +2655,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "defined ( CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL )": 0,
                     "defined ( __DJGPP__ )": 0,
                     "defined ( __MACOSX__ )": 0,
-                    "defined ( __SIZEOF_POINTER__ ) && "
-                    "( __SIZEOF_POINTER__ == 8 )": 0,
+                    "defined ( __SIZEOF_POINTER__ ) && ( __SIZEOF_POINTER__ == 8 )": 0,
                     "defined ( __cplusplus ) || "
                     "defined ( __bool_true_false_are_defined )": 1,
                 },
@@ -2629,9 +2670,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         include = source.index(
             '#include "cupidc_pp_conditional_cases.inc"', define
         )
-        undefine = source.index(
-            "#undef CUPIDC_PP_CONDITIONAL_CASE", include
-        )
+        undefine = source.index("#undef CUPIDC_PP_CONDITIONAL_CASE", include)
         self.assertLess(define, include)
         self.assertLess(include, undefine)
 
@@ -2652,9 +2691,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             flags=re.DOTALL,
         )
         self.assertIsNotNone(support)
-        self.assertIn(
-            "tests/x86_catalogue_contract.inc", support.group(1)
-        )
+        self.assertIn("tests/x86_catalogue_contract.inc", support.group(1))
 
         object_rule = re.search(
             r"\$\(BUILD_DIR\)/x86_contract\.o:(.*?)\n\t",
@@ -2709,11 +2746,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             audit = json.loads(output.read_text(encoding="utf-8"))
             features = {entry["id"]: entry for entry in audit["features"]}
-            self.assertEqual(features["asm.addressing.memory"]["occurrences"], 168)
+            self.assertEqual(
+                features["asm.addressing.memory"]["occurrences"], 168
+            )
             self.assertEqual(features["asm.directive.bits"]["occurrences"], 10)
             self.assertEqual(features["asm.directive.org"]["occurrences"], 3)
             transforms = {
-                entry["output"]: entry for entry in audit["build"]["transforms"]
+                entry["output"]: entry
+                for entry in audit["build"]["transforms"]
             }
             expected_assembly = {
                 "boot/boot.bin": "assemble_flat_binary",
@@ -2731,7 +2771,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     transforms[output_path]["tools"],
                     expected_tools,
                 )
-                self.assertEqual(transforms[output_path]["operation"], operation)
+                self.assertEqual(
+                    transforms[output_path]["operation"], operation
+                )
             self.assertFalse(
                 [
                     entry["output"]
@@ -2815,7 +2857,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 unreachable["copy.c"]["classification"], "exact_duplicate"
             )
-            self.assertEqual(unreachable["copy.c"]["duplicate_of"], ["active.c"])
+            self.assertEqual(
+                unreachable["copy.c"]["duplicate_of"], ["active.c"]
+            )
             self.assertEqual(
                 unreachable["filtered.cc"]["classification"],
                 "explicitly_excluded",
@@ -2975,7 +3019,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertEqual(
+                result.returncode, 2, result.stdout + result.stderr
+            )
             self.assertIn(
                 "CupidC-owned tracked .c source must use .cc: main.c",
                 result.stderr,
@@ -3014,7 +3060,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertEqual(
+                result.returncode, 2, result.stdout + result.stderr
+            )
             self.assertIn(
                 "tracked .cc source lacks independent CupidC ownership "
                 "evidence: main.cc",
@@ -3055,7 +3103,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertEqual(
+                result.returncode, 2, result.stdout + result.stderr
+            )
             self.assertIn(
                 "unreachable tracked .cc source lacks explicit ownership "
                 "policy: orphan.cc",
@@ -3103,7 +3153,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertEqual(
+                result.returncode, 2, result.stdout + result.stderr
+            )
             self.assertIn(
                 "source suffix ownership policy path is missing: retired.c",
                 result.stderr,
@@ -3154,7 +3206,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
             audit = json.loads(output.read_text(encoding="utf-8"))
             unreachable = {
                 source["path"]: source["classification"]
@@ -3212,7 +3266,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
             audit = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(
                 audit["contracts"]["c_source_ownership"],
@@ -3241,7 +3297,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "unreachable_cupid_c": [],
                 },
             )
-            source = {item["path"]: item for item in audit["sources"]}["main.cc"]
+            source = {item["path"]: item for item in audit["sources"]}[
+                "main.cc"
+            ]
             self.assertEqual(source["runtime_owner"], "CupidC")
 
     def test_policy_can_authorize_a_cupidobj_delivered_runtime_source(self):
@@ -3282,20 +3340,24 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
             audit = json.loads(output.read_text(encoding="utf-8"))
             source = {item["path"]: item for item in audit["sources"]}[
                 "program.cc"
             ]
             self.assertEqual(source["runtime_owner"], "CupidC")
             self.assertEqual(
-                audit["contracts"]["c_source_ownership"]
-                ["cupid_c_ownership_evidence"],
+                audit["contracts"]["c_source_ownership"][
+                    "cupid_c_ownership_evidence"
+                ],
                 {"explicit_runtime_delivery_policy": 1},
             )
             self.assertEqual(
-                audit["contracts"]["c_source_ownership"]["policy"]
-                ["runtime_delivery_sources"],
+                audit["contracts"]["c_source_ownership"]["policy"][
+                    "runtime_delivery_sources"
+                ],
                 1,
             )
 
@@ -3335,7 +3397,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertEqual(
+                result.returncode, 2, result.stdout + result.stderr
+            )
             self.assertIn(
                 "runtime delivery policy lacks the exact CupidBuild/CupidObj "
                 "ownership edge: main.cc",
@@ -3383,7 +3447,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertEqual(
+                result.returncode, 2, result.stdout + result.stderr
+            )
             self.assertIn(
                 "runtime delivery policy lacks the exact CupidBuild/CupidObj "
                 "ownership edge: program.cc",
@@ -3450,8 +3516,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
                 root = Path(td)
                 _write(root / "Makefile", ".PHONY: all\nall:\n")
-                policy = root / "docs" / "bootstrap" / (
-                    "c-source-suffix-ownership.json"
+                policy = (
+                    root
+                    / "docs"
+                    / "bootstrap"
+                    / ("c-source-suffix-ownership.json")
                 )
                 serialized = (
                     document
@@ -3557,8 +3626,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             (
                 "unreachable classification",
                 policy(unreachable={"orphan.cc": "future"}),
-                "unreachable Cupid C classification is invalid: "
-                "orphan.cc: future",
+                "unreachable Cupid C classification is invalid: orphan.cc: future",
             ),
         )
         for name, document, diagnostic in cases:
@@ -3671,7 +3739,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertEqual(
+                result.returncode, 2, result.stdout + result.stderr
+            )
             self.assertIn(
                 "policy assigns active and unreachable roles to the same "
                 "path: program.cc",
@@ -3710,11 +3780,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 int value;
                 """,
             )
-            _write(root / "include" / "api.h", "%:include \"types.h\"\n")
+            _write(root / "include" / "api.h", '%:include "types.h"\n')
             _write(root / "include" / "types.h", "typedef int word;\n")
             _write(root / "ignored.h", "#define IGNORED 1\n")
             _write(root / "forced.h", "#define FORCED 1\n")
-            _write(root / "entry.asm", "%include \"helper.asm\"\nret\n")
+            _write(root / "entry.asm", '%include "helper.asm"\nret\n')
             _write(root / "helper.asm", "%define VALUE 1\n")
 
             output = root / "audit.json"
@@ -3750,7 +3820,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 sources["include/api.h"]["includes"], ["include/types.h"]
             )
             self.assertEqual(sources["entry.asm"]["includes"], ["helper.asm"])
-            self.assertEqual(sources["forced.h"]["reachability"], "forced_include")
+            self.assertEqual(
+                sources["forced.h"]["reachability"], "forced_include"
+            )
             self.assertEqual(
                 audit["build"]["include_search_paths"], ["include"]
             )
@@ -3887,7 +3959,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     f"""
                     .SUFFIXES:
                     CC = host-cc
-                    CFLAGS = {case['flags']}
+                    CFLAGS = {case["flags"]}
 
                     .PHONY: all
                     all: main.o
@@ -3920,9 +3992,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse(output.exists())
                 self.assertIn(f"main.c:{case['line']}", result.stderr)
-                self.assertIn(
-                    "macro-expanded #include operand", result.stderr
-                )
+                self.assertIn("macro-expanded #include operand", result.stderr)
                 self.assertIn(f"marker={case['marker']!r}", result.stderr)
                 self.assertIn(f"raw={case['raw']!r}", result.stderr)
                 self.assertIn(
@@ -3970,7 +4040,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(contract["direct_angle_occurrences"], 283)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
-    def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
+    def test_inventory_detects_link_inputs_missing_from_artifact_manifest(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             artifact_recipe = _json_list_recipe(["main.o"])
@@ -4061,7 +4133,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
             generated = subprocess.run(command, text=True, capture_output=True)
             self.assertEqual(generated.returncode, 0, generated.stderr)
-            self.assertIn("# Active build and source audit", summary.read_text())
+            self.assertIn(
+                "# Active build and source audit", summary.read_text()
+            )
 
             checked = subprocess.run(
                 [*command, "--check"], text=True, capture_output=True
@@ -4076,7 +4150,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn("out of date", stale.stderr)
             self.assertIn("audit.json", stale.stderr)
 
-    def test_inventory_is_stable_when_generated_c_has_not_been_materialized(self):
+    def test_inventory_is_stable_when_generated_c_has_not_been_materialized(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _write(
@@ -4134,7 +4210,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 capture_output=True,
             )
             self.assertEqual(materialized.returncode, 0, materialized.stderr)
-            self.assertEqual(absent_output.read_bytes(), materialized_output.read_bytes())
+            self.assertEqual(
+                absent_output.read_bytes(), materialized_output.read_bytes()
+            )
 
             audit = json.loads(absent_output.read_text(encoding="utf-8"))
             sources = {entry["path"]: entry for entry in audit["sources"]}
@@ -4197,7 +4275,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             _write(
                 root / "user" / "examples" / "tool.c",
-                "#include \"cupid.h\"\nint tool(void) { return CUPID; }\n",
+                '#include "cupid.h"\nint tool(void) { return CUPID; }\n',
             )
             _write(root / "user" / "cupid.h", "#define CUPID 1\n")
             _write(root / "shared.c", "int shared(void) { return 1; }\n")
@@ -4299,7 +4377,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             audit = json.loads(output.read_text(encoding="utf-8"))
             root_transforms = {
-                entry["output"]: entry for entry in audit["build"]["transforms"]
+                entry["output"]: entry
+                for entry in audit["build"]["transforms"]
             }
             host_transforms = {
                 entry["output"]: entry
@@ -4575,8 +4654,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            {name: sum(case_name == name for case_name, _ in active)
-            for name, _, _, _, _, _ in profiles},
+            {
+                name: sum(case_name == name for case_name, _ in active)
+                for name, _, _, _, _, _ in profiles
+            },
             {
                 "KERNEL_I386": 156,
                 "DOOM_COMPAT_I386": 3,
@@ -4735,8 +4816,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "inputs": [
                         path
                         for path in delivery["inputs"]
-                        if path
-                        != "bootstrap/seeds/i386-windows/cupidobj.exe"
+                        if path != "bootstrap/seeds/i386-windows/cupidobj.exe"
                     ],
                 }
             ],
@@ -4758,9 +4838,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ],
         }
         for name, changed in changes.items():
-            with self.subTest(name=name), self.assertRaisesRegex(
-                module.AuditError,
-                r"CupidObj profile manifest",
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(
+                    module.AuditError,
+                    r"CupidObj profile manifest",
+                ),
             ):
                 module._validate_cupidobj_profile_manifest_delivery(
                     REPO_ROOT,
@@ -4892,8 +4975,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         source = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
         mutations = {
             "renamed output": (
-                "DOOM_CUPIDC_INPUT_MANIFEST := "
-                "build/bootstrap/doom-cupidc-inputs.json",
+                "DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json",
                 "DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-inputs.json",
             ),
             "unchecked prerequisites": (
@@ -5039,8 +5121,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             (
                 "live seed reload left as a dead marker",
                 "tools/bootstrap_toolchain.py",
-                "            live_seed = _load_seed_inputs("
-                "manifest_path, None)",
+                "            live_seed = _load_seed_inputs(manifest_path, None)",
                 "            if False:\n"
                 "                _load_seed_inputs(manifest_path, None)\n"
                 "            live_seed = seed_inputs",
@@ -5049,9 +5130,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "manifest mismatch does not raise",
                 "tools/bootstrap_toolchain.py",
                 "            raise BootstrapError(\n"
-                "                f\"checked seed inputs changed while "
-                "{display_name} ran: \"\n"
-                "                \"manifest content differs\"\n"
+                '                f"checked seed inputs changed while '
+                '{display_name} ran: "\n'
+                '                "manifest content differs"\n'
                 "            )",
                 "            pass",
             ),
@@ -5062,14 +5143,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                    result = run_seed_tool(\n"
                 "                        manifest_path,\n"
                 "                        root,\n"
-                "                        \"cupidc\",",
+                '                        "cupidc",',
                 "                seed_inputs = verify_seed_inputs("
                 "manifest_path)\n"
                 "                try:\n"
                 "                    result = run_seed_tool(\n"
                 "                        manifest_path,\n"
                 "                        root,\n"
-                "                        \"cupidc\",",
+                '                        "cupidc",',
             ),
             (
                 "kernel delegation left in dead code",
@@ -5077,7 +5158,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                    result = run_seed_tool(\n"
                 "                        manifest_path,\n"
                 "                        root,\n"
-                "                        \"cupidc\",\n"
+                '                        "cupidc",\n'
                 "                        arguments,\n"
                 "                        timeout=timeout,\n"
                 "                        frozen_seed=seed_inputs,\n"
@@ -5087,7 +5168,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                        result = run_seed_tool(\n"
                 "                            manifest_path,\n"
                 "                            root,\n"
-                "                            \"cupidc\",\n"
+                '                            "cupidc",\n'
                 "                            arguments,\n"
                 "                            timeout=timeout,\n"
                 "                            frozen_seed=seed_inputs,\n"
@@ -5098,7 +5179,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                        if executor is not None\n"
                 "                        else ToolRunner(root)\n"
                 "                    ).run(\n"
-                "                        seed_inputs.tools[\"cupidc\"],\n"
+                '                        seed_inputs.tools["cupidc"],\n'
                 "                        arguments,\n"
                 "                        timeout,\n"
                 "                    )",
@@ -5126,22 +5207,21 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                    result = run_seed_tool(\n"
                 "                        manifest_path,\n"
                 "                        root,\n"
-                "                        \"cupidc\",",
-                "                seed_inputs.tools[\"cupidc\"] = (\n"
+                '                        "cupidc",',
+                '                seed_inputs.tools["cupidc"] = (\n'
                 "                    verify_seed_inputs("
-                "manifest_path).tools[\"cupidc\"]\n"
+                'manifest_path).tools["cupidc"]\n'
                 "                )\n"
                 "                try:\n"
                 "                    result = run_seed_tool(\n"
                 "                        manifest_path,\n"
                 "                        root,\n"
-                "                        \"cupidc\",",
+                '                        "cupidc",',
             ),
             (
                 "publication moved into an exception handler",
                 "tools/cupidc_kernel_compile.py",
-                "                _replace_with_retry("
-                "temporary_output, output)",
+                "                _replace_with_retry(temporary_output, output)",
                 "                try:\n"
                 "                    pass\n"
                 "                except Exception:\n"
@@ -5164,22 +5244,22 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                    result = run_seed_tool(\n"
                 "                        manifest_path,\n"
                 "                        root,\n"
-                "                        \"cupidc\",",
+                '                        "cupidc",',
                 "                run_seed_tool = lambda manifest_path, "
                 "root, tool, arguments, **kwargs: (\n"
                 "                    executor\n"
                 "                    if executor is not None\n"
                 "                    else ToolRunner(root)\n"
                 "                ).run(\n"
-                "                    kwargs[\"frozen_seed\"].tools[tool],\n"
+                '                    kwargs["frozen_seed"].tools[tool],\n'
                 "                    arguments,\n"
-                "                    kwargs[\"timeout\"],\n"
+                '                    kwargs["timeout"],\n'
                 "                )\n"
                 "                try:\n"
                 "                    result = run_seed_tool(\n"
                 "                        manifest_path,\n"
                 "                        root,\n"
-                "                        \"cupidc\",",
+                '                        "cupidc",',
             ),
             (
                 "shared runner replaced through the module namespace",
@@ -5188,25 +5268,25 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                    result = run_seed_tool(\n"
                 "                        manifest_path,\n"
                 "                        root,\n"
-                "                        \"cupidc\",",
+                '                        "cupidc",',
                 "                globals().__setitem__(\n"
-                "                    \"run_seed_tool\",\n"
+                '                    "run_seed_tool",\n'
                 "                    lambda manifest_path, root, tool, "
                 "arguments, **kwargs: (\n"
                 "                        executor\n"
                 "                        if executor is not None\n"
                 "                        else ToolRunner(root)\n"
                 "                    ).run(\n"
-                "                        kwargs[\"frozen_seed\"].tools[tool],\n"
+                '                        kwargs["frozen_seed"].tools[tool],\n'
                 "                        arguments,\n"
-                "                        kwargs[\"timeout\"],\n"
+                '                        kwargs["timeout"],\n'
                 "                    ),\n"
                 "                )\n"
                 "                try:\n"
                 "                    result = run_seed_tool(\n"
                 "                        manifest_path,\n"
                 "                        root,\n"
-                "                        \"cupidc\",",
+                '                        "cupidc",',
             ),
             (
                 "frozen tool map replaced from the live seed",
@@ -5238,8 +5318,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "shared runner replaced by a decorator",
                 "tools/bootstrap_toolchain.py",
                 "def run_seed_tool(\n",
-                "@unchecked_run_seed_tool\n"
-                "def run_seed_tool(\n",
+                "@unchecked_run_seed_tool\ndef run_seed_tool(\n",
             ),
             (
                 "candidate published through an early alias",
@@ -5258,11 +5337,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/bootstrap_toolchain.py",
                 "        except BootstrapError as error:\n"
                 "            raise BootstrapError(\n"
-                "                f\"checked seed inputs changed while \"\n"
-                "                f\"{display_name} ran: {error}\"\n"
+                '                f"checked seed inputs changed while "\n'
+                '                f"{display_name} ran: {error}"\n'
                 "            ) from error",
-                "        except BootstrapError:\n"
-                "            return result",
+                "        except BootstrapError:\n            return result",
             ),
             (
                 "seed freezer shadowed by a live verifier",
@@ -5282,8 +5360,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "exported runner rebound after its checked definition",
                 "tools/bootstrap_toolchain.py",
                 "\n\ndef _build_stage(\n",
-                "\n\nrun_seed_tool = unchecked_seed_tool\n\n\n"
-                "def _build_stage(\n",
+                "\n\nrun_seed_tool = unchecked_seed_tool\n\n\ndef _build_stage(\n",
             ),
             (
                 "candidate published through Path.replace before validation",
@@ -5301,11 +5378,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/cupidc_kernel_compile.py",
                 "    except OSError as error:\n"
                 "        raise KernelCompileError(\n"
-                "            f\"could not publish kernel object {output}: "
-                "{error}\"\n"
+                '            f"could not publish kernel object {output}: '
+                '{error}"\n'
                 "        ) from error",
-                "    except BaseException:\n"
-                "        pass",
+                "    except BaseException:\n        pass",
             ),
             (
                 "linked kernel local-target validation removed",
@@ -5352,28 +5428,26 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             (
                 "linked kernel code validation left in dead code",
                 "tools/hostbuild.py",
-                "            try:\n"
-                "                linked_validation = run_seed_tool(",
+                "            try:\n                linked_validation = run_seed_tool(",
                 "            try:\n"
                 "                if False:\n"
-                    "                    linked_validation = run_seed_tool(",
+                "                    linked_validation = run_seed_tool(",
             ),
             (
                 "linked kernel code validation duplicated",
                 "tools/hostbuild.py",
-                "            try:\n"
-                "                linked_validation = run_seed_tool(",
+                "            try:\n                linked_validation = run_seed_tool(",
                 "            try:\n"
                 "                linked_validation = run_seed_tool(\n"
                 "                    live_seed_manifest,\n"
                 "                    private_root,\n"
-                "                    \"cupiddis\",\n"
+                '                    "cupiddis",\n'
                 "                    (\n"
-                "                        \"--require-known\",\n"
-                "                        \"--require-local-targets\",\n"
-                "                        \"--require-code-anchors\",\n"
-                "                        \"kernel/kernel.elf.pass1\",\n"
-                "                        \"kernel/kernel.elf\",\n"
+                '                        "--require-known",\n'
+                '                        "--require-local-targets",\n'
+                '                        "--require-code-anchors",\n'
+                '                        "kernel/kernel.elf.pass1",\n'
+                '                        "kernel/kernel.elf",\n'
                 "                    ),\n"
                 "                    timeout=600,\n"
                 "                    frozen_seed=frozen_seed,\n"
@@ -5395,7 +5469,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                return subprocess.CompletedProcess(\n"
                 "                    linked_validation.args,\n"
                 "                    linked_validation.returncode,\n"
-                "                    \"\",\n"
+                '                    "",\n'
                 "                    linked_stderr,\n"
                 "                )",
                 "            if False:\n"
@@ -5403,7 +5477,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                    return subprocess.CompletedProcess(\n"
                 "                        linked_validation.args,\n"
                 "                        linked_validation.returncode,\n"
-                "                        \"\",\n"
+                '                        "",\n'
                 "                        linked_stderr,\n"
                 "                    )",
             ),
@@ -5412,11 +5486,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/hostbuild.py",
                 "            except BootstrapError as error:\n"
                 "                raise CodeValidationError(\n"
-                "                    \"checked CupidDis linked-code validation ",
+                '                    "checked CupidDis linked-code validation ',
                 "            except BootstrapError as error:\n"
                 "                if False:\n"
                 "                    raise CodeValidationError(\n"
-                "                    \"checked CupidDis linked-code validation ",
+                '                    "checked CupidDis linked-code validation ',
             ),
             (
                 "linked kernel stdout failure does not stop flattening",
@@ -5432,17 +5506,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/hostbuild.py",
                 "            if linked_validation.stdout:\n"
                 "                raise CodeValidationError(\n"
-                "                    \"checked CupidDis linked-code "
-                "validation wrote unexpected \"\n"
-                "                    \"standard output\",\n"
+                '                    "checked CupidDis linked-code '
+                'validation wrote unexpected "\n'
+                '                    "standard output",\n'
                 "                    tool_stderr=linked_stderr,\n"
                 "                )",
                 "            try:\n"
                 "                if linked_validation.stdout:\n"
                 "                    raise CodeValidationError(\n"
-                "                        \"checked CupidDis linked-code "
-                "validation wrote unexpected \"\n"
-                "                        \"standard output\",\n"
+                '                        "checked CupidDis linked-code '
+                'validation wrote unexpected "\n'
+                '                        "standard output",\n'
                 "                        tool_stderr=linked_stderr,\n"
                 "                    )\n"
                 "            except CodeValidationError:\n"
@@ -5453,17 +5527,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/hostbuild.py",
                 "            if linked_validation.stdout:\n"
                 "                raise CodeValidationError(\n"
-                "                    \"checked CupidDis linked-code "
-                "validation wrote unexpected \"\n"
-                "                    \"standard output\",\n"
+                '                    "checked CupidDis linked-code '
+                'validation wrote unexpected "\n'
+                '                    "standard output",\n'
                 "                    tool_stderr=linked_stderr,\n"
                 "                )",
                 "            try:\n"
                 "                if linked_validation.stdout:\n"
                 "                    raise CodeValidationError(\n"
-                "                        \"checked CupidDis linked-code "
-                "validation wrote unexpected \"\n"
-                "                        \"standard output\",\n"
+                '                        "checked CupidDis linked-code '
+                'validation wrote unexpected "\n'
+                '                        "standard output",\n'
                 "                        tool_stderr=linked_stderr,\n"
                 "                    )\n"
                 "            except* CodeValidationError:\n"
@@ -5474,24 +5548,24 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/hostbuild.py",
                 "            if linked_validation.stdout:\n"
                 "                raise CodeValidationError(\n"
-                "                    \"checked CupidDis linked-code "
-                "validation wrote unexpected \"\n"
-                "                    \"standard output\",\n"
+                '                    "checked CupidDis linked-code '
+                'validation wrote unexpected "\n'
+                '                    "standard output",\n'
                 "                    tool_stderr=linked_stderr,\n"
                 "                )",
                 "            with contextlib.suppress(CodeValidationError):\n"
                 "                if linked_validation.stdout:\n"
                 "                    raise CodeValidationError(\n"
-                "                        \"checked CupidDis linked-code "
-                "validation wrote unexpected \"\n"
-                "                        \"standard output\",\n"
+                '                        "checked CupidDis linked-code '
+                'validation wrote unexpected "\n'
+                '                        "standard output",\n'
                 "                        tool_stderr=linked_stderr,\n"
                 "                    )",
             ),
             (
                 "broad kernel validation drops the frozen seed",
                 "tools/hostbuild.py",
-                "                    **({\"frozen_seed\": frozen_seed} "
+                '                    **({"frozen_seed": frozen_seed} '
                 "if frozen_seed is not None else {}),",
                 "                    **{},",
             ),
@@ -5510,12 +5584,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                repository_root,\n"
                 "                manifest_snapshot,\n"
                 "                snapshots,\n"
-                "                activity=\"CupidDis linked-code validation\",",
+                '                activity="CupidDis linked-code validation",',
                 "            _require_code_inputs_unchanged_removed(\n"
                 "                repository_root,\n"
                 "                manifest_snapshot,\n"
                 "                snapshots,\n"
-                "                activity=\"CupidDis linked-code validation\",",
+                '                activity="CupidDis linked-code validation",',
             ),
             (
                 "linked kernel seed drift guard removed",
@@ -5576,9 +5650,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
     def test_cupidobj_profile_manifest_wrapper_rejects_drift(self):
         module = _load_audit_module()
-        source = (
-            REPO_ROOT / "tools" / "cupidc_kernel_compile.py"
-        ).read_text(encoding="utf-8")
+        source = (REPO_ROOT / "tools" / "cupidc_kernel_compile.py").read_text(
+            encoding="utf-8"
+        )
         start = source.index("def write_profile_input_manifest(")
         end = source.index("\ndef ", start + 4)
         publisher = source[start:end]
@@ -5698,8 +5772,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             (
                 "kernel/util/demos_programs_gen.cc",
-                "$(CUPIDOBJ) install-source demos "
-                "--demos $(DEMO_ASM_SRCS) -o $@",
+                "$(CUPIDOBJ) install-source demos --demos $(DEMO_ASM_SRCS) -o $@",
             ),
         )
         deliveries = {}
@@ -5774,15 +5847,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "changed recipe": {
                 **transform,
                 "recipe": [
-                    "$(CUPIDOBJ) install-source bin "
-                    "--bin $(BIN_CC_SRCS) -o $@"
+                    "$(CUPIDOBJ) install-source bin --bin $(BIN_CC_SRCS) -o $@"
                 ],
             },
         }
         for name, changed in changes.items():
-            with self.subTest(name=name), self.assertRaisesRegex(
-                module.AuditError,
-                r"CupidObj install-source delivery",
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(
+                    module.AuditError,
+                    r"CupidObj install-source delivery",
+                ),
             ):
                 module._validate_cupidobj_install_source_delivery(
                     ".", changed, expected_content[target]
@@ -5814,11 +5889,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     for path in changed["inputs"]
                 ],
             }
-            with self.subTest(
-                delivery_target=delivery_target
-            ), self.assertRaisesRegex(
-                module.AuditError,
-                r"CupidObj install-source delivery content inputs changed",
+            with (
+                self.subTest(delivery_target=delivery_target),
+                self.assertRaisesRegex(
+                    module.AuditError,
+                    r"CupidObj install-source delivery content inputs changed",
+                ),
             ):
                 module._validate_cupidobj_install_source_delivery(
                     ".", changed, expected_content[delivery_target]
@@ -5831,8 +5907,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 target: module.MakeRule(
                     prerequisites=transform["inputs"],
                     recipe=[
-                        "$(CUPIDOBJ) install-sources bin "
-                        "--bin $(BIN_CC_SRCS) -o $@"
+                        "$(CUPIDOBJ) install-sources bin --bin $(BIN_CC_SRCS) -o $@"
                     ],
                 )
             },
@@ -5843,8 +5918,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "$(CUPIDOBJ) wrap-text bin/hello.cc -o install-source": (
                 "wrap_text_as_elf32_relocatable"
             ),
-            "echo install-source && "
-            "$(CUPIDOBJ) wrap-text bin/hello.cc -o hello.o": (
+            "echo install-source && $(CUPIDOBJ) wrap-text bin/hello.cc -o hello.o": (
                 "wrap_text_as_elf32_relocatable"
             ),
             "echo $(CUPIDOBJ) install-source bin": "transform_object",
@@ -5883,21 +5957,25 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             set(hosted_tools).issubset(rules),
         )
         self.assertTrue(
-            set(hosted_tools).isdisjoint(
-                module._reachable_rules(rules, "all")
-            )
+            set(hosted_tools).isdisjoint(module._reachable_rules(rules, "all"))
         )
 
     def test_checked_cupidc_active_manifest_keeps_profiles_isolated(self):
         lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
-        roots = [line for line in lines if line.startswith("CUPIDC_PP_INCLUDE_ROOT(")]
-        macros = [line for line in lines if line.startswith("CUPIDC_PP_MACRO(")]
-        forced = [
-            line for line in lines if line.startswith("CUPIDC_PP_FORCED_INCLUDE(")
+        roots = [
+            line
+            for line in lines
+            if line.startswith("CUPIDC_PP_INCLUDE_ROOT(")
         ]
-        both_forms = (
-            "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)"
-        )
+        macros = [
+            line for line in lines if line.startswith("CUPIDC_PP_MACRO(")
+        ]
+        forced = [
+            line
+            for line in lines
+            if line.startswith("CUPIDC_PP_FORCED_INCLUDE(")
+        ]
+        both_forms = "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)"
         angle_forms = "CTOOL_C_PP_INCLUDE_ANGLE"
         kernel_roots = [
             "/kernel",
@@ -6007,7 +6085,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "DOOM_TREE_I386": [
                 *common_macros,
                 ("__SSE2__", "1"),
-                ("DEFAULT_SAVEGAMEDIR", '\"/home/doom/\"'),
+                ("DEFAULT_SAVEGAMEDIR", '"/home/doom/"'),
                 ("DOOM_PORT_CUPIDOS", "1"),
             ],
             "USER_I386": common_macros,
@@ -6029,10 +6107,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             escaped_replacement = replacement.replace("\\", "\\\\").replace(
                 '"', '\\"'
             )
-            return (
-                f'CUPIDC_PP_MACRO({profile}, "{escaped_name}", '
-                f'"{escaped_replacement}")'
-            )
+            return f'CUPIDC_PP_MACRO({profile}, "{escaped_name}", "{escaped_replacement}")'
 
         self.assertEqual(
             macros,
@@ -6045,7 +6120,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(
             forced,
             [
-                'CUPIDC_PP_FORCED_INCLUDE(DOOM_TREE_I386, '
+                "CUPIDC_PP_FORCED_INCLUDE(DOOM_TREE_I386, "
                 '"/kernel/doom/dglibc_compat.h")'
             ],
         )
@@ -6054,10 +6129,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         module._validate_hosted_i386_contract_profiles(REPO_ROOT)
         contract = (
-            REPO_ROOT
-            / "toolchain"
-            / "tests"
-            / "cupidc_object_contract.cc"
+            REPO_ROOT / "toolchain" / "tests" / "cupidc_object_contract.cc"
         ).read_text(encoding="utf-8")
         mutations = {
             "runtime loses GNU mode": (
@@ -6087,10 +6159,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
                 root = Path(td)
                 target = (
-                    root
-                    / "toolchain"
-                    / "tests"
-                    / "cupidc_object_contract.cc"
+                    root / "toolchain" / "tests" / "cupidc_object_contract.cc"
                 )
                 target.parent.mkdir(parents=True)
                 mutated = contract.replace(old, new, 1)
@@ -6113,9 +6182,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["windows_success_behavior_cases"], 22)
         self.assertEqual(contract["windows_failure_behavior_cases"], 17)
         self.assertEqual(contract["contract_manifest_inputs"], 76)
-        self.assertEqual(
-            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 76
-        )
+        self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 76)
         self.assertIn(
             "toolchain/x86.cc",
             module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
@@ -6157,9 +6224,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         test = (
             REPO_ROOT / "tests" / "test_toolchain_cupidc_object.py"
         ).read_text(encoding="utf-8")
-        bootstrap = (
-            REPO_ROOT / "tools" / "bootstrap_toolchain.py"
-        ).read_text(encoding="utf-8")
+        bootstrap = (REPO_ROOT / "tools" / "bootstrap_toolchain.py").read_text(
+            encoding="utf-8"
+        )
         contract_publisher = (
             REPO_ROOT / "tools" / "cupidc_toolchain_contracts.py"
         ).read_text(encoding="utf-8")
@@ -6194,9 +6261,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         linker_header = (REPO_ROOT / "toolchain" / "cupidld.h").read_text(
             encoding="utf-8"
         )
-        linker_cli = (
-            REPO_ROOT / "toolchain" / "cupidld_main.cc"
-        ).read_text(encoding="utf-8")
+        linker_cli = (REPO_ROOT / "toolchain" / "cupidld_main.cc").read_text(
+            encoding="utf-8"
+        )
         linker_core = (REPO_ROOT / "toolchain" / "cupidld.cc").read_text(
             encoding="utf-8"
         )
@@ -6232,7 +6299,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         serializer_feature = linker_core[serializer_start:serializer_end]
         core_dispatch_start = linker_core.index(
-            '  if (status == CTOOL_OK) {\n'
+            "  if (status == CTOOL_OK) {\n"
             '    phase = "CupidLD executable serialization failed";\n'
             "    if (request->image_kind == CTOOL_LD_IMAGE_PE32_FIXED) {\n"
         )
@@ -6279,8 +6346,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             directory_contract_start:directory_contract_end
         ]
         native_build_loop_start = bootstrap.index(
-            "    for tool_name, link_objects in "
-            "windows_native_tool_plans.items():\n"
+            "    for tool_name, link_objects in windows_native_tool_plans.items():\n"
         )
         native_build_loop_end = bootstrap.index(
             "\n\n    windows_native_tool_loaders:",
@@ -6292,16 +6358,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         mutations = {
             "angle root widened": (
                 "driver",
-                "cli->include_forms[cli->include_count] = "
-                "CTOOL_C_PP_INCLUDE_ANGLE;",
+                "cli->include_forms[cli->include_count] = CTOOL_C_PP_INCLUDE_ANGLE;",
                 "cli->include_forms[cli->include_count] = "
                 "CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE;",
                 r"does not retain its exact include contract",
             ),
             "forced include count disappears": (
                 "driver",
-                "pp_request.forced_include_count = "
-                "context->forced_include_count;",
+                "pp_request.forced_include_count = context->forced_include_count;",
                 "pp_request.forced_include_count = 0u;",
                 r"does not retain its exact include contract",
             ),
@@ -6318,10 +6382,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "ABI root loses angle-only option": (
                 "test",
-                '"--include-angle",\n'
-                '    "/toolchain/hosted/i386-linux/include",',
-                '"-I",\n'
-                '    "/toolchain/hosted/i386-linux/include",',
+                '"--include-angle",\n    "/toolchain/hosted/i386-linux/include",',
+                '"-I",\n    "/toolchain/hosted/i386-linux/include",',
                 r"fixed-point manifest differs: "
                 r"CUPIDC_FIXED_POINT_INCLUDE_ARGUMENTS",
             ),
@@ -6333,11 +6395,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "    ),\n"
                 "    (\n"
                 '        "cupiddis",',
-                '            "x86",\n'
-                "        ),\n"
-                "    ),\n"
-                "    (\n"
-                '        "cupiddis",',
+                '            "x86",\n        ),\n    ),\n    (\n        "cupiddis",',
                 r"fixed-point manifest differs: "
                 r"CUPID_TOOLCHAIN_FIXED_POINT_LINKS",
             ),
@@ -6440,15 +6498,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "profile failures stop checking diagnostics": (
                 "bootstrap",
                 "            or failure_message not in failure_result.stderr\n",
-                "            or failure_result.stderr == \"\"\n",
+                '            or failure_result.stderr == ""\n',
                 r"fixed-point profile behavior differs",
             ),
             "profile failures stop preserving the second output": (
                 "bootstrap",
-                "            or stage_three_profile_failure.read_bytes() "
-                "!= sentinel\n",
-                "            or stage_two_profile_failure.read_bytes() "
-                "!= sentinel\n",
+                "            or stage_three_profile_failure.read_bytes() != sentinel\n",
+                "            or stage_two_profile_failure.read_bytes() != sentinel\n",
                 r"fixed-point profile behavior differs",
             ),
             "PE32 positive stops comparing stages": (
@@ -6477,18 +6533,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 staged parser disappears": (
                 "bootstrap",
-                "    _validate_static_i386_pe32(\n"
-                "        stage_two_pe32,\n",
-                "    _skip_static_i386_pe32_validation(\n"
-                "        stage_two_pe32,\n",
+                "    _validate_static_i386_pe32(\n        stage_two_pe32,\n",
+                "    _skip_static_i386_pe32_validation(\n        stage_two_pe32,\n",
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 staged parser stops reading the image": (
                 "bootstrap",
                 "        path.read_bytes(), path.name, expected_entry, "
                 "expected_imports\n",
-                "        b\"\", path.name, expected_entry, "
-                "expected_imports\n",
+                '        b"", path.name, expected_entry, expected_imports\n',
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 staged parser accepts a changed DOS stub": (
@@ -6499,10 +6552,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 staged parser reads the checksum from the wrong field": (
                 "bootstrap",
-                "    checksum = read_u32("
-                "optional_offset + 64, \"PE32 checksum\")\n",
-                "    checksum = read_u32("
-                "optional_offset + 60, \"PE32 checksum\")\n",
+                '    checksum = read_u32(optional_offset + 64, "PE32 checksum")\n',
+                '    checksum = read_u32(optional_offset + 60, "PE32 checksum")\n',
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 staged parser allows writable read-only data": (
@@ -6563,8 +6614,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 import parser resolves outside idata": (
                 "bootstrap",
-                "        ) = sections[\".idata\"]\n",
-                "        ) = sections[\".text\"]\n",
+                '        ) = sections[".idata"]\n',
+                '        ) = sections[".text"]\n',
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 import parser accepts a displaced lookup table": (
@@ -6609,10 +6660,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 failure stops preserving the second output": (
                 "bootstrap",
-                "        or stage_three_pe32_failure.read_bytes() "
-                "!= sentinel\n",
-                "        or stage_two_pe32_failure.read_bytes() "
-                "!= sentinel\n",
+                "        or stage_three_pe32_failure.read_bytes() != sentinel\n",
+                "        or stage_two_pe32_failure.read_bytes() != sentinel\n",
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 success count becomes stale": (
@@ -6637,15 +6686,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap",
                 "        _certify_relocatable_code_anchors(\n"
                 "            runner,\n"
-                "            producers[\"cupiddis\"],\n"
+                '            producers["cupiddis"],\n'
                 "            object_path,\n"
-                "            f\"{stage_name} CupidC for {logical_source}\",\n"
+                '            f"{stage_name} CupidC for {logical_source}",\n'
                 "        )\n",
                 "        _skip_relocatable_code_certification(\n"
                 "            runner,\n"
-                "            producers[\"cupiddis\"],\n"
+                '            producers["cupiddis"],\n'
                 "            object_path,\n"
-                "            f\"{stage_name} CupidC for {logical_source}\",\n"
+                '            f"{stage_name} CupidC for {logical_source}",\n'
                 "        )\n",
                 r"fixed-point C object certification differs",
             ),
@@ -6653,29 +6702,29 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap",
                 "        _certify_relocatable_code_anchors(\n"
                 "            runner,\n"
-                "            producers[\"cupiddis\"],\n"
+                '            producers["cupiddis"],\n'
                 "            object_path,\n"
-                "            f\"{stage_name} native CupidC for "
-                "{logical_source}\",\n"
+                '            f"{stage_name} native CupidC for '
+                '{logical_source}",\n'
                 "        )\n",
                 "        _skip_relocatable_code_certification(\n"
                 "            runner,\n"
-                "            producers[\"cupiddis\"],\n"
+                '            producers["cupiddis"],\n'
                 "            object_path,\n"
-                "            f\"{stage_name} native CupidC for "
-                "{logical_source}\",\n"
+                '            f"{stage_name} native CupidC for '
+                '{logical_source}",\n'
                 "        )\n",
                 r"fixed-point C object certification differs",
             ),
             "fixed-point C object certification weakens strict decode": (
                 "bootstrap",
-                "            \"--require-known\",\n"
-                "            \"--require-local-targets\",\n"
-                "            \"--require-code-anchors\",\n"
+                '            "--require-known",\n'
+                '            "--require-local-targets",\n'
+                '            "--require-code-anchors",\n'
                 "            object_path,\n",
-                "            \"--require-known\",\n"
-                "            \"--skip-local-targets\",\n"
-                "            \"--require-code-anchors\",\n"
+                '            "--require-known",\n'
+                '            "--skip-local-targets",\n'
+                '            "--require-code-anchors",\n'
                 "            object_path,\n",
                 r"fixed-point C object certification differs",
             ),
@@ -6712,10 +6761,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "candidate image certification restores the short timeout": (
                 "bootstrap",
-                "(*strict_flags, stage_three.tools[tool_name]),\n"
-                "            360,\n",
-                "(*strict_flags, stage_three.tools[tool_name]),\n"
-                "            120,\n",
+                "(*strict_flags, stage_three.tools[tool_name]),\n            360,\n",
+                "(*strict_flags, stage_three.tools[tool_name]),\n            120,\n",
                 r"candidate image certification differs",
             ),
             "candidate image corruption drops PE32": (
@@ -6877,8 +6924,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "JPEG success output guard stops rejecting drift": (
                 "bootstrap",
                 "        raise BootstrapError(\n"
-                "            f\"{label_prefix}CupidBuild JPEG output "
-                "differs\"\n"
+                '            f"{label_prefix}CupidBuild JPEG output '
+                'differs"\n'
                 "        )\n",
                 "        pass\n",
                 r"fixed-point JPEG publication behavior differs",
@@ -6976,18 +7023,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "candidate helper stops upgrading v1 sources": (
                 "bootstrap",
-                "        if actual is None:\n"
-                "            sources.append(expected)\n",
-                "        if actual is None:\n"
-                "            continue\n",
+                "        if actual is None:\n            sources.append(expected)\n",
+                "        if actual is None:\n            continue\n",
                 r"fixed-point source freeze differs",
             ),
             "candidate helper duplicates exact v2 sources": (
                 "bootstrap",
-                "        if actual is None:\n"
-                "            sources.append(expected)\n",
-                "        if True:\n"
-                "            sources.append(expected)\n",
+                "        if actual is None:\n            sources.append(expected)\n",
+                "        if True:\n            sources.append(expected)\n",
                 r"fixed-point source freeze differs",
             ),
             "candidate helper accepts a conflicting candidate source": (
@@ -7005,15 +7048,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "candidate helper accepts a conflicting candidate link": (
                 "bootstrap",
-                "        if tuple(cupidbuild_link) "
-                "!= CANDIDATE_CUPIDBUILD_LINK:\n",
+                "        if tuple(cupidbuild_link) != CANDIDATE_CUPIDBUILD_LINK:\n",
                 "        if False:\n",
                 r"fixed-point source freeze differs",
             ),
             "candidate helper overwrites its checked source list": (
                 "bootstrap",
-                '    candidate["links"] = links\n'
-                "    return candidate\n",
+                '    candidate["links"] = links\n    return candidate\n',
                 '    candidate["links"] = links\n'
                 '    candidate["sources"] = []\n'
                 "    return candidate\n",
@@ -7021,8 +7062,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "candidate helper overwrites its retained five links": (
                 "bootstrap",
-                '    candidate["links"] = links\n'
-                "    return candidate\n",
+                '    candidate["links"] = links\n    return candidate\n',
                 '    candidate["links"] = links\n'
                 '    candidate["links"] = {}\n'
                 "    return candidate\n",
@@ -7055,17 +7095,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "candidate source constant is reassigned in a live branch": (
                 "bootstrap",
                 "CANDIDATE_CUPIDBUILD_LINK = (\n",
-                "if True:\n"
-                "    CANDIDATE_SOURCES = ()\n"
-                "CANDIDATE_CUPIDBUILD_LINK = (\n",
+                "if True:\n    CANDIDATE_SOURCES = ()\nCANDIDATE_CUPIDBUILD_LINK = (\n",
                 r"fixed-point source freeze differs",
             ),
             "candidate source constant drops CupidBuild main": (
                 "bootstrap",
-                '    ("cupidbuild_main", '
-                '"/toolchain/cupidbuild_main.cc", False),\n',
-                '    ("cupidbuild_main", '
-                '"/toolchain/cupidbuild_main-x.cc", False),\n',
+                '    ("cupidbuild_main", "/toolchain/cupidbuild_main.cc", False),\n',
+                '    ("cupidbuild_main", "/toolchain/cupidbuild_main-x.cc", False),\n',
                 r"fixed-point source freeze differs",
             ),
             "publication recaptures the checked plan": (
@@ -7105,8 +7141,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "contract publisher restores the bootstrap precomparison": (
                 "contract_publisher",
-                "            bootstrap_report = "
-                "_bootstrap_for_manifest_author(\n",
+                "            bootstrap_report = _bootstrap_for_manifest_author(\n",
                 "            bootstrap_report = bootstrap_from_seed(\n",
                 r"manifest author decision order differs",
             ),
@@ -7143,9 +7178,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "fixed-point summary precedes the Cupid author": (
                 "contract_publisher",
-                "        authored_report = "
-                "_checked_manifest_author_bytes(\n",
-                "        report[\"tool_fixed_point\"] = "
+                "        authored_report = _checked_manifest_author_bytes(\n",
+                '        report["tool_fixed_point"] = '
                 "_tool_fixed_point_record()\n"
                 "        authored_report = "
                 "_checked_manifest_author_bytes(\n",
@@ -7183,8 +7217,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 imported image skips validation": (
                 "bootstrap",
-                "    _validate_static_i386_pe32(\n"
-                "        stage_two_windows_image,\n",
+                "    _validate_static_i386_pe32(\n        stage_two_windows_image,\n",
                 "    _skip_static_i386_pe32_validation(\n"
                 "        stage_two_windows_image,\n",
                 r"fixed-point PE32 behavior differs",
@@ -7216,8 +7249,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "Windows runtime contract stops checking output bytes": (
                 "bootstrap",
-                "            or contract_output.read_bytes() "
-                "!= b\"headtail\"\n",
+                '            or contract_output.read_bytes() != b"headtail"\n',
                 "            or False\n",
                 r"fixed-point PE32 behavior differs",
             ),
@@ -7251,7 +7283,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '            "elf32",\n'
                 '            "x86",\n'
                 '            "publication_runtime",\n'
-                '        ),\n',
+                "        ),\n",
                 '        "cupidasm": (\n'
                 '            "cupidasm_main",\n'
                 '            "cupidasm",\n'
@@ -7259,7 +7291,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '            "ctool",\n'
                 '            "elf32",\n'
                 '            "x86",\n'
-                '        ),\n',
+                "        ),\n",
                 r"fixed-point PE32 behavior differs",
             ),
             "Windows native CupidASM drops its publication imports": (
@@ -7318,8 +7350,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "Windows helper link moves under a dead block": (
                 "bootstrap",
-                "        return arguments\n\n"
-                "    link_result = _run_stage_pair(\n",
+                "        return arguments\n\n    link_result = _run_stage_pair(\n",
                 "        return arguments\n\n"
                 "    if False:\n"
                 "        link_result = _run_stage_pair(\n",
@@ -7343,9 +7374,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "Windows CupidDis replacement crosses generations": (
                 "bootstrap",
-                '    stage_two_windows_cupiddis_replacements = {\n'
+                "    stage_two_windows_cupiddis_replacements = {\n"
                 '        "cupiddis_main": stage_two_windows_cupiddis_main,\n',
-                '    stage_two_windows_cupiddis_replacements = {\n'
+                "    stage_two_windows_cupiddis_replacements = {\n"
                 '        "cupiddis_main": stage_three_windows_cupiddis_main,\n',
                 r"fixed-point PE32 behavior differs",
             ),
@@ -7398,13 +7429,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "Windows CupidASM compares its reference with itself": (
                 "bootstrap",
-                "                behavior_root / \"native-cupidasm.bin\",\n"
+                '                behavior_root / "native-cupidasm.bin",\n'
                 "                behavior_root / "
-                "\"native-cupidasm-failure.bin\",\n"
+                '"native-cupidasm-failure.bin",\n'
                 "                stage_two_binary,\n",
                 "                stage_two_binary,\n"
                 "                behavior_root / "
-                "\"native-cupidasm-failure.bin\",\n"
+                '"native-cupidasm-failure.bin",\n'
                 "                stage_two_binary,\n",
                 r"fixed-point PE32 behavior differs",
             ),
@@ -7456,8 +7487,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "Windows allocator returns before its assertions": (
                 "windows_runtime_contract",
-                "static int allocator_contract(void) {\n"
-                "  unsigned char *allocation;\n",
+                "static int allocator_contract(void) {\n  unsigned char *allocation;\n",
                 "static int allocator_contract(void) {\n"
                 "  return 0;\n"
                 "  unsigned char *allocation;\n",
@@ -7465,11 +7495,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "Windows runtime main returns before its contract": (
                 "windows_runtime_contract",
-                "  int index;\n"
-                "  if (argc != 7",
-                "  int index;\n"
-                "  return 0;\n"
-                "  if (argc != 7",
+                "  int index;\n  if (argc != 7",
+                "  int index;\n  return 0;\n  if (argc != 7",
                 r"Windows runtime contract differs",
             ),
             "Windows allocator assertions move under if zero": (
@@ -7501,8 +7528,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "Windows CupidDis overwrites native evidence": (
                 "bootstrap",
-                "        if (\n"
-                "            reference_disassembly.returncode != 0\n",
+                "        if (\n            reference_disassembly.returncode != 0\n",
                 "        native_disassembly = reference_disassembly\n"
                 "        if (\n"
                 "            reference_disassembly.returncode != 0\n",
@@ -7510,8 +7536,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "Windows native tools overwrite output evidence": (
                 "bootstrap",
-                "            if (\n"
-                "                reference_help.returncode != 0\n",
+                "            if (\n                reference_help.returncode != 0\n",
                 "            native_output.write_bytes(\n"
                 "                reference_output.read_bytes()\n"
                 "            )\n"
@@ -7521,9 +7546,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "Windows runtime contract manufactures output evidence": (
                 "bootstrap",
-                "        if (\n"
-                "            native_contract.returncode != 0\n",
-                "        contract_output.write_bytes(b\"headtail\")\n"
+                "        if (\n            native_contract.returncode != 0\n",
+                '        contract_output.write_bytes(b"headtail")\n'
                 "        if (\n"
                 "            native_contract.returncode != 0\n",
                 r"fixed-point PE32 behavior differs",
@@ -7536,8 +7560,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 direct IAT failure loses its diagnostic": (
                 "bootstrap",
-                '        or "IAT symbols require an absolute '
-                'zero-addend relocation"\n',
+                '        or "IAT symbols require an absolute zero-addend relocation"\n',
                 '        or "IAT relocation differs"\n',
                 r"fixed-point PE32 behavior differs",
             ),
@@ -7545,8 +7568,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap",
                 "        or stage_three_invalid_import_image.read_bytes() "
                 "!= sentinel\n",
-                "        or stage_two_invalid_import_image.read_bytes() "
-                "!= sentinel\n",
+                "        or stage_two_invalid_import_image.read_bytes() != sentinel\n",
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 direct IAT fixture collapses assembler outputs": (
@@ -7579,10 +7601,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 public enum is only a near match": (
                 "linker_header",
-                "  CTOOL_LD_IMAGE_PE32_FIXED\n"
-                "} ctool_ld_image_kind_t;\n",
-                "  CTOOL_LD_IMAGE_PE32_FIXEDS\n"
-                "} ctool_ld_image_kind_t;\n",
+                "  CTOOL_LD_IMAGE_PE32_FIXED\n} ctool_ld_image_kind_t;\n",
+                "  CTOOL_LD_IMAGE_PE32_FIXEDS\n} ctool_ld_image_kind_t;\n",
                 r"fixed-point PE32 source contract differs",
             ),
             "PE32 request member is only a near match": (
@@ -7599,9 +7619,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 CLI import selector is only a near match": (
                 "linker_cli",
-                '    taken = cupidld_take_value(argc, argv, &index, '
+                "    taken = cupidld_take_value(argc, argv, &index, "
                 'argument, "--import",\n',
-                '    taken = cupidld_take_value(argc, argv, &index, '
+                "    taken = cupidld_take_value(argc, argv, &index, "
                 'argument, "--imports",\n',
                 r"fixed-point PE32 source contract differs",
             ),
@@ -7621,11 +7641,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 CLI dispatch survives only as a comment": (
                 "linker_cli",
-                "  request.image_kind = strcmp(cli.machine, \"i386pe\") == 0\n"
+                '  request.image_kind = strcmp(cli.machine, "i386pe") == 0\n'
                 "                           ? CTOOL_LD_IMAGE_PE32_FIXED\n"
                 "                           : CTOOL_LD_IMAGE_ELF32;\n",
                 "  /* request.image_kind = "
-                "strcmp(cli.machine, \"i386pe\") == 0\n"
+                'strcmp(cli.machine, "i386pe") == 0\n'
                 "                           ? CTOOL_LD_IMAGE_PE32_FIXED\n"
                 "                           : CTOOL_LD_IMAGE_ELF32; */\n"
                 "  request.image_kind = CTOOL_LD_IMAGE_ELF32;\n",
@@ -7670,8 +7690,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "linker_cli",
                 publication_verify_guard,
                 "  return cupidld_publication_replace("
-                "candidate, destination);\n"
-                + publication_verify_guard,
+                "candidate, destination);\n" + publication_verify_guard,
                 r"fixed-point PE32 source contract differs",
             ),
             "PE32 publication verifier accepts every candidate": (
@@ -7698,8 +7717,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "linker_cli",
                 "  return cupidld_publish_output_with_ops("
                 "destination, contents, &ops);\n",
-                "  return cupidld_publication_replace("
-                "destination, destination);\n",
+                "  return cupidld_publication_replace(destination, destination);\n",
                 r"fixed-point PE32 source contract differs",
             ),
             "PE32 pre-count includes empty sections": (
@@ -7792,8 +7810,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 result reports all output sections": (
                 "linker_core",
-                "    result_out->output_section_count = "
-                "emitted_section_count;\n",
+                "    result_out->output_section_count = emitted_section_count;\n",
                 "    result_out->output_section_count = link->output_count;\n",
                 r"fixed-point PE32 source contract differs",
             ),
@@ -7876,8 +7893,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 import section loses write permission": (
                 "linker_core",
-                "  section->flags = CTOOL_ELF32_SHF_ALLOC | "
-                "CTOOL_ELF32_SHF_WRITE;\n",
+                "  section->flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;\n",
                 "  section->flags = CTOOL_ELF32_SHF_ALLOC;\n",
                 r"fixed-point PE32 import contract differs",
             ),
@@ -7921,26 +7937,24 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "checked stage output leaves the private root": (
                 "bootstrap",
-                "            private_source_root / \"stage-two\",\n",
-                "            output_root / \"stage-two\",\n",
+                '            private_source_root / "stage-two",\n',
+                '            output_root / "stage-two",\n',
                 r"fixed-point source freeze differs",
             ),
             "checked stage four uses an older compiler generation": (
                 "bootstrap",
-                "            private_source_root / \"stage-four\",\n"
+                '            private_source_root / "stage-four",\n'
                 "            stage_three_producers,\n"
                 "            plan,\n",
-                "            private_source_root / \"stage-four\",\n"
+                '            private_source_root / "stage-four",\n'
                 "            stage_two_producers,\n"
                 "            plan,\n",
                 r"fixed-point source freeze differs",
             ),
             "checked comparison stops one generation early": (
                 "bootstrap",
-                "            _compare_stages("
-                "stage_three, stage_four, source_names)\n",
-                "            _compare_stages("
-                "stage_two, stage_three, source_names)\n",
+                "            _compare_stages(stage_three, stage_four, source_names)\n",
+                "            _compare_stages(stage_two, stage_three, source_names)\n",
                 r"fixed-point source freeze differs",
             ),
             "checked behavior stops one generation early": (
@@ -7959,17 +7973,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "checked publication omits stage four": (
                 "bootstrap",
-                "    \"stage-three\",\n"
-                "    \"stage-four\",\n"
-                "    \"behavior\",\n",
-                "    \"stage-three\",\n"
-                "    \"behavior\",\n",
+                '    "stage-three",\n    "stage-four",\n    "behavior",\n',
+                '    "stage-three",\n    "behavior",\n',
                 r"fixed-point source freeze differs",
             ),
             "checked closure boundary rehash disappears": (
                 "bootstrap",
-                "        require_source_closures("
-                "source_inputs, source_root, plan)\n",
+                "        require_source_closures(source_inputs, source_root, plan)\n",
                 "        require_source_snapshot(\n"
                 "            source_root, plan, source_inputs.inventory\n"
                 "        )\n",
@@ -7997,18 +8007,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "checked report leaves the private root": (
                 "bootstrap",
-                "        report_path = "
-                "private_source_root / \"bootstrap-report.json\"\n",
-                "        report_path = "
-                "output_root / \"bootstrap-report.json\"\n",
+                '        report_path = private_source_root / "bootstrap-report.json"\n',
+                '        report_path = output_root / "bootstrap-report.json"\n',
                 r"fixed-point source freeze differs",
             ),
             "checked bundle leaves the private workspace": (
                 "bootstrap",
-                "        publication_root = "
-                "private_workspace / \"publication\"\n",
-                "        publication_root = "
-                "output_root / \"publication\"\n",
+                '        publication_root = private_workspace / "publication"\n',
+                '        publication_root = output_root / "publication"\n',
                 r"fixed-point source freeze differs",
             ),
             "checked bundle moves public stage paths": (
@@ -8019,8 +8025,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "checked output bypasses gated publication": (
                 "bootstrap",
-                "        publish_bootstrap_outputs("
-                "publication_root, output_root)\n",
+                "        publish_bootstrap_outputs(publication_root, output_root)\n",
                 "        publication_root.replace(output_root)\n",
                 r"fixed-point source freeze differs",
             ),
@@ -8046,10 +8051,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "native Windows stage four uses an older compiler generation": (
                 "bootstrap",
-                "            private_source_root / \"stage-four\",\n"
+                '            private_source_root / "stage-four",\n'
                 "            stage_three_producers,\n"
                 "            native_plan,\n",
-                "            private_source_root / \"stage-four\",\n"
+                '            private_source_root / "stage-four",\n'
                 "            stage_two_producers,\n"
                 "            native_plan,\n",
                 r"fixed-point source freeze differs",
@@ -8136,16 +8141,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "native Windows CupidDis loses its Windows profile": (
                 "bootstrap",
-                "        \"cupidc_main\",\n"
-                "        \"cupiddis_main\",\n"
-                "        \"cupidld_main\",\n",
-                "        \"cupidc_main\",\n"
-                "        \"cupidld_main\",\n",
+                '        "cupidc_main",\n'
+                '        "cupiddis_main",\n'
+                '        "cupidld_main",\n',
+                '        "cupidc_main",\n        "cupidld_main",\n',
                 r"fixed-point source freeze differs",
             ),
             "native Windows includes bypass the Linux plan": (
                 "bootstrap",
-                "            linux_plan.get(\"include_arguments\"),\n",
+                '            linux_plan.get("include_arguments"),\n',
                 "            EXPECTED_INCLUDE_ARGUMENTS,\n",
                 r"native Windows fixed-point behavior differs",
             ),
@@ -8165,10 +8169,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "native Windows stage skips PE validation": (
                 "bootstrap",
-                "        _validate_static_i386_pe32(\n"
-                "            executable,\n",
-                "        _skip_static_i386_pe32_validation(\n"
-                "            executable,\n",
+                "        _validate_static_i386_pe32(\n            executable,\n",
+                "        _skip_static_i386_pe32_validation(\n            executable,\n",
                 r"native Windows fixed-point behavior differs",
             ),
             "native Windows failure runs one stage": (
@@ -8224,9 +8226,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 test_target = (
                     root / "tests" / "test_toolchain_cupidc_object.py"
                 )
-                bootstrap_target = (
-                    root / "tools" / "bootstrap_toolchain.py"
-                )
+                bootstrap_target = root / "tools" / "bootstrap_toolchain.py"
                 contract_publisher_target = (
                     root / "tools" / "cupidc_toolchain_contracts.py"
                 )
@@ -8270,7 +8270,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract_publisher_payload = contract_publisher
                 windows_runtime_contract_payload = windows_runtime_contract
                 windows_publication_header_payload = windows_publication_header
-                windows_publication_runtime_payload = windows_publication_runtime
+                windows_publication_runtime_payload = (
+                    windows_publication_runtime
+                )
                 windows_publication_start_payload = windows_publication_start
                 linker_header_payload = linker_header
                 linker_cli_payload = linker_cli
@@ -8282,9 +8284,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     test_payload = test_payload.replace(old, new, 1)
                     self.assertNotEqual(test_payload, test)
                 elif target_name == "bootstrap":
-                    bootstrap_payload = bootstrap_payload.replace(
-                        old, new, 1
-                    )
+                    bootstrap_payload = bootstrap_payload.replace(old, new, 1)
                     self.assertNotEqual(bootstrap_payload, bootstrap)
                 elif target_name == "contract_publisher":
                     contract_publisher_payload = (
@@ -8311,7 +8311,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 elif target_name == "windows_publication_runtime":
                     windows_publication_runtime_payload = (
-                        windows_publication_runtime_payload.replace(old, new, 1)
+                        windows_publication_runtime_payload.replace(
+                            old, new, 1
+                        )
                     )
                     self.assertNotEqual(
                         windows_publication_runtime_payload,
@@ -8331,11 +8333,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                     self.assertNotEqual(linker_header_payload, linker_header)
                 elif target_name == "linker_cli":
-                    linker_cli_payload = linker_cli_payload.replace(old, new, 1)
+                    linker_cli_payload = linker_cli_payload.replace(
+                        old, new, 1
+                    )
                     self.assertNotEqual(linker_cli_payload, linker_cli)
                 else:
                     self.assertEqual(target_name, "linker_core")
-                    linker_core_payload = linker_core_payload.replace(old, new, 1)
+                    linker_core_payload = linker_core_payload.replace(
+                        old, new, 1
+                    )
                     self.assertNotEqual(linker_core_payload, linker_core)
                 driver_target.write_text(driver_payload, encoding="utf-8")
                 test_target.write_text(test_payload, encoding="utf-8")
@@ -8488,8 +8494,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         "transforms": [
                             {
                                 "output": (
-                                    "toolchain/build/"
-                                    "cupidc-contracts/manifest.json"
+                                    "toolchain/build/cupidc-contracts/manifest.json"
                                 ),
                                 "inputs": inputs,
                                 "tools": tools,
@@ -8525,11 +8530,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 r"unknown recipe marker.*NEW_CFLAGS",
             ),
             "escaped shell marker": (
-                audit(["unit.c"], "$(CC) $(CFLAGS) $${NEW_CFLAGS} -c $< -o $@"),
+                audit(
+                    ["unit.c"], "$(CC) $(CFLAGS) $${NEW_CFLAGS} -c $< -o $@"
+                ),
                 r"unmodeled recipe dollar reference",
             ),
             "computed marker": (
-                audit(["unit.c"], "$(CC) $(CFLAGS) $(value NEW_CFLAGS) -c $< -o $@"),
+                audit(
+                    ["unit.c"],
+                    "$(CC) $(CFLAGS) $(value NEW_CFLAGS) -c $< -o $@",
+                ),
                 r"unmodeled recipe Make reference/function",
             ),
             "zero roots": (
@@ -8605,8 +8615,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "hosted recipe duplicates include profile": (
                 hosted_audit(
-                    "$(CC) $(CPPFLAGS) $(CPPFLAGS) $(CFLAGS) "
-                    "-c $< -o $@"
+                    "$(CC) $(CPPFLAGS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
                 ),
                 r"hosted recipe markers differ.*CPPFLAGS",
             ),
@@ -8626,8 +8635,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "hosted bridge flag moves to ordinary source": (
                 hosted_audit(
-                    "$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) "
-                    "-c $< -o $@"
+                    "$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -c $< -o $@"
                 ),
                 r"hosted bridge recipe differs.*toolchain/unit\.c",
             ),
@@ -8640,16 +8648,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "renamed hosted bridge loses its C language mode": (
                 hosted_audit(
-                    "$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) "
-                    "-c $< -o $@",
+                    "$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -c $< -o $@",
                     "kernel/lang/as_elf.cc",
                 ),
                 r"hosted bridge recipe differs.*kernel/lang/as_elf\.cc",
             ),
             "renamed hosted bridge selects C++ mode": (
                 hosted_audit(
-                    "$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) "
-                    "-x c++ -c $< -o $@",
+                    "$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -x c++ -c $< -o $@",
                     "kernel/lang/as_elf.cc",
                 ),
                 r"compiler argument profile differs"
@@ -8671,36 +8677,28 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "hosted bridge include precedes common include roots": (
                 hosted_audit(
-                    "$(CC) -I../kernel/lang $(CPPFLAGS) $(CFLAGS) -x c "
-                    "-c $< -o $@",
+                    "$(CC) -I../kernel/lang $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@",
                     "kernel/lang/as_elf.cc",
                 ),
                 r"compiler argument profile differs"
                 r".*kernel/lang/as_elf\.cc",
             ),
             "hosted include marker is shell quoted": (
-                hosted_audit(
-                    '$(CC) "$(CPPFLAGS)" $(CFLAGS) -c $< -o $@'
-                ),
+                hosted_audit('$(CC) "$(CPPFLAGS)" $(CFLAGS) -c $< -o $@'),
                 r"compiler argument profile differs.*toolchain/unit\.c",
             ),
             "hosted command substitution injects flags": (
                 hosted_audit(
-                    "$(CC) $(CPPFLAGS) $(CFLAGS) `cat extra.flags` "
-                    "-c $< -o $@"
+                    "$(CC) $(CPPFLAGS) $(CFLAGS) `cat extra.flags` -c $< -o $@"
                 ),
                 r"compile recipe has unmodeled shell substitution",
             ),
             "hosted markers hidden in shell comment": (
-                hosted_audit(
-                    "$(CC) $(CFLAGS) -c $< -o $@ # $(CPPFLAGS)"
-                ),
+                hosted_audit("$(CC) $(CFLAGS) -c $< -o $@ # $(CPPFLAGS)"),
                 r"compile recipe contains a shell comment",
             ),
             "hosted markers belong to a different command": (
-                hosted_audit(
-                    "echo $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"
-                ),
+                hosted_audit("echo $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@"),
                 r"compile recipe does not invoke.*CC",
             ),
             "optional hosted root is absent from source inventory": (
@@ -8728,8 +8726,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                             "transforms": [
                                 {
                                     "output": (
-                                        "toolchain/build/"
-                                        "cupidc-contracts/manifest.json"
+                                        "toolchain/build/cupidc-contracts/manifest.json"
                                     ),
                                     "inputs": ["toolchain/ctool.cc"],
                                     "tools": [
@@ -8758,8 +8755,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "contract cohort changes subcommand": (
                 contract_cohort_audit(
                     recipe=[
-                        "$(PYTHON) "
-                        "../tools/cupidc_toolchain_contracts.py other "
+                        "$(PYTHON) ../tools/cupidc_toolchain_contracts.py other "
                     ]
                 ),
                 r"recipe no longer invokes the checked fixed-point builder",
@@ -8770,8 +8766,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
         }
         for name, (synthetic, message) in cases.items():
-            with self.subTest(name=name), self.assertRaisesRegex(
-                module.AuditError, message
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(module.AuditError, message),
             ):
                 module._c_preprocessor_active_cases_manifest(synthetic)
 
@@ -8813,12 +8810,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "supplemental_builds": [],
                 "sources": [],
             }
-            with self.subTest(delivered_path=delivered_path), \
-                    self.assertRaisesRegex(
-                        module.AuditError,
-                        r"unclassified Cupid delivery transform: bin/unit\.(?:cc|h)\.o "
-                        r"\(wrap_binary_as_elf32_relocatable\)",
-                    ):
+            with (
+                self.subTest(delivered_path=delivered_path),
+                self.assertRaisesRegex(
+                    module.AuditError,
+                    r"unclassified Cupid delivery transform: bin/unit\.(?:cc|h)\.o "
+                    r"\(wrap_binary_as_elf32_relocatable\)",
+                ),
+            ):
                 module._c_preprocessor_active_cases_manifest(
                     binary_text_delivery
                 )
@@ -8871,9 +8870,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ],
         }
         self.assertEqual(
-            module._c_preprocessor_profile_for_c_transform(
-                ".", doom_compat
-            ),
+            module._c_preprocessor_profile_for_c_transform(".", doom_compat),
             "DOOM_COMPAT_I386",
         )
 
@@ -8886,8 +8883,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "tools": ["cupid_c_compiler", "host_python"],
             "operation": "compile_c_to_elf32_object",
             "recipe": [
-                "$(CUPIDC_KERNEL_COMPILE) --profile doom-tree "
-                "--source $< --output $@"
+                "$(CUPIDC_KERNEL_COMPILE) --profile doom-tree --source $< --output $@"
             ],
         }
         self.assertEqual(
@@ -8908,7 +8904,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ".", wrong_doom_profile
             )
 
-    def test_checked_cupidc_active_manifest_classifies_non_roots_and_hosted(self):
+    def test_checked_cupidc_active_manifest_classifies_non_roots_and_hosted(
+        self,
+    ):
         lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
         include_only_pattern = re.compile(
             r'^CUPIDC_PP_INCLUDE_ONLY\("([^"]+)", "([^"]+)"\)$'
@@ -8984,14 +8982,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             first,
         )
         self.assertIn(
-            'CUPIDC_PP_INCLUDE_ROOT(SYNTH, '
-            '"/root/\\?\\?/\\\"quoted\\\"\\\\tab\\012\\316\\251", '
+            "CUPIDC_PP_INCLUDE_ROOT(SYNTH, "
+            '"/root/\\?\\?/\\"quoted\\"\\\\tab\\012\\316\\251", '
             "CTOOL_C_PP_INCLUDE_QUOTED)",
             first,
         )
         self.assertIn(
-            'CUPIDC_PP_MACRO(SYNTH, "A\\\"B", '
-            '"line\\012\\\\end")',
+            'CUPIDC_PP_MACRO(SYNTH, "A\\"B", "line\\012\\\\end")',
             first,
         )
         row_prefixes = [
@@ -9007,13 +9004,19 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         ]
         self.assertEqual(
             [
-                next(index for index, line in enumerate(first.splitlines())
-                     if line.startswith(prefix))
+                next(
+                    index
+                    for index, line in enumerate(first.splitlines())
+                    if line.startswith(prefix)
+                )
                 for prefix in row_prefixes
             ],
             sorted(
-                next(index for index, line in enumerate(first.splitlines())
-                     if line.startswith(prefix))
+                next(
+                    index
+                    for index, line in enumerate(first.splitlines())
+                    if line.startswith(prefix)
+                )
                 for prefix in row_prefixes
             ),
         )
@@ -9041,7 +9044,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ]
             generated = subprocess.run(command, text=True, capture_output=True)
             self.assertEqual(generated.returncode, 0, generated.stderr)
-            self.assertTrue(summary.read_text(encoding="utf-8").endswith("\n\n"))
+            self.assertTrue(
+                summary.read_text(encoding="utf-8").endswith("\n\n")
+            )
             audit_payload = json.loads(output.read_text(encoding="utf-8"))
             source_by_path = {
                 source["path"]: source for source in audit_payload["sources"]
@@ -9133,8 +9138,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 {
-                    profile["name"]:
-                        profile["implicit_function_declarations"]
+                    profile["name"]: profile["implicit_function_declarations"]
                     for profile in contract["profiles"]
                 },
                 {
@@ -9154,8 +9158,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 {
-                    profile["name"]:
-                        profile["compatibility_pointer_conversions"]
+                    profile["name"]: profile[
+                        "compatibility_pointer_conversions"
+                    ]
                     for profile in contract["profiles"]
                 },
                 {
@@ -9187,13 +9192,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6664, 179),
+                "c.expression.sizeof": (6672, 179),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
-            for feature_id, expected_counts in (
-                expected_c_expression_inventory.items()
-            ):
+            for (
+                feature_id,
+                expected_counts,
+            ) in expected_c_expression_inventory.items():
                 feature = features[feature_id]
                 self.assertEqual(
                     (feature["occurrences"], len(feature["files"])),
@@ -9285,9 +9291,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "tools/hostbuild.py",
                 },
             )
-            system_image_transform = root_transform_by_output[
-                "cupidos.img"
-            ]
+            system_image_transform = root_transform_by_output["cupidos.img"]
             self.assertEqual(
                 system_image_transform["operation"],
                 "package_disk_image",
@@ -9299,10 +9303,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             checked_cupidc_roots = []
             for transform in root_transform_by_output.values():
                 if (
-                    transform["tools"]
-                    != ["cupid_c_compiler", "host_python"]
-                    or transform["operation"]
-                    != "compile_c_to_elf32_object"
+                    transform["tools"] != ["cupid_c_compiler", "host_python"]
+                    or transform["operation"] != "compile_c_to_elf32_object"
                 ):
                     continue
                 roots = [
@@ -9333,8 +9335,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 sum(
-                    Path(path).suffix == ".cc"
-                    for path in checked_cupidc_roots
+                    Path(path).suffix == ".cc" for path in checked_cupidc_roots
                 ),
                 243,
             )
@@ -9733,13 +9734,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
-                    "cupid_builder": 194,
+                    "cupid_builder": 195,
                     "cupid_object": 192,
                     "cupid_linker": 9,
                     "cupid_disassembler": 9,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 258,
+                    "host_python": 257,
                 },
             )
             self.assertFalse(
@@ -9803,70 +9804,113 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CupidC",
             )
             frontend_sources = {
-                "toolchain/cupidc_emit.cc":
-                    ("toolchain_core", "CupidC"),
-                "toolchain/cupidc_emit.h":
-                    ("toolchain_core", "CupidC"),
-                "toolchain/cupidc_frontend.cc":
-                    ("toolchain_core", "CupidC"),
-                "toolchain/cupidc_frontend.h":
-                    ("toolchain_core", "CupidC"),
-                "toolchain/cupidc_ir.cc":
-                    ("toolchain_core", "CupidC"),
-                "toolchain/cupidc_ir.h":
-                    ("toolchain_core", "CupidC"),
-                "toolchain/cupidc_main.cc":
-                    ("toolchain_core", "CupidC"),
-                "toolchain/hosted/i386-linux/runtime.cc":
-                    ("toolchain_core", "CupidC"),
-                "toolchain/hosted/i386-linux/start.asm":
-                    ("toolchain_core", "CupidASM"),
-                "toolchain/hosted/i386-windows/runtime.cc":
-                    ("toolchain_core", "CupidC"),
-                "toolchain/hosted/i386-windows/publication_start.asm":
-                    ("toolchain_core", "CupidASM"),
-                "toolchain/hosted/i386-windows/start.asm":
-                    ("toolchain_core", "CupidASM"),
-                "toolchain/hosted/i386-windows/tool_start.asm":
-                    ("toolchain_core", "CupidASM"),
-                "toolchain/tests/core_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupidasm_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupidasm_demos_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupidasm_kernel_elf_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupidc_frontend_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupidc_ir_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupidc_object_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupidc_pp_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupidc_type_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupiddis_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupidld_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/cupidobj_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/elf32_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/x86_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/hosted_i386_runtime_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/hosted_i386_windows_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/hosted_i386_windows_runtime_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/artifact_size_policy_contract.cc":
-                    ("toolchain_contract", "CupidC"),
-                "toolchain/tests/toolchain_manifest_contract.cc":
-                    ("toolchain_contract", "CupidC"),
+                "toolchain/cupidc_emit.cc": ("toolchain_core", "CupidC"),
+                "toolchain/cupidc_emit.h": ("toolchain_core", "CupidC"),
+                "toolchain/cupidc_frontend.cc": ("toolchain_core", "CupidC"),
+                "toolchain/cupidc_frontend.h": ("toolchain_core", "CupidC"),
+                "toolchain/cupidc_ir.cc": ("toolchain_core", "CupidC"),
+                "toolchain/cupidc_ir.h": ("toolchain_core", "CupidC"),
+                "toolchain/cupidc_main.cc": ("toolchain_core", "CupidC"),
+                "toolchain/hosted/i386-linux/runtime.cc": (
+                    "toolchain_core",
+                    "CupidC",
+                ),
+                "toolchain/hosted/i386-linux/start.asm": (
+                    "toolchain_core",
+                    "CupidASM",
+                ),
+                "toolchain/hosted/i386-windows/runtime.cc": (
+                    "toolchain_core",
+                    "CupidC",
+                ),
+                "toolchain/hosted/i386-windows/publication_start.asm": (
+                    "toolchain_core",
+                    "CupidASM",
+                ),
+                "toolchain/hosted/i386-windows/start.asm": (
+                    "toolchain_core",
+                    "CupidASM",
+                ),
+                "toolchain/hosted/i386-windows/tool_start.asm": (
+                    "toolchain_core",
+                    "CupidASM",
+                ),
+                "toolchain/tests/core_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupidasm_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupidasm_demos_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupidasm_kernel_elf_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupidc_frontend_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupidc_ir_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupidc_object_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupidc_pp_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupidc_type_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupiddis_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupidld_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/cupidobj_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/elf32_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/x86_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/hosted_i386_runtime_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/hosted_i386_windows_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/hosted_i386_windows_runtime_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/artifact_size_policy_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
+                "toolchain/tests/toolchain_manifest_contract.cc": (
+                    "toolchain_contract",
+                    "CupidC",
+                ),
             }
             for path, (cohort, runtime_owner) in frontend_sources.items():
                 with self.subTest(path=path):
@@ -9901,9 +9945,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for transform in toolchain_build["transforms"]
             }
             self.assertNotIn("toolchain/build", toolchain_transform_by_output)
-            contract_verifier = toolchain_transform_by_output[
-                "toolchain/all"
-            ]
+            contract_verifier = toolchain_transform_by_output["toolchain/all"]
             self.assertEqual(
                 contract_verifier["operation"],
                 "verify_toolchain_manifest",
@@ -10036,12 +10078,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 newline="\n",
             )
             _write(
-                root / "fake_hostbuild.py",
+                root / "fake_cupidbuild.py",
                 """
                 import sys
                 from pathlib import Path
 
-                Path("calls.log").write_text("validate-code\\n", encoding="utf-8")
+                Path("calls.log").write_text("flatten-kernel\\n", encoding="utf-8")
                 Path("arguments.log").write_text(
                     "\\n".join(sys.argv[1:]) + "\\n", encoding="utf-8"
                 )
@@ -10053,6 +10095,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "Makefile",
                 f"""
                 PYTHON := "{python}"
+                CUPIDBUILD := $(PYTHON) fake_cupidbuild.py
                 PRODUCTION_SEED_MANIFEST := seed.json
                 KERNEL := kernel/kernel.bin
                 CUPIDDIS_PRODUCTION_INPUT_MANIFEST := code-inputs.txt
@@ -10067,10 +10110,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 FORCE:
 
                 $(KERNEL): kernel/kernel.elf $(CUPIDDIS_PRODUCTION_INPUTS) \\
-                    $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) fake_hostbuild.py \\
+                    $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) fake_cupidbuild.py \\
                     seed.json FORCE
-                \t$(PYTHON) fake_hostbuild.py validate-code \\
-                \t\t--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\
+                \t$(CUPIDBUILD) flatten-kernel \\
+                \t\t--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\
                 \t\t--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \
                 \t\t--output $(KERNEL)
                 """,
@@ -10087,19 +10130,21 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(kernel.read_bytes(), b"last-known-good kernel")
             self.assertEqual(
                 (root / "calls.log").read_text(encoding="utf-8"),
-                "validate-code\n",
+                "flatten-kernel\n",
             )
-            arguments = (root / "arguments.log").read_text(
-                encoding="utf-8"
-            ).splitlines()
+            arguments = (
+                (root / "arguments.log")
+                .read_text(encoding="utf-8")
+                .splitlines()
+            )
             self.assertEqual(
                 arguments,
                 [
-                    "validate-code",
+                    "flatten-kernel",
                     "--seed-manifest",
                     "seed.json",
                     "--root",
-                    ".",
+                    root.as_posix(),
                     "--input-manifest",
                     "code-inputs.txt",
                     "--output",
@@ -10343,9 +10388,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertNotIn("host_c_compiler", root_tools)
         for output in ("kernel/kernel.elf.pass1", "kernel/kernel.elf"):
             transform = next(
-                item
-                for item in root_transforms
-                if item["output"] == output
+                item for item in root_transforms if item["output"] == output
             )
             self.assertEqual(
                 transform["tools"],
@@ -10375,8 +10418,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
         )
         terminal_ansi = {
-            source["path"]: source
-            for source in audit["unreachable_sources"]
+            source["path"]: source for source in audit["unreachable_sources"]
         }["kernel/gui/terminal_ansi.c"]
         self.assertEqual(
             {
@@ -10425,13 +10467,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "kernel/kernel.elf",
         }
         self.assertEqual(len(validated_code_inputs), 431)
-        declared_code_inputs = commands[
-            "CUPIDDIS_PRODUCTION_INPUTS"
-        ].split()
+        declared_code_inputs = commands["CUPIDDIS_PRODUCTION_INPUTS"].split()
         input_manifest = commands["CUPIDDIS_PRODUCTION_INPUT_MANIFEST"]
         manifest_code_inputs = (
-            REPO_ROOT / input_manifest
-        ).read_text(encoding="utf-8").splitlines()
+            (REPO_ROOT / input_manifest)
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
         self.assertEqual(len(declared_code_inputs), 431)
         self.assertEqual(len(set(declared_code_inputs)), 431)
         self.assertEqual(manifest_code_inputs, declared_code_inputs)
@@ -10440,9 +10482,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(set(declared_code_inputs), validated_code_inputs)
         validation_command = " ".join(
             (
-                commands["PYTHON"],
-                "tools/hostbuild.py",
-                "validate-code",
+                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX)",
+                "flatten-kernel",
                 "--seed-manifest",
                 commands["PRODUCTION_SEED_MANIFEST"],
                 "--root",
@@ -10462,7 +10503,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(
             kernel_binary_transform["tools"],
-            ["cupid_disassembler", "cupid_object", "host_python"],
+            ["cupid_builder", "cupid_disassembler", "cupid_object"],
         )
         self.assertEqual(
             kernel_binary_transform["operation"], "extract_raw_binary"
@@ -10470,19 +10511,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(
             set(kernel_binary_transform["inputs"]),
             validated_code_inputs
-            | seed_inputs
-            | {input_manifest, "tools/hostbuild.py"},
+            | {"Makefile", *WINDOWS_PRODUCTION_SEED_INPUTS, input_manifest},
         )
         self.assertEqual(
-            set(kernel_binary_transform["inputs"])
-            & validated_code_inputs,
+            set(kernel_binary_transform["inputs"]) & validated_code_inputs,
             set(manifest_code_inputs),
         )
         self.assertEqual(
             kernel_binary_transform["recipe"],
             [
-                "$(PYTHON) tools/hostbuild.py validate-code \\",
-                "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                "$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
+                '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
                 "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
                 "--output $(KERNEL)",
             ],
@@ -10620,8 +10660,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         profile_manifest_transform = next(
             transform
             for transform in audit["build"]["transforms"]
-            if transform["output"]
-            == "build/bootstrap/doom-cupidc-inputs.json"
+            if transform["output"] == "build/bootstrap/doom-cupidc-inputs.json"
         )
         self.assertEqual(
             profile_manifest_transform["operation"],
@@ -10633,7 +10672,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 6,
-            "cupid_builder": 194,
+            "cupid_builder": 195,
             "cupid_object": 192,
             "cupid_linker": 3,
             "cupid_disassembler": 6,
@@ -10648,9 +10687,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 self.assertEqual(len(transforms), expected_count)
                 for transform in transforms:
                     expected_python_count = (
-                        0
-                        if "cupid_builder" in transform["tools"]
-                        else 1
+                        0 if "cupid_builder" in transform["tools"] else 1
                     )
                     self.assertEqual(
                         transform["tools"].count("host_python"),
@@ -10881,7 +10918,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     set(module.TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS),
                 )
                 self.assertEqual(
-                    root_paths(values["TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS"]),
+                    root_paths(
+                        values["TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS"]
+                    ),
                     set(module.TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS),
                 )
                 self.assertEqual(
@@ -10904,13 +10943,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertIsNotNone(fixture_assignment)
         declared_fixtures = (
-            fixture_assignment.group("body")
-            .replace("\\", " ")
-            .split()
+            fixture_assignment.group("body").replace("\\", " ").split()
         )
         manifest_fixtures = (
-            REPO_ROOT / "test_iso" / "fixtures.manifest"
-        ).read_text(encoding="ascii").splitlines()
+            (REPO_ROOT / "test_iso" / "fixtures.manifest")
+            .read_text(encoding="ascii")
+            .splitlines()
+        )
         self.assertEqual(declared_fixtures, manifest_fixtures)
         self.assertTrue(
             all(
@@ -10997,9 +11036,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ),
                 )
 
-            root_manifest = (
-                f"bootstrap/seeds/{platform}/manifest.json"
-            )
+            root_manifest = f"bootstrap/seeds/{platform}/manifest.json"
             root_images = {
                 f"bootstrap/seeds/{platform}/{tool}.{suffix}"
                 for tool in (
@@ -11086,9 +11123,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "--manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)",
                 "--plan-manifest $(BOOTSTRAP_SEED_MANIFEST)",
             ),
-            "verify-artifact-sizes": (
-                "$(ARTIFACT_SIZE_CONTRACT)",
-            ),
+            "verify-artifact-sizes": ("$(ARTIFACT_SIZE_CONTRACT)",),
         }
         for target, fragments in expected_fragments.items():
             with self.subTest(target=target):
@@ -11397,13 +11432,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     f"CHECKED_SEED_INPUTS={poison_inputs['checked-seed']}",
                     f"PRODUCTION_SEED_DIRECTORY={poison_root.as_posix()}/",
                     "PRODUCTION_SEED_SUFFIX=poison",
-                    "PRODUCTION_SEED_INPUTS="
-                    f"{poison_inputs['production-seed']}",
+                    f"PRODUCTION_SEED_INPUTS={poison_inputs['production-seed']}",
                 )
-                with self.subTest(host=host), mock.patch.object(
-                    module,
-                    "CANONICAL_MAKE_VARIABLES",
-                    variables,
+                with (
+                    self.subTest(host=host),
+                    mock.patch.object(
+                        module,
+                        "CANONICAL_MAKE_VARIABLES",
+                        variables,
+                    ),
                 ):
                     rules = module._parse_make_rules(
                         module._run_make_database(
@@ -11431,9 +11468,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                             "--source $< --output $@",
                         ],
                     )
-                    serialized = "\n".join(
-                        [*rule.prerequisites, *rule.recipe]
-                    )
+                    serialized = "\n".join([*rule.prerequisites, *rule.recipe])
                     for poison in (
                         "custom-python",
                         "custom-cupiddis",
@@ -11444,6 +11479,176 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         "tools/bootstrap_toolchain.py",
                     ):
                         self.assertNotIn(poison, serialized)
+
+    def test_kernel_flatten_keeps_seed_closure_under_overrides(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory(
+            prefix=".audit-kernel-flatten-poison-",
+            dir=REPO_ROOT,
+        ) as td:
+            poison_root = Path(td)
+            poison_inputs = {}
+            for name in (
+                "cupiddis",
+                "cupidobj",
+                "checked-seed",
+                "production-seed",
+            ):
+                path = poison_root / f"poison-{name}.bin"
+                path.write_bytes(b"poison\n")
+                poison_inputs[name] = path.relative_to(REPO_ROOT).as_posix()
+            for host, seed_inputs in (
+                ("Windows_NT", WINDOWS_PRODUCTION_SEED_INPUTS),
+                ("Linux", LINUX_BOOTSTRAP_SEED_INPUTS),
+            ):
+                variables = (
+                    f"OS={host}",
+                    "PYTHON=custom-python",
+                    "CUPIDDIS=custom-cupiddis",
+                    f"CUPIDDIS_INPUTS={poison_inputs['cupiddis']}",
+                    "CUPIDOBJ=custom-cupidobj",
+                    f"CUPIDOBJ_INPUTS={poison_inputs['cupidobj']}",
+                    f"CHECKED_SEED_INPUTS={poison_inputs['checked-seed']}",
+                    f"PRODUCTION_SEED_DIRECTORY={poison_root.as_posix()}/",
+                    "PRODUCTION_SEED_SUFFIX=poison",
+                    f"PRODUCTION_SEED_INPUTS={poison_inputs['production-seed']}",
+                )
+                with (
+                    self.subTest(host=host),
+                    mock.patch.object(
+                        module,
+                        "CANONICAL_MAKE_VARIABLES",
+                        variables,
+                    ),
+                ):
+                    rules = module._parse_make_rules(
+                        module._run_make_database(
+                            REPO_ROOT,
+                            make,
+                            "kernel/kernel.bin",
+                        )
+                    )
+                    values = module._read_evaluated_make_variables(
+                        REPO_ROOT,
+                        make,
+                        (
+                            "CUPIDDIS_PRODUCTION_INPUT_MANIFEST",
+                            "CUPIDDIS_PRODUCTION_INPUTS",
+                        ),
+                    )
+                    rule = rules["kernel/kernel.bin"]
+                    self.assertEqual(
+                        set(rule.prerequisites),
+                        {
+                            "Makefile",
+                            values["CUPIDDIS_PRODUCTION_INPUT_MANIFEST"],
+                            *values["CUPIDDIS_PRODUCTION_INPUTS"].split(),
+                            *seed_inputs,
+                        },
+                    )
+                    self.assertEqual(
+                        rule.recipe,
+                        [
+                            "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                            "$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
+                            "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
+                            '--root "$(CURDIR)" \\',
+                            "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
+                            "--output $(KERNEL)",
+                        ],
+                    )
+                    serialized = "\n".join([*rule.prerequisites, *rule.recipe])
+                    for poison in (
+                        "custom-python",
+                        "custom-cupiddis",
+                        "custom-cupidobj",
+                        ".poison",
+                        *poison_inputs.values(),
+                        "tools/hostbuild.py",
+                        "tools/bootstrap_toolchain.py",
+                        "$(CUPIDDIS)",
+                        "$(CUPIDOBJ)",
+                    ):
+                        self.assertNotIn(poison, serialized)
+
+    def test_kernel_flatten_audit_contract_rejects_mutations(self):
+        module = _load_audit_module()
+        manifest = "bootstrap/cupiddis-production-inputs.txt"
+        code_inputs = [
+            "kernel/core/kernel.o",
+            "kernel/cpu/ksyms_data.o",
+            "kernel/kernel.elf.pass1",
+            "kernel/kernel.elf",
+        ]
+        seed_inputs = list(WINDOWS_PRODUCTION_SEED_INPUTS)
+        transform = {
+            "output": "kernel/kernel.bin",
+            "inputs": [
+                *code_inputs,
+                manifest,
+                "Makefile",
+                *seed_inputs,
+            ],
+            "tools": ["cupid_builder", "cupid_disassembler", "cupid_object"],
+            "operation": "extract_raw_binary",
+            "recipe": [
+                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                "$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
+                '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+                "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
+                "--output $(KERNEL)",
+            ],
+        }
+        module._validate_kernel_flatten_transform(
+            transform,
+            code_inputs=code_inputs,
+            input_manifest=manifest,
+            seed_inputs=seed_inputs,
+        )
+
+        mutations = {
+            "operation": {"operation": "transform_object"},
+            "tool owner": {
+                "tools": [
+                    "cupid_disassembler",
+                    "cupid_object",
+                    "host_python",
+                ]
+            },
+            "recipe": {
+                "recipe": ["$(PYTHON) tools/hostbuild.py validate-code"]
+            },
+            "host input": {
+                "inputs": [*transform["inputs"], "tools/hostbuild.py"]
+            },
+            "missing seed": {
+                "inputs": [
+                    path
+                    for path in transform["inputs"]
+                    if path != seed_inputs[-1]
+                ]
+            },
+            "duplicate input": {
+                "inputs": [*transform["inputs"], code_inputs[0]]
+            },
+        }
+        for name, replacement in mutations.items():
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(
+                    module.AuditError,
+                    "kernel flatten",
+                ),
+            ):
+                module._validate_kernel_flatten_transform(
+                    {**transform, **replacement},
+                    code_inputs=code_inputs,
+                    input_manifest=manifest,
+                    seed_inputs=seed_inputs,
+                )
 
     def test_generated_kernel_symbols_use_the_checked_cupidc_graph(self):
         with tempfile.TemporaryDirectory() as td:
@@ -11476,9 +11681,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "cupid_object",
                 ],
             )
-            self.assertEqual(
-                generated["operation"], "generate_ksyms_source"
-            )
+            self.assertEqual(generated["operation"], "generate_ksyms_source")
             self.assertEqual(
                 set(generated["inputs"]),
                 {
@@ -11510,9 +11713,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     *WINDOWS_PRODUCTION_SEED_INPUTS,
                 },
             )
-            sources = {
-                entry["path"]: entry for entry in audit["sources"]
-            }
+            sources = {entry["path"]: entry for entry in audit["sources"]}
             self.assertEqual(
                 sources["kernel/cpu/ksyms_data.cc"]["language"],
                 "cupid_c",
@@ -11523,7 +11724,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertNotIn("kernel/cpu/ksyms_data.c", transforms)
 
-    def test_make_include_extraction_keeps_assignment_adjacent_first_root(self):
+    def test_make_include_extraction_keeps_assignment_adjacent_first_root(
+        self,
+    ):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _write(
@@ -11965,9 +12168,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 first_controls["bootstrap/seeds/i386-windows/manifest.json"],
-                second_controls[
-                    "bootstrap/seeds/i386-windows/manifest.json"
-                ],
+                second_controls["bootstrap/seeds/i386-windows/manifest.json"],
             )
 
     def test_supported_audit_targets_check_and_consume_active_manifest(self):
@@ -11982,9 +12183,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "toolchain/tests/cupidc_pp_active_cases.inc",
             root_makefile,
         )
-        self.assertIn(
-            "$(CUPIDC_PP_ACTIVE_CASES) \\", toolchain_makefile
-        )
+        self.assertIn("$(CUPIDC_PP_ACTIVE_CASES) \\", toolchain_makefile)
         self.assertIn(
             '#include "cupidc_pp_active_cases.inc"',
             CUPIDC_PP_CONTRACT.read_text(encoding="utf-8"),

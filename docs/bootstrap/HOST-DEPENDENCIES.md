@@ -4,11 +4,11 @@ Both promoted CupidBuild seeds now contain the complete kernel-flatten coordinat
 It replaces the Python algorithm with pinned manifest and seed capture, one
 broad CupidDis invocation, strict linked-image checks, CupidObj flattening, an
 independent native ELF renderer, byte parity, rollback, and atomic
-publication. A real 431-input run reproduced the tracked kernel. This is not a
-production dependency change yet because the normal Make edge still enters
-`tools/hostbuild.py validate-code`. Only the Make and audit handoff remains for
-this path. The disk, ISO, and Doom profile composite paths remain
-Python-coordinated. ADR 0374 records the paired seed promotion.
+publication. A real 431-input run reproduced the tracked kernel. The normal
+Make edge now invokes that promoted transaction directly, so Hostbuild is an
+optional parity oracle rather than a raw-kernel production dependency. The
+disk, ISO, and Doom profile composite paths remain Python-coordinated. ADR
+0374 records the paired seed promotion, and ADR 0375 records the handoff.
 
 CupidBuild's source head can now launch CupidObj through a native checked-seed
 runner. Linux creates no `.cupidbuild-run` namespace: the manifest and six
@@ -46,8 +46,9 @@ seed, private CupidObj candidate, exact payload and identity-symbol checks,
 the independent native JPEG veto, drift checks, and atomic publication. The
 active Linux and Windows seeds contain the command. Make invokes it directly
 for both JPEG suffixes. The later kernel-symbol handoff moves one more
-production transform, bringing the current totals to 194 CupidBuild and 258
-Python. The full behavior matrices are 28/6/35 on Linux and 17/6/22 on native
+production transform. The later kernel-flatten handoff brings the current
+totals to 195 CupidBuild and 257 Python. The full behavior matrices are
+28/6/35 on Linux and 17/6/22 on native
 Windows.
 
 That promotion attempt found a Cupid library dependency, not a host compiler
@@ -245,8 +246,8 @@ including the three installation-source generators, the kernel-symbol source
 generator, the normal disk-image template, ISO fixture, and Doom profile
 manifest. CupidBuild participates in the two guarded assembly-object and two
 guarded raw-image publications, the typed JPEG publication, generated
-kernel-symbol source, 186 ordinary CupidObj recipes, and both normal kernel
-links. Python participates in 258
+kernel-symbol source, final kernel flattening, 186 ordinary CupidObj recipes,
+and both normal kernel links. Python participates in 257
 transforms as the host-side
 safety, parity, and publication
 layer. Root `all` has
@@ -1426,7 +1427,7 @@ records the ownership transfer.
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
 | Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal six-tool build and sixteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime. All six native Windows tools use the repository runtime and CupidASM API bridges; CupidLD and CupidBuild add their publication-specific bridges | Not required by root `all`, `user:all`, `toolchain:all`, or the checked Windows commands; required only by native oracle and development targets | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |
 | GNU Make | Declares the root, user, and toolchain-contract build graphs and invokes tools | Required; the graph uses portable ordinary/stamp targets rather than GNU Make 4.3 grouped-target syntax | May remain as host orchestration; it must invoke Cupid code-producing tools on the normal path |
-| Python 3 | Launches the host-selected checked execution cohort for work outside the 194 CupidBuild-owned transforms; runs the Windows user ABI, artifact-size, and Toolchain manifest contracts; launches the Linux bootstrap seed for fixed-point and full published Toolchain contract work; pins requests; repeats the Cupid author's 62 stage-pair comparisons; checks independent oracles; coordinates the four composite CupidObj paths; preserves FAT contents and stages files; validates, locks, and publishes other outputs; builds fixtures; and drives QEMU tests | Required | May remain for tests and packaging, but removing it from the staged fixed point and remaining checked-tool launch paths is the open Python-free bootstrap gate |
+| Python 3 | Launches the host-selected checked execution cohort for work outside the 195 CupidBuild-owned transforms; runs the Windows user ABI, artifact-size, and Toolchain manifest contracts; launches the Linux bootstrap seed for fixed-point and full published Toolchain contract work; pins requests; repeats the Cupid author's 62 stage-pair comparisons; checks independent oracles; coordinates the remaining composite CupidObj paths; preserves FAT contents and stages files; validates, locks, and publishes other outputs; builds fixtures; and drives QEMU tests | Required | May remain for tests and packaging, but removing it from the staged fixed point and remaining checked-tool launch paths is the open Python-free bootstrap gate |
 | WSL on Windows | Runs the checked static i386 Linux seed for Linux fixed-point reconstruction and the remaining Linux Toolchain contract cohort | Required only for those checked Linux executable paths on Windows; all native Windows fixed-point generations, output-bearing production tools, the user ABI gate, artifact-size verification, `CUPMAN4` author execution, and `CUPMAN2` verification run without WSL | Remove WSL after the remaining Linux paths no longer depend on Linux executable semantics |
 | Git | Enumerates the tracked audit universe and creates detached baseline worktrees | Required for development/audit workflows, not image production | Retain as source-control orchestration, never as a code-producing dependency |
 | `link.ld` and its documented GNU-script subset | Defines kernel memory and section layout; CupidLD parses the exercised `ENTRY`, `SECTIONS`, location-counter, wildcard, alignment, symbol, `COMMON`, and `ASSERT` forms | Required input to both kernel link passes; host-linker interpretation is oracle-only | Keep the script as the source-owned layout contract and deepen CupidLD when the active script needs more semantics |
@@ -2137,8 +2138,8 @@ filesystem safety, and the remaining Hostbuild transactions. CupidBuild now
 owns the guarded bootloader, SMP trampoline, ISR, and context-switch
 publications, runs the typed JPEG publication and 186 ordinary CupidObj
 recipes, and launches both normal kernel links, while GNU Make still declares
-the normal graph. The generated active-build audit records 194 CupidBuild
-transforms and 258 Python transforms
+the normal graph. The generated active-build audit records 195 CupidBuild
+transforms and 257 Python transforms
 across all three roots. Its
 refreshed checks, both promoted-seed reproofs, and the 16-artifact verification
 pass. ADR 0357 records the direct publication transfer, and ADR 0362 records
@@ -2155,3 +2156,15 @@ locking, rollback, and guarded publication. Hostbuild remains an optional
 parity oracle, not a production coordinator. ADR 0369 records the source
 capability, ADR 0370 records paired carriage, and ADR 0371 records the direct
 handoff.
+
+### Promoted kernel-flatten coordinator
+
+The normal `kernel/kernel.bin` edge now invokes promoted `cupidbuild
+flatten-kernel` directly. Make supplies the exact 431-entry code manifest,
+both linked kernel identities, and the complete host-selected six-image seed
+closure. CupidBuild owns the broad and linked CupidDis checks, CupidObj flat
+extraction, independent rendering, rollback, and guarded publication.
+Hostbuild remains available for parity and fault-injection tests but is no
+longer a production input for the raw kernel. The graph audit rejects recipe,
+owner, manifest, seed, linked-image, duplicate-input, and host-input drift.
+ADR 0375 records the handoff.

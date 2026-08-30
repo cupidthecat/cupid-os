@@ -12,9 +12,10 @@ A CupidC-built source-head image reproduced the tracked 9,513,536-byte kernel
 with SHA-256
 `3aac627568da71fe5478732c3b1adf8bf3c0cbf8678d63868a4f5982b5097773`.
 The fixed-point matrices include a successful pair and malformed-manifest
-rollback. Both active seeds now carry the transaction, while the normal Make
-recipe remains on Hostbuild until its separate handoff. ADR 0372 records the
-source capability, and ADR 0374 records paired seed carriage.
+rollback. Both active seeds carry the transaction, and the normal Make recipe
+now invokes the platform seed directly. Hostbuild remains an optional parity
+oracle. ADR 0372 records the source capability, ADR 0374 records paired seed
+carriage, and ADR 0375 records the production handoff.
 
 The normal build then compiled the complete kernel and all 83 Doom roots,
 linked both kernel stages with CupidLD, and passed broad CupidDis inspection.
@@ -48,9 +49,10 @@ records the runner boundary, ADR 0361 records the preceding paired promotion,
 ADR 0367 records the preceding pair, and ADR 0370 records the active pair. The
 normal graph now runs 186 ordinary CupidObj recipes through CupidBuild. The
 two normal kernel links use the same checked runner. After the typed JPEG and
-kernel-symbol handoffs, the audit records 194 CupidBuild and 258 Python
-participations. ADR 0363 records the link handoff, and ADR 0371 records direct
-kernel-symbol publication.
+kernel-symbol and kernel-flatten handoffs, the audit records 195 CupidBuild
+and 257 Python participations. ADR 0363 records the link handoff, ADR 0371
+records direct kernel-symbol publication, and ADR 0375 records direct raw
+kernel publication.
 The audit derives that split from each graph's evaluated `CUPIDOBJ` command;
 it does not treat the variable name itself as proof of CupidBuild ownership.
 
@@ -1791,7 +1793,7 @@ participations to CupidC and none to a host C compiler. Of those, 246 are
 ordinary C-output transforms; the checked native Windows user ABI,
 artifact-size, Toolchain manifest author, and Toolchain manifest verifier
 supply the other four.
-Python participates in 258 transforms, and CupidBuild in 194. The ordinary CupidC
+Python participates in 257 transforms, and CupidBuild in 195. The ordinary CupidC
 total is 240 normal transforms plus three generated installation tables and
 the `hello.cc`, `ls.cc`, and `cat.cc` programs. Root `all` has 443 transforms:
 all 443 have a Cupid participant. The size verifier emits no OS artifact; it
@@ -1813,10 +1815,11 @@ order across host locales.
 The stable audit counts record 748 active language inputs, 452 transforms, 255
 features, and 28 unreachable inputs across the three roots. It includes 443
 transforms under root `all`. Four transforms use Cupid-built semantic
-contracts, and no transform is Python-only. Python participates in 258 as
+contracts, and no transform is Python-only. Python participates in 257 as
 orchestrator, while CupidBuild participates in two guarded assembly objects,
 two guarded raw images, the typed JPEG object, the generated kernel-symbol
-source, 186 ordinary CupidObj calls, and two normal kernel links.
+source, final kernel flattening, 186 ordinary CupidObj calls, and two normal
+kernel links.
 
 The assembly ownership contract covers all 32 active assembly sources. All are
 owned by CupidASM, including five Toolchain startup inputs. An ownerless source
@@ -2525,7 +2528,9 @@ now gives CupidBuild all four guarded assembly publications: the bootloader,
 SMP trampoline, ISR object, and context-switch object. The later CupidObj
 handoff adds 186 ordinary recipes, the kernel-link handoff adds two more native
 runner calls, and the JPEG handoff adds one typed transaction, leaving Python
-in 259 transforms. The later kernel-symbol handoff moves the current split to
-194 CupidBuild and 258 Python transforms. ADR 0357
+in 259 transforms. The later kernel-symbol handoff moved the split to 194 and
+258; the kernel-flatten handoff moves the current split to 195 CupidBuild and
+257 Python transforms. ADR 0357
 records the raw-publication transfer, and ADR 0362 records the CupidObj
-handoff; ADR 0371 records the kernel-symbol transfer.
+handoff; ADR 0371 records the kernel-symbol transfer, and ADR 0375 records the
+kernel-flatten transfer.

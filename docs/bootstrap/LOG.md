@@ -33879,3 +33879,75 @@ A private image then passed the four-vCPU `max`/E1000 strong SMP gate and ran
 ADR 0374 records the accepted promotion. Issue #34 remains open because the
 normal kernel-flatten edge and the disk, ISO, Doom-manifest, and fixed-point
 coordination paths still contain Python.
+
+## 2026-08-30: transfer normal kernel flattening to CupidBuild
+
+The normal `kernel/kernel.bin` rule now invokes the promoted platform
+`cupidbuild flatten-kernel` image directly. Its prerequisites are the exact
+431-entry production input manifest, the complete code cohort, the root
+Makefile, and all six images in the selected production seed. Hostbuild, the
+Python checked runner, and the standalone CupidDis and CupidObj bindings are
+absent from the edge. Hostbuild remains an optional oracle.
+
+The build-graph audit now treats the recipe as a typed CupidBuild coordinator
+with CupidDis and CupidObj participants. Its production validator locks the
+target, operation, tool list, recipe, distinct manifest membership, pass-one
+and final linked identities, and the complete manifest-derived seed closure.
+Mutation tests reject an old Hostbuild recipe, a missing seed image, an added
+host input, a duplicate input, a changed operation, and a changed owner.
+Separate Windows and Linux Make tests poison Python, standalone tool bindings,
+checked-seed inputs, and derived production-seed variables without changing
+the rule.
+
+The first complete audit run exposed two stale source-corpus locks left by the
+earlier typed CupidBuild implementation. The checked graph already recorded
+216 `#if` sites and 6,672 `sizeof` uses, while the tests still expected 211
+and 6,664. The conditional fixture also had the old `_WIN32` split. The two
+rows now match the audited 19 non-Windows and 73 Windows occurrences. Focused
+reruns pass.
+
+Regeneration keeps the graph at 748 active inputs, 452 transforms, 255 feature
+requirements, and 28 accounted unreachable inputs. CupidBuild moves from 194
+to 195 participations and Python from 258 to 257; CupidDis remains at nine and
+CupidObj at 192. The 2,779,011-byte JSON has SHA-256
+`90a3139ff3cdad5a3f5b7637e66f5b6d161cfbe276f7b0e711946c41fe571490`.
+The 13,192-byte summary has SHA-256
+`8a31a9fa14002c591c57bcbe46c9fb353fb8531ada27cd35763b173e04feae89`.
+ADR 0375 records the production boundary.
+
+The complete 115-test build-graph audit passed in 936.007 seconds. The 96-test
+CupidBuild suite passed in 73.511 seconds with three expected platform skips,
+and the three artifact-policy modules passed 58 tests in 4.510 seconds with
+four expected platform skips. Four focused handoff tests also passed in
+31.949 seconds. Ruff formatting, Ruff checks, and Python bytecode compilation
+all passed for the changed audit code.
+
+A direct `kernel/kernel.bin` rebuild completed the full source, Doom,
+two-link, and 431-entry disassembly path, then published the flat kernel
+through `cupidbuild flatten-kernel`. A separate `make all` replay repeated the
+same path, accepted all 16 exact artifact rows, and restaged the deterministic
+ISO in the 200 MiB FAT image. The two ELF files remained byte-for-byte stable.
+The embedded CTXT updates added 392 bytes to the flat kernel, so that one
+intentional size row moved from 9,513,992 to 9,514,384 bytes.
+
+The final artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,609,272 | `e3f06e3e0cf0f241ebed6264b0663cad263e7d3491122d0032a013fb977ebf36` |
+| `kernel/kernel.elf` | 9,740,344 | `7df91f10e27efacdc5acbdba03ba111b873de5d00baea4eb26850bceabf4a024` |
+| `kernel/kernel.bin` | 9,514,384 | `c7f522227abc9fa7ed14d09fd8ed54275c4c87df0502c4b74c468ca573de6043` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `5f6397bf88a4401b326e6b1ad66a1647c2cf0e805e7ddc8ca996ec1d9359bbe0` |
+
+The 3,382-byte policy covers 38,330,988 bytes and has SHA-256
+`acb6eb69a5ea54d9f4c4511a4b1f7a2f2c8b45b520893a0f5630175cef369a80`.
+A private image passed the four-vCPU `max`/E1000 strong SMP gate and ran
+`/bin/ls.cc` to normal JIT completion. Its 21,888-byte serial log has SHA-256
+`d97f1fc04d81e74c00e6d8b260da595409b20009bddc94094113944467eecd43`.
+
+Issue #34 remains open. Kernel flattening now belongs to direct promoted
+CupidBuild, but disk-image creation, ISO creation, the Doom profile manifest,
+artifact-manifest handling, and fixed-point coordination still have
+Python-owned boundaries.

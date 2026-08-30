@@ -56,7 +56,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3527 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 25 | 171022 |
+| `toolchain_contract` | 25 | 171083 |
 | `toolchain_core` | 48 | 99146 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 577 |
@@ -77,13 +77,13 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 9 |
-| `cupid_builder` | 194 |
+| `cupid_builder` | 195 |
 | `cupid_c_compiler` | 250 |
 | `cupid_c_contract` | 4 |
 | `cupid_disassembler` | 9 |
 | `cupid_linker` | 9 |
 | `cupid_object` | 192 |
-| `host_python` | 258 |
+| `host_python` | 257 |
 
 ## Feature inventory
 
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1073 |
 | `asm.relocation` | 1 | 48 |
-| `c.control` | 12 | 90903 |
+| `c.control` | 12 | 90914 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 4060 |
+| `c.declarator` | 4 | 4066 |
 | `c.expression` | 2 | 6714 |
 | `c.extension` | 19 | 429 |
 | `c.initializer` | 1 | 690 |
 | `c.preprocessor` | 18 | 7578 |
-| `c.qualifier` | 2 | 17614 |
-| `c.storage` | 4 | 11135 |
-| `c.type` | 15 | 58482 |
+| `c.qualifier` | 2 | 17624 |
+| `c.storage` | 4 | 11142 |
+| `c.type` | 15 | 58499 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |

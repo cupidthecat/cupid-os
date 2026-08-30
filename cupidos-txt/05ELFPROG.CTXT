@@ -564,8 +564,8 @@ and pairs to the exact Linux manifest bytes.
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. In the self-consumption runs, all six initial images equal stage two.
 CupidBuild owns the normal ISR, context-switch, bootloader, SMP-trampoline,
-JPEG, and kernel-symbol recipes. Across all 452
-transforms, CupidBuild participates in 194 and Python in 258. ADR 0356 records
+JPEG, kernel-symbol, and final kernel-flatten recipes. Across all 452
+transforms, CupidBuild participates in 195 and Python in 257. ADR 0356 records
 the guarded-raw refresh, ADR 0357 records the raw recipe transfer, ADR 0362
 records the direct CupidObj handoff, ADR 0363 records the kernel-link handoff,
 ADR 0367 records the preceding seed pair, ADR 0368 records the JPEG handoff,
@@ -583,7 +583,9 @@ required before the destination changes.
 
 The command is present in both active seeds. The normal Make edge invokes the
 platform CupidBuild seed directly with the manifest and complete six-image
-closure. Hostbuild remains an optional parity oracle.
+closure. Hostbuild remains an optional parity oracle. The audit requires the
+exact manifest, linked ELFs, seed closure, tools, and typed recipe and rejects
+host or standalone-tool inputs. ADR 0375 records the production handoff.
 >endtree
 
 >h2 See Also

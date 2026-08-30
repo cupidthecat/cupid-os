@@ -278,8 +278,8 @@ The stable audit counts cover 748 active language inputs, 452 transforms, 255
 features, and 28 unreachable inputs.
 CupidC participates in 250 transforms,
 CupidObj in 192, CupidASM in nine, CupidLD in nine, CupidDis in nine, and
-CupidBuild in 194. Four transforms use Cupid-built semantic contracts. Python
-participates in 258, but no transform is Python-only. All 443 transforms under
+CupidBuild in 195. Four transforms use Cupid-built semantic contracts. Python
+participates in 257, but no transform is Python-only. All 443 transforms under
 root `all` have a Cupid participant.
 
 The first attempt at this audit stopped after 65.183 seconds because the test
