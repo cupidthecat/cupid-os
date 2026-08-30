@@ -1,5 +1,16 @@
 # Host dependency inventory
 
+Source-head CupidBuild now contains the complete kernel-flatten coordinator.
+It replaces the Python algorithm with pinned manifest and seed capture, one
+broad CupidDis invocation, strict linked-image checks, CupidObj flattening, an
+independent native ELF renderer, byte parity, rollback, and atomic
+publication. A real 431-input run reproduced the tracked kernel. This is not a
+production dependency change yet because the promoted CupidBuild images do
+not carry `flatten-kernel`; the normal Make edge still enters
+`tools/hostbuild.py validate-code`. After promotion, only the Make and audit
+handoff is needed for this path. The disk, ISO, and Doom profile composite
+paths remain Python-coordinated.
+
 CupidBuild's source head can now launch CupidObj through a native checked-seed
 runner. Linux creates no `.cupidbuild-run` namespace: the manifest and six
 tools are fully sealed anonymous memfds, and the working directory is pinned by

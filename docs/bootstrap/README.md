@@ -73,9 +73,29 @@ the hosted `stddef` contract that boundary exposed during reconstruction, and
 ADR 0366 records the v2 source-count compatibility boundary. ADR 0367 records
 the preceding paired seed promotion, ADR 0368 records direct JPEG publication,
 ADR 0369 records typed kernel-symbol publication, ADR 0370 records its paired
-seed carriage, and ADR 0371 records production ownership.
+seed carriage, ADR 0371 records production ownership, and ADR 0372 records
+typed source-head kernel flattening.
 
 ## 2026-08-30 source-current checkpoint
+
+Source-head CupidBuild now provides `flatten-kernel` for the complete guarded
+kernel transaction. It freezes the strict input manifest and all 431 active
+inputs in a dynamically bounded transaction, runs one broad CupidDis check,
+runs the linked-image target and code-anchor check over both kernel ELFs, and
+asks CupidObj for a private flat image. A separate native ELF renderer must
+produce the same bytes before publication. POSIX transactions retain every
+frozen file descriptor, while Windows pins the private working directory and
+uses short private names to keep the single broad invocation within its
+command-line limit. The hosted runtime adds standard `strrchr` for that
+source requirement.
+
+The real production cohort passed through a CupidC-built source-head
+CupidBuild image in about 453 seconds. Its 9,513,536-byte output has SHA-256
+`3aac627568da71fe5478732c3b1adf8bf3c0cbf8678d63868a4f5982b5097773`,
+matching the tracked kernel exactly. The fixed-point behavior definitions now
+include successful flattening and malformed-manifest rollback. The current
+checked seeds do not carry the command yet, and Make still uses Hostbuild for
+this edge. ADR 0372 records the capability boundary.
 
 Both normal kernel links now use the promoted `cupidbuild run` command instead
 of the Python checked-seed launcher. Make keeps the linker command and its

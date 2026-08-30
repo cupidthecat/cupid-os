@@ -272,6 +272,21 @@ char *strchr(const char *text, int character) {
   }
 }
 
+char *strrchr(const char *text, int character) {
+  char wanted = (char)character;
+  const char *last = (const char *)0;
+  size_t index = 0u;
+  for (;;) {
+    if (text[index] == wanted) {
+      last = text + index;
+    }
+    if (text[index] == '\0') {
+      return (char *)last;
+    }
+    index++;
+  }
+}
+
 char *strstr(const char *text, const char *needle) {
   size_t needle_size = strlen(needle);
   size_t index = 0u;

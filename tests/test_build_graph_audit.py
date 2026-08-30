@@ -6103,15 +6103,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 6)
-        self.assertEqual(contract["success_behavior_cases"], 34)
-        self.assertEqual(contract["failure_behavior_cases"], 27)
+        self.assertEqual(contract["success_behavior_cases"], 35)
+        self.assertEqual(contract["failure_behavior_cases"], 28)
         self.assertEqual(contract["tool_c_sources"], 22)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 22)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 6)
-        self.assertEqual(contract["windows_success_behavior_cases"], 21)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 16)
+        self.assertEqual(contract["windows_success_behavior_cases"], 22)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 17)
         self.assertEqual(contract["contract_manifest_inputs"], 76)
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 76
@@ -6617,20 +6617,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 35,\n',
                 '        "success_cases": 34,\n',
-                '        "success_cases": 33,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 28,\n',
                 '        "failure_cases": 27,\n',
-                '        "failure_cases": 26,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": len(tool_names) + 11,\n',
                 '        "failure_cases": len(tool_names) + 10,\n',
-                '        "failure_cases": len(tool_names) + 9,\n',
                 r"native Windows fixed-point behavior differs",
             ),
             "Linux fixed-point C objects skip CupidDis certification": (

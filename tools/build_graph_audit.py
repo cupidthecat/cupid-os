@@ -9314,9 +9314,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 27,
+        "failure_cases": 28,
         "help_cases": 6,
-        "success_cases": 34,
+        "success_cases": 35,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -13040,9 +13040,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 10, "
+            "'failure_cases': len(tool_names) + 11, "
             "'help_cases': len(tool_names), "
-            "'success_cases': len(tool_names) + 15"
+            "'success_cases': len(tool_names) + 16"
             "}",
             mode="eval",
         ).body
@@ -13062,8 +13062,8 @@ def _cupid_toolchain_fixed_point_contract(
             )
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return sixteen failure, "
-                "six help, and twenty-one success cases"
+                "_run_native_windows_behavior_checks: return seventeen failure, "
+                "six help, and twenty-two success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -13726,8 +13726,8 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 6,
-        "windows_success_behavior_cases": 21,
-        "windows_failure_behavior_cases": 16,
+        "windows_success_behavior_cases": 22,
+        "windows_failure_behavior_cases": 17,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_checked_cupidobj_runner",

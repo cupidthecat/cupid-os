@@ -7,6 +7,22 @@ The matrix uses these statuses:
 - **Missing**: no implementation satisfying the bootstrap contract was found.
 - **Required**: the checked active-source audit proves the capability is exercised, but the Cupid implementation does not yet satisfy it.
 
+Typed kernel flattening is **Observed at source head**. CupidBuild accepts the
+strict production input manifest, freezes up to 500 named inputs plus the
+six-tool seed, and preserves ADR 0318's one-call broad CupidDis contract. It
+then applies linked local-target and code-anchor checks, runs CupidObj `flat`,
+and compares those bytes with an independent `PT_LOAD` or allocated-section
+renderer before guarded publication. A CupidC-built source-head image
+processed all 431 production inputs and reproduced the tracked 9,513,536-byte
+kernel exactly. The fixed-point matrices define success and rollback cases,
+but the active seeds and production recipe have not moved yet. ADR 0372 records
+this source capability.
+
+Hosted `strrchr` is **Observed at source head**. The declaration and static
+i386 implementation follow the standard last-match and terminating-null
+semantics, and the Cupid-built runtime contract covers matches, misses, and
+the null terminator.
+
 Native checked CupidObj and CupidLD launch is **Observed in the promoted
 seeds**. `cupidbuild run` validates a promoted manifest, all six
 tools, seed membership, declared bytes, and host execution profiles. Linux

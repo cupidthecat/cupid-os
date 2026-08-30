@@ -16,6 +16,20 @@ Verified against source on: 2026-08-29
 
 >h2 Hosted CupidBuild Source
 >tree open Hosted CupidBuild Source
+Source-head CupidBuild now has a typed flatten-kernel transaction. It freezes
+the strict production manifest, up to 500 code inputs, and the complete
+six-tool seed. One broad CupidDis request checks the entire cohort. A second
+request validates local targets and code anchors in both linked kernel ELFs.
+CupidObj then creates a private flat image, which must match an independent
+native ELF renderer byte for byte before publication.
+
+The transaction pins every frozen POSIX file by descriptor. Windows pins its
+private working directory and uses short private input names so the broad
+request remains one command. The hosted runtime supplies strrchr for this
+path handling. A CupidC-built source-head image processed all 431 active inputs
+and reproduced the tracked 9,513,536-byte kernel exactly. The checked seeds and
+normal Make recipe have not adopted this command yet.
+
 The checked Linux and Windows command suites cover CupidBuild's policy and
 hosted transaction modules, including the guarded object and raw-image paths.
 CupidBuild is a checked tool in both active v2 seeds and directly owns the

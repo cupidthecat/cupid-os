@@ -58,6 +58,16 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 
 ## 2026-08-30 source-current checkpoint
 
+Source-head CupidBuild now has a typed `flatten-kernel` transaction. It pins
+the exact 431-input production cohort, preserves the single broad CupidDis
+check, validates both linked kernels, and requires CupidObj output to match an
+independent native ELF renderer. A CupidC-built source-head image produced a
+9,513,536-byte private kernel with SHA-256
+`3aac627568da71fe5478732c3b1adf8bf3c0cbf8678d63868a4f5982b5097773`,
+identical to the tracked image. The command is not in the promoted seeds yet,
+so this checkpoint does not transfer the normal Make edge. ADR 0372 records
+the source capability.
+
 The native Windows fixed point runs every stage-two producer from the checked
 PE32 execution seed. The Linux seed supplies the reviewed build plan and paired
 provenance, but no Linux executable runs during native reconstruction. The preceding

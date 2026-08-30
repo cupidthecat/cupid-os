@@ -3456,6 +3456,133 @@ def _check_cupidbuild_generate_ksyms_behavior(
         )
 
 
+def _check_cupidbuild_flatten_kernel_behavior(
+    runner: ToolRunner,
+    source_root: Path,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    label_prefix: str,
+) -> None:
+    flatten_root = behavior_root / "cupidbuild-flatten"
+    kernel_root = flatten_root / "kernel"
+    kernel_root.mkdir(parents=True)
+    manifest_path = _materialize_behavior_seed(seed_inputs, flatten_root)
+    elf_payload = _code_anchor_executable_payload()
+    pass_one = kernel_root / "kernel.elf.pass1"
+    linked = kernel_root / "kernel.elf"
+    pass_one.write_bytes(elf_payload)
+    linked.write_bytes(elf_payload)
+    code_inputs = flatten_root / "code-inputs.txt"
+    code_inputs.write_text(
+        "\n".join(
+            (
+                pass_one.relative_to(source_root).as_posix(),
+                linked.relative_to(source_root).as_posix(),
+                "",
+            )
+        ),
+        encoding="ascii",
+        newline="\n",
+    )
+    stage_two_output = kernel_root / "stage-three-kernel.bin"
+    stage_three_output = kernel_root / "stage-four-kernel.bin"
+    common_arguments: list[str | Path] = [
+        "flatten-kernel",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        source_root,
+        "--input-manifest",
+        code_inputs.relative_to(source_root).as_posix(),
+    ]
+    success_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *common_arguments,
+            "--output",
+            stage_two_output.relative_to(source_root).as_posix(),
+        ],
+        [
+            *common_arguments,
+            "--output",
+            stage_three_output.relative_to(source_root).as_posix(),
+        ],
+        180,
+    )
+    _expect_status(
+        success_result,
+        0,
+        f"{label_prefix}CupidBuild kernel flatten",
+    )
+    expected = bytes.fromhex("b8 78 56 34 12 c3")
+    if (
+        success_result.stdout
+        or success_result.stderr
+        or stage_two_output.read_bytes() != expected
+        or stage_two_output.read_bytes() != stage_three_output.read_bytes()
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild flat kernel output differs"
+        )
+
+    malformed = flatten_root / "malformed-code-inputs.txt"
+    malformed.write_text(
+        linked.relative_to(source_root).as_posix(),
+        encoding="ascii",
+        newline="\n",
+    )
+    sentinel = b"preserved CupidBuild flat kernel\n"
+    stage_two_failure = kernel_root / "stage-three-flatten-failure.bin"
+    stage_three_failure = kernel_root / "stage-four-flatten-failure.bin"
+    stage_two_failure.write_bytes(sentinel)
+    stage_three_failure.write_bytes(sentinel)
+    failure_arguments: list[str | Path] = [
+        "flatten-kernel",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        source_root,
+        "--input-manifest",
+        malformed.relative_to(source_root).as_posix(),
+    ]
+    failure_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *failure_arguments,
+            "--output",
+            stage_two_failure.relative_to(source_root).as_posix(),
+        ],
+        [
+            *failure_arguments,
+            "--output",
+            stage_three_failure.relative_to(source_root).as_posix(),
+        ],
+        180,
+    )
+    _expect_status(
+        failure_result,
+        1,
+        f"{label_prefix}CupidBuild malformed kernel input manifest",
+    )
+    if (
+        failure_result.stdout
+        or "must end with a newline" not in failure_result.stderr
+        or stage_two_failure.read_bytes() != sentinel
+        or stage_three_failure.read_bytes() != sentinel
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild kernel flatten failure behavior differs"
+        )
+
+
 _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE = (
     "bits 16\n"
     "org 0x7c00\n"
@@ -3838,6 +3965,16 @@ def _run_native_windows_behavior_checks(
         "native Windows ",
     )
 
+    _check_cupidbuild_flatten_kernel_behavior(
+        runner,
+        output_root,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "native Windows ",
+    )
+
     _check_cupidbuild_guarded_object_behavior(
         runner,
         output_root,
@@ -4065,9 +4202,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 10,
+        "failure_cases": len(tool_names) + 11,
         "help_cases": len(tool_names),
-        "success_cases": len(tool_names) + 15,
+        "success_cases": len(tool_names) + 16,
     }
 
 
@@ -4820,6 +4957,16 @@ def _run_behavior_checks(
         stage_three,
         seed_inputs,
         dict(seed_inputs.artifact_bytes)["cupidbuild"],
+        "",
+    )
+
+    _check_cupidbuild_flatten_kernel_behavior(
+        runner,
+        source_root,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
         "",
     )
 
@@ -7556,9 +7703,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 27,
+        "failure_cases": 28,
         "help_cases": len(tool_names),
-        "success_cases": 34,
+        "success_cases": 35,
     }
 
 

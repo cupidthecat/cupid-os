@@ -33643,3 +33643,83 @@ exception marker. The smoke was observed directly and did not publish a
 serial-log artifact. ADR 0371 records the handoff. Issues #13, #32, and #34
 remain open because their broader self-hosting, Python-removal, and fixed-point
 coordination work is not yet complete.
+
+## 2026-08-30: add typed source-head kernel flattening
+
+Source-head CupidBuild now implements `flatten-kernel` as one guarded
+transaction. It strictly parses the code-input manifest, freezes the complete
+cohort and six-tool seed, runs one broad CupidDis known-instruction request,
+and then checks local targets and code anchors in both linked kernel ELFs.
+CupidObj writes the private flat candidate only after those checks pass. A
+separate native ELF renderer must produce identical bytes before publication.
+
+The first implementation divided the broad cohort into groups of 24. Review
+against ADR 0318 rejected that shape because it changed failure aggregation,
+gave every group a new 300-second timeout, and no longer represented the exact
+one-call production contract. The accepted implementation runs the tools from
+a pinned private directory and passes short frozen names, keeping all 431
+inputs in one Windows-safe command.
+
+The enlarged transaction table exposed a POSIX-only pinning gap. Normal
+transactions wrote private frozen files but retained descriptors only for the
+anonymous checked runner. The first real source-built attempt therefore
+failed closed while rechecking frozen input zero. Normal POSIX transactions
+now open every frozen regular file with no-follow semantics, compare that
+descriptor with the captured snapshot, retain it across tool execution, and
+close it during cleanup.
+
+CupidC self-host compilation also stopped because the hosted i386 string
+header and runtime did not provide standard `strrchr`. The hosted library now
+declares and implements it, and the runtime contract covers the last match,
+no match, and terminating-null cases. The next self-host run compiled and
+linked all six tools successfully.
+
+Focused typed-command tests cover success, independent byte parity, malformed
+ELF rollback, CRLF, blank and comment rows, whitespace, backslashes, absolute
+and traversing paths, dot components, case collisions, the 500-input bound,
+and the required linked-kernel pair. The CupidBuild host-runner and JPEG Make
+contracts passed. The generated static i386 runtime also passed its direct
+execution contract.
+
+A CupidC-built source-head CupidBuild image then processed the exact
+431-entry production manifest through the promoted Linux CupidDis and CupidObj
+images. The command completed in about 453 seconds. Its private output is
+9,513,536 bytes with SHA-256
+`3aac627568da71fe5478732c3b1adf8bf3c0cbf8678d63868a4f5982b5097773`,
+matching `kernel/kernel.bin` exactly.
+
+The documentation-bearing normal build compiled the active kernel, drivers,
+applications, all 83 Doom roots, and vendored sources, then linked both kernel
+ELFs and passed Hostbuild's whole-image validation. The exact-size gate caught
+the expected 1,500-byte increase from the two updated CTXT files. After that
+single policy row was updated, the independent 16-row artifact verifier passed
+and the disk image was restaged. The final pass-one ELF is 9,609,272 bytes with
+SHA-256
+`a5c259ca8a61a09b49164b218c18bea99bcbbc82fe9c3decc2c5da1cd5c4a6c5d`.
+The final ELF is 9,740,344 bytes with SHA-256
+`6f893e3ed602b23c12d7c740511ebf2c426e007163384c5dae5722eb0316db0b`.
+
+The Linux and native Windows fixed-point definitions now include successful
+flattening and malformed-manifest rollback. Their source-head totals become
+28/6/35 and 17/6/22. No new seed has been published at this checkpoint, so
+Hostbuild remains the production kernel-flatten coordinator. ADR 0372 records
+the capability decision. Issue #34 remains open for seed carriage, the Make
+handoff, and the disk, ISO, and Doom profile composite paths.
+
+Audit regeneration caught two stale count boundaries. The Linux validator
+still expected 27/6/34, and the native Windows validator recognized the new
+return shape but still reported 16/6/21. The validators, returned report, and
+negative mutation test now agree on 28/6/35 and 17/6/22. Regeneration and
+check-only mode passed with 748 active inputs, 452 transforms, 255 feature
+requirements, and 28 accounted unreachable inputs. The 2,779,034-byte JSON
+has SHA-256
+`b6539c450f72a6243f59edc1e42a865099fb55933b769fb73ac82a049c3ec0d3`;
+the 13,192-byte summary has SHA-256
+`293c6bf4b409233da5eb85218aa9ad9174f2f7efaaa5920da204cfd8a825dff0`.
+
+The first runtime attempt timed out while the fresh disk imported HomeFS. A
+second run reached the desktop and completed `/bin/ls.cc`, but its command had
+not requested four virtual CPUs, so the strong SMP checker correctly rejected
+the missing ACPI marker. The final run explicitly used four vCPUs, the `max`
+CPU model, E1000, and the strong SMP runtime check. It reached the GUI terminal
+and completed `/bin/ls.cc` without a panic or exception marker.

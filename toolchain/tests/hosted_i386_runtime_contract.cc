@@ -136,6 +136,7 @@ static int allocator_contract(void) {
 
 static int string_contract(void) {
   static const char haystack[] = "Cupid toolchain";
+  static const char reverse_haystack[] = "Cupid toolchain Cupid";
   unsigned char source[12];
   unsigned char destination[12];
   char overlap[16] = "0123456789";
@@ -174,6 +175,10 @@ static int string_contract(void) {
           (char *)destination ||
       strchr((const char *)destination, 'x') != (char *)0 ||
       strchr((const char *)destination, '\0') !=
+          (char *)(destination + 11u) ||
+      strrchr(reverse_haystack, 'C') != reverse_haystack + 16 ||
+      strrchr("Cupid toolchain", 'x') != (char *)0 ||
+      strrchr((const char *)destination, '\0') !=
           (char *)(destination + 11u) ||
       strstr(haystack, "tool") != haystack + 6 ||
       strstr(haystack, "") != haystack ||

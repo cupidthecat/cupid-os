@@ -16,6 +16,7 @@
 #define CUPIDBUILD_TOOL_BYTES 67108864u
 #define CUPIDBUILD_JSON_TOKENS 2048u
 #define CUPIDBUILD_SEED_ARTIFACTS 6u
+#define CUPIDBUILD_CODE_INPUTS 500u
 typedef struct {
   char file[CUPIDBUILD_PATH_BYTES];
   char sha256[65];
@@ -78,6 +79,12 @@ typedef struct {
   size_t size;
   size_t capacity;
 } cupidbuild_ksyms_buffer_t;
+
+typedef struct {
+  unsigned int address;
+  unsigned int order;
+  ctool_bytes_t contents;
+} cupidbuild_flat_region_t;
 
 typedef enum {
   CUPIDBUILD_KSYMS_EMPTY = 0,
@@ -2836,6 +2843,520 @@ done:
   free(expected);
   free(candidate);
   free(symbols);
+  cupidbuild_seed_capture_close(&seed);
+  cupidbuild_host_transaction_close(transaction);
+  return result;
+}
+
+static int cupidbuild_code_path_equal(const char *left, const char *right) {
+  while (*left != '\0' && *right != '\0') {
+    unsigned char left_byte = (unsigned char)*left;
+    unsigned char right_byte = (unsigned char)*right;
+    if (left_byte >= (unsigned char)'A' &&
+        left_byte <= (unsigned char)'Z') {
+      left_byte = (unsigned char)(left_byte + ('a' - 'A'));
+    }
+    if (right_byte >= (unsigned char)'A' &&
+        right_byte <= (unsigned char)'Z') {
+      right_byte = (unsigned char)(right_byte + ('a' - 'A'));
+    }
+    if (left_byte != right_byte) {
+      return 0;
+    }
+    left++;
+    right++;
+  }
+  return *left == '\0' && *right == '\0';
+}
+
+static int cupidbuild_code_manifest(
+    unsigned char *bytes, size_t size, const char **paths, size_t *count_out,
+    const char **reason_out, size_t *line_out) {
+  size_t start = 0u;
+  size_t count = 0u;
+  size_t line = 1u;
+  if (size == 0u) {
+    *reason_out = "code input manifest may not be empty";
+    return 0;
+  }
+  if (bytes[size - 1u] != (unsigned char)'\n') {
+    *reason_out = "code input manifest must end with a newline";
+    return 0;
+  }
+  while (start < size) {
+    size_t end = start;
+    size_t component = start;
+    size_t index;
+    while (end < size && bytes[end] != (unsigned char)'\n') {
+      unsigned char byte = bytes[end];
+      if (byte == (unsigned char)'\r') {
+        *reason_out = "code input manifest must use LF newlines";
+        *line_out = line;
+        return 0;
+      }
+      if (byte == (unsigned char)'\\') {
+        *reason_out = "code input path must use forward slashes";
+        *line_out = line;
+        return 0;
+      }
+      if (byte <= (unsigned char)' ' || byte == 127u) {
+        *reason_out = "code input path may not contain whitespace or control bytes";
+        *line_out = line;
+        return 0;
+      }
+      end++;
+    }
+    if (end == start) {
+      *reason_out = "code input manifest line is blank";
+      *line_out = line;
+      return 0;
+    }
+    if (bytes[start] == (unsigned char)'#') {
+      *reason_out = "code input manifest line may not be a comment";
+      *line_out = line;
+      return 0;
+    }
+    if (bytes[start] == (unsigned char)'/' ||
+        bytes[end - 1u] == (unsigned char)'/') {
+      *reason_out = "code input path is not canonical and relative";
+      *line_out = line;
+      return 0;
+    }
+    for (index = start; index <= end; index++) {
+      if (index != end && bytes[index] != (unsigned char)'/') {
+        continue;
+      }
+      if (index == component ||
+          (index - component == 1u &&
+           bytes[component] == (unsigned char)'.') ||
+          (index - component == 2u &&
+           bytes[component] == (unsigned char)'.' &&
+           bytes[component + 1u] == (unsigned char)'.')) {
+        *reason_out = "code input path is not canonical and relative";
+        *line_out = line;
+        return 0;
+      }
+      component = index + 1u;
+    }
+    if (count == CUPIDBUILD_CODE_INPUTS) {
+      *reason_out = "code input manifest exceeds the 500-input limit";
+      *line_out = line;
+      return 0;
+    }
+    bytes[end] = 0u;
+    if (!cupidbuild_path_safe((const char *)(bytes + start), 1)) {
+      *reason_out = "code input path is unsafe";
+      *line_out = line;
+      return 0;
+    }
+    for (index = 0u; index < count; index++) {
+      if (cupidbuild_code_path_equal(paths[index],
+                                     (const char *)(bytes + start))) {
+        *reason_out = "code input is listed more than once";
+        *line_out = line;
+        return 0;
+      }
+    }
+    paths[count++] = (const char *)(bytes + start);
+    start = end + 1u;
+    line++;
+  }
+  *count_out = count;
+  return 1;
+}
+
+static int cupidbuild_flat_region_less(
+    const cupidbuild_flat_region_t *left,
+    const cupidbuild_flat_region_t *right) {
+  return left->address < right->address ||
+         (left->address == right->address && left->order < right->order);
+}
+
+static void cupidbuild_flat_region_swap(cupidbuild_flat_region_t *left,
+                                        cupidbuild_flat_region_t *right) {
+  cupidbuild_flat_region_t temporary = *left;
+  *left = *right;
+  *right = temporary;
+}
+
+static void cupidbuild_flat_region_sift_down(
+    cupidbuild_flat_region_t *regions, size_t root, size_t count) {
+  for (;;) {
+    size_t child;
+    size_t selected;
+    if (root >= count / 2u) {
+      return;
+    }
+    child = root * 2u + 1u;
+    selected = root;
+    if (cupidbuild_flat_region_less(&regions[selected], &regions[child])) {
+      selected = child;
+    }
+    if (child + 1u < count &&
+        cupidbuild_flat_region_less(&regions[selected],
+                                    &regions[child + 1u])) {
+      selected = child + 1u;
+    }
+    if (selected == root) {
+      return;
+    }
+    cupidbuild_flat_region_swap(&regions[root], &regions[selected]);
+    root = selected;
+  }
+}
+
+static void cupidbuild_flat_region_sort(cupidbuild_flat_region_t *regions,
+                                        size_t count) {
+  size_t start = count / 2u;
+  size_t end = count;
+  while (start != 0u) {
+    start--;
+    cupidbuild_flat_region_sift_down(regions, start, count);
+  }
+  while (end > 1u) {
+    cupidbuild_flat_region_swap(&regions[0], &regions[end - 1u]);
+    end--;
+    cupidbuild_flat_region_sift_down(regions, 0u, end);
+  }
+}
+
+static int cupidbuild_render_flat_image(
+    const unsigned char *bytes, size_t size, unsigned char **image_out,
+    size_t *image_size_out, const char **reason_out) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_elf32_object_t object;
+  cupidbuild_flat_region_t *regions = (cupidbuild_flat_region_t *)0;
+  unsigned char *image = (unsigned char *)0;
+  size_t load_count = 0u;
+  size_t region_count = 0u;
+  size_t position = 0u;
+  size_t index;
+  unsigned int base;
+  unsigned int cursor;
+  int success = 0;
+  if (size > 4294967295u ||
+      ctool_host_adapter_init(&adapter, ".") != CTOOL_OK) {
+    *reason_out = "linked kernel cannot be inspected";
+    return 0;
+  }
+  config = ctool_host_job_config(&adapter, ctool_default_limits());
+  if (ctool_job_open(&config, &job) != CTOOL_OK) {
+    *reason_out = "linked kernel inspection job cannot be opened";
+    return 0;
+  }
+  source.path.text = ctool_string("/kernel/kernel.elf");
+  source.contents = ctool_bytes(bytes, (ctool_u32)size);
+  if (ctool_elf32_read(job, &source, &object) != CTOOL_OK ||
+      object.file_type != CTOOL_ELF32_ET_EXEC) {
+    *reason_out = "linked kernel is not a static i386 executable";
+    goto done;
+  }
+  for (index = 0u; index < object.program_header_count; index++) {
+    if (object.program_headers[index].type == CTOOL_ELF32_PT_LOAD) {
+      load_count++;
+      if (object.program_headers[index].file_size != 0u) {
+        region_count++;
+      }
+    }
+  }
+  if (load_count == 0u) {
+    for (index = 0u; index < object.section_count; index++) {
+      const ctool_elf32_section_t *section = &object.sections[index];
+      if ((section->flags & CTOOL_ELF32_SHF_ALLOC) == 0u ||
+          section->type == CTOOL_ELF32_SHT_NOBITS) {
+        continue;
+      }
+      if (section->type != CTOOL_ELF32_SHT_PROGBITS) {
+        *reason_out = "linked kernel has unsupported allocated content";
+        goto done;
+      }
+      if (section->size != 0u) {
+        region_count++;
+      }
+    }
+  }
+  if (region_count == 0u) {
+    *reason_out = "linked kernel has no initialized load";
+    goto done;
+  }
+  regions = (cupidbuild_flat_region_t *)calloc(region_count,
+                                                sizeof(*regions));
+  if (regions == (cupidbuild_flat_region_t *)0) {
+    *reason_out = "flat-image region table cannot be allocated";
+    goto done;
+  }
+  if (load_count != 0u) {
+    for (index = 0u; index < object.program_header_count; index++) {
+      const ctool_elf32_program_header_t *header =
+          &object.program_headers[index];
+      if (header->type == CTOOL_ELF32_PT_LOAD && header->file_size != 0u) {
+        regions[position].address = header->physical_address;
+        regions[position].order = header->file_index;
+        regions[position].contents = header->contents;
+        position++;
+      }
+    }
+  } else {
+    for (index = 0u; index < object.section_count; index++) {
+      const ctool_elf32_section_t *section = &object.sections[index];
+      if ((section->flags & CTOOL_ELF32_SHF_ALLOC) != 0u &&
+          section->type == CTOOL_ELF32_SHT_PROGBITS && section->size != 0u) {
+        regions[position].address = section->address;
+        regions[position].order = section->file_index;
+        regions[position].contents = section->contents;
+        position++;
+      }
+    }
+  }
+  cupidbuild_flat_region_sort(regions, region_count);
+  base = regions[0].address;
+  cursor = base;
+  for (index = 0u; index < region_count; index++) {
+    const cupidbuild_flat_region_t *region = &regions[index];
+    if (region->address < cursor ||
+        region->address > 0xffffffffu - region->contents.size) {
+      *reason_out = "linked kernel initialized load ranges overlap or overflow";
+      goto done;
+    }
+    cursor = region->address + region->contents.size;
+  }
+  if ((size_t)(cursor - base) > CUPIDBUILD_TOOL_BYTES) {
+    *reason_out = "flat kernel exceeds the 64 MiB transaction limit";
+    goto done;
+  }
+  image = (unsigned char *)calloc((size_t)(cursor - base), 1u);
+  if (image == (unsigned char *)0) {
+    *reason_out = "flat kernel buffer cannot be allocated";
+    goto done;
+  }
+  for (index = 0u; index < region_count; index++) {
+    (void)memcpy(image + (regions[index].address - base),
+                 regions[index].contents.data, regions[index].contents.size);
+  }
+  *image_out = image;
+  *image_size_out = (size_t)(cursor - base);
+  image = (unsigned char *)0;
+  success = 1;
+
+done:
+  free(image);
+  free(regions);
+  ctool_job_close(job);
+  return success;
+}
+
+static void cupidbuild_report_checked_failure(
+    cupidbuild_host_transaction_t *transaction, const char *operation) {
+  const char *error = cupidbuild_host_error(transaction);
+  if (error != (const char *)0 && error[0] != '\0') {
+    (void)fprintf(stderr, "cupidbuild: %s: %s\n", operation, error);
+  } else {
+    (void)fprintf(stderr, "cupidbuild: %s\n", operation);
+  }
+}
+
+int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request) {
+  cupidbuild_host_transaction_t *transaction =
+      (cupidbuild_host_transaction_t *)0;
+  cupidbuild_seed_capture_t seed;
+  const char *logical_paths[CUPIDBUILD_CODE_INPUTS];
+  const char *private_paths[CUPIDBUILD_CODE_INPUTS];
+  const char *pass_one = (const char *)0;
+  const char *linked = (const char *)0;
+  const char *linked_frozen = (const char *)0;
+  unsigned char *manifest = (unsigned char *)0;
+  size_t manifest_size = 0u;
+  size_t input_count = 0u;
+  const char *manifest_reason = (const char *)0;
+  size_t manifest_line = 0u;
+  unsigned char *linked_bytes = (unsigned char *)0;
+  size_t linked_size = 0u;
+  unsigned char *expected = (unsigned char *)0;
+  size_t expected_size = 0u;
+  const char *flat_reason = (const char *)0;
+  unsigned char *candidate = (unsigned char *)0;
+  cupidbuild_host_snapshot_t candidate_snapshot;
+  const char *disassembler_arguments[CUPIDBUILD_CODE_INPUTS + 2u];
+  const char *linked_arguments[7];
+  const char *object_arguments[5];
+  size_t index;
+  int status;
+  int result = 1;
+  (void)memset(&seed, 0, sizeof(seed));
+  if (request == (const cupidbuild_kernel_request_t *)0 ||
+      !cupidbuild_path_safe(request->repository_root, 0) ||
+      !cupidbuild_path_safe(request->source, 1) ||
+      !cupidbuild_path_safe(request->output, 1) ||
+      !cupidbuild_path_safe(request->seed_manifest, 0)) {
+    (void)fprintf(stderr, "cupidbuild: invalid kernel flatten request\n");
+    return 1;
+  }
+  if (!cupidbuild_host_transaction_open(request->repository_root,
+                                        request->source, request->output,
+                                        &transaction)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  manifest = cupidbuild_host_read_frozen_input(
+      transaction, cupidbuild_host_frozen_source(transaction),
+      CUPIDBUILD_MANIFEST_BYTES, &manifest_size);
+  if (manifest == (unsigned char *)0 ||
+      !cupidbuild_code_manifest(manifest, manifest_size, logical_paths,
+                                &input_count, &manifest_reason,
+                                &manifest_line)) {
+    if (manifest_reason == (const char *)0) {
+      manifest_reason = "code input manifest cannot be read";
+    }
+    if (manifest_line != 0u) {
+      (void)fprintf(stderr,
+                    "cupidbuild: invalid code input manifest at line %u: %s\n",
+                    (unsigned int)manifest_line, manifest_reason);
+    } else {
+      (void)fprintf(stderr, "cupidbuild: invalid code input manifest: %s\n",
+                    manifest_reason);
+    }
+    goto done;
+  }
+  if (!cupidbuild_host_reserve_inputs(transaction, input_count + 8u)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  for (index = 0u; index < input_count; index++) {
+    char live_path[CUPIDBUILD_PATH_BYTES];
+    char private_name[32];
+    const char *frozen_path = (const char *)0;
+    int written = snprintf(private_name, sizeof(private_name),
+                           "code-%03u.bin", (unsigned int)index);
+    if (written <= 0 || (size_t)written >= sizeof(private_name) ||
+        !cupidbuild_join(live_path, sizeof(live_path),
+                         request->repository_root, logical_paths[index]) ||
+        !cupidbuild_host_freeze_input(transaction, live_path, private_name,
+                                      &frozen_path,
+                                      (cupidbuild_host_snapshot_t *)0)) {
+      (void)fprintf(stderr, "cupidbuild: %s\n",
+                    cupidbuild_host_error(transaction));
+      goto done;
+    }
+    private_paths[index] = strrchr(frozen_path, '/');
+    if (private_paths[index] == (const char *)0) {
+      private_paths[index] = strrchr(frozen_path, '\\');
+    }
+    private_paths[index] = private_paths[index] == (const char *)0
+                               ? frozen_path
+                               : private_paths[index] + 1;
+    if (strcmp(logical_paths[index], "kernel/kernel.elf.pass1") == 0) {
+      pass_one = private_paths[index];
+    } else if (strcmp(logical_paths[index], "kernel/kernel.elf") == 0) {
+      linked = private_paths[index];
+      linked_frozen = frozen_path;
+    }
+  }
+  if (pass_one == (const char *)0 || linked == (const char *)0) {
+    (void)fprintf(
+        stderr,
+        "cupidbuild: code input manifest must include both linked kernels\n");
+    goto done;
+  }
+  if (!cupidbuild_seed_freeze(transaction, request->repository_root,
+                              request->seed_manifest, 1, 1, &seed)) {
+    goto done;
+  }
+  disassembler_arguments[0] = "--require-known";
+  for (index = 0u; index < input_count; index++) {
+    disassembler_arguments[index + 1u] = private_paths[index];
+  }
+  disassembler_arguments[input_count + 1u] = (const char *)0;
+  status = cupidbuild_host_run_in_private(
+      transaction, seed.frozen_tools[2], disassembler_arguments, 300000u);
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
+    goto done;
+  }
+  if (status != 0) {
+    cupidbuild_report_checked_failure(transaction, "checked CupidDis failed");
+    goto done;
+  }
+  linked_arguments[0] = "--require-known";
+  linked_arguments[1] = "--require-local-targets";
+  linked_arguments[2] = "--require-code-anchors";
+  linked_arguments[3] = pass_one;
+  linked_arguments[4] = linked;
+  linked_arguments[5] = (const char *)0;
+  status = cupidbuild_host_run_in_private(
+      transaction, seed.frozen_tools[2], linked_arguments, 600000u);
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
+    goto done;
+  }
+  if (status != 0) {
+    cupidbuild_report_checked_failure(
+        transaction, "checked CupidDis linked validation failed");
+    goto done;
+  }
+  linked_bytes = cupidbuild_host_read_frozen_input(
+      transaction, linked_frozen, CUPIDBUILD_TOOL_BYTES, &linked_size);
+  if (linked_bytes == (unsigned char *)0 ||
+      !cupidbuild_render_flat_image(linked_bytes, linked_size, &expected,
+                                    &expected_size, &flat_reason)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: independent flat kernel validation failed: %s\n",
+                  flat_reason == (const char *)0 ? "unreadable linked kernel"
+                                                 : flat_reason);
+    goto done;
+  }
+  free(linked_bytes);
+  linked_bytes = (unsigned char *)0;
+  object_arguments[0] = "flat";
+  object_arguments[1] = linked;
+  object_arguments[2] = "-o";
+  object_arguments[3] = "candidate.o";
+  object_arguments[4] = (const char *)0;
+  status = cupidbuild_host_run_in_private(
+      transaction, seed.frozen_tools[4], object_arguments, 300000u);
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
+    goto done;
+  }
+  if (status != 0) {
+    cupidbuild_report_checked_failure(transaction, "checked CupidObj failed");
+    goto done;
+  }
+  if (!cupidbuild_host_capture_candidate(transaction, &candidate_snapshot,
+                                         &candidate)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (candidate_snapshot.size != expected_size ||
+      memcmp(candidate, expected, expected_size) != 0) {
+    (void)fprintf(stderr,
+                  "cupidbuild: checked CupidObj flat kernel differs from the "
+                  "independent renderer\n");
+    goto done;
+  }
+  free(candidate);
+  candidate = (unsigned char *)0;
+  free(expected);
+  expected = (unsigned char *)0;
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
+    goto done;
+  }
+  if (!cupidbuild_host_require_candidate(transaction, &candidate_snapshot) ||
+      !cupidbuild_host_require_publication_boundary(transaction) ||
+      !cupidbuild_host_publish(transaction)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  result = 0;
+
+done:
+  free(candidate);
+  free(expected);
+  free(linked_bytes);
+  free(manifest);
   cupidbuild_seed_capture_close(&seed);
   cupidbuild_host_transaction_close(transaction);
   return result;

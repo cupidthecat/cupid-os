@@ -62,6 +62,16 @@ bootloader, and SMP-trampoline recipes invoke this operation directly, so
 CupidBuild owns all four guarded assembly publications. Fixed-point carriage
 or source capability alone still does not establish production ownership.
 
+Source head also provides a typed kernel-flatten transaction for the exact
+manifest-driven code cohort. It pins as many as 500 code inputs plus the
+six-tool seed, runs one broad CupidDis known-instruction request, applies
+linked local-target and code-anchor checks to the pass-one and final kernel
+ELFs, and runs CupidObj `flat`. A separate native ELF renderer reconstructs
+the initialized physical-address image and must match CupidObj byte for byte.
+The real 431-input cohort reproduces the tracked kernel through a CupidC-built
+source-head image. ADR 0372 records the capability. The active seeds and
+normal Make edge have not adopted it yet.
+
 The promoted seeds also carry a typed JPEG transaction. It freezes one asset and the
 complete v2 seed, asks CupidObj to validate and wrap the private bytes under
 the original logical identity, and then checks the exact `.data` payload and
@@ -86,6 +96,11 @@ Make with the complete six-image seed closure.
 
 **Hosted bootstrap runtime**:
 The static i386 C runtime linked into Cupid tool and contract images. It supplies the represented heap, file, memory, string, error, and working-directory interfaces without a host libc. Its string boundary includes binary `memchr`, which CupidBuild uses while validating frozen JSON. The active six-tool seeds contain CupidBuild beside CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. CupidBuild directly coordinates two guarded assembly objects, two guarded raw images, the guarded JPEG object, the generated kernel-symbol source, 186 ordinary CupidObj calls, and both normal kernel links; Python participates in the other 258 transforms. The checked runner admits only CupidObj and CupidLD. On Linux, it freezes the manifest and six tools in fully sealed anonymous memfds, pins the working directory by descriptor, and calls `fchdir` before remapping captured streams. A retained tool descriptor in standard slot 0, 1, or 2 is duplicated above those slots before `fexecve` or `execveat`. The `dup2`, pipe read and write, and wait loops retry `EINTR`; `dup2` also retries `EBUSY`. Captured streams are sealed anonymous memfds, and a close-on-exec launch-status pipe preserves a genuine tool exit of 125. The static i386 startup supplies `cupid_linux_syscall5`. On Windows, the runner pins and rechecks the working-directory identity, pins its private root and files by handle, retains a tool handle without write or delete sharing through `CreateProcessA`, and forwards output in binary mode to preserve exact bytes. Cleanup deletes a file that changed in place when its identity still matches, but preserves a replacement with a different identity. Both fixed-point behavior matrices run checked CupidObj through consecutive CupidBuild generations and compare a real relocatable result plus an invalid-option diagnostic. The direct Make recipes use the promoted production seed and keep Makefile plus all six images in their prerequisite closure. Four composite CupidObj publications retain their Python safety and parity layers.
+
+The source-head string surface also includes standard `strrchr`. CupidBuild
+uses it to address frozen inputs by short private names while retaining their
+pinned absolute paths. The static runtime contract covers the last match, no
+match, and the terminating null byte.
 
 The promoted fixed-point matrices run typed JPEG and kernel-symbol
 publication through

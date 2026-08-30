@@ -108,6 +108,244 @@ class CupidBuildCliTests(unittest.TestCase):
             r"--root ROOT --source SOURCE --output OUTPUT",
         )
 
+    def test_help_names_the_typed_kernel_flatten_transaction(self):
+        result = subprocess.run(
+            [str(self.cli_path), "--help"],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertRegex(
+            result.stdout,
+            r"cupidbuild flatten-kernel --seed-manifest MANIFEST\s+"
+            r"--root ROOT --input-manifest MANIFEST --output OUTPUT",
+        )
+
+    def test_typed_kernel_flatten_transaction_matches_checked_tools(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-kernel-flat-success-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            kernel = root / "kernel"
+            kernel.mkdir()
+            seed_manifest = self._copy_checked_assembly_seed(root / "seed")
+            built = self._build_ksyms_elf(
+                root,
+                "BITS 32\n"
+                "global _start:function\n"
+                "section .text\n"
+                "_start:\n"
+                "    mov eax, 0x12345678\n"
+                "    ret\n",
+            )
+            pass_one = kernel / "kernel.elf.pass1"
+            linked = kernel / "kernel.elf"
+            shutil.copy2(built, pass_one)
+            shutil.copy2(built, linked)
+            cohort = []
+            for index in range(25):
+                member = kernel / f"cohort-{index:02d}.elf"
+                shutil.copy2(built, member)
+                cohort.append(f"kernel/{member.name}")
+            manifest = root / "code-inputs.txt"
+            manifest.write_text(
+                "\n".join(
+                    [
+                        "kernel/kernel.elf.pass1",
+                        "kernel/kernel.elf",
+                        *cohort,
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+                newline="\n",
+            )
+            expected = kernel / "expected.bin"
+            flattened = subprocess.run(
+                [
+                    str(self._production_tool("cupidobj")),
+                    "flat",
+                    str(linked),
+                    "-o",
+                    str(expected),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            self.assertEqual(flattened.returncode, 0, flattened.stderr)
+            output = kernel / "kernel.bin"
+            before = self._private_roots()
+
+            result = self._run_flatten_kernel(
+                root, manifest, output, seed_manifest
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((result.stdout, result.stderr), ("", ""))
+            self.assertEqual(output.read_bytes(), expected.read_bytes())
+            self.assertEqual(self._private_roots(), before)
+
+    def test_typed_kernel_flatten_rejects_a_malformed_input_manifest(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-kernel-flat-manifest-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            kernel = root / "kernel"
+            kernel.mkdir()
+            seed_manifest = self._copy_checked_assembly_seed(root / "seed")
+            manifest = root / "code-inputs.txt"
+            manifest.write_bytes(b"kernel/kernel.elf")
+            output = kernel / "kernel.bin"
+            output.write_bytes(b"last known good flat kernel")
+
+            result = self._run_flatten_kernel(
+                root, manifest, output, seed_manifest
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("must end with a newline", result.stderr)
+            self.assertEqual(
+                output.read_bytes(), b"last known good flat kernel"
+            )
+
+    def test_typed_kernel_flatten_rejects_unsafe_manifest_forms(self):
+        cases = (
+            ("empty", b"", "may not be empty"),
+            ("crlf", b"kernel/kernel.elf\r\n", "must use LF newlines"),
+            ("blank", b"kernel/a.o\n\n", "line is blank"),
+            ("comment", b"#comment\n", "may not be a comment"),
+            ("backslash", b"kernel\\a.o\n", "must use forward slashes"),
+            ("whitespace", b"kernel/a file.o\n", "may not contain whitespace"),
+            ("absolute", b"/kernel/a.o\n", "not canonical and relative"),
+            ("traversal", b"kernel/../a.o\n", "not canonical and relative"),
+            ("dot", b"kernel/./a.o\n", "not canonical and relative"),
+            (
+                "case-collision",
+                b"kernel/A.o\nkernel/a.o\n",
+                "listed more than once",
+            ),
+            (
+                "too-many",
+                b"".join(
+                    f"kernel/member-{index:03d}.o\n".encode("ascii")
+                    for index in range(501)
+                ),
+                "exceeds the 500-input limit",
+            ),
+        )
+        for name, payload, message in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory(
+                prefix=f".cupidbuild-kernel-flat-{name}-", dir=REPO_ROOT
+            ) as temporary:
+                root = Path(temporary)
+                kernel = root / "kernel"
+                kernel.mkdir()
+                seed_manifest = self._copy_checked_assembly_seed(root / "seed")
+                manifest = root / "code-inputs.txt"
+                manifest.write_bytes(payload)
+                output = kernel / "kernel.bin"
+                sentinel = b"last known good flat kernel"
+                output.write_bytes(sentinel)
+
+                result = self._run_flatten_kernel(
+                    root, manifest, output, seed_manifest
+                )
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+                self.assertEqual(output.read_bytes(), sentinel)
+
+    def test_typed_kernel_flatten_requires_both_linked_kernel_inputs(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-kernel-flat-linked-pair-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            kernel = root / "kernel"
+            kernel.mkdir()
+            seed_manifest = self._copy_checked_assembly_seed(root / "seed")
+            (kernel / "kernel.elf.pass1").write_bytes(b"frozen pass one\n")
+            manifest = root / "code-inputs.txt"
+            manifest.write_text(
+                "kernel/kernel.elf.pass1\n", encoding="ascii", newline="\n"
+            )
+            output = kernel / "kernel.bin"
+            sentinel = b"last known good flat kernel"
+            output.write_bytes(sentinel)
+
+            result = self._run_flatten_kernel(
+                root, manifest, output, seed_manifest
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("must include both linked kernels", result.stderr)
+            self.assertEqual(output.read_bytes(), sentinel)
+
+    def test_typed_kernel_flatten_rejects_an_invalid_linked_kernel(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-kernel-flat-elf-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            kernel = root / "kernel"
+            kernel.mkdir()
+            seed_manifest = self._copy_checked_assembly_seed(root / "seed")
+            built = self._build_ksyms_elf(
+                root,
+                "BITS 32\n"
+                "global _start:function\n"
+                "section .text\n"
+                "_start:\n"
+                "    ret\n",
+            )
+            shutil.copy2(built, kernel / "kernel.elf.pass1")
+            (kernel / "kernel.elf").write_bytes(b"not an ELF image\n")
+            manifest = root / "code-inputs.txt"
+            manifest.write_text(
+                "kernel/kernel.elf.pass1\nkernel/kernel.elf\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            output = kernel / "kernel.bin"
+            output.write_bytes(b"last known good flat kernel")
+
+            result = self._run_flatten_kernel(
+                root, manifest, output, seed_manifest
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("checked CupidDis failed", result.stderr)
+            self.assertEqual(
+                output.read_bytes(), b"last known good flat kernel"
+            )
+
+    def test_typed_kernel_flatten_keeps_an_independent_byte_parity_gate(self):
+        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        operation = source.split(
+            "int cupidbuild_flatten_kernel(", 1
+        )[1].split("int cupidbuild_run_checked_tool(", 1)[0]
+
+        independent_render = operation.index("cupidbuild_render_flat_image(")
+        object_transform = operation.index(
+            "status = cupidbuild_host_run_in_private(\n      transaction, seed.frozen_tools[4]"
+        )
+        parity = operation.index("memcmp(candidate, expected, expected_size)")
+
+        self.assertLess(independent_render, object_transform)
+        self.assertLess(object_transform, parity)
+        self.assertEqual(operation.count("cupidbuild_render_flat_image("), 1)
+        self.assertEqual(operation.count("cupidbuild_host_run_in_private("), 3)
+        self.assertIn(
+            "disassembler_arguments[input_count + 1u] = (const char *)0;",
+            operation,
+        )
+        self.assertIn("disassembler_arguments, 300000u", operation)
+        self.assertIn("linked_arguments, 600000u", operation)
+        self.assertNotIn("CUPIDBUILD_CODE_BATCH", source)
+
     def test_typed_kernel_symbol_transaction_matches_checked_tools(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-ksyms-success-", dir=REPO_ROOT
@@ -1259,6 +1497,26 @@ class CupidBuildCliTests(unittest.TestCase):
 
     def _run_generate_ksyms(self, source, output, manifest=None):
         return self._run_assembly("generate-ksyms", source, output, manifest)
+
+    def _run_flatten_kernel(self, root, input_manifest, output, seed_manifest):
+        return subprocess.run(
+            [
+                str(self.cli_path),
+                "flatten-kernel",
+                "--seed-manifest",
+                str(seed_manifest),
+                "--root",
+                str(root),
+                "--input-manifest",
+                input_manifest.relative_to(root).as_posix(),
+                "--output",
+                output.relative_to(root).as_posix(),
+            ],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=90,
+        )
 
     def _build_ksyms_elf(self, root, source_text):
         source = root / "entry.asm"

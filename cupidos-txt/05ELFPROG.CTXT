@@ -15,6 +15,16 @@ Verified against source on: 2026-08-29
 
 >h2 Guarded Object Publication
 >tree open Guarded Object Publication
+Source-head CupidBuild now applies the same guarded publication model to the
+final raw kernel. The flatten-kernel command requires the pass-one and final
+ET_EXEC images in a strict input manifest. CupidDis checks known instructions
+across the full cohort, then checks local targets and code anchors in both
+linked images. CupidObj flat output must match an independent renderer that
+orders initialized PT_LOAD regions by physical address, omits BSS tails, and
+zero-fills gaps. The complete 431-input production fixture reproduces the
+tracked kernel exactly. Seed carriage and the normal Make handoff remain
+separate steps.
+
 CupidBuild now has a hosted transaction for CupidASM ELF32 relocatable
 objects. It freezes the source and checked seed, validates a private ET_REL
 candidate through the shared ELF32 reader, runs strict CupidDis inspection,

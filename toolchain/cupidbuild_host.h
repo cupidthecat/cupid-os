@@ -30,6 +30,8 @@ int cupidbuild_host_freeze_input(cupidbuild_host_transaction_t *transaction,
                                  const char *private_name,
                                  const char **frozen_path_out,
                                  cupidbuild_host_snapshot_t *snapshot_out);
+int cupidbuild_host_reserve_inputs(
+    cupidbuild_host_transaction_t *transaction, size_t capacity);
 unsigned char *cupidbuild_host_read_frozen_input(
     cupidbuild_host_transaction_t *transaction, const char *frozen_path,
     size_t limit, size_t *size_out);
@@ -49,6 +51,9 @@ const char *cupidbuild_host_private_output(
 int cupidbuild_host_run(cupidbuild_host_transaction_t *transaction,
                         const char *tool, const char *const *arguments,
                         unsigned int timeout_milliseconds);
+int cupidbuild_host_run_in_private(
+    cupidbuild_host_transaction_t *transaction, const char *tool,
+    const char *const *arguments, unsigned int timeout_milliseconds);
 int cupidbuild_host_run_to_private_output(
     cupidbuild_host_transaction_t *transaction, const char *tool,
     const char *const *arguments, unsigned int timeout_milliseconds);

@@ -2,6 +2,15 @@
 
 `TempleOS/` is excluded: it is reference material, not a source cohort. Statuses describe ownership, not how much code exists.
 
+Kernel flattening is source-capable but not production-owned. Source-head
+`cupidbuild flatten-kernel` freezes the exact manifest cohort, performs the
+one broad and one linked CupidDis checks required by ADR 0318, runs CupidObj
+`flat`, and requires byte parity with an independent native renderer before
+atomic publication. A CupidC-built image reproduced the real 431-input kernel
+exactly. The Linux and Windows fixed-point matrices now define carriage cases,
+but the checked seeds and Make recipe remain unchanged at this checkpoint.
+ADR 0372 records the boundary.
+
 The promoted CupidBuild images can launch checked CupidObj and CupidLD without Python. Linux
 creates no `.cupidbuild-run` namespace. It freezes the manifest and all six
 tools in fully sealed anonymous memfds and pins the working directory by

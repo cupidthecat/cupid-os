@@ -16,6 +16,9 @@ static void cupidbuild_usage(FILE *stream) {
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild generate-ksyms "
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
+      "       cupidbuild flatten-kernel "
+      "--seed-manifest MANIFEST --root ROOT --input-manifest MANIFEST "
+      "--output OUTPUT\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
       "--root ROOT --tool {cupidobj|cupidld} [--timeout SECONDS] -- "
       "TOOL_ARGS...\n");
@@ -91,6 +94,8 @@ int main(int argc, char **argv) {
       operation = 4;
     } else if (strcmp(argv[1], "generate-ksyms") == 0) {
       operation = 5;
+    } else if (strcmp(argv[1], "flatten-kernel") == 0) {
+      operation = 6;
     }
   }
   if (operation != 0) {
@@ -102,8 +107,10 @@ int main(int argc, char **argv) {
                                       &request.repository_root);
       }
       if (taken == 0) {
-        taken = cupidbuild_take_value(argc, argv, &index, "--source",
-                                      &request.source);
+        taken = cupidbuild_take_value(
+            argc, argv, &index,
+            operation == 6 ? "--input-manifest" : "--source",
+            &request.source);
       }
       if (taken == 0) {
         taken = cupidbuild_take_value(argc, argv, &index, "--output",
@@ -133,7 +140,10 @@ int main(int argc, char **argv) {
     if (operation == 4) {
       return cupidbuild_embed_jpeg(&request);
     }
-    return cupidbuild_generate_ksyms(&request);
+    if (operation == 5) {
+      return cupidbuild_generate_ksyms(&request);
+    }
+    return cupidbuild_flatten_kernel(&request);
   }
   if (argc >= 2 && strcmp(argv[1], "run") == 0) {
     int separator = 0;

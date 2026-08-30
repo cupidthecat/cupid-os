@@ -1,5 +1,20 @@
 # Toolchain Bootstrap
 
+Source-head CupidBuild now provides `flatten-kernel` for the full production
+code cohort. The transaction freezes the manifest, 431 active inputs, and the
+complete seed. It keeps one broad CupidDis request, checks both linked kernels,
+runs CupidObj `flat`, and compares the result with an independent native ELF
+renderer before publication. POSIX keeps frozen file descriptors open through
+cleanup, and Windows uses a pinned private working directory with short input
+names. The hosted runtime now supplies `strrchr` for that path handling.
+
+A CupidC-built source-head image reproduced the tracked 9,513,536-byte kernel
+with SHA-256
+`3aac627568da71fe5478732c3b1adf8bf3c0cbf8678d63868a4f5982b5097773`.
+The fixed-point matrices include a successful pair and malformed-manifest
+rollback, but the active seeds and normal Make recipe have not moved. ADR 0372
+records the source capability.
+
 The native Windows fixed point now runs every stage-two producer from the
 checked PE32 execution seed. The checked Linux seed remains the reviewed plan
 and paired provenance input, but its executables do not run during native
