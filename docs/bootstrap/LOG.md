@@ -33393,3 +33393,88 @@ self-tests, opened the GUI terminal, and JIT-compiled `/bin/ls.cc` to 911 code
 bytes and 71 data bytes. It completed without a panic or exception marker.
 The 34,553-byte log has SHA-256
 `a2704b44778a1ea070571c70a197de691301d252d14cca2f92e73929187cadd3`.
+
+## 2026-08-29: add typed kernel-symbol publication to source-head CupidBuild
+
+The next composite CupidObj path now has a complete typed CupidBuild operation
+in source. `generate-ksyms` freezes the pass-one ELF and promoted six-tool
+seed, captures CupidDis symbols privately, and runs CupidObj `ksyms-source`
+against those exact bytes. CupidBuild independently filters, orders,
+deduplicates, packs, and renders the KSYM source, then requires exact parity
+before the guarded publication boundary.
+
+Tests were written at the public command first. They initially returned usage
+status 2 because the operation did not exist. The implemented command then
+matched direct CupidDis and CupidObj output from a real linked i386 ELF,
+preserved a previous source for malformed ELF input and lock contention, and
+cleaned its private transaction roots. The bootstrap behavior driver now runs
+one successful generation and one rollback through both final CupidBuild
+generations. Its source-head totals are 27/6/34 on Linux and 16/6/21 on native
+Windows.
+
+The first Linux fixed-point attempt failed while CupidC compiled
+`cupidbuild_host.cc`. The diagnostic identified a call to the Windows-only
+bounded regular-file reader in the new output-capture path. The POSIX branch
+now uses its existing 64 MiB reader. This was a source integration failure, so
+no seed or normal-build artifact was published.
+
+The generated banner still names Hostbuild. Keeping those bytes is deliberate
+for this step because the active CupidObj seed emits the historical spelling.
+A later paired promotion can change both independent renderers together. The
+normal kernel-symbol Make edge remains Python-coordinated until that promotion
+and a separate production handoff. ADR 0369 records the source capability.
+
+The corrected Linux bootstrap then passed. Stages three and four matched all
+22 C objects, the startup object, and all six linked tools. The 27/6/34
+behavior matrix passed, including exact kernel-symbol output and malformed-ELF
+rollback. The 51,567-byte report has SHA-256
+`d94e1f8908bbecb9331a6e6b20c007b64f24a5b6b18b1f2562d000973402d2c2`.
+The 340,548-byte final CupidBuild image has SHA-256
+`b83daf1d4e37739501c56045da30a035477d539bbf20f13994c7c8ada0781b01`.
+
+The complete hosted CupidBuild CLI module passed all 86 tests in 69.195
+seconds, with three expected platform skips. The two review additions execute
+the independent malformed-row rejection and force a valid CupidObj image to
+disagree with CupidBuild's renderer; both preserve the previous destination.
+The fixed-point graph contract and all of its mutation checks passed in
+217.047 seconds.
+
+The native Windows fixed point also passed. Stages three and four matched 23 C
+objects, three assembly objects, and all six PE32 tool images. The 16/6/21
+behavior matrix passed, including exact kernel-symbol generation from the
+paired Linux ELF and malformed-ELF rollback. The 64,673-byte report has
+SHA-256
+`1eb9a1d1f0572a226436afcc2e6cde033a39e8466799a6e4f636a09f02b83ab0`.
+The 355,328-byte final CupidBuild image has SHA-256
+`3ec41c553ee26e37ed1153a13cf666c0ae5de860f92a7f18279c2943046f7588`.
+
+The regenerated active-build audit and its independent check both passed. The
+2,778,204-byte JSON has SHA-256
+`b672b702c079e88c3a696f824a729475faf26f31cfc6bc187a40891b0762fff8`.
+Its 13,192-byte summary has SHA-256
+`dd5b6e960c5482e2a9eb7c5c013c51ba3c1137662a85b9e9cd1ecea4f7eebc35`.
+
+The documentation-bearing normal build first stopped at the exact-size gate,
+as intended. Only the three measured kernel rows changed. After those rows
+were updated, the full `make -j4 all` replay compiled all 83 Doom roots,
+completed both CupidLD links, passed strict whole-image CupidDis inspection,
+accepted all 16 artifact rows, and published the image. The three artifact
+policy modules passed all 56 tests in 4.056 seconds, with four expected Windows
+skips.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,609,272 | `17743c7bd4e4a881af8c8ee0b27b70623f1cf663aafe15beb94db4f12db56ea6` |
+| `kernel/kernel.elf` | 9,740,344 | `231ee9f7364bcbb58c0e9b711b197cca18ed28e64e7aa02de1d263018637822f` |
+| `kernel/kernel.bin` | 9,511,132 | `cf7ee518ba6b73ac32b48834468810a406d3e3a8bffd3e03cbba8244899ce6ca` |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `96e818743bf2f76925449e020ce121e5ffff31f2c5eab3347130df8f5b4ee1ba` |
+
+The 3,382-byte policy covers 38,234,132 bytes and has SHA-256
+`2d5e8975b61af55de33ab62a7330b37f113acb0d80a58a38c7525bc506be7694`.
+A post-build private-image smoke used four vCPUs, the `max` CPU model, E1000,
+and the strong SMP runtime check. Cupid OS brought all four CPUs online, opened
+the terminal, ran `/bin/ls.cc`, and completed without a panic or exception
+marker. The 35,175-byte serial log has SHA-256
+`631d2104af9cacd28bac9c2fe2121a10cbaf5a3e9b24242598bba3f9fa5abc30`.

@@ -76,9 +76,9 @@ seconds, along with strict Windows and freestanding i386 adapter compilation
 and the timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
-edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,509,800 bytes for `kernel/kernel.bin`, 9,736,248 bytes
-for `kernel/kernel.elf`, and 9,605,176 bytes for
+updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
+The current sizes are 9,511,132 bytes for `kernel/kernel.bin`, 9,740,344 bytes
+for `kernel/kernel.elf`, and 9,609,272 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging also passed. A preceding 9,501,220-byte checkpoint, which differed
 only in embedded manual text, completed the strong four-vCPU E1000 runtime
@@ -1864,3 +1864,14 @@ Windows record carries the exact Linux v2 manifest digest, which the host pairs
 with the supplied plan bytes. This removes the self-reference that once blocked
 promotion. Seed replacement is complete; recipe ownership and the later
 coordinator transfer remain separate gates.
+
+## 2026-08-29 kernel-symbol source capability
+
+| Path | Previous coordinator | Source-head coordinator | Production state |
+| --- | --- | --- | --- |
+| `kernel/kernel.elf.pass1` to `kernel/cpu/ksyms_data.cc` | Host Python freezes inputs, runs CupidDis and CupidObj, checks an independent Python rendering, and publishes | Typed CupidBuild captures CupidDis output, runs CupidObj, checks an independent native rendering, and owns guarded rollback | Awaiting paired seed promotion and Make handoff |
+
+The source capability preserves the complete parity and publication contract.
+It does not move the Make edge by itself. Five composite CupidObj paths remain
+Python-coordinated in the normal graph, and the active participation counts
+stay at 193 CupidBuild and 259 Python.

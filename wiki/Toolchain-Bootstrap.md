@@ -18,7 +18,7 @@ rejects the remaining tools. A real fixed-address ELF link matches the direct
 CupidLD output. The Linux and native Windows fixed-point drivers also run
 checked CupidObj `wrap-text` through both compared CupidBuild generations,
 require byte-identical relocatable objects, and check the invalid-option path.
-The current behavior totals are 26/6/33 and 15/6/20. Both promoted cohorts passed
+The current source-head behavior totals are 27/6/34 and 16/6/21. Both promoted cohorts passed
 self-consumption with all six initial images equal to stage two. ADR 0360
 records the runner boundary, ADR 0361 records the preceding paired promotion,
 and ADR 0367 records the active pair. The
@@ -29,6 +29,15 @@ handoff, the audit records 193 CupidBuild and 259 Python participations. ADR
 The audit derives that split from each graph's evaluated `CUPIDOBJ` command;
 it does not treat the variable name itself as proof of CupidBuild ownership.
 
+Source-head CupidBuild now provides `generate-ksyms`. It freezes the pass-one
+kernel ELF and complete promoted seed, captures private CupidDis symbol rows,
+and asks CupidObj to render the generated source. A separate native parser and
+renderer reconstruct the KSYM bytes and source spelling, and the guarded
+transaction publishes only when both results agree exactly. The behavior
+matrix covers successful generation and malformed-ELF rollback on Linux and
+native Windows. The normal Make edge remains Python-coordinated until paired
+seed promotion carries the command. ADR 0369 records this boundary.
+
 Source-head CupidBuild now adds a typed `embed-jpeg` transaction. The command
 freezes the asset and complete v2 seed, runs private CupidObj `wrap-jpeg` with
 the original logical identity, requires the exact JPEG payload and three
@@ -36,8 +45,7 @@ identity symbols in the data-only i386 relocatable, and checks the frozen JPEG
 with a separate native SOF0/SOF1 parser. It owns the
 lock, drift checks, rollback, and atomic publication boundary. Both source-head
 fixed-point matrices compare the operation and preserve sentinel outputs on a
-progressive input, giving 26/6/33 Linux and 15/6/20 native Windows behavior
-inventories. Both active seed cohorts carry the command. The normal Make
+progressive input. Both active seed cohorts carry the command. The normal Make
 recipes invoke it directly with the complete production seed closure. ADR 0364
 records the source capability, ADR 0367 records seed carriage, and ADR 0368
 records the handoff.
@@ -69,8 +77,8 @@ records the accepted pair, and ADR 0368 records the handoff.
 
 The policy-bound OS build passed all 83 Doom roots, both CupidLD links, strict
 CupidDis inspection, all 16 exact artifact rows, and image publication. The
-flat kernel is 9,509,800 bytes; the final and pass-one ELFs are 9,736,248 and
-9,605,176 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
+flat kernel is 9,511,132 bytes; the final and pass-one ELFs are 9,740,344 and
+9,609,272 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
 embedded manual text, passed a four-vCPU E1000 boot and ran `/bin/ls.cc`. The
 final documentation-bearing image passed the same private gate and reached
 normal `/bin/ls.cc` JIT completion.
@@ -106,9 +114,9 @@ freestanding i386 adapter compilation passed, along with the
 timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
-edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,509,800 bytes for `kernel/kernel.bin`, 9,736,248 bytes
-for `kernel/kernel.elf`, and 9,605,176 bytes for
+updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
+The current sizes are 9,511,132 bytes for `kernel/kernel.bin`, 9,740,344 bytes
+for `kernel/kernel.elf`, and 9,609,272 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as part of that replay.
 

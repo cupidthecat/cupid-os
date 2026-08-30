@@ -9,6 +9,14 @@ source-head seam, ADR 0353 records the paired v2 contract, ADR 0354 records the
 object recipe transfer, ADR 0357 records the raw recipe transfer, ADR 0367
 records the active pair, and ADR 0368 records the JPEG handoff.
 
+CupidC now compiles the source-head `generate-ksyms` transaction as part of
+CupidBuild. The operation combines private CupidDis capture, CupidObj source
+generation, and an independent native KSYM renderer under one guarded
+publication. Its Linux and native Windows fixed-point cases prove exact output
+and malformed-ELF rollback. The active promoted CupidBuild images predate this
+command, so the normal kernel-symbol recipe has not moved yet. ADR 0369 records
+the source boundary.
+
 CupidC is a HolyC-inspired C compiler built into the cupid-os kernel. It compiles `.cc` source files to native x86 machine code. Programs run directly in ring 0 without a virtual machine or interpreter. Every active CupidC translation unit already uses `.cc`; this transfer has no C source to rename.
 
 ---

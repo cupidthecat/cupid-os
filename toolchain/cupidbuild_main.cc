@@ -14,6 +14,8 @@ static void cupidbuild_usage(FILE *stream) {
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild embed-jpeg "
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
+      "       cupidbuild generate-ksyms "
+      "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
       "--root ROOT --tool {cupidobj|cupidld} [--timeout SECONDS] -- "
       "TOOL_ARGS...\n");
@@ -87,6 +89,8 @@ int main(int argc, char **argv) {
       operation = 3;
     } else if (strcmp(argv[1], "embed-jpeg") == 0) {
       operation = 4;
+    } else if (strcmp(argv[1], "generate-ksyms") == 0) {
+      operation = 5;
     }
   }
   if (operation != 0) {
@@ -126,7 +130,10 @@ int main(int argc, char **argv) {
     if (operation == 3) {
       return cupidbuild_assemble_smp_trampoline(&request);
     }
-    return cupidbuild_embed_jpeg(&request);
+    if (operation == 4) {
+      return cupidbuild_embed_jpeg(&request);
+    }
+    return cupidbuild_generate_ksyms(&request);
   }
   if (argc >= 2 && strcmp(argv[1], "run") == 0) {
     int separator = 0;

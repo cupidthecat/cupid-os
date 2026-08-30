@@ -5435,9 +5435,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 15,
+                    "failure_cases": 16,
                     "help_cases": 6,
-                    "success_cases": 20,
+                    "success_cases": 21,
                 },
             )
             candidate_linux_plan = _candidate_build_plan(
@@ -6015,9 +6015,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            26,
+            27,
         )
-        self.assertEqual(returned["success_cases"].value, 33)
+        self.assertEqual(returned["success_cases"].value, 34)
         self.assertIsInstance(returned["help_cases"], ast.Call)
         self.assertEqual(returned["help_cases"].func.id, "len")
         self.assertEqual(returned["help_cases"].args[0].id, "tool_names")
@@ -6150,6 +6150,48 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 and isinstance(node.func, ast.Name)
                 and node.func.id
                 == "_check_cupidbuild_embed_jpeg_behavior"
+            ]
+            self.assertEqual(len(calls), 1)
+
+    def test_fixed_point_cupidbuild_checks_typed_kernel_symbol_transaction(
+        self,
+    ):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+
+        def function(name):
+            return next(
+                node
+                for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name == name
+            )
+
+        behavior = function("_check_cupidbuild_generate_ksyms_behavior")
+        rendered = ast.unparse(behavior)
+        for expected in (
+            "'generate-ksyms'",
+            "'kernel.elf.pass1'",
+            "'malformed.elf'",
+            "'checked CupidDis failed'",
+            "b'preserved CupidBuild kernel symbol source\\n'",
+            "stage_two_output.read_bytes() != "
+            "stage_three_output.read_bytes()",
+            "stage_two_failure.read_bytes() != sentinel",
+            "stage_three_failure.read_bytes() != sentinel",
+        ):
+            self.assertIn(expected, rendered)
+
+        for matrix_name in (
+            "_run_behavior_checks",
+            "_run_native_windows_behavior_checks",
+        ):
+            matrix = function(matrix_name)
+            calls = [
+                node
+                for node in ast.walk(matrix)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id
+                == "_check_cupidbuild_generate_ksyms_behavior"
             ]
             self.assertEqual(len(calls), 1)
 
@@ -9629,9 +9671,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 26,
+                    "failure_cases": 27,
                     "help_cases": 6,
-                    "success_cases": 33,
+                    "success_cases": 34,
                 },
             )
             self.assertEqual(

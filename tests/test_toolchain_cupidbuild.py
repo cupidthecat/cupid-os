@@ -92,6 +92,253 @@ class CupidBuildCliTests(unittest.TestCase):
             r"--root ROOT --source SOURCE --output OUTPUT",
         )
 
+    def test_help_names_the_typed_kernel_symbol_transaction(self):
+        result = subprocess.run(
+            [str(self.cli_path), "--help"],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertRegex(
+            result.stdout,
+            r"cupidbuild generate-ksyms --seed-manifest MANIFEST\s+"
+            r"--root ROOT --source SOURCE --output OUTPUT",
+        )
+
+    def test_typed_kernel_symbol_transaction_matches_checked_tools(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-ksyms-success-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            elf = self._build_ksyms_elf(
+                root,
+                "BITS 32\n"
+                "global _start:function\n"
+                "global same_address:function\n"
+                "global helper:function\n"
+                "section .text\n"
+                "_start:\n"
+                "same_address:\n"
+                "    call helper\n"
+                "    ret\n"
+                "helper:\n"
+                "    ret\n",
+            )
+            symbols = root / "kernel.symbols"
+            expected = root / "expected.cc"
+            output = root / "ksyms_data.cc"
+            inspected = subprocess.run(
+                [str(self._production_tool("cupiddis")), "-n", elf.name],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            self.assertEqual(inspected.returncode, 0, inspected.stderr)
+            symbols.write_text(inspected.stdout, encoding="utf-8")
+            generated = subprocess.run(
+                [
+                    str(self._production_tool("cupidobj")),
+                    "ksyms-source",
+                    symbols.name,
+                    "-o",
+                    expected.name,
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+
+            result = self._run_generate_ksyms(elf, output)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((result.stdout, result.stderr), ("", ""))
+            self.assertEqual(output.read_bytes(), expected.read_bytes())
+            blob = self._ksyms_blob_from_source(output.read_bytes())
+            magic, count, string_offset, total_size = struct.unpack_from(
+                "<IIII", blob
+            )
+            self.assertEqual(magic, 0x4D59534B)
+            self.assertEqual(count, 2)
+            self.assertEqual(string_offset, 32)
+            self.assertEqual(total_size, len(blob))
+            rows = [
+                struct.unpack_from("<II", blob, 16 + index * 8)
+                for index in range(count)
+            ]
+            self.assertEqual(
+                [address for address, _ in rows],
+                [0x01C00000, 0x01C00006],
+            )
+            names = []
+            for _, name_offset in rows:
+                name_start = string_offset + name_offset
+                name_end = blob.index(b"\0", name_start)
+                names.append(blob[name_start:name_end].decode("ascii"))
+            self.assertEqual(names, ["same_address", "helper"])
+            self.assertNotIn("_start", names)
+
+    def test_typed_kernel_symbol_transaction_rejects_malformed_symbol_rows(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-ksyms-rows-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            elf = self._build_ksyms_elf(
+                root,
+                "BITS 32\n"
+                "global _start:function\n"
+                "global bad_name:function\n"
+                "section .text\n"
+                "_start:\n"
+                "    ret\n"
+                "bad_name:\n"
+                "    ret\n",
+            )
+            payload = elf.read_bytes()
+            self.assertEqual(payload.count(b"bad_name\0"), 1)
+            elf.write_bytes(payload.replace(b"bad_name\0", b"bad name\0"))
+            inspected = subprocess.run(
+                [str(self._production_tool("cupiddis")), "-n", elf.name],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            self.assertEqual(inspected.returncode, 0, inspected.stderr)
+            self.assertIn(" bad name", inspected.stdout)
+            output = root / "ksyms_data.cc"
+            output.write_bytes(b"last known good symbol source")
+            before = self._private_roots()
+
+            result = self._run_generate_ksyms(elf, output)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "independent kernel symbol validation failed", result.stderr
+            )
+            self.assertIn("malformed row", result.stderr)
+            self.assertEqual(
+                output.read_bytes(), b"last known good symbol source"
+            )
+            self.assertEqual(self._private_roots(), before)
+
+    def test_typed_kernel_symbol_parity_failure_preserves_previous_output(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-ksyms-parity-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            seed = root / "seed"
+            manifest = self._copy_checked_assembly_seed(seed)
+            document = json.loads(manifest.read_text(encoding="utf-8"))
+            artifact = next(
+                item
+                for item in document["artifacts"]
+                if item["name"] == "cupidobj"
+            )
+            cupidobj = seed / artifact["file"]
+            payload = cupidobj.read_bytes()
+            banner = b"Auto-generated by tools/hostbuild.py"
+            mutated_banner = b"Auto-generated by tools/hostbuilE.py"
+            self.assertEqual(len(banner), len(mutated_banner))
+            self.assertEqual(payload.count(banner), 1)
+            self._replace_seed_tool_bytes(
+                manifest,
+                "cupidobj",
+                payload.replace(banner, mutated_banner),
+            )
+            elf = self._build_ksyms_elf(
+                root,
+                "BITS 32\n"
+                "global _start:function\n"
+                "section .text\n"
+                "_start:\n"
+                "    ret\n",
+            )
+            output = root / "ksyms_data.cc"
+            output.write_bytes(b"last known good symbol source")
+            before = self._private_roots()
+
+            result = self._run_generate_ksyms(elf, output, manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "differs from the independent renderer", result.stderr
+            )
+            self.assertEqual(
+                output.read_bytes(), b"last known good symbol source"
+            )
+            self.assertEqual(self._private_roots(), before)
+
+    def test_typed_kernel_symbol_transaction_rejects_malformed_elf(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-ksyms-failure-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            source.write_bytes(b"not an ELF image\n")
+            output.write_bytes(b"last known good symbol source")
+            before = self._private_roots()
+
+            result = self._run_generate_ksyms(source, output)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("checked CupidDis failed", result.stderr)
+            self.assertEqual(
+                output.read_bytes(), b"last known good symbol source"
+            )
+            self.assertEqual(self._private_roots(), before)
+
+    def test_typed_kernel_symbol_transaction_keeps_independent_parity(self):
+        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        operation = source.split(
+            "int cupidbuild_generate_ksyms(", 1
+        )[1].split("int cupidbuild_run_checked_tool(", 1)[0]
+
+        disassemble = operation.index(
+            "cupidbuild_host_run_to_private_output("
+        )
+        independent_render = operation.index(
+            "cupidbuild_render_ksyms_source("
+        )
+        object_transform = operation.index("cupidbuild_host_run(")
+        parity = operation.index("memcmp(candidate, expected, expected_size)")
+
+        self.assertLess(disassemble, independent_render)
+        self.assertLess(independent_render, object_transform)
+        self.assertLess(object_transform, parity)
+        self.assertEqual(operation.count("cupidbuild_render_ksyms_source("), 1)
+
+    def test_typed_kernel_symbol_live_lock_preserves_previous_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-ksyms-lock-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            lock = Path(str(output) + ".cupidbuild.lock")
+            source.write_bytes(b"not reached while the lock is held")
+            output.write_bytes(b"last known good symbol source")
+            lock.write_bytes(f"{os.getpid()}\n".encode("ascii"))
+
+            result = self._run_generate_ksyms(source, output)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("live process", result.stderr)
+            self.assertEqual(
+                output.read_bytes(), b"last known good symbol source"
+            )
+            self.assertTrue(lock.is_file())
+
     def test_normal_jpeg_recipes_use_the_typed_checked_transaction(self):
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
         for suffix in ("jpg", "jpeg"):
@@ -983,6 +1230,64 @@ class CupidBuildCliTests(unittest.TestCase):
 
     def _run_embed_jpeg(self, source, output, manifest=None):
         return self._run_assembly("embed-jpeg", source, output, manifest)
+
+    def _run_generate_ksyms(self, source, output, manifest=None):
+        return self._run_assembly("generate-ksyms", source, output, manifest)
+
+    def _build_ksyms_elf(self, root, source_text):
+        source = root / "entry.asm"
+        object_path = root / "entry.o"
+        elf = root / "kernel.elf.pass1"
+        source.write_text(source_text, encoding="ascii")
+        assembled = subprocess.run(
+            [
+                str(self._production_tool("cupidasm")),
+                "-f",
+                "elf32",
+                source.name,
+                "-o",
+                object_path.name,
+            ],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=90,
+        )
+        self.assertEqual(assembled.returncode, 0, assembled.stderr)
+        linked = subprocess.run(
+            [
+                str(self._production_tool("cupidld")),
+                "-m",
+                "elf_i386",
+                "--text-address",
+                "0x01C00000",
+                "--entry",
+                "_start",
+                "-o",
+                elf.name,
+                object_path.name,
+            ],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=90,
+        )
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        return elf
+
+    def _ksyms_blob_from_source(self, source):
+        words = [
+            int(match, 16)
+            for match in re.findall(rb"0x([0-9a-f]{8})u,", source)
+        ]
+        size_match = re.search(rb"ksym_blob_size = ([0-9]+)u;", source)
+        self.assertIsNotNone(size_match)
+        self.assertTrue(words)
+        packed = b"".join(struct.pack("<I", word) for word in words)
+        size = int(size_match.group(1))
+        self.assertGreaterEqual(len(packed), size)
+        self.assertLess(len(packed) - size, 4)
+        return packed[:size]
 
     @staticmethod
     def _large_baseline_jpeg(entropy_size=8 * 1024 * 1024):

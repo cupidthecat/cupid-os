@@ -188,8 +188,8 @@ ADR 0361 records seed promotion, and ADR 0362 records the recipe handoff.
 The final policy-bound build compiled all 83 Doom roots, linked both kernel
 stages with CupidLD, and passed strict CupidDis validation. A post-policy
 top-level replay accepted all 16 exact artifacts and published the image.
-`kernel/kernel.bin` is 9,509,800 bytes; the final and pass-one ELFs are
-9,736,248 and 9,605,176 bytes. A preceding 9,501,220-byte checkpoint, which
+`kernel/kernel.bin` is 9,511,132 bytes; the final and pass-one ELFs are
+9,740,344 and 9,609,272 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 smoke and ran
 `/bin/ls.cc` to normal JIT completion. The final documentation-bearing image
 then passed the same private four-vCPU E1000 gate with `--cpu max`, strong SMP
@@ -4063,3 +4063,55 @@ Five composite CupidObj paths keep their Python format, parity, locking, and
 publication contracts. The JPEG path is now a direct typed CupidBuild
 transaction. ADRs 0362 and 0368 record the boundary; issue #32 remains open
 for the remaining paths and the broader Python-free bootstrap work.
+
+## 2026-08-29 source-head kernel-symbol transaction
+
+CupidBuild now exposes `generate-ksyms` in source. The guarded operation
+freezes the pass-one kernel ELF and promoted six-tool cohort, captures
+CupidDis `-n` output as a private transaction file, and asks CupidObj to render
+the generated `.cc`. A separate bounded parser and renderer rebuild the KSYM
+blob and exact source spelling. The candidate publishes only when both results
+match byte for byte and every source, seed, private output, destination, lock,
+and parent check still passes.
+
+Hosted public-seam tests reproduce a small real ELF exactly, reject malformed
+ELF input without replacing a sentinel, reject a live owner lock, and pin the
+independent check after CupidDis and before publication. The fixed-point driver
+adds the same success and rollback pair on Linux and native Windows, bringing
+the source-head matrices to 27 failures, six help cases, and 34 successes on
+Linux, plus 16 failures, six help cases, and 21 successes on Windows.
+
+The final hosted module passed all 86 tests in 69.195 seconds, with three
+expected platform skips. Its executable negative cases include malformed
+symbol rows and a valid CupidObj image whose altered banner forces an exact
+parity failure. Both leave the previous output intact.
+
+The first Linux self-hosted run caught a platform error before publication:
+the new capture path referred to the Windows-only bounded reader. The POSIX
+branch now uses the existing 64 MiB regular-file reader, while Windows keeps
+its bounded implementation. The normal Make recipe still uses Hostbuild
+because the promoted CupidBuild images predate this command. Graph ownership
+therefore remains 193 CupidBuild and 259 Python participations, with five
+composite Python-coordinated CupidObj paths. ADR 0369 records the boundary.
+
+The corrected Linux fixed point completed with all 22 C objects, the startup
+object, and all six images equal between stages three and four. Its behavior
+report records 27/6/34 and has SHA-256
+`d94e1f8908bbecb9331a6e6b20c007b64f24a5b6b18b1f2562d000973402d2c2`.
+The source-head CupidBuild image is 340,548 bytes with SHA-256
+`b83daf1d4e37739501c56045da30a035477d539bbf20f13994c7c8ada0781b01`.
+
+The native Windows fixed point then matched 23 C objects, three assembly
+objects, and all six PE32 images. Its 16/6/21 behavior matrix passed. The
+64,673-byte report has SHA-256
+`1eb9a1d1f0572a226436afcc2e6cde033a39e8466799a6e4f636a09f02b83ab0`,
+and its 355,328-byte CupidBuild image has SHA-256
+`3ec41c553ee26e37ed1153a13cf666c0ae5de860f92a7f18279c2943046f7588`.
+
+The documentation-bearing OS replay passed all 83 Doom roots, both links,
+strict whole-image inspection, all 16 exact artifact rows, and image
+publication. A following private four-vCPU E1000 smoke passed the strong SMP
+runtime check and ran `/bin/ls.cc` without a panic or exception marker. The
+current flat kernel is 9,511,132 bytes, and the 35,175-byte serial log has
+SHA-256
+`631d2104af9cacd28bac9c2fe2121a10cbaf5a3e9b24242598bba3f9fa5abc30`.

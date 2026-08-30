@@ -14,6 +14,7 @@ typedef struct {
 
 typedef cupidbuild_assembly_request_t cupidbuild_object_request_t;
 typedef cupidbuild_assembly_request_t cupidbuild_jpeg_request_t;
+typedef cupidbuild_assembly_request_t cupidbuild_ksyms_request_t;
 
 typedef struct {
   const char *seed_manifest;
@@ -29,6 +30,7 @@ int cupidbuild_assemble_bootloader(
 int cupidbuild_assemble_smp_trampoline(
     const cupidbuild_assembly_request_t *request);
 int cupidbuild_embed_jpeg(const cupidbuild_jpeg_request_t *request);
+int cupidbuild_generate_ksyms(const cupidbuild_ksyms_request_t *request);
 int cupidbuild_validate_jpeg_bytes(const unsigned char *bytes, size_t size,
                                    char *reason, size_t reason_capacity);
 int cupidbuild_validate_jpeg_object_bytes(

@@ -9309,9 +9309,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 26,
+        "failure_cases": 27,
         "help_cases": 6,
-        "success_cases": 33,
+        "success_cases": 34,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -9905,6 +9905,72 @@ def _cupid_toolchain_fixed_point_contract(
             f"statuses={cupidbuild_jpeg_status_contract!r}, "
             f"success_guard={cupidbuild_jpeg_success_guard}, "
             f"failure_guard={cupidbuild_jpeg_failure_guard}"
+        )
+    cupidbuild_ksyms_helpers = [
+        node
+        for node in bootstrap_tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_check_cupidbuild_generate_ksyms_behavior"
+    ]
+    if (
+        len(cupidbuild_ksyms_helpers) != 1
+        or live_linked_code_policy_call_count(
+            behavior_function,
+            "_check_cupidbuild_generate_ksyms_behavior",
+        )
+        != 1
+        or live_linked_code_policy_call_count(
+            cupidbuild_ksyms_helpers[0],
+            "_run_stage_pair",
+        )
+        != 2
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point kernel symbol publication differs: "
+            "Linux must call the helper once and the helper must compare "
+            "both success and failure across stages"
+        )
+    cupidbuild_ksyms_source = (
+        ast.get_source_segment(bootstrap_source, cupidbuild_ksyms_helpers[0])
+        or ""
+    )
+    required_cupidbuild_ksyms_fragments = (
+        'ksyms_root = behavior_root / "cupidbuild-ksyms"',
+        "manifest_path = _materialize_behavior_seed(seed_inputs, ksyms_root)",
+        "pass_one.write_bytes(elf_payload)",
+        '        "generate-ksyms",',
+        "success_result = _run_stage_pair(",
+        "stage_two_output.read_bytes() != stage_three_output.read_bytes()",
+        'b\'__attribute__((section(".ksyms"), used, aligned(4)))\'',
+        'malformed.write_bytes(b"not an ELF image\\n")',
+        "stage_two_failure.write_bytes(sentinel)",
+        "stage_three_failure.write_bytes(sentinel)",
+        "failure_result = _run_stage_pair(",
+        '"checked CupidDis failed" not in failure_result.stderr',
+        "stage_two_failure.read_bytes() != sentinel",
+        "stage_three_failure.read_bytes() != sentinel",
+    )
+    missing_cupidbuild_ksyms_fragments = [
+        fragment
+        for fragment in required_cupidbuild_ksyms_fragments
+        if cupidbuild_ksyms_source.count(fragment)
+        != (2 if fragment == '        "generate-ksyms",' else 1)
+    ]
+    if (
+        missing_cupidbuild_ksyms_fragments
+        or cupidbuild_ksyms_source.count('        "cupidbuild",') != 2
+        or cupidbuild_ksyms_source.count(
+            "_expect_status(\n        success_result,\n        0,"
+        )
+        != 1
+        or cupidbuild_ksyms_source.count(
+            "_expect_status(\n        failure_result,\n        1,"
+        )
+        != 1
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point kernel symbol publication behavior "
+            f"differs: {missing_cupidbuild_ksyms_fragments!r}"
         )
     behavior_source = (
         ast.get_source_segment(bootstrap_source, behavior_function) or ""
@@ -12574,6 +12640,7 @@ def _cupid_toolchain_fixed_point_contract(
         "            stage_four,\n"
         "            native_plan,\n"
         "            seed_inputs,\n"
+        "            plan_inputs,\n"
         "        )",
         '"stage-four": {\n'
         '                    "objects": _artifact_inventory(stage_four.objects),\n'
@@ -12914,6 +12981,7 @@ def _cupid_toolchain_fixed_point_contract(
             "_check_cupidbuild_cupidobj_runner_behavior(",
             "_check_cupidbuild_guarded_object_behavior(",
             "_check_cupidbuild_embed_jpeg_behavior(",
+            "_check_cupidbuild_generate_ksyms_behavior(",
             "failure_result = _run_stage_pair(",
             '"--definitely-invalid-option"',
             "stage_two_object.read_bytes()",
@@ -12967,9 +13035,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 9, "
+            "'failure_cases': len(tool_names) + 10, "
             "'help_cases': len(tool_names), "
-            "'success_cases': len(tool_names) + 14"
+            "'success_cases': len(tool_names) + 15"
             "}",
             mode="eval",
         ).body
@@ -12989,8 +13057,8 @@ def _cupid_toolchain_fixed_point_contract(
             )
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return fifteen failure, "
-                "six help, and twenty success cases"
+                "_run_native_windows_behavior_checks: return sixteen failure, "
+                "six help, and twenty-one success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -13035,6 +13103,17 @@ def _cupid_toolchain_fixed_point_contract(
             missing_native_windows_fragments.append(
                 "_run_native_windows_behavior_checks: one typed "
                 "CupidBuild JPEG publication call"
+            )
+        if (
+            live_linked_code_policy_call_count(
+                behavior_function,
+                "_check_cupidbuild_generate_ksyms_behavior",
+            )
+            != 1
+        ):
+            missing_native_windows_fragments.append(
+                "_run_native_windows_behavior_checks: one typed "
+                "CupidBuild kernel symbol publication call"
             )
         behavior_parents = {
             child: parent
@@ -13642,14 +13721,15 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 6,
-        "windows_success_behavior_cases": 20,
-        "windows_failure_behavior_cases": 15,
+        "windows_success_behavior_cases": 21,
+        "windows_failure_behavior_cases": 16,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_checked_cupidobj_runner",
             "cupid.cupidbuild_guarded_object_transaction",
             "cupid.cupidbuild_guarded_raw_transaction",
             "cupid.cupidbuild_typed_jpeg_transaction",
+            "cupid.cupidbuild_typed_ksyms_transaction",
             "cupiddis.candidate_image_certification",
             "cupiddis.elf32_code_anchors",
             "cupidld.pe32_fixed_image",

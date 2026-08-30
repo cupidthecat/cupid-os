@@ -561,6 +561,18 @@ records the direct CupidObj handoff, ADR 0363 records the kernel-link handoff,
 ADR 0367 records the active seed pair, and ADR 0368 records the JPEG handoff.
 >endtree
 
+>h2 Kernel Symbol Source Transaction
+>tree
+Source-head CupidBuild can derive the packed kernel symbol source from a
+pass-one ELF. It captures CupidDis -n output privately, gives the same rows to
+CupidObj ksyms-source, and independently rebuilds the little-endian KSYM table
+and word-packed source. Exact parity and the guarded publication checks are
+required before the destination changes.
+
+This is a source capability. The normal Make edge remains on its Python
+coordinator until both promoted CupidBuild seeds carry the command.
+>endtree
+
 >h2 See Also
 [04CUPIDC.CTXT - CupidC](open:04CUPIDC.CTXT)
 [02FILESYS.CTXT - storage layout](open:02FILESYS.CTXT)

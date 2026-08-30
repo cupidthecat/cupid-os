@@ -73,9 +73,10 @@ while rejecting every other tool name. A real fixed-address ELF link matches
 the direct CupidLD output byte for byte. Both fixed-point drivers also run
 checked CupidObj `wrap-text` through their stage-three and stage-four
 CupidBuild images, compare the relocatable output, and require the matching
-invalid-option failure. The source-head behavior totals are 26 failures, six
-help cases, and 33 successes on Linux, plus 15 failures, six help cases, and
-20 successes on native Windows. Fresh paired fixed points carried that runner
+invalid-option failure. The source-head behavior totals are 27 failures, six
+help cases, and 34 successes on Linux, plus 16 failures, six help cases, and
+21 successes on native Windows. The added pair covers typed kernel-symbol
+generation and malformed-ELF rollback. Fresh paired fixed points carried the runner
 and the typed JPEG transaction into both active six-tool seeds. Only CupidC
 and CupidBuild changed from the preceding cohorts. The normal Make graph now
 runs 186 ordinary CupidObj recipes and both kernel links through that checked
@@ -85,14 +86,21 @@ records the runner boundary, ADR 0361 records its paired seed
 promotion, ADR 0362 records the object-recipe handoff, and ADR 0363 records
 the kernel-link handoff.
 
+Source-head CupidBuild also provides `generate-ksyms`. The transaction captures
+private CupidDis symbol rows, renders the expected KSYM source independently,
+and accepts CupidObj output only when every byte agrees. Its lock and drift
+checks preserve the previous source on malformed input or any failed
+validation. The normal Make edge remains Python-coordinated until paired seed
+promotion carries the command. ADR 0369 records this source boundary.
+
 Source-head CupidBuild now has a typed `embed-jpeg` transaction. It freezes
 the asset and the promoted six-tool trust unit, lets CupidObj validate and wrap
 the private bytes under the original source identity, checks the exact JPEG
 payload and three identity symbols in the data-only i386 relocatable, and runs
 an independent native parser before guarded publication. The fixed-point
 source matrices carry exact success and rollback
-cases, bringing their inventories to 26/6/33 on Linux and 15/6/20 on native
-Windows. Both active seed cohorts now carry the command and its behavior
+cases. With the kernel-symbol pair, the source-head inventories are 27/6/34 on
+Linux and 16/6/21 on native Windows. Both active seed cohorts carry the JPEG command and its behavior
 checks. The normal `%.jpg.o` and `%.jpeg.o` recipes invoke that promoted
 transaction directly with the complete production seed closure. ADR 0364
 records the source boundary, ADR 0367 records paired seed carriage, and ADR
@@ -118,8 +126,8 @@ records the bounded transition, and ADR 0367 records the promotion.
 
 The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
 strict CupidDis validation, all 16 exact artifacts, and image publication. The
-current flat kernel is 9,509,800 bytes; the final and pass-one ELFs are
-9,736,248 and 9,605,176 bytes. A preceding 9,501,220-byte checkpoint, which
+current flat kernel is 9,511,132 bytes; the final and pass-one ELFs are
+9,740,344 and 9,609,272 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 boot and ran
 `/bin/ls.cc`. The final documentation-bearing image then passed the same
 private four-vCPU E1000 gate with `--cpu max --verify-smp-runtime` and ran
@@ -484,7 +492,7 @@ recipe has one `$(ARTIFACT_SIZE_CONTRACT)` command, and that command carries
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The source-current
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-26/6/33 for Linux and 15/6/20 for Windows. The audit records 748 active
+27/6/34 for Linux and 16/6/21 for Windows. The audit records 748 active
 sources, 452 transforms, 255 feature requirements, and 28 accounted unreachable
 files.
 [ADR 0304](docs/adr/0304-author-toolchain-publication-manifests-with-cupidc.md)
@@ -581,7 +589,7 @@ decode pass, then applies the linked rule to the pass-one and final ELFs before
 CupidObj flattens the final image.
 [ADR 0314](docs/adr/0314-validate-local-targets-in-linked-elf32-images.md)
 records the source boundary. The generated six-tool audit reports failure,
-help, and success counts of 26/6/33 for Linux and 15/6/20 for Windows.
+help, and success counts of 27/6/34 for Linux and 16/6/21 for Windows.
 Audit generation and its checked-file comparison both pass. The promoted
 five-tool cohort remains a separate historical trust proof.
 

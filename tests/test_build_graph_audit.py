@@ -6103,15 +6103,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 6)
-        self.assertEqual(contract["success_behavior_cases"], 33)
-        self.assertEqual(contract["failure_behavior_cases"], 26)
+        self.assertEqual(contract["success_behavior_cases"], 34)
+        self.assertEqual(contract["failure_behavior_cases"], 27)
         self.assertEqual(contract["tool_c_sources"], 22)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 22)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 6)
-        self.assertEqual(contract["windows_success_behavior_cases"], 20)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 15)
+        self.assertEqual(contract["windows_success_behavior_cases"], 21)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 16)
         self.assertEqual(contract["contract_manifest_inputs"], 76)
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 76
@@ -6137,6 +6137,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "cupid.cupidbuild_guarded_object_transaction",
                 "cupid.cupidbuild_guarded_raw_transaction",
                 "cupid.cupidbuild_typed_jpeg_transaction",
+                "cupid.cupidbuild_typed_ksyms_transaction",
                 "cupiddis.candidate_image_certification",
                 "cupiddis.elf32_code_anchors",
                 "cupidld.pe32_fixed_image",
@@ -6616,20 +6617,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 34,\n',
                 '        "success_cases": 33,\n',
-                '        "success_cases": 32,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 27,\n',
                 '        "failure_cases": 26,\n',
-                '        "failure_cases": 25,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": len(tool_names) + 10,\n',
                 '        "failure_cases": len(tool_names) + 9,\n',
-                '        "failure_cases": len(tool_names) + 8,\n',
                 r"native Windows fixed-point behavior differs",
             ),
             "Linux fixed-point C objects skip CupidDis certification": (
@@ -8088,6 +8089,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            stage_four,\n"
                 "            native_plan,\n"
                 "            seed_inputs,\n"
+                "            plan_inputs,\n"
                 "        )\n",
                 "        behavior = _run_native_windows_behavior_checks(\n"
                 "            runner,\n"
@@ -8096,6 +8098,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            stage_three,\n"
                 "            native_plan,\n"
                 "            seed_inputs,\n"
+                "            plan_inputs,\n"
                 "        )\n",
                 r"fixed-point source freeze differs",
             ),

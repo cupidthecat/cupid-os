@@ -66,9 +66,9 @@ ADR 0366 records the v2 source-count compatibility rule, ADR 0367 records the
 accepted pair, and ADR 0368 records the JPEG handoff.
 
 The final top-level replay passed after the exact-size check rejected the
-edited CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,509,800 bytes for `kernel/kernel.bin`, 9,736,248 bytes
-for `kernel/kernel.elf`, and 9,605,176 bytes for
+updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
+The current sizes are 9,511,132 bytes for `kernel/kernel.bin`, 9,740,344 bytes
+for `kernel/kernel.elf`, and 9,609,272 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as well.
 
@@ -318,12 +318,12 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`5e0d6ba4c8b4be4e2365a90eaad9a0540ac3009933f86d6d554b587866d0e04e`.
+`2d5e8975b61af55de33ab62a7330b37f113acb0d80a58a38c7525bc506be7694`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,605,176, 9,736,248, and 9,509,800 bytes for the boot image, pass-one ELF,
+9,609,272, 9,740,344, and 9,511,132 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,224,608 bytes.
+sixteen rows, totaling 38,234,132 bytes.
 
 The paired-seed promotion replay passed both CupidLD links and strict
 inspection of all 431 production inputs. Its first size gate measured
@@ -2124,3 +2124,13 @@ across all three roots. Its
 refreshed checks, both promoted-seed reproofs, and the 16-artifact verification
 pass. ADR 0357 records the direct publication transfer, and ADR 0362 records
 the direct CupidObj handoff.
+
+### Source-head kernel-symbol coordinator
+
+Source-head CupidBuild can now coordinate the pass-one ELF to generated KSYM
+source transaction without shell redirection. It captures CupidDis output as a
+pinned private file, runs CupidObj against that file, and checks the result with
+an independent native renderer before guarded publication. This removes no
+normal-build dependency yet. The promoted seeds do not carry the command, and
+Host Python remains the production coordinator for `ksyms_data.cc`. ADR 0369
+records the source capability and its rollback boundary.

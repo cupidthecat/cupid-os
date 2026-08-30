@@ -49,6 +49,9 @@ const char *cupidbuild_host_private_output(
 int cupidbuild_host_run(cupidbuild_host_transaction_t *transaction,
                         const char *tool, const char *const *arguments,
                         unsigned int timeout_milliseconds);
+int cupidbuild_host_run_to_private_output(
+    cupidbuild_host_transaction_t *transaction, const char *tool,
+    const char *const *arguments, unsigned int timeout_milliseconds);
 int cupidbuild_host_run_captured(cupidbuild_host_transaction_t *transaction,
                                  const char *tool,
                                  const char *const *arguments,

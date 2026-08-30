@@ -23,6 +23,13 @@ sequential JPEG before guarded publication. Both promoted seeds carry this
 capability, and the normal JPEG Make edges now invoke it directly with the
 complete production seed closure.
 
+Source-head CupidBuild also understands the pass-one ELF to kernel-symbol
+source boundary. It captures bounded CupidDis symbol rows privately, gives the
+same bytes to CupidObj, and independently reconstructs the KSYM table and
+word-packed `.cc` output. Exact parity, source and seed stability, and the
+guarded destination checks are required before publication. The normal edge
+still uses Host Python until the command reaches both promoted seeds.
+
 ---
 
 ## Quick Start

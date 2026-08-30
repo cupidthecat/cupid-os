@@ -51,8 +51,9 @@ freezes one asset and the complete v2 seed, runs private CupidObj wrap-jpeg
 under the original logical identity, checks the exact data payload and three
 identity symbols in the data-only i386 ET_REL, and validates the frozen JPEG
 with a separate native SOF0/SOF1 parser. The fixed-point matrices compare the
-transaction and prove progressive-input rollback at 26/6/33 cases on Linux
-and 15/6/20 on native Windows. Both active seed cohorts carry the command. The
+transaction and prove progressive-input rollback. With the kernel-symbol
+behavior pair, source head runs 27/6/34 cases on Linux and 16/6/21 on native
+Windows. Both active seed cohorts carry the JPEG command. The
 normal JPEG Make edges invoke it directly with the complete production seed.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
@@ -2391,8 +2392,23 @@ Windows reconstruction.
 Native stage two builds stage three, native stage three builds stage four, and
 the final objects and tools must match before the report is published. The
 source-current proof matched 23 C objects, three assembly objects, and all six
-tool images between the final two stages. All 15 failure, six help, and 20
-success behavior cases pass in the active fixed point.
+tool images between the final two stages. All 16 failure, six help, and 21
+success behavior cases pass in the source-head fixed point. The added pair
+checks typed kernel-symbol generation and malformed-ELF rollback.
+>endtree
+
+>h2 Typed Kernel Symbol Source
+>tree
+Source-head CupidBuild provides generate-ksyms for the pass-one kernel ELF.
+It freezes the complete promoted seed, captures CupidDis symbol rows in a
+private transaction file, and gives those same rows to CupidObj. CupidBuild
+also reconstructs the KSYM blob and word-packed source with an independent
+bounded renderer. The candidate must match exactly before the guarded lock,
+drift, destination, and parent checks allow publication.
+
+The normal Make edge still uses the Python coordinator because the active
+promoted CupidBuild images predate this command. ADR 0369 records the source
+capability.
 >endtree
 
 >h2 Active Six-Tool Seed Contract

@@ -3826,6 +3826,82 @@ int cupidbuild_host_run(cupidbuild_host_transaction_t *transaction,
   return result;
 }
 
+int cupidbuild_host_run_to_private_output(
+    cupidbuild_host_transaction_t *transaction, const char *tool,
+    const char *const *arguments, unsigned int timeout_milliseconds) {
+  const cupidbuild_host_input_t *tool_input;
+  cupidbuild_host_snapshot_t output_snapshot;
+  cupidbuild_host_snapshot_t stderr_snapshot;
+  unsigned char *stderr_bytes = (unsigned char *)0;
+  int result;
+  if (transaction == (cupidbuild_host_transaction_t *)0 ||
+      transaction->runner_transaction != 0 || tool == (const char *)0 ||
+      arguments == (const char *const *)0 || timeout_milliseconds == 0u) {
+    if (transaction != (cupidbuild_host_transaction_t *)0) {
+      cupidbuild_host_set_error(
+          transaction, "checked private-output tool request is invalid");
+    }
+    return -1;
+  }
+  tool_input = cupidbuild_host_frozen_tool_input(transaction, tool);
+  if (tool_input == (const cupidbuild_host_input_t *)0) {
+    cupidbuild_host_set_error(transaction,
+                              "checked tool is not a frozen input");
+    return -1;
+  }
+  cupidbuild_host_delete_file(transaction->private_output);
+  cupidbuild_host_delete_file(transaction->tool_stderr);
+  transaction->private_output_captured = 0;
+  result = cupidbuild_host_run_process(
+      tool, &tool_input->frozen_snapshot,
+#if defined(_WIN32)
+      -1,
+#else
+      tool_input->frozen_descriptor,
+#endif
+      arguments, transaction->private_output, transaction->tool_stderr,
+      -1, -1, (const char *)0, -1,
+      (cupidbuild_host_snapshot_t *)0, (cupidbuild_host_snapshot_t *)0,
+      timeout_milliseconds);
+  if (result == -2) {
+    result = 124;
+  }
+  if (result >= 0 &&
+#if defined(_WIN32)
+      (!cupidbuild_host_read_regular_limit(
+           transaction->private_output, 0, CUPIDBUILD_HOST_STREAM_LIMIT,
+           &output_snapshot, (unsigned char **)0) ||
+       !cupidbuild_host_read_regular_limit(
+           transaction->tool_stderr, 0, CUPIDBUILD_HOST_STREAM_LIMIT,
+           &stderr_snapshot, &stderr_bytes))) {
+#else
+      (!cupidbuild_host_read_regular(
+           transaction->private_output, 0, &output_snapshot,
+           (unsigned char **)0) ||
+       !cupidbuild_host_read_regular(
+           transaction->tool_stderr, 0, &stderr_snapshot, &stderr_bytes))) {
+#endif
+    result = -1;
+  }
+  if (result != 0 && stderr_bytes != (unsigned char *)0 &&
+      stderr_snapshot.size != 0u) {
+    (void)fwrite(stderr_bytes, 1u, stderr_snapshot.size, stderr);
+  }
+  if (result == 0 && stderr_snapshot.size != 0u) {
+    cupidbuild_host_set_error(transaction,
+                              "checked tool wrote unexpected standard error");
+    result = 125;
+  }
+  free(stderr_bytes);
+  cupidbuild_host_delete_file(transaction->tool_stderr);
+  if (result < 0) {
+    cupidbuild_host_set_error(transaction, "checked tool could not be started");
+  } else if (result == 124) {
+    cupidbuild_host_set_error(transaction, "checked tool timed out");
+  }
+  return result;
+}
+
 int cupidbuild_host_capture_candidate(
     cupidbuild_host_transaction_t *transaction,
     cupidbuild_host_snapshot_t *snapshot_out, unsigned char **bytes_out) {

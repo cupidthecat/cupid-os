@@ -3348,6 +3348,114 @@ def _check_cupidbuild_embed_jpeg_behavior(
         )
 
 
+def _check_cupidbuild_generate_ksyms_behavior(
+    runner: ToolRunner,
+    source_root: Path,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    elf_payload: bytes,
+    label_prefix: str,
+) -> None:
+    ksyms_root = behavior_root / "cupidbuild-ksyms"
+    ksyms_root.mkdir()
+    manifest_path = _materialize_behavior_seed(seed_inputs, ksyms_root)
+    pass_one = ksyms_root / "kernel.elf.pass1"
+    pass_one.write_bytes(elf_payload)
+    stage_two_output = ksyms_root / "stage-three-ksyms_data.cc"
+    stage_three_output = ksyms_root / "stage-four-ksyms_data.cc"
+    common_arguments: list[str | Path] = [
+        "generate-ksyms",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        source_root,
+        "--source",
+        pass_one.relative_to(source_root).as_posix(),
+    ]
+    success_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *common_arguments,
+            "--output",
+            stage_two_output.relative_to(source_root).as_posix(),
+        ],
+        [
+            *common_arguments,
+            "--output",
+            stage_three_output.relative_to(source_root).as_posix(),
+        ],
+        180,
+    )
+    _expect_status(
+        success_result,
+        0,
+        f"{label_prefix}CupidBuild kernel symbol source",
+    )
+    if (
+        success_result.stdout
+        or success_result.stderr
+        or stage_two_output.read_bytes() != stage_three_output.read_bytes()
+        or b'__attribute__((section(".ksyms"), used, aligned(4)))'
+        not in stage_two_output.read_bytes()
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild kernel symbol source differs"
+        )
+
+    malformed = ksyms_root / "malformed.elf"
+    malformed.write_bytes(b"not an ELF image\n")
+    sentinel = b"preserved CupidBuild kernel symbol source\n"
+    stage_two_failure = ksyms_root / "stage-three-ksyms-failure.cc"
+    stage_three_failure = ksyms_root / "stage-four-ksyms-failure.cc"
+    stage_two_failure.write_bytes(sentinel)
+    stage_three_failure.write_bytes(sentinel)
+    failure_arguments: list[str | Path] = [
+        "generate-ksyms",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        source_root,
+        "--source",
+        malformed.relative_to(source_root).as_posix(),
+    ]
+    failure_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *failure_arguments,
+            "--output",
+            stage_two_failure.relative_to(source_root).as_posix(),
+        ],
+        [
+            *failure_arguments,
+            "--output",
+            stage_three_failure.relative_to(source_root).as_posix(),
+        ],
+        180,
+    )
+    _expect_status(
+        failure_result,
+        1,
+        f"{label_prefix}CupidBuild malformed kernel symbol input",
+    )
+    if (
+        failure_result.stdout
+        or "checked CupidDis failed" not in failure_result.stderr
+        or stage_two_failure.read_bytes() != sentinel
+        or stage_three_failure.read_bytes() != sentinel
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild kernel symbol failure behavior differs"
+        )
+
+
 _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE = (
     "bits 16\n"
     "org 0x7c00\n"
@@ -3641,6 +3749,7 @@ def _run_native_windows_behavior_checks(
     stage_three: Stage,
     native_plan: dict[str, object],
     seed_inputs: SeedInputs,
+    linux_seed_inputs: SeedInputs,
 ) -> dict[str, int]:
     behavior_root = output_root / "behavior"
     behavior_root.mkdir()
@@ -3715,6 +3824,17 @@ def _run_native_windows_behavior_checks(
         stage_two,
         stage_three,
         seed_inputs,
+        "native Windows ",
+    )
+
+    _check_cupidbuild_generate_ksyms_behavior(
+        runner,
+        output_root,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        dict(linux_seed_inputs.artifact_bytes)["cupidbuild"],
         "native Windows ",
     )
 
@@ -3945,9 +4065,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 9,
+        "failure_cases": len(tool_names) + 10,
         "help_cases": len(tool_names),
-        "success_cases": len(tool_names) + 14,
+        "success_cases": len(tool_names) + 15,
     }
 
 
@@ -4689,6 +4809,17 @@ def _run_behavior_checks(
         stage_two,
         stage_three,
         seed_inputs,
+        "",
+    )
+
+    _check_cupidbuild_generate_ksyms_behavior(
+        runner,
+        source_root,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        dict(seed_inputs.artifact_bytes)["cupidbuild"],
         "",
     )
 
@@ -7425,9 +7556,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 26,
+        "failure_cases": 27,
         "help_cases": len(tool_names),
-        "success_cases": 33,
+        "success_cases": 34,
     }
 
 
@@ -7892,6 +8023,7 @@ def _bootstrap_windows_from_frozen_seed(
             stage_four,
             native_plan,
             seed_inputs,
+            plan_inputs,
         )
         seed_matches_stage_two = _compare_seed_with_stage_two(
             seed_inputs, stage_two

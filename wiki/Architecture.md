@@ -15,6 +15,13 @@ The promoted CupidBuild seeds also carry the typed JPEG publication
 transaction. The normal recipe enters it directly with one asset, one manifest,
 and all six tools.
 
+Source head adds a typed kernel-symbol transaction. CupidBuild captures
+CupidDis `-n` rows from the frozen pass-one ELF, runs CupidObj
+`ksyms-source`, and checks the candidate with an independent KSYM renderer
+before guarded publication. This is not yet a production ownership change;
+the promoted seeds and normal Make edge still use the Python coordinator. ADR
+0369 records the source capability.
+
 The source-head fixed-point closure contains 59 inputs with snapshot SHA-256
 `3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
 CupidBuild accepts a promoted v2 manifest whose `source_input_count` is 58 or
