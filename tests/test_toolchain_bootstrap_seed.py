@@ -6220,6 +6220,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         behavior = function("_check_cupidbuild_flatten_kernel_behavior")
         rendered = ast.unparse(behavior)
         for expected in (
+            "flatten_root.mkdir(parents=True)",
             "kernel_root = source_root / 'kernel'",
             "'flatten-kernel'",
             "'kernel.elf.pass1'",

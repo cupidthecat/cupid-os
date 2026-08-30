@@ -3466,6 +3466,7 @@ def _check_cupidbuild_flatten_kernel_behavior(
     label_prefix: str,
 ) -> None:
     flatten_root = behavior_root / "cupidbuild-flatten"
+    flatten_root.mkdir(parents=True)
     kernel_root = source_root / "kernel"
     kernel_root.mkdir(parents=True)
     manifest_path = _materialize_behavior_seed(seed_inputs, flatten_root)

@@ -85,7 +85,10 @@ self-host link, 431-input source-built replay, and check-only audit also pass.
 The first paired candidate attempt found and rejected a behavior fixture whose
 linked paths did not use the required `kernel/` identities. The corrected
 fixture binds those exact production paths; no candidate from the failed run
-was published.
+was published. A second attempt showed that the corrected placement no longer
+created the separate behavior workspace as a side effect. The driver now
+creates both roots directly, and the structural regression test requires that
+setup before another paired proof can publish a seed.
 
 ## Rejected alternatives
 

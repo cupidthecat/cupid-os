@@ -33713,7 +33713,7 @@ negative mutation test now agree on 28/6/35 and 17/6/22. Regeneration and
 check-only mode passed with 748 active inputs, 452 transforms, 255 feature
 requirements, and 28 accounted unreachable inputs. The 2,779,034-byte JSON
 has SHA-256
-`e4a9966424b55f6498436540b40596207786527f626bb480e6a684f2582374da`;
+`b599ba96a0bccc1109a67d6e414104b8794ffc3c290a067b380ea38ab405d536`;
 the 13,192-byte summary has SHA-256
 `a73352b86db8c2dd08b4d4f678185e16b4e22767ba68a29cce2bfc63b7fcba02`.
 
@@ -33745,4 +33745,8 @@ did not contain the production identities `kernel/kernel.elf.pass1` and
 `kernel/kernel.elf`. Linux was stopped before it reached the same fixture, and
 neither candidate root was published. The fixture now creates both ELFs below
 the private source root's `kernel` directory, and its structural test requires
-that exact placement.
+that exact placement. The second paired run then exposed an independent setup
+mistake: moving the ELFs removed the incidental creation of the behavior
+workspace used for its seed manifest. The bootstrap driver now creates both
+directories explicitly. A focused red-then-green test protects the two-root
+layout, and neither failed run published a candidate.
