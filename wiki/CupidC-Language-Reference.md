@@ -221,7 +221,8 @@ and no rejected runtime marker.
 Both active v2 seeds carry the same source snapshot. ADR 0318 records the
 preceding linked-image
 promotion, ADR 0323 records the preceding code-anchor promotion, ADR 0336
-records the parent v1 pair, and ADR 0353 records the active paired v2 promotion.
+records the parent v1 pair. ADR 0353 records the paired v2 contract, and ADR
+0367 records the active pair.
 
 The preceding source-head checkpoint had a 9,504,760-byte raw kernel with
 SHA-256
@@ -576,7 +577,8 @@ records exact decimal `float` and `double` literals.
 [ADR 0296](../docs/adr/0296-support-mixed-floating-compound-assignments.md)
 records mixed arithmetic compound assignment. ADR 0312 first carried both
 capabilities. The preceding linked-image cohort carried them under ADR 0318,
-and the active paired v2 cohort retains them under ADR 0353.
+while ADR 0353 records the paired v2 contract. The active cohort retains them
+under ADR 0367.
 ADR 0258 records the preceding checked seed. ADR 0260 records static
 long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
 0265 records their checked-seed carriage, and ADR 0273 records private derived

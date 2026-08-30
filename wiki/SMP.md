@@ -543,30 +543,32 @@ these recipes falls back to Clang or GCC.
 
 The active Linux and Windows seeds use v2 and contain six tool images,
 including CupidBuild. Both bind revision
-`a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, the exact 58-input snapshot
-`a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`,
+`cac3c08fb0dd7c22299e1a2475a49f51982549a2`, the exact 59-input snapshot
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`,
 and their platform build plan. The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
 its 6,602-byte manifest has SHA-256
-`f1bee18b9b1506ff5a665e76d57d028702ae7c701c4e9d432ed4b87c68ee258b`.
+`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
 its 2,852-byte manifest has SHA-256
-`917817122a36331a0ec77ba06d6ce40a8eacacc4224d8ed468d8d77272b8b974`
+`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
 and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
-self-consumption pass on both platforms, including the normal SMP path, with
-all six initial images equal to stage two. CupidBuild owns the context-switch
+self-consumption pass on both platforms, including the SMP-trampoline
+transaction used by the normal build. In the self-consumption runs, all six
+initial images equal stage two. CupidBuild owns the context-switch
 object and raw trampoline publications directly. Across the supported graph,
-CupidBuild participates in 190 transforms and Python in 262. The additional
+CupidBuild participates in 192 transforms and Python in 260. The additional
 CupidBuild work is 186 direct CupidObj recipes; it does not change the SMP
-transaction. ADR 0356 records the active seed refresh, ADR 0357 records the raw
-recipe transfer, and ADR 0362 records the direct CupidObj handoff.
+transaction. ADR 0356 records the preceding seed refresh, ADR 0357 records the
+raw recipe transfer, ADR 0362 records the direct CupidObj handoff, and ADR 0367
+records the active seed pair.
 
 The source-head bootstrap closure has 59 inputs and SHA-256
 `3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
 Source CupidBuild accepts promoted-v2 source counts of 58 or 59 and rejects 57
-or 60. This compatibility window covers the active seeds and the next seed
-generation. The first promotion attempt failed closed on provenance, so no
+or 60. This compatibility window covers the preceding 58-input pair and the
+active 59-input pair. The first promotion attempt failed closed on provenance, so no
 invalid seed became active. ADR 0366 records the compatibility decision. The
 normal JPEG Make edge remains Python-coordinated.
 

@@ -50,6 +50,7 @@ typedef struct {
 typedef struct {
   uint64_t sizes[SEED_ARTIFACT_COUNT];
   int seen[SEED_ARTIFACT_COUNT];
+  uint64_t source_input_count;
   text_t source_revision;
   text_t source_snapshot_sha256;
 } seed_manifest_t;
@@ -983,8 +984,11 @@ static int parse_seed_provenance(json_reader_t *reader,
       uint64_t value = 0u;
       fields |= 128u;
       ok = json_parse_positive_u64(reader, &value);
-      if (ok && value != 58u) {
+      if (ok && value != 58u && value != 59u) {
         ok = set_error("seed manifest source input count differs");
+      }
+      if (ok) {
+        manifest->source_input_count = value;
       }
     } else if (text_equals_literal(&key, "source_revision") &&
                (fields & 256u) == 0u) {
@@ -1463,8 +1467,11 @@ static int parse_windows_provenance(json_reader_t *reader,
       uint64_t value = 0u;
       fields |= 2048u;
       ok = json_parse_positive_u64(reader, &value);
-      if (ok && value != 58u) {
+      if (ok && value != 58u && value != 59u) {
         ok = set_error("Windows seed manifest source input count differs");
+      }
+      if (ok && value != seed_manifest->source_input_count) {
+        ok = set_error("Windows and Linux seed source input counts differ");
       }
     } else if (text_equals_literal(&key, "source_revision") &&
                (fields & 4096u) == 0u) {

@@ -10,19 +10,20 @@ publications plus the bootloader and SMP raw-image publications. It also runs
 and CupidDis remains the
 inspection owner for the four guarded assembly publications.
 
-Source-head CupidBuild also carries a typed JPEG publication transaction. It
+The promoted CupidBuild seeds also carry a typed JPEG publication transaction. It
 fits the existing guarded host layer with one asset, one manifest, and six
-tools. Paired seed promotion is still required before that source capability
-can replace the normal Python coordinator.
+tools. The normal recipe remains with the Python coordinator until its separate
+Make handoff.
 
 The source-head fixed-point closure contains 59 inputs with snapshot SHA-256
 `3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
 CupidBuild accepts a promoted v2 manifest whose `source_input_count` is 58 or
-59 and rejects 57 or 60. This keeps the active 58-input pair usable while
-making a later 59-input promotion consumable. The first promotion attempt
+59 and rejects 57 or 60. This keeps the preceding 58-input pair usable while
+making the active 59-input generation consumable. The first promotion attempt
 failed closed with `fixed-point provenance differs`, so no invalid seed became
-active. The normal JPEG recipe remains Python-owned. ADR 0366 records this
-compatibility boundary.
+active. Fresh candidates converged and replaced the checked pair together. The
+normal JPEG recipe remains Python-owned. ADR 0366 records the compatibility
+boundary, and ADR 0367 records the promotion.
 
 ---
 
@@ -232,8 +233,8 @@ PE on Windows. ADR 0302 records the verifier boundary, ADR 0304 records the
 author split, ADR 0307 records raw stage-pair evidence, and ADR 0322 records
 native Windows author execution.
 
-The latest complete schema v3 `CUPMAN4` publication passed and wrote 22
-artifacts from 75 publication inputs and the exact 58-file bootstrap
+At the ADR 0360 checkpoint, the complete schema v3 `CUPMAN4` publication
+passed and wrote 22 artifacts from 75 publication inputs and the exact 58-file bootstrap
 inventory. The Cupid author and Python oracle agreed on all 62 stage pairs.
 Its 29,271-byte manifest has SHA-256
 `5fab9706abe6d938e9aa4a355ebbae293fee5404475d3d20d2591d6a9e464011`.
@@ -315,21 +316,22 @@ code-anchor pair, and ADR 0336 records the earlier five-tool pair.
 
 The current seed pair uses the Linux and Windows v2 schemas and lists six tool
 images, including CupidBuild with a non-producing fixed-point plan role. Both manifests bind revision
-`a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, 58 inputs, and source snapshot
-`a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`.
+`cac3c08fb0dd7c22299e1a2475a49f51982549a2`, 59 inputs, and source snapshot
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`;
 its 6,602-byte manifest has SHA-256
-`f1bee18b9b1506ff5a665e76d57d028702ae7c701c4e9d432ed4b87c68ee258b`.
+`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
 its 2,852-byte manifest has SHA-256
-`917817122a36331a0ec77ba06d6ce40a8eacacc4224d8ed468d8d77272b8b974`
+`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
 and pairs to the exact Linux manifest bytes. Candidate proof and promoted-seed
-self-consumption pass on both platforms, with all six initial images equal to
-stage two. CupidBuild publishes the two assembly objects and both raw images
+self-consumption pass on both platforms. In the self-consumption runs, all six
+initial images equal stage two. CupidBuild publishes the two assembly objects and both raw images
 directly, while Python retains the other guarded paths. ADR 0356 records the
-active seed refresh, and ADR 0357 records the raw recipe transfer.
+guarded-raw refresh, ADR 0357 records the raw recipe transfer, and ADR 0367
+records the active pair.
 
 The preceding poisoned-host `make -j4 all` checkpoint passed in 684.260 seconds.
 All fourteen policy artifacts matched their exact sizes. The 2,960-byte policy

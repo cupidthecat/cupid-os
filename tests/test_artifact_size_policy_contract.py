@@ -370,6 +370,48 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(first.stdout, SUCCESS_REPORT)
         self.assertEqual(second.stdout, first.stdout)
 
+    def test_promoted_59_input_seed_pair_is_accepted(self):
+        manifest = _manifest()
+        manifest["provenance"]["source_input_count"] = 59
+        manifest_bytes = _json_bytes(manifest)
+        manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+        windows_manifest = _windows_manifest(manifest_digest)
+        windows_manifest["provenance"]["source_input_count"] = 59
+
+        result = self.run_request(
+            _request(
+                manifest=manifest,
+                manifest_bytes=manifest_bytes,
+                linux_manifest_digest=manifest_digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, SUCCESS_REPORT)
+        self.assertEqual(result.stderr, "")
+
+    def test_seed_pair_requires_matching_source_input_counts(self):
+        for linux_count, windows_count in ((58, 59), (59, 58)):
+            with self.subTest(
+                linux_count=linux_count, windows_count=windows_count
+            ):
+                manifest = _manifest()
+                manifest["provenance"]["source_input_count"] = linux_count
+                manifest_bytes = _json_bytes(manifest)
+                manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+                windows_manifest = _windows_manifest(manifest_digest)
+                windows_manifest["provenance"][
+                    "source_input_count"
+                ] = windows_count
+                self.assert_contract_failure(
+                    _request(
+                        manifest=manifest,
+                        manifest_bytes=manifest_bytes,
+                        linux_manifest_digest=manifest_digest,
+                        windows_manifest=windows_manifest,
+                    )
+                )
+
     def test_observed_size_must_match_policy(self):
         policy = _policy()
         observations = _observations(policy)
@@ -417,6 +459,7 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
             ("parent_seed_manifest_sha256", "0" * 64),
             ("parent_seed_source_revision", "0" * 40),
             ("source_input_count", 57),
+            ("source_input_count", 60),
         )
         for field, value in cases:
             with self.subTest(field=field):
@@ -449,6 +492,7 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
             ("parent_plan_seed_manifest_sha256", "0" * 64),
             ("parent_plan_seed_source_revision", "0" * 40),
             ("source_input_count", 57),
+            ("source_input_count", 60),
         )
         for field, value in cases:
             with self.subTest(field=field):

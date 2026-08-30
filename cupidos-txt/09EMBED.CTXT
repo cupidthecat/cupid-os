@@ -83,8 +83,8 @@ first seed with the linked-symbol collision checks. ADR 0258 records the
 preceding checked seed. ADRs 0280, 0281, and 0292 preserve the preceding
 promotions. ADR 0312 records the preceding local-target seed, ADR 0318 records
 the preceding linked-image seeds, ADR 0323 records the preceding code-anchor
-seeds, ADR 0336 records the parent pair, and ADR 0353 records the active paired
-v2 seeds.
+seeds, ADR 0336 records the parent pair, and ADR 0353 records the paired v2
+contract. ADR 0367 records the active pair.
 
 The normal Make graph launches these three generators and its 183 ordinary
 text and binary wrappers through the promoted CupidBuild runner. The runner
@@ -113,9 +113,9 @@ Source-head CupidBuild now has a typed replacement for that publication
 boundary. It freezes the asset and six-tool v2 seed, runs CupidObj against the
 private bytes under the original identity, checks the exact data payload and
 three identity symbols in the data-only relocatable, and applies a separate
-native SOF0/SOF1 check before guarded publication. The
-active seeds do not contain the command yet, so the normal recipe remains on
-the Python path until paired promotion.
+native SOF0/SOF1 check before guarded publication. The active seeds carry the
+command, while the normal recipe remains on its Python coordinator until the
+separate production handoff.
 
 bin_programs_gen.cc likewise finds new .cc files under bin/.
 

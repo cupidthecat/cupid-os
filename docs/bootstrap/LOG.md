@@ -33134,3 +33134,192 @@ The three artifact-policy and checked-runner modules passed 54 tests in 4.234
 seconds, with four expected Windows skips. The complete build-graph module
 passed all 112 tests in 893.289 seconds.
 Post-commit fixed-point evidence follows this entry.
+
+## 2026-08-29: promote the stddef and typed JPEG seeds
+
+The 58/59 compatibility fix made a fresh promotion possible after the
+provisional candidates failed. Fresh Linux and native Windows candidates were
+built from revision `cac3c08fb0dd7c22299e1a2475a49f51982549a2`; the earlier
+bytes were not reused. Both bind the 59-input snapshot
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
+
+The fresh Linux candidate report is 51,567 bytes with SHA-256
+`bee8f3683ead007d39cbc2707d229d712b2acc44ad3b79ebcd333143c551665f`.
+It passed stage-three/stage-four convergence over 22 C objects, one startup
+object, and all six tools. Its behavior inventory is 26 failures, six help
+cases, and 33 successes. The native Windows candidate report is 64,673 bytes with SHA-256
+`9977f4914940548ed0504eda4bc80224302fc64faafe67964edbe089394cab86`.
+It passed stage-three/stage-four convergence over 23 C objects, three assembly
+objects, and all six tools, followed by 15 failures, six help cases, and 20 successes.
+Only CupidC and CupidBuild changed from the preceding checked cohorts; the
+other eight images matched byte for byte.
+
+The paired manifests were published with the candidate images. Linux's
+6,602-byte manifest has SHA-256
+`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
+Windows' 2,852-byte manifest has SHA-256
+`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
+and binds those exact Linux manifest bytes. The active inventory is:
+
+| Platform | Tool | Bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| Linux | CupidASM | 496,664 | `1517bff9353ae7663825dbcee20084a50e296061b3085bab2c0719eea714c770` |
+| Linux | CupidBuild | 315,252 | `3947aee09776ab5f6c79daba443b47fc67de5ea0805741533cf4c2d42a039300` |
+| Linux | CupidC | 2,691,756 | `e50758041199044e269e6b6dae52065cc2de2153efeb13b6b6983279ee2935c0` |
+| Linux | CupidDis | 538,556 | `4a1326e12291c83e2193cf27630b9271d1c299faf39db9ad7fa74d11cd52fc47` |
+| Linux | CupidLD | 312,928 | `0dd697544f4806cf1d769cf59a8a7c37d7355f8360f3513458bfff2261c8a5cb` |
+| Linux | CupidObj | 392,820 | `e9958b28c3230fe83c4bf409797208d735887c54d4ebffd0565b4a91f45142fb` |
+| Windows | CupidASM | 479,744 | `9c50e204262a0b05b12d4fc0924670c66092d053ad12b99134ab79a254ef07ae` |
+| Windows | CupidBuild | 333,312 | `fea9253e9d571433dee56e92e8801bd12635020b6838839dfd8096a20b6d5908` |
+| Windows | CupidC | 2,620,416 | `fb7efa82fdcffa6a36a5c44bb83abe5b6a10ce7487c946eb3fab206e436b8522` |
+| Windows | CupidDis | 516,608 | `588485d496209eecf437e6f6fc9d02474d5c4ac1f236af86bdaad9f3f2d705ce` |
+| Windows | CupidLD | 296,960 | `aaa7b51a290646ef1d972f4904b1ed176a4dc912e53c1bc4cbdd8d1e39d8495f` |
+| Windows | CupidObj | 375,808 | `b6f6a5b66f8e2bcb4b779a16428d7b77a956113c5ca301344537b35839611572` |
+
+Both manifest verifiers accepted all six images before the promoted cohorts
+were asked to consume themselves. The Linux rerun took about 39 minutes 17
+seconds and published a 51,565-byte report with SHA-256
+`13dbb5599e6d0fdeabe1e4166e007509df7a7569db1f7069eef42266f43c7c0c`.
+All six initial images equal stage two, all 29 stage-three and stage-four files
+match, and the 26/6/33 behavior matrix passes. An independent report inventory
+and rehash found no missing, extra, size-mismatched, or hash-mismatched file.
+
+The native Windows rerun took about 34 minutes 23 seconds and published a
+64,671-byte report with SHA-256
+`b487fde4080718df4d44c1013d341b77dca0bfee080b3d65fc89abc96b4a6a98`.
+All six initial images equal stage two, all 32 stage-three and stage-four files
+match, and the 15/6/20 behavior matrix passes. A direct comparison of every
+stage pair and an independent report rehash both found no mismatch.
+
+The promoted seeds now carry hosted `<stddef.h>`, strict
+`__builtin_offsetof`, and the typed JPEG transaction. The normal JPEG Make
+edge remains on its Python coordinator pending the separate production
+handoff. No production ownership changed during this promotion.
+
+The first complete bootstrap-seed test replay found stale promotion
+expectations in the restored test scaffold. Both real fixed points converged,
+but their final assertions still expected CupidC and CupidBuild to differ from
+stage two. Two synthetic promoted-manifest fixtures also still declared 58
+inputs, so their intended provenance negatives stopped early on the count
+guard. The 131-test run completed in 3,967.026 seconds with those two errors
+and eight failures.
+
+The repair replaced the fixture count with the promoted-count constant and
+made both long assertions require all six initial images to match stage two.
+The three fast affected tests then passed in 0.531 seconds. The corrected
+Linux fixed-point assertion passed alone in 2,161.371 seconds, and the
+corrected native Windows assertion passed alone in 1,874.382 seconds. Every
+other test in the original complete replay had already passed. All 131 cases
+now have passing post-promotion evidence. The failed complete run remains
+recorded above.
+
+The manifest and checked-runner modules passed 65 tests in 99.077 seconds,
+with three expected Windows skips. The 65 CupidC publication and coordinator
+tests passed in 10.677 seconds. Both active x86 source-manifest tests passed in
+0.392 seconds. The three artifact-policy and checked-runner modules passed 55
+tests in 4.440 seconds, with four expected Windows skips.
+
+The first complete OS replay with the promoted pair found one remaining
+58-only reader in the Cupid-built artifact-size contract. It rejected the
+59-input seed provenance before image publication. The Linux and Windows
+parsers now share CupidBuild's bounded transition: they accept 58 or 59 and
+reject 57 and 60. The focused contract module passed all 25 tests in 2.075
+seconds, including the active pair and both neighboring rejection cases.
+
+The final CTXT review changed the embedded manual payload after an interim
+size measurement. The next full build passed both CupidLD links and the strict
+whole-image CupidDis scan, then rejected the 9,509,604-byte flat kernel against
+the stale 9,509,356-byte row. Replacing only that measured row kept the
+contract exact. The following `make -j4 all` replay compiled the kernel,
+drivers, in-kernel tools, browser, generated sources, and all 83 Doom roots.
+Both links, strict disassembly, all 16 size rows, and image publication passed.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,605,176 | `4bbb72c805f5977af405b354b4d88550ccb156e6df165d8c8a3eb79353499c56` |
+| `kernel/kernel.elf` | 9,736,248 | `49318384dec2575850194d04055132fd457d0b9788bb7635c4d8c629f5996cd3` |
+| `kernel/kernel.bin` | 9,509,604 | `3ca7aa5cc92bd960a17d3332e2f9a077477699c930fe93af2565b11c5e11ba7a` |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `51a2b067dc942717a676ddb0826431483c132c20ff089e7cfd14dcb7414a52a3` |
+
+The 3,382-byte exact-size policy covers 38,224,412 bytes and has SHA-256
+`b3b08e090dafb600aafbaa9bbc7c119d3fefd178b00e67500e9f7e9a3fcfc4bd`.
+The final three artifact-policy and checked-runner modules passed all 55 tests
+in 4.440 seconds with four expected Windows skips.
+
+The canonical 2,777,757-byte audit has SHA-256
+`bf4257b19b65c975902a6ee94df08295d0280d98fb7a2bc7303f41217ef1a0c7`.
+Its 13,192-byte summary has SHA-256
+`408269efeb372fbabbb8113d2fa931fa0a5cd7630226721c313dcb557b2d19df`.
+Generation and the independent drift check both pass.
+
+A separate `make verify-artifact-sizes` attempt restarted the guarded
+production prerequisites instead of providing a smaller replay. It was
+stopped during atomic object publication and is not counted as validation;
+the completed full build had already passed the exact gate, and the focused
+modules supplied the independent contract proof.
+
+The final private-image QEMU smoke used four vCPUs, the `max` CPU model, E1000,
+and the SMP runtime check. Cupid OS opened the GUI terminal, JIT-compiled
+`/bin/ls.cc` to 911 code bytes and 71 data bytes, executed it, and returned
+without a panic or exception marker. The 36,441-byte log has SHA-256
+`669863f89e4804e6dab61a899cf12a111dca70bdf1f9c4ac04396acc2303f845`.
+
+A discovery scan found no repository unittest module for Markdown, wiki, or
+CTXT links. Calling three guessed module names produced import errors and is
+not counted as test evidence. The direct stale-fact and source-suffix scans
+completed instead; neither found a current documentation mismatch or an
+active CupidC-owned `.c` translation unit.
+
+### Definitive paired-seed replay after the final review
+
+A later read-only review found two defects before the promotion commit. The
+active CupidC manual still carried the preceding native Windows behavior
+totals, and the artifact contract admitted 58 and 59 independently without
+requiring the Linux and Windows counts to match. The first corrected-text
+build had already passed both links and strict CupidDis inspection before the
+size gate rejected a 9,509,748-byte flat kernel against the 9,509,604-byte
+policy row. Only that measured row changed.
+
+The next contract-bearing replay was stopped before linking once the review
+findings arrived. The manual now records the active 15/6/20 Windows matrix.
+The C contract stores the Linux source count and rejects either mixed 58/59
+ordering when it reads the Windows manifest. Its focused module passed all 26
+tests in 1.610 seconds, including coherent 58/58 and 59/59 pairs, both mixed
+pair failures, and the 57 and 60 boundaries. The generated audit and its drift
+check then passed against the frozen text.
+
+The definitive `make -j4 all` replay compiled the active kernel, drivers,
+in-kernel tools, browser, generated installation sources, and all 83 Doom
+roots. Both CupidLD links, strict whole-image CupidDis inspection, all sixteen
+exact-size rows, and image publication passed. The measured outputs are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,605,176 | `e67f0722f6eacde6d0f379e24a238050a414522c510a193fb499765d52772278` |
+| `kernel/kernel.elf` | 9,736,248 | `ccbc999a2f06597dbd07310689d8cc777ef5d34d3c4ae1db3f964a6e35fe38c7` |
+| `kernel/kernel.bin` | 9,509,748 | `94c1fe242d11160f932e151a726ca3d8a81d2b791e137deb0bc4dddd970ebddf` |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `dc4e5e2bf52b40d3b9944e5c055f5e6a2f07731be877550a8fecd486b5bdd76a` |
+
+The 3,382-byte policy covers 38,224,556 bytes and has SHA-256
+`d2350bce792bfe60b980547eb20065cff4a5a862fcd3048cc17e5ab1fae38a55`.
+The direct verifier passed all sixteen rows when run alone. An earlier attempt
+ran that verifier beside the artifact tests; their temporary repository files
+correctly triggered `repository root changed while artifacts were inspected`.
+That concurrency experiment is not counted as a successful verification. The
+three artifact modules passed all 56 tests in 5.157 seconds, with four expected
+Windows skips.
+
+The canonical 2,777,757-byte audit has SHA-256
+`a61a2e3411efa1475de99255a68db749a173a070128ff6a7dd0004fb03c3ef64`.
+Its 13,192-byte summary has SHA-256
+`cf79d3390d7ee510e0bca767d15ff79bd3269987c8497b0bcc97f77b3b0a0018`.
+
+The final private-image QEMU smoke used four vCPUs, the `max` CPU model,
+E1000, and the SMP runtime check. Cupid OS reported all four CPUs online,
+opened the GUI terminal, completed `/bin/ls.cc` JIT execution, and returned
+without a panic or exception marker. The 32,346-byte log has SHA-256
+`d0e417cf2af686c1f49351f6a4e7034f584762361b2c18a4a9578eb15a94c58e`.

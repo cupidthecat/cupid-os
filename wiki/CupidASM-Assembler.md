@@ -294,7 +294,8 @@ start and checks immediate far mode transitions. It records indirect register
 or memory transfers as unprovable because their destination comes from runtime
 state. The guarded boot and SMP transactions require these rows before
 publication. ADR 0340 records the v2 contract, ADR 0336 records v1 seed
-carriage and adoption, and ADR 0353 records active v2 carriage.
+carriage and adoption, and ADR 0353 records the paired v2 contract. ADR 0367
+records active carriage.
 
 One checked CupidBuild raw-image transaction serves the SMP and bootloader callers. It
 owns output locking, source and seed freezing, drift checks, private candidates,
@@ -349,8 +350,8 @@ production adoption.
 ADR 0305 records raw-image carriage. ADR 0312 records the relocatable-object
 promotion and production adoption. ADR 0318 records the preceding linked-image
 promotion, ADR 0323 records the preceding code-anchor promotion, and ADR 0336
-records the parent v1 promotion. ADR 0353 records the active paired v2
-promotion.
+records the parent v1 promotion. ADR 0353 records the paired v2 contract, and
+ADR 0367 records the active promotion.
 
 CupidDis can apply the same explicit option to a static ELF32
 relocatable object:
@@ -402,7 +403,8 @@ functions against file-backed decoded starts. Function aliases are separate
 anchors. Both promoted seeds carry the option. Production checks the ISR,
 context-switch, hosted startup, and linked kernel boundaries. ADR 0320 records
 the linked source rule, ADR 0335 records the object rule, and ADR 0336 records
-its v1 promotion and adoption. ADR 0353 records active v2 carriage.
+its v1 promotion and adoption. ADR 0353 records the paired v2 contract, and
+ADR 0367 records active carriage.
 
 ### Requiring complete code coverage
 
@@ -565,8 +567,8 @@ ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
 record native reconstruction and convergence. ADRs 0280, 0281, and 0292
 record preceding Linux and Windows promotions. ADR 0318 records the preceding
 linked-image promotion, ADR 0323 records the preceding code-anchor promotion,
-and ADR 0336 records the parent v1 promotion. ADR 0353 records the active paired
-v2 promotion.
+and ADR 0336 records the parent v1 promotion. ADR 0353 records the paired v2
+contract, and ADR 0367 records the active promotion.
 
 ### Function Example
 
@@ -1667,31 +1669,35 @@ ADR 0318 records the seed identities.
 The active Linux and Windows v2 manifests carry CupidASM as a producer and
 CupidBuild as both a checked tool and the coordinator for four guarded assembly
 publications and 186 direct CupidObj recipes. Both list six images and bind revision
-`a4eee4c2c4b8f1cbb7ca22fbe7688f5958912e4f`, the 58-input snapshot
-`a2e8e5c97672c2d0bd8ba4f4166860cc9686a1838cefeab8bc46d5b1c9fbe09d`,
+`cac3c08fb0dd7c22299e1a2475a49f51982549a2`, the 59-input snapshot
+`3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`,
 and their exact build plans.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
 Its 6,602-byte manifest has SHA-256
-`f1bee18b9b1506ff5a665e76d57d028702ae7c701c4e9d432ed4b87c68ee258b`.
+`f55ec976a78701595b3da58c5d75c5e49ba61a5329e7cf39d814adfc0e9b255f`.
 The Windows native plan has SHA-256
 `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
 Its 2,852-byte manifest has SHA-256
-`917817122a36331a0ec77ba06d6ce40a8eacacc4224d8ed468d8d77272b8b974`
+`b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573`
 and pairs to the exact Linux manifest bytes.
 
-Linux and native Windows candidate proof passed. Linux covers 25 failure, six
-help, and 32 success groups; Windows covers 14 failure, six help, and 19
+Linux and native Windows candidate proof passed. Linux covers 26 failure, six
+help, and 33 success groups; Windows covers 15 failure, six help, and 20
 success groups. Promoted-seed self-consumption also passed on both platforms,
 with all six initial tool images equal to stage two. ADR 0353 records the v2
-contract, ADR 0357 records the raw recipe transfer, and ADR 0361 records the
-active runner promotion. Python-free coordination remains open.
+contract, ADR 0357 records the raw recipe transfer, ADR 0361 records the
+checked runner, and ADR 0367 records the active pair. Python-free coordination
+remains open.
 
 The source-head bootstrap closure has 59 inputs and SHA-256
 `3c3218219472735ba1073e1ca7b1f67ee75bf123fb0be77d2c65e019a6aebdef`.
 Source CupidBuild accepts promoted-v2 source counts of 58 or 59 and rejects 57
-or 60. This compatibility window covers the active seeds and the next seed
+or 60. This compatibility window covers the preceding seeds and the active
 generation. The first promotion attempt failed closed on provenance, so no
-invalid seed became active. ADR 0366 records the compatibility decision. The
-normal JPEG Make edge remains Python-coordinated.
+invalid seed became active. Fresh candidates then converged. After promotion,
+separate self-consumption reproofs passed on both hosts. ADR 0366 records the
+compatibility decision, and ADR
+0367 records the promotion. The normal JPEG Make edge remains
+Python-coordinated.

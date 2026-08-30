@@ -67,7 +67,8 @@ IR, and ELF32 contracts cover both halfway parities, minimum subnormal and
 normal values, maximum finite values, infinity, signed underflow zero, and
 extreme exponents. A complete token may contain 95 characters. ADR 0312 first
 carried this capability. The preceding linked-image cohort carried it under
-ADR 0318, and the active paired v2 cohort retains it under ADR 0353.
+ADR 0318. ADR 0353 records the paired v2 contract, and the active cohort
+retains it under ADR 0367.
 
 Non-atomic `long double` values now use twelve-byte target objects. Automatic
 values use frame snapshots. Static-duration scalars, fixed arrays, and

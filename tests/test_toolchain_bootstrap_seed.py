@@ -20,6 +20,7 @@ from tools.bootstrap_toolchain import (
     CANDIDATE_TOOL_NAMES,
     PROMOTED_LINUX_MANIFEST_SHA256,
     PROMOTED_LINUX_PLAN_SHA256,
+    PROMOTED_SOURCE_INPUT_COUNT,
     PROMOTED_SOURCE_REVISION,
     PROMOTED_SOURCE_SNAPSHOT_SHA256,
     PROMOTED_SEED_SCHEMA,
@@ -171,7 +172,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "a17c9465911da41d59b7ada71733d36c39faa5ea"
                 ),
                 "producer_lineage": lineage,
-                "source_input_count": 58,
+                "source_input_count": PROMOTED_SOURCE_INPUT_COUNT,
                 "source_revision": revision,
                 "source_snapshot_sha256": snapshot,
             }
@@ -192,7 +193,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 "producer_lineage": lineage,
                 "seed_generation": "stage-four",
-                "source_input_count": 58,
+                "source_input_count": PROMOTED_SOURCE_INPUT_COUNT,
                 "source_revision": revision,
                 "source_snapshot_sha256": snapshot,
             }
@@ -290,7 +291,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             _build_plan_sha256(checked_plan),
         )
         source_inventory = capture_source_snapshot(REPO_ROOT, candidate_plan)
-        self.assertEqual(len(source_inventory), 59)
+        self.assertEqual(
+            len(source_inventory), PROMOTED_SOURCE_INPUT_COUNT
+        )
         for path in (
             "toolchain/cupidbuild.cc",
             "toolchain/cupidbuild_host.cc",
@@ -4327,7 +4330,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "de94a135ed2b55ee0c38cc07c5e5e2aa57af9bddda1e690c909c591cfb328759",
+                "e50758041199044e269e6b6dae52065cc2de2153efeb13b6b6983279ee2935c0",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -5457,17 +5460,17 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["source_snapshot_sha256"],
                 candidate_snapshot,
             )
-            self.assertEqual(report["source_inputs"]["count"], 59)
+            self.assertEqual(
+                report["source_inputs"]["count"],
+                PROMOTED_SOURCE_INPUT_COUNT,
+            )
             self.assertEqual(
                 report["source_inputs"]["sha256"],
                 report["source_snapshot_sha256"],
             )
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
-                {
-                    name: name not in {"cupidbuild", "cupidc"}
-                    for name in CANDIDATE_TOOL_NAMES
-                },
+                {name: True for name in CANDIDATE_TOOL_NAMES},
             )
             for stage_name in (
                 "stage-two",
@@ -9893,7 +9896,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
                 "cupidc": {
                     "sha256": (
-                        "73252f25a44ff0308f0a9403e942af0e582e9cac222e5738412af9c313f6d19c"
+                        "fb7efa82fdcffa6a36a5c44bb83abe5b6a10ce7487c946eb3fab206e436b8522"
                     ),
                     "size": 2620416,
                 },
@@ -9996,12 +9999,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 initial_matches,
-                {
-                    name: name not in {"cupidbuild", "cupidc"}
-                    for name in CANDIDATE_TOOL_NAMES
-                },
+                {name: True for name in CANDIDATE_TOOL_NAMES},
             )
-            self.assertEqual(report["source_inputs"]["count"], 59)
+            self.assertEqual(
+                report["source_inputs"]["count"],
+                PROMOTED_SOURCE_INPUT_COUNT,
+            )
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
                 64,
@@ -10012,7 +10015,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                59,
+                PROMOTED_SOURCE_INPUT_COUNT,
             )
             for tool_name in CANDIDATE_TOOL_NAMES:
                 stage_three = output / "stage-three" / f"{tool_name}.elf"

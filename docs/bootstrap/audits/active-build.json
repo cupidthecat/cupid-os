@@ -47456,7 +47456,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 42360
+      "occurrences": 42362
     },
     {
       "category": "control",
@@ -56236,7 +56236,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "db362c8c713fdb4ca1ddfb2e41bd498b2ba69a5e8e2f50b265503d95581a0d0d",
+    "active_source_digest": "e09dc4d7fe13a16bd8f7088edf3c260baefc9e4f1ca9804a761d9f8c317327fd",
     "control_files": [
       {
         "path": "Makefile",
@@ -56264,11 +56264,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "af4120109138652651ae2d3d829d6f1dcffd83c7495aa3de48036400414d7709"
+        "sha256": "b31d2ac387edf7109b2abfafb3f1c01329494d6f78806d4c0323017513f5e1a9"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "917817122a36331a0ec77ba06d6ce40a8eacacc4224d8ed468d8d77272b8b974"
+        "sha256": "b966ecaafe4acf76d563f2698c2a185487696fa11a96c63ff0b88fc901ad0573"
       },
       {
         "path": "tools/cupidc_production_compile.py",
@@ -82892,12 +82892,12 @@
         "kernel/doom/src/include_stubs/stdlib.h"
       ],
       "language": "cupid_c",
-      "lines": 2211,
+      "lines": 2218,
       "origin": "tracked",
       "path": "toolchain/tests/artifact_size_policy_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f8e6f4520c246a9b16b6eebf5d9b1f6fb5f587888f237d8d2591dc2b936775c8"
+      "sha256": "f449dc76efdbda09625369214d7cba8b96216c76b4b7bc36f68eff395cad8448"
     },
     {
       "build_owners": [
@@ -83811,7 +83811,7 @@
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "10ada5a51a61ef1cbb0897d5e472fbc80e4ecd120f6b57f2d4bd5b23c6a140ed"
+      "sha256": "13403cd8d7a1496a7b477ddd294279f784019ecce8ee3a3bdbdb2d2023462b25"
     },
     {
       "build_owners": [
