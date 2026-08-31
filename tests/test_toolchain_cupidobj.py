@@ -1260,6 +1260,89 @@ class CupidObjHostedCliTests(unittest.TestCase):
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertEqual(duplicate.read_bytes(), output.read_bytes())
 
+    @unittest.skipUnless(
+        os.name == "posix" and Path("/proc/self/fd").is_dir(),
+        "requires Linux procfs descriptor paths",
+    )
+    def test_wrap_writes_to_an_inherited_descriptor(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            asset = root / "asset.bin"
+            oracle = root / "oracle.o"
+            asset.write_bytes(b"Cupid inherited output")
+            ordinary = subprocess.run(
+                [str(self.cli), "wrap", "asset.bin", "-o", "oracle.o"],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(ordinary.returncode, 0, ordinary.stderr)
+
+            with tempfile.TemporaryFile() as output:
+                output.write(b"stale object")
+                output.flush()
+                direct = subprocess.run(
+                    [
+                        str(self.cli),
+                        "wrap",
+                        "asset.bin",
+                        "-o",
+                        f"/proc/self/fd/{output.fileno()}",
+                    ],
+                    cwd=root,
+                    text=True,
+                    capture_output=True,
+                    pass_fds=(output.fileno(),),
+                )
+                output.seek(0)
+                self.assertEqual(direct.returncode, 0, direct.stderr)
+                self.assertEqual(output.read(), oracle.read_bytes())
+
+    @unittest.skipUnless(
+        os.name == "posix" and Path("/proc/self/fd").is_dir(),
+        "requires Linux procfs descriptor paths",
+    )
+    def test_wrap_rejects_noncanonical_inherited_descriptor_paths(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            asset = root / "asset.bin"
+            asset.write_bytes(b"do not publish")
+            with tempfile.TemporaryFile() as output:
+                descriptor = output.fileno()
+                invalid_paths = (
+                    "/proc/self/fd/",
+                    f"/proc/self/fd/+{descriptor}",
+                    f"/proc/self/fd/0{descriptor}",
+                    f"/proc/self/fd/{descriptor}/",
+                    f"/proc/self/fd/{descriptor}x",
+                    "/proc/self/fd/2147483648",
+                )
+                for invalid_path in invalid_paths:
+                    with self.subTest(path=invalid_path):
+                        output.seek(0)
+                        output.truncate()
+                        output.write(b"sentinel")
+                        output.flush()
+                        result = subprocess.run(
+                            [
+                                str(self.cli),
+                                "wrap",
+                                "asset.bin",
+                                "-o",
+                                invalid_path,
+                            ],
+                            cwd=root,
+                            text=True,
+                            capture_output=True,
+                            pass_fds=(descriptor,),
+                        )
+                        output.seek(0)
+                        self.assertEqual(result.returncode, 1)
+                        self.assertIn(
+                            "invalid inherited output path", result.stderr
+                        )
+                        self.assertEqual(output.read(), b"sentinel")
+
     def test_wrap_jpeg_accepts_sof0_and_sof1_without_changing_payload(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

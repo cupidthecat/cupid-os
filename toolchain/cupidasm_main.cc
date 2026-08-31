@@ -65,6 +65,12 @@ typedef struct {
   ctool_u8 *storage;
 } cupidasm_publication_record_t;
 
+typedef enum {
+  CUPIDASM_OUTPUT_PATH_ORDINARY = 0,
+  CUPIDASM_OUTPUT_PATH_INHERITED_FD,
+  CUPIDASM_OUTPUT_PATH_INVALID_FD
+} cupidasm_output_path_kind_t;
+
 static void cupidasm_usage(FILE *stream) {
   (void)fprintf(stream,
                 "usage: cupidasm -f bin [--map MAP] INPUT -o OUTPUT\n"
@@ -497,6 +503,65 @@ static FILE *cupidasm_open_output(const char *path) {
 #endif
 }
 
+static ctool_status_t cupidasm_finish_output(FILE *file,
+                                             ctool_status_t status) {
+  if (fflush(file) != 0) {
+    status = CTOOL_ERR_IO;
+  }
+  if (fclose(file) != 0) {
+    status = CTOOL_ERR_IO;
+  }
+  return status;
+}
+
+static cupidasm_output_path_kind_t cupidasm_output_path_kind(
+    const char *path) {
+#if defined(_WIN32)
+  (void)path;
+  return CUPIDASM_OUTPUT_PATH_ORDINARY;
+#else
+  static const char prefix[] = "/proc/self/fd/";
+  const size_t prefix_size = sizeof(prefix) - 1u;
+  ctool_u32 value = 0u;
+  size_t index;
+  if (strncmp(path, prefix, prefix_size) != 0) {
+    return CUPIDASM_OUTPUT_PATH_ORDINARY;
+  }
+  if (path[prefix_size] == '\0' ||
+      (path[prefix_size] == '0' && path[prefix_size + 1u] != '\0')) {
+    return CUPIDASM_OUTPUT_PATH_INVALID_FD;
+  }
+  for (index = prefix_size; path[index] != '\0'; index++) {
+    ctool_u32 digit;
+    if (path[index] < '0' || path[index] > '9') {
+      return CUPIDASM_OUTPUT_PATH_INVALID_FD;
+    }
+    digit = (ctool_u32)(path[index] - '0');
+    if (value > (2147483647u - digit) / 10u) {
+      return CUPIDASM_OUTPUT_PATH_INVALID_FD;
+    }
+    value = value * 10u + digit;
+  }
+  return CUPIDASM_OUTPUT_PATH_INHERITED_FD;
+#endif
+}
+
+static cupidasm_output_path_kind_t cupidasm_publication_kind(
+    const cupidasm_cli_t *cli) {
+  cupidasm_output_path_kind_t output_kind =
+      cupidasm_output_path_kind(cli->output);
+  cupidasm_output_path_kind_t map_kind = CUPIDASM_OUTPUT_PATH_ORDINARY;
+  if (cli->range_map != (const char *)0) {
+    map_kind = cupidasm_output_path_kind(cli->range_map);
+  }
+  if (output_kind == CUPIDASM_OUTPUT_PATH_INVALID_FD ||
+      map_kind == CUPIDASM_OUTPUT_PATH_INVALID_FD ||
+      (cli->range_map != (const char *)0 && output_kind != map_kind)) {
+    return CUPIDASM_OUTPUT_PATH_INVALID_FD;
+  }
+  return output_kind;
+}
+
 static ctool_status_t cupidasm_write_output(const char *path,
                                             ctool_bytes_t bytes) {
   FILE *file = cupidasm_open_output(path);
@@ -508,12 +573,11 @@ static ctool_status_t cupidasm_write_output(const char *path,
     size_t count = fwrite(bytes.data + written, 1u,
                           (size_t)(bytes.size - written), file);
     if (count == 0u) {
-      (void)fclose(file);
-      return CTOOL_ERR_IO;
+      return cupidasm_finish_output(file, CTOOL_ERR_IO);
     }
     written += (ctool_u32)count;
   }
-  return fclose(file) == 0 ? CTOOL_OK : CTOOL_ERR_IO;
+  return cupidasm_finish_output(file, CTOOL_OK);
 }
 
 static ctool_status_t cupidasm_publication_inspect(const char *path,
@@ -602,16 +666,14 @@ static ctool_status_t cupidasm_write_range_map(
               (unsigned int)result->bytes.size,
               (unsigned int)base_address,
               (unsigned int)result->raw_edge_count) < 0) {
-    (void)fclose(file);
-    return CTOOL_ERR_IO;
+    return cupidasm_finish_output(file, CTOOL_ERR_IO);
   }
   for (index = 0u; index < result->raw_range_count; index++) {
     const ctool_asm_raw_range_t *range = &result->raw_ranges[index];
     if (fprintf(file, "range 0x%08x %s\n",
                 (unsigned int)range->offset,
                 cupidasm_range_kind_name(range->kind)) < 0) {
-      (void)fclose(file);
-      return CTOOL_ERR_IO;
+      return cupidasm_finish_output(file, CTOOL_ERR_IO);
     }
   }
   for (index = 0u; index < result->raw_edge_count; index++) {
@@ -621,8 +683,7 @@ static ctool_status_t cupidasm_write_range_map(
                   (unsigned int)edge->source_offset,
                   cupidasm_edge_kind_name(edge->kind),
                   cupidasm_edge_class_name(edge->class_id)) < 0) {
-        (void)fclose(file);
-        return CTOOL_ERR_IO;
+        return cupidasm_finish_output(file, CTOOL_ERR_IO);
       }
     } else if (edge->class_id == CTOOL_ASM_RAW_EDGE_EXTERNAL) {
       if (fprintf(file, "edge 0x%08x %s %s - 0x%08x %u 0x%08x\n",
@@ -632,8 +693,7 @@ static ctool_status_t cupidasm_write_range_map(
                   (unsigned int)edge->target_address,
                   (unsigned int)edge->target_mode,
                   (unsigned int)edge->target_segment) < 0) {
-        (void)fclose(file);
-        return CTOOL_ERR_IO;
+        return cupidasm_finish_output(file, CTOOL_ERR_IO);
       }
     } else if (fprintf(
                    file,
@@ -645,11 +705,20 @@ static ctool_status_t cupidasm_write_range_map(
                    (unsigned int)edge->target_address,
                    (unsigned int)edge->target_mode,
                    (unsigned int)edge->target_segment) < 0) {
-      (void)fclose(file);
-      return CTOOL_ERR_IO;
+      return cupidasm_finish_output(file, CTOOL_ERR_IO);
     }
   }
-  return fclose(file) == 0 ? CTOOL_OK : CTOOL_ERR_IO;
+  return cupidasm_finish_output(file, CTOOL_OK);
+}
+
+static ctool_status_t cupidasm_publish_inherited(
+    const cupidasm_cli_t *cli, const ctool_asm_result_t *result) {
+  ctool_status_t status = cupidasm_write_output(cli->output, result->bytes);
+  if (status == CTOOL_OK && cli->range_map != (const char *)0) {
+    status = cupidasm_write_range_map(cli->range_map, result,
+                                      result->raw_origin);
+  }
+  return status;
 }
 
 static int cupidasm_publication_path_equal(const char *left,
@@ -1577,6 +1646,7 @@ int main(int argc, char **argv) {
   ctool_asm_result_t result;
   ctool_status_t status;
   int parsed = cupidasm_parse_cli(argc, argv, &cli);
+  cupidasm_output_path_kind_t publication_kind;
   int exit_code = 1;
   if (parsed < 0) {
     cupidasm_usage(stdout);
@@ -1585,6 +1655,11 @@ int main(int argc, char **argv) {
   if (parsed == 0) {
     cupidasm_usage(stderr);
     return 2;
+  }
+  publication_kind = cupidasm_publication_kind(&cli);
+  if (publication_kind == CUPIDASM_OUTPUT_PATH_INVALID_FD) {
+    (void)fprintf(stderr, "cupidasm: invalid inherited output path\n");
+    return 1;
   }
   if (!(cupidasm_path_is_absolute(cli.input)
             ? (cupidasm_absolute_from_working_root(
@@ -1629,7 +1704,9 @@ int main(int argc, char **argv) {
   (void)memset(&result, 0, sizeof(result));
   status = ctool_asm_assemble(job, &source, &request, output, &result);
   if (status == CTOOL_OK) {
-    status = cupidasm_publish(&cli, &result);
+    status = publication_kind == CUPIDASM_OUTPUT_PATH_INHERITED_FD
+                 ? cupidasm_publish_inherited(&cli, &result)
+                 : cupidasm_publish(&cli, &result);
   }
   if (status != CTOOL_OK) {
     if (ctool_job_diagnostic_count(job) != 0u) {

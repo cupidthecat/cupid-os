@@ -56,6 +56,12 @@ typedef struct {
   ctool_bool have_fat_start_lba;
 } cupidobj_cli_t;
 
+typedef enum {
+  CUPIDOBJ_OUTPUT_PATH_ORDINARY = 0,
+  CUPIDOBJ_OUTPUT_PATH_INHERITED_FD,
+  CUPIDOBJ_OUTPUT_PATH_INVALID_FD
+} cupidobj_output_path_kind_t;
+
 static void cupidobj_usage(FILE *stream) {
   (void)fprintf(
       stream,
@@ -570,6 +576,73 @@ static char *cupidobj_logical_path(const char *path) {
   return logical;
 }
 
+static cupidobj_output_path_kind_t cupidobj_output_path_kind(
+    const char *path) {
+#if defined(_WIN32)
+  (void)path;
+  return CUPIDOBJ_OUTPUT_PATH_ORDINARY;
+#else
+  static const char prefix[] = "/proc/self/fd/";
+  const size_t prefix_size = sizeof(prefix) - 1u;
+  ctool_u32 value = 0u;
+  size_t index;
+  if (strncmp(path, prefix, prefix_size) != 0) {
+    return CUPIDOBJ_OUTPUT_PATH_ORDINARY;
+  }
+  if (path[prefix_size] == '\0' ||
+      (path[prefix_size] == '0' && path[prefix_size + 1u] != '\0')) {
+    return CUPIDOBJ_OUTPUT_PATH_INVALID_FD;
+  }
+  for (index = prefix_size; path[index] != '\0'; index++) {
+    ctool_u32 digit;
+    if (path[index] < '0' || path[index] > '9') {
+      return CUPIDOBJ_OUTPUT_PATH_INVALID_FD;
+    }
+    digit = (ctool_u32)(path[index] - '0');
+    if (value > (2147483647u - digit) / 10u) {
+      return CUPIDOBJ_OUTPUT_PATH_INVALID_FD;
+    }
+    value = value * 10u + digit;
+  }
+  return CUPIDOBJ_OUTPUT_PATH_INHERITED_FD;
+#endif
+}
+
+static FILE *cupidobj_open_output(const char *path) {
+#if defined(_WIN32)
+  FILE *file = (FILE *)0;
+  return fopen_s(&file, path, "wb") == 0 ? file : (FILE *)0;
+#else
+  return fopen(path, "wb");
+#endif
+}
+
+static ctool_status_t cupidobj_write_inherited_output(const char *path,
+                                                      ctool_bytes_t bytes) {
+  FILE *file = cupidobj_open_output(path);
+  ctool_u32 written = 0u;
+  ctool_status_t status = CTOOL_OK;
+  if (file == (FILE *)0) {
+    return CTOOL_ERR_IO;
+  }
+  while (written < bytes.size) {
+    size_t count = fwrite(bytes.data + written, 1u,
+                          (size_t)(bytes.size - written), file);
+    if (count == 0u) {
+      status = CTOOL_ERR_IO;
+      break;
+    }
+    written += (ctool_u32)count;
+  }
+  if (fflush(file) != 0) {
+    status = CTOOL_ERR_IO;
+  }
+  if (fclose(file) != 0) {
+    status = CTOOL_ERR_IO;
+  }
+  return status;
+}
+
 static ctool_bool cupidobj_ascii_alnum(unsigned char character) {
   return ((character >= (unsigned char)'a' &&
            character <= (unsigned char)'z') ||
@@ -641,8 +714,10 @@ typedef struct {
   const cupidobj_cli_iso_fixture_entry_t *iso_cli_entries;
   ctool_u32 iso_entry_count;
   const char *iso_failed_source;
+  const char *inherited_output_path;
   ctool_bool body_started;
   ctool_bool kernel_loaded;
+  ctool_bool inherited_output_attempted;
 } cupidobj_invocation_context_t;
 
 static ctool_status_t cupidobj_invoke_body(ctool_invocation_t *invocation,
@@ -705,8 +780,19 @@ static ctool_status_t cupidobj_invoke_body(ctool_invocation_t *invocation,
       return status;
     }
   }
-  return ctool_obj_transform(invocation->job, &context->request,
-                             invocation->output, &context->result);
+  {
+    ctool_status_t status =
+        ctool_obj_transform(invocation->job, &context->request,
+                            invocation->output, &context->result);
+    if (status == CTOOL_OK &&
+        ctool_job_has_errors(invocation->job) == CTOOL_FALSE &&
+        context->inherited_output_path != (const char *)0) {
+      context->inherited_output_attempted = CTOOL_TRUE;
+      status = cupidobj_write_inherited_output(
+          context->inherited_output_path, ctool_buffer_view(invocation->output));
+    }
+    return status;
+  }
 }
 
 int main(int argc, char **argv) {
@@ -739,6 +825,7 @@ int main(int argc, char **argv) {
   ctool_u32 iso_index;
   ctool_status_t status;
   int parsed = cupidobj_parse_cli(argc, argv, &cli);
+  cupidobj_output_path_kind_t output_kind;
   int exit_code = 1;
   if (parsed < 0) {
     cupidobj_usage(stdout);
@@ -747,6 +834,11 @@ int main(int argc, char **argv) {
   if (parsed == 0) {
     cupidobj_usage(stderr);
     return 2;
+  }
+  output_kind = cupidobj_output_path_kind(cli.output);
+  if (output_kind == CUPIDOBJ_OUTPUT_PATH_INVALID_FD) {
+    (void)fprintf(stderr, "cupidobj: invalid inherited output path\n");
+    goto done;
   }
   if (cupidobj_is_wrap(cli.operation) == CTOOL_TRUE) {
     stem = cupidobj_stem(&cli);
@@ -826,6 +918,9 @@ int main(int argc, char **argv) {
   }
   (void)memset(&context, 0, sizeof(context));
   context.request.operation = cli.operation;
+  if (output_kind == CUPIDOBJ_OUTPUT_PATH_INHERITED_FD) {
+    context.inherited_output_path = cli.output;
+  }
   if (cli.operation == CTOOL_OBJ_BUILD_DISK_TEMPLATE) {
     context.kernel_path = ctool_string(logical_kernel);
     context.request.as.disk_template.image_sectors = cli.image_sectors;
@@ -928,13 +1023,19 @@ int main(int argc, char **argv) {
     context.request.as.install_source.demo_count = cli.demo_count;
   }
   invocation_request.input_path = ctool_string(logical_input);
-  invocation_request.output_path = ctool_string(logical_output);
+  invocation_request.output_path =
+      output_kind == CUPIDOBJ_OUTPUT_PATH_INHERITED_FD
+          ? ctool_string("")
+          : ctool_string(logical_output);
   (void)memset(&invocation_result, 0, sizeof(invocation_result));
   status = ctool_invoke(&config, &invocation_request, cupidobj_invoke_body,
                         &context, &invocation_result);
   if (status != CTOOL_OK) {
     if (invocation_result.diagnostic_count != 0u) {
       /* ctool_invoke has already rendered the ordered diagnostics. */
+    } else if (context.inherited_output_attempted == CTOOL_TRUE) {
+      (void)fprintf(stderr, "cupidobj: cannot write %s (%s)\n", cli.output,
+                    ctool_status_name(status));
     } else if (cli.operation == CTOOL_OBJ_BUILD_DISK_TEMPLATE &&
                context.body_started == CTOOL_TRUE &&
                context.kernel_loaded == CTOOL_FALSE) {

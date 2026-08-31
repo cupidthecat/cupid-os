@@ -125,6 +125,185 @@ class CupidAsmCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(output.read_bytes(), bytes.fromhex("b8 34 12 c3"))
 
+    @unittest.skipUnless(
+        os.name == "posix" and Path("/proc/self/fd").is_dir(),
+        "requires Linux procfs descriptor paths",
+    )
+    def test_cli_writes_raw_image_and_map_to_inherited_descriptors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "direct.asm"
+            source.write_text(
+                "BITS 16\n"
+                "ORG 0x7c00\n"
+                "start:\n"
+                "    mov ax, 0x1234\n"
+                "    ret\n",
+                encoding="utf-8",
+            )
+            with (
+                tempfile.TemporaryFile() as output,
+                tempfile.TemporaryFile() as range_map,
+            ):
+                output.write(b"stale image")
+                output.flush()
+                range_map.write(b"stale map")
+                range_map.flush()
+                output_path = f"/proc/self/fd/{output.fileno()}"
+                map_path = f"/proc/self/fd/{range_map.fileno()}"
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "-f",
+                        "bin",
+                        "--map",
+                        map_path,
+                        str(source),
+                        "-o",
+                        output_path,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    pass_fds=(output.fileno(), range_map.fileno()),
+                )
+
+                output.seek(0)
+                range_map.seek(0)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(output.read(), bytes.fromhex("b8 34 12 c3"))
+                self.assertEqual(
+                    range_map.read(),
+                    b"cupid.raw-map.v2\n"
+                    b"size 4\n"
+                    b"base 0x00007c00\n"
+                    b"edges 0\n"
+                    b"range 0x00000000 code16\n",
+                )
+
+    @unittest.skipUnless(
+        os.name == "posix" and Path("/proc/self/fd").is_dir(),
+        "requires Linux procfs descriptor paths",
+    )
+    def test_cli_writes_elf32_to_an_inherited_descriptor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "direct-object.asm"
+            source.write_text(
+                "BITS 32\n"
+                "global entry:function\n"
+                "section .text\n"
+                "entry: ret\n",
+                encoding="utf-8",
+            )
+            with tempfile.TemporaryFile() as output:
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "-f",
+                        "elf32",
+                        str(source),
+                        "-o",
+                        f"/proc/self/fd/{output.fileno()}",
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    pass_fds=(output.fileno(),),
+                )
+
+                output.seek(0)
+                image = output.read()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                _, sections = _elf_sections(image)
+                self.assertEqual(
+                    {section["name"]: section for section in sections}[".text"][
+                        "data"
+                    ],
+                    b"\xc3",
+                )
+
+    @unittest.skipUnless(
+        os.name == "posix" and Path("/proc/self/fd").is_dir(),
+        "requires Linux procfs descriptor paths",
+    )
+    def test_cli_rejects_noncanonical_inherited_descriptor_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "invalid-direct.asm"
+            source.write_text("BITS 16\nORG 0x7c00\n    ret\n", encoding="utf-8")
+            with tempfile.TemporaryFile() as output:
+                descriptor = output.fileno()
+                invalid_paths = (
+                    "/proc/self/fd/",
+                    f"/proc/self/fd/+{descriptor}",
+                    f"/proc/self/fd/0{descriptor}",
+                    f"/proc/self/fd/{descriptor}/",
+                    f"/proc/self/fd/{descriptor}x",
+                    "/proc/self/fd/2147483648",
+                )
+                for invalid_path in invalid_paths:
+                    with self.subTest(path=invalid_path):
+                        output.seek(0)
+                        output.truncate()
+                        output.write(b"sentinel")
+                        output.flush()
+                        result = subprocess.run(
+                            [
+                                str(self.cli_path),
+                                "-f",
+                                "bin",
+                                str(source),
+                                "-o",
+                                invalid_path,
+                            ],
+                            cwd=REPO_ROOT,
+                            text=True,
+                            capture_output=True,
+                            pass_fds=(descriptor,),
+                        )
+                        output.seek(0)
+                        self.assertEqual(result.returncode, 1)
+                        self.assertIn(
+                            "invalid inherited output path", result.stderr
+                        )
+                        self.assertEqual(output.read(), b"sentinel")
+
+    @unittest.skipUnless(
+        os.name == "posix" and Path("/proc/self/fd").is_dir(),
+        "requires Linux procfs descriptor paths",
+    )
+    def test_cli_rejects_mixed_direct_and_transactional_raw_pair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "mixed-publication.asm"
+            range_map = root / "mixed-publication.cupidmap"
+            source.write_text("BITS 16\nORG 0x7c00\n    ret\n", encoding="utf-8")
+            with tempfile.TemporaryFile() as output:
+                output.write(b"sentinel")
+                output.flush()
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "-f",
+                        "bin",
+                        "--map",
+                        str(range_map),
+                        str(source),
+                        "-o",
+                        f"/proc/self/fd/{output.fileno()}",
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    pass_fds=(output.fileno(),),
+                )
+                output.seek(0)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("invalid inherited output path", result.stderr)
+                self.assertEqual(output.read(), b"sentinel")
+                self.assertFalse(range_map.exists())
+
     def test_cli_rejects_duplicate_raw_origin_without_publishing(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
