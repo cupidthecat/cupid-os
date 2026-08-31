@@ -225,42 +225,86 @@ WINDOWS_LINKER_IMPORTS = (
         ),
     ),
 )
+WINDOWS_CUPIDBUILD_SEED_KERNEL32_IMPORTS = (
+    "CloseHandle",
+    "CreateDirectoryA",
+    "CreateFileA",
+    "CreateProcessA",
+    "DeleteFileA",
+    "ExitProcess",
+    "FindClose",
+    "FindFirstFileA",
+    "FindNextFileA",
+    "FlushFileBuffers",
+    "GetCommandLineA",
+    "GetCurrentDirectoryA",
+    "GetCurrentProcessId",
+    "GetExitCodeProcess",
+    "GetFileAttributesA",
+    "GetFileInformationByHandle",
+    "GetFullPathNameA",
+    "GetLastError",
+    "GetStdHandle",
+    "MoveFileExA",
+    "OpenProcess",
+    "ReadFile",
+    "RemoveDirectoryA",
+    "SetFilePointer",
+    "TerminateProcess",
+    "VirtualAlloc",
+    "VirtualFree",
+    "WaitForSingleObject",
+    "WriteFile",
+)
+WINDOWS_CUPIDBUILD_KERNEL32_IMPORTS = (
+    "CloseHandle",
+    "CreateDirectoryA",
+    "CreateFileA",
+    "CreateProcessA",
+    "DeleteFileA",
+    "ExitProcess",
+    "FindClose",
+    "FindFirstFileA",
+    "FindNextFileA",
+    "FlushFileBuffers",
+    "GetCommandLineA",
+    "GetCurrentDirectoryA",
+    "GetCurrentProcessId",
+    "GetExitCodeProcess",
+    "GetFileAttributesA",
+    "GetFileInformationByHandle",
+    "GetFullPathNameA",
+    "GetLastError",
+    "GetStdHandle",
+    "MoveFileExA",
+    "OpenProcess",
+    "ReadFile",
+    "RemoveDirectoryA",
+    "SetFilePointer",
+    "SetHandleInformation",
+    "TerminateProcess",
+    "VirtualAlloc",
+    "VirtualFree",
+    "WaitForSingleObject",
+    "WriteFile",
+)
 WINDOWS_CUPIDBUILD_IMPORTS = (
     (
         "KERNEL32.dll",
-        (
-            "CloseHandle",
-            "CreateDirectoryA",
-            "CreateFileA",
-            "CreateProcessA",
-            "DeleteFileA",
-            "ExitProcess",
-            "FindClose",
-            "FindFirstFileA",
-            "FindNextFileA",
-            "FlushFileBuffers",
-            "GetCommandLineA",
-            "GetCurrentDirectoryA",
-            "GetCurrentProcessId",
-            "GetExitCodeProcess",
-            "GetFileAttributesA",
-            "GetFileInformationByHandle",
-            "GetFullPathNameA",
-            "GetLastError",
-            "GetStdHandle",
-            "MoveFileExA",
-            "OpenProcess",
-            "ReadFile",
-            "RemoveDirectoryA",
-            "SetFilePointer",
-            "TerminateProcess",
-            "VirtualAlloc",
-            "VirtualFree",
-            "WaitForSingleObject",
-            "WriteFile",
-        ),
+        WINDOWS_CUPIDBUILD_KERNEL32_IMPORTS,
     ),
+    (
+        "NTDLL.dll",
+        ("NtCreateFile", "NtQueryDirectoryFile", "NtSetInformationFile"),
+    ),
+)
+WINDOWS_CUPIDBUILD_SEED_IMPORTS = (
+    ("KERNEL32.dll", WINDOWS_CUPIDBUILD_SEED_KERNEL32_IMPORTS),
     ("NTDLL.dll", ("NtSetInformationFile",)),
+)
+WINDOWS_CUPIDBUILD_IMPORT_PROFILES = (
+    WINDOWS_CUPIDBUILD_SEED_IMPORTS,
+    WINDOWS_CUPIDBUILD_IMPORTS,
 )
 EXPECTED_LINUX_FIXED_POINT_COMMAND = "make bootstrap-from-seed"
 EXPECTED_WINDOWS_FIXED_POINT_COMMAND = "make bootstrap-windows-from-seed"
@@ -2135,7 +2179,11 @@ def _verify_seed_manifest_data(
             raise BootstrapError(f"SHA-256 differs for {file_name}")
         if is_windows_seed:
             imports = (
-                _windows_imports(name)
+                (
+                    WINDOWS_CUPIDBUILD_SEED_IMPORTS
+                    if name == "cupidbuild"
+                    else _windows_imports(name)
+                )
                 if promoted
                 else (
                     WINDOWS_LINKER_IMPORTS

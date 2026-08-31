@@ -11,8 +11,11 @@ extern __imp_GetFileAttributesA
 extern __imp_GetFileInformationByHandle
 extern __imp_OpenProcess
 extern __imp_RemoveDirectoryA
+extern __imp_SetHandleInformation
 extern __imp_TerminateProcess
 extern __imp_WaitForSingleObject
+extern __imp_NtCreateFile
+extern __imp_NtQueryDirectoryFile
 extern __imp_NtSetInformationFile
 
 global cupid_windows_create_directory:function
@@ -26,8 +29,11 @@ global cupid_windows_get_file_attributes:function
 global cupid_windows_get_file_information:function
 global cupid_windows_open_process:function
 global cupid_windows_remove_directory:function
+global cupid_windows_set_handle_information:function
 global cupid_windows_terminate_process:function
 global cupid_windows_wait_for_single_object:function
+global cupid_windows_nt_create_file:function
+global cupid_windows_nt_query_directory_file:function
 global cupid_windows_nt_set_information_file:function
 
 section .text
@@ -142,6 +148,17 @@ cupid_windows_remove_directory:
  pop ebp
  ret
 
+cupid_windows_set_handle_information:
+ push ebp
+ mov ebp, esp
+ push dword [ebp + 16]
+ push dword [ebp + 12]
+ push dword [ebp + 8]
+ call dword [__imp_SetHandleInformation]
+ mov esp, ebp
+ pop ebp
+ ret
+
 cupid_windows_terminate_process:
  push ebp
  mov ebp, esp
@@ -158,6 +175,44 @@ cupid_windows_wait_for_single_object:
  push dword [ebp + 12]
  push dword [ebp + 8]
  call dword [__imp_WaitForSingleObject]
+ mov esp, ebp
+ pop ebp
+ ret
+
+cupid_windows_nt_create_file:
+ push ebp
+ mov ebp, esp
+ push dword [ebp + 48]
+ push dword [ebp + 44]
+ push dword [ebp + 40]
+ push dword [ebp + 36]
+ push dword [ebp + 32]
+ push dword [ebp + 28]
+ push dword [ebp + 24]
+ push dword [ebp + 20]
+ push dword [ebp + 16]
+ push dword [ebp + 12]
+ push dword [ebp + 8]
+ call dword [__imp_NtCreateFile]
+ mov esp, ebp
+ pop ebp
+ ret
+
+cupid_windows_nt_query_directory_file:
+ push ebp
+ mov ebp, esp
+ push dword [ebp + 48]
+ push dword [ebp + 44]
+ push dword [ebp + 40]
+ push dword [ebp + 36]
+ push dword [ebp + 32]
+ push dword [ebp + 28]
+ push dword [ebp + 24]
+ push dword [ebp + 20]
+ push dword [ebp + 16]
+ push dword [ebp + 12]
+ push dword [ebp + 8]
+ call dword [__imp_NtQueryDirectoryFile]
  mov esp, ebp
  pop ebp
  ret

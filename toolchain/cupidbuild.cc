@@ -1726,7 +1726,7 @@ static int cupidbuild_validate_execution_profile(
         "GetStdHandle",      "MoveFileExA",       "ReadFile",
         "SetFilePointer",    "VirtualAlloc",      "VirtualFree",
         "WriteFile"};
-    static const char *const cupidbuild_imports[] = {
+    static const char *const cupidbuild_legacy_imports[] = {
         "CloseHandle",
         "CreateDirectoryA",
         "CreateFileA",
@@ -1756,33 +1756,92 @@ static int cupidbuild_validate_execution_profile(
         "VirtualFree",
         "WaitForSingleObject",
         "WriteFile"};
-    const char *const *expected_imports =
-        artifact_index == 5u
-            ? cupidbuild_imports
-            : ((promoted && artifact_index == 0u) || artifact_index == 3u
-                   ? linker_imports
-                   : ordinary_imports);
+    static const char *const cupidbuild_current_imports[] = {
+        "CloseHandle",
+        "CreateDirectoryA",
+        "CreateFileA",
+        "CreateProcessA",
+        "DeleteFileA",
+        "ExitProcess",
+        "FindClose",
+        "FindFirstFileA",
+        "FindNextFileA",
+        "FlushFileBuffers",
+        "GetCommandLineA",
+        "GetCurrentDirectoryA",
+        "GetCurrentProcessId",
+        "GetExitCodeProcess",
+        "GetFileAttributesA",
+        "GetFileInformationByHandle",
+        "GetFullPathNameA",
+        "GetLastError",
+        "GetStdHandle",
+        "MoveFileExA",
+        "OpenProcess",
+        "ReadFile",
+        "RemoveDirectoryA",
+        "SetFilePointer",
+        "SetHandleInformation",
+        "TerminateProcess",
+        "VirtualAlloc",
+        "VirtualFree",
+        "WaitForSingleObject",
+        "WriteFile"};
+    static const char *const cupidbuild_legacy_ntdll_imports[] = {
+        "NtSetInformationFile"};
+    static const char *const cupidbuild_current_ntdll_imports[] = {
+        "NtCreateFile", "NtQueryDirectoryFile", "NtSetInformationFile"};
+    const char *const *expected_imports = ordinary_imports;
+    const char *const *expected_ntdll_imports =
+        (const char *const *)0;
     size_t expected_count =
-        artifact_index == 5u
-            ? sizeof(cupidbuild_imports) / sizeof(cupidbuild_imports[0])
-            : (((promoted && artifact_index == 0u) || artifact_index == 3u)
-                   ? sizeof(linker_imports) / sizeof(linker_imports[0])
-                   : sizeof(ordinary_imports) / sizeof(ordinary_imports[0]));
+        sizeof(ordinary_imports) / sizeof(ordinary_imports[0]);
+    size_t expected_ntdll_count = 0u;
     size_t expected_library_count = artifact_index == 5u ? 2u : 1u;
-    size_t expected_total_count =
-        expected_count + (artifact_index == 5u ? 1u : 0u);
     ctool_pe32_image_t image;
     ctool_u32 index;
+    if ((promoted && artifact_index == 0u) || artifact_index == 3u) {
+      expected_imports = linker_imports;
+      expected_count = sizeof(linker_imports) / sizeof(linker_imports[0]);
+    }
     if (ctool_pe32_read(job, &source, &image) == CTOOL_OK &&
         image.entry_point == 0x00401000u &&
         image.import_library_count == (ctool_u32)expected_library_count &&
-        image.import_count == (ctool_u32)expected_total_count &&
         cupidbuild_string_equals(image.import_libraries[0].name,
                                  "KERNEL32.dll")) {
       valid = 1;
-      if (artifact_index == 5u &&
-          !cupidbuild_string_equals(image.import_libraries[1].name,
-                                    "NTDLL.dll")) {
+      if (artifact_index == 5u) {
+        size_t legacy_count =
+            sizeof(cupidbuild_legacy_imports) /
+            sizeof(cupidbuild_legacy_imports[0]);
+        size_t legacy_ntdll_count =
+            sizeof(cupidbuild_legacy_ntdll_imports) /
+            sizeof(cupidbuild_legacy_ntdll_imports[0]);
+        size_t current_count =
+            sizeof(cupidbuild_current_imports) /
+            sizeof(cupidbuild_current_imports[0]);
+        size_t current_ntdll_count =
+            sizeof(cupidbuild_current_ntdll_imports) /
+            sizeof(cupidbuild_current_ntdll_imports[0]);
+        if (!cupidbuild_string_equals(image.import_libraries[1].name,
+                                      "NTDLL.dll")) {
+          valid = 0;
+        } else if ((size_t)image.import_count ==
+                   legacy_count + legacy_ntdll_count) {
+          expected_imports = cupidbuild_legacy_imports;
+          expected_count = legacy_count;
+          expected_ntdll_imports = cupidbuild_legacy_ntdll_imports;
+          expected_ntdll_count = legacy_ntdll_count;
+        } else if ((size_t)image.import_count ==
+                   current_count + current_ntdll_count) {
+          expected_imports = cupidbuild_current_imports;
+          expected_count = current_count;
+          expected_ntdll_imports = cupidbuild_current_ntdll_imports;
+          expected_ntdll_count = current_ntdll_count;
+        } else {
+          valid = 0;
+        }
+      } else if ((size_t)image.import_count != expected_count) {
         valid = 0;
       }
       for (index = 0u; valid && index < (ctool_u32)expected_count; index++) {
@@ -1794,13 +1853,18 @@ static int cupidbuild_validate_execution_profile(
           break;
         }
       }
-      if (valid && artifact_index == 5u &&
-          (!cupidbuild_string_equals(
-               image.imports[expected_count].library_name, "NTDLL.dll") ||
-           !cupidbuild_string_equals(
-               image.imports[expected_count].procedure_name,
-               "NtSetInformationFile"))) {
-        valid = 0;
+      if (valid && artifact_index == 5u) {
+        for (index = 0u;
+             valid && index < (ctool_u32)expected_ntdll_count; index++) {
+          if (!cupidbuild_string_equals(
+                  image.imports[expected_count + index].library_name,
+                  "NTDLL.dll") ||
+              !cupidbuild_string_equals(
+                  image.imports[expected_count + index].procedure_name,
+                  expected_ntdll_imports[index])) {
+            valid = 0;
+          }
+        }
       }
     }
   }

@@ -37,7 +37,9 @@ from tools.bootstrap_toolchain import (
     ToolRunner,
     WINDOWS_SEED_SCHEMA,
     WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256,
+    WINDOWS_CUPIDBUILD_IMPORT_PROFILES,
     WINDOWS_CUPIDBUILD_IMPORTS,
+    WINDOWS_CUPIDBUILD_SEED_IMPORTS,
     WINDOWS_LINKER_IMPORTS,
     WSL_PRIVATE_RUN_SCRIPT,
     _build_plan_sha256,
@@ -369,8 +371,99 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(profiles["cupidasm.exe"], WINDOWS_LINKER_IMPORTS)
         self.assertEqual(
-            profiles["cupidbuild.exe"], WINDOWS_CUPIDBUILD_IMPORTS
+            profiles["cupidbuild.exe"], WINDOWS_CUPIDBUILD_SEED_IMPORTS
         )
+
+    def test_windows_cupidbuild_import_profiles_are_exact_pairs(self):
+        legacy_kernel = WINDOWS_CUPIDBUILD_SEED_IMPORTS[0][1]
+        current_kernel = WINDOWS_CUPIDBUILD_IMPORTS[0][1]
+        set_file_pointer = legacy_kernel.index("SetFilePointer")
+        self.assertEqual(
+            current_kernel,
+            (
+                *legacy_kernel[: set_file_pointer + 1],
+                "SetHandleInformation",
+                *legacy_kernel[set_file_pointer + 1 :],
+            ),
+        )
+        self.assertEqual(
+            WINDOWS_CUPIDBUILD_SEED_IMPORTS[1],
+            ("NTDLL.dll", ("NtSetInformationFile",)),
+        )
+        self.assertEqual(
+            WINDOWS_CUPIDBUILD_IMPORTS[1],
+            (
+                "NTDLL.dll",
+                (
+                    "NtCreateFile",
+                    "NtQueryDirectoryFile",
+                    "NtSetInformationFile",
+                ),
+            ),
+        )
+        self.assertEqual(
+            WINDOWS_CUPIDBUILD_IMPORT_PROFILES,
+            (
+                WINDOWS_CUPIDBUILD_SEED_IMPORTS,
+                WINDOWS_CUPIDBUILD_IMPORTS,
+            ),
+        )
+        exactly_two_ntdll = (
+            "NTDLL.dll",
+            WINDOWS_CUPIDBUILD_IMPORTS[1][1][:2],
+        )
+        rejected_profiles = (
+            (
+                WINDOWS_CUPIDBUILD_SEED_IMPORTS[0],
+                WINDOWS_CUPIDBUILD_IMPORTS[1],
+            ),
+            (
+                WINDOWS_CUPIDBUILD_IMPORTS[0],
+                WINDOWS_CUPIDBUILD_SEED_IMPORTS[1],
+            ),
+            (WINDOWS_CUPIDBUILD_SEED_IMPORTS[0], exactly_two_ntdll),
+            (WINDOWS_CUPIDBUILD_IMPORTS[0], exactly_two_ntdll),
+        )
+        for profile in rejected_profiles:
+            self.assertNotIn(profile, WINDOWS_CUPIDBUILD_IMPORT_PROFILES)
+
+    def test_cupidbuild_source_locks_the_paired_import_profiles(self):
+        source = (REPO_ROOT / "toolchain" / "cupidbuild.cc").read_text(
+            encoding="utf-8"
+        )
+        for required in (
+            "cupidbuild_legacy_imports",
+            "cupidbuild_current_imports",
+            '"SetFilePointer",\n        "SetHandleInformation",',
+            "cupidbuild_legacy_ntdll_imports",
+            "cupidbuild_current_ntdll_imports",
+            "legacy_count + legacy_ntdll_count",
+            "current_count + current_ntdll_count",
+            "expected_ntdll_imports[index]",
+        ):
+            self.assertIn(required, source)
+        self.assertNotIn("expected_total_minimum", source)
+        self.assertNotIn("expected_total_maximum", source)
+
+        startup = (
+            REPO_ROOT
+            / "toolchain"
+            / "hosted"
+            / "i386-windows"
+            / "cupidbuild_start.asm"
+        ).read_text(encoding="utf-8")
+        for required in (
+            "extern __imp_SetHandleInformation",
+            "extern __imp_NtQueryDirectoryFile",
+            "global cupid_windows_set_handle_information:function",
+            "global cupid_windows_nt_query_directory_file:function",
+            "cupid_windows_set_handle_information:",
+            "cupid_windows_nt_query_directory_file:",
+            "call dword [__imp_SetHandleInformation]",
+            "call dword [__imp_NtQueryDirectoryFile]",
+        ):
+            self.assertIn(required, startup)
+        self.assertNotIn("cupid_windows_set_file_pointer", startup)
 
     def test_promoted_seed_rejects_provenance_and_artifact_drift(self):
         source = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
@@ -668,6 +761,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 (
                     "KERNEL32.dll",
+                    "SetHandleInformation",
+                    "__imp_SetHandleInformation",
+                ),
+                (
+                    "KERNEL32.dll",
                     "TerminateProcess",
                     "__imp_TerminateProcess",
                 ),
@@ -679,6 +777,16 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "__imp_WaitForSingleObject",
                 ),
                 ("KERNEL32.dll", "WriteFile", "__imp_WriteFile"),
+                (
+                    "NTDLL.dll",
+                    "NtCreateFile",
+                    "__imp_NtCreateFile",
+                ),
+                (
+                    "NTDLL.dll",
+                    "NtQueryDirectoryFile",
+                    "__imp_NtQueryDirectoryFile",
+                ),
                 (
                     "NTDLL.dll",
                     "NtSetInformationFile",
@@ -1136,6 +1244,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "ReadFile",
                                 "RemoveDirectoryA",
                                 "SetFilePointer",
+                                "SetHandleInformation",
                                 "TerminateProcess",
                                 "VirtualAlloc",
                                 "VirtualFree",
@@ -1143,7 +1252,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "WriteFile",
                             ),
                         ),
-                        ("NTDLL.dll", ("NtSetInformationFile",)),
+                        (
+                            "NTDLL.dll",
+                            (
+                                "NtCreateFile",
+                                "NtQueryDirectoryFile",
+                                "NtSetInformationFile",
+                            ),
+                        ),
                     )
                     for procedure in procedures
                 ],
