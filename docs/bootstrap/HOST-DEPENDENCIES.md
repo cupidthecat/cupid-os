@@ -80,8 +80,8 @@ kernel-symbol pair, and ADR 0374 records the active pair.
 
 The final top-level replay passed after the exact-size check rejected the
 updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,513,992 bytes for `kernel/kernel.bin`, 9,740,344 bytes
-for `kernel/kernel.elf`, and 9,609,272 bytes for
+The current sizes are 9,514,816 bytes for `kernel/kernel.bin`, 9,740,344 bytes
+for `kernel/kernel.elf`, and 9,613,368 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as well.
 
@@ -333,13 +333,13 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`ea0fd0ff6b88ef9ad0a89e0548f3d932c2533126a5d89270b7384d7ff9545706`.
+`22e5e9c011876f3991eefff13bef44b199c10839f5a69a521f052bd750472027`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,609,272, 9,740,344, and 9,513,992 bytes for the boot image, pass-one ELF,
+9,613,368, 9,740,344, and 9,514,816 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,330,596 bytes. The contract accepts the complete
-preceding or promoted seed-parent pair and rejects mixed digest/revision
+sixteen rows, totaling 38,335,516 bytes. The contract accepts the complete
+kernel-symbol or active seed-parent pair and rejects mixed digest/revision
 lineage for the Linux seed and both Windows parent links.
 
 The paired-seed promotion replay passed both CupidLD links and strict

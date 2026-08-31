@@ -123,10 +123,10 @@ def _manifest():
             "fixed_point_command": "make bootstrap-from-seed",
             "fixed_point_result": "pass",
             "parent_seed_manifest_sha256": (
-                "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+                "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
             ),
             "parent_seed_source_revision": (
-                "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
             ),
             "producer_lineage": {
                 "assembly": "stage-three CupidASM from the checked-seed bootstrap",
@@ -169,16 +169,16 @@ def _windows_manifest(parent_manifest_sha256):
                 "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
             ),
             "parent_execution_seed_manifest_sha256": (
-                "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef"
+                "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db"
             ),
             "parent_execution_seed_source_revision": (
-                "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
             ),
             "parent_plan_seed_manifest_sha256": (
-                "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+                "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
             ),
             "parent_plan_seed_source_revision": (
-                "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
             ),
             "plan_seed_manifest_sha256": parent_manifest_sha256,
             "producer_lineage": {
@@ -412,10 +412,50 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(result.stdout, SUCCESS_REPORT)
         self.assertEqual(result.stderr, "")
 
+    def test_active_seed_parent_pair_is_accepted_for_the_next_promotion(self):
+        revision = "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+        manifest = _manifest()
+        manifest["provenance"].update(
+            {
+                "parent_seed_manifest_sha256": (
+                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                ),
+                "parent_seed_source_revision": revision,
+            }
+        )
+        manifest_bytes = _json_bytes(manifest)
+        manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+        windows_manifest = _windows_manifest(manifest_digest)
+        windows_manifest["provenance"].update(
+            {
+                "parent_execution_seed_manifest_sha256": (
+                    "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+                ),
+                "parent_execution_seed_source_revision": revision,
+                "parent_plan_seed_manifest_sha256": (
+                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                ),
+                "parent_plan_seed_source_revision": revision,
+            }
+        )
+
+        result = self.run_request(
+            _request(
+                manifest=manifest,
+                manifest_bytes=manifest_bytes,
+                linux_manifest_digest=manifest_digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, SUCCESS_REPORT)
+        self.assertEqual(result.stderr, "")
+
     def test_promoted_linux_parent_digest_and_revision_cannot_be_mixed(self):
         manifest = _manifest()
         manifest["provenance"]["parent_seed_manifest_sha256"] = (
-            "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+            "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
         )
         self.assert_contract_failure(_request(manifest=manifest))
 
@@ -423,11 +463,11 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         promoted_parents = (
             (
                 "parent_execution_seed_manifest_sha256",
-                "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db",
+                "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4",
             ),
             (
                 "parent_plan_seed_manifest_sha256",
-                "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae",
+                "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781",
             ),
         )
         for field, digest in promoted_parents:
@@ -437,6 +477,89 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                 manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
                 windows_manifest = _windows_manifest(manifest_digest)
                 windows_manifest["provenance"][field] = digest
+                self.assert_contract_failure(
+                    _request(
+                        manifest=manifest,
+                        manifest_bytes=manifest_bytes,
+                        linux_manifest_digest=manifest_digest,
+                        windows_manifest=windows_manifest,
+                    )
+                )
+
+    def test_windows_execution_and_plan_parents_must_share_a_generation(self):
+        active_revision = "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+        active_parents = (
+            {
+                "parent_execution_seed_manifest_sha256": (
+                    "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+                ),
+                "parent_execution_seed_source_revision": active_revision,
+            },
+            {
+                "parent_plan_seed_manifest_sha256": (
+                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                ),
+                "parent_plan_seed_source_revision": active_revision,
+            },
+        )
+        for update in active_parents:
+            with self.subTest(field=next(iter(update))):
+                manifest = _manifest()
+                manifest_bytes = _json_bytes(manifest)
+                manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+                windows_manifest = _windows_manifest(manifest_digest)
+                windows_manifest["provenance"].update(update)
+                self.assert_contract_failure(
+                    _request(
+                        manifest=manifest,
+                        manifest_bytes=manifest_bytes,
+                        linux_manifest_digest=manifest_digest,
+                        windows_manifest=windows_manifest,
+                    )
+                )
+
+    def test_retired_v1_linux_parent_pair_is_rejected_for_v2(self):
+        manifest = _manifest()
+        manifest["provenance"].update(
+            {
+                "parent_seed_manifest_sha256": (
+                    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+                ),
+                "parent_seed_source_revision": (
+                    "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                ),
+            }
+        )
+
+        self.assert_contract_failure(_request(manifest=manifest))
+
+    def test_retired_v1_windows_parent_pairs_are_rejected_for_v2(self):
+        retired_parents = (
+            (
+                "parent_execution_seed_manifest_sha256",
+                "parent_execution_seed_source_revision",
+                "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef",
+            ),
+            (
+                "parent_plan_seed_manifest_sha256",
+                "parent_plan_seed_source_revision",
+                "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b",
+            ),
+        )
+        for digest_field, revision_field, digest in retired_parents:
+            with self.subTest(field=digest_field):
+                manifest = _manifest()
+                manifest_bytes = _json_bytes(manifest)
+                manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+                windows_manifest = _windows_manifest(manifest_digest)
+                windows_manifest["provenance"].update(
+                    {
+                        digest_field: digest,
+                        revision_field: (
+                            "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                        ),
+                    }
+                )
                 self.assert_contract_failure(
                     _request(
                         manifest=manifest,

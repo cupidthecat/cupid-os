@@ -1913,21 +1913,24 @@ The 143,084-byte serial log had SHA-256
 `6b5c6a4ca5daf9f19ec099d45609f385e0cf983f945a40433ebc3f1921e8ffab`.
 The final normal build passed after the exact-size check rejected the updated
 CTXT payload and its policy was updated. A second fail-closed check found that
-the Cupid-built contract still recognized only the preceding seed parents;
-the contract now accepts either complete adjacent parent pair and rejects
-mixed digest/revision pairs. All sixteen exact artifacts passed, along with
+the Cupid-built contract still recognized only the preceding seed parents.
+The promoted-v2 readers now accept the kernel-symbol and active
+kernel-flattening parent generations and reject mixed digest/revision pairs.
+The two Windows parent roles must use the same generation. The historical v1
+reader keeps its original parent contract. ADR 0380 records the window used
+by the next paired refresh. All sixteen exact artifacts passed, along with
 whole-image CupidDis inspection and disk-image staging. The current artifacts
-are a 9,609,272-byte `kernel/kernel.elf.pass1` with SHA-256
-`83c25eca995f1162d2c7eebbc10514364bba7fe44dea9e722f58610bf5013d47`, a
+are a 9,613,368-byte `kernel/kernel.elf.pass1` with SHA-256
+`b053778960e812de604807d4f3e7cdfb43f10d5fa4ca172699ff532d3d58c37a`, a
 9,740,344-byte `kernel/kernel.elf` with SHA-256
-`21263705b36e50542e7701313b0a465151e74a7f19c4e4dc50cabc8bef53a0cd`,
-and a 9,513,992-byte `kernel/kernel.bin` with SHA-256
-`8d764164c3bef57ee01062f899922aa1a8344f02d1ce53dfc68b68dae6365d4e`.
-The current 3,382-byte exact-size policy covers 38,330,596 bytes and has
+`28d1e9c242dea3ae08146c005787f2f50aa537b9ca08162b10fceb07e7cd899c`,
+and a 9,514,816-byte `kernel/kernel.bin` with SHA-256
+`8078c11fbb1e4ef78410f634c69e0f176649e7d1d32e0dab23118c88696bdead`.
+The current 3,382-byte exact-size policy covers 38,335,516 bytes and has
 SHA-256
-`ea0fd0ff6b88ef9ad0a89e0548f3d932c2533126a5d89270b7384d7ff9545706`.
+`22e5e9c011876f3991eefff13bef44b199c10839f5a69a521f052bd750472027`.
 The normal 209,715,200-byte `cupidos.img` has SHA-256
-`b178c07944f9e1653396a01a832b3b501d7327ac9ae4897ffb8fae5280c4322a`.
+`e07e7424d1f9818b87ab9700406a5036e4ed56dcaad724c7a3aec48004ffb7b6`.
 A preceding 9,501,220-byte checkpoint, which differed only in embedded manual
 text, passed a private four-vCPU E1000 QEMU smoke with
 `--cpu max --verify-smp-runtime` and ran `/bin/ls.cc`. The final
@@ -1940,6 +1943,11 @@ The promoted image also passed a fresh private four-vCPU E1000 run with the
 code bytes and 71 data bytes, then reached normal JIT completion. Its
 21,888-byte serial log has SHA-256
 `9eee7b49f11df1bd28ef1e1065c4c7e74c5f6b600351ecf0949d90b16652847b`.
+The parent-window image passed another private four-vCPU `max`/E1000 run with
+strong SMP verification. All four CPUs came online, and `/bin/ls.cc` compiled
+to 911 code bytes and 71 data bytes before normal JIT completion. Its
+33,159-byte serial log has SHA-256
+`c40c6ca664ca7e627c19b44bd85745865ab9969cdcd6702e822b810d408d7fc8`.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
 duplicate, linked, nonregular, or differently sized members fail. An

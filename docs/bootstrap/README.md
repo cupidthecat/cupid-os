@@ -75,7 +75,9 @@ the preceding paired seed promotion, ADR 0368 records direct JPEG publication,
 ADR 0369 records typed kernel-symbol publication, ADR 0370 records its paired
 seed carriage, ADR 0371 records production ownership, and ADR 0372 records
 typed source-head kernel flattening. ADR 0374 records the paired seed promotion
-that carries that transaction, and ADR 0375 records its normal-build handoff.
+that carries that transaction, ADR 0375 records its normal-build handoff, and
+ADR 0380 advances the exact promoted-v2 parent window for the next paired
+refresh.
 
 ## 2026-08-30 source-current checkpoint
 
@@ -162,6 +164,21 @@ images on both hosts. ADR 0365 records the source repair, ADR 0366 records the
 compatibility rule, ADR 0367 and ADR 0370 record preceding pairs, and ADR 0374
 records the active pair.
 
+Source-head CupidBuild and the Cupid-built artifact verifier now accept the
+kernel-symbol pair and the active kernel-flattening pair as the two exact v2
+parent generations. The historical v1 parser keeps its original parent, but a
+promoted v2 manifest may not reuse that retired pair. Linux and both Windows
+parent fields reject mixed digest and revision combinations. The Windows
+execution and plan parents must come from the same accepted generation. This
+opens the next candidate fixed point without publishing a seed or changing
+production ownership. ADR 0380 records the window change.
+
+The accompanying clean normal build failed closed on the two CTXT-sensitive
+size rows, then passed after those measured rows were updated. All 16 exact
+artifacts passed, the 200 MiB FAT16 image was rebuilt with `/hello.iso`, and a
+private four-vCPU `max`/E1000 boot brought all CPUs online and ran
+`/bin/ls.cc` to normal JIT completion.
+
 The native Windows fixed point now uses the checked Windows execution seed for
 every stage-two producer. The checked Linux seed remains the reviewed build
 plan and paired provenance input, but its executables do not run during this
@@ -223,8 +240,8 @@ ADR 0361 records seed promotion, and ADR 0362 records the recipe handoff.
 The final policy-bound build compiled all 83 Doom roots, linked both kernel
 stages with CupidLD, and passed strict CupidDis validation. A post-policy
 top-level replay accepted all 16 exact artifacts and published the image.
-`kernel/kernel.bin` is 9,513,992 bytes; the final and pass-one ELFs are
-9,740,344 and 9,609,272 bytes. A preceding 9,501,220-byte checkpoint, which
+`kernel/kernel.bin` is 9,514,816 bytes; the final and pass-one ELFs are
+9,740,344 and 9,613,368 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 smoke and ran
 `/bin/ls.cc` to normal JIT completion. The final documentation-bearing image
 then passed the same private four-vCPU E1000 gate with `--cpu max`, strong SMP

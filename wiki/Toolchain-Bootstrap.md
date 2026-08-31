@@ -24,6 +24,14 @@ Cupid-built contract. That contract now accepts either complete adjacent
 parent pair and rejects mixed digest/revision combinations. The corrected
 replay accepts all 16 exact rows, publishes a 9,513,992-byte flat kernel, and
 passes a private four-vCPU E1000 `/bin/ls.cc` smoke with strong SMP checks.
+Source head has since moved the promoted-v2 window forward one generation. It
+accepts the kernel-symbol pair and the active kernel-flattening pair, while
+the v1 reader keeps its historical contract. The Windows execution and plan
+parents must select the same generation. ADR 0380 records the exact digest
+and revision pairs that prepare the next seed candidate.
+The checked normal build accepts all 16 exact artifacts, and a private
+four-vCPU `max`/E1000 boot reaches `/bin/ls.cc` JIT completion with all CPUs
+online.
 
 The native Windows fixed point now runs every stage-two producer from the
 checked PE32 execution seed. The checked Linux seed remains the reviewed plan
@@ -117,8 +125,8 @@ ADR 0374 records the accepted pair.
 
 The policy-bound OS build passed all 83 Doom roots, both CupidLD links, strict
 CupidDis inspection, all 16 exact artifact rows, and image publication. The
-flat kernel is 9,513,992 bytes; the final and pass-one ELFs are 9,740,344 and
-9,609,272 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
+flat kernel is 9,514,816 bytes; the final and pass-one ELFs are 9,740,344 and
+9,613,368 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
 embedded manual text, passed a four-vCPU E1000 boot and ran `/bin/ls.cc`. The
 final documentation-bearing image passed the same private gate and reached
 normal `/bin/ls.cc` JIT completion.
@@ -155,8 +163,8 @@ timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,513,992 bytes for `kernel/kernel.bin`, 9,740,344 bytes
-for `kernel/kernel.elf`, and 9,609,272 bytes for
+The current sizes are 9,514,816 bytes for `kernel/kernel.bin`, 9,740,344 bytes
+for `kernel/kernel.elf`, and 9,613,368 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as part of that replay.
 

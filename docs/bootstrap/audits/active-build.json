@@ -39363,13 +39363,13 @@
             },
             {
               "directive": "if",
-              "line": 883,
+              "line": 888,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1213,
+              "line": 1218,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
@@ -40520,31 +40520,31 @@
             },
             {
               "directive": "if",
-              "line": 1146,
+              "line": 1151,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1673,
+              "line": 1678,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1709,
+              "line": 1714,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1933,
+              "line": 1938,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1977,
+              "line": 1982,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -47491,7 +47491,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 42533
+      "occurrences": 42535
     },
     {
       "category": "control",
@@ -47868,7 +47868,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 26335
+      "occurrences": 26336
     },
     {
       "category": "control",
@@ -48545,7 +48545,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2979
+      "occurrences": 2981
     },
     {
       "category": "declarator",
@@ -52001,7 +52001,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 17362
+      "occurrences": 17364
     },
     {
       "category": "qualifier",
@@ -52548,7 +52548,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10295
+      "occurrences": 10297
     },
     {
       "category": "type",
@@ -52997,7 +52997,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 10582
+      "occurrences": 10584
     },
     {
       "category": "type",
@@ -56271,7 +56271,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "d86811a322ea4a4448f87b587c9efec06ba64624160648ae254e36925d87f61b",
+    "active_source_digest": "6945975d2087823d1d9ba4078762c61571ba36926497cf24aacf15058824b347",
     "control_files": [
       {
         "path": "Makefile",
@@ -81083,12 +81083,12 @@
         "toolchain/pe32_impl.h"
       ],
       "language": "cupid_c",
-      "lines": 3468,
+      "lines": 3473,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a14293252dba07993b86a3315a5110bb3625774998310bbd166fd1c0b310ca16"
+      "sha256": "e09d7fb60b0beb626a71266100d53ed6e3a9c0e5add434cae19b90bb846fc89c"
     },
     {
       "build_owners": [
@@ -82927,12 +82927,12 @@
         "kernel/doom/src/include_stubs/stdlib.h"
       ],
       "language": "cupid_c",
-      "lines": 2279,
+      "lines": 2283,
       "origin": "tracked",
       "path": "toolchain/tests/artifact_size_policy_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "fe3768274061bdb37d4a42170b0e0b9504760ebfde59f027937dd48f3f75d00b"
+      "sha256": "8f3477a0e95c9846b095d5e11ee84ad21e1d4ffe0568774cf68bd5fd4cd6a98a"
     },
     {
       "build_owners": [

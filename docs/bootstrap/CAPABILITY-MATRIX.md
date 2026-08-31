@@ -67,8 +67,8 @@ links in the normal build.
 
 The final top-level replay passed after the exact-size check rejected the
 updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,513,992 bytes for `kernel/kernel.bin`, 9,740,344 bytes
-for `kernel/kernel.elf`, and 9,609,272 bytes for
+The current sizes are 9,514,816 bytes for `kernel/kernel.bin`, 9,740,344 bytes
+for `kernel/kernel.elf`, and 9,613,368 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as part of the same replay. A preceding 9,501,220-byte
 checkpoint, which differed only in embedded manual text, completed the strong

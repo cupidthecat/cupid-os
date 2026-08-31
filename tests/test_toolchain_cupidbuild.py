@@ -2406,6 +2406,64 @@ class CupidBuildCliTests(unittest.TestCase):
                         output.read_bytes()[:7], b"\x7fELF\x01\x01\x01"
                     )
 
+    def test_six_tool_v2_contract_accepts_the_active_seed_as_parent(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-v2-active-parent-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            document = self._promote_seed_contract(manifest)
+            revision = "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+            if os.name == "nt":
+                document["provenance"].update(
+                    {
+                        "parent_execution_seed_manifest_sha256": (
+                            "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+                        ),
+                        "parent_execution_seed_source_revision": revision,
+                        "parent_plan_seed_manifest_sha256": (
+                            "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                        ),
+                        "parent_plan_seed_source_revision": revision,
+                    }
+                )
+            else:
+                document["provenance"].update(
+                    {
+                        "parent_seed_manifest_sha256": (
+                            "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                        ),
+                        "parent_seed_source_revision": revision,
+                    }
+                )
+            manifest.write_text(
+                json.dumps(document, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text(
+                "bits 32\nsection .text\nglobal entry:function\nentry: ret\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"last known good object")
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertNotIn("fixed-point provenance differs", result.stderr)
+            if os.name == "nt":
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("execution profile mismatch", result.stderr)
+                self.assertEqual(
+                    output.read_bytes(), b"last known good object"
+                )
+            else:
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((result.stdout, result.stderr), ("", ""))
+                self.assertEqual(
+                    output.read_bytes()[:7], b"\x7fELF\x01\x01\x01"
+                )
+
     def test_six_tool_v2_contract_rejects_parent_and_revision_drift(self):
         def uppercase_revision(document):
             revision = document["provenance"]["source_revision"]
@@ -2431,10 +2489,35 @@ class CupidBuildCliTests(unittest.TestCase):
                     "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
                 )
 
+        def use_retired_v1_execution_parent(document):
+            if os.name == "nt":
+                document["provenance"].update(
+                    {
+                        "parent_execution_seed_manifest_sha256": (
+                            "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef"
+                        ),
+                        "parent_execution_seed_source_revision": (
+                            "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                        ),
+                    }
+                )
+            else:
+                document["provenance"].update(
+                    {
+                        "parent_seed_manifest_sha256": (
+                            "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+                        ),
+                        "parent_seed_source_revision": (
+                            "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                        ),
+                    }
+                )
+
         cases = (
             ("uppercase source revision", uppercase_revision),
             ("wrong parent manifest", change_parent),
             ("mixed parent generations", mix_parent_generations),
+            ("retired v1 parent generation", use_retired_v1_execution_parent),
             (
                 "preceding source input count",
                 lambda document: document["provenance"].update(
@@ -2456,6 +2539,32 @@ class CupidBuildCliTests(unittest.TestCase):
         )
         if os.name == "nt":
             cases += (
+                (
+                    "matched parents from different generations",
+                    lambda document: document["provenance"].update(
+                        {
+                            "parent_execution_seed_manifest_sha256": (
+                                "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+                            ),
+                            "parent_execution_seed_source_revision": (
+                                "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+                            ),
+                        }
+                    ),
+                ),
+                (
+                    "retired v1 plan parent generation",
+                    lambda document: document["provenance"].update(
+                        {
+                            "parent_plan_seed_manifest_sha256": (
+                                "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+                            ),
+                            "parent_plan_seed_source_revision": (
+                                "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                            ),
+                        }
+                    ),
+                ),
                 (
                     "malformed plan seed manifest",
                     lambda document: document["provenance"].update(

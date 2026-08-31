@@ -33951,3 +33951,57 @@ Issue #34 remains open. Kernel flattening now belongs to direct promoted
 CupidBuild, but disk-image creation, ISO creation, the Doom profile manifest,
 artifact-manifest handling, and fixed-point coordination still have
 Python-owned boundaries.
+
+## 2026-08-30: advance the promoted-v2 parent window
+
+The next seed candidates must name the active kernel-flattening cohorts as
+their parents. Source-head CupidBuild and the Cupid-built artifact-size
+contract previously accepted the historical v1 pair and the kernel-symbol
+pair while parsing promoted v2 manifests. They now accept the kernel-symbol
+pair and the active pair instead. The v1 parser keeps its historical parent
+contract.
+
+The change covers the Linux parent and both Windows execution and plan
+parents. Every digest remains coupled to its source revision. Tests reject a
+matched but retired v1 pair, mixed generations, and a digest combined with the
+other generation's revision. The Windows execution and plan parents must also
+name the same accepted generation.
+
+The new positive CupidBuild and artifact-contract tests first failed with the
+expected provenance diagnostics. After the window moved, the complete
+CupidBuild CLI module passed 97 tests in 100.735 seconds with three platform
+skips. The artifact-size and Toolchain manifest contract group passed 72
+tests in 74.214 seconds. The 65-test CupidC Toolchain coordinator module
+passed in 12.201 seconds. No seed binary or Make ownership changes in this
+step. ADR 0380 records the boundary.
+
+The first clean `make -j2 all` completed both CupidLD links and guarded
+flattening, then failed closed at the exact-size gate. The updated CTXT made
+`kernel/kernel.bin` 9,514,816 bytes and moved `kernel/kernel.elf.pass1` across
+one alignment page to 9,613,368 bytes. The final ELF remained 9,740,344 bytes.
+After those two exact rows changed, the second full replay accepted all 16
+artifacts and published the 200 MiB FAT16 image with `/hello.iso` staged.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,613,368 | `b053778960e812de604807d4f3e7cdfb43f10d5fa4ca172699ff532d3d58c37a` |
+| `kernel/kernel.elf` | 9,740,344 | `28d1e9c242dea3ae08146c005787f2f50aa537b9ca08162b10fceb07e7cd899c` |
+| `kernel/kernel.bin` | 9,514,816 | `8078c11fbb1e4ef78410f634c69e0f176649e7d1d32e0dab23118c88696bdead` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `e07e7424d1f9818b87ab9700406a5036e4ed56dcaad724c7a3aec48004ffb7b6` |
+
+The 3,382-byte policy covers 38,335,516 bytes and has SHA-256
+`22e5e9c011876f3991eefff13bef44b199c10839f5a69a521f052bd750472027`.
+Audit regeneration and its independent check both pass. The 2,779,011-byte
+JSON has SHA-256
+`6d21e24f18eedbc17f4785cac648ef3fcf26a323be47b9905c060d8ac5568741`,
+and the 13,192-byte summary has SHA-256
+`9a6b8589e1a413cfb84377e9791b6deb46b3563665540644acd5316d29f07d31`.
+The graph remains at 748 active inputs, 452 transforms, 255 feature
+requirements, and 28 accounted unreachable inputs.
+
+A private four-vCPU `max`/E1000 boot passed strong SMP verification and ran
+`/bin/ls.cc` to normal JIT completion with 911 code bytes and 71 data bytes.
+Its 33,159-byte log has SHA-256
+`c40c6ca664ca7e627c19b44bd85745865ab9969cdcd6702e822b810d408d7fc8`.

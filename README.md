@@ -150,10 +150,14 @@ ADR 0370 records the active promotion.
 
 The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
 strict CupidDis validation, all 16 exact artifacts, and image publication. The
-current flat kernel is 9,513,992 bytes; the final and pass-one ELFs are
-9,740,344 and 9,609,272 bytes. The Cupid-built artifact contract accepts the
-complete preceding or promoted parent pair and rejects mixed lineage. Its 58
-focused tests pass with four platform skips. A preceding 9,501,220-byte checkpoint, which
+current flat kernel is 9,514,816 bytes; the final and pass-one ELFs are
+9,740,344 and 9,613,368 bytes. The Cupid-built artifact contract accepts the
+complete kernel-symbol or active kernel-flattening parent pair and rejects
+mixed lineage. Source-head CupidBuild uses the same two-generation v2 window,
+while the v1 parser keeps its historical contract. ADR 0380 records this
+preparation for the next paired refresh. The 72-test artifact-size and
+Toolchain manifest contract group passes. A preceding 9,501,220-byte
+checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 boot and ran
 `/bin/ls.cc`. The final documentation-bearing image then passed the same
 private four-vCPU E1000 gate with `--cpu max --verify-smp-runtime` and ran

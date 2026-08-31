@@ -2448,6 +2448,14 @@ Its 2,852-byte manifest has SHA-256
 `e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
 and pairs to the exact Linux manifest bytes.
 
+Source-head promoted-v2 readers accept two exact parent generations: the
+kernel-symbol pair built from revision
+`9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6` and this active pair. Each
+manifest digest must stay with its own revision. Mixed pairs and the retired
+v1 parent fail before a tool runs. The historical v1 reader remains
+available for its original five-tool contract. ADR 0380 records this window
+for the next paired refresh.
+
 Candidate proof and promoted-seed self-consumption pass on Linux and native
 Windows. In the self-consumption runs, all six initial images equal stage two.
 CupidBuild now owns all four guarded assembly recipes, the typed JPEG and
