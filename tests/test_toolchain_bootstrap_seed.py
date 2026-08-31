@@ -465,6 +465,134 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertIn(required, startup)
         self.assertNotIn("cupid_windows_set_file_pointer", startup)
 
+    def test_native_windows_cupidbuild_enforces_paired_import_profiles(self):
+        if os.name != "nt":
+            self.skipTest("native CupidBuild profile validation requires Windows")
+
+        legacy_kernel = WINDOWS_CUPIDBUILD_SEED_IMPORTS[0]
+        legacy_ntdll = WINDOWS_CUPIDBUILD_SEED_IMPORTS[1]
+        current_kernel = WINDOWS_CUPIDBUILD_IMPORTS[0]
+        current_ntdll = WINDOWS_CUPIDBUILD_IMPORTS[1]
+        exactly_two_ntdll = (
+            "NTDLL.dll",
+            ("NtCreateFile", "NtSetInformationFile"),
+        )
+        cases = (
+            ("legacy", (legacy_kernel, legacy_ntdll), True),
+            ("current", (current_kernel, current_ntdll), True),
+            ("legacy-current", (legacy_kernel, current_ntdll), False),
+            ("current-legacy", (current_kernel, legacy_ntdll), False),
+            ("legacy-two", (legacy_kernel, exactly_two_ntdll), False),
+            ("current-two", (current_kernel, exactly_two_ntdll), False),
+        )
+
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-cli-", dir=REPO_ROOT / "toolchain"
+        ) as cli_temporary, tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-pairs-", dir=REPO_ROOT
+        ) as case_temporary:
+            cli_root = Path(cli_temporary)
+            cli_relative = cli_root.relative_to(REPO_ROOT / "toolchain")
+            cli = cli_root / "cupidbuild.exe"
+            built = subprocess.run(
+                [
+                    "make",
+                    "-C",
+                    str(REPO_ROOT / "toolchain"),
+                    f"BUILD_DIR={cli_relative.as_posix()}",
+                    f"{cli_relative.as_posix()}/cupidbuild.exe",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=180,
+            )
+            self.assertEqual(built.returncode, 0, built.stdout + built.stderr)
+
+            case_root = Path(case_temporary)
+            source = case_root / "input.asm"
+            source.write_text(
+                "bits 32\n"
+                "section .text\n"
+                "global entry:function\n"
+                "entry: ret\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            for name, profile, accepted in cases:
+                with self.subTest(profile=name):
+                    profile_root = case_root / name
+                    seed = profile_root / "seed"
+                    shutil.copytree(WINDOWS_SEED_MANIFEST.parent, seed)
+                    manifest_path = seed / "manifest.json"
+                    manifest = json.loads(
+                        manifest_path.read_text(encoding="utf-8")
+                    )
+                    artifact = next(
+                        item
+                        for item in manifest["artifacts"]
+                        if item["name"] == "cupidbuild"
+                    )
+                    tool = seed / artifact["file"]
+                    payload = self._minimal_cupidbuild_profile_pe32(profile)
+                    tool.write_bytes(payload)
+                    artifact["size"] = len(payload)
+                    artifact["sha256"] = hashlib.sha256(payload).hexdigest()
+                    manifest_path.write_text(
+                        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                        newline="\n",
+                    )
+                    _validate_static_i386_pe32(tool, 0x00401000, profile)
+
+                    output = profile_root / "output.o"
+                    output.write_bytes(b"last known good object")
+                    result = subprocess.run(
+                        [
+                            str(cli),
+                            "assemble-cupidasm-object",
+                            "--seed-manifest",
+                            str(manifest_path),
+                            "--root",
+                            str(REPO_ROOT),
+                            "--source",
+                            source.relative_to(REPO_ROOT).as_posix(),
+                            "--output",
+                            output.relative_to(REPO_ROOT).as_posix(),
+                        ],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                        timeout=90,
+                    )
+                    if accepted:
+                        self.assertNotIn(
+                            "checked seed execution profile mismatch",
+                            result.stderr,
+                        )
+                        if result.returncode == 0:
+                            self.assertEqual(
+                                (result.stdout, result.stderr), ("", "")
+                            )
+                            self.assertEqual(output.read_bytes()[:4], b"\x7fELF")
+                        else:
+                            self.assertEqual(result.returncode, 1)
+                            self.assertEqual(result.stdout, "")
+                            self.assertIn("checked CupidASM failed", result.stderr)
+                            self.assertEqual(
+                                output.read_bytes(), b"last known good object"
+                            )
+                    else:
+                        self.assertEqual(result.returncode, 1)
+                        self.assertEqual(result.stdout, "")
+                        self.assertIn(
+                            "checked seed execution profile mismatch",
+                            result.stderr,
+                        )
+                        self.assertEqual(
+                            output.read_bytes(), b"last known good object"
+                        )
+
     def test_promoted_seed_rejects_provenance_and_artifact_drift(self):
         source = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
 
@@ -1836,6 +1964,103 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         image[0x469:0x474] = b"USER32.dll\0"
         image[0x474:0x482] = b"\0\0ExitProcess\0"
         image[0x482:0x490] = b"\0\0MessageBoxA\0"
+        return image
+
+    @classmethod
+    def _minimal_cupidbuild_profile_pe32(
+        cls, profile: tuple[tuple[str, tuple[str, ...]], ...]
+    ) -> bytearray:
+        image = cls._minimal_pe32()
+        idata_rva = 0x2000
+        idata_offset = 0x400
+        descriptor_size = (len(profile) + 1) * 20
+        idata = bytearray(descriptor_size)
+        lookup_offsets: list[int] = []
+        iat_offsets: list[int] = []
+        library_offsets: list[int] = []
+        procedure_offsets: list[list[int]] = []
+
+        for _library, procedures in profile:
+            lookup_offsets.append(len(idata))
+            idata.extend(b"\0" * ((len(procedures) + 1) * 4))
+        first_iat_offset = len(idata)
+        for _library, procedures in profile:
+            iat_offsets.append(len(idata))
+            idata.extend(b"\0" * ((len(procedures) + 1) * 4))
+        iat_size = len(idata) - first_iat_offset
+        for library, _procedures in profile:
+            library_offsets.append(len(idata))
+            idata.extend(library.encode("ascii") + b"\0")
+        for _library, procedures in profile:
+            offsets: list[int] = []
+            for procedure in procedures:
+                if len(idata) % 2 != 0:
+                    idata.append(0)
+                offsets.append(len(idata))
+                idata.extend(b"\0\0" + procedure.encode("ascii") + b"\0")
+            procedure_offsets.append(offsets)
+
+        for library_index, (_library, procedures) in enumerate(profile):
+            struct.pack_into(
+                "<IIIII",
+                idata,
+                library_index * 20,
+                idata_rva + lookup_offsets[library_index],
+                0,
+                0,
+                idata_rva + library_offsets[library_index],
+                idata_rva + iat_offsets[library_index],
+            )
+            for procedure_index in range(len(procedures)):
+                name_rva = (
+                    idata_rva
+                    + procedure_offsets[library_index][procedure_index]
+                )
+                struct.pack_into(
+                    "<I",
+                    idata,
+                    lookup_offsets[library_index] + procedure_index * 4,
+                    name_rva,
+                )
+                struct.pack_into(
+                    "<I",
+                    idata,
+                    iat_offsets[library_index] + procedure_index * 4,
+                    name_rva,
+                )
+
+        raw_size = (len(idata) + 0x1FF) & ~0x1FF
+        image.extend(b"\0" * raw_size)
+        optional = 0x98
+        struct.pack_into("<H", image, 0x86, 2)
+        struct.pack_into("<I", image, optional + 8, raw_size)
+        struct.pack_into("<I", image, optional + 24, idata_rva)
+        struct.pack_into(
+            "<I", image, optional + 56, (idata_rva + len(idata) + 0xFFF) & ~0xFFF
+        )
+        struct.pack_into(
+            "<II", image, optional + 96 + 8, idata_rva, descriptor_size
+        )
+        struct.pack_into(
+            "<II",
+            image,
+            optional + 96 + 12 * 8,
+            idata_rva + first_iat_offset,
+            iat_size,
+        )
+        section = 0x1A0
+        image[section : section + 8] = b".idata\0\0"
+        struct.pack_into(
+            "<IIII",
+            image,
+            section + 8,
+            len(idata),
+            idata_rva,
+            raw_size,
+            idata_offset,
+        )
+        struct.pack_into("<I", image, section + 36, 0xC0000040)
+        image[idata_offset : idata_offset + len(idata)] = idata
         return image
 
     def test_pe32_fixed_point_validator_rejects_false_layouts(self):
