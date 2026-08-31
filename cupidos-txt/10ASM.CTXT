@@ -60,6 +60,8 @@ spellings such as name and ./name, along with Windows case aliases, fail before
 either file is truncated even when both paths are absent. Existing hard links
 fail the same check by file identity. The same leaf beneath aliased existing
 parent directories also fails before either output is created.
+The hosted i386 Linux path compares existing file and parent identities with
+fstat64 through the declared Cupid two-argument syscall wrapper.
 Source-head CupidBuild also has a narrow checked runner for CupidObj. Linux
 creates no .cupidbuild-run namespace: it fully seals the manifest and six
 tools in anonymous memfds and pins the working directory by descriptor. The

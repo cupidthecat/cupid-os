@@ -838,6 +838,9 @@ candidates the broader sharing needed by checked tools and asks CupidASM to
 write directly into the candidate owned by CupidBuild. A dirty-tree v4 pair
 converged on Linux and Windows; clean commit-pinned reconstruction remains
 before seed publication.
+The first clean attempt at f3c14b86 stopped at Linux stage two on a misspelled
+custom-Linux syscall wrapper. It authored no manifest, so the pair must restart
+from the corrected commit.
 
 The profile publisher retains every discovered directory and validates the
 complete retained-to-public set twice at each closure checkpoint. POSIX

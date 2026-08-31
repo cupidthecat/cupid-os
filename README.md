@@ -117,6 +117,9 @@ retained candidate identity survives until inspection and publication.
 A dirty-tree v4 reconstruction converged on both hosts with the source-current
 matrices below. It proves the implementation, but it is not a promotion: a
 clean, commit-pinned paired rebuild must still produce the seed manifests.
+The first clean attempt at `f3c14b86` stopped at Linux stage two on a misspelled
+custom-Linux syscall wrapper and published no manifest. The corrected pair
+must restart from the follow-up commit.
 The combined source-head behavior matrices define 31 failure, 7 help,
 and 37 success cases on Linux, and 19 failure, 7 help, and 24 success cases on
 native Windows. The promoted seeds do not carry this command yet, so the

@@ -92,6 +92,12 @@ This is implementation evidence, not a promotion record: the source was not
 commit-pinned, the checked seed directories did not change, and a clean
 rebuild from the source commit remains required before manifest generation.
 
+The first clean detached reconstruction at `f3c14b86` failed closed during
+Linux stage two. The new custom-Linux identity check used an undeclared variant
+of the existing two-argument syscall wrapper. Correcting that spelling changes
+the source commit, so the paired proof must restart and neither candidate from
+the failed attempt is promotable.
+
 ## Alternatives considered
 
 Closing CupidBuild's candidate handle while standalone CupidASM publishes was

@@ -42,6 +42,9 @@ cleanup. Guarded CupidASM calls write directly to the candidate retained by
 CupidBuild instead of nesting a second publisher. A dirty-tree v4 pair passed
 the 31/7/37 Linux and 19/7/24 Windows matrices. Clean, commit-pinned
 reconstruction, seed publication, and the separate Make handoff remain.
+The first clean attempt at `f3c14b86` stopped at Linux stage two on a misspelled
+custom-Linux syscall wrapper and authored no manifest. The paired proof must
+restart from the corrected commit.
 
 Source-head CupidBuild now provides `flatten-kernel` for the full production
 code cohort. The transaction freezes the manifest, 431 active inputs, and the

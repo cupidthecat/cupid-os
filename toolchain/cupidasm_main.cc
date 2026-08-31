@@ -779,9 +779,9 @@ static ctool_status_t cupidasm_existing_paths_alias(
         CUPIDASM_LINUX_SYS_OPEN, (unsigned int)right, 0u, 0u);
     if (!cupidasm_linux_syscall_failed(left_descriptor) &&
         !cupidasm_linux_syscall_failed(right_descriptor)) {
-      if (cupidasm_linux_syscall2(CUPIDASM_LINUX_SYS_FSTAT64,
-                                  (unsigned int)left_descriptor,
-                                  (unsigned int)left_information) < 0 ||
+      if (cupid_linux_syscall2(CUPIDASM_LINUX_SYS_FSTAT64,
+                               (unsigned int)left_descriptor,
+                               (unsigned int)left_information) < 0 ||
           cupid_linux_syscall2(CUPIDASM_LINUX_SYS_FSTAT64,
                                (unsigned int)right_descriptor,
                                (unsigned int)right_information) < 0) {

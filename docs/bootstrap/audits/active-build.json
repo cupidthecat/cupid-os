@@ -57535,7 +57535,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "d83e7a3cd151165d57d3daf251511d640a32be713842cc0b91ab8e8805066f02",
+    "active_source_digest": "464ae93f1f3180544a99dcd91e8154abe44e78c660919db6b588919645f61a2d",
     "control_files": [
       {
         "path": "Makefile",
@@ -82302,7 +82302,7 @@
       "path": "toolchain/cupidasm_main.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ca470ab6258c9d8e25708169b6db0b8eb405c27c90d1d701ed72c3a1e5bccdcf"
+      "sha256": "3b946713cb8873dac61f60fb508bf7d54b9d3601f6e9bdf47d2cd0108ef7531a"
     },
     {
       "build_owners": [

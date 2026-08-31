@@ -34341,6 +34341,14 @@ handle decisions. No `.c` source was renamed, and `TempleOS/` was not modified.
 Audit regeneration and check-only mode passed at 748 inputs, 452 transforms,
 255 feature requirements, and 28 accounted unreachable inputs. The combined
 2,820,961-byte JSON has SHA-256
-`a9ee99d84b0c96290729a7d31c1a21ca23091e2f057d48453e3923ac83555e01`.
+`e44be9f7b9367c7e65ce5e4e5d21cfcb324036cda6984c84e48a3d1223f34d71`.
 The 13,193-byte summary has SHA-256
 `b3fe8a0f5b5d09d2cb67b0fb67c1afe715dce4077315aa6124228463c8d55c39`.
+
+The first clean reconstruction pinned to `f3c14b86` stopped at Linux stage
+two before either manifest was authored. CupidC found that the custom-Linux
+CupidASM identity check called the undeclared `cupidasm_linux_syscall2`
+spelling. The function is the shared `cupid_linux_syscall2` wrapper used by
+the hosted runtime. The call now uses that declared interface, and the paired
+proof must restart from a new commit. The native Windows candidate was stopped
+once the Linux half failed because an unpaired result cannot be promoted.

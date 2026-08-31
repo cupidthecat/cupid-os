@@ -144,6 +144,9 @@ A dirty-tree v4 reconstruction passed on Linux and native Windows with the
 source-current behavior totals below. The result is not yet promotable because
 the source was not commit-pinned. A clean paired reconstruction still has to
 author and validate both seed manifests.
+The first clean attempt at `f3c14b86` stopped at Linux stage two on a misspelled
+custom-Linux syscall wrapper. It authored no manifest, and the corrected pair
+must restart from the follow-up commit.
 
 Together with the checked CupidC runner, the source-head behavior definitions
 are 31/7/37 on Linux and 19/7/24 on native Windows. The active promoted seeds
