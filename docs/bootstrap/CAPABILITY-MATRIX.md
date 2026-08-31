@@ -28,7 +28,8 @@ semantics, and the Cupid-built runtime contract covers matches, misses, and
 the null terminator.
 
 Native checked CupidObj and CupidLD launch is **Observed in the promoted
-seeds**. `cupidbuild run` validates a promoted manifest, all six
+seeds**. Checked CupidC launch is **Observed at source head**. `cupidbuild run`
+validates a promoted manifest, all six
 tools, seed membership, declared bytes, and host execution profiles. Linux
 creates no `.cupidbuild-run` namespace. It freezes every seed input in a fully
 sealed anonymous memfd and pins the working directory by descriptor. The child
@@ -40,14 +41,22 @@ anonymous memfds that become fully sealed before reading. A close-on-exec
 launch-status pipe preserves an exact child exit of 125. The static i386
 startup exports `cupid_linux_syscall5` for this descriptor path.
 
-The admitted list contains only CupidObj and CupidLD. Direct and checked
-CupidLD paths produce the same fixed-address ELF, and both fixed-point drivers
-run a checked CupidObj success and failure through consecutive CupidBuild
-generations. At the ADR 0360 runner checkpoint, the matrices contained
+The promoted images admit CupidObj and CupidLD. Source-head CupidBuild also
+admits CupidC and continues to reject CupidASM, CupidDis, and CupidBuild.
+Direct and checked CupidC paths produce the same i386 relocatable object, and
+a syntax error forwards the compiler diagnostic and status without replacing
+an existing output. Direct and checked CupidLD paths produce the same
+fixed-address ELF. Both fixed-point drivers run a checked CupidObj success and
+failure through consecutive CupidBuild generations. At the ADR 0360 runner
+checkpoint, the matrices contained
 25/6/32 failure, help, and success cases on Linux and 14/6/19 on native
 Windows. ADR 0360 records that extension and behavior gate. The active pair
 adds the typed JPEG, kernel-symbol, and kernel-flatten transactions, bringing
-the matrices to 28/6/35 and 17/6/22.
+the promoted matrices to 28/6/35 and 17/6/22. Source head registers checked
+CupidC help, compile success, and compile failure in both drivers, raising the
+next reconstruction to 29/7/36 on Linux and 18/7/23 on native Windows. Those
+new totals are source contracts, not promoted-seed evidence. ADR 0376 records
+the compiler admission.
 
 Windows pins and rechecks the working-directory identity. It uses a
 handle-pinned private root and files, retains a tool handle without write or
@@ -64,6 +73,14 @@ dedicated Make contract passed. The six-test CupidASM source suite passed in
 as did timeout-and-seed-drift precedence. The command is present in both
 promoted seeds and owns the 186 direct CupidObj recipes plus both normal kernel
 links in the normal build.
+
+The source-head CupidC admission rerun completed 106 CupidBuild and host-runner
+tests in 117.338 seconds with seven platform skips. It covered direct and
+checked compiler help, invalid options, a byte-identical compile, diagnostic
+and status forwarding, output preservation, the existing seed-drift checks,
+and private-runner cleanup. The fixed-point carrier and generated audit now
+lock the three added cases on both host paths. Neither seed was promoted, and
+no production compiler wrapper changed.
 
 The final top-level replay passed after the exact-size check rejected the
 updated CTXT payload and its policy was updated. All 16 exact artifacts passed.

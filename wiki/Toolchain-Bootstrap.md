@@ -46,15 +46,17 @@ At the ADR 0361 checkpoint, both the Linux and native Windows end-to-end
 fixed-point tests passed. That Linux cohort rebuilt all six tools; its paired
 Windows cohort retained five exact images and rebuilt only CupidBuild.
 
-Source-head `cupidbuild run` now admits checked CupidLD alongside CupidObj and
-rejects the remaining tools. A real fixed-address ELF link matches the direct
-CupidLD output. The Linux and native Windows fixed-point drivers also run
-checked CupidObj `wrap-text` through both compared CupidBuild generations,
-require byte-identical relocatable objects, and check the invalid-option path.
-The current source-head behavior totals are 28/6/35 and 17/6/22. Both promoted cohorts passed
-self-consumption with all six initial images equal to stage two. ADR 0360
-records the runner boundary, ADR 0361 records the preceding paired promotion,
-ADR 0367 records the preceding pair, and ADR 0370 records the active pair. The
+Source-head `cupidbuild run` admits exactly CupidC, CupidObj, and CupidLD. A
+checked CupidC compile matches the direct i386 relocatable bytes, while a
+syntax error forwards the same status and diagnostic without replacing an
+existing object. The Linux and native Windows fixed-point drivers retain the
+checked CupidObj comparison and add checked CupidC help, success, and failure
+cases. The source-head registrations are 29/7/36 and 18/7/23. The promoted
+cohorts still carry 28/6/35 and 17/6/22 and passed self-consumption with all six
+initial images equal to stage two. ADR 0360 records the original runner
+boundary, ADR 0361 records the preceding paired promotion, and ADR 0376 records
+the source-head compiler admission. ADR 0367 records the preceding pair, and
+ADR 0370 records the active pair. The
 normal graph now runs 186 ordinary CupidObj recipes through CupidBuild. The
 two normal kernel links use the same checked runner. After the typed JPEG and
 kernel-symbol and kernel-flatten handoffs, the audit records 195 CupidBuild

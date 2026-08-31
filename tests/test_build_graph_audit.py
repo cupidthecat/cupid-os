@@ -6171,16 +6171,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
     def test_cupid_toolchain_fixed_point_contract_fails_closed(self):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
-        self.assertEqual(contract["help_cases"], 6)
-        self.assertEqual(contract["success_behavior_cases"], 35)
-        self.assertEqual(contract["failure_behavior_cases"], 28)
+        self.assertEqual(contract["help_cases"], 7)
+        self.assertEqual(contract["success_behavior_cases"], 36)
+        self.assertEqual(contract["failure_behavior_cases"], 29)
         self.assertEqual(contract["tool_c_sources"], 22)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 22)
         self.assertEqual(contract["compared_tool_images"], 6)
-        self.assertEqual(contract["windows_help_cases"], 6)
-        self.assertEqual(contract["windows_success_behavior_cases"], 22)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 17)
+        self.assertEqual(contract["windows_help_cases"], 7)
+        self.assertEqual(contract["windows_success_behavior_cases"], 23)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 18)
         self.assertEqual(contract["contract_manifest_inputs"], 76)
         self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 76)
         self.assertIn(
@@ -6200,6 +6200,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(
             contract["source_head_capabilities"],
             [
+                "cupid.cupidbuild_checked_cupidc_runner",
                 "cupid.cupidbuild_checked_cupidobj_runner",
                 "cupid.cupidbuild_guarded_object_transaction",
                 "cupid.cupidbuild_guarded_raw_transaction",
@@ -6666,20 +6667,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 36,\n',
                 '        "success_cases": 35,\n',
-                '        "success_cases": 34,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 29,\n',
                 '        "failure_cases": 28,\n',
-                '        "failure_cases": 27,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": len(tool_names) + 12,\n',
                 '        "failure_cases": len(tool_names) + 11,\n',
-                '        "failure_cases": len(tool_names) + 10,\n',
                 r"native Windows fixed-point behavior differs",
             ),
             "Linux fixed-point C objects skip CupidDis certification": (
@@ -6875,6 +6876,71 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '            "native Windows ",\n'
                 "        )\n",
                 r"checked CupidObj runner call",
+            ),
+            "checked CupidC runner helper disappears": (
+                "bootstrap",
+                "def _check_cupidbuild_cupidc_runner_behavior(\n",
+                "def _removed_cupidbuild_cupidc_runner_behavior(\n",
+                r"checked CupidC runner call differs",
+            ),
+            "checked CupidC runner stops comparing output": (
+                "bootstrap",
+                "        or stage_two_output.read_bytes() "
+                "!= stage_three_output.read_bytes()\n"
+                "    ):\n"
+                "        raise BootstrapError(\n"
+                "            f\"{label_prefix}CupidBuild checked CupidC "
+                "output differs\"\n"
+                "        )\n",
+                "        or False\n"
+                "    ):\n"
+                "        raise BootstrapError(\n"
+                "            f\"{label_prefix}CupidBuild checked CupidC "
+                "output differs\"\n"
+                "        )\n",
+                r"checked CupidC runner behavior differs",
+            ),
+            "Linux checked CupidC runner moves under a dead block": (
+                "bootstrap",
+                "    _check_cupidbuild_cupidc_runner_behavior(\n"
+                "        runner,\n"
+                "        behavior_root,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                "        seed_inputs,\n"
+                '        "",\n'
+                "    )\n",
+                "    if False:\n"
+                "        _check_cupidbuild_cupidc_runner_behavior(\n"
+                "            runner,\n"
+                "            behavior_root,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                "            seed_inputs,\n"
+                '            "",\n'
+                "        )\n",
+                r"checked CupidC runner call",
+            ),
+            "Windows checked CupidC runner moves under a dead block": (
+                "bootstrap",
+                "    _check_cupidbuild_cupidc_runner_behavior(\n"
+                "        runner,\n"
+                "        behavior_root,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                "        seed_inputs,\n"
+                '        "native Windows ",\n'
+                "    )\n",
+                "    if False:\n"
+                "        _check_cupidbuild_cupidc_runner_behavior(\n"
+                "            runner,\n"
+                "            behavior_root,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                "            seed_inputs,\n"
+                '            "native Windows ",\n'
+                "        )\n",
+                r"checked CupidC runner call",
             ),
             "JPEG success stage comparison moves under a dead block": (
                 "bootstrap",
@@ -7205,7 +7271,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 Windows compile loses freestanding mode": (
                 "bootstrap",
+                "    windows_compiler_arguments: list[str | Path] = [\n"
+                '        "--root",\n'
+                "        behavior_root,\n"
                 '        "--freestanding",\n',
+                "    windows_compiler_arguments: list[str | Path] = [\n"
+                '        "--root",\n'
+                "        behavior_root,\n"
                 '        "--gnu",\n',
                 r"fixed-point PE32 behavior differs",
             ),

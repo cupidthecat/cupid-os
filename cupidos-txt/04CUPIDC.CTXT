@@ -2430,6 +2430,26 @@ oracle. ADR 0369 records the source capability, ADR 0370 records paired seed
 carriage, and ADR 0371 records production ownership.
 >endtree
 
+>h2 Checked CupidC Runner
+>tree
+Source-head CupidBuild can launch CupidC from a checked six-tool seed with
+`cupidbuild run --tool cupidc`. The command admits only CupidC, CupidObj, and
+CupidLD. It validates manifest membership, target execution profiles, and tool
+bytes before launch, captures the compiler streams and status, rechecks the
+live seed, and withholds the result when drift or cleanup fails.
+
+The public contract compiles a freestanding `.cc` file through direct and
+checked CupidC paths and requires the same i386 relocatable bytes. A malformed
+source forwards the compiler diagnostic and status while preserving the
+previous output. The Linux and native Windows fixed-point drivers also carry
+checked help, compile, and failure cases through consecutive CupidBuild
+generations.
+
+The active promoted CupidBuild images still admit only CupidObj and CupidLD.
+Production compiler recipes therefore keep their current checked launcher
+until a later paired fixed point carries this source capability.
+>endtree
+
 >h2 Active Six-Tool Seed Contract
 >tree
 CupidBuild still accepts the historical v1 five-tool contract. The active

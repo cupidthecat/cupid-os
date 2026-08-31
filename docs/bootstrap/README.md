@@ -4260,3 +4260,30 @@ and the strong SMP runtime check. Cupid OS opened the GUI terminal, ran
 `9eee7b49f11df1bd28ef1e1065c4c7e74c5f6b600351ecf0949d90b16652847b`.
 ADR 0371 records
 the production decision.
+
+## 2026-08-30 source-head checked CupidC runner
+
+Source-head `cupidbuild run` now admits exactly CupidC, CupidObj, and CupidLD.
+The CLI and library still reject CupidASM, CupidDis, and CupidBuild. CupidC is
+selected from the same frozen six-tool seed as the existing roles, so the
+generic runner keeps its manifest membership, execution-profile, sealed or
+handle-pinned input, captured-stream, timeout, cleanup, status, and live-seed
+checks.
+
+The public contract compares direct and checked CupidC help and invalid-option
+results. A positive case compiles one freestanding `.cc` source through both
+paths and requires the same i386 `ET_REL` bytes. A syntax-error case requires
+the same status and diagnostic and proves that neither path replaces its
+existing output. The complete CupidBuild and host-runner rerun passed 106
+tests in 117.338 seconds with seven platform skips.
+
+Both fixed-point drivers now register checked CupidC help, compile success,
+and compile failure through the compared CupidBuild generations. The generated
+source audit reports 29 failure, seven help, and 36 success cases for Linux,
+plus 18 failure, seven help, and 23 success cases for native Windows. These
+counts describe the source-head contract. The promoted seeds still carry the
+28/6/35 and 17/6/22 matrices, and this change does not replace them.
+
+The compiler's production wrappers also remain unchanged. Seed promotion and
+any normal-build transfer require separate fixed-point evidence and separate
+commits. ADR 0376 records the admission boundary.

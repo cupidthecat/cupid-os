@@ -14,10 +14,12 @@ directly with the exact 431-entry input manifest and complete seed closure;
 Hostbuild remains an optional parity oracle. ADR 0372 records the source
 boundary, ADR 0374 records seed carriage, and ADR 0375 records the handoff.
 
-The promoted CupidBuild images can launch checked CupidObj and CupidLD without Python. Linux
-creates no `.cupidbuild-run` namespace. It freezes the manifest and all six
-tools in fully sealed anonymous memfds and pins the working directory by
-descriptor. The child calls `fchdir` before remapping its stream descriptors.
+The promoted CupidBuild images can launch checked CupidObj and CupidLD without
+Python. Source-head CupidBuild also launches checked CupidC through the same
+boundary. Linux creates no `.cupidbuild-run` namespace. It freezes the manifest
+and all six tools in fully sealed anonymous memfds and pins the working
+directory by descriptor. The child calls `fchdir` before remapping its stream
+descriptors.
 If the tool occupies descriptor 0, 1, or 2, it is duplicated above them before
 `fexecve` or `execveat`. The `dup2`, pipe read and write, and wait loops retry
 `EINTR`; `dup2` also retries `EBUSY`. Captured streams are sealed anonymous
@@ -31,13 +33,17 @@ files are handle-pinned. Cleanup removes a mutated file when its identity still
 belongs to the runner and preserves a replacement identity. Both hosts recheck
 the live cohort before they expose the result.
 
-Only those two tools are admitted. A real fixed-address ELF linked through the
-checked CupidLD path matches direct CupidLD byte for byte. Both active
+The promoted runner admits only CupidObj and CupidLD. Source head admits
+exactly CupidC, CupidObj, and CupidLD. A real fixed-address ELF linked through
+the checked CupidLD path matches direct CupidLD byte for byte. Both active
 fixed points also run checked CupidObj `wrap-text` through their compared
 CupidBuild generations, validate equal relocatable output, and require the
 same invalid-option failure. With the typed JPEG, kernel-symbol, and
-kernel-flatten transactions included, the current behavior totals are
-28/6/35 on Linux and 17/6/22 on native Windows.
+kernel-flatten transactions included, the promoted behavior totals are
+28/6/35 on Linux and 17/6/22 on native Windows. The next source reconstruction
+also requires checked CupidC help, a successful byte-equal compile, and a
+failing compile that preserves both outputs. Its registered totals are
+29/7/36 and 18/7/23. This step does not promote those registrations.
 
 The active pair carries two typed publications beyond that runner surface.
 `cupidbuild embed-jpeg` freezes the complete v2 cohort and asset, asks
@@ -1896,3 +1902,16 @@ The source capability preserves the complete parity and publication contract.
 It does not move the Make edge by itself. Five composite CupidObj paths remain
 Python-coordinated in the normal graph, and participation stays at 193
 CupidBuild and 259 Python at this checkpoint.
+
+## 2026-08-30 checked CupidC runner admission
+
+| Boundary | Promoted state | Source-head state | Next ownership gate |
+| --- | --- | --- | --- |
+| `cupidbuild run --tool cupidc` | The active CupidBuild images reject CupidC; production compiler wrappers keep their established checked launcher | The CLI and library admit CupidC from the frozen six-tool seed, preserve the generic runner's manifest, profile, stream, status, timeout, cleanup, and live-drift checks, and reject the three unapproved roles | Rebuild and prove both fixed points, promote the paired seed only after convergence, then evaluate compiler-wrapper transfer separately |
+
+The public runner test compiles one freestanding `.cc` source through direct
+and checked CupidC paths and requires the same i386 relocatable bytes. Its
+negative case forwards the compiler diagnostic and status while leaving a
+sentinel object unchanged. The fixed-point drivers carry help, success, and
+failure checks for Linux and native Windows. ADR 0376 records this source
+boundary. No Make recipe or graph owner changes in this step.

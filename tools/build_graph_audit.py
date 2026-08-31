@@ -9423,9 +9423,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 28,
-        "help_cases": 6,
-        "success_cases": 35,
+        "failure_cases": 29,
+        "help_cases": 7,
+        "success_cases": 36,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -9818,6 +9818,68 @@ def _cupid_toolchain_fixed_point_contract(
             "Cupid Toolchain fixed-point checked CupidObj runner behavior "
             f"differs: {missing_cupidbuild_runner_fragments!r}"
         )
+    cupidbuild_cupidc_runner_helpers = [
+        node
+        for node in bootstrap_tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_check_cupidbuild_cupidc_runner_behavior"
+    ]
+    if (
+        len(cupidbuild_cupidc_runner_helpers) != 1
+        or live_linked_code_policy_call_count(
+            behavior_function,
+            "_check_cupidbuild_cupidc_runner_behavior",
+        )
+        != 1
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point checked CupidC runner call "
+            "differs: Linux must call the helper once"
+        )
+    cupidbuild_cupidc_runner_source = ast.get_source_segment(
+        bootstrap_source, cupidbuild_cupidc_runner_helpers[0]
+    ) or ""
+    required_cupidbuild_cupidc_runner_fragments = (
+        'runner_root = behavior_root / "cupidc-runner"',
+        "manifest_path = _materialize_behavior_seed(seed_inputs, runner_root)",
+        'valid_source = runner_root / "runner-valid.cc"',
+        'invalid_source = runner_root / "runner-invalid.cc"',
+        '        "--tool",',
+        '        "cupidc",',
+        '        "--",',
+        "help_result = _run_stage_pair(",
+        '"usage: cupidc" not in help_result.stdout',
+        "success_result = _run_stage_pair(",
+        '        "/runner-valid.cc",',
+        "stage_two_output.read_bytes() != stage_three_output.read_bytes()",
+        "_validate_i386_relocatable(stage_two_output)",
+        "failure_result = _run_stage_pair(",
+        '        "/runner-invalid.cc",',
+        '"/runner-invalid.cc:1:" not in failure_result.stderr',
+        "stage_two_failure.read_bytes() != sentinel",
+        "stage_three_failure.read_bytes() != sentinel",
+    )
+    missing_cupidbuild_cupidc_runner_fragments = [
+        fragment
+        for fragment in required_cupidbuild_cupidc_runner_fragments
+        if cupidbuild_cupidc_runner_source.count(fragment) != 1
+    ]
+    if (
+        missing_cupidbuild_cupidc_runner_fragments
+        or cupidbuild_cupidc_runner_source.count('        "cupidbuild",') != 3
+        or live_linked_code_policy_call_count(
+            cupidbuild_cupidc_runner_helpers[0], "_run_stage_pair"
+        )
+        != 3
+        or live_linked_code_policy_call_count(
+            cupidbuild_cupidc_runner_helpers[0], "_expect_status"
+        )
+        != 3
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point checked CupidC runner behavior "
+            f"differs: {missing_cupidbuild_cupidc_runner_fragments!r}"
+        )
     cupidbuild_behavior_helpers = [
         node
         for node in bootstrap_tree.body
@@ -10205,6 +10267,24 @@ def _cupid_toolchain_fixed_point_contract(
                         ):
                             resolved_return[key.value] = len(
                                 candidate_toolchain_links
+                            )
+                            continue
+                        if (
+                            isinstance(value, ast.BinOp)
+                            and isinstance(value.op, ast.Add)
+                            and isinstance(value.left, ast.Call)
+                            and isinstance(value.left.func, ast.Name)
+                            and value.left.func.id == "len"
+                            and len(value.left.args) == 1
+                            and isinstance(value.left.args[0], ast.Name)
+                            and value.left.args[0].id == "tool_names"
+                            and not value.left.keywords
+                            and isinstance(value.right, ast.Constant)
+                            and isinstance(value.right.value, int)
+                        ):
+                            resolved_return[key.value] = (
+                                len(candidate_toolchain_links)
+                                + value.right.value
                             )
                             continue
                         try:
@@ -13103,6 +13183,7 @@ def _cupid_toolchain_fixed_point_contract(
         "_run_native_windows_behavior_checks": (
             "for tool_name in tool_names:",
             "_check_cupidbuild_cupidobj_runner_behavior(",
+            "_check_cupidbuild_cupidc_runner_behavior(",
             "_check_cupidbuild_guarded_object_behavior(",
             "_check_cupidbuild_embed_jpeg_behavior(",
             "_check_cupidbuild_generate_ksyms_behavior(",
@@ -13157,9 +13238,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 11, "
-            "'help_cases': len(tool_names), "
-            "'success_cases': len(tool_names) + 16"
+            "'failure_cases': len(tool_names) + 12, "
+            "'help_cases': len(tool_names) + 1, "
+            "'success_cases': len(tool_names) + 17"
             "}",
             mode="eval",
         ).body
@@ -13175,8 +13256,8 @@ def _cupid_toolchain_fixed_point_contract(
             expected_native_windows_behavior, include_attributes=False
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return seventeen failure, "
-                "six help, and twenty-two success cases"
+                "_run_native_windows_behavior_checks: return eighteen failure, "
+                "seven help, and twenty-three success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -13188,6 +13269,17 @@ def _cupid_toolchain_fixed_point_contract(
             missing_native_windows_fragments.append(
                 "_run_native_windows_behavior_checks: one live checked "
                 "CupidObj runner call"
+            )
+        if (
+            live_linked_code_policy_call_count(
+                behavior_function,
+                "_check_cupidbuild_cupidc_runner_behavior",
+            )
+            != 1
+        ):
+            missing_native_windows_fragments.append(
+                "_run_native_windows_behavior_checks: one live checked "
+                "CupidC runner call"
             )
         if (
             live_linked_code_policy_call_count(
@@ -13820,14 +13912,15 @@ return tuple(
         "compared_c_objects": len(candidate_toolchain_sources),
         "compared_startup_objects": 1,
         "compared_tool_images": len(candidate_toolchain_links),
-        "help_cases": len(candidate_toolchain_links),
+        "help_cases": expected_behavior_matrix["help_cases"],
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
-        "windows_help_cases": 6,
-        "windows_success_behavior_cases": 22,
-        "windows_failure_behavior_cases": 17,
+        "windows_help_cases": 7,
+        "windows_success_behavior_cases": 23,
+        "windows_failure_behavior_cases": 18,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
+            "cupid.cupidbuild_checked_cupidc_runner",
             "cupid.cupidbuild_checked_cupidobj_runner",
             "cupid.cupidbuild_guarded_object_transaction",
             "cupid.cupidbuild_guarded_raw_transaction",

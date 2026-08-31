@@ -787,7 +787,7 @@ class CupidBuildCliTests(unittest.TestCase):
         self.assertRegex(
             result.stdout,
             r"cupidbuild run --seed-manifest MANIFEST\s+"
-            r"--root ROOT --tool \{cupidobj\|cupidld\} "
+            r"--root ROOT --tool \{cupidc\|cupidobj\|cupidld\} "
             r"\[--timeout SECONDS\]\s+"
             r"-- TOOL_ARGS\.\.\.",
         )
@@ -797,7 +797,7 @@ class CupidBuildCliTests(unittest.TestCase):
             ("help", ["--help"], 30),
             ("invalid option", ["--not-a-tool-option"], None),
         )
-        for tool in ("cupidobj", "cupidld"):
+        for tool in ("cupidc", "cupidobj", "cupidld"):
             executable = self._production_tool(tool)
             for name, arguments, timeout in cases:
                 with self.subTest(tool=tool, name=name):
@@ -824,6 +824,107 @@ class CupidBuildCliTests(unittest.TestCase):
                             direct.stderr,
                         ),
                     )
+
+    def test_checked_cupidc_runner_compiles_one_exact_relocatable_object(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-cupidc-compile-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "valid.cc"
+            direct_output = root / "direct.o"
+            checked_output = root / "checked.o"
+            source.write_text(
+                "int checked_runner_value(void) { return 42; }\n",
+                encoding="utf-8",
+            )
+            common = [
+                "--root",
+                str(root),
+                "--freestanding",
+                "-c",
+                "/valid.cc",
+            ]
+            direct = subprocess.run(
+                [
+                    str(self._production_tool("cupidc")),
+                    *common,
+                    "-o",
+                    "/direct.o",
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            checked = self._run_checked_tool(
+                "cupidc",
+                [*common, "-o", "/checked.o"],
+                root=root,
+            )
+
+            self.assertEqual(direct.returncode, 0, direct.stderr)
+            self.assertEqual(
+                (checked.returncode, checked.stdout, checked.stderr),
+                (direct.returncode, direct.stdout, direct.stderr),
+            )
+            direct_object = direct_output.read_bytes()
+            checked_object = checked_output.read_bytes()
+            self.assertEqual(checked_object, direct_object)
+            self.assertGreater(len(checked_object), 52)
+            self.assertEqual(checked_object[:7], b"\x7fELF\x01\x01\x01")
+            self.assertEqual(
+                struct.unpack_from("<HHI", checked_object, 16),
+                (1, 3, 1),
+            )
+            self.assertEqual(list(root.glob("*.cupid-tmp-*")), [])
+
+    def test_checked_cupidc_runner_preserves_failed_compile_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-cupidc-failure-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "invalid.cc"
+            direct_output = root / "direct.o"
+            checked_output = root / "checked.o"
+            source.write_text(
+                "int checked_runner_broken( {\n", encoding="utf-8"
+            )
+            sentinel = b"checked-cupidc-failure-sentinel"
+            direct_output.write_bytes(sentinel)
+            checked_output.write_bytes(sentinel)
+            common = [
+                "--root",
+                str(root),
+                "--freestanding",
+                "-c",
+                "/invalid.cc",
+            ]
+            direct = subprocess.run(
+                [
+                    str(self._production_tool("cupidc")),
+                    *common,
+                    "-o",
+                    "/direct.o",
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            checked = self._run_checked_tool(
+                "cupidc",
+                [*common, "-o", "/checked.o"],
+                root=root,
+            )
+
+            self.assertEqual(direct.returncode, 1, direct.stderr)
+            self.assertEqual(
+                (checked.returncode, checked.stdout, checked.stderr),
+                (direct.returncode, direct.stdout, direct.stderr),
+            )
+            self.assertIn("/invalid.cc:1:", checked.stderr)
+            self.assertEqual(direct_output.read_bytes(), sentinel)
+            self.assertEqual(checked_output.read_bytes(), sentinel)
 
     def test_checked_cupidld_runner_links_one_exact_fixed_elf(self):
         with tempfile.TemporaryDirectory(
@@ -994,7 +1095,7 @@ class CupidBuildCliTests(unittest.TestCase):
             ("missing", [*prefix, "--", "--help"]),
             (
                 "unsupported",
-                [*prefix, "--tool", "cupidc", "--", "--help"],
+                [*prefix, "--tool", "cupidasm", "--", "--help"],
             ),
         )
         for name, command in cases:

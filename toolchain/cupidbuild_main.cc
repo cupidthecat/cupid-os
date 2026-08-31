@@ -20,15 +20,15 @@ static void cupidbuild_usage(FILE *stream) {
       "--seed-manifest MANIFEST --root ROOT --input-manifest MANIFEST "
       "--output OUTPUT\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
-      "--root ROOT --tool {cupidobj|cupidld} [--timeout SECONDS] -- "
+      "--root ROOT --tool {cupidc|cupidobj|cupidld} [--timeout SECONDS] -- "
       "TOOL_ARGS...\n");
 }
 
 static void cupidbuild_run_usage(FILE *stream) {
   (void)fprintf(stream,
                 "usage: cupidbuild run --seed-manifest MANIFEST "
-                "--root ROOT --tool {cupidobj|cupidld} [--timeout SECONDS] "
-                "-- TOOL_ARGS...\n");
+                "--root ROOT --tool {cupidc|cupidobj|cupidld} "
+                "[--timeout SECONDS] -- TOOL_ARGS...\n");
 }
 
 static int cupidbuild_take_value(int argc, char **argv, int *index,
@@ -199,7 +199,8 @@ int main(int argc, char **argv) {
     if (separator == 0 || run_request.seed_manifest == (const char *)0 ||
         run_request.working_directory == (const char *)0 ||
         run_request.tool == (const char *)0 ||
-        (strcmp(run_request.tool, "cupidobj") != 0 &&
+        (strcmp(run_request.tool, "cupidc") != 0 &&
+         strcmp(run_request.tool, "cupidobj") != 0 &&
          strcmp(run_request.tool, "cupidld") != 0) ||
         (timeout != (const char *)0 &&
          !cupidbuild_parse_timeout(timeout, &run_request.timeout_seconds))) {

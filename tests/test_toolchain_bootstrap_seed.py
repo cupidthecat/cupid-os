@@ -2868,17 +2868,31 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         )
                     return subprocess.CompletedProcess([], 0, "", "")
                 if arguments[0] == "run":
+                    tool = arguments[arguments.index("--tool") + 1]
                     forwarded = arguments[arguments.index("--") + 1 :]
-                    if forwarded == ("--definitely-invalid-option",):
+                    if tool == "cupidobj" and forwarded == (
+                        "--definitely-invalid-option",
+                    ):
                         return subprocess.CompletedProcess(
                             [], 2, "", "usage: cupidobj\n"
+                        )
+                    if tool == "cupidc" and forwarded == ("--help",):
+                        return subprocess.CompletedProcess(
+                            [], 0, "usage: cupidc\n", ""
+                        )
+                    if (
+                        tool == "cupidc"
+                        and "/runner-invalid.cc" in forwarded
+                    ):
+                        return subprocess.CompletedProcess(
+                            [], 1, "", "/runner-invalid.cc:1: error\n"
                         )
                     for command in (arguments, paired_arguments):
                         command_root = Path(
                             command[command.index("--root") + 1]
                         )
                         output_name = command[command.index("-o") + 1]
-                        (command_root / output_name).write_bytes(
+                        (command_root / output_name.lstrip("/")).write_bytes(
                             _unowned_relocation_object_payload()
                         )
                     return subprocess.CompletedProcess([], 0, "", "")
@@ -2950,17 +2964,65 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "--definitely-invalid-option",
                 ),
             )
+            linux_cupidc_root = linux_output / "behavior" / "cupidc-runner"
+            linux_cupidc_help = linux_calls[len(CANDIDATE_TOOL_NAMES) + 2]
             self.assertEqual(
-                linux_calls[len(CANDIDATE_TOOL_NAMES) + 2][0],
+                linux_cupidc_help,
+                (
+                    "cupidbuild",
+                    (
+                        "run",
+                        "--seed-manifest",
+                        str(
+                            linux_cupidc_root
+                            / "cupidbuild-seed"
+                            / "manifest.json"
+                        ),
+                        "--root",
+                        str(linux_cupidc_root),
+                        "--tool",
+                        "cupidc",
+                        "--",
+                        "--help",
+                    ),
+                ),
+            )
+            linux_cupidc_success = linux_calls[
+                len(CANDIDATE_TOOL_NAMES) + 3
+            ]
+            self.assertEqual(linux_cupidc_success[0], "cupidbuild")
+            self.assertEqual(
+                linux_cupidc_success[1][
+                    linux_cupidc_success[1].index("--tool") :
+                ],
+                (
+                    "--tool",
+                    "cupidc",
+                    "--",
+                    "--root",
+                    str(linux_cupidc_root),
+                    "--freestanding",
+                    "-c",
+                    "/runner-valid.cc",
+                    "-o",
+                    "/stage-three-cupidc-runner.o",
+                ),
+            )
+            linux_cupidc_failure = linux_calls[
+                len(CANDIDATE_TOOL_NAMES) + 4
+            ]
+            self.assertIn("/runner-invalid.cc", linux_cupidc_failure[1])
+            self.assertEqual(
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 5][0],
                 "cupidbuild",
             )
             self.assertEqual(
-                linux_calls[len(CANDIDATE_TOOL_NAMES) + 2][1][0],
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 5][1][0],
                 "embed-jpeg",
             )
             linux_jpeg_root = linux_output / "behavior" / "cupidbuild-jpeg"
             self.assertEqual(
-                linux_calls[len(CANDIDATE_TOOL_NAMES) + 2][1],
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 5][1],
                 (
                     "embed-jpeg",
                     "--seed-manifest",
@@ -2978,13 +3040,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
             )
             self.assertEqual(
-                linux_calls[len(CANDIDATE_TOOL_NAMES) + 3][1][0],
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 6][1][0],
                 "embed-jpeg",
             )
             self.assertEqual(
                 Path(
-                    linux_calls[len(CANDIDATE_TOOL_NAMES) + 3][1][
-                        linux_calls[len(CANDIDATE_TOOL_NAMES) + 3][1].index(
+                    linux_calls[len(CANDIDATE_TOOL_NAMES) + 6][1][
+                        linux_calls[len(CANDIDATE_TOOL_NAMES) + 6][1].index(
                             "--source"
                         )
                         + 1
@@ -2993,11 +3055,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "progressive.jpg",
             )
             self.assertEqual(
-                linux_calls[len(CANDIDATE_TOOL_NAMES) + 4][0],
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 7][0],
                 "cupidbuild",
             )
             self.assertEqual(
-                linux_calls[len(CANDIDATE_TOOL_NAMES) + 4][1][0],
+                linux_calls[len(CANDIDATE_TOOL_NAMES) + 7][1][0],
                 "generate-ksyms",
             )
 
@@ -3049,17 +3111,31 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         )
                     return subprocess.CompletedProcess([], 0, "", "")
                 if arguments[0] == "run":
+                    tool = arguments[arguments.index("--tool") + 1]
                     forwarded = arguments[arguments.index("--") + 1 :]
-                    if forwarded == ("--definitely-invalid-option",):
+                    if tool == "cupidobj" and forwarded == (
+                        "--definitely-invalid-option",
+                    ):
                         return subprocess.CompletedProcess(
                             [], 2, "", "usage: cupidobj\n"
+                        )
+                    if tool == "cupidc" and forwarded == ("--help",):
+                        return subprocess.CompletedProcess(
+                            [], 0, "usage: cupidc\n", ""
+                        )
+                    if (
+                        tool == "cupidc"
+                        and "/runner-invalid.cc" in forwarded
+                    ):
+                        return subprocess.CompletedProcess(
+                            [], 1, "", "/runner-invalid.cc:1: error\n"
                         )
                     for command in (arguments, paired_arguments):
                         command_root = Path(
                             command[command.index("--root") + 1]
                         )
                         output_name = command[command.index("-o") + 1]
-                        (command_root / output_name).write_bytes(
+                        (command_root / output_name.lstrip("/")).write_bytes(
                             _unowned_relocation_object_payload()
                         )
                     return subprocess.CompletedProcess([], 0, "", "")
@@ -3139,19 +3215,57 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "--definitely-invalid-option",
                 ),
             )
+            windows_cupidc_root = (
+                windows_output / "behavior" / "cupidc-runner"
+            )
+            windows_cupidc_help = windows_calls[
+                len(expected_windows_calls) + 2
+            ]
+            self.assertEqual(windows_cupidc_help[0], "cupidbuild")
             self.assertEqual(
-                windows_calls[len(expected_windows_calls) + 2][0],
+                windows_cupidc_help[1][
+                    windows_cupidc_help[1].index("--tool") :
+                ],
+                ("--tool", "cupidc", "--", "--help"),
+            )
+            windows_cupidc_success = windows_calls[
+                len(expected_windows_calls) + 3
+            ]
+            self.assertEqual(windows_cupidc_success[0], "cupidbuild")
+            self.assertEqual(
+                windows_cupidc_success[1][
+                    windows_cupidc_success[1].index("--tool") :
+                ],
+                (
+                    "--tool",
+                    "cupidc",
+                    "--",
+                    "--root",
+                    str(windows_cupidc_root),
+                    "--freestanding",
+                    "-c",
+                    "/runner-valid.cc",
+                    "-o",
+                    "/stage-three-cupidc-runner.o",
+                ),
+            )
+            windows_cupidc_failure = windows_calls[
+                len(expected_windows_calls) + 4
+            ]
+            self.assertIn("/runner-invalid.cc", windows_cupidc_failure[1])
+            self.assertEqual(
+                windows_calls[len(expected_windows_calls) + 5][0],
                 "cupidbuild",
             )
             self.assertEqual(
-                windows_calls[len(expected_windows_calls) + 2][1][0],
+                windows_calls[len(expected_windows_calls) + 5][1][0],
                 "embed-jpeg",
             )
             windows_jpeg_root = (
                 windows_output / "behavior" / "cupidbuild-jpeg"
             )
             self.assertEqual(
-                windows_calls[len(expected_windows_calls) + 2][1],
+                windows_calls[len(expected_windows_calls) + 5][1],
                 (
                     "embed-jpeg",
                     "--seed-manifest",
@@ -3173,14 +3287,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
             )
             self.assertEqual(
-                windows_calls[len(expected_windows_calls) + 3][1][0],
+                windows_calls[len(expected_windows_calls) + 6][1][0],
                 "embed-jpeg",
             )
             self.assertEqual(
                 Path(
-                    windows_calls[len(expected_windows_calls) + 3][1][
+                    windows_calls[len(expected_windows_calls) + 6][1][
                         windows_calls[
-                            len(expected_windows_calls) + 3
+                            len(expected_windows_calls) + 6
                         ][1].index("--source")
                         + 1
                     ]
@@ -3188,11 +3302,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "progressive.jpg",
             )
             self.assertEqual(
-                windows_calls[len(expected_windows_calls) + 4][0],
+                windows_calls[len(expected_windows_calls) + 7][0],
                 "cupidbuild",
             )
             self.assertEqual(
-                windows_calls[len(expected_windows_calls) + 4][1][0],
+                windows_calls[len(expected_windows_calls) + 7][1][0],
                 "generate-ksyms",
             )
 
@@ -6025,18 +6139,85 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            28,
+            29,
         )
-        self.assertEqual(returned["success_cases"].value, 35)
-        self.assertIsInstance(returned["help_cases"], ast.Call)
-        self.assertEqual(returned["help_cases"].func.id, "len")
-        self.assertEqual(returned["help_cases"].args[0].id, "tool_names")
+        self.assertEqual(returned["success_cases"].value, 36)
+        self.assertIsInstance(returned["help_cases"], ast.BinOp)
+        self.assertIsInstance(returned["help_cases"].op, ast.Add)
+        self.assertEqual(returned["help_cases"].right.value, 1)
+        self.assertEqual(returned["help_cases"].left.func.id, "len")
+        self.assertEqual(
+            returned["help_cases"].left.args[0].id,
+            "tool_names",
+        )
 
         self.assertIn(
             "1 of 1 direct relative targets invalid",
             messages,
         )
         self.assertIn("1 outside image", messages)
+
+    def test_fixed_point_cupidbuild_checks_cupidc_runner_behavior(self):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+
+        def function(name):
+            return next(
+                node
+                for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name == name
+            )
+
+        behavior = function("_check_cupidbuild_cupidc_runner_behavior")
+        rendered = ast.unparse(behavior)
+        for expected in (
+            "'--tool', 'cupidc', '--'",
+            "'--help'",
+            "'runner-valid.cc'",
+            "'/runner-valid.cc'",
+            "'/runner-invalid.cc:1:'",
+            "b'preserved CupidBuild checked CupidC output\\n'",
+            "stage_two_output.read_bytes() != "
+            "stage_three_output.read_bytes()",
+            "stage_two_failure.read_bytes() != sentinel",
+            "stage_three_failure.read_bytes() != sentinel",
+            "_validate_i386_relocatable(stage_two_output)",
+        ):
+            self.assertIn(expected, rendered)
+
+        stage_pair_calls = [
+            node
+            for node in ast.walk(behavior)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_run_stage_pair"
+        ]
+        self.assertEqual(len(stage_pair_calls), 3)
+        statuses = {
+            node.args[0].id: node.args[1].value
+            for node in ast.walk(behavior)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_expect_status"
+        }
+        self.assertEqual(
+            statuses,
+            {"help_result": 0, "success_result": 0, "failure_result": 1},
+        )
+
+        for matrix_name in (
+            "_run_behavior_checks",
+            "_run_native_windows_behavior_checks",
+        ):
+            matrix = function(matrix_name)
+            calls = [
+                node
+                for node in ast.walk(matrix)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id
+                == "_check_cupidbuild_cupidc_runner_behavior"
+            ]
+            self.assertEqual(len(calls), 1)
 
     def test_fixed_point_matrix_checks_executable_relocation_ownership(self):
         tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))

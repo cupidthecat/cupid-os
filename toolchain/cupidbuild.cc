@@ -3410,13 +3410,20 @@ int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {
       !cupidbuild_path_safe(request->seed_manifest, 0) ||
       request->arguments == (const char *const *)0 ||
       request->tool == (const char *)0 ||
-      (strcmp(request->tool, "cupidobj") != 0 &&
+      (strcmp(request->tool, "cupidc") != 0 &&
+       strcmp(request->tool, "cupidobj") != 0 &&
        strcmp(request->tool, "cupidld") != 0) ||
       request->timeout_seconds == 0u || request->timeout_seconds > 86400u) {
     (void)fprintf(stderr, "cupidbuild: invalid checked tool request\n");
     return 1;
   }
-  tool_index = strcmp(request->tool, "cupidld") == 0 ? 3u : 4u;
+  if (strcmp(request->tool, "cupidc") == 0) {
+    tool_index = 1u;
+  } else if (strcmp(request->tool, "cupidld") == 0) {
+    tool_index = 3u;
+  } else {
+    tool_index = 4u;
+  }
   if (!cupidbuild_host_runner_open(request->working_directory,
                                     &transaction)) {
     (void)fprintf(stderr, "cupidbuild: %s\n",

@@ -3238,6 +3238,129 @@ def _check_cupidbuild_cupidobj_runner_behavior(
         )
 
 
+def _check_cupidbuild_cupidc_runner_behavior(
+    runner: ToolRunner,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    label_prefix: str,
+) -> None:
+    runner_root = behavior_root / "cupidc-runner"
+    runner_root.mkdir()
+    manifest_path = _materialize_behavior_seed(seed_inputs, runner_root)
+    valid_source = runner_root / "runner-valid.cc"
+    invalid_source = runner_root / "runner-invalid.cc"
+    valid_source.write_text(
+        "int checked_runner_value(void) { return 42; }\n",
+        encoding="utf-8",
+    )
+    invalid_source.write_text(
+        "int checked_runner_broken( {\n",
+        encoding="utf-8",
+    )
+    common_arguments: list[str | Path] = [
+        "run",
+        "--seed-manifest",
+        manifest_path,
+        "--root",
+        runner_root,
+        "--tool",
+        "cupidc",
+        "--",
+    ]
+
+    help_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [*common_arguments, "--help"],
+        None,
+        180,
+    )
+    _expect_status(
+        help_result,
+        0,
+        f"{label_prefix}CupidBuild checked CupidC help",
+    )
+    if "usage: cupidc" not in help_result.stdout or help_result.stderr:
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild checked CupidC help differs"
+        )
+
+    compile_arguments: list[str | Path] = [
+        *common_arguments,
+        "--root",
+        runner_root,
+        "--freestanding",
+        "-c",
+        "/runner-valid.cc",
+    ]
+    stage_two_output = runner_root / "stage-three-cupidc-runner.o"
+    stage_three_output = runner_root / "stage-four-cupidc-runner.o"
+    success_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [*compile_arguments, "-o", "/stage-three-cupidc-runner.o"],
+        [*compile_arguments, "-o", "/stage-four-cupidc-runner.o"],
+        180,
+    )
+    _expect_status(
+        success_result,
+        0,
+        f"{label_prefix}CupidBuild checked CupidC compile",
+    )
+    if (
+        success_result.stdout
+        or success_result.stderr
+        or stage_two_output.read_bytes() != stage_three_output.read_bytes()
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild checked CupidC output differs"
+        )
+    _validate_i386_relocatable(stage_two_output)
+
+    sentinel = b"preserved CupidBuild checked CupidC output\n"
+    stage_two_failure = runner_root / "stage-three-cupidc-failure.o"
+    stage_three_failure = runner_root / "stage-four-cupidc-failure.o"
+    stage_two_failure.write_bytes(sentinel)
+    stage_three_failure.write_bytes(sentinel)
+    failure_arguments: list[str | Path] = [
+        *common_arguments,
+        "--root",
+        runner_root,
+        "--freestanding",
+        "-c",
+        "/runner-invalid.cc",
+    ]
+    failure_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [*failure_arguments, "-o", "/stage-three-cupidc-failure.o"],
+        [*failure_arguments, "-o", "/stage-four-cupidc-failure.o"],
+        180,
+    )
+    _expect_status(
+        failure_result,
+        1,
+        f"{label_prefix}CupidBuild checked CupidC invalid source",
+    )
+    if (
+        failure_result.stdout
+        or "/runner-invalid.cc:1:" not in failure_result.stderr
+        or stage_two_failure.read_bytes() != sentinel
+        or stage_three_failure.read_bytes() != sentinel
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild checked CupidC failure differs"
+        )
+
+
 def _check_cupidbuild_embed_jpeg_behavior(
     runner: ToolRunner,
     source_root: Path,
@@ -3945,6 +4068,15 @@ def _run_native_windows_behavior_checks(
         "native Windows ",
     )
 
+    _check_cupidbuild_cupidc_runner_behavior(
+        runner,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "native Windows ",
+    )
+
     _check_cupidbuild_embed_jpeg_behavior(
         runner,
         output_root,
@@ -4203,9 +4335,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 11,
-        "help_cases": len(tool_names),
-        "success_cases": len(tool_names) + 16,
+        "failure_cases": len(tool_names) + 12,
+        "help_cases": len(tool_names) + 1,
+        "success_cases": len(tool_names) + 17,
     }
 
 
@@ -4932,6 +5064,15 @@ def _run_behavior_checks(
     )
 
     _check_cupidbuild_cupidobj_runner_behavior(
+        runner,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "",
+    )
+
+    _check_cupidbuild_cupidc_runner_behavior(
         runner,
         behavior_root,
         stage_two,
@@ -7704,9 +7845,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 28,
-        "help_cases": len(tool_names),
-        "success_cases": 35,
+        "failure_cases": 29,
+        "help_cases": len(tool_names) + 1,
+        "success_cases": 36,
     }
 
 

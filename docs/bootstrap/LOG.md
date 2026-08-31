@@ -34005,3 +34005,45 @@ A private four-vCPU `max`/E1000 boot passed strong SMP verification and ran
 `/bin/ls.cc` to normal JIT completion with 911 code bytes and 71 data bytes.
 Its 33,159-byte log has SHA-256
 `c40c6ca664ca7e627c19b44bd85745865ab9969cdcd6702e822b810d408d7fc8`.
+
+## 2026-08-30: admit CupidC to the checked-tool runner at source head
+
+`cupidbuild run` now admits exactly CupidC, CupidObj, and CupidLD in its public
+parser and library entry. CupidC selects the compiler image from the frozen
+six-tool seed and uses the existing generic runner unchanged. Manifest and
+directory membership, artifact digests, host execution profiles, pinned or
+sealed tool inputs, captured streams, timeout handling, child status, cleanup,
+and the live-seed recheck remain required before output is forwarded.
+
+The public CLI contract was added first and failed at the old role gate. It now
+compares direct and checked CupidC help and invalid-option behavior. A positive
+case compiles one freestanding `.cc` source through both paths and requires the
+same i386 relocatable bytes. A malformed-source case requires the same status
+and diagnostic and leaves both sentinel objects unchanged. The complete
+CupidBuild and host-runner suite passed 106 tests in 101.715 seconds with seven
+platform skips. A final rerun after documentation and audit integration passed
+the same 106 tests in 117.338 seconds with the same seven skips.
+
+Both fixed-point drivers register checked CupidC help, compile success, and
+compile failure through stage-three and stage-four CupidBuild. The success
+objects must match and pass the i386 `ET_REL` check. The failure diagnostic
+must match and preserve both outputs. The source-head inventories are now
+29/7/36 on Linux and 18/7/23 on native Windows. The promoted seed evidence
+remains 28/6/35 and 17/6/22 because this commit does not rebuild or replace
+either seed.
+
+The build-graph audit pins the new helper, all three stage-pair operations,
+both live call sites, output and rollback checks, registered totals, and the
+`cupid.cupidbuild_checked_cupidc_runner` capability. Its first mutation sweep
+found two test mutations whose broad text replacements now matched the new
+compiler fixture before their intended older targets. The mutations were
+narrowed to their named helper and Windows-contract blocks. Focused carrier
+tests and deterministic audit regeneration then passed. The complete
+fixed-point contract mutation sweep passed in 408.127 seconds after that
+correction. `make check-bootstrap-audit` also accepted the regenerated JSON,
+Markdown summary, and active CupidC case manifest without drift.
+
+Production compiler wrappers and Make ownership are unchanged. Full Linux and
+native Windows fixed-point reconstructions, paired seed promotion, and any
+compiler-wrapper handoff remain later gates. ADR 0376 records the source
+decision.
