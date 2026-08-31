@@ -36,6 +36,7 @@ typedef struct {
   unsigned char *manifest;
   size_t manifest_size;
   size_t artifact_count;
+  int current_windows_plan;
 } cupidbuild_seed_capture_t;
 
 static const char *const cupidbuild_seed_names[CUPIDBUILD_SEED_ARTIFACTS] = {
@@ -924,7 +925,7 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
             cupidbuild_json_string_field_pair(
                 bytes, tokens, count, object, "native_build_plan_sha256",
                 "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14",
-                "c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3") &&
+                "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669") &&
             cupidbuild_json_lower_hex_field(
                 bytes, tokens, count, object, "plan_seed_manifest_sha256",
                 64u) &&
@@ -1279,10 +1280,11 @@ static int cupidbuild_json_artifacts(const unsigned char *bytes,
 
 static int cupidbuild_json_manifest(const unsigned char *manifest,
                                     size_t manifest_size,
-                                    cupidbuild_seed_artifact_t
-                                        artifacts[CUPIDBUILD_SEED_ARTIFACTS],
-                                    size_t *artifact_count_out,
-                                    const char **reason_out) {
+                                     cupidbuild_seed_artifact_t
+                                         artifacts[CUPIDBUILD_SEED_ARTIFACTS],
+                                     size_t *artifact_count_out,
+                                     int *current_windows_plan_out,
+                                     const char **reason_out) {
   cupidbuild_json_token_t *tokens;
   size_t count = 0u;
   size_t artifacts_token;
@@ -1291,6 +1293,7 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
   size_t target;
   int windows;
   int promoted;
+  int current_windows_plan = 0;
 #if defined(_WIN32)
   static const char legacy_schema[] = "cupid.execution-seed.v1";
   static const char promoted_schema[] = "cupid.execution-seed.v2";
@@ -1353,6 +1356,13 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
     free(tokens);
     return 0;
   }
+#if defined(_WIN32)
+  if (promoted) {
+    current_windows_plan = cupidbuild_json_string_field(
+        manifest, tokens, count, provenance, "native_build_plan_sha256",
+        "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669");
+  }
+#endif
   if (!cupidbuild_json_target(manifest, tokens, count, target, windows)) {
     *reason_out = "target contract differs";
     free(tokens);
@@ -1378,6 +1388,7 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
   }
 #endif
   *artifact_count_out = promoted ? CUPIDBUILD_SEED_ARTIFACTS : 5u;
+  *current_windows_plan_out = current_windows_plan;
   free(tokens);
   return 1;
 }
@@ -1829,10 +1840,11 @@ static int cupidbuild_string_equals(ctool_string_t actual,
 #endif
 
 static int cupidbuild_validate_execution_profile(
-                                                  cupidbuild_host_transaction_t *transaction,
-                                                  const char *path,
-                                                  size_t artifact_index,
-                                                 int promoted) {
+                                                   cupidbuild_host_transaction_t *transaction,
+                                                   const char *path,
+                                                   size_t artifact_index,
+                                                   int promoted,
+                                                   int current_windows_plan) {
   unsigned char *bytes;
   size_t size = 0u;
   ctool_host_adapter_t adapter;
@@ -1856,19 +1868,32 @@ static int cupidbuild_validate_execution_profile(
   source.contents = ctool_bytes(bytes, (ctool_u32)size);
 #if defined(_WIN32)
   {
-    static const char *const ordinary_imports[] = {
+    static const char *const ordinary_seed_imports[] = {
         "CloseHandle",       "CreateFileA",      "ExitProcess",
         "GetCommandLineA",   "GetCurrentDirectoryA",
         "GetLastError",      "GetStdHandle",     "ReadFile",
         "SetFilePointer",    "VirtualAlloc",     "VirtualFree",
         "WriteFile"};
-    static const char *const linker_imports[] = {
+    static const char *const ordinary_current_imports[] = {
+        "CloseHandle",       "CreateFileA",      "ExitProcess",
+        "GetCommandLineA",   "GetCurrentDirectoryA",
+        "GetFileInformationByHandle", "GetLastError", "GetStdHandle",
+        "ReadFile",          "SetFilePointer",   "VirtualAlloc",
+        "VirtualFree",       "WriteFile"};
+    static const char *const linker_seed_imports[] = {
         "CloseHandle",       "CreateFileA",       "DeleteFileA",
         "ExitProcess",       "FlushFileBuffers",  "GetCommandLineA",
         "GetCurrentDirectoryA", "GetFullPathNameA", "GetLastError",
         "GetStdHandle",      "MoveFileExA",       "ReadFile",
         "SetFilePointer",    "VirtualAlloc",      "VirtualFree",
         "WriteFile"};
+    static const char *const linker_current_imports[] = {
+        "CloseHandle",       "CreateFileA",       "DeleteFileA",
+        "ExitProcess",       "FlushFileBuffers",  "GetCommandLineA",
+        "GetCurrentDirectoryA", "GetFileInformationByHandle",
+        "GetFullPathNameA",  "GetLastError",      "GetStdHandle",
+        "MoveFileExA",       "ReadFile",          "SetFilePointer",
+        "VirtualAlloc",      "VirtualFree",       "WriteFile"};
     static const char *const cupidbuild_legacy_imports[] = {
         "CloseHandle",
         "CreateDirectoryA",
@@ -1937,18 +1962,28 @@ static int cupidbuild_validate_execution_profile(
         "NtSetInformationFile"};
     static const char *const cupidbuild_current_ntdll_imports[] = {
         "NtCreateFile", "NtQueryDirectoryFile", "NtSetInformationFile"};
-    const char *const *expected_imports = ordinary_imports;
+    const char *const *expected_imports =
+        current_windows_plan ? ordinary_current_imports
+                             : ordinary_seed_imports;
     const char *const *expected_ntdll_imports =
         (const char *const *)0;
     size_t expected_count =
-        sizeof(ordinary_imports) / sizeof(ordinary_imports[0]);
+        current_windows_plan
+            ? sizeof(ordinary_current_imports) /
+                  sizeof(ordinary_current_imports[0])
+            : sizeof(ordinary_seed_imports) / sizeof(ordinary_seed_imports[0]);
     size_t expected_ntdll_count = 0u;
     size_t expected_library_count = artifact_index == 5u ? 2u : 1u;
     ctool_pe32_image_t image;
     ctool_u32 index;
     if ((promoted && artifact_index == 0u) || artifact_index == 3u) {
-      expected_imports = linker_imports;
-      expected_count = sizeof(linker_imports) / sizeof(linker_imports[0]);
+      expected_imports = current_windows_plan ? linker_current_imports
+                                              : linker_seed_imports;
+      expected_count =
+          current_windows_plan
+              ? sizeof(linker_current_imports) /
+                    sizeof(linker_current_imports[0])
+              : sizeof(linker_seed_imports) / sizeof(linker_seed_imports[0]);
     }
     if (ctool_pe32_read(job, &source, &image) == CTOOL_OK &&
         image.entry_point == 0x00401000u &&
@@ -1969,22 +2004,21 @@ static int cupidbuild_validate_execution_profile(
         size_t current_ntdll_count =
             sizeof(cupidbuild_current_ntdll_imports) /
             sizeof(cupidbuild_current_ntdll_imports[0]);
-        if (!cupidbuild_string_equals(image.import_libraries[1].name,
-                                      "NTDLL.dll")) {
-          valid = 0;
-        } else if ((size_t)image.import_count ==
-                   legacy_count + legacy_ntdll_count) {
-          expected_imports = cupidbuild_legacy_imports;
-          expected_count = legacy_count;
-          expected_ntdll_imports = cupidbuild_legacy_ntdll_imports;
-          expected_ntdll_count = legacy_ntdll_count;
-        } else if ((size_t)image.import_count ==
-                   current_count + current_ntdll_count) {
+        if (current_windows_plan) {
           expected_imports = cupidbuild_current_imports;
           expected_count = current_count;
           expected_ntdll_imports = cupidbuild_current_ntdll_imports;
           expected_ntdll_count = current_ntdll_count;
         } else {
+          expected_imports = cupidbuild_legacy_imports;
+          expected_count = legacy_count;
+          expected_ntdll_imports = cupidbuild_legacy_ntdll_imports;
+          expected_ntdll_count = legacy_ntdll_count;
+        }
+        if (!cupidbuild_string_equals(image.import_libraries[1].name,
+                                      "NTDLL.dll") ||
+            (size_t)image.import_count !=
+                expected_count + expected_ntdll_count) {
           valid = 0;
         }
       } else if ((size_t)image.import_count != expected_count) {
@@ -2022,6 +2056,7 @@ static int cupidbuild_validate_execution_profile(
     int entry_in_code = 0;
     (void)artifact_index;
     (void)promoted;
+    (void)current_windows_plan;
     if (ctool_elf32_read(job, &source, &object) == CTOOL_OK &&
         object.file_type == CTOOL_ELF32_ET_EXEC &&
         object.entry_point == 0x08048000u &&
@@ -2120,8 +2155,9 @@ static int cupidbuild_seed_freeze(
     return 0;
   }
   if (!cupidbuild_json_manifest(seed->manifest, seed->manifest_size,
-                                seed->artifacts, &seed->artifact_count,
-                                &manifest_reason)) {
+                                 seed->artifacts, &seed->artifact_count,
+                                 &seed->current_windows_plan,
+                                 &manifest_reason)) {
     (void)fprintf(stderr, "cupidbuild: checked seed manifest is invalid: %s\n",
                   manifest_reason);
     return 0;
@@ -2175,7 +2211,8 @@ static int cupidbuild_seed_freeze(
   for (index = 0u; index < seed->artifact_count; index++) {
     if (!cupidbuild_validate_execution_profile(
             transaction, seed->frozen_tools[index], index,
-            seed->artifact_count == CUPIDBUILD_SEED_ARTIFACTS)) {
+            seed->artifact_count == CUPIDBUILD_SEED_ARTIFACTS,
+            seed->current_windows_plan)) {
       (void)fprintf(stderr,
                     "cupidbuild: checked seed execution profile mismatch\n");
       return 0;

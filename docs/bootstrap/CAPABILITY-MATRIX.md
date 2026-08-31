@@ -1528,8 +1528,13 @@ assembly objects, and six native Windows tools with 19/7/24 behavior. Both
 reports bind snapshot
 `179037ef27947e26406df8dc9f693bf77673a0e5c527e985210c917b82905469`.
 This proves current convergence but does not replace the active 28/6/35 and
-17/6/22 promoted-seed records. Clean, commit-pinned reconstruction and
-manifest publication remain open.
+17/6/22 promoted-seed records. Clean attempts at `f3c14b86` and `c967ddee`
+failed closed before a paired manifest could be authored. The second exposed a
+missing common Windows file-information wrapper. The wrapper and its ordinary
+and linker imports now belong to the shared tool startup, yielding exact
+source-current Windows plan
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+Clean, commit-pinned reconstruction and manifest publication remain open.
 
 Checked-seed CupidObj provides transactional `wrap-jpeg` validation before its
 ordinary binary wrapper. It accepts sequential SOF0 or SOF1 input, checks the

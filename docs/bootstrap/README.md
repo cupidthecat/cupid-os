@@ -145,8 +145,16 @@ source-current behavior totals below. The result is not yet promotable because
 the source was not commit-pinned. A clean paired reconstruction still has to
 author and validate both seed manifests.
 The first clean attempt at `f3c14b86` stopped at Linux stage two on a misspelled
-custom-Linux syscall wrapper. It authored no manifest, and the corrected pair
-must restart from the follow-up commit.
+custom-Linux syscall wrapper and authored no manifest. The second attempt at
+`c967ddee` reached native Windows stage two, where CupidLD rejected an
+unresolved `cupid_windows_get_file_information`. The shared host adapter used
+that wrapper, but only CupidBuild's private startup provided it. The common
+Windows tool startup now provides the wrapper. The ordinary and linker import
+profiles include `GetFileInformationByHandle`. This changes the exact
+source-current Windows plan to
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+Neither failed run produced a promotable pair, so clean reconstruction must
+restart from this repair.
 
 Together with the checked CupidC runner, the source-head behavior definitions
 are 31/7/37 on Linux and 19/7/24 on native Windows. The active promoted seeds

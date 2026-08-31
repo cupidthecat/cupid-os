@@ -1470,7 +1470,7 @@ static int parse_windows_provenance(json_reader_t *reader,
       ok = parse_expected_text_pair(
           reader,
           "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14",
-          "c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3",
+          "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669",
           "Windows seed native build plan differs");
     } else if (text_equals_literal(
                    &key, "parent_execution_seed_manifest_sha256") &&

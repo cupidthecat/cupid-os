@@ -183,7 +183,7 @@ PROMOTED_LINUX_PLAN_SHA256 = (
 PROMOTED_WINDOWS_PLAN_SHA256 = (
     "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
 )
-WINDOWS_TOOL_IMPORTS = (
+WINDOWS_TOOL_SEED_IMPORTS = (
     (
         "KERNEL32.dll",
         (
@@ -194,6 +194,49 @@ WINDOWS_TOOL_IMPORTS = (
             "GetCurrentDirectoryA",
             "GetLastError",
             "GetStdHandle",
+            "ReadFile",
+            "SetFilePointer",
+            "VirtualAlloc",
+            "VirtualFree",
+            "WriteFile",
+        ),
+    ),
+)
+WINDOWS_TOOL_IMPORTS = (
+    (
+        "KERNEL32.dll",
+        (
+            "CloseHandle",
+            "CreateFileA",
+            "ExitProcess",
+            "GetCommandLineA",
+            "GetCurrentDirectoryA",
+            "GetFileInformationByHandle",
+            "GetLastError",
+            "GetStdHandle",
+            "ReadFile",
+            "SetFilePointer",
+            "VirtualAlloc",
+            "VirtualFree",
+            "WriteFile",
+        ),
+    ),
+)
+WINDOWS_LINKER_SEED_IMPORTS = (
+    (
+        "KERNEL32.dll",
+        (
+            "CloseHandle",
+            "CreateFileA",
+            "DeleteFileA",
+            "ExitProcess",
+            "FlushFileBuffers",
+            "GetCommandLineA",
+            "GetCurrentDirectoryA",
+            "GetFullPathNameA",
+            "GetLastError",
+            "GetStdHandle",
+            "MoveFileExA",
             "ReadFile",
             "SetFilePointer",
             "VirtualAlloc",
@@ -213,6 +256,7 @@ WINDOWS_LINKER_IMPORTS = (
             "FlushFileBuffers",
             "GetCommandLineA",
             "GetCurrentDirectoryA",
+            "GetFileInformationByHandle",
             "GetFullPathNameA",
             "GetLastError",
             "GetStdHandle",
@@ -2185,13 +2229,17 @@ def _verify_seed_manifest_data(
                 (
                     WINDOWS_CUPIDBUILD_SEED_IMPORTS
                     if name == "cupidbuild"
-                    else _windows_imports(name)
+                    else (
+                        WINDOWS_LINKER_SEED_IMPORTS
+                        if name in ("cupidasm", "cupidld")
+                        else WINDOWS_TOOL_SEED_IMPORTS
+                    )
                 )
                 if promoted
                 else (
-                    WINDOWS_LINKER_IMPORTS
+                    WINDOWS_LINKER_SEED_IMPORTS
                     if name == "cupidld"
-                    else WINDOWS_TOOL_IMPORTS
+                    else WINDOWS_TOOL_SEED_IMPORTS
                 )
             )
             _validate_static_i386_pe32_bytes(
@@ -6750,6 +6798,11 @@ def _run_behavior_checks(
             "__imp_GetCurrentDirectoryA",
             "KERNEL32.dll",
             "GetCurrentDirectoryA",
+        ),
+        (
+            "__imp_GetFileInformationByHandle",
+            "KERNEL32.dll",
+            "GetFileInformationByHandle",
         ),
         ("__imp_GetLastError", "KERNEL32.dll", "GetLastError"),
         ("__imp_GetStdHandle", "KERNEL32.dll", "GetStdHandle"),

@@ -18,10 +18,10 @@ captured outputs need the broader sharing used by the source-current runtime.
 Treating both roles as one handle profile either blocked the older reader or
 weakened the frozen-input boundary.
 
-The source-current Windows image also has a new native plan digest because
-CupidBuild's runtime and startup closure grew. During the paired promotion,
-CupidBuild and the artifact-size verifier must accept the active plan and its
-immediate replacement.
+The source-current Windows image also has a new native plan digest because the
+ordinary and linker import profiles gained the shared file-information import.
+During paired promotion, CupidBuild and the artifact-size verifier must accept
+the active plan and its immediate replacement.
 
 ## Decision
 
@@ -52,10 +52,13 @@ exact transition window:
 | Plan | SHA-256 |
 | --- | --- |
 | Active promoted plan | `f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14` |
-| Source-current plan | `c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3` |
+| Source-current plan | `98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669` |
 
 CupidBuild and the Cupid-built artifact-size verifier reject every other
-value. The parent-generation window from ADR 0380 is unchanged.
+value. CupidBuild carries the accepted native-plan generation out of manifest
+parsing and applies its matching ordinary, linker, and CupidBuild import
+profiles to all six artifacts. A seed cannot mix profiles from the two plans.
+The parent-generation window from ADR 0380 is unchanged.
 
 ## Evidence
 
@@ -97,6 +100,22 @@ Linux stage two. The new custom-Linux identity check used an undeclared variant
 of the existing two-argument syscall wrapper. Correcting that spelling changes
 the source commit, so the paired proof must restart and neither candidate from
 the failed attempt is promotable.
+
+The second clean reconstruction, pinned to `c967ddee`, reached native Windows
+stage two before CupidLD failed closed. The shared host adapter called
+`cupid_windows_get_file_information`, but that wrapper existed only in
+CupidBuild's private startup object. The common Windows tool startup now owns
+the two-argument wrapper. The source-current ordinary import profile grows from
+12 to 13 `KERNEL32.dll` procedures, and the linker profile grows from 16 to 17.
+The promoted seed profiles remain exact and unchanged. The obsolete,
+unpromoted `c27481d2...` plan is rejected. Neither failed run authored a paired
+manifest, so clean proof must restart from this repair before promotion.
+
+Focused tests pass the promoted-profile verifier, the exact two-plan import
+pairing, the direct native Windows tool boundary, all 46 hosted CupidASM cases,
+and the source-current CupidBuild plan window. The compiler-contract, manifest,
+and artifact-runner modules complete 121 cases with four Windows-only skips.
+These results cover the repair but are not fixed-point or promotion evidence.
 
 ## Alternatives considered
 

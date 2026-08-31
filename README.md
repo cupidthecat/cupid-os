@@ -56,7 +56,7 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 - System clipboard, x86-32 disassembler, BMP / PNG / JPEG image codecs, TrueType font system with bundled Liberation fonts and live `fontswitch`
 - Panic backtrace decoded against a kernel symbol table (`addr  function_name+offset` per frame)
 
-## 2026-08-30 source-current checkpoint
+## 2026-08-31 source-current checkpoint
 
 Source-head CupidBuild now has a typed `flatten-kernel` transaction. It pins
 the exact 431-input production cohort, preserves the single broad CupidDis
@@ -118,8 +118,15 @@ A dirty-tree v4 reconstruction converged on both hosts with the source-current
 matrices below. It proves the implementation, but it is not a promotion: a
 clean, commit-pinned paired rebuild must still produce the seed manifests.
 The first clean attempt at `f3c14b86` stopped at Linux stage two on a misspelled
-custom-Linux syscall wrapper and published no manifest. The corrected pair
-must restart from the follow-up commit.
+custom-Linux syscall wrapper and published no manifest. The second attempt,
+pinned to `c967ddee`, reached native Windows stage two before CupidLD found an
+unresolved file-information wrapper. That wrapper had lived only in
+CupidBuild's private startup even though the shared host adapter called it.
+The common Windows tool startup now provides the wrapper. Source-current
+ordinary and linker profiles include `GetFileInformationByHandle`, and the exact candidate
+plan is `98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+Neither failed run produced a promotable pair. Clean reconstruction must
+restart from this repair.
 The combined source-head behavior matrices define 31 failure, 7 help,
 and 37 success cases on Linux, and 19 failure, 7 help, and 24 success cases on
 native Windows. The promoted seeds do not carry this command yet, so the

@@ -62,6 +62,15 @@ fail the same check by file identity. The same leaf beneath aliased existing
 parent directories also fails before either output is created.
 The hosted i386 Linux path compares existing file and parent identities with
 fstat64 through the declared Cupid two-argument syscall wrapper.
+The common i386 Windows tool startup supplies
+cupid_windows_get_file_information and imports GetFileInformationByHandle.
+CupidASM and CupidLD can use the shared host adapter without depending on
+CupidBuild's private startup. This moves the ordinary import profile from 12
+to 13 KERNEL32 procedures and the linker profile from 16 to 17. The exact
+source-current Windows plan is
+98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669.
+Neither clean attempt at f3c14b86 or c967ddee produced a paired manifest, so
+reconstruction still precedes seed promotion.
 Source-head CupidBuild also has a narrow checked runner for CupidObj. Linux
 creates no .cupidbuild-run namespace: it fully seals the manifest and six
 tools in anonymous memfds and pins the working directory by descriptor. The

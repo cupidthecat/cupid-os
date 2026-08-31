@@ -187,7 +187,15 @@ promoted Windows tools predate the source-current output sharing and
 caller-owned CupidASM protocol. A later same-generation v4 pair carried both
 changes and converged on Linux and native Windows. Because that pair came from
 a dirty working tree, clean commit-pinned reconstruction and seed publication
-remain separate work. ADR 0381 records the handle and publication decision.
+remain separate work. The first clean attempt at `f3c14b86` failed on the
+custom-Linux syscall spelling. The second, at `c967ddee`, reached native
+Windows stage two before CupidLD found that the shared host adapter's
+file-information wrapper existed only in CupidBuild's private startup. The
+common startup now provides that wrapper. The ordinary and linker profiles
+include the matching import, producing the exact source-current Windows plan
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+Neither clean run produced a promotable pair. ADR 0381 records the handle,
+publication, and import transition.
 
 The success fixture still produces the same 72,950-byte canonical JSON as
 `tools/cupidc_kernel_compile.py`. It contains the current 304 `.h` and `.inc`
@@ -242,9 +250,10 @@ The normal graph remains at 195 CupidBuild and 257 Python participations
 because Make still invokes
 `tools/cupidc_kernel_compile.py --write-profile-input-manifest`. The next step
 is a paired Linux and native Windows seed promotion that carries
-`generate-profile-manifest`, the current import profile, and the retained
-output share mode. Only after that proof may Make invoke the promoted command
-and transfer production publication ownership.
+`generate-profile-manifest`, the repaired common startup and import profiles,
+and the retained output share mode. That proof must start from the repair after
+both earlier clean attempts failed closed. Only after it passes may Make invoke
+the promoted command and transfer production publication ownership.
 
 No `.c` file is renamed. The command rejects a `.c` file in the active Doom
 closure. No GCC, NASM, host linker, or host object utility is added.

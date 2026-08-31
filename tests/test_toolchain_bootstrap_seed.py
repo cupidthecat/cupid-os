@@ -41,6 +41,9 @@ from tools.bootstrap_toolchain import (
     WINDOWS_CUPIDBUILD_IMPORTS,
     WINDOWS_CUPIDBUILD_SEED_IMPORTS,
     WINDOWS_LINKER_IMPORTS,
+    WINDOWS_LINKER_SEED_IMPORTS,
+    WINDOWS_TOOL_IMPORTS,
+    WINDOWS_TOOL_SEED_IMPORTS,
     WSL_PRIVATE_RUN_SCRIPT,
     _build_plan_sha256,
     _compare_stages,
@@ -579,9 +582,16 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         profiles = {
             call.args[1]: call.args[3] for call in validate.call_args_list
         }
-        self.assertEqual(profiles["cupidasm.exe"], WINDOWS_LINKER_IMPORTS)
         self.assertEqual(
-            profiles["cupidbuild.exe"], WINDOWS_CUPIDBUILD_SEED_IMPORTS
+            profiles,
+            {
+                "cupidasm.exe": WINDOWS_LINKER_SEED_IMPORTS,
+                "cupidc.exe": WINDOWS_TOOL_SEED_IMPORTS,
+                "cupiddis.exe": WINDOWS_TOOL_SEED_IMPORTS,
+                "cupidld.exe": WINDOWS_LINKER_SEED_IMPORTS,
+                "cupidobj.exe": WINDOWS_TOOL_SEED_IMPORTS,
+                "cupidbuild.exe": WINDOWS_CUPIDBUILD_SEED_IMPORTS,
+            },
         )
 
     def test_windows_cupidbuild_import_profiles_are_exact_pairs(self):
@@ -665,11 +675,44 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         for profile in rejected_profiles:
             self.assertNotIn(profile, WINDOWS_CUPIDBUILD_IMPORT_PROFILES)
 
+    def test_windows_tool_import_profiles_lock_the_runtime_transition(self):
+        self.assertNotIn(
+            "GetFileInformationByHandle", WINDOWS_TOOL_SEED_IMPORTS[0][1]
+        )
+        self.assertIn(
+            "GetFileInformationByHandle", WINDOWS_TOOL_IMPORTS[0][1]
+        )
+        self.assertNotIn(
+            "GetFileInformationByHandle", WINDOWS_LINKER_SEED_IMPORTS[0][1]
+        )
+        self.assertIn(
+            "GetFileInformationByHandle", WINDOWS_LINKER_IMPORTS[0][1]
+        )
+
+        startup = (
+            REPO_ROOT
+            / "toolchain"
+            / "hosted"
+            / "i386-windows"
+            / "tool_start.asm"
+        ).read_text(encoding="ascii")
+        for required in (
+            "extern __imp_GetFileInformationByHandle",
+            "global cupid_windows_get_file_information:function",
+            "cupid_windows_get_file_information:",
+            "call dword [__imp_GetFileInformationByHandle]",
+        ):
+            self.assertIn(required, startup)
+
     def test_cupidbuild_source_locks_the_paired_import_profiles(self):
         source = (REPO_ROOT / "toolchain" / "cupidbuild.cc").read_text(
             encoding="utf-8"
         )
         for required in (
+            "ordinary_seed_imports",
+            "ordinary_current_imports",
+            "linker_seed_imports",
+            "linker_current_imports",
             "cupidbuild_legacy_imports",
             "cupidbuild_current_imports",
             "DeleteProcThreadAttributeList",
@@ -678,8 +721,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "UpdateProcThreadAttribute",
             "cupidbuild_legacy_ntdll_imports",
             "cupidbuild_current_ntdll_imports",
-            "legacy_count + legacy_ntdll_count",
-            "current_count + current_ntdll_count",
+            "current_windows_plan",
+            "expected_count + expected_ntdll_count",
             "expected_ntdll_imports[index]",
         ):
             self.assertIn(required, source)
@@ -726,7 +769,6 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "cupid_windows_get_current_process_id",
             "cupid_windows_get_exit_code_process",
             "cupid_windows_get_file_attributes",
-            "cupid_windows_get_file_information",
             "cupid_windows_initialize_proc_thread_attribute_list",
             "cupid_windows_open_process",
             "cupid_windows_remove_directory",
@@ -746,6 +788,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             },
             expected_exports,
         )
+        self.assertNotIn("cupid_windows_get_file_information", startup)
+        self.assertNotIn("__imp_GetFileInformationByHandle", startup)
         self.assertNotIn("cupid_windows_set_file_pointer", startup)
 
     def test_windows_cupidbuild_handle_list_has_an_i386_hosted_abi(self):
@@ -885,13 +929,110 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "NTDLL.dll",
             ("NtCreateFile", "NtSetInformationFile"),
         )
+        seed_profiles = {
+            "cupidasm": WINDOWS_LINKER_SEED_IMPORTS,
+            "cupidc": WINDOWS_TOOL_SEED_IMPORTS,
+            "cupiddis": WINDOWS_TOOL_SEED_IMPORTS,
+            "cupidld": WINDOWS_LINKER_SEED_IMPORTS,
+            "cupidobj": WINDOWS_TOOL_SEED_IMPORTS,
+            "cupidbuild": WINDOWS_CUPIDBUILD_SEED_IMPORTS,
+        }
+        current_profiles = {
+            "cupidasm": WINDOWS_LINKER_IMPORTS,
+            "cupidc": WINDOWS_TOOL_IMPORTS,
+            "cupiddis": WINDOWS_TOOL_IMPORTS,
+            "cupidld": WINDOWS_LINKER_IMPORTS,
+            "cupidobj": WINDOWS_TOOL_IMPORTS,
+            "cupidbuild": WINDOWS_CUPIDBUILD_IMPORTS,
+        }
+        current_plan = (
+            "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669"
+        )
+
+        def with_profile(profiles, tool, profile):
+            changed = dict(profiles)
+            changed[tool] = profile
+            return changed
+
         cases = (
-            ("legacy", (legacy_kernel, legacy_ntdll), True),
-            ("current", (current_kernel, current_ntdll), True),
-            ("legacy-current", (legacy_kernel, current_ntdll), False),
-            ("current-legacy", (current_kernel, legacy_ntdll), False),
-            ("legacy-two", (legacy_kernel, exactly_two_ntdll), False),
-            ("current-two", (current_kernel, exactly_two_ntdll), False),
+            ("seed", PROMOTED_WINDOWS_PLAN_SHA256, seed_profiles, True),
+            ("current", current_plan, current_profiles, True),
+            (
+                "current-plan-seed-ordinary",
+                current_plan,
+                with_profile(
+                    current_profiles, "cupidc", WINDOWS_TOOL_SEED_IMPORTS
+                ),
+                False,
+            ),
+            (
+                "current-plan-seed-linker",
+                current_plan,
+                with_profile(
+                    current_profiles, "cupidasm", WINDOWS_LINKER_SEED_IMPORTS
+                ),
+                False,
+            ),
+            (
+                "seed-plan-current-ordinary",
+                PROMOTED_WINDOWS_PLAN_SHA256,
+                with_profile(seed_profiles, "cupiddis", WINDOWS_TOOL_IMPORTS),
+                False,
+            ),
+            (
+                "seed-plan-current-linker",
+                PROMOTED_WINDOWS_PLAN_SHA256,
+                with_profile(seed_profiles, "cupidld", WINDOWS_LINKER_IMPORTS),
+                False,
+            ),
+            (
+                "current-plan-seed-cupidbuild",
+                current_plan,
+                with_profile(
+                    current_profiles,
+                    "cupidbuild",
+                    WINDOWS_CUPIDBUILD_SEED_IMPORTS,
+                ),
+                False,
+            ),
+            (
+                "seed-plan-current-cupidbuild",
+                PROMOTED_WINDOWS_PLAN_SHA256,
+                with_profile(
+                    seed_profiles, "cupidbuild", WINDOWS_CUPIDBUILD_IMPORTS
+                ),
+                False,
+            ),
+            (
+                "current-mixed-cupidbuild",
+                current_plan,
+                with_profile(
+                    current_profiles,
+                    "cupidbuild",
+                    (current_kernel, legacy_ntdll),
+                ),
+                False,
+            ),
+            (
+                "current-short-ntdll",
+                current_plan,
+                with_profile(
+                    current_profiles,
+                    "cupidbuild",
+                    (current_kernel, exactly_two_ntdll),
+                ),
+                False,
+            ),
+            (
+                "seed-mixed-cupidbuild",
+                PROMOTED_WINDOWS_PLAN_SHA256,
+                with_profile(
+                    seed_profiles,
+                    "cupidbuild",
+                    (legacy_kernel, current_ntdll),
+                ),
+                False,
+            ),
         )
 
         with tempfile.TemporaryDirectory(
@@ -927,7 +1068,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 encoding="utf-8",
                 newline="\n",
             )
-            for name, profile, accepted in cases:
+            for name, plan, profiles, accepted in cases:
                 with self.subTest(profile=name):
                     profile_root = case_root / name
                     seed = profile_root / "seed"
@@ -936,23 +1077,22 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     manifest = json.loads(
                         manifest_path.read_text(encoding="utf-8")
                     )
-                    artifact = next(
-                        item
-                        for item in manifest["artifacts"]
-                        if item["name"] == "cupidbuild"
-                    )
-                    tool = seed / artifact["file"]
-                    payload = self._minimal_cupidbuild_profile_pe32(profile)
-                    tool.write_bytes(payload)
-                    artifact["size"] = len(payload)
-                    artifact["sha256"] = hashlib.sha256(payload).hexdigest()
+                    manifest["provenance"]["native_build_plan_sha256"] = plan
+                    for artifact in manifest["artifacts"]:
+                        profile = profiles[artifact["name"]]
+                        tool = seed / artifact["file"]
+                        payload = self._minimal_cupidbuild_profile_pe32(profile)
+                        tool.write_bytes(payload)
+                        artifact["size"] = len(payload)
+                        artifact["sha256"] = hashlib.sha256(payload).hexdigest()
+                        _validate_static_i386_pe32(
+                            tool, 0x00401000, profile
+                        )
                     manifest_path.write_text(
                         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
                         encoding="utf-8",
                         newline="\n",
                     )
-                    _validate_static_i386_pe32(tool, 0x00401000, profile)
-
                     output = profile_root / "output.o"
                     output.write_bytes(b"last known good object")
                     result = subprocess.run(
@@ -986,7 +1126,6 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         else:
                             self.assertEqual(result.returncode, 1)
                             self.assertEqual(result.stdout, "")
-                            self.assertIn("checked CupidASM failed", result.stderr)
                             self.assertEqual(
                                 output.read_bytes(), b"last known good object"
                             )
@@ -8428,6 +8567,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "__imp_ExitProcess=KERNEL32.dll:ExitProcess",
                 "__imp_GetCommandLineA=KERNEL32.dll:GetCommandLineA",
                 "__imp_GetCurrentDirectoryA=KERNEL32.dll:GetCurrentDirectoryA",
+                "__imp_GetFileInformationByHandle=KERNEL32.dll:GetFileInformationByHandle",
                 "__imp_GetLastError=KERNEL32.dll:GetLastError",
                 "__imp_GetStdHandle=KERNEL32.dll:GetStdHandle",
                 "__imp_ReadFile=KERNEL32.dll:ReadFile",

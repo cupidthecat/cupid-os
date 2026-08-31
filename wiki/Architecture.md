@@ -38,6 +38,13 @@ POSIX uses device and inode identity with nanosecond mtime and ctime. The last
 successful pass is the closure checkpoint; it is not a durable filesystem
 snapshot.
 
+The common native Windows tool startup owns the
+`cupid_windows_get_file_information` wrapper because the shared host adapter
+uses it outside CupidBuild. Source-current ordinary and linker images therefore
+import `GetFileInformationByHandle`; the promoted parent profiles remain exact
+and unchanged during the transition. The resulting source-current Windows plan
+is `98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+
 The fixed parent policy differs by host. Windows can create and pin missing
 `build` and `build/bootstrap` components in one `NtCreateFile` operation per
 directory. POSIX requires both components to exist. Flat POSIX transactions

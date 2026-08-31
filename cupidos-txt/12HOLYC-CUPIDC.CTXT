@@ -839,8 +839,15 @@ write directly into the candidate owned by CupidBuild. A dirty-tree v4 pair
 converged on Linux and Windows; clean commit-pinned reconstruction remains
 before seed publication.
 The first clean attempt at f3c14b86 stopped at Linux stage two on a misspelled
-custom-Linux syscall wrapper. It authored no manifest, so the pair must restart
-from the corrected commit.
+custom-Linux syscall wrapper and authored no manifest. The c967ddee retry
+reached native Windows stage two before CupidLD found that the shared host
+adapter called a file-information wrapper available only in CupidBuild's
+private startup. The common startup now provides the wrapper. The ordinary
+profile includes the matching import and moves from 12 to 13 KERNEL32
+procedures; the linker profile moves from 16 to 17. The exact source-current native plan is
+98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669.
+Neither failed run produced a promotable pair, so clean reconstruction must
+restart from this repair.
 
 The profile publisher retains every discovered directory and validates the
 complete retained-to-public set twice at each closure checkpoint. POSIX

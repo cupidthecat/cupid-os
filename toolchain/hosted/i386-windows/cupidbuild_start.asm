@@ -9,7 +9,6 @@ extern __imp_FindNextFileA
 extern __imp_GetCurrentProcessId
 extern __imp_GetExitCodeProcess
 extern __imp_GetFileAttributesA
-extern __imp_GetFileInformationByHandle
 extern __imp_InitializeProcThreadAttributeList
 extern __imp_OpenProcess
 extern __imp_RemoveDirectoryA
@@ -30,7 +29,6 @@ global cupid_windows_find_next_file:function
 global cupid_windows_get_current_process_id:function
 global cupid_windows_get_exit_code_process:function
 global cupid_windows_get_file_attributes:function
-global cupid_windows_get_file_information:function
 global cupid_windows_initialize_proc_thread_attribute_list:function
 global cupid_windows_open_process:function
 global cupid_windows_remove_directory:function
@@ -129,16 +127,6 @@ cupid_windows_get_file_attributes:
  mov ebp, esp
  push dword [ebp + 8]
  call dword [__imp_GetFileAttributesA]
- mov esp, ebp
- pop ebp
- ret
-
-cupid_windows_get_file_information:
- push ebp
- mov ebp, esp
- push dword [ebp + 12]
- push dword [ebp + 8]
- call dword [__imp_GetFileInformationByHandle]
  mov esp, ebp
  pop ebp
  ret

@@ -177,11 +177,18 @@ runtime and three startup objects. Source-current CupidBuild links with 33
 exact `KERNEL32.dll` imports and three exact `NTDLL.dll` imports:
 `NtCreateFile`, `NtQueryDirectoryFile`, and `NtSetInformationFile`. The current
 promoted image retains its earlier 29-plus-one profile as the bootstrap parent
-for this source step. Source head now separates read-shared frozen inputs from
-mutable candidates and gives guarded CupidASM calls one caller-owned candidate
-identity. A dirty-tree v4 pair converged with the new handle and publication
-contracts. Clean, commit-pinned reconstruction is still required before seed
-publication; none of these changes adds a host-tool dependency.
+for this source step. The generic source-current Windows tool profile moves
+from 12 to 13 `KERNEL32.dll` imports, and the linker profile moves from 16 to
+17. The common startup now provides the wrapper, and both profiles include
+`GetFileInformationByHandle`. The
+promoted parents keep the preceding profiles for verification. Source head
+separates read-shared frozen inputs from mutable candidates and gives guarded
+CupidASM calls one caller-owned candidate identity. A dirty-tree v4 pair
+converged, but neither clean attempt at `f3c14b86` or `c967ddee` produced a
+paired manifest. The repaired exact Windows plan is
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+Clean reconstruction is still required; none of these changes adds a
+host-tool dependency.
 Host Python still freezes inputs, launches the checked tools, compares stages,
 and publishes the evidence. ADR 0345 records this separation.
 Both final-stage CupidDis images now inspect the corresponding six candidate

@@ -34352,3 +34352,59 @@ spelling. The function is the shared `cupid_linux_syscall2` wrapper used by
 the hosted runtime. The call now uses that declared interface, and the paired
 proof must restart from a new commit. The native Windows candidate was stopped
 once the Linux half failed because an unpaired result cannot be promoted.
+
+### Second clean failure and shared Windows startup repair
+
+The second clean reconstruction was pinned to `c967ddee`. The paired run
+reached native Windows stage two, where CupidLD failed closed on unresolved
+symbol `cupid_windows_get_file_information`. The shared host adapter calls that
+wrapper, but the implementation lived only in CupidBuild's private startup.
+Ordinary tools link the common startup, so CupidASM could compile the call while
+CupidLD had no definition to bind. Neither host authored a promotable paired
+manifest from this run.
+
+The common Windows tool startup now provides the two-argument wrapper. The
+ordinary and linker profiles include `GetFileInformationByHandle`. The duplicate private CupidBuild wrapper
+was removed because CupidBuild links both startup objects. The source-current
+ordinary import profile grows from 12 to 13 `KERNEL32.dll` procedures, and the
+linker profile grows from 16 to 17. The promoted seed profiles stay unchanged
+for parent verification.
+
+This import change replaces the never-promoted `c27481d2...` candidate plan
+with exact plan
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+CupidBuild and the Cupid-built artifact-size contract accept only that plan or
+the active promoted plan
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
+The parsed plan generation now selects one complete ordinary, linker, and
+CupidBuild import profile across all six artifacts. Mixed-generation seed
+images fail before checked execution.
+
+Focused validation passed:
+
+- The common-startup ownership, promoted-profile, plan derivation, and assembly
+  annotation checks completed four cases.
+- The native plan/profile pairing check completed one case in 3.575 seconds.
+- The checked native Windows tool boundary completed one case in 137.426
+  seconds.
+- Three source-current CupidBuild manifest and execution-profile cases completed
+  in 6.797 seconds.
+- The native Windows CupidASM module completed 46 cases in 3.980 seconds, with
+  four procfs-only skips.
+- The compiler-contract, Toolchain-manifest, and artifact-runner modules
+  completed 121 cases in 68.465 seconds, with four Windows-only skips.
+- The artifact-size policy module completed 33 cases in 1.906 seconds, and the
+  six active CupidASM source-oracle cases completed in 4.954 seconds.
+- The full native Windows CupidBuild module completed 140 cases in 83.136
+  seconds, with 52 documented platform or promoted-generation skips.
+
+These tests cover the repair. They do not replace a clean paired fixed point.
+Reconstruction must restart from the committed repair before either seed can be
+promoted.
+
+Audit regeneration and check-only mode pass at 748 active inputs, 452
+transforms, 255 feature requirements, and 28 accounted unreachable inputs. The
+2,821,144-byte JSON has SHA-256
+`9b3c8790e867689c1656cbd07a739574502f9baed287864c6812ff41807547a9`.
+The 13,193-byte summary has SHA-256
+`555a30f78da238ba5a679e1b487b3ed4ad411980664578ca056a22f9f12c6b20`.

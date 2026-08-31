@@ -29,8 +29,16 @@ Windows keeps frozen inputs read-shared and blocks write or delete opens until
 cleanup reopens the same fully verified identity. Guarded assembly uses
 CupidASM's caller-owned output mode, which preserves CupidBuild's retained
 candidate instead of nesting a second publisher. A dirty-tree v4 pair passed
-both source-current behavior matrices. Clean, commit-pinned reconstruction
-still precedes seed publication.
+both source-current behavior matrices. The clean `f3c14b86` attempt failed on
+the custom-Linux syscall spelling. Its `c967ddee` successor reached native
+Windows stage two, where CupidLD found that the common startup lacked the
+file-information wrapper used by the shared host adapter. The common startup
+now provides the wrapper. The source-current ordinary and linker profiles
+include the matching import. The exact
+source-current Windows plan is
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+Neither run produced a promotable pair, so a new clean reconstruction still
+precedes seed publication.
 
 Together with the checked CupidC runner, Linux defines 31/7/37 source-head
 behavior groups and native Windows defines 19/7/24. The promoted seeds do not

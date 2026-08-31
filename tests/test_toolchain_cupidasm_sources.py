@@ -115,7 +115,7 @@ STARTUP_OBJECT_FIXTURES = (
         / "hosted"
         / "i386-windows"
         / "tool_start.asm",
-        "function_count": 11,
+        "function_count": 12,
     },
     {
         "name": "windows-publication-start",
@@ -142,14 +142,19 @@ STARTUP_OBJECT_FIXTURES = (
             "cupid_windows_get_current_process_id",
             "cupid_windows_get_exit_code_process",
             "cupid_windows_get_file_attributes",
-            "cupid_windows_get_file_information",
+            "cupid_windows_delete_proc_thread_attribute_list",
+            "cupid_windows_initialize_proc_thread_attribute_list",
+            "cupid_windows_set_handle_information",
+            "cupid_windows_update_proc_thread_attribute",
             "cupid_windows_open_process",
             "cupid_windows_remove_directory",
             "cupid_windows_terminate_process",
             "cupid_windows_wait_for_single_object",
+            "cupid_windows_nt_create_file",
+            "cupid_windows_nt_query_directory_file",
             "cupid_windows_nt_set_information_file",
         ),
-        "function_count": 14,
+        "function_count": 19,
     },
 )
 

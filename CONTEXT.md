@@ -580,7 +580,17 @@ candidates use read, write, and delete sharing. Guarded assembly passes
 `--caller-owned-output`, so CupidASM writes the retained candidate directly
 instead of replacing its identity with a nested publication. A dirty-tree v4
 pair converged with the source-current 31/7/37 Linux and 19/7/24 Windows
-matrices. Clean, commit-pinned reconstruction and seed publication remain.
+matrices. The clean `f3c14b86` attempt failed on the custom-Linux syscall
+spelling. The `c967ddee` retry reached native Windows stage two, where CupidLD
+found that the common startup lacked the file-information wrapper called by the
+shared host adapter. The common startup now provides the wrapper. The
+source-current ordinary and linker profiles include the matching import. The
+active promoted Windows plan remains
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`;
+the exact source-current plan is
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+Neither clean attempt authored a promotable pair. Reconstruction and seed
+publication remain.
 _Avoid_: claiming profile publication has moved before paired seed promotion, skipping the independent renderer, suffix-only Doom migration
 
 The fixed asset-free frontier invokes the default Doom search, an explicit

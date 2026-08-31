@@ -704,7 +704,7 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
     def test_windows_seed_accepts_the_native_plan_transition_window(self):
         digest = "3" * 64
         current_plan = (
-            "c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3"
+            "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669"
         )
         windows_manifest = _windows_manifest(digest)
         windows_manifest["provenance"][
@@ -721,7 +721,14 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, SUCCESS_REPORT)
         self.assertEqual(result.stderr, "")
-        for invalid in (current_plan.upper(), current_plan[:-1]):
+        obsolete_plan = (
+            "c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3"
+        )
+        for invalid in (
+            current_plan.upper(),
+            current_plan[:-1],
+            obsolete_plan,
+        ):
             with self.subTest(invalid=invalid):
                 invalid_manifest = _windows_manifest(digest)
                 invalid_manifest["provenance"][

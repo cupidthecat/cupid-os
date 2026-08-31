@@ -4378,7 +4378,7 @@ class CupidBuildCliTests(unittest.TestCase):
             manifest = self._copy_checked_assembly_seed(root / "seed")
             document = self._promote_seed_contract(manifest)
             document["provenance"]["native_build_plan_sha256"] = (
-                "c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3"
+                "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669"
             )
             manifest.write_text(
                 json.dumps(document, indent=2, sort_keys=True) + "\n",
@@ -4475,6 +4475,16 @@ class CupidBuildCliTests(unittest.TestCase):
                     "unknown native build plan",
                     lambda document: document["provenance"].update(
                         {"native_build_plan_sha256": "0" * 64}
+                    ),
+                ),
+                (
+                    "retired source-current native build plan",
+                    lambda document: document["provenance"].update(
+                        {
+                            "native_build_plan_sha256": (
+                                "c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3"
+                            )
+                        }
                     ),
                 ),
                 (

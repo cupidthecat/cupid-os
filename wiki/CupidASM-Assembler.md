@@ -93,8 +93,14 @@ must have different file identities. Normalized spellings such as `name` and
 both paths are absent. Existing hard links fail the same check by file
 identity. Matching leaf names beneath aliased existing parent directories also
 fail before either output is created.
+
 The hosted i386 Linux command reads existing file and parent identities with
 `fstat64` through the declared Cupid two-argument syscall wrapper.
+
+On native Windows, the common tool startup now provides the
+`cupid_windows_get_file_information` wrapper. The ordinary and linker profiles
+include `GetFileInformationByHandle`. CupidASM and CupidLD can therefore use
+the shared host adapter without relying on CupidBuild's private startup object.
 
 `bin` writes the flat bytes and requires `--map`. The map uses
 `cupid.raw-map.v2` and records the origin, each code16, code32, or data range,

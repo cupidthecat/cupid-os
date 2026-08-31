@@ -6,6 +6,7 @@ extern __imp_CreateFileA
 extern __imp_ExitProcess
 extern __imp_GetCommandLineA
 extern __imp_GetCurrentDirectoryA
+extern __imp_GetFileInformationByHandle
 extern __imp_GetLastError
 extern __imp_GetStdHandle
 extern __imp_ReadFile
@@ -18,6 +19,7 @@ global _start:function
 global cupid_windows_close_handle:function
 global cupid_windows_create_file:function
 global cupid_windows_get_current_directory:function
+global cupid_windows_get_file_information:function
 global cupid_windows_get_last_error:function
 global cupid_windows_get_std_handle:function
 global cupid_windows_read_file:function
@@ -71,6 +73,16 @@ cupid_windows_get_current_directory:
  push dword [ebp + 12]
  push dword [ebp + 8]
  call dword [__imp_GetCurrentDirectoryA]
+ mov esp, ebp
+ pop ebp
+ ret
+
+cupid_windows_get_file_information:
+ push ebp
+ mov ebp, esp
+ push dword [ebp + 12]
+ push dword [ebp + 8]
+ call dword [__imp_GetFileInformationByHandle]
  mov esp, ebp
  pop ebp
  ret

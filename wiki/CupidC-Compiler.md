@@ -1117,9 +1117,16 @@ promoted seeds do not yet contain this command, so Make still enters the
 Python-coordinated publisher. On Windows, frozen inputs retain read sharing
 and reject write or delete opens. Cleanup reopens only the same fully verified
 identity with delete access. Mutable candidates use the broader sharing needed
-by checked tools. A dirty-tree paired fixed point passed on both hosts; clean,
-commit-pinned reconstruction remains before promotion. ADR 0377 records the
-source boundary, and ADR 0381 records the handle contract.
+by checked tools. A dirty-tree paired fixed point passed on both hosts. The
+clean `f3c14b86` attempt failed on the custom-Linux syscall spelling, and its
+`c967ddee` retry reached native Windows stage two before CupidLD found a missing
+common file-information wrapper. The common startup now provides the wrapper.
+The source-current ordinary and linker profiles include the matching import,
+yielding exact plan
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+Neither attempt produced a promotable pair, so clean reconstruction remains.
+ADR 0377 records the source boundary, and ADR 0381 records the handle and
+import contract.
 
 Active dglibc uses the corrected form. Its 31-byte `dg_setjmp` saves the
 caller's post-return `ESP + 4` and is declared `returns_twice`; `dg_longjmp`,
