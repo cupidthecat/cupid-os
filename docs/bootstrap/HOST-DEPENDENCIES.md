@@ -10,6 +10,46 @@ optional parity oracle rather than a raw-kernel production dependency. The
 disk, ISO, and Doom profile composite paths remain Python-coordinated. ADR
 0374 records the paired seed promotion, and ADR 0375 records the handoff.
 
+Source-head CupidBuild now contains the typed Doom profile publisher. Its
+`generate-profile-manifest` command owns native discovery, freezing,
+`CUPROF1` construction, checked CupidObj execution, an independent canonical
+JSON renderer, drift checks, locking, unchanged-file preservation, and atomic
+replacement. Its production-path preparation pins the repository and the
+`build/bootstrap` chain. Windows can create missing components with
+parent-relative `NtCreateFile` from NTDLL, then roll back only the empty
+directories whose returned identities it owns. POSIX requires both components
+to exist. It refuses a missing `build` or `build/bootstrap` because a separate
+`mkdirat` and `openat` sequence cannot prove creation ownership against a
+same-user replacement.
+
+The profile walk retains every discovered directory descriptor or handle and
+validates all retained and named bindings twice at each closure checkpoint.
+POSIX compares nanosecond mtime and ctime. Windows uses exact named
+`FileIdFullDirectoryInformation` records to compare file ID, LastWriteTime,
+and ChangeTime before and after it samples the retained handle. This closes
+changes observed through the final pass, but it does not provide a durable
+filesystem snapshot after that pass.
+
+POSIX flat publication keeps non-publication artifacts in sealed anonymous
+memfds and passes `/proc/self/fd/N` paths to checked tools. The reservation,
+lock, candidate, publication alias, and parked old output remain named. DrvFS
+uses a hard-link-then-unlink fallback when `renameat2(RENAME_NOREPLACE)` is not
+available. A verified hard link also parks the old output before a plain
+replacement when exchange rename is unavailable. These cleanup operations
+still contain a formal same-user compare-then-unlink race. Source-only drift
+can roll back and clean normally after a no-discovery binding recheck.
+Ambiguous namespace state instead preserves readable public bytes and leaves
+private residue for recovery.
+
+This source capability does not remove a host dependency yet. The promoted
+seeds do not contain the command, and the normal Make edge still invokes
+`tools/cupidc_kernel_compile.py --write-profile-input-manifest`. Together with
+the checked CupidC runner, the source fixed-point definitions are 31/7/37 on
+Linux and 19/7/24 on native Windows. Production counts stay at 195 CupidBuild
+and 257 Python until paired seed promotion and a separate Make handoff. ADR
+0377 records the source
+boundary.
+
 CupidBuild's source head can now launch CupidObj through a native checked-seed
 runner. Linux creates no `.cupidbuild-run` namespace: the manifest and six
 tools are fully sealed anonymous memfds, and the working directory is pinned by
@@ -24,9 +64,14 @@ an exact child exit of 125, and the i386 startup supplies
 Windows pins and rechecks the working-directory identity. It uses a
 handle-pinned private root and files, holds the tool without write or delete
 sharing through `CreateProcessA`, and forwards captured streams in binary
-mode to preserve exact bytes. Cleanup deletes a file that changed in place
-when its identity still matches, but preserves a replacement with a different
-identity. Both platforms recheck the live seed before releasing output.
+mode to preserve exact bytes. An extended startup record allows the child to
+inherit only standard input, standard output, and standard error. Borrowed
+stream handles are marked inheritable for the launch window and cleared after
+`CreateProcessA`; an unrelated inheritable handle stays in the parent. This
+window assumes the CupidBuild process is single threaded. Cleanup deletes a
+file that changed in place when its identity still matches, but preserves a
+replacement with a different identity. Both platforms recheck the live seed
+before releasing output.
 
 The normal graph now runs all 186 direct root CupidObj calls through the
 promoted CupidBuild command. These calls cover 175 text wrappers, eight binary
@@ -80,8 +125,8 @@ kernel-symbol pair, and ADR 0374 records the active pair.
 
 The final top-level replay passed after the exact-size check rejected the
 updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,533,840 bytes for `kernel/kernel.bin`, 9,761,100 bytes
-for `kernel/kernel.elf`, and 9,630,028 bytes for
+The current sizes are 9,536,524 bytes for `kernel/kernel.bin`, 9,765,196 bytes
+for `kernel/kernel.elf`, and 9,634,124 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as well.
 
@@ -128,10 +173,17 @@ and native Windows while retaining complete final-generation convergence.
 The fixed-point coordinator consumes the six-tool v2 Linux plan. Linux freezes
 59 inputs and builds 22 C objects, startup, and six tools. The native Windows
 plan adds its publication
-runtime and three startup objects. CupidBuild links with 29 exact
-`KERNEL32.dll` imports and `NtSetInformationFile` from `NTDLL.dll`. Host Python
-still freezes inputs, launches the checked tools, compares stages, and
-publishes the evidence. ADR 0345 records this separation.
+runtime and three startup objects. Source-current CupidBuild links with 33
+exact `KERNEL32.dll` imports and three exact `NTDLL.dll` imports:
+`NtCreateFile`, `NtQueryDirectoryFile`, and `NtSetInformationFile`. The current
+promoted image retains its earlier 29-plus-one profile as the bootstrap parent
+for this source step. Source head now separates read-shared frozen inputs from
+mutable candidates and gives guarded CupidASM calls one caller-owned candidate
+identity. A dirty-tree v4 pair converged with the new handle and publication
+contracts. Clean, commit-pinned reconstruction is still required before seed
+publication; none of these changes adds a host-tool dependency.
+Host Python still freezes inputs, launches the checked tools, compares stages,
+and publishes the evidence. ADR 0345 records this separation.
 Both final-stage CupidDis images now inspect the corresponding six candidate
 images with known-decode, local-target, and code-anchor checks. The coordinator
 also makes an entry-corrupted CupidBuild copy and requires both generations to
@@ -333,12 +385,12 @@ were:
 | `cupidos.img` | 209,715,200 | `09f50741d3d6884040c7f2009ecf449e519cfe62c09fe8f9307e1c3212127186` |
 
 The active 3,382-byte artifact-size policy has SHA-256
-`22e5e9c011876f3991eefff13bef44b199c10839f5a69a521f052bd750472027`.
+`cfbf82ebd02697a668c404c8e9bd19e577b8e809b87c3736e063e4f30f0d5fe2`.
 Its sixteen rows cover `boot/boot.bin`, both kernel ELFs, the flat kernel, six
 Linux seed images, and six Windows seed images. The OS rows expect 2,560,
-9,630,028, 9,761,100, and 9,533,840 bytes for the boot image, pass-one ELF,
+9,634,124, 9,765,196, and 9,536,524 bytes for the boot image, pass-one ELF,
 final ELF, and flat kernel, respectively. Current verification accepts all
-sixteen rows, totaling 38,391,956 bytes. The contract accepts the complete
+sixteen rows, totaling 38,402,832 bytes. The contract accepts the complete
 kernel-symbol or active seed-parent pair and rejects mixed digest/revision
 lineage for the Linux seed and both Windows parent links.
 
@@ -560,11 +612,15 @@ transactions. Each operation publishes only after every live boundary still
 matches its capture. Python remains available in Hostbuild for compatibility
 and oracle tests, but it no longer enters these four normal publications.
 Parent-replacement tests exposed a POSIX
-candidate leak when private work lived below the output parent. Private
-raw-image roots now live directly below the stable repository root. The two
-caller modules pass all 10 tests on Windows and all 10 through WSL, including
-parent replacement with no leaked candidate. ADRs 0275 through 0277 record
-these seams.
+candidate leak when private work lived below the output parent. Windows keeps
+a handle-pinned private raw-image directory below the stable repository root.
+POSIX reserves one exclusive file there. Maps, captured streams, and frozen
+inputs are sealed anonymous memfds; the raw candidate and publication alias
+remain named for installation on the target filesystem. Checked tools use
+direct `/proc/self/fd/N` paths. The two caller modules pass all 10 tests on
+Windows and all 10 through WSL, including parent replacement with no leaked
+candidate.
+ADRs 0275 through 0277 record these seams.
 The private guest AOT smoke assembled a 15,680-byte `ET_REL` object, linked an
 8,536-byte ELF with two `PT_LOAD` segments at `0x01A00000`, and observed PID 4
 exit normally. It passed in 79.661 seconds and adds no host dependency.
@@ -983,7 +1039,7 @@ SIMD transfer, ADR 0181 records the final strict-root transfer, and ADR 0184
 records the 83-root Doom transfer.
 
 The Doom wrapper fixes exact three-source and 80-source allowlists and freezes
-the selected source with all 291 `.h` and `.inc` inputs visible through the
+the selected source with all 304 `.h` and `.inc` inputs visible through the
 two compiler profiles. It recursively checks visible `.c` and `.cc` files
 beneath the Doom tree before and after a compile. Its always-checked manifest
 detects source removal. A legacy `.c` file, an unlisted `.cc` file, header

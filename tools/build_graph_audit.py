@@ -7463,6 +7463,8 @@ def _cupid_toolchain_fixed_point_contract(
         "overflow = calloc(CUPID_RUNTIME_UINT_MAX, 2u);",
         "overflow != (void *)0 || errno != ENOMEM",
         "static int file_contract(const char *output_path,",
+        "GENERIC_READ | GENERIC_WRITE | DELETE",
+        "FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE",
         'stream = fopen(output_path, "ab");',
         "fseek(stream, 0L, 0) != 0 ||",
         "memcmp(contents, expected, 8u) != 0",
@@ -7574,25 +7576,31 @@ def _cupid_toolchain_fixed_point_contract(
         for line in (raw_line.split(";", 1)[0].strip(),)
         if line
     )
-    windows_publication_sources_match = (
-        token_digest(
-            c_tokens(
-                active_windows_publication_header,
-                windows_publication_header_path,
-            )
+    # Bind the active header, runtime, and startup as one Windows ABI surface.
+    windows_publication_header_digest = token_digest(
+        c_tokens(
+            active_windows_publication_header,
+            windows_publication_header_path,
         )
-        == "e532243c5f0d19c109a6bd6da35a0e45406a9b664427275c669c77a4e32407e2"
-        and token_digest(
-            c_tokens(
-                active_windows_publication_runtime,
-                windows_publication_runtime_path,
-            )
+    )
+    windows_publication_runtime_digest = token_digest(
+        c_tokens(
+            active_windows_publication_runtime,
+            windows_publication_runtime_path,
         )
-        == "536fa0a609ddaf6fe90c3fb0696c8e66823284634b75811f03d275427187ad0c"
-        and hashlib.sha256(
-            "\n".join(windows_publication_asm_lines).encode("utf-8")
-        ).hexdigest()
-        == "c2a891418d97f71b6a8aa42657aa683d578a7500f18a94e39bb7c522a0e6122b"
+    )
+    windows_publication_start_digest = hashlib.sha256(
+        "\n".join(windows_publication_asm_lines).encode("utf-8")
+    ).hexdigest()
+    windows_publication_sources_match = all(
+        (
+            windows_publication_header_digest
+            == "2fd43ded601396b708ce6ea1cd5006e0cf25e807bbe5ada03932486ca7e59b7a",
+            windows_publication_runtime_digest
+            == "536fa0a609ddaf6fe90c3fb0696c8e66823284634b75811f03d275427187ad0c",
+            windows_publication_start_digest
+            == "c2a891418d97f71b6a8aa42657aa683d578a7500f18a94e39bb7c522a0e6122b",
+        )
     )
     if not windows_publication_sources_match:
         raise AuditError(
@@ -7628,11 +7636,30 @@ def _cupid_toolchain_fixed_point_contract(
             r"\bstatic\s+int\s+file_contract\s*"
             r"\(\s*const\s+char\s*\*\s*output_path\s*,\s*"
             r"const\s+char\s*\*\s*missing_path\s*\)\s*\{",
-            "b76b9f30fea04b33b20c96f7756ad7dccf599a1d5025b9d9aa6c410f1e8bd9cc",
+            "a47ba8934c40554c60affc5a312259eb4bae0e5f2ecac3172ed85db657aad289",
             (
                 'if (fopen_s(&stream, output_path, "wb") != 0 || '
                 "stream == (FILE *)0) { return 21; }",
                 "if (fwrite(first, 1u, 4u, stream) != 4u || "
+                "fflush(stream) != 0) { return 22; }",
+                "shared_handle = CreateFileA(output_path, "
+                "GENERIC_READ | GENERIC_WRITE | DELETE, "
+                "FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, "
+                "(LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING, "
+                "FILE_ATTRIBUTE_NORMAL, (HANDLE)0); "
+                "if (shared_handle == INVALID_HANDLE_VALUE || "
+                "!CloseHandle(shared_handle)) { "
+                "(void)fclose(stream); return 22; }",
+                'shared_reader = fopen(output_path, "rb"); '
+                "(void)memset(contents, 0, sizeof(contents)); "
+                "if (shared_reader == (FILE *)0) { "
+                "(void)fclose(stream); return 22; } "
+                "if (fread(contents, 1u, 4u, shared_reader) != 4u) { "
+                "(void)fclose(shared_reader); (void)fclose(stream); "
+                "return 22; } if (fclose(shared_reader) != 0) { "
+                "(void)fclose(stream); return 22; } "
+                "shared_reader = (FILE *)0; "
+                "if (memcmp(contents, first, 4u) != 0 || "
                 "fclose(stream) != 0) { return 22; }",
                 'stream = fopen(output_path, "ab"); '
                 "if (stream == (FILE *)0) { return 23; }",
@@ -9423,9 +9450,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 29,
+        "failure_cases": 31,
         "help_cases": 7,
-        "success_cases": 36,
+        "success_cases": 37,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -9784,7 +9811,11 @@ def _cupid_toolchain_fixed_point_contract(
     )
     required_cupidbuild_runner_fragments = (
         'runner_root = behavior_root / "cupidobj-runner"',
-        "manifest_path = _materialize_behavior_seed(seed_inputs, runner_root)",
+        "stage_two_manifest, stage_three_manifest = (",
+        "_materialize_behavior_seed_pair(",
+        "seed_inputs, runner_root, stage_two, stage_three",
+        "*common_arguments(stage_two_manifest)",
+        "*common_arguments(stage_three_manifest)",
         'input_path.write_bytes(b"first\\r\\nsecond\\r\\n")',
         '        "run",',
         '        "--tool",',
@@ -9800,6 +9831,8 @@ def _cupid_toolchain_fixed_point_contract(
         '"usage: cupidobj" not in failure_result.stderr',
     )
     repeated_cupidbuild_runner_fragments = {
+        "*common_arguments(stage_two_manifest)": 2,
+        "*common_arguments(stage_three_manifest)": 2,
         '            "wrap-text",': 2,
         '            "fixed-point-runner.txt",': 2,
         '"--definitely-invalid-option"': 2,
@@ -9841,7 +9874,11 @@ def _cupid_toolchain_fixed_point_contract(
     ) or ""
     required_cupidbuild_cupidc_runner_fragments = (
         'runner_root = behavior_root / "cupidc-runner"',
-        "manifest_path = _materialize_behavior_seed(seed_inputs, runner_root)",
+        "stage_two_manifest, stage_three_manifest = (",
+        "_materialize_behavior_seed_pair(",
+        "seed_inputs, runner_root, stage_two, stage_three",
+        "*common_arguments(stage_two_manifest)",
+        "*common_arguments(stage_three_manifest)",
         'valid_source = runner_root / "runner-valid.cc"',
         'invalid_source = runner_root / "runner-invalid.cc"',
         '        "--tool",',
@@ -10035,7 +10072,11 @@ def _cupid_toolchain_fixed_point_contract(
     )
     required_cupidbuild_jpeg_fragments = (
         'jpeg_root = behavior_root / "cupidbuild-jpeg"',
-        "manifest_path = _materialize_behavior_seed(seed_inputs, jpeg_root)",
+        "stage_two_manifest, stage_three_manifest = (",
+        "_materialize_behavior_seed_pair(",
+        "seed_inputs, jpeg_root, stage_two, stage_three",
+        "*common_arguments(stage_two_manifest)",
+        "*common_arguments(stage_three_manifest)",
         "asset.write_bytes(_CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD)",
         '        "embed-jpeg",',
         "success_result = _run_stage_pair(",
@@ -10105,7 +10146,11 @@ def _cupid_toolchain_fixed_point_contract(
     )
     required_cupidbuild_ksyms_fragments = (
         'ksyms_root = behavior_root / "cupidbuild-ksyms"',
-        "manifest_path = _materialize_behavior_seed(seed_inputs, ksyms_root)",
+        "stage_two_manifest, stage_three_manifest = (",
+        "_materialize_behavior_seed_pair(",
+        "seed_inputs, ksyms_root, stage_two, stage_three",
+        "*common_arguments(stage_two_manifest)",
+        "*common_arguments(stage_three_manifest)",
         "pass_one.write_bytes(elf_payload)",
         '        "generate-ksyms",',
         "success_result = _run_stage_pair(",
@@ -10140,6 +10185,101 @@ def _cupid_toolchain_fixed_point_contract(
         raise AuditError(
             "Cupid Toolchain fixed-point kernel symbol publication behavior "
             f"differs: {missing_cupidbuild_ksyms_fragments!r}"
+        )
+    cupidbuild_typed_profile_helpers = [
+        node
+        for node in bootstrap_tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_check_cupidbuild_generate_profile_behavior"
+    ]
+    cupidbuild_typed_profile_calls = [
+        node
+        for node in ast.walk(behavior_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_check_cupidbuild_generate_profile_behavior"
+    ]
+    if (
+        len(cupidbuild_typed_profile_helpers) != 1
+        or len(cupidbuild_typed_profile_calls) != 1
+        or len(cupidbuild_typed_profile_calls[0].args) != 8
+        or not isinstance(cupidbuild_typed_profile_calls[0].args[1], ast.Name)
+        or cupidbuild_typed_profile_calls[0].args[1].id
+        != "profile_source_root"
+        or not isinstance(cupidbuild_typed_profile_calls[0].args[-1], ast.Constant)
+        or cupidbuild_typed_profile_calls[0].args[-1].value is not False
+        or live_linked_code_policy_call_count(
+            behavior_function,
+            "_check_cupidbuild_generate_profile_behavior",
+        )
+        != 1
+        or live_linked_code_policy_call_count(
+            cupidbuild_typed_profile_helpers[0],
+            "_run_stage_pair",
+        )
+        != 3
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point typed profile publication differs: "
+            "Linux must call the helper once and the helper must compare "
+            "success, rollback, and safe missing-parent behavior across stages"
+        )
+    cupidbuild_typed_profile_source = (
+        ast.get_source_segment(bootstrap_source, cupidbuild_typed_profile_helpers[0])
+        or ""
+    )
+    required_cupidbuild_typed_profile_fragments = (
+        'output_logical = Path("build/bootstrap/doom-cupidc-inputs.json")',
+        "allow_clean_parent_creation: bool,",
+        "def materialize(",
+        "prepare_parent: bool",
+        "_materialize_cupidbuild_profile_behavior_root(",
+        '"cupidbuild-profile-stage-three-success"',
+        '"cupidbuild-profile-stage-four-success"',
+        '"cupidbuild-profile-stage-three-failure"',
+        '"cupidbuild-profile-stage-four-failure"',
+        '"cupidbuild-profile-stage-three-missing-parent"',
+        '"cupidbuild-profile-stage-four-missing-parent"',
+        '"cupid.doom-profile-inputs.v1"',
+        'unlisted.write_text("int unlisted;\\n"',
+        "success_result = _run_stage_pair(",
+        "stage_two_output.read_bytes() != stage_three_output.read_bytes()",
+        "failure_result = _run_stage_pair(",
+        '"approved source cohort" not in failure_result.stderr',
+        '"profile parent build component must already exist on POSIX"',
+        "stage_two_failure.exists()",
+        "stage_three_failure.exists()",
+        '(stage_two_failure_root / "build").exists()',
+        '(stage_three_failure_root / "build").exists()',
+    )
+    missing_cupidbuild_typed_profile_fragments = [
+        fragment
+        for fragment in required_cupidbuild_typed_profile_fragments
+        if cupidbuild_typed_profile_source.count(fragment) != 1
+    ]
+    if (
+        missing_cupidbuild_typed_profile_fragments
+        or cupidbuild_typed_profile_source.count(
+            '            "generate-profile-manifest",'
+        )
+        != 6
+        or cupidbuild_typed_profile_source.count('        "cupidbuild",') != 3
+        or cupidbuild_typed_profile_source.count(
+            "_expect_status(\n        success_result,\n        0,"
+        )
+        != 1
+        or cupidbuild_typed_profile_source.count(
+            "_expect_status(\n        failure_result,\n        1,"
+        )
+        != 1
+        or cupidbuild_typed_profile_source.count(
+            "_expect_status(\n            missing_parent_result,\n            1,"
+        )
+        != 1
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point typed profile publication behavior "
+            f"differs: {missing_cupidbuild_typed_profile_fragments!r}"
         )
     behavior_source = (
         ast.get_source_segment(bootstrap_source, behavior_function) or ""
@@ -12763,7 +12903,9 @@ def _cupid_toolchain_fixed_point_contract(
         "            stage_three,\n"
         "            stage_four,",
         "            seed_inputs,\n",
-        "            behavior_evidence,\n        )",
+        "            behavior_evidence,\n"
+        "            source_root,\n"
+        "        )",
         '"behavior_generations": ["stage-three", "stage-four"],',
         '"stage-four": {\n'
         '                    "objects": _artifact_inventory(stage_four.objects),\n'
@@ -12849,6 +12991,7 @@ def _cupid_toolchain_fixed_point_contract(
         "            native_plan,\n"
         "            seed_inputs,\n"
         "            plan_inputs,\n"
+        "            source_root,\n"
         "        )",
         '"stage-four": {\n'
         '                    "objects": _artifact_inventory(stage_four.objects),\n'
@@ -13187,6 +13330,7 @@ def _cupid_toolchain_fixed_point_contract(
             "_check_cupidbuild_guarded_object_behavior(",
             "_check_cupidbuild_embed_jpeg_behavior(",
             "_check_cupidbuild_generate_ksyms_behavior(",
+            "_check_cupidbuild_generate_profile_behavior(",
             "failure_result = _run_stage_pair(",
             '"--definitely-invalid-option"',
             "stage_two_object.read_bytes()",
@@ -13238,9 +13382,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 12, "
+            "'failure_cases': len(tool_names) + 13, "
             "'help_cases': len(tool_names) + 1, "
-            "'success_cases': len(tool_names) + 17"
+            "'success_cases': len(tool_names) + 18"
             "}",
             mode="eval",
         ).body
@@ -13256,8 +13400,8 @@ def _cupid_toolchain_fixed_point_contract(
             expected_native_windows_behavior, include_attributes=False
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return eighteen failure, "
-                "seven help, and twenty-three success cases"
+                "_run_native_windows_behavior_checks: return nineteen failure, "
+                "seven help, and twenty-four success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -13324,6 +13468,30 @@ def _cupid_toolchain_fixed_point_contract(
             missing_native_windows_fragments.append(
                 "_run_native_windows_behavior_checks: one typed "
                 "CupidBuild kernel symbol publication call"
+            )
+        native_profile_calls = [
+            node
+            for node in ast.walk(behavior_function)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_check_cupidbuild_generate_profile_behavior"
+        ]
+        if (
+            live_linked_code_policy_call_count(
+                behavior_function,
+                "_check_cupidbuild_generate_profile_behavior",
+            )
+            != 1
+            or len(native_profile_calls) != 1
+            or len(native_profile_calls[0].args) != 8
+            or not isinstance(native_profile_calls[0].args[1], ast.Name)
+            or native_profile_calls[0].args[1].id != "profile_source_root"
+            or not isinstance(native_profile_calls[0].args[-1], ast.Constant)
+            or native_profile_calls[0].args[-1].value is not True
+        ):
+            missing_native_windows_fragments.append(
+                "_run_native_windows_behavior_checks: one typed "
+                "CupidBuild profile publication call"
             )
         behavior_parents = {
             child: parent
@@ -13916,8 +14084,8 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 7,
-        "windows_success_behavior_cases": 23,
-        "windows_failure_behavior_cases": 18,
+        "windows_success_behavior_cases": 24,
+        "windows_failure_behavior_cases": 19,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_checked_cupidc_runner",
@@ -13926,6 +14094,7 @@ return tuple(
             "cupid.cupidbuild_guarded_raw_transaction",
             "cupid.cupidbuild_typed_jpeg_transaction",
             "cupid.cupidbuild_typed_ksyms_transaction",
+            "cupid.cupidbuild_typed_profile_transaction",
             "cupiddis.candidate_image_certification",
             "cupiddis.elf32_code_anchors",
             "cupidld.pe32_fixed_image",

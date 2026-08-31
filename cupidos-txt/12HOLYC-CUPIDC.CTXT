@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-08-30
+Verified against source on: 2026-08-31
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -223,7 +223,7 @@ the explicit static string cast in doom_libc_stubs.cc and emits the exact
 dg_setjmp and dg_longjmp block through Cupid's x86 model. Two seed compiles
 agree on those three objects. All 83 Doom and platform sources use .cc and
 compile through the checked seed. The wrapper freezes the selected source and
-all 289 profile headers before it publishes an object. Its exact source
+all 304 profile inputs before it publishes an object. Its exact source
 memberships make a missing, renamed, or unlisted root fail the normal build.
 
 It scans visible .c and .cc files beneath the Doom tree before publication, so
@@ -825,6 +825,27 @@ tools. Both manifests bind revision
 
 Those are the active promoted identities. The pair carries hosted stddef.h,
 typed __builtin_offsetof, and the guarded CupidBuild JPEG transaction.
+
+Source-head CupidBuild adds the typed Doom profile publisher and a stricter
+host transaction profile. Windows child launch passes only standard input,
+standard output, and standard error through its exact handle list. Its current
+source plan has 33 KERNEL32 imports and three NTDLL imports: NtCreateFile,
+NtQueryDirectoryFile, and NtSetInformationFile. The promoted parent keeps its
+older import profile until the next paired refresh. The promoted Windows
+runtime also opens wb outputs with share mode zero. Source head retains frozen
+inputs with read sharing and blocks write or delete opens. It gives mutable
+candidates the broader sharing needed by checked tools and asks CupidASM to
+write directly into the candidate owned by CupidBuild. A dirty-tree v4 pair
+converged on Linux and Windows; clean commit-pinned reconstruction remains
+before seed publication.
+
+The profile publisher retains every discovered directory and validates the
+complete retained-to-public set twice at each closure checkpoint. POSIX
+requires a pre-existing build/bootstrap chain and uses nanosecond mtime and
+ctime. Windows may create missing parents and checks file ID, LastWriteTime,
+and ChangeTime. Flat POSIX work keeps frozen inputs, maps, and captured streams
+in sealed anonymous memfds reached through /proc/self/fd/N. Ambiguous namespace
+state preserves the old output and leaves transaction names for recovery.
 
 The Linux plan has SHA-256
 `52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.

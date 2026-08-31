@@ -45,6 +45,8 @@
 #define CUPID_WINDOWS_GENERIC_READ 0x80000000u
 #define CUPID_WINDOWS_GENERIC_WRITE 0x40000000u
 #define CUPID_WINDOWS_FILE_SHARE_READ 1u
+#define CUPID_WINDOWS_FILE_SHARE_WRITE 2u
+#define CUPID_WINDOWS_FILE_SHARE_DELETE 4u
 #define CUPID_WINDOWS_CREATE_ALWAYS 2u
 #define CUPID_WINDOWS_OPEN_EXISTING 3u
 #define CUPID_WINDOWS_OPEN_ALWAYS 4u
@@ -634,10 +636,9 @@ static FILE *cupid_stdio_open(const char *path, int flags) {
       (flags & CUPID_LINUX_O_WRONLY) != 0
           ? CUPID_WINDOWS_GENERIC_WRITE
           : CUPID_WINDOWS_GENERIC_READ;
-  unsigned int share =
-      (flags & CUPID_LINUX_O_WRONLY) != 0
-          ? 0u
-          : CUPID_WINDOWS_FILE_SHARE_READ;
+  unsigned int share = CUPID_WINDOWS_FILE_SHARE_READ |
+                       CUPID_WINDOWS_FILE_SHARE_WRITE |
+                       CUPID_WINDOWS_FILE_SHARE_DELETE;
   unsigned int creation =
       (flags & CUPID_LINUX_O_TRUNC) != 0
           ? CUPID_WINDOWS_CREATE_ALWAYS

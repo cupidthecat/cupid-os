@@ -51,9 +51,15 @@ class CupidBuildHostRunnerContractTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._build_directory.cleanup()
 
-    def _run_contract(self, mode, close_stdout=False, close_stderr=False):
+    def _run_contract(
+        self,
+        mode,
+        close_stdin=False,
+        close_stdout=False,
+        close_stderr=False,
+    ):
         if os.name == "nt":
-            if close_stdout or close_stderr:
+            if close_stdin or close_stdout or close_stderr:
                 raise AssertionError("closed inherited streams require POSIX")
             return subprocess.run(
                 [str(self.contract_path), mode],
@@ -71,6 +77,8 @@ class CupidBuildHostRunnerContractTests(unittest.TestCase):
                 native_contract.chmod(0o700)
 
                 def close_inherited_streams():
+                    if close_stdin:
+                        os.close(0)
                     if close_stdout:
                         os.close(1)
                     if close_stderr:
@@ -84,7 +92,7 @@ class CupidBuildHostRunnerContractTests(unittest.TestCase):
                     timeout=120,
                     preexec_fn=(
                         close_inherited_streams
-                        if close_stdout or close_stderr
+                        if close_stdin or close_stdout or close_stderr
                         else None
                     ),
                 )
@@ -150,6 +158,38 @@ class CupidBuildHostRunnerContractTests(unittest.TestCase):
         )
         self.assertEqual(result.stderr, "")
 
+    @unittest.skipIf(os.name == "nt", "requires native POSIX close injection")
+    def test_native_posix_cleanup_reports_a_descriptor_close_failure(self):
+        result = self._run_contract("native-posix-close-failure")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "")
+
+    @unittest.skipUnless(os.name == "nt", "requires native Win32 termination")
+    def test_windows_termination_failure_returns_within_a_bound(self):
+        result = self._run_contract("windows-termination-failure")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    @unittest.skipIf(os.name == "nt", "requires the POSIX flat transaction")
+    def test_private_map_is_closed_after_reservation_ownership_is_lost(self):
+        result = self._run_contract("native-posix-map-cleanup")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    @unittest.skipIf(os.name == "nt", "requires POSIX low descriptor reuse")
+    def test_failed_low_descriptor_promotion_closes_the_original(self):
+        result = self._run_contract("native-posix-low-fd-failure")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    @unittest.skipIf(os.name == "nt", "requires the POSIX no-replace fallback")
+    def test_ambiguous_noreplace_fallback_preserves_recovery_evidence(self):
+        result = self._run_contract("native-posix-noreplace")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     @unittest.skipIf(os.name == "nt", "requires POSIX descriptor inheritance")
     def test_capture_succeeds_with_inherited_stdout_closed(self):
         self._assert_capture_with_closed_streams(close_stdout=True)
@@ -164,6 +204,17 @@ class CupidBuildHostRunnerContractTests(unittest.TestCase):
             close_stdout=True,
             close_stderr=True,
         )
+
+    @unittest.skipIf(os.name == "nt", "requires POSIX descriptor inheritance")
+    def test_exec_failure_is_reported_with_all_standard_descriptors_closed(self):
+        result = self._run_contract(
+            "all",
+            close_stdin=True,
+            close_stdout=True,
+            close_stderr=True,
+        )
+
+        self.assertEqual(result.returncode, 0)
 
 
 if __name__ == "__main__":

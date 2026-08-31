@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-30
+Verified against source on: 2026-08-31
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -16,6 +16,50 @@ Verified against source on: 2026-08-30
 
 >h2 Hosted CupidBuild Source
 >tree open Hosted CupidBuild Source
+Source-head CupidBuild now has a typed generate-profile-manifest transaction for
+the closed Doom compile profiles. It discovers the exact 83-source cohort and
+304 .h and .inc inputs, freezes them with the complete six-tool seed, and builds
+CUPROF1 from the frozen input bytes. A frozen CupidObj authors the candidate
+before CupidBuild independently renders the canonical JSON. Exact byte parity
+must hold before it rechecks the live closure and publication state.
+
+The fixed parent policy differs by host. Windows can create a missing build or
+build/bootstrap component with parent-relative NtCreateFile and obtains the
+new directory handle in the same operation. Failure removes only an empty
+directory whose returned identity still matches. POSIX requires both parents
+to exist. A clean root fails before publication because mkdirat followed by
+openat cannot prove creation ownership against a same-user replacement.
+
+Every directory visited during discovery stays pinned. Two complete binding
+passes run at each closure checkpoint. POSIX compares identity with nanosecond
+mtime and ctime. Windows compares the retained handle with exact named file ID,
+LastWriteTime, and ChangeTime records. The final successful pass is an
+observational checkpoint rather than a durable filesystem snapshot.
+
+Flat POSIX transactions keep frozen inputs and captured tool streams in sealed
+anonymous memfds and pass /proc/self/fd/N paths to the checked tools. The
+reservation, owner lock, candidate, publication alias, and parked old output
+remain named. DrvFS no-replace fallback links the destination before unlinking
+the source. A verified old-output hard link supports rollback when exchange
+rename is unavailable. The later unlink steps retain a formal same-user POSIX
+race.
+
+Equal bytes keep the existing file and timestamp. Malformed input, linked or
+aliased paths, parity failure, lock conflict, and drift preserve the previous
+manifest. Verified source-only drift rolls back and cleans normally. Ambiguous
+root, parent, output, lock, or candidate state keeps the readable previous
+output and leaves transaction names for recovery. The combined source-head
+behavior matrices, including the checked CupidC runner, cover 31 failure,
+seven help, and 37 success groups on Linux, plus 19 failure, seven help, and
+24 success groups on native Windows. The promoted seeds do not yet carry this
+command, so the normal Make edge still uses the Python publisher. A paired
+seed promotion must pass before the production edge can move to CupidBuild.
+Windows retains frozen inputs with read sharing and rejects write or delete
+opens. Cleanup verifies the retained and named snapshots, reopens the same
+identity with delete access, and verifies it again before removal. A
+dirty-tree v4 pair passed the source-current Linux and Windows matrices; a
+clean commit-pinned rebuild is still required for seed publication.
+
 Promoted CupidBuild now has a typed flatten-kernel transaction. It freezes
 the strict production manifest, up to 500 code inputs, and the complete
 six-tool seed. One broad CupidDis request checks the entire cohort. A second
@@ -1103,9 +1147,9 @@ The production wrapper emits the three separate compatibility roots. The
 explicit static string cast in doom_libc_stubs.cc and the dglibc jump block keep
 their source meaning. Two checked-seed compiles produce the same object for
 each root. All 83 sources use .cc and compile through the checked seed.
-The wrapper freezes the selected source and all 291 profile headers. Its
+The wrapper freezes the selected source and all 304 .h and .inc inputs. Its
 input manifest fixes exact three-source and 80-source memberships and rejects
-source removal, header drift, symbolic links, and NTFS junctions. The wrapper
+source removal, input drift, symbolic links, and NTFS junctions. The wrapper
 also scans visible .c and .cc files beneath the Doom tree before and after
 compilation. A legacy .c file or an unlisted .cc file fails the scan. The
 g_game.cc object keeps two R_386_32 static subobject relocations with addend
@@ -1315,20 +1359,20 @@ seed carriage, and ADR 0241 records production ownership.
 
 Checked-seed CupidObj also accepts `profile-manifest`. The command reads one
 bounded CUPROF1 snapshot containing the two Doom profile memberships and the
-exact bytes of all 291 captured headers. It checks portable path identity,
+exact bytes of all 304 captured inputs. It checks portable path identity,
 computes SHA-256 internally, sorts the logical sets, and writes the canonical
-69,366-byte JSON. The preceding v1 seed passed a 5/22/21 behavior matrix with
+72,950-byte JSON. The preceding v1 seed passed a 5/22/21 behavior matrix with
 padding, repeated-block, unsafe-path, case-collision, rollback, and recovery
 coverage. The active v2 seeds retain the command. Their fixed-point behavior
 matrices are 28/6/35 on Linux and 17/6/22 on Windows. The normal recipe passes
-that seed manifest. The wrapper derives the
-snapshot and independent Python oracle from one stable capture, runs CupidObj
-from the exact frozen seed, and requires byte parity. Under an adjacent
-no-follow lock, it rechecks the seed, live inputs, candidate, output directory,
-and existing output. Identical bytes retain their timestamp, while changed
-bytes publish atomically. CupidObj authors the production bytes, and Python
-retains the host transaction. ADR 0242 records the source boundary, ADR 0243
-records seed carriage, and ADR 0244 records production ownership.
+that seed manifest. The wrapper derives the snapshot and independent Python
+oracle from one stable capture, runs CupidObj from the exact frozen seed, and
+requires byte parity. Under an adjacent no-follow lock, it rechecks the seed,
+live inputs, candidate, output directory, and existing output. Identical bytes
+retain their timestamp, while changed bytes publish atomically. CupidObj
+authors the production bytes, and Python retains the host transaction. ADR 0242
+records the source boundary, ADR 0243 records seed carriage, and ADR 0244
+records production ownership.
 
 At the pre-stack-probe checkpoint, the harness froze the verified manifest and
 binaries and copied the exact bytes of 50 inputs into a private compiler root.

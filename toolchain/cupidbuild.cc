@@ -17,6 +17,9 @@
 #define CUPIDBUILD_JSON_TOKENS 2048u
 #define CUPIDBUILD_SEED_ARTIFACTS 6u
 #define CUPIDBUILD_CODE_INPUTS 500u
+#define CUPIDBUILD_PROFILE_SNAPSHOT_BYTES 4194304u
+#define CUPIDBUILD_PROFILE_TRANSACTION_INPUTS 512u
+#define CUPIDBUILD_PROFILE_OUTPUT "build/bootstrap/doom-cupidc-inputs.json"
 typedef struct {
   char file[CUPIDBUILD_PATH_BYTES];
   char sha256[65];
@@ -85,6 +88,135 @@ typedef struct {
   unsigned int order;
   ctool_bytes_t contents;
 } cupidbuild_flat_region_t;
+
+typedef struct {
+  unsigned char *bytes;
+  size_t size;
+  size_t capacity;
+} cupidbuild_profile_buffer_t;
+
+typedef struct {
+  const char *path;
+  const char *frozen_path;
+  size_t size;
+  unsigned char sha256[32];
+} cupidbuild_profile_header_t;
+
+typedef struct {
+  cupidbuild_host_path_list_t headers;
+  cupidbuild_host_path_list_t sources;
+} cupidbuild_profile_membership_t;
+
+static int cupidbuild_finish_publication(
+    cupidbuild_host_transaction_t *transaction, int result,
+    const char *artifact) {
+  int committed = cupidbuild_host_publication_committed(transaction);
+  if (cupidbuild_host_transaction_close(transaction)) {
+    return result;
+  }
+  if (committed != 0) {
+    (void)fprintf(
+        stderr,
+        "cupidbuild: %s was published, but transaction cleanup was incomplete\n",
+        artifact);
+    return result;
+  }
+  (void)fprintf(stderr, "cupidbuild: %s transaction cleanup failed\n",
+                artifact);
+  return 1;
+}
+
+static const char *const cupidbuild_profile_header_roots[] = {
+    "drivers", "kernel", "toolchain"};
+static const char *const cupidbuild_profile_header_suffixes[] = {".h",
+                                                                 ".inc"};
+static const char *const cupidbuild_profile_source_roots[] = {"kernel/doom"};
+static const char *const cupidbuild_profile_source_suffixes[] = {".c", ".cc"};
+static const char *const cupidbuild_profile_compat_sources[] = {
+    "kernel/doom/dglibc.cc",
+    "kernel/doom/doom_libc_stubs.cc",
+    "kernel/doom/doomgeneric_cupidos.cc"};
+static const char *const cupidbuild_profile_tree_sources[] = {
+    "kernel/doom/i_sound_cupidos.cc",
+    "kernel/doom/src/am_map.cc",
+    "kernel/doom/src/d_event.cc",
+    "kernel/doom/src/d_items.cc",
+    "kernel/doom/src/d_iwad.cc",
+    "kernel/doom/src/d_loop.cc",
+    "kernel/doom/src/d_main.cc",
+    "kernel/doom/src/d_mode.cc",
+    "kernel/doom/src/d_net.cc",
+    "kernel/doom/src/doomdef.cc",
+    "kernel/doom/src/doomgeneric.cc",
+    "kernel/doom/src/doomstat.cc",
+    "kernel/doom/src/dstrings.cc",
+    "kernel/doom/src/dummy.cc",
+    "kernel/doom/src/f_finale.cc",
+    "kernel/doom/src/f_wipe.cc",
+    "kernel/doom/src/g_game.cc",
+    "kernel/doom/src/gusconf.cc",
+    "kernel/doom/src/hu_lib.cc",
+    "kernel/doom/src/hu_stuff.cc",
+    "kernel/doom/src/i_endoom.cc",
+    "kernel/doom/src/i_input.cc",
+    "kernel/doom/src/i_joystick.cc",
+    "kernel/doom/src/i_scale.cc",
+    "kernel/doom/src/i_system.cc",
+    "kernel/doom/src/i_timer.cc",
+    "kernel/doom/src/i_video.cc",
+    "kernel/doom/src/icon.cc",
+    "kernel/doom/src/info.cc",
+    "kernel/doom/src/m_argv.cc",
+    "kernel/doom/src/m_bbox.cc",
+    "kernel/doom/src/m_cheat.cc",
+    "kernel/doom/src/m_config.cc",
+    "kernel/doom/src/m_controls.cc",
+    "kernel/doom/src/m_fixed.cc",
+    "kernel/doom/src/m_menu.cc",
+    "kernel/doom/src/m_misc.cc",
+    "kernel/doom/src/m_random.cc",
+    "kernel/doom/src/p_ceilng.cc",
+    "kernel/doom/src/p_doors.cc",
+    "kernel/doom/src/p_enemy.cc",
+    "kernel/doom/src/p_floor.cc",
+    "kernel/doom/src/p_inter.cc",
+    "kernel/doom/src/p_lights.cc",
+    "kernel/doom/src/p_map.cc",
+    "kernel/doom/src/p_maputl.cc",
+    "kernel/doom/src/p_mobj.cc",
+    "kernel/doom/src/p_plats.cc",
+    "kernel/doom/src/p_pspr.cc",
+    "kernel/doom/src/p_saveg.cc",
+    "kernel/doom/src/p_setup.cc",
+    "kernel/doom/src/p_sight.cc",
+    "kernel/doom/src/p_spec.cc",
+    "kernel/doom/src/p_switch.cc",
+    "kernel/doom/src/p_telept.cc",
+    "kernel/doom/src/p_tick.cc",
+    "kernel/doom/src/p_user.cc",
+    "kernel/doom/src/r_bsp.cc",
+    "kernel/doom/src/r_data.cc",
+    "kernel/doom/src/r_draw.cc",
+    "kernel/doom/src/r_main.cc",
+    "kernel/doom/src/r_plane.cc",
+    "kernel/doom/src/r_segs.cc",
+    "kernel/doom/src/r_sky.cc",
+    "kernel/doom/src/r_things.cc",
+    "kernel/doom/src/s_sound.cc",
+    "kernel/doom/src/sha1.cc",
+    "kernel/doom/src/sounds.cc",
+    "kernel/doom/src/st_lib.cc",
+    "kernel/doom/src/st_stuff.cc",
+    "kernel/doom/src/statdump.cc",
+    "kernel/doom/src/tables.cc",
+    "kernel/doom/src/v_video.cc",
+    "kernel/doom/src/w_checksum.cc",
+    "kernel/doom/src/w_file.cc",
+    "kernel/doom/src/w_file_stdc.cc",
+    "kernel/doom/src/w_main.cc",
+    "kernel/doom/src/w_wad.cc",
+    "kernel/doom/src/wi_stuff.cc",
+    "kernel/doom/src/z_zone.cc"};
 
 typedef enum {
   CUPIDBUILD_KSYMS_EMPTY = 0,
@@ -584,6 +716,16 @@ static int cupidbuild_json_string_field(const unsigned char *bytes,
          cupidbuild_json_text(bytes, &tokens[value], expected);
 }
 
+static int cupidbuild_json_string_field_pair(
+    const unsigned char *bytes, const cupidbuild_json_token_t *tokens,
+    size_t count, size_t object, const char *name, const char *first,
+    const char *second) {
+  size_t value = cupidbuild_json_required(bytes, tokens, count, object, name);
+  return value < count && tokens[value].type == CUPIDBUILD_JSON_STRING &&
+         (cupidbuild_json_text(bytes, &tokens[value], first) ||
+          cupidbuild_json_text(bytes, &tokens[value], second));
+}
+
 static int cupidbuild_json_lower_hex_field(
     const unsigned char *bytes, const cupidbuild_json_token_t *tokens,
     size_t count, size_t object, const char *name, size_t expected_size) {
@@ -779,9 +921,10 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
                 bytes, tokens, count, object,
                 "linux_candidate_build_plan_sha256",
                 "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd") &&
-            cupidbuild_json_string_field(
+            cupidbuild_json_string_field_pair(
                 bytes, tokens, count, object, "native_build_plan_sha256",
-                "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14") &&
+                "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14",
+                "c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3") &&
             cupidbuild_json_lower_hex_field(
                 bytes, tokens, count, object, "plan_seed_manifest_sha256",
                 64u) &&
@@ -1762,6 +1905,7 @@ static int cupidbuild_validate_execution_profile(
         "CreateFileA",
         "CreateProcessA",
         "DeleteFileA",
+        "DeleteProcThreadAttributeList",
         "ExitProcess",
         "FindClose",
         "FindFirstFileA",
@@ -1776,6 +1920,7 @@ static int cupidbuild_validate_execution_profile(
         "GetFullPathNameA",
         "GetLastError",
         "GetStdHandle",
+        "InitializeProcThreadAttributeList",
         "MoveFileExA",
         "OpenProcess",
         "ReadFile",
@@ -1783,6 +1928,7 @@ static int cupidbuild_validate_execution_profile(
         "SetFilePointer",
         "SetHandleInformation",
         "TerminateProcess",
+        "UpdateProcThreadAttribute",
         "VirtualAlloc",
         "VirtualFree",
         "WaitForSingleObject",
@@ -1998,7 +2144,7 @@ static int cupidbuild_seed_freeze(
     seed->expected_files[index] = seed->artifacts[index].file;
   }
   if (!cupidbuild_host_seed_members_exact(
-          seed->directory,
+          transaction, seed->directory,
 #if defined(_WIN32)
           ".exe",
 #else
@@ -2042,7 +2188,7 @@ static int cupidbuild_seed_require_live(
     cupidbuild_host_transaction_t *transaction,
     const cupidbuild_seed_capture_t *seed) {
   if (!cupidbuild_host_seed_members_exact(
-          seed->directory,
+          transaction, seed->directory,
 #if defined(_WIN32)
           ".exe",
 #else
@@ -2096,7 +2242,7 @@ static int cupidbuild_assemble(
   cupidbuild_host_snapshot_t map_snapshot;
   unsigned char *candidate = (unsigned char *)0;
   unsigned char *map = (unsigned char *)0;
-  const char *assembler_arguments[8];
+  const char *assembler_arguments[9];
   const char *inspector_arguments[9];
   int assembler_status;
   int inspector_status;
@@ -2123,21 +2269,22 @@ static int cupidbuild_assemble(
   }
   frozen_assembler = seed.frozen_tools[0];
   frozen_inspector = seed.frozen_tools[2];
-  assembler_arguments[0] = "-f";
-  assembler_arguments[1] =
+  assembler_arguments[0] = "--caller-owned-output";
+  assembler_arguments[1] = "-f";
+  assembler_arguments[2] =
       kind == CUPIDBUILD_ASSEMBLY_OBJECT ? "elf32" : "bin";
   if (kind == CUPIDBUILD_ASSEMBLY_OBJECT) {
-    assembler_arguments[2] = "-o";
-    assembler_arguments[3] = cupidbuild_host_candidate(transaction);
-    assembler_arguments[4] = cupidbuild_host_frozen_source(transaction);
-    assembler_arguments[5] = (const char *)0;
+    assembler_arguments[3] = "-o";
+    assembler_arguments[4] = cupidbuild_host_candidate(transaction);
+    assembler_arguments[5] = cupidbuild_host_frozen_source(transaction);
+    assembler_arguments[6] = (const char *)0;
   } else {
-    assembler_arguments[2] = "--map";
-    assembler_arguments[3] = cupidbuild_host_private_output(transaction);
-    assembler_arguments[4] = "-o";
-    assembler_arguments[5] = cupidbuild_host_candidate(transaction);
-    assembler_arguments[6] = cupidbuild_host_frozen_source(transaction);
-    assembler_arguments[7] = (const char *)0;
+    assembler_arguments[3] = "--map";
+    assembler_arguments[4] = cupidbuild_host_private_output(transaction);
+    assembler_arguments[5] = "-o";
+    assembler_arguments[6] = cupidbuild_host_candidate(transaction);
+    assembler_arguments[7] = cupidbuild_host_frozen_source(transaction);
+    assembler_arguments[8] = (const char *)0;
   }
   assembler_status = cupidbuild_host_run(
       transaction, frozen_assembler, assembler_arguments, 60000u);
@@ -2246,8 +2393,8 @@ done:
   free(map);
   free(candidate);
   cupidbuild_seed_capture_close(&seed);
-  cupidbuild_host_transaction_close(transaction);
-  return result;
+  return cupidbuild_finish_publication(transaction, result,
+                                       "guarded assembly output");
 }
 
 int cupidbuild_assemble_object(
@@ -2366,8 +2513,7 @@ done:
   free(source);
   free(candidate);
   cupidbuild_seed_capture_close(&seed);
-  cupidbuild_host_transaction_close(transaction);
-  return result;
+  return cupidbuild_finish_publication(transaction, result, "JPEG object");
 }
 
 static int cupidbuild_ksyms_space(unsigned char character) {
@@ -2942,8 +3088,8 @@ done:
   free(candidate);
   free(symbols);
   cupidbuild_seed_capture_close(&seed);
-  cupidbuild_host_transaction_close(transaction);
-  return result;
+  return cupidbuild_finish_publication(transaction, result,
+                                       "kernel symbol object");
 }
 
 static int cupidbuild_code_path_equal(const char *left, const char *right) {
@@ -3341,13 +3487,7 @@ int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request) {
                     cupidbuild_host_error(transaction));
       goto done;
     }
-    private_paths[index] = strrchr(frozen_path, '/');
-    if (private_paths[index] == (const char *)0) {
-      private_paths[index] = strrchr(frozen_path, '\\');
-    }
-    private_paths[index] = private_paths[index] == (const char *)0
-                               ? frozen_path
-                               : private_paths[index] + 1;
+    private_paths[index] = frozen_path;
     if (strcmp(logical_paths[index], "kernel/kernel.elf.pass1") == 0) {
       pass_one = private_paths[index];
     } else if (strcmp(logical_paths[index], "kernel/kernel.elf") == 0) {
@@ -3411,7 +3551,7 @@ int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request) {
   object_arguments[0] = "flat";
   object_arguments[1] = linked;
   object_arguments[2] = "-o";
-  object_arguments[3] = "candidate.o";
+  object_arguments[3] = cupidbuild_host_candidate(transaction);
   object_arguments[4] = (const char *)0;
   status = cupidbuild_host_run_in_private(
       transaction, seed.frozen_tools[4], object_arguments, 300000u);
@@ -3457,7 +3597,682 @@ done:
   free(linked_bytes);
   free(manifest);
   cupidbuild_seed_capture_close(&seed);
-  cupidbuild_host_transaction_close(transaction);
+  return cupidbuild_finish_publication(transaction, result,
+                                       "flattened kernel");
+}
+
+static char cupidbuild_profile_fold(char character) {
+  return character >= 'A' && character <= 'Z'
+             ? (char)(character - 'A' + 'a')
+             : character;
+}
+
+static int cupidbuild_profile_path_equal_folded(const char *left,
+                                                const char *right) {
+  size_t index = 0u;
+  while (left[index] != '\0' && right[index] != '\0') {
+    if (cupidbuild_profile_fold(left[index]) !=
+        cupidbuild_profile_fold(right[index])) {
+      return 0;
+    }
+    index++;
+  }
+  return left[index] == right[index];
+}
+
+static int cupidbuild_profile_path_valid(const char *path) {
+  size_t size;
+  size_t component = 0u;
+  size_t index;
+  if (path == (const char *)0 || path[0] == '\0') {
+    return 0;
+  }
+  size = strlen(path);
+  if (size > 1024u || path[0] == '/' || path[size - 1u] == '/') {
+    return 0;
+  }
+  for (index = 0u; index <= size; index++) {
+    unsigned char byte = (unsigned char)path[index];
+    if (index == size || byte == (unsigned char)'/') {
+      size_t component_size = index - component;
+      if (component_size == 0u ||
+          (component_size == 1u && path[component] == '.') ||
+          (component_size == 2u && path[component] == '.' &&
+           path[component + 1u] == '.')) {
+        return 0;
+      }
+      component = index + 1u;
+    } else if (!((byte >= (unsigned char)'a' &&
+                   byte <= (unsigned char)'z') ||
+                  (byte >= (unsigned char)'A' &&
+                   byte <= (unsigned char)'Z') ||
+                  (byte >= (unsigned char)'0' &&
+                   byte <= (unsigned char)'9') ||
+                  byte == (unsigned char)'.' ||
+                  byte == (unsigned char)'_' ||
+                  byte == (unsigned char)'-')) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int cupidbuild_profile_paths_valid(
+    const cupidbuild_host_path_list_t *paths) {
+  size_t index;
+  size_t prior;
+  if (paths == (const cupidbuild_host_path_list_t *)0 ||
+      (paths->count != 0u &&
+       (paths->paths == (char **)0 ||
+        paths->snapshots == (cupidbuild_host_snapshot_t *)0))) {
+    return 0;
+  }
+  for (index = 0u; index < paths->count; index++) {
+    if (!cupidbuild_profile_path_valid(paths->paths[index])) {
+      return 0;
+    }
+    for (prior = 0u; prior < index; prior++) {
+      if (cupidbuild_profile_path_equal_folded(paths->paths[prior],
+                                               paths->paths[index])) {
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
+static size_t cupidbuild_profile_compat_source_count(void) {
+  return sizeof(cupidbuild_profile_compat_sources) /
+         sizeof(cupidbuild_profile_compat_sources[0]);
+}
+
+static size_t cupidbuild_profile_tree_source_count(void) {
+  return sizeof(cupidbuild_profile_tree_sources) /
+         sizeof(cupidbuild_profile_tree_sources[0]);
+}
+
+static const char *cupidbuild_profile_expected_source(size_t index) {
+  size_t compat_count = cupidbuild_profile_compat_source_count();
+  return index < compat_count
+             ? cupidbuild_profile_compat_sources[index]
+             : cupidbuild_profile_tree_sources[index - compat_count];
+}
+
+static int cupidbuild_profile_sources_exact(
+    const cupidbuild_host_path_list_t *sources) {
+  size_t expected_count = cupidbuild_profile_compat_source_count() +
+                          cupidbuild_profile_tree_source_count();
+  size_t index;
+  if (sources->count != expected_count) {
+    return 0;
+  }
+  for (index = 0u; index < expected_count; index++) {
+    if (strcmp(sources->paths[index],
+               cupidbuild_profile_expected_source(index)) != 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static void cupidbuild_profile_membership_close(
+    cupidbuild_profile_membership_t *membership) {
+  cupidbuild_host_path_list_close(&membership->headers);
+  cupidbuild_host_path_list_close(&membership->sources);
+}
+
+static int cupidbuild_profile_discover(
+    cupidbuild_host_transaction_t *transaction,
+    cupidbuild_profile_membership_t *membership) {
+  (void)memset(membership, 0, sizeof(*membership));
+  if (!cupidbuild_host_discover_files(
+          transaction, cupidbuild_profile_header_roots,
+          sizeof(cupidbuild_profile_header_roots) /
+              sizeof(cupidbuild_profile_header_roots[0]),
+          cupidbuild_profile_header_suffixes,
+          sizeof(cupidbuild_profile_header_suffixes) /
+              sizeof(cupidbuild_profile_header_suffixes[0]),
+          1, 0, &membership->headers) ||
+      !cupidbuild_host_discover_files(
+          transaction, cupidbuild_profile_source_roots,
+          sizeof(cupidbuild_profile_source_roots) /
+              sizeof(cupidbuild_profile_source_roots[0]),
+          cupidbuild_profile_source_suffixes,
+          sizeof(cupidbuild_profile_source_suffixes) /
+              sizeof(cupidbuild_profile_source_suffixes[0]),
+          0, 1, &membership->sources)) {
+    cupidbuild_profile_membership_close(membership);
+    return 0;
+  }
+  if (membership->headers.count == 0u ||
+      !cupidbuild_profile_paths_valid(&membership->headers) ||
+      !cupidbuild_profile_paths_valid(&membership->sources) ||
+      !cupidbuild_profile_sources_exact(&membership->sources)) {
+    cupidbuild_profile_membership_close(membership);
+    return 0;
+  }
+  return 1;
+}
+
+static int cupidbuild_profile_membership_equal(
+    const cupidbuild_profile_membership_t *left,
+    const cupidbuild_profile_membership_t *right) {
+  size_t index;
+  if (left == (const cupidbuild_profile_membership_t *)0 ||
+      right == (const cupidbuild_profile_membership_t *)0 ||
+      left->headers.count != right->headers.count ||
+      left->sources.count != right->sources.count) {
+    return 0;
+  }
+  for (index = 0u; index < left->headers.count; index++) {
+    if (strcmp(left->headers.paths[index], right->headers.paths[index]) != 0 ||
+        !cupidbuild_host_snapshot_equal(&left->headers.snapshots[index],
+                                        &right->headers.snapshots[index])) {
+      return 0;
+    }
+  }
+  for (index = 0u; index < left->sources.count; index++) {
+    if (strcmp(left->sources.paths[index], right->sources.paths[index]) != 0 ||
+        !cupidbuild_host_snapshot_equal(&left->sources.snapshots[index],
+                                        &right->sources.snapshots[index])) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int cupidbuild_profile_require_membership(
+    cupidbuild_host_transaction_t *transaction,
+    const cupidbuild_profile_membership_t *expected) {
+  cupidbuild_profile_membership_t current;
+  int valid = cupidbuild_profile_discover(transaction, &current);
+  if (valid != 0) {
+    valid = cupidbuild_profile_membership_equal(expected, &current);
+  }
+  cupidbuild_profile_membership_close(&current);
+  return valid;
+}
+
+static int cupidbuild_profile_buffer_reserve(
+    cupidbuild_profile_buffer_t *buffer, size_t additional) {
+  size_t needed;
+  size_t capacity;
+  unsigned char *grown;
+  if (additional > CUPIDBUILD_PROFILE_SNAPSHOT_BYTES - buffer->size) {
+    return 0;
+  }
+  needed = buffer->size + additional;
+  if (needed <= buffer->capacity) {
+    return 1;
+  }
+  capacity = buffer->capacity == 0u ? 4096u : buffer->capacity;
+  while (capacity < needed) {
+    if (capacity > CUPIDBUILD_PROFILE_SNAPSHOT_BYTES / 2u) {
+      capacity = CUPIDBUILD_PROFILE_SNAPSHOT_BYTES;
+      break;
+    }
+    capacity *= 2u;
+  }
+  grown = (unsigned char *)realloc(buffer->bytes, capacity);
+  if (grown == (unsigned char *)0) {
+    return 0;
+  }
+  buffer->bytes = grown;
+  buffer->capacity = capacity;
+  return 1;
+}
+
+static int cupidbuild_profile_append(cupidbuild_profile_buffer_t *buffer,
+                                     const void *bytes, size_t size) {
+  if (!cupidbuild_profile_buffer_reserve(buffer, size)) {
+    return 0;
+  }
+  if (size != 0u) {
+    (void)memcpy(buffer->bytes + buffer->size, bytes, size);
+  }
+  buffer->size += size;
+  return 1;
+}
+
+static int cupidbuild_profile_append_text(cupidbuild_profile_buffer_t *buffer,
+                                          const char *text) {
+  return cupidbuild_profile_append(buffer, text, strlen(text));
+}
+
+static int cupidbuild_profile_append_u32(cupidbuild_profile_buffer_t *buffer,
+                                         size_t value) {
+  unsigned char bytes[4];
+  if (value > 4294967295u) {
+    return 0;
+  }
+  bytes[0] = (unsigned char)value;
+  bytes[1] = (unsigned char)(value >> 8u);
+  bytes[2] = (unsigned char)(value >> 16u);
+  bytes[3] = (unsigned char)(value >> 24u);
+  return cupidbuild_profile_append(buffer, bytes, sizeof(bytes));
+}
+
+static int cupidbuild_profile_append_snapshot_text(
+    cupidbuild_profile_buffer_t *buffer, const char *text) {
+  size_t size = strlen(text);
+  return cupidbuild_profile_append_u32(buffer, size) &&
+         cupidbuild_profile_append(buffer, text, size);
+}
+
+static int cupidbuild_profile_append_snapshot_sources(
+    cupidbuild_profile_buffer_t *buffer, const char *const *sources,
+    size_t count) {
+  size_t index;
+  if (!cupidbuild_profile_append_u32(buffer, count)) {
+    return 0;
+  }
+  for (index = 0u; index < count; index++) {
+    if (!cupidbuild_profile_append_snapshot_text(buffer, sources[index])) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int cupidbuild_profile_append_snapshot_profile(
+    cupidbuild_profile_buffer_t *buffer, const char *name,
+    const cupidbuild_host_path_list_t *headers,
+    const char *const *sources, size_t source_count) {
+  size_t index;
+  if (!cupidbuild_profile_append_snapshot_text(buffer, name) ||
+      !cupidbuild_profile_append_u32(buffer, headers->count)) {
+    return 0;
+  }
+  for (index = 0u; index < headers->count; index++) {
+    if (!cupidbuild_profile_append_snapshot_text(buffer,
+                                                 headers->paths[index])) {
+      return 0;
+    }
+  }
+  return cupidbuild_profile_append_snapshot_sources(buffer, sources,
+                                                     source_count);
+}
+
+static int cupidbuild_profile_snapshot(
+    cupidbuild_host_transaction_t *transaction,
+    const cupidbuild_profile_membership_t *membership,
+    cupidbuild_profile_header_t *headers,
+    cupidbuild_profile_buffer_t *snapshot) {
+  static const unsigned char magic[8] = {'C', 'U', 'P', 'R',
+                                          'O', 'F', '1', 0};
+  size_t index;
+  if (!cupidbuild_profile_append(snapshot, magic, sizeof(magic)) ||
+      !cupidbuild_profile_append_snapshot_text(
+          snapshot, "cupid.doom-profile-inputs.v1") ||
+      !cupidbuild_profile_append_u32(snapshot, 2u) ||
+      !cupidbuild_profile_append_snapshot_profile(
+          snapshot, "doom-compat", &membership->headers,
+          cupidbuild_profile_compat_sources,
+          cupidbuild_profile_compat_source_count()) ||
+      !cupidbuild_profile_append_snapshot_profile(
+          snapshot, "doom-tree", &membership->headers,
+          cupidbuild_profile_tree_sources,
+          cupidbuild_profile_tree_source_count()) ||
+      !cupidbuild_profile_append_u32(snapshot, membership->headers.count)) {
+    return 0;
+  }
+  for (index = 0u; index < membership->headers.count; index++) {
+    unsigned char *contents;
+    size_t size = 0u;
+    if (!cupidbuild_profile_append_snapshot_text(snapshot,
+                                                 headers[index].path)) {
+      return 0;
+    }
+    contents = cupidbuild_host_read_frozen_input(
+        transaction, headers[index].frozen_path, CUPIDBUILD_TOOL_BYTES, &size);
+    if (contents == (unsigned char *)0 ||
+        !cupidbuild_profile_append_u32(snapshot, size) ||
+        !cupidbuild_profile_append(snapshot, contents, size)) {
+      free(contents);
+      return 0;
+    }
+    headers[index].size = size;
+    cupidbuild_host_sha256_bytes(contents, size, headers[index].sha256);
+    free(contents);
+  }
+  return 1;
+}
+
+static int cupidbuild_profile_append_json_path_array(
+    cupidbuild_profile_buffer_t *json, const char *const *paths,
+    size_t count) {
+  size_t index;
+  for (index = 0u; index < count; index++) {
+    if (!cupidbuild_profile_append_text(json, "      \"") ||
+        !cupidbuild_profile_append_text(json, paths[index]) ||
+        !cupidbuild_profile_append_text(
+            json, index + 1u == count ? "\"\n" : "\",\n")) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int cupidbuild_profile_append_json_digest(
+    cupidbuild_profile_buffer_t *json, const unsigned char digest[32]) {
+  static const char hex[] = "0123456789abcdef";
+  char text[65];
+  size_t index;
+  for (index = 0u; index < 32u; index++) {
+    text[index * 2u] = hex[digest[index] >> 4u];
+    text[index * 2u + 1u] = hex[digest[index] & 15u];
+  }
+  text[64] = '\0';
+  return cupidbuild_profile_append_text(json, text);
+}
+
+static int cupidbuild_profile_render_json(
+    const cupidbuild_profile_membership_t *membership,
+    const cupidbuild_profile_header_t *headers,
+    cupidbuild_profile_buffer_t *json) {
+  char size_text[32];
+  size_t index;
+  if (!cupidbuild_profile_append_text(json, "{\n  \"inputs\": [\n")) {
+    return 0;
+  }
+  for (index = 0u; index < membership->headers.count; index++) {
+    int written = snprintf(size_text, sizeof(size_text), "%u",
+                           (unsigned int)headers[index].size);
+    if (written <= 0 || (size_t)written >= sizeof(size_text) ||
+        !cupidbuild_profile_append_text(json, "    {\n      \"bytes\": ") ||
+        !cupidbuild_profile_append_text(json, size_text) ||
+        !cupidbuild_profile_append_text(json, ",\n      \"path\": \"") ||
+        !cupidbuild_profile_append_text(json, headers[index].path) ||
+        !cupidbuild_profile_append_text(
+            json, "\",\n      \"sha256\": \"") ||
+        !cupidbuild_profile_append_json_digest(json,
+                                               headers[index].sha256) ||
+        !cupidbuild_profile_append_text(
+            json, index + 1u == membership->headers.count
+                      ? "\"\n    }\n"
+                      : "\"\n    },\n")) {
+      return 0;
+    }
+  }
+  if (!cupidbuild_profile_append_text(
+          json,
+          "  ],\n  \"profiles\": {\n    \"doom-compat\": [\n") ||
+      !cupidbuild_profile_append_json_path_array(
+          json, (const char *const *)membership->headers.paths,
+          membership->headers.count) ||
+      !cupidbuild_profile_append_text(
+          json, "    ],\n    \"doom-tree\": [\n") ||
+      !cupidbuild_profile_append_json_path_array(
+          json, (const char *const *)membership->headers.paths,
+          membership->headers.count) ||
+      !cupidbuild_profile_append_text(
+          json,
+          "    ]\n  },\n  \"schema\": "
+          "\"cupid.doom-profile-inputs.v1\",\n  \"sources\": {\n"
+          "    \"doom-compat\": [\n") ||
+      !cupidbuild_profile_append_json_path_array(
+          json, cupidbuild_profile_compat_sources,
+          cupidbuild_profile_compat_source_count()) ||
+      !cupidbuild_profile_append_text(
+          json, "    ],\n    \"doom-tree\": [\n") ||
+      !cupidbuild_profile_append_json_path_array(
+          json, cupidbuild_profile_tree_sources,
+          cupidbuild_profile_tree_source_count()) ||
+      !cupidbuild_profile_append_text(json, "    ]\n  }\n}\n")) {
+    return 0;
+  }
+  return 1;
+}
+
+int cupidbuild_generate_profile_manifest(
+    const cupidbuild_profile_request_t *request) {
+  cupidbuild_host_transaction_t *transaction =
+      (cupidbuild_host_transaction_t *)0;
+  cupidbuild_host_profile_parent_t *profile_parent =
+      (cupidbuild_host_profile_parent_t *)0;
+  cupidbuild_seed_capture_t seed;
+  cupidbuild_profile_membership_t membership;
+  cupidbuild_profile_header_t *headers =
+      (cupidbuild_profile_header_t *)0;
+  cupidbuild_profile_buffer_t snapshot;
+  cupidbuild_profile_buffer_t expected;
+  cupidbuild_host_snapshot_t snapshot_capture;
+  cupidbuild_host_snapshot_t candidate_capture;
+  unsigned char *candidate = (unsigned char *)0;
+  const char *object_arguments[5];
+  size_t index;
+  int status;
+  int changed = 0;
+  int result = 1;
+  (void)memset(&seed, 0, sizeof(seed));
+  (void)memset(&membership, 0, sizeof(membership));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  (void)memset(&expected, 0, sizeof(expected));
+  if (request == (const cupidbuild_profile_request_t *)0 ||
+      !cupidbuild_path_safe(request->repository_root, 0) ||
+      !cupidbuild_path_safe(request->output, 1) ||
+      !cupidbuild_path_safe(request->seed_manifest, 0) ||
+      strlen(request->output) < 5u ||
+      strcmp(request->output + strlen(request->output) - 5u, ".json") != 0) {
+    (void)fprintf(stderr,
+                  "cupidbuild: invalid profile manifest request\n");
+    return 1;
+  }
+  if (strcmp(request->output, CUPIDBUILD_PROFILE_OUTPUT) == 0 &&
+      !cupidbuild_host_profile_parent_prepare(request->repository_root,
+                                              &profile_parent)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_profile_parent_error(profile_parent));
+    goto done;
+  }
+  if (!cupidbuild_host_profile_transaction_open(
+          request->repository_root, cupidbuild_profile_compat_sources[0],
+          request->output, profile_parent, &transaction)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (!cupidbuild_profile_discover(transaction, &membership)) {
+    (void)fprintf(
+        stderr,
+        "cupidbuild: Doom profile closure is malformed or differs from the "
+        "approved source cohort\n");
+    goto done;
+  }
+  if (!cupidbuild_host_seal_discovery(transaction)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: Doom profile directory closure cannot be "
+                  "sealed\n");
+    goto done;
+  }
+  {
+    char initial_source[CUPIDBUILD_PATH_BYTES];
+    if (!cupidbuild_join(initial_source, sizeof(initial_source),
+                         request->repository_root,
+                         membership.sources.paths[0]) ||
+        !cupidbuild_host_input_matches_snapshot(
+            transaction, initial_source,
+            &membership.sources.snapshots[0])) {
+      (void)fprintf(
+          stderr,
+          "cupidbuild: Doom profile source changed after discovery\n");
+      goto done;
+    }
+  }
+  if (membership.headers.count + membership.sources.count + 7u >
+          CUPIDBUILD_PROFILE_TRANSACTION_INPUTS ||
+      !cupidbuild_host_reserve_inputs(
+          transaction,
+          membership.headers.count + membership.sources.count + 7u)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: Doom profile closure exceeds the frozen input "
+                  "limit\n");
+    goto done;
+  }
+  headers = (cupidbuild_profile_header_t *)calloc(
+      membership.headers.count, sizeof(*headers));
+  if (headers == (cupidbuild_profile_header_t *)0) {
+    (void)fprintf(stderr,
+                  "cupidbuild: Doom profile header table cannot be allocated\n");
+    goto done;
+  }
+  for (index = 0u; index < membership.headers.count; index++) {
+    char live_path[CUPIDBUILD_PATH_BYTES];
+    char private_name[32];
+    cupidbuild_host_snapshot_t frozen_from;
+    int written = snprintf(private_name, sizeof(private_name),
+                           "profile-header-%03u", (unsigned int)index);
+    headers[index].path = membership.headers.paths[index];
+    if (written <= 0 || (size_t)written >= sizeof(private_name) ||
+        !cupidbuild_join(live_path, sizeof(live_path),
+                         request->repository_root, headers[index].path) ||
+        !cupidbuild_host_freeze_input(
+            transaction, live_path, private_name,
+            &headers[index].frozen_path,
+            &frozen_from)) {
+      (void)fprintf(stderr,
+                    "cupidbuild: Doom profile header cannot be frozen: %s\n",
+                    cupidbuild_host_error(transaction));
+      goto done;
+    }
+    if (!cupidbuild_host_snapshot_equal(
+            &frozen_from, &membership.headers.snapshots[index])) {
+      (void)fprintf(
+          stderr,
+          "cupidbuild: Doom profile header changed after discovery: %s\n",
+          headers[index].path);
+      goto done;
+    }
+  }
+  for (index = 1u; index < membership.sources.count; index++) {
+    char live_path[CUPIDBUILD_PATH_BYTES];
+    char private_name[32];
+    const char *frozen_source = (const char *)0;
+    cupidbuild_host_snapshot_t frozen_from;
+    int written = snprintf(private_name, sizeof(private_name),
+                           "profile-source-%03u", (unsigned int)index);
+    if (written <= 0 || (size_t)written >= sizeof(private_name) ||
+        !cupidbuild_join(live_path, sizeof(live_path),
+                         request->repository_root,
+                         membership.sources.paths[index]) ||
+        !cupidbuild_host_freeze_input(
+            transaction, live_path, private_name, &frozen_source,
+            &frozen_from)) {
+      (void)fprintf(stderr,
+                    "cupidbuild: Doom profile source cannot be frozen: %s\n",
+                    cupidbuild_host_error(transaction));
+      goto done;
+    }
+    if (!cupidbuild_host_snapshot_equal(
+            &frozen_from, &membership.sources.snapshots[index])) {
+      (void)fprintf(
+          stderr,
+          "cupidbuild: Doom profile source changed after discovery: %s\n",
+          membership.sources.paths[index]);
+      goto done;
+    }
+  }
+  if (!cupidbuild_seed_freeze(transaction, request->repository_root,
+                              request->seed_manifest, 1, 1, &seed)) {
+    goto done;
+  }
+  if (!cupidbuild_profile_snapshot(transaction, &membership, headers,
+                                   &snapshot) ||
+      !cupidbuild_host_write_private_output(transaction, snapshot.bytes,
+                                            snapshot.size) ||
+      !cupidbuild_host_capture_private_output(
+          transaction, &snapshot_capture, (unsigned char **)0)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: CUPROF1 snapshot could not be frozen: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  object_arguments[0] = "profile-manifest";
+  object_arguments[1] = cupidbuild_host_private_output(transaction);
+  object_arguments[2] = "-o";
+  object_arguments[3] = cupidbuild_host_candidate(transaction);
+  object_arguments[4] = (const char *)0;
+  status = cupidbuild_host_run_in_private(
+      transaction, seed.frozen_tools[4], object_arguments, 60000u);
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
+    goto done;
+  }
+  if (status != 0) {
+    cupidbuild_report_checked_failure(transaction, "checked CupidObj failed");
+    goto done;
+  }
+  if (!cupidbuild_host_require_private_output(transaction, &snapshot_capture) ||
+      !cupidbuild_host_capture_candidate(transaction, &candidate_capture,
+                                         &candidate)) {
+    (void)fprintf(stderr, "cupidbuild: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (!cupidbuild_profile_render_json(&membership, headers, &expected)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: independent profile manifest renderer failed\n");
+    goto done;
+  }
+  if (candidate_capture.size != expected.size ||
+      memcmp(candidate, expected.bytes, expected.size) != 0) {
+    (void)fprintf(
+        stderr,
+        "cupidbuild: checked CupidObj profile manifest differs from the "
+        "independent renderer\n");
+    goto done;
+  }
+  free(candidate);
+  candidate = (unsigned char *)0;
+  if (!cupidbuild_profile_require_membership(transaction,
+                                             &membership)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: Doom profile input membership changed while "
+                  "authoring the manifest\n");
+    goto done;
+  }
+  if (!cupidbuild_seed_require_live(transaction, &seed) ||
+      !cupidbuild_host_require_frozen_inputs(transaction) ||
+      !cupidbuild_host_require_private_output(transaction, &snapshot_capture) ||
+      !cupidbuild_host_require_candidate(transaction, &candidate_capture) ||
+      (profile_parent != (cupidbuild_host_profile_parent_t *)0 &&
+       !cupidbuild_host_profile_parent_bind(profile_parent, transaction)) ||
+      !cupidbuild_host_require_publication_boundary(transaction)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: profile manifest publication failed: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  if (!cupidbuild_profile_require_membership(transaction, &membership)) {
+    (void)fprintf(
+        stderr,
+        "cupidbuild: Doom profile input membership changed at publication "
+        "boundary\n");
+    goto done;
+  }
+  if (!cupidbuild_host_publish_if_changed(transaction, &changed)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: profile manifest publication failed: %s\n",
+                  cupidbuild_host_error(transaction));
+    goto done;
+  }
+  (void)changed;
+  cupidbuild_host_profile_parent_commit(profile_parent);
+  result = 0;
+
+done:
+  free(candidate);
+  free(expected.bytes);
+  free(snapshot.bytes);
+  free(headers);
+  cupidbuild_profile_membership_close(&membership);
+  cupidbuild_seed_capture_close(&seed);
+  result = cupidbuild_finish_publication(transaction, result,
+                                         "profile manifest");
+  if (!cupidbuild_host_profile_parent_close(profile_parent)) {
+    (void)fprintf(stderr,
+                  "cupidbuild: profile parent cleanup failed\n");
+    result = 1;
+  }
   return result;
 }
 

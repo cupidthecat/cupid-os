@@ -19,6 +19,8 @@ static void cupidbuild_usage(FILE *stream) {
       "       cupidbuild flatten-kernel "
       "--seed-manifest MANIFEST --root ROOT --input-manifest MANIFEST "
       "--output OUTPUT\n"
+      "       cupidbuild generate-profile-manifest "
+      "--seed-manifest MANIFEST --root ROOT --output OUTPUT\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
       "--root ROOT --tool {cupidc|cupidobj|cupidld} [--timeout SECONDS] -- "
       "TOOL_ARGS...\n");
@@ -73,6 +75,7 @@ static int cupidbuild_parse_timeout(const char *text,
 int main(int argc, char **argv) {
   cupidbuild_assembly_request_t request;
   cupidbuild_kernel_request_t kernel_request;
+  cupidbuild_profile_request_t profile_request;
   cupidbuild_run_request_t run_request;
   int operation = 0;
   int index;
@@ -83,6 +86,7 @@ int main(int argc, char **argv) {
   }
   (void)memset(&request, 0, sizeof(request));
   (void)memset(&kernel_request, 0, sizeof(kernel_request));
+  (void)memset(&profile_request, 0, sizeof(profile_request));
   (void)memset(&run_request, 0, sizeof(run_request));
   run_request.timeout_seconds = 300u;
   if (argc >= 2) {
@@ -98,6 +102,8 @@ int main(int argc, char **argv) {
       operation = 5;
     } else if (strcmp(argv[1], "flatten-kernel") == 0) {
       operation = 6;
+    } else if (strcmp(argv[1], "generate-profile-manifest") == 0) {
+      operation = 7;
     }
   }
   if (operation != 0) {
@@ -110,6 +116,11 @@ int main(int argc, char **argv) {
       repository_root = &kernel_request.repository_root;
       input = &kernel_request.input_manifest;
       output = &kernel_request.output;
+    } else if (operation == 7) {
+      seed_manifest = &profile_request.seed_manifest;
+      repository_root = &profile_request.repository_root;
+      input = (const char **)0;
+      output = &profile_request.output;
     }
     for (index = 2; index < argc; index++) {
       int taken = cupidbuild_take_value(
@@ -118,7 +129,7 @@ int main(int argc, char **argv) {
         taken = cupidbuild_take_value(argc, argv, &index, "--root",
                                       repository_root);
       }
-      if (taken == 0) {
+      if (taken == 0 && input != (const char **)0) {
         taken = cupidbuild_take_value(
             argc, argv, &index,
             operation == 6 ? "--input-manifest" : "--source",
@@ -134,7 +145,8 @@ int main(int argc, char **argv) {
       }
     }
     if (*seed_manifest == (const char *)0 ||
-        *repository_root == (const char *)0 || *input == (const char *)0 ||
+        *repository_root == (const char *)0 ||
+        (input != (const char **)0 && *input == (const char *)0) ||
         *output == (const char *)0) {
       cupidbuild_usage(stderr);
       return 2;
@@ -154,7 +166,10 @@ int main(int argc, char **argv) {
     if (operation == 5) {
       return cupidbuild_generate_ksyms(&request);
     }
-    return cupidbuild_flatten_kernel(&kernel_request);
+    if (operation == 6) {
+      return cupidbuild_flatten_kernel(&kernel_request);
+    }
+    return cupidbuild_generate_profile_manifest(&profile_request);
   }
   if (argc >= 2 && strcmp(argv[1], "run") == 0) {
     int separator = 0;

@@ -71,6 +71,60 @@ that promoted `flatten-kernel` transaction directly. Hostbuild remains an
 optional parity oracle. ADR 0372 records the source capability, ADR 0374
 records seed carriage, and ADR 0375 records the production handoff.
 
+Source-head CupidBuild also has a typed `generate-profile-manifest`
+transaction for the Doom compiler inputs. It freezes the exact 83-source
+cohort and 304 `.h`/`.inc` inputs, asks CupidObj to produce the JSON first,
+and requires byte parity with an independent native renderer before guarded
+publication. Windows may create either missing component in the fixed
+`build/bootstrap` chain. Parent-relative `NtCreateFile` returns the new
+directory handle atomically, and rollback removes only empty directories with
+the recorded identity. POSIX requires both parents to exist. CupidBuild refuses
+a clean root because `mkdirat` followed by `openat` cannot prove which
+directory a same-user process left at the public name.
+
+Discovery retains every directory handle or descriptor. Each publication
+checkpoint makes two complete passes over the retained and public bindings.
+POSIX compares file identity with nanosecond mtime and ctime. Windows compares
+the retained handle with an exact named `FileIdFullDirectoryInformation`
+record, including file ID, LastWriteTime, and ChangeTime. These checks detect
+changes observed before the last successful pass; they do not turn the source
+tree into a durable filesystem snapshot.
+
+POSIX flat transactions keep frozen inputs, maps, and captured streams in
+sealed anonymous memfds and pass tools `/proc/self/fd/N` paths. The candidate,
+its publication alias, the reservation, and the owner lock remain named where
+publication requires a filesystem entry. On DrvFS, no-replace moves fall back
+to a destination hard link followed by source unlink. Existing-output fallback
+parks a verified hard link before the candidate replaces the public name.
+After source-only drift, a verified rollback permits normal cleanup. Ambiguous
+root, parent, output, lock, or candidate bindings instead preserve transaction
+residue for recovery rather than deleting an uncertain successor.
+
+The focused WSL checks pass ordinary create and unchanged publication plus two
+restored-directory races. Both races preserve the previous bytes and mtime and
+leave no transaction residue. The dedicated native Windows process module
+covers inherited-handle sentinels, the exact handle allowlist, frozen-input
+sharing, retained cleanup authority, and the directory-record race. Strict
+native Clang and WSL syntax checks also pass.
+The WSL post-install source-drift race restores the previous manifest and
+leaves no private state. Windows now retains frozen inputs with read sharing
+while blocking write and delete opens. It reopens the same verified identity
+with delete access only during cleanup. Mutable candidates keep read, write,
+and delete sharing.
+Guarded assembly also asks CupidASM for caller-owned output, so CupidBuild's
+retained candidate identity survives until inspection and publication.
+
+A dirty-tree v4 reconstruction converged on both hosts with the source-current
+matrices below. It proves the implementation, but it is not a promotion: a
+clean, commit-pinned paired rebuild must still produce the seed manifests.
+The combined source-head behavior matrices define 31 failure, 7 help,
+and 37 success cases on Linux, and 19 failure, 7 help, and 24 success cases on
+native Windows. The promoted seeds do not carry this command yet, so the
+normal Make rule remains Python-coordinated.
+[ADR 0377](docs/adr/0377-add-typed-doom-profile-publication-to-cupidbuild.md)
+records the source capability and the remaining seed and Make handoffs. ADR
+0381 records the caller-owned output and Windows handle contracts.
+
 Kernel CupidASM publication now uses the same linked recovery model as the
 hosted command. It writes v2 pending records before either target moves, uses
 validated tombstones for targets that were absent, and advances records to v3
@@ -162,8 +216,8 @@ ADR 0370 records the active promotion.
 
 The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
 strict CupidDis validation, all 16 exact artifacts, and image publication. The
-current flat kernel is 9,533,840 bytes; the final and pass-one ELFs are
-9,761,100 and 9,630,028 bytes. The Cupid-built artifact contract accepts the
+current flat kernel is 9,536,524 bytes; the final and pass-one ELFs are
+9,765,196 and 9,634,124 bytes. The Cupid-built artifact contract accepts the
 complete kernel-symbol or active kernel-flattening parent pair and rejects
 mixed lineage. Source-head CupidBuild uses the same two-generation v2 window,
 while the v1 parser keeps its historical contract. ADR 0380 records this
@@ -192,9 +246,13 @@ from a real CupidObj exit of 125. The static i386 startup exposes
 On Windows, the runner pins and rechecks the working-directory identity and
 uses a handle-pinned private root and files. It holds the CupidObj handle
 without write or delete sharing through `CreateProcessA` and forwards captured
-streams in binary mode to preserve their exact bytes. Cleanup removes a
-mutated file if its identity still belongs to the runner and preserves a
-replacement with a different identity.
+streams in binary mode to preserve their exact bytes. `STARTUPINFOEXA` carries
+one exact `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`: standard input, standard output,
+and standard error. An unrelated inheritable handle remains unavailable to the
+child. Borrowed output handles are made inheritable only around
+`CreateProcessA`, then cleared. This launch window assumes CupidBuild remains
+single threaded. Cleanup removes a mutated file if its identity still belongs
+to the runner and preserves a replacement with a different identity.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
@@ -850,9 +908,13 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   publication-boundary checks, and atomic replacement; callers keep their
   image and map policy. The expanded eleven-test suite passed in 1.708 seconds,
   including direct mismatch and live-output drift checks for both callers.
-  Parent-replacement tests exposed a POSIX candidate leak, so private roots now
-  sit under the stable repository root instead of the output parent. Both
-  caller modules pass all 10 tests on Windows and through WSL.
+  Parent-replacement tests exposed a POSIX candidate leak. Windows now keeps
+  its handle-pinned private directory below the stable repository root. POSIX
+  reserves one exclusive `.reserve` file there. Frozen inputs, maps, and
+  captured streams live in sealed anonymous memfds, while the named candidate
+  and its publication alias stay on the target filesystem for atomic install.
+  Tools receive direct `/proc/self/fd/N` paths. Both caller modules pass all 10
+  tests on Windows and through WSL.
   The normal boot edge now enters that transaction through
   `tools/hostbuild.py assemble-bootloader`. Its Make closure uses the
   production manifest and `CHECKED_SEED_INPUTS`, so overriding the standalone
@@ -2332,18 +2394,19 @@ self-test adds two real quit cycles and two real error cycles, checking LIFO
 callbacks, error-only filtering, and cleanup between shell sessions. ADR 0214
 records the active boundary.
 
-The wrapper freezes each selected source and the complete 291-file header and
-include space for both profiles. Its content-addressed manifest fixes the
-three-source and 80-source memberships. The current 69,366-byte manifest has
+The wrapper freezes each selected source and the complete set of 304 `.h` and
+`.inc` inputs for both profiles. Its content-addressed manifest fixes the
+three-source and 80-source memberships. The current 72,950-byte manifest has
 SHA-256
-`47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
+`eeb25fe8855563247c29bdd08a4fcc880ac023d37df810969251ba63177223f8`.
 Checked-seed CupidObj produces that file through `profile-manifest`. It
 consumes one bounded `CUPROF1` snapshot, sorts the two profile inventories by
-unsigned ASCII order, and hashes all 291 captured headers with its own SHA-256
-implementation. The 796,337-byte active snapshot contains 665 memberships
-and 956 encoded path records. The normal Make target passes the checked seed
-manifest. The wrapper derives both the snapshot and an independent Python JSON
-oracle from one stable capture, then runs CupidObj from the exact frozen seed.
+unsigned ASCII order, and hashes all 304 captured inputs with its own SHA-256
+implementation. The 951,725-byte active snapshot contains 921,527 captured
+bytes, 691 memberships, and 995 encoded path records. The normal Make target
+passes the checked seed manifest. The wrapper derives both the snapshot and an
+independent Python JSON oracle from one stable capture, then runs CupidObj from
+the exact frozen seed.
 It requires byte parity and rechecks the seed, profile inputs, candidate,
 output directory, and existing output under an adjacent no-follow lock.
 Identical bytes retain their timestamp; changed bytes publish atomically.
@@ -2355,7 +2418,7 @@ records seed carriage, and [ADR 0244](docs/adr/0244-publish-the-doom-profile-man
 records production ownership.
 It scans the visible Doom tree before
 and after every compile. A legacy `.c` file, an unlisted `.cc` file, a missing
-root, header membership or byte drift, a symbolic link, or an NTFS junction
+root, input membership or byte drift, a symbolic link, or an NTFS junction
 fails before publication. The `g_game.cc` object keeps the two
 `&array[1]` initializers as
 `R_386_32` relocations with addend 4; direct calls still require

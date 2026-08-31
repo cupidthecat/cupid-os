@@ -262,6 +262,7 @@ WINDOWS_CUPIDBUILD_KERNEL32_IMPORTS = (
     "CreateFileA",
     "CreateProcessA",
     "DeleteFileA",
+    "DeleteProcThreadAttributeList",
     "ExitProcess",
     "FindClose",
     "FindFirstFileA",
@@ -276,6 +277,7 @@ WINDOWS_CUPIDBUILD_KERNEL32_IMPORTS = (
     "GetFullPathNameA",
     "GetLastError",
     "GetStdHandle",
+    "InitializeProcThreadAttributeList",
     "MoveFileExA",
     "OpenProcess",
     "ReadFile",
@@ -283,6 +285,7 @@ WINDOWS_CUPIDBUILD_KERNEL32_IMPORTS = (
     "SetFilePointer",
     "SetHandleInformation",
     "TerminateProcess",
+    "UpdateProcThreadAttribute",
     "VirtualAlloc",
     "VirtualFree",
     "WaitForSingleObject",
@@ -3177,17 +3180,78 @@ def _expect_status(
 
 
 def _materialize_behavior_seed(
-    seed_inputs: SeedInputs, behavior_root: Path
+    seed_inputs: SeedInputs,
+    behavior_root: Path,
+    directory_name: str = "cupidbuild-seed",
+    stage: Stage | None = None,
 ) -> Path:
-    seed_root = behavior_root / "cupidbuild-seed"
+    manifest_bytes = seed_inputs.manifest_bytes
+    artifact_bytes = seed_inputs.artifact_bytes
+    artifact_files = {
+        name: seed_inputs.tools[name].name for name, _contents in artifact_bytes
+    }
+    if stage is not None:
+        if set(stage.tools) != set(CANDIDATE_TOOL_NAMES):
+            raise BootstrapError(
+                "behavior seed stage tool inventory differs"
+            )
+        document = json.loads(seed_inputs.manifest_bytes)
+        artifacts = _require_list(document.get("artifacts"), "artifacts")
+        records: dict[str, dict[str, object]] = {}
+        for raw_artifact in artifacts:
+            artifact = _require_object(raw_artifact, "artifact")
+            name = str(artifact.get("name"))
+            if name in records:
+                raise BootstrapError(
+                    "behavior seed artifact inventory has duplicates"
+                )
+            records[name] = artifact
+        if set(records) != set(CANDIDATE_TOOL_NAMES):
+            raise BootstrapError(
+                "behavior seed artifact inventory differs"
+            )
+        staged_bytes: list[tuple[str, bytes]] = []
+        for name in CANDIDATE_TOOL_NAMES:
+            payload = stage.tools[name].read_bytes()
+            record = records[name]
+            filename = str(record.get("file"))
+            if Path(filename).name != filename:
+                raise BootstrapError("behavior seed artifact name is invalid")
+            record["sha256"] = hashlib.sha256(payload).hexdigest()
+            record["size"] = len(payload)
+            artifact_files[name] = filename
+            staged_bytes.append((name, payload))
+        manifest_bytes = (
+            json.dumps(document, indent=2, sort_keys=True, ensure_ascii=True)
+            + "\n"
+        ).encode("ascii")
+        artifact_bytes = tuple(staged_bytes)
+
+    seed_root = behavior_root / directory_name
     seed_root.mkdir()
     manifest_path = seed_root / seed_inputs.live_manifest_path.name
-    manifest_path.write_bytes(seed_inputs.manifest_bytes)
-    for tool_name, contents in seed_inputs.artifact_bytes:
-        artifact_path = seed_root / seed_inputs.tools[tool_name].name
+    manifest_path.write_bytes(manifest_bytes)
+    for tool_name, contents in artifact_bytes:
+        artifact_path = seed_root / artifact_files[tool_name]
         artifact_path.write_bytes(contents)
         artifact_path.chmod(0o700)
     return manifest_path
+
+
+def _materialize_behavior_seed_pair(
+    seed_inputs: SeedInputs,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+) -> tuple[Path, Path]:
+    return (
+        _materialize_behavior_seed(
+            seed_inputs, behavior_root, "stage-three-seed", stage_two
+        ),
+        _materialize_behavior_seed(
+            seed_inputs, behavior_root, "stage-four-seed", stage_three
+        ),
+    )
 
 
 _CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD = (
@@ -3208,28 +3272,33 @@ def _check_cupidbuild_cupidobj_runner_behavior(
 ) -> None:
     runner_root = behavior_root / "cupidobj-runner"
     runner_root.mkdir()
-    manifest_path = _materialize_behavior_seed(seed_inputs, runner_root)
+    stage_two_manifest, stage_three_manifest = (
+        _materialize_behavior_seed_pair(
+            seed_inputs, runner_root, stage_two, stage_three
+        )
+    )
     input_path = runner_root / "runner-input.txt"
     input_path.write_bytes(b"first\r\nsecond\r\n")
     stage_two_output = runner_root / "stage-three-cupidobj-runner.o"
     stage_three_output = runner_root / "stage-four-cupidobj-runner.o"
-    common_arguments: list[str | Path] = [
-        "run",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        runner_root,
-        "--tool",
-        "cupidobj",
-        "--",
-    ]
+    def common_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "run",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            runner_root,
+            "--tool",
+            "cupidobj",
+            "--",
+        ]
     success_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
         [
-            *common_arguments,
+            *common_arguments(stage_two_manifest),
             "wrap-text",
             input_path.name,
             "--identity",
@@ -3238,7 +3307,7 @@ def _check_cupidbuild_cupidobj_runner_behavior(
             stage_two_output.name,
         ],
         [
-            *common_arguments,
+            *common_arguments(stage_three_manifest),
             "wrap-text",
             input_path.name,
             "--identity",
@@ -3268,8 +3337,14 @@ def _check_cupidbuild_cupidobj_runner_behavior(
         stage_two,
         stage_three,
         "cupidbuild",
-        [*common_arguments, "--definitely-invalid-option"],
-        [*common_arguments, "--definitely-invalid-option"],
+        [
+            *common_arguments(stage_two_manifest),
+            "--definitely-invalid-option",
+        ],
+        [
+            *common_arguments(stage_three_manifest),
+            "--definitely-invalid-option",
+        ],
         180,
     )
     _expect_status(
@@ -3296,7 +3371,11 @@ def _check_cupidbuild_cupidc_runner_behavior(
 ) -> None:
     runner_root = behavior_root / "cupidc-runner"
     runner_root.mkdir()
-    manifest_path = _materialize_behavior_seed(seed_inputs, runner_root)
+    stage_two_manifest, stage_three_manifest = (
+        _materialize_behavior_seed_pair(
+            seed_inputs, runner_root, stage_two, stage_three
+        )
+    )
     valid_source = runner_root / "runner-valid.cc"
     invalid_source = runner_root / "runner-invalid.cc"
     valid_source.write_text(
@@ -3307,24 +3386,25 @@ def _check_cupidbuild_cupidc_runner_behavior(
         "int checked_runner_broken( {\n",
         encoding="utf-8",
     )
-    common_arguments: list[str | Path] = [
-        "run",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        runner_root,
-        "--tool",
-        "cupidc",
-        "--",
-    ]
+    def common_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "run",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            runner_root,
+            "--tool",
+            "cupidc",
+            "--",
+        ]
 
     help_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
-        [*common_arguments, "--help"],
-        None,
+        [*common_arguments(stage_two_manifest), "--help"],
+        [*common_arguments(stage_three_manifest), "--help"],
         180,
     )
     _expect_status(
@@ -3337,14 +3417,15 @@ def _check_cupidbuild_cupidc_runner_behavior(
             f"{label_prefix}CupidBuild checked CupidC help differs"
         )
 
-    compile_arguments: list[str | Path] = [
-        *common_arguments,
-        "--root",
-        runner_root,
-        "--freestanding",
-        "-c",
-        "/runner-valid.cc",
-    ]
+    def compile_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            *common_arguments(manifest),
+            "--root",
+            runner_root,
+            "--freestanding",
+            "-c",
+            "/runner-valid.cc",
+        ]
     stage_two_output = runner_root / "stage-three-cupidc-runner.o"
     stage_three_output = runner_root / "stage-four-cupidc-runner.o"
     success_result = _run_stage_pair(
@@ -3352,8 +3433,16 @@ def _check_cupidbuild_cupidc_runner_behavior(
         stage_two,
         stage_three,
         "cupidbuild",
-        [*compile_arguments, "-o", "/stage-three-cupidc-runner.o"],
-        [*compile_arguments, "-o", "/stage-four-cupidc-runner.o"],
+        [
+            *compile_arguments(stage_two_manifest),
+            "-o",
+            "/stage-three-cupidc-runner.o",
+        ],
+        [
+            *compile_arguments(stage_three_manifest),
+            "-o",
+            "/stage-four-cupidc-runner.o",
+        ],
         180,
     )
     _expect_status(
@@ -3376,21 +3465,30 @@ def _check_cupidbuild_cupidc_runner_behavior(
     stage_three_failure = runner_root / "stage-four-cupidc-failure.o"
     stage_two_failure.write_bytes(sentinel)
     stage_three_failure.write_bytes(sentinel)
-    failure_arguments: list[str | Path] = [
-        *common_arguments,
-        "--root",
-        runner_root,
-        "--freestanding",
-        "-c",
-        "/runner-invalid.cc",
-    ]
+    def failure_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            *common_arguments(manifest),
+            "--root",
+            runner_root,
+            "--freestanding",
+            "-c",
+            "/runner-invalid.cc",
+        ]
     failure_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
-        [*failure_arguments, "-o", "/stage-three-cupidc-failure.o"],
-        [*failure_arguments, "-o", "/stage-four-cupidc-failure.o"],
+        [
+            *failure_arguments(stage_two_manifest),
+            "-o",
+            "/stage-three-cupidc-failure.o",
+        ],
+        [
+            *failure_arguments(stage_three_manifest),
+            "-o",
+            "/stage-four-cupidc-failure.o",
+        ],
         180,
     )
     _expect_status(
@@ -3420,32 +3518,37 @@ def _check_cupidbuild_embed_jpeg_behavior(
 ) -> None:
     jpeg_root = behavior_root / "cupidbuild-jpeg"
     jpeg_root.mkdir()
-    manifest_path = _materialize_behavior_seed(seed_inputs, jpeg_root)
+    stage_two_manifest, stage_three_manifest = (
+        _materialize_behavior_seed_pair(
+            seed_inputs, jpeg_root, stage_two, stage_three
+        )
+    )
     asset = jpeg_root / "asset.jpg"
     asset.write_bytes(_CUPIDBUILD_JPEG_BEHAVIOR_PAYLOAD)
     stage_two_output = jpeg_root / "stage-three-cupidbuild-jpeg.o"
     stage_three_output = jpeg_root / "stage-four-cupidbuild-jpeg.o"
-    common_arguments: list[str | Path] = [
-        "embed-jpeg",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        source_root,
-        "--source",
-        asset.relative_to(source_root).as_posix(),
-    ]
+    def common_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "embed-jpeg",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            source_root,
+            "--source",
+            asset.relative_to(source_root).as_posix(),
+        ]
     success_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
         [
-            *common_arguments,
+            *common_arguments(stage_two_manifest),
             "--output",
             stage_two_output.relative_to(source_root).as_posix(),
         ],
         [
-            *common_arguments,
+            *common_arguments(stage_three_manifest),
             "--output",
             stage_three_output.relative_to(source_root).as_posix(),
         ],
@@ -3477,27 +3580,28 @@ def _check_cupidbuild_embed_jpeg_behavior(
     stage_three_failure = jpeg_root / "stage-four-jpeg-failure.o"
     stage_two_failure.write_bytes(sentinel)
     stage_three_failure.write_bytes(sentinel)
-    failure_arguments: list[str | Path] = [
-        "embed-jpeg",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        source_root,
-        "--source",
-        progressive_asset.relative_to(source_root).as_posix(),
-    ]
+    def failure_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "embed-jpeg",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            source_root,
+            "--source",
+            progressive_asset.relative_to(source_root).as_posix(),
+        ]
     failure_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
         [
-            *failure_arguments,
+            *failure_arguments(stage_two_manifest),
             "--output",
             stage_two_failure.relative_to(source_root).as_posix(),
         ],
         [
-            *failure_arguments,
+            *failure_arguments(stage_three_manifest),
             "--output",
             stage_three_failure.relative_to(source_root).as_posix(),
         ],
@@ -3531,32 +3635,37 @@ def _check_cupidbuild_generate_ksyms_behavior(
 ) -> None:
     ksyms_root = behavior_root / "cupidbuild-ksyms"
     ksyms_root.mkdir()
-    manifest_path = _materialize_behavior_seed(seed_inputs, ksyms_root)
+    stage_two_manifest, stage_three_manifest = (
+        _materialize_behavior_seed_pair(
+            seed_inputs, ksyms_root, stage_two, stage_three
+        )
+    )
     pass_one = ksyms_root / "kernel.elf.pass1"
     pass_one.write_bytes(elf_payload)
     stage_two_output = ksyms_root / "stage-three-ksyms_data.cc"
     stage_three_output = ksyms_root / "stage-four-ksyms_data.cc"
-    common_arguments: list[str | Path] = [
-        "generate-ksyms",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        source_root,
-        "--source",
-        pass_one.relative_to(source_root).as_posix(),
-    ]
+    def common_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "generate-ksyms",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            source_root,
+            "--source",
+            pass_one.relative_to(source_root).as_posix(),
+        ]
     success_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
         [
-            *common_arguments,
+            *common_arguments(stage_two_manifest),
             "--output",
             stage_two_output.relative_to(source_root).as_posix(),
         ],
         [
-            *common_arguments,
+            *common_arguments(stage_three_manifest),
             "--output",
             stage_three_output.relative_to(source_root).as_posix(),
         ],
@@ -3585,27 +3694,28 @@ def _check_cupidbuild_generate_ksyms_behavior(
     stage_three_failure = ksyms_root / "stage-four-ksyms-failure.cc"
     stage_two_failure.write_bytes(sentinel)
     stage_three_failure.write_bytes(sentinel)
-    failure_arguments: list[str | Path] = [
-        "generate-ksyms",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        source_root,
-        "--source",
-        malformed.relative_to(source_root).as_posix(),
-    ]
+    def failure_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "generate-ksyms",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            source_root,
+            "--source",
+            malformed.relative_to(source_root).as_posix(),
+        ]
     failure_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
         [
-            *failure_arguments,
+            *failure_arguments(stage_two_manifest),
             "--output",
             stage_two_failure.relative_to(source_root).as_posix(),
         ],
         [
-            *failure_arguments,
+            *failure_arguments(stage_three_manifest),
             "--output",
             stage_three_failure.relative_to(source_root).as_posix(),
         ],
@@ -3640,7 +3750,11 @@ def _check_cupidbuild_flatten_kernel_behavior(
     flatten_root.mkdir(parents=True)
     kernel_root = source_root / "kernel"
     kernel_root.mkdir(parents=True)
-    manifest_path = _materialize_behavior_seed(seed_inputs, flatten_root)
+    stage_two_manifest, stage_three_manifest = (
+        _materialize_behavior_seed_pair(
+            seed_inputs, flatten_root, stage_two, stage_three
+        )
+    )
     elf_payload = _code_anchor_executable_payload()
     pass_one = kernel_root / "kernel.elf.pass1"
     linked = kernel_root / "kernel.elf"
@@ -3660,27 +3774,28 @@ def _check_cupidbuild_flatten_kernel_behavior(
     )
     stage_two_output = kernel_root / "stage-three-kernel.bin"
     stage_three_output = kernel_root / "stage-four-kernel.bin"
-    common_arguments: list[str | Path] = [
-        "flatten-kernel",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        source_root,
-        "--input-manifest",
-        code_inputs.relative_to(source_root).as_posix(),
-    ]
+    def common_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "flatten-kernel",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            source_root,
+            "--input-manifest",
+            code_inputs.relative_to(source_root).as_posix(),
+        ]
     success_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
         [
-            *common_arguments,
+            *common_arguments(stage_two_manifest),
             "--output",
             stage_two_output.relative_to(source_root).as_posix(),
         ],
         [
-            *common_arguments,
+            *common_arguments(stage_three_manifest),
             "--output",
             stage_three_output.relative_to(source_root).as_posix(),
         ],
@@ -3713,27 +3828,28 @@ def _check_cupidbuild_flatten_kernel_behavior(
     stage_three_failure = kernel_root / "stage-four-flatten-failure.bin"
     stage_two_failure.write_bytes(sentinel)
     stage_three_failure.write_bytes(sentinel)
-    failure_arguments: list[str | Path] = [
-        "flatten-kernel",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        source_root,
-        "--input-manifest",
-        malformed.relative_to(source_root).as_posix(),
-    ]
+    def failure_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "flatten-kernel",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            source_root,
+            "--input-manifest",
+            malformed.relative_to(source_root).as_posix(),
+        ]
     failure_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
         [
-            *failure_arguments,
+            *failure_arguments(stage_two_manifest),
             "--output",
             stage_two_failure.relative_to(source_root).as_posix(),
         ],
         [
-            *failure_arguments,
+            *failure_arguments(stage_three_manifest),
             "--output",
             stage_three_failure.relative_to(source_root).as_posix(),
         ],
@@ -3753,6 +3869,248 @@ def _check_cupidbuild_flatten_kernel_behavior(
         raise BootstrapError(
             f"{label_prefix}CupidBuild kernel flatten failure behavior differs"
         )
+
+
+def _materialize_cupidbuild_profile_behavior_root(
+    source_root: Path,
+    profile_root: Path,
+) -> None:
+    header_paths: set[Path] = set()
+    for relative_root in ("drivers", "kernel", "toolchain"):
+        include_root = source_root / relative_root
+        if include_root.is_symlink() or not include_root.is_dir():
+            raise BootstrapError(
+                "CupidBuild profile behavior include root is unavailable: "
+                f"{relative_root}"
+            )
+        for path in include_root.rglob("*"):
+            relative_parts = path.relative_to(include_root).parts
+            if any(part.startswith(".") for part in relative_parts):
+                continue
+            if path.is_symlink():
+                raise BootstrapError(
+                    "CupidBuild profile behavior input may not be a link: "
+                    f"{path.relative_to(source_root).as_posix()}"
+                )
+            if path.is_file() and path.suffix in {".h", ".inc"}:
+                header_paths.add(path)
+
+    doom_root = source_root / "kernel" / "doom"
+    source_paths: set[Path] = set()
+    for path in doom_root.rglob("*"):
+        relative_parts = path.relative_to(doom_root).parts
+        if any(part.startswith(".") for part in relative_parts[:-1]):
+            continue
+        if path.is_symlink():
+            raise BootstrapError(
+                "CupidBuild profile behavior source may not be a link: "
+                f"{path.relative_to(source_root).as_posix()}"
+            )
+        if path.suffix in {".c", ".cc"}:
+            if not path.is_file():
+                raise BootstrapError(
+                    "CupidBuild profile behavior source is not a file: "
+                    f"{path.relative_to(source_root).as_posix()}"
+                )
+            source_paths.add(path)
+
+    for source in sorted(header_paths | source_paths):
+        relative = source.relative_to(source_root)
+        destination = profile_root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+
+
+def _check_cupidbuild_generate_profile_behavior(
+    runner: ToolRunner,
+    source_root: Path,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    label_prefix: str,
+    allow_clean_parent_creation: bool,
+) -> None:
+    output_logical = Path("build/bootstrap/doom-cupidc-inputs.json")
+
+    def materialize(
+        name: str, stage: Stage, *, prepare_parent: bool
+    ) -> tuple[Path, Path]:
+        profile_root = behavior_root / name
+        profile_root.mkdir()
+        _materialize_cupidbuild_profile_behavior_root(source_root, profile_root)
+        seed_root = profile_root / "seed"
+        seed_root.mkdir()
+        manifest_path = _materialize_behavior_seed(
+            seed_inputs, seed_root, "cupidbuild-seed", stage
+        )
+        if prepare_parent:
+            (profile_root / output_logical).parent.mkdir(parents=True)
+        return profile_root, manifest_path
+
+    stage_two_root, stage_two_manifest = materialize(
+        "cupidbuild-profile-stage-three-success",
+        stage_two,
+        prepare_parent=not allow_clean_parent_creation,
+    )
+    stage_three_root, stage_three_manifest = materialize(
+        "cupidbuild-profile-stage-four-success",
+        stage_three,
+        prepare_parent=not allow_clean_parent_creation,
+    )
+    stage_two_output = stage_two_root / output_logical
+    stage_three_output = stage_three_root / output_logical
+    success_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            "generate-profile-manifest",
+            "--seed-manifest",
+            stage_two_manifest,
+            "--root",
+            stage_two_root,
+            "--output",
+            output_logical.as_posix(),
+        ],
+        [
+            "generate-profile-manifest",
+            "--seed-manifest",
+            stage_three_manifest,
+            "--root",
+            stage_three_root,
+            "--output",
+            output_logical.as_posix(),
+        ],
+        180,
+    )
+    _expect_status(
+        success_result,
+        0,
+        f"{label_prefix}CupidBuild Doom profile manifest",
+    )
+    if (
+        success_result.stdout
+        or success_result.stderr
+        or not stage_two_output.parent.is_dir()
+        or not stage_three_output.parent.is_dir()
+        or stage_two_output.read_bytes() != stage_three_output.read_bytes()
+        or json.loads(stage_two_output.read_text(encoding="utf-8")).get("schema")
+        != "cupid.doom-profile-inputs.v1"
+    ):
+        raise BootstrapError(f"{label_prefix}CupidBuild Doom profile manifest differs")
+
+    stage_two_failure_root, stage_two_failure_manifest = materialize(
+        "cupidbuild-profile-stage-three-failure",
+        stage_two,
+        prepare_parent=not allow_clean_parent_creation,
+    )
+    stage_three_failure_root, stage_three_failure_manifest = materialize(
+        "cupidbuild-profile-stage-four-failure",
+        stage_three,
+        prepare_parent=not allow_clean_parent_creation,
+    )
+    for profile_root in (stage_two_failure_root, stage_three_failure_root):
+        unlisted = profile_root / "kernel" / "doom" / "unlisted.cc"
+        unlisted.write_text("int unlisted;\n", encoding="ascii", newline="\n")
+    stage_two_failure = stage_two_failure_root / output_logical
+    stage_three_failure = stage_three_failure_root / output_logical
+    failure_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            "generate-profile-manifest",
+            "--seed-manifest",
+            stage_two_failure_manifest,
+            "--root",
+            stage_two_failure_root,
+            "--output",
+            output_logical.as_posix(),
+        ],
+        [
+            "generate-profile-manifest",
+            "--seed-manifest",
+            stage_three_failure_manifest,
+            "--root",
+            stage_three_failure_root,
+            "--output",
+            output_logical.as_posix(),
+        ],
+        180,
+    )
+    _expect_status(
+        failure_result,
+        1,
+        f"{label_prefix}CupidBuild unlisted Doom profile source",
+    )
+    if (
+        failure_result.stdout
+        or "approved source cohort" not in failure_result.stderr
+        or stage_two_failure.exists()
+        or stage_three_failure.exists()
+        or (stage_two_failure_root / "build").exists()
+        != (not allow_clean_parent_creation)
+        or (stage_three_failure_root / "build").exists()
+        != (not allow_clean_parent_creation)
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild Doom profile failure behavior differs"
+        )
+
+    if not allow_clean_parent_creation:
+        stage_two_missing_root, stage_two_missing_manifest = materialize(
+            "cupidbuild-profile-stage-three-missing-parent",
+            stage_two,
+            prepare_parent=False,
+        )
+        stage_three_missing_root, stage_three_missing_manifest = materialize(
+            "cupidbuild-profile-stage-four-missing-parent",
+            stage_three,
+            prepare_parent=False,
+        )
+        missing_parent_result = _run_stage_pair(
+            runner,
+            stage_two,
+            stage_three,
+            "cupidbuild",
+            [
+                "generate-profile-manifest",
+                "--seed-manifest",
+                stage_two_missing_manifest,
+                "--root",
+                stage_two_missing_root,
+                "--output",
+                output_logical.as_posix(),
+            ],
+            [
+                "generate-profile-manifest",
+                "--seed-manifest",
+                stage_three_missing_manifest,
+                "--root",
+                stage_three_missing_root,
+                "--output",
+                output_logical.as_posix(),
+            ],
+            180,
+        )
+        _expect_status(
+            missing_parent_result,
+            1,
+            f"{label_prefix}CupidBuild missing profile parent",
+        )
+        if (
+            missing_parent_result.stdout
+            or "profile parent build component must already exist on POSIX"
+            not in missing_parent_result.stderr
+            or (stage_two_missing_root / "build").exists()
+            or (stage_three_missing_root / "build").exists()
+        ):
+            raise BootstrapError(
+                f"{label_prefix}CupidBuild missing profile parent behavior differs"
+            )
 
 
 _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE = (
@@ -3841,31 +4199,36 @@ def _check_cupidbuild_guarded_object_behavior(
     seed_inputs: SeedInputs,
     label_prefix: str,
 ) -> None:
-    manifest_path = _materialize_behavior_seed(seed_inputs, behavior_root)
+    stage_two_manifest, stage_three_manifest = (
+        _materialize_behavior_seed_pair(
+            seed_inputs, behavior_root, stage_two, stage_three
+        )
+    )
     source_name = "toolchain/hosted/i386-linux/start.asm"
     stage_two_output = behavior_root / "stage-three-cupidbuild.o"
     stage_three_output = behavior_root / "stage-four-cupidbuild.o"
-    common_arguments: list[str | Path] = [
-        "assemble-cupidasm-object",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        source_root,
-        "--source",
-        source_name,
-    ]
+    def common_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "assemble-cupidasm-object",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            source_root,
+            "--source",
+            source_name,
+        ]
     success_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
         [
-            *common_arguments,
+            *common_arguments(stage_two_manifest),
             "--output",
             stage_two_output.relative_to(source_root).as_posix(),
         ],
         [
-            *common_arguments,
+            *common_arguments(stage_three_manifest),
             "--output",
             stage_three_output.relative_to(source_root).as_posix(),
         ],
@@ -3905,27 +4268,28 @@ def _check_cupidbuild_guarded_object_behavior(
         )
         stage_two_raw = behavior_root / f"stage-three-{operation}.bin"
         stage_three_raw = behavior_root / f"stage-four-{operation}.bin"
-        common_raw_arguments: list[str | Path] = [
-            operation,
-            "--seed-manifest",
-            manifest_path,
-            "--root",
-            source_root,
-            "--source",
-            fixture_source.relative_to(source_root).as_posix(),
-        ]
+        def common_raw_arguments(manifest: Path) -> list[str | Path]:
+            return [
+                operation,
+                "--seed-manifest",
+                manifest,
+                "--root",
+                source_root,
+                "--source",
+                fixture_source.relative_to(source_root).as_posix(),
+            ]
         raw_result = _run_stage_pair(
             runner,
             stage_two,
             stage_three,
             "cupidbuild",
             [
-                *common_raw_arguments,
+                *common_raw_arguments(stage_two_manifest),
                 "--output",
                 stage_two_raw.relative_to(source_root).as_posix(),
             ],
             [
-                *common_raw_arguments,
+                *common_raw_arguments(stage_three_manifest),
                 "--output",
                 stage_three_raw.relative_to(source_root).as_posix(),
             ],
@@ -3951,27 +4315,28 @@ def _check_cupidbuild_guarded_object_behavior(
     stage_three_failure = behavior_root / "stage-four-cupidbuild-failure.o"
     stage_two_failure.write_bytes(sentinel)
     stage_three_failure.write_bytes(sentinel)
-    failure_arguments: list[str | Path] = [
-        "assemble-cupidasm-object",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        source_root,
-        "--source",
-        "toolchain/missing-candidate-source.asm",
-    ]
+    def failure_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "assemble-cupidasm-object",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            source_root,
+            "--source",
+            "toolchain/missing-candidate-source.asm",
+        ]
     failure_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
         [
-            *failure_arguments,
+            *failure_arguments(stage_two_manifest),
             "--output",
             stage_two_failure.relative_to(source_root).as_posix(),
         ],
         [
-            *failure_arguments,
+            *failure_arguments(stage_three_manifest),
             "--output",
             stage_three_failure.relative_to(source_root).as_posix(),
         ],
@@ -3999,27 +4364,28 @@ def _check_cupidbuild_guarded_object_behavior(
     stage_three_raw_failure = behavior_root / "stage-four-raw-failure.bin"
     stage_two_raw_failure.write_bytes(raw_sentinel)
     stage_three_raw_failure.write_bytes(raw_sentinel)
-    raw_failure_arguments: list[str | Path] = [
-        "assemble-bootloader",
-        "--seed-manifest",
-        manifest_path,
-        "--root",
-        source_root,
-        "--source",
-        malformed_source.relative_to(source_root).as_posix(),
-    ]
+    def raw_failure_arguments(manifest: Path) -> list[str | Path]:
+        return [
+            "assemble-bootloader",
+            "--seed-manifest",
+            manifest,
+            "--root",
+            source_root,
+            "--source",
+            malformed_source.relative_to(source_root).as_posix(),
+        ]
     malformed_boot_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidbuild",
         [
-            *raw_failure_arguments,
+            *raw_failure_arguments(stage_two_manifest),
             "--output",
             stage_two_raw_failure.relative_to(source_root).as_posix(),
         ],
         [
-            *raw_failure_arguments,
+            *raw_failure_arguments(stage_three_manifest),
             "--output",
             stage_three_raw_failure.relative_to(source_root).as_posix(),
         ],
@@ -4049,6 +4415,7 @@ def _run_native_windows_behavior_checks(
     native_plan: dict[str, object],
     seed_inputs: SeedInputs,
     linux_seed_inputs: SeedInputs,
+    profile_source_root: Path | None = None,
 ) -> dict[str, int]:
     behavior_root = output_root / "behavior"
     behavior_root.mkdir()
@@ -4154,6 +4521,21 @@ def _run_native_windows_behavior_checks(
         stage_three,
         seed_inputs,
         "native Windows ",
+    )
+
+    if profile_source_root is None:
+        raise BootstrapError(
+            "native Windows profile behavior source root is unavailable"
+        )
+    _check_cupidbuild_generate_profile_behavior(
+        runner,
+        profile_source_root,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "native Windows ",
+        True,
     )
 
     _check_cupidbuild_guarded_object_behavior(
@@ -4383,9 +4765,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 12,
+        "failure_cases": len(tool_names) + 13,
         "help_cases": len(tool_names) + 1,
-        "success_cases": len(tool_names) + 17,
+        "success_cases": len(tool_names) + 18,
     }
 
 
@@ -5072,6 +5454,7 @@ def _run_behavior_checks(
     stage_three: Stage,
     seed_inputs: SeedInputs,
     evidence_out: dict[str, object] | None = None,
+    profile_source_root: Path | None = None,
 ) -> dict[str, int]:
     behavior_root = output_root / "behavior"
     behavior_root.mkdir()
@@ -5158,6 +5541,19 @@ def _run_behavior_checks(
         stage_three,
         seed_inputs,
         "",
+    )
+
+    if profile_source_root is None:
+        raise BootstrapError("profile behavior source root is unavailable")
+    _check_cupidbuild_generate_profile_behavior(
+        runner,
+        profile_source_root,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "",
+        False,
     )
 
     _check_cupidbuild_guarded_object_behavior(
@@ -7893,9 +8289,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 29,
+        "failure_cases": 31,
         "help_cases": len(tool_names) + 1,
-        "success_cases": 36,
+        "success_cases": 37,
     }
 
 
@@ -8101,6 +8497,7 @@ def _bootstrap_from_frozen_seed(
             stage_four,
             seed_inputs,
             behavior_evidence,
+            source_root,
         )
         windows_runtime = behavior_evidence.get("windows_runtime")
         if not isinstance(windows_runtime, dict):
@@ -8361,6 +8758,7 @@ def _bootstrap_windows_from_frozen_seed(
             native_plan,
             seed_inputs,
             plan_inputs,
+            source_root,
         )
         seed_matches_stage_two = _compare_seed_with_stage_two(
             seed_inputs, stage_two

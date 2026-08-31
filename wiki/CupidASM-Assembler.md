@@ -81,6 +81,19 @@ Select an artifact explicitly with `-f`:
 > as -f exec -o hello demos/hello.asm
 ```
 
+Hosted CupidASM also accepts `--caller-owned-output` when it runs inside a
+larger transaction. The flag writes the requested object, raw image, and map
+directly to the supplied paths and bypasses standalone `.cupid-as-*` recovery.
+CupidBuild uses it because CupidBuild already owns locking, rollback,
+inspection, and publication for the retained candidate. Without the flag,
+standalone CupidASM keeps its recoverable publisher. Repeating the flag is a
+usage error and leaves existing outputs unchanged. A direct raw image and map
+must have different file identities. Normalized spellings such as `name` and
+`./name`, along with Windows case aliases, fail before truncation even when
+both paths are absent. Existing hard links fail the same check by file
+identity. Matching leaf names beneath aliased existing parent directories also
+fail before either output is created.
+
 `bin` writes the flat bytes and requires `--map`. The map uses
 `cupid.raw-map.v2` and records the origin, each code16, code32, or data range,
 and ordered source-resolved control edges. `elf32` writes an unlinked i386
@@ -304,11 +317,19 @@ before CupidDis runs. The accepted map stays pinned through inspection and is
 removed with the private transaction root. The
 expanded eleven-test suite passed in 1.708 seconds, including direct mismatch
 and live-output drift checks for both callers. Parent-replacement tests exposed
-a POSIX candidate leak when private work lived below the output parent. Private
-roots now live directly below the stable repository root. Both caller modules
-pass all 10 tests on Windows and through WSL. The normal bootloader and SMP
-Make edges call the guarded transaction with the production manifest and full
-checked seed. CupidBuild publishes only after CupidASM and CupidDis accept the
+a POSIX candidate leak when private work lived below the output parent. Windows
+keeps a handle-pinned private directory below the stable repository root.
+POSIX reserves one exclusive file there. Maps, captured streams, and frozen
+inputs are sealed anonymous memfds; the candidate and publication alias stay
+named on the target filesystem. Checked tools receive direct
+`/proc/self/fd/N` paths. DrvFS no-replace fallback creates the destination hard
+link before it unlinks the source. Existing-output fallback parks and verifies
+an old-output hard link before a plain atomic replacement. The remaining
+compare-then-unlink window is a documented same-user POSIX limitation. Both
+caller modules pass all 10 tests on Windows and through WSL.
+The normal bootloader and SMP Make edges call the guarded transaction with the
+production manifest and full checked seed. CupidBuild publishes only after
+CupidASM and CupidDis accept the
 private image and map. ADR 0283 records the first boot cutover, and ADR 0357
 records direct CupidBuild ownership.
 

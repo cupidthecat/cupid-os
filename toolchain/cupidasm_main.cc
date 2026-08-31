@@ -12,6 +12,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
+#if !defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+#include <sys/stat.h>
+#endif
 #include <unistd.h>
 #endif
 
@@ -28,12 +31,17 @@ static const ctool_u8 cupidasm_absent_record[] = {
     'T', 1u};
 
 #if defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+#define CUPIDASM_LINUX_SYS_OPEN 5
+#define CUPIDASM_LINUX_SYS_CLOSE 6
+#define CUPIDASM_LINUX_SYS_FSTAT64 197
 #define CUPIDASM_LINUX_SYS_UNLINK 10
 #define CUPIDASM_LINUX_SYS_RENAME 38
 
 int cupid_linux_syscall1(int number, unsigned int first);
 int cupid_linux_syscall2(int number, unsigned int first,
                          unsigned int second);
+int cupid_linux_syscall3(int number, unsigned int first, unsigned int second,
+                         unsigned int third);
 
 static int cupidasm_linux_syscall_failed(int result) {
   return result < 0 && result >= -4095 ? 1 : 0;
@@ -45,6 +53,7 @@ typedef struct {
   const char *input;
   const char *output;
   const char *range_map;
+  ctool_bool caller_owned_output;
 } cupidasm_cli_t;
 
 typedef struct {
@@ -73,8 +82,10 @@ typedef enum {
 
 static void cupidasm_usage(FILE *stream) {
   (void)fprintf(stream,
-                "usage: cupidasm -f bin [--map MAP] INPUT -o OUTPUT\n"
-                "       cupidasm -f elf32 INPUT -o OUTPUT\n");
+                "usage: cupidasm [--caller-owned-output] -f bin "
+                "[--map MAP] INPUT -o OUTPUT\n"
+                "       cupidasm [--caller-owned-output] -f elf32 "
+                "INPUT -o OUTPUT\n");
 }
 
 static int cupidasm_take_value(int argc, char **argv, int *index,
@@ -107,6 +118,13 @@ static int cupidasm_parse_cli(int argc, char **argv, cupidasm_cli_t *cli) {
     int taken;
     if (strcmp(argument, "--help") == 0 || strcmp(argument, "-h") == 0) {
       return -1;
+    }
+    if (strcmp(argument, "--caller-owned-output") == 0) {
+      if (cli->caller_owned_output == CTOOL_TRUE) {
+        return 0;
+      }
+      cli->caller_owned_output = CTOOL_TRUE;
+      continue;
     }
     taken = cupidasm_take_value(argc, argv, &index, argument, "-f", &value);
     if (taken != 0) {
@@ -605,8 +623,7 @@ static ctool_status_t cupidasm_publication_inspect(const char *path,
   }
 #endif
   errno = 0;
-  (void)fread(&first, 1u, 1u, file);
-  if (ferror(file) != 0) {
+  if (fread(&first, 1u, 1u, file) == 0u && ferror(file) != 0) {
     (void)fclose(file);
     return CTOOL_ERR_IO;
   }
@@ -711,9 +728,148 @@ static ctool_status_t cupidasm_write_range_map(
   return cupidasm_finish_output(file, CTOOL_OK);
 }
 
-static ctool_status_t cupidasm_publish_inherited(
+static int cupidasm_publication_path_equal(const char *left,
+                                           const char *right);
+
+static ctool_status_t cupidasm_existing_paths_alias(
+    const char *left, const char *right, int directories, int *alias_out) {
+  *alias_out = 0;
+  (void)directories;
+#if defined(_WIN32)
+  {
+    DWORD attributes = directories != 0 ? FILE_FLAG_BACKUP_SEMANTICS
+                                         : FILE_ATTRIBUTE_NORMAL;
+    HANDLE left_handle = CreateFileA(
+        left, 0u, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        (LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING, attributes, (HANDLE)0);
+    HANDLE right_handle = CreateFileA(
+        right, 0u, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        (LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING, attributes, (HANDLE)0);
+    BY_HANDLE_FILE_INFORMATION left_information;
+    BY_HANDLE_FILE_INFORMATION right_information;
+    if (left_handle != INVALID_HANDLE_VALUE &&
+        right_handle != INVALID_HANDLE_VALUE) {
+      if (GetFileInformationByHandle(left_handle, &left_information) == 0 ||
+          GetFileInformationByHandle(right_handle, &right_information) == 0) {
+        (void)CloseHandle(left_handle);
+        (void)CloseHandle(right_handle);
+        return CTOOL_ERR_IO;
+      }
+      *alias_out =
+          left_information.dwVolumeSerialNumber ==
+                  right_information.dwVolumeSerialNumber &&
+          left_information.nFileIndexHigh ==
+                  right_information.nFileIndexHigh &&
+          left_information.nFileIndexLow == right_information.nFileIndexLow;
+    }
+    if (left_handle != INVALID_HANDLE_VALUE) {
+      (void)CloseHandle(left_handle);
+    }
+    if (right_handle != INVALID_HANDLE_VALUE) {
+      (void)CloseHandle(right_handle);
+    }
+  }
+#elif defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+  {
+    unsigned char left_information[96];
+    unsigned char right_information[96];
+    int left_descriptor = cupid_linux_syscall3(
+        CUPIDASM_LINUX_SYS_OPEN, (unsigned int)left, 0u, 0u);
+    int right_descriptor = cupid_linux_syscall3(
+        CUPIDASM_LINUX_SYS_OPEN, (unsigned int)right, 0u, 0u);
+    if (!cupidasm_linux_syscall_failed(left_descriptor) &&
+        !cupidasm_linux_syscall_failed(right_descriptor)) {
+      if (cupidasm_linux_syscall2(CUPIDASM_LINUX_SYS_FSTAT64,
+                                  (unsigned int)left_descriptor,
+                                  (unsigned int)left_information) < 0 ||
+          cupid_linux_syscall2(CUPIDASM_LINUX_SYS_FSTAT64,
+                               (unsigned int)right_descriptor,
+                               (unsigned int)right_information) < 0) {
+        (void)cupid_linux_syscall1(CUPIDASM_LINUX_SYS_CLOSE,
+                                   (unsigned int)left_descriptor);
+        (void)cupid_linux_syscall1(CUPIDASM_LINUX_SYS_CLOSE,
+                                   (unsigned int)right_descriptor);
+        return CTOOL_ERR_IO;
+      }
+      *alias_out = memcmp(left_information, right_information, 8u) == 0 &&
+                   memcmp(left_information + 88u,
+                          right_information + 88u, 8u) == 0;
+    }
+    if (!cupidasm_linux_syscall_failed(left_descriptor)) {
+      (void)cupid_linux_syscall1(CUPIDASM_LINUX_SYS_CLOSE,
+                                 (unsigned int)left_descriptor);
+    }
+    if (!cupidasm_linux_syscall_failed(right_descriptor)) {
+      (void)cupid_linux_syscall1(CUPIDASM_LINUX_SYS_CLOSE,
+                                 (unsigned int)right_descriptor);
+    }
+  }
+#else
+  {
+    struct stat left_information;
+    struct stat right_information;
+    if (stat(left, &left_information) == 0 &&
+        stat(right, &right_information) == 0) {
+      *alias_out = left_information.st_dev == right_information.st_dev &&
+                   left_information.st_ino == right_information.st_ino;
+    }
+  }
+#endif
+  return CTOOL_OK;
+}
+
+static ctool_status_t cupidasm_caller_owned_paths_alias(
+    const char *left, const char *right, int *alias_out) {
+  char *absolute_left = cupidasm_absolute_path_copy(left);
+  char *absolute_right = cupidasm_absolute_path_copy(right);
+  char *left_parent = (char *)0;
+  char *right_parent = (char *)0;
+  char *left_name = (char *)0;
+  char *right_name = (char *)0;
+  ctool_status_t status = CTOOL_OK;
+  if (absolute_left == (char *)0 || absolute_right == (char *)0) {
+    status = CTOOL_ERR_NO_MEMORY;
+  } else {
+    *alias_out =
+        cupidasm_publication_path_equal(absolute_left, absolute_right);
+  }
+  if (status == CTOOL_OK && *alias_out == 0 &&
+      (!cupidasm_split_path(absolute_left, &left_parent, &left_name) ||
+       !cupidasm_split_path(absolute_right, &right_parent, &right_name))) {
+    status = CTOOL_ERR_NO_MEMORY;
+  }
+  if (status == CTOOL_OK && *alias_out == 0 &&
+      cupidasm_publication_path_equal(left_name, right_name)) {
+    status = cupidasm_existing_paths_alias(
+        left_parent, right_parent, 1, alias_out);
+  }
+  if (status == CTOOL_OK && *alias_out == 0) {
+    status = cupidasm_existing_paths_alias(
+        absolute_left, absolute_right, 0, alias_out);
+  }
+  free(right_name);
+  free(left_name);
+  free(right_parent);
+  free(left_parent);
+  free(absolute_right);
+  free(absolute_left);
+  return status;
+}
+
+static ctool_status_t cupidasm_publish_caller_owned(
     const cupidasm_cli_t *cli, const ctool_asm_result_t *result) {
-  ctool_status_t status = cupidasm_write_output(cli->output, result->bytes);
+  ctool_status_t status = CTOOL_OK;
+  int paths_alias = 0;
+  if (cli->range_map != (const char *)0) {
+    status = cupidasm_caller_owned_paths_alias(
+        cli->output, cli->range_map, &paths_alias);
+    if (status == CTOOL_OK && paths_alias != 0) {
+      status = CTOOL_ERR_INPUT;
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cupidasm_write_output(cli->output, result->bytes);
+  }
   if (status == CTOOL_OK && cli->range_map != (const char *)0) {
     status = cupidasm_write_range_map(cli->range_map, result,
                                       result->raw_origin);
@@ -1704,9 +1860,12 @@ int main(int argc, char **argv) {
   (void)memset(&result, 0, sizeof(result));
   status = ctool_asm_assemble(job, &source, &request, output, &result);
   if (status == CTOOL_OK) {
-    status = publication_kind == CUPIDASM_OUTPUT_PATH_INHERITED_FD
-                 ? cupidasm_publish_inherited(&cli, &result)
-                 : cupidasm_publish(&cli, &result);
+    if (cli.caller_owned_output == CTOOL_TRUE ||
+        publication_kind == CUPIDASM_OUTPUT_PATH_INHERITED_FD) {
+      status = cupidasm_publish_caller_owned(&cli, &result);
+    } else {
+      status = cupidasm_publish(&cli, &result);
+    }
   }
   if (status != CTOOL_OK) {
     if (ctool_job_diagnostic_count(job) != 0u) {

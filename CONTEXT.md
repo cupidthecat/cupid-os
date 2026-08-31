@@ -105,6 +105,16 @@ uses it to address frozen inputs by short private names while retaining their
 pinned absolute paths. The static runtime contract covers the last match, no
 match, and the terminating null byte.
 
+The source-head Windows runner gives `CreateProcessA` an exact
+`PROC_THREAD_ATTRIBUTE_HANDLE_LIST` containing only standard input, standard
+output, and standard error. The two output handles are made inheritable only
+for the launch window and are cleared immediately afterward. An unrelated
+inheritable handle therefore stays in the parent. This is a single-threaded
+launch contract, not a child-process sandbox. The current Windows source
+profile has 33 exact `KERNEL32.dll` imports and three exact `NTDLL.dll`
+imports; the promoted parent keeps its older profile until the paired seed
+refresh.
+
 The promoted fixed-point matrices run typed JPEG and kernel-symbol
 publication through
 both compared CupidBuild generations. They compare the relocatable output and
@@ -550,8 +560,28 @@ rule.
 _Avoid_: pending active-source renames, suffix-only migration, suffix-derived ownership, Cupid-owned host fixtures
 
 **Production Doom cohort**:
-The 83 `.cc` Doom and Cupid platform translation units built by checked-seed CupidC in the normal image. Three sources use the exact `DOOM_COMPAT_I386` profile; the sound adapter and 79 Doom-tree sources use `DOOM_TREE_I386`. The checked wrapper freezes the selected source and all 291 `.h` and `.inc` inputs visible through the profiles' 20 include roots. It recursively scans visible `.c` and `.cc` files beneath `kernel/doom` before and after compilation. An always-checked manifest fixes both source memberships and every header hash without changing its timestamp when the content is unchanged. A legacy `.c` file, an unlisted `.cc` file, a missing root, added or removed headers, byte drift, symbolic links, and NTFS junctions fail before object publication. The active dglibc source is 67,155 bytes and produces a 93,332-byte object with SHA-256 `e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`. The 69,366-byte closed profile manifest has SHA-256 `47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`. The normal Make target passes the checked seed manifest. The wrapper captures one stable profile inventory, derives both the bounded `CUPROF1` snapshot and an independent Python JSON oracle from it, and runs checked CupidObj from the exact frozen seed. It requires byte parity, rechecks the seed, live inputs, candidate, output directory, and existing output under an adjacent no-follow lock, then preserves identical bytes and their timestamp or publishes atomically. CupidObj authors the production bytes; Python retains discovery, native-path checks, freezing, parity, drift detection, locking, and publication. Asset-free runtime checks cover active nonlocal exit, repeated quit and error cleanup, production config helpers with test-only files, native rename and copy boundaries, block-cache failure handling, RamFS limits, FAT collision, read, handle, busy-replacement, and 8.3 behavior, HomeFS ownership, depth, and batched publication, no-WAD recovery, shell survival, and the full stateful four-CPU frontier on e1000 and RTL8139. Gameplay remains a separate IWAD-backed boundary. ADR 0184 records ownership, ADR 0211 the storage bridge, ADR 0214 the shell-session lifecycle, ADR 0242 the CupidObj format boundary, ADR 0243 its seed carriage, and ADR 0244 the normal publisher.
+The 83 `.cc` Doom and Cupid platform translation units built by checked-seed CupidC in the normal image. Three sources use the exact `DOOM_COMPAT_I386` profile; the sound adapter and 79 Doom-tree sources use `DOOM_TREE_I386`. The checked wrapper freezes the selected source and all 304 `.h` and `.inc` inputs visible through the profiles' 20 include roots. It recursively scans visible `.c` and `.cc` files beneath `kernel/doom` before and after compilation. An always-checked manifest fixes both source memberships and every input hash without changing its timestamp when the content is unchanged. A legacy `.c` file, an unlisted `.cc` file, a missing root, added or removed headers, byte drift, symbolic links, and NTFS junctions fail before object publication. The active dglibc source is 67,155 bytes and produces a 93,332-byte object with SHA-256 `e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`. The 72,950-byte closed profile manifest has SHA-256 `eeb25fe8855563247c29bdd08a4fcc880ac023d37df810969251ba63177223f8`. The normal Make target passes the checked seed manifest. The wrapper captures one stable profile inventory, derives both the bounded `CUPROF1` snapshot and an independent Python JSON oracle from it, and runs checked CupidObj from the exact frozen seed. It requires byte parity, rechecks the seed, live inputs, candidate, output directory, and existing output under an adjacent no-follow lock, then preserves identical bytes and their timestamp or publishes atomically. CupidObj authors the production bytes; Python retains discovery, native-path checks, freezing, parity, drift detection, locking, and publication. Asset-free runtime checks cover active nonlocal exit, repeated quit and error cleanup, production config helpers with test-only files, native rename and copy boundaries, block-cache failure handling, RamFS limits, FAT collision, read, handle, busy-replacement, and 8.3 behavior, HomeFS ownership, depth, and batched publication, no-WAD recovery, shell survival, and the full stateful four-CPU frontier on e1000 and RTL8139. Gameplay remains a separate IWAD-backed boundary. ADR 0184 records ownership, ADR 0211 the storage bridge, ADR 0214 the shell-session lifecycle, ADR 0242 the CupidObj format boundary, ADR 0243 its seed carriage, and ADR 0244 the normal publisher.
 _Avoid_: compiler-head Doom frontier, claiming WAD runtime behavior from asset-free tests, host-built Doom cohort
+
+**Source-head Doom profile publisher**:
+The typed `cupidbuild generate-profile-manifest` transaction discovers the exact 83-source Doom cohort and 304 `.h` and `.inc` inputs, freezes them with the complete six-tool seed, builds `CUPROF1` from the frozen input bytes, and runs frozen CupidObj before an independent native JSON renderer. It retains every discovered directory handle or descriptor and records identity, modification time, and change time. Windows obtains the entry file ID, LastWriteTime, and ChangeTime from an exact `FileIdFullDirectoryInformation` query before and after sampling the retained handle. POSIX records nanosecond mtime and ctime. Two complete directory passes run at each closure checkpoint. The last successful pass is the checkpoint; the host filesystem does not provide a durable source-tree transaction beyond it.
+
+For the fixed production output, a profile-only preparation pins the repository and the `build/bootstrap` chain. Windows may create a missing component because parent-relative `NtCreateFile` returns the new directory handle atomically. It rolls back only its own empty, identity-matching directories. POSIX requires both directories to exist before the command starts. It refuses a clean root because `mkdirat` cannot create and return a pinned directory in one operation, and a same-user process could replace the name before a separate `openat` call.
+
+On POSIX flat transactions, frozen inputs, maps, captured streams, and other non-publication artifacts are sealed anonymous memfds reached through `/proc/self/fd/N`. Only the reservation, owner lock, candidate, publication alias, and a parked old output need public names. A DrvFS fallback implements no-replace moves by linking the destination first and unlinking the source. If exchange rename is unavailable, CupidBuild hard-links the old output to a unique parked name, verifies both bindings, and then installs the candidate with a plain atomic rename. The compare-then-unlink steps still have a formal same-user namespace race on POSIX.
+
+Directory or input drift after candidate installation is classified separately from namespace interference. If CupidBuild can restore the old output and recheck the root, output parent, output, lock, and candidate without repeating discovery, it performs ordinary cleanup and leaves no transaction files. If any namespace binding is ambiguous, it closes retained handles without deleting uncertain names. The old output stays readable, and the remaining reservation, lock, candidate, parked output, or cleanup names are recovery evidence for inspection. Byte parity and final membership, input, seed, output, parent, and lock checks otherwise guard publication. Equal bytes retain the existing timestamp. The combined source-head fixed-point definitions cover 31 failure, seven help, and 37 success groups on Linux, plus 19 failure, seven help, and 24 success groups on native Windows. These totals include the checked CupidC runner. The promoted seeds do not yet carry the profile command, so this remains a source capability. Make still invokes the Python publisher. ADR 0377 records the boundary.
+
+Windows now separates frozen inputs from mutable candidates. Frozen inputs
+retain read sharing and reject write or delete opens. Cleanup verifies the
+retained and named snapshots, closes the read-retained handle, reopens the same
+identity with delete access, and verifies it again before disposition. Mutable
+candidates use read, write, and delete sharing. Guarded assembly passes
+`--caller-owned-output`, so CupidASM writes the retained candidate directly
+instead of replacing its identity with a nested publication. A dirty-tree v4
+pair converged with the source-current 31/7/37 Linux and 19/7/24 Windows
+matrices. Clean, commit-pinned reconstruction and seed publication remain.
+_Avoid_: claiming profile publication has moved before paired seed promotion, skipping the independent renderer, suffix-only Doom migration
 
 The fixed asset-free frontier invokes the default Doom search, an explicit
 missing-IWAD path, the shell-return marker, and a fresh CupidC-built `ls`.
@@ -1923,15 +1953,15 @@ The two Windows parent roles must use the same generation. The historical v1
 reader keeps its original parent contract. ADR 0380 records the window used
 by the next paired refresh. All sixteen exact artifacts passed, along with
 whole-image CupidDis inspection and disk-image staging. The current artifacts
-are a 9,630,028-byte `kernel/kernel.elf.pass1` with SHA-256
-`1cb435cd15e426a8a222a1ee6e5ffc041faf3ece8a58593fbecc4151996d9d72`, a
-9,761,100-byte `kernel/kernel.elf` with SHA-256
-`17ef71cde813ad3caeedbfa2a3c3b4331b2db5623f84d21041361782987181cf`,
-and a 9,533,840-byte `kernel/kernel.bin` with SHA-256
-`84d5e615f54a3f896f0aec3ad8a950896319bf1c337d2179f0227cb00b38f7c2`.
-The current 3,382-byte exact-size policy covers 38,391,956 bytes and has
+are a 9,634,124-byte `kernel/kernel.elf.pass1` with SHA-256
+`aaa2dd211550311920bfd5f8cb6abbc87a7065ebe3d7d62b7d38199923f90458`, a
+9,765,196-byte `kernel/kernel.elf` with SHA-256
+`f18e93f4055b18fdded46de9a5834af8ecdf2ef3e80f91206ffeb3cf4804a6fd`,
+and a 9,536,524-byte `kernel/kernel.bin` with SHA-256
+`44f92bb161d55f49b4781ee0a976478f9679f2ab2f2e834c0dca2c03f4d03f0e`.
+The current 3,382-byte exact-size policy covers 38,402,832 bytes and has
 SHA-256
-`561b2914740c51bb0e83d5d06308393e5300ad0050a91c6dcdc987761048e576`.
+`cfbf82ebd02697a668c404c8e9bd19e577b8e809b87c3736e063e4f30f0d5fe2`.
 The normal 209,715,200-byte `cupidos.img` has SHA-256
 `602934d88c77336659a7aa4a50e38ac7ae740fd76114cc2dfa334936b915c713`.
 A preceding 9,501,220-byte checkpoint, which differed only in embedded manual

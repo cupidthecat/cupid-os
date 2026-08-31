@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-08-30
+Verified against source on: 2026-08-31
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -42,10 +42,24 @@ four. Both CupidBuild images assemble the checked startup into equal
 relocatables and preserve prior output on a missing-source failure. Each
 final-stage CupidDis also checks all six corresponding images for known code,
 local targets, and code anchors. Both generations reject a private CupidBuild
-copy whose entry instruction was replaced with an invalid opcode. The fresh
+copy whose entry instruction was replaced with an invalid opcode. The promoted
 candidates pass 28 failure, six help, and 35 success cases on Linux and 17,
-six, and 22 on Windows. Their promoted-seed self-consumption reproof passes
-with all six initial images equal to stage two on both platforms.
+six, and 22 on Windows. Source head adds the checked CupidC runner and typed
+Doom profile publication. Together they expand the definitions to 31 failure,
+seven help, and 37 success cases on Linux and 19, seven, and 24 on Windows.
+The profile publisher's promoted-seed self-consumption proof is the next
+required carriage step. The active promoted-seed reproof passes with all six
+initial images equal to stage two on both platforms.
+Guarded assembly uses CupidASM's caller-owned output mode. CupidASM writes the
+object, raw image, and optional map directly into the candidate retained by
+CupidBuild and does not create its standalone publication files. This keeps
+one identity under CupidBuild's locking, inspection, rollback, and publication
+rules. Standalone CupidASM keeps its recoverable publisher.
+The direct raw image and map must have different file identities. Normalized
+spellings such as name and ./name, along with Windows case aliases, fail before
+either file is truncated even when both paths are absent. Existing hard links
+fail the same check by file identity. The same leaf beneath aliased existing
+parent directories also fails before either output is created.
 Source-head CupidBuild also has a narrow checked runner for CupidObj. Linux
 creates no .cupidbuild-run namespace: it fully seals the manifest and six
 tools in anonymous memfds and pins the working directory by descriptor. The
@@ -59,9 +73,12 @@ static i386 startup provides cupid_linux_syscall5.
 Windows pins and rechecks the working-directory identity, uses a handle-pinned
 private root and files, and retains a tool handle without write or delete
 sharing through CreateProcessA. It forwards captured streams in binary mode.
-This preserves their exact bytes. Cleanup deletes a file that changed in place
-when its identity still matches, but preserves a replacement with a different
-identity.
+This preserves their exact bytes. An extended startup record passes only
+standard input, standard output, and standard error to the child. An unrelated
+inheritable handle stays in the parent. Borrowed stream handles are inheritable
+only during the single-threaded CreateProcessA launch window. Cleanup deletes a
+file that changed in place when its identity still matches, but preserves a
+replacement with a different identity.
 The command does not turn an ordinary object-wrapping call into a guarded
 CupidASM publication. The promoted seeds now run all 186 direct CupidObj
 recipes and both normal kernel links through CupidBuild. Python stays on six
@@ -75,6 +92,21 @@ symbols, checks the JPEG with a separate native parser, and owns locking and
 publication. The fixed-point matrices exercise exact output and
 progressive-input rollback. Both active seed cohorts carry the command. The
 normal JPEG Make edges now invoke it directly.
+
+Source head also implements the typed Doom profile-manifest transaction.
+CupidBuild discovers and freezes the exact active sources, input union, and
+six-tool seed. It builds CUPROF1 from frozen input bytes, runs frozen CupidObj
+first, and compares the candidate with an independent canonical JSON renderer.
+Membership, input, seed, output, parent, and lock checks guard publication,
+and equal bytes keep their timestamp. Windows can create a missing production
+build/bootstrap chain and rolls back only empty directories whose returned
+handles it owns. POSIX requires both directories to exist because mkdirat
+followed by openat cannot safely prove creation ownership. Every discovered
+directory stays pinned, and two complete retained-to-public binding passes run
+at each closure checkpoint. POSIX checks nanosecond mtime and ctime; Windows
+checks exact named file ID, LastWriteTime, and ChangeTime records. The current
+promoted seeds do not carry the command, so Make still uses the Python
+publisher until the paired promotion passes.
 
 The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
 three expected skips. The host-runner Python module completed eight tests in
@@ -191,9 +223,14 @@ their image and map policy. The SMP caller also checks the exact map bytes and
 pins them through CupidDis. The expanded eleven-test suite passed in 1.708
 seconds, including direct mismatch and live-output drift checks for both callers.
 Parent-replacement tests exposed a POSIX candidate leak when private work lived
-below the output parent. Private roots now live directly below the stable
-repository root. Both caller modules pass all 10 tests on Windows and through
-WSL, including parent replacement with no leaked candidate.
+below the output parent. Windows keeps a handle-pinned private directory below
+the stable repository root. POSIX now reserves one exclusive file there and
+keeps maps, captured streams, and frozen inputs in sealed anonymous memfds. The
+candidate and publication alias remain named for installation on the target
+filesystem, while checked tools receive direct /proc/self/fd/N paths. DrvFS
+no-replace fallback links the destination before unlinking the source. Both
+caller modules pass all 10 tests on Windows and through WSL, including parent
+replacement with no leaked candidate.
 
 The ISR and context-switch objects use the same checked assembly transaction.
 CupidASM writes each ELF32 relocatable to a private candidate. CupidBuild

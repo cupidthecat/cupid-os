@@ -29,6 +29,25 @@ cohort, runs the broad and linked CupidDis checks, requires CupidObj to match
 an independent ELF renderer, and publishes transactionally. Make remains on
 Hostbuild until the separate production handoff. ADR 0374 records carriage.
 
+Source-head CupidBuild also implements the complete Doom profile-manifest
+transaction, though the promoted seeds and Make edge have not moved yet. Its
+source-tree closure retains each discovered directory and validates every
+retained and public binding twice at the publication checkpoints. Windows
+uses file ID, LastWriteTime, and ChangeTime from exact named directory records.
+POSIX uses device and inode identity with nanosecond mtime and ctime. The last
+successful pass is the closure checkpoint; it is not a durable filesystem
+snapshot.
+
+The fixed parent policy differs by host. Windows can create and pin missing
+`build` and `build/bootstrap` components in one `NtCreateFile` operation per
+directory. POSIX requires both components to exist. Flat POSIX transactions
+use sealed anonymous memfds for frozen inputs, maps, and captured streams, with
+direct `/proc/self/fd/N` tool paths. Only publication state remains named. If
+source drift occurs after installation, a verified rollback performs ordinary
+cleanup. Ambiguous root, parent, output, lock, or candidate state preserves the
+readable old output and leaves private names for recovery. ADR 0377 records
+this source boundary.
+
 The active fixed-point closure contains 59 inputs with snapshot SHA-256
 `0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
 CupidBuild accepts a promoted v2 manifest whose `source_input_count` is 58 or
@@ -39,7 +58,7 @@ active. Fresh candidates converged and replaced the checked pair together.
 The independent Cupid-built artifact verifier follows the same narrow
 transition: it accepts either complete adjacent parent pair and rejects a
 digest paired with the other generation's revision. The promoted normal build
-passes all 16 exact artifact rows with a 9,533,840-byte flat kernel, and its
+passes all 16 exact artifact rows with a 9,536,524-byte flat kernel, and its
 private four-vCPU E1000 smoke reaches `/bin/ls.cc` JIT completion under the
 strong SMP runtime check.
 ADR 0366 records the compatibility boundary, ADR 0367 and ADR 0370 record

@@ -2579,11 +2579,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 216)
-            self.assertEqual(contract["elif_occurrences"], 11)
-            self.assertEqual(contract["expression_occurrences"], 227)
-            self.assertEqual(contract["unique_expressions"], 41)
-            self.assertEqual(contract["directive_expression_pairs"], 43)
+            self.assertEqual(contract["if_occurrences"], 398)
+            self.assertEqual(contract["elif_occurrences"], 12)
+            self.assertEqual(contract["expression_occurrences"], 410)
+            self.assertEqual(contract["unique_expressions"], 55)
+            self.assertEqual(contract["directive_expression_pairs"], 57)
             self.assertTrue(
                 all(
                     not item["path"].casefold().startswith("templeos/")
@@ -2613,10 +2613,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     for expression, values in manifest.items()
                 },
                 {
+                    "! defined ( CUPIDBUILD_HOST_FILE_LIMIT )": 1,
                     "! defined ( CUPIDBUILD_HOST_STREAM_LIMIT )": 1,
                     "! defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 1,
                     "! defined ( CUPID_HOSTED_I386_WINDOWS_H )": 1,
                     "! defined ( CUPID_RUNTIME_WINDOWS )": 1,
+                    "! defined ( FILE_ATTRIBUTE_DEVICE )": 1,
+                    "! defined ( FILE_LIST_DIRECTORY )": 1,
                     "! defined ( _GNU_SOURCE )": 1,
                     "! defined ( _POSIX_C_SOURCE )": 1,
                     "! defined ( _WIN32 )": 1,
@@ -2643,6 +2646,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "_WIN64": 0,
                     "defined ( _MSC_VER ) && ! defined ( __cplusplus )": 0,
                     "defined ( _WIN32 )": 0,
+                    "defined ( _WIN32 ) && ( defined ( "
+                    "CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST ) || defined ( "
+                    "CUPIDBUILD_PUBLICATION_RACE_TEST ) || defined ( "
+                    "CUPIDBUILD_HOST_WINDOWS_TERMINATION_TEST ) ) && "
+                    "! defined ( _CRT_SECURE_NO_WARNINGS )": 0,
                     "defined ( _WIN32 ) && ! defined ( CUPID_HOSTED_I386_WINDOWS_H )": 0,
                     "defined ( _WIN32 ) && ! defined ( _WIN32_WCE )": 0,
                     "defined ( _WIN32 ) || defined ( __DJGPP__ )": 0,
@@ -2652,6 +2660,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "defined ( CUPIDBUILD_HOST_NATIVE_EINTR_TEST )": 0,
                     "defined ( CUPID_RUNTIME_WINDOWS )": 0,
                     "defined ( CUPIDBUILD_CUSTOM_LINUX )": 0,
+                    "defined ( CUPIDBUILD_HOST_CLOSE_FAILURE_TEST )": 0,
+                    "defined ( CUPIDBUILD_HOST_CLOSE_FAILURE_TEST ) && "
+                    "! defined ( _WIN32 )": 0,
+                    "defined ( CUPIDBUILD_HOST_LOW_FD_FAILURE_TEST )": 0,
+                    "defined ( CUPIDBUILD_HOST_WINDOWS_TERMINATION_TEST )": 0,
+                    "defined ( CUPIDBUILD_NOREPLACE_RACE_TEST )": 0,
+                    "defined ( CUPIDBUILD_NOREPLACE_RACE_TEST ) && "
+                    "! defined ( CUPIDBUILD_CUSTOM_LINUX )": 0,
+                    "defined ( CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST ) && "
+                    "! defined ( CUPIDBUILD_CUSTOM_LINUX )": 0,
+                    "defined ( CUPIDBUILD_PROFILE_PARENT_RACE_TEST )": 0,
+                    "defined ( CUPIDBUILD_PUBLICATION_RACE_TEST )": 0,
+                    "defined ( CUPIDBUILD_PUBLICATION_RACE_TEST ) && "
+                    "! defined ( CUPIDBUILD_CUSTOM_LINUX )": 0,
                     "defined ( CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL )": 0,
                     "defined ( __DJGPP__ )": 0,
                     "defined ( __MACOSX__ )": 0,
@@ -6172,15 +6194,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 7)
-        self.assertEqual(contract["success_behavior_cases"], 36)
-        self.assertEqual(contract["failure_behavior_cases"], 29)
+        self.assertEqual(contract["success_behavior_cases"], 37)
+        self.assertEqual(contract["failure_behavior_cases"], 31)
         self.assertEqual(contract["tool_c_sources"], 22)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 22)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 7)
-        self.assertEqual(contract["windows_success_behavior_cases"], 23)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 18)
+        self.assertEqual(contract["windows_success_behavior_cases"], 24)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 19)
         self.assertEqual(contract["contract_manifest_inputs"], 76)
         self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 76)
         self.assertIn(
@@ -6206,6 +6228,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "cupid.cupidbuild_guarded_raw_transaction",
                 "cupid.cupidbuild_typed_jpeg_transaction",
                 "cupid.cupidbuild_typed_ksyms_transaction",
+                "cupid.cupidbuild_typed_profile_transaction",
                 "cupiddis.candidate_image_certification",
                 "cupiddis.elf32_code_anchors",
                 "cupidld.pe32_fixed_image",
@@ -6667,20 +6690,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 37,\n',
                 '        "success_cases": 36,\n',
-                '        "success_cases": 35,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
-                '        "failure_cases": 29,\n',
-                '        "failure_cases": 28,\n',
+                '        "failure_cases": 31,\n',
+                '        "failure_cases": 30,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": len(tool_names) + 13,\n',
                 '        "failure_cases": len(tool_names) + 12,\n',
-                '        "failure_cases": len(tool_names) + 11,\n',
                 r"native Windows fixed-point behavior differs",
             ),
             "Linux fixed-point C objects skip CupidDis certification": (
@@ -6995,6 +7018,61 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "        )\n",
                 "        pass\n",
                 r"fixed-point JPEG publication behavior differs",
+            ),
+            "typed profile command loses its production entry point": (
+                "bootstrap",
+                '        "generate-profile-manifest",\n',
+                '        "profile-manifest",\n',
+                r"typed profile publication behavior differs",
+            ),
+            "typed profile fixed point stops exercising the clean parent": (
+                "bootstrap",
+                '    output_logical = Path('
+                '"build/bootstrap/doom-cupidc-inputs.json")\n',
+                '    output_logical = Path("doom-cupidc-inputs.json")\n',
+                r"typed profile publication behavior differs",
+            ),
+            "typed profile fixed point stops checking parent rollback": (
+                "bootstrap",
+                '        or (stage_two_failure_root / "build").exists()\n',
+                "        or False\n",
+                r"typed profile publication behavior differs",
+            ),
+            "typed profile behavior reads the private compiler closure": (
+                "bootstrap",
+                "    _check_cupidbuild_generate_profile_behavior(\n"
+                "        runner,\n"
+                "        profile_source_root,\n"
+                "        behavior_root,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                "        seed_inputs,\n"
+                '        "",\n'
+                "        False,\n"
+                "    )\n",
+                "    _check_cupidbuild_generate_profile_behavior(\n"
+                "        runner,\n"
+                "        source_root,\n"
+                "        behavior_root,\n"
+                "        stage_two,\n"
+                "        stage_three,\n"
+                "        seed_inputs,\n"
+                '        "",\n'
+                "        False,\n"
+                "    )\n",
+                r"typed profile publication differs",
+            ),
+            "typed profile Linux claims unsafe clean-parent creation": (
+                "bootstrap",
+                '        "",\n'
+                "        False,\n"
+                "    )\n\n"
+                "    _check_cupidbuild_guarded_object_behavior(\n",
+                '        "",\n'
+                "        True,\n"
+                "    )\n\n"
+                "    _check_cupidbuild_guarded_object_behavior(\n",
+                r"typed profile publication differs",
             ),
             "linked-target behavior helper disappears": (
                 "bootstrap",
@@ -8167,6 +8245,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            native_plan,\n"
                 "            seed_inputs,\n"
                 "            plan_inputs,\n"
+                "            source_root,\n"
                 "        )\n",
                 "        behavior = _run_native_windows_behavior_checks(\n"
                 "            runner,\n"
@@ -8176,6 +8255,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            native_plan,\n"
                 "            seed_inputs,\n"
                 "            plan_inputs,\n"
+                "            source_root,\n"
                 "        )\n",
                 r"fixed-point source freeze differs",
             ),
@@ -9264,7 +9344,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6672, 179),
+                "c.expression.sizeof": (6742, 179),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }

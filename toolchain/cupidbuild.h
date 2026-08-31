@@ -25,6 +25,12 @@ typedef struct {
 
 typedef struct {
   const char *seed_manifest;
+  const char *repository_root;
+  const char *output;
+} cupidbuild_profile_request_t;
+
+typedef struct {
+  const char *seed_manifest;
   const char *working_directory;
   const char *tool;
   const char *const *arguments;
@@ -39,6 +45,8 @@ int cupidbuild_assemble_smp_trampoline(
 int cupidbuild_embed_jpeg(const cupidbuild_jpeg_request_t *request);
 int cupidbuild_generate_ksyms(const cupidbuild_ksyms_request_t *request);
 int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request);
+int cupidbuild_generate_profile_manifest(
+    const cupidbuild_profile_request_t *request);
 int cupidbuild_validate_jpeg_bytes(const unsigned char *bytes, size_t size,
                                    char *reason, size_t reason_capacity);
 int cupidbuild_validate_jpeg_object_bytes(

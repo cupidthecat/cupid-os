@@ -2,6 +2,43 @@
 
 `TempleOS/` is excluded: it is reference material, not a source cohort. Statuses describe ownership, not how much code exists.
 
+Source-head CupidBuild can now publish the closed Doom profile manifest through
+`generate-profile-manifest`. The transaction discovers and freezes the exact
+83-source cohort and 304 `.h`/`.inc` inputs with the complete seed. It builds
+`CUPROF1` from frozen bytes, runs frozen CupidObj first, and requires parity with an
+independent native JSON renderer. It rechecks membership and every publication
+boundary before an atomic replacement, while equal bytes retain the existing
+timestamp. On Windows, the fixed production parent can begin absent:
+CupidBuild creates `build` and `build/bootstrap` beneath a pinned root and
+removes only its own empty, identity-matching directories after failure. POSIX
+requires both parents to exist. CupidBuild refuses a missing component because
+`mkdirat` followed by `openat` cannot establish creation ownership safely.
+
+Every discovered directory stays pinned. Two full validation passes compare
+the retained and named bindings at each closure checkpoint. POSIX records
+nanosecond mtime and ctime; Windows compares file ID, LastWriteTime, and
+ChangeTime from exact `FileIdFullDirectoryInformation` records. Flat POSIX
+transactions use sealed anonymous memfds for frozen inputs, maps, and captured
+streams, with direct `/proc/self/fd/N` paths. DrvFS no-replace fallback uses a
+hard link followed by unlink, and old-output fallback parks a verified hard
+link before replacement. The remaining POSIX compare-then-unlink race is a
+known limitation. A verified source-drift rollback cleans normally; ambiguous
+namespace bindings preserve residue for recovery.
+
+Windows keeps frozen inputs read-shared and blocks write or delete opens until
+cleanup reopens the same fully verified identity. Guarded assembly uses
+CupidASM's caller-owned output mode, which preserves CupidBuild's retained
+candidate instead of nesting a second publisher. A dirty-tree v4 pair passed
+both source-current behavior matrices. Clean, commit-pinned reconstruction
+still precedes seed publication.
+
+Together with the checked CupidC runner, Linux defines 31/7/37 source-head
+behavior groups and native Windows defines 19/7/24. The promoted seeds do not
+carry this command, so Make still uses the Python publisher. Ownership counts
+remain at 195 CupidBuild and 257 Python participations. ADR 0377 records this
+source capability; paired seed promotion and the production handoff remain
+open. ADR 0381 records the handle and publication contracts.
+
 Kernel flattening is production-owned by the promoted CupidBuild seed.
 Promoted
 `cupidbuild flatten-kernel` freezes the exact manifest cohort, performs the
@@ -29,9 +66,12 @@ and the static i386 startup provides `cupid_linux_syscall5`.
 Windows pins and rechecks the working-directory identity, retains a tool
 handle without write or delete sharing through `CreateProcessA`, and forwards
 captured streams in binary mode to preserve exact bytes. Its private root and
-files are handle-pinned. Cleanup removes a mutated file when its identity still
-belongs to the runner and preserves a replacement identity. Both hosts recheck
-the live cohort before they expose the result.
+files are handle-pinned. `STARTUPINFOEXA` carries an exact inherited-handle
+list containing standard input, standard output, and standard error. Borrowed
+streams are inheritable only around the single-threaded launch window. Cleanup
+removes a mutated file when its identity still belongs to the runner and
+preserves a replacement identity. Both hosts recheck the live cohort before
+they expose the result.
 
 The promoted runner admits only CupidObj and CupidLD. Source head admits
 exactly CupidC, CupidObj, and CupidLD. A real fixed-address ELF linked through
@@ -102,8 +142,8 @@ and the timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,533,840 bytes for `kernel/kernel.bin`, 9,761,100 bytes
-for `kernel/kernel.elf`, and 9,630,028 bytes for
+The current sizes are 9,536,524 bytes for `kernel/kernel.bin`, 9,765,196 bytes
+for `kernel/kernel.elf`, and 9,634,124 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging also passed. A preceding 9,501,220-byte checkpoint, which differed
 only in embedded manual text, completed the strong four-vCPU E1000 runtime
@@ -332,10 +372,13 @@ It owns locking, freezing, drift checks, private candidates, and atomic
 publication, while callers keep their image and map policies. Its central
 eleven-test suite passed in 1.708 seconds. It includes direct mismatch and
 live-output drift checks for both callers. Parent-replacement tests exposed a
-POSIX candidate leak when private work lived below the output parent. Private
-roots now live directly below the stable repository root. Both caller modules
-pass all 10 tests on Windows and all 10 through WSL, including parent
-replacement with no leaked candidate. The normal boot edge now enters the
+POSIX candidate leak when private work lived below the output parent. Windows
+keeps a handle-pinned private directory below the stable repository root.
+POSIX reserves one exclusive file there. Maps, captured streams, and frozen
+inputs are sealed anonymous memfds; the candidate and publication alias stay
+named for installation on the target filesystem. Tools receive direct
+`/proc/self/fd/N` paths. Both caller modules pass all 10 tests on Windows and
+all 10 through WSL, including parent replacement with no leaked candidate. The normal boot edge now enters the
 guarded publisher through hostbuild with the production manifest and full
 checked-seed closure. The promoted Windows execution seed carries both map
 options. The guest
@@ -1602,7 +1645,7 @@ the six-tool cohort that ADR 0353 later promoted into the paired checked seeds.
 | In-OS CupidDis request API and source-head PE32 inspector | Shared CupidDis through the checked kernel adapter and hosted driver | CupidDis owns one typed inspection interface across the host and kernel | `dis_raw_request_t` exposes fixed 16-bit, fixed 32-bit, and borrowed typed-map requests. Strict-known mode returns before rendering unknown, invalid, or truncated code, while the legacy JIT wrapper remains permissive fixed-32. The production seeds carry source-resolved raw edges, relocatable function anchors, and linked-image checks. The active v2 seeds also inspect CupidLD's bounded static i386 PE32 profile. |
 | `toolchain/cupidasm.*`, `kernel/lang/as.cc`, and `kernel/lang/as_elf.*` | Checked-seed CupidC builds the shared frontend, the `as_elf.cc` kernel bridge, and the `as.cc` kernel adapter; GCC/Clang builds the hosted driver | CupidC builds the same shared frontend and adapters | Assembly semantics live only in `toolchain/cupidasm.*`; the legacy kernel lexer/parser was deleted. Checked source and seeds let a sectionless `equ` preamble precede the raw source's section claim. They reject a duplicate raw `ORG` or a switch to another raw source section with stable diagnostics before output. ELF output accepts NASM-compatible `global name:function` and `extern name:function`, writes `STT_FUNC`, and leaves untyped declarations as `STT_NOTYPE`. Fixed-point startup sources and active ISR/context-switch entries use that form. Raw output writes v2 source-resolved control edges. `as.cc` owns the 631 runtime definitions, fixed placement, and VFS/JIT policy. `as_elf` remains a checked buffer-only temporary `ET_EXEC` bridge. CupidC emits the complete static hosted command closure, CupidASM supplies startup, and CupidLD links it. Linux and WSL runs match native raw and ELF32 output plus invalid-source behavior. The normal hosted executable is built by staged CupidC and CupidLD; the host build remains an optional native oracle. ADR 0292 records the corrected raw section claim, ADR 0335 records function typing, ADR 0340 records raw source edges, and ADR 0336 records their combined seed carriage. |
 | `toolchain/cupiddis.*`, its host driver, and `kernel/lang/dis.cc` adapter | Checked-seed CupidC builds the shared implementation and kernel adapter; GCC/Clang builds the native CLI | CupidC builds host and in-OS CupidDis variants | Inspection semantics have migrated to one host-runnable freestanding module; raw/static-`ET_REL`/static-`ET_EXEC` and `nm` views are checked. Raw requests accept one mode or ordered code16, code32, and data ranges. The CLI exposes `--range-at OFFSET:16|32|data` and retains `--mode-at OFFSET:16|32` for code-only maps. The normal boot and SMP recipes require v2 source-resolved control edges before publication. Every executable `ET_REL` relocation must own a compatible decoded four-byte field. Unrelocated direct targets must land on instruction starts in their own executable section, while relocated operand fields remain outside that count. Each defined `STT_FUNC` must also begin at a decoded instruction in executable `PROGBITS`. The checked production seeds carry all three policies. Guarded ISR and context-switch publication selects them before replacing an object, and fixed-point startup assembly selects them before linking a tool. Checked CupidDis also checks linked i386 ELF32 targets across nonoverlapping file-backed executable load regions. A `PT_DYNAMIC` or `PT_INTERP` header rejects the image as outside the static certification domain. The normal kernel transaction applies that form to the frozen pass-one and final ELFs before CupidObj flattening. The `nm` view owns the normal build's kernel-symbol extraction transform; GNU/LLVM `nm` is oracle-only. CupidC emits the complete static hosted inspector closure. Windows production runs the checked native inspector directly, while Linux-contract work may still use WSL. Dynamic ELF, DWARF v4, and typed code/data boundaries inside executable sections remain. ADR 0335 records relocatable anchors, ADR 0340 records source-resolved edges, and ADR 0336 records carriage and production adoption. |
-| 83 Doom port and vendored C files | Checked-seed CupidC through the exact `doom-compat` and `doom-tree` production profiles | Native normal-build CupidC with no Linux-seed execution bridge | Production-owned by CupidC. All 83 roots use `.cc`. The wrapper fixes exact three-source and 80-source allowlists, freezes the selected source and complete 291-file header space, rejects links and NTFS junctions, validates i386 `ET_REL`, rechecks the full source census and live bytes, and publishes atomically. The 69,366-byte input manifest fixes both source sets and every header hash without changing its timestamp on an unchanged scan; its SHA-256 is `47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`. The normal publisher derives a bounded `CUPROF1` snapshot and independent Python oracle from one stable capture, runs CupidObj from the exact frozen seed, requires byte parity, and rechecks the seed, live inputs, candidate, output directory, and existing output under an adjacent no-follow lock. CupidObj authors the production bytes while Python retains the host transaction. The `g_game.cc` object keeps its two static subobject relocations with addend 4 and measures 52,004 bytes. Repeated compatibility compiles produce 93,332-byte, 17,084-byte, and 10,352-byte objects. Active dglibc uses corrected returns-twice setjmp. Config and save replacement use HomeFS through native VFS rename, and the guest diagnostic batches its temporary mutations behind one checked container publish. Cache failure isolation, FAT durable publication and live-entry rules, HomeFS ownership, and corrupt-container rejection now sit in the same active path. The normal root has no host C transform. Earlier gates returned from two missing-IWAD launches. The fixed frontier now passes normal discovery, an explicit missing path, the shell-return marker, and a fresh CupidC-built `ls` on both NICs. Separate stateful frontier boots also pass after swap keeps a FAT handle open. Full IWAD gameplay, input, audio, menu-driven save/load, and persistence across reboot remain. ADRs 0184, 0211, 0214, 0242, 0243, and 0244 record the transfer, active corrections, format boundary, seed carriage, and normal publisher. |
+| 83 Doom port and vendored C files | Checked-seed CupidC through the exact `doom-compat` and `doom-tree` production profiles | Native normal-build CupidC with no Linux-seed execution bridge | Production-owned by CupidC. All 83 roots use `.cc`. The wrapper fixes exact three-source and 80-source allowlists, freezes the selected source and all 304 `.h` and `.inc` inputs, rejects links and NTFS junctions, validates i386 `ET_REL`, rechecks the full source census and live bytes, and publishes atomically. The 72,950-byte input manifest fixes both source sets and every input hash without changing its timestamp on an unchanged scan; its SHA-256 is `eeb25fe8855563247c29bdd08a4fcc880ac023d37df810969251ba63177223f8`. The normal publisher derives a bounded `CUPROF1` snapshot and independent Python oracle from one stable capture, runs CupidObj from the exact frozen seed, requires byte parity, and rechecks the seed, live inputs, candidate, output directory, and existing output under an adjacent no-follow lock. CupidObj authors the production bytes while Python retains the host transaction. The `g_game.cc` object keeps its two static subobject relocations with addend 4 and measures 52,004 bytes. Repeated compatibility compiles produce 93,332-byte, 17,084-byte, and 10,352-byte objects. Active dglibc uses corrected returns-twice setjmp. Config and save replacement use HomeFS through native VFS rename, and the guest diagnostic batches its temporary mutations behind one checked container publish. Cache failure isolation, FAT durable publication and live-entry rules, HomeFS ownership, and corrupt-container rejection now sit in the same active path. The normal root has no host C transform. Earlier gates returned from two missing-IWAD launches. The fixed frontier now passes normal discovery, an explicit missing path, the shell-return marker, and a fresh CupidC-built `ls` on both NICs. Separate stateful frontier boots also pass after swap keeps a FAT handle open. Full IWAD gameplay, input, audio, menu-driven save/load, and persistence across reboot remain. ADRs 0184, 0211, 0214, 0242, 0243, and 0244 record the transfer, active corrections, format boundary, seed carriage, and normal publisher. |
 | 108 `bin/*.cc` roots and 22 browser `.cc` fragments | CupidObj embeds source; in-OS CupidC compiles on demand | CupidObj embeds source; CupidC remains the language owner and can also be host-run | Production embedding has transferred to CupidObj; 107 top-level programs are runnable and the dedicated feature-13 source is compiled through `ccc` for the external AOT gate. Host-runnable/source self-hosting remains. |
 | Three `user/examples/*.cc` programs plus `user/cupid.h` | Cupid-built syscall ABI gate, CupidC to `ET_REL`, then CupidLD fixed-text link; Linux uses the bootstrap seed directly; Windows builds the ABI contract and program outputs with the checked native execution seed; root staging remains deliberate | CupidC/CupidLD build and a deliberate image-staging path | Compilation, link, and ABI-rule ownership have transferred. The precompile operation runs a CupidC contract that snapshots and rereads six declarations while pinning version 5, 103 table fields, 101 providers, exported scalar types and constants, and both VFS record layouts. Linux runs the published ELF contract. Windows freezes a separate 26-file build closure, then checked CupidC, CupidASM, and CupidLD build a private PE that runs directly. Python compares either contract report with an independent oracle. The Windows operation validates every object and the PE, rechecks source and seed drift, and never touches the Linux contract publication. Closed wrappers freeze the sources, header, complete selected tool cohort, and build controls, validate relocatable objects and loader-compatible executables, and publish atomically. The 23-input default frontier repeats all six program artifacts. The optional 46-input native Windows frontier also requires every result to match the checked bootstrap seed. Poisoned-path tests reject conventional host code generators on the normal path. Separate private-image guest boots execute hello, ls, and cat from the staged image. ADR 0264 records the ABI transfer, ADR 0272 records native execution-seed adoption, and ADR 0295 records the native ABI gate. |
 | Generated C tables (installation tables, CSS tables, and kernel symbol data) | Checked-seed CupidObj generates the three `.cc` installation tables and `kernel/cpu/ksyms_data.cc`; checked-seed CupidC compiles all four; Python generates only the remaining host-owned tables | CupidObj generates production installation and kernel-symbol tables; CupidC compiles them; Python may orchestrate | Installation-table and kernel-symbol generation are production-owned by Cupid tooling. The three inventory recipes use `$(CUPIDOBJ) install-source`; promoted CupidBuild coordinates the two-pass kernel transaction directly, captures checked CupidDis text, and runs CupidObj `ksyms-source` under guarded publication. `tools/hostbuild.py` remains an optional byte-parity oracle, but it does not construct any of these four production sources. The checked seed and installation oracle reject complete wrapped-symbol collisions while preserving one exact docs and home BMP alias. The current generator packs 130,506 logical bytes into little-endian `unsigned int` words and adds two zero bytes to finish the last word. Its checked wrapper freezes the generated source and header closure, validates the i386 relocatable object, and publishes atomically. CSS tables and other generated C remain separately tracked. ADRs 0116 and 0123 record the earlier compiler transfers; ADRs 0201, 0203, and 0204 record installation-source capability, first seed carriage, and production ownership. ADRs 0205 and 0206 record the checked request corrections, and ADRs 0222 through 0224 record the kernel-symbol capability, seed carriage, and first transfer; ADR 0371 records the direct CupidBuild transaction. |

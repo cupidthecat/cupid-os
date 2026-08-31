@@ -235,6 +235,65 @@ static int contract_private_root_count(const char *directory) {
   return count;
 }
 
+#if !defined(_WIN32)
+static int contract_name_has_suffix(const char *name, const char *suffix) {
+  size_t name_size = strlen(name);
+  size_t suffix_size = strlen(suffix);
+  return name_size >= suffix_size &&
+         strcmp(name + name_size - suffix_size, suffix) == 0;
+}
+
+static int contract_unlink_profile_entries(const char *directory,
+                                           const char *suffix,
+                                           int stop_after_one) {
+  static const char prefix[] = ".cupidbuild-object-";
+  DIR *stream = opendir(directory);
+  struct dirent *entry;
+  int removed = 0;
+  int valid = stream != (DIR *)0;
+  if (!valid) {
+    return 0;
+  }
+  while ((entry = readdir(stream)) != (struct dirent *)0) {
+    char path[CONTRACT_PATH_BYTES];
+    if (strncmp(entry->d_name, prefix, sizeof(prefix) - 1u) != 0 ||
+        (suffix != (const char *)0 &&
+         !contract_name_has_suffix(entry->d_name, suffix))) {
+      continue;
+    }
+    if (!contract_join(path, sizeof(path), directory, entry->d_name) ||
+        unlink(path) != 0) {
+      valid = 0;
+      break;
+    }
+    removed++;
+    if (stop_after_one != 0) {
+      break;
+    }
+  }
+  if (closedir(stream) != 0) {
+    valid = 0;
+  }
+  return valid != 0 ? removed : -1;
+}
+
+static int contract_open_descriptor_count(void) {
+  DIR *stream = opendir("/proc/self/fd");
+  struct dirent *entry;
+  int count = 0;
+  if (stream == (DIR *)0) {
+    return -1;
+  }
+  while ((entry = readdir(stream)) != (struct dirent *)0) {
+    if (strcmp(entry->d_name, ".") != 0 &&
+        strcmp(entry->d_name, "..") != 0) {
+      count++;
+    }
+  }
+  return closedir(stream) == 0 ? count : -1;
+}
+#endif
+
 static void contract_capture_error(
     const cupidbuild_host_transaction_t *transaction, char *error,
     size_t capacity) {
@@ -337,6 +396,40 @@ static int contract_test_capture_without_forwarding(const char *root,
   }
   return success;
 }
+
+#if defined(CUPIDBUILD_HOST_CLOSE_FAILURE_TEST) && !defined(_WIN32)
+static int contract_test_native_posix_close_failure(const char *root,
+                                                    const char *self) {
+  static const char *const arguments[] = {
+      "--child-exit", "0", (const char *)0};
+  unsigned int close_index;
+  for (close_index = 1u; close_index <= 3u; close_index++) {
+    cupidbuild_host_transaction_t *transaction =
+        (cupidbuild_host_transaction_t *)0;
+    const char *frozen_self = (const char *)0;
+    int result;
+    int closed;
+    if (!contract_open_self_runner(root, self, &transaction, &frozen_self)) {
+      return 0;
+    }
+    result = cupidbuild_host_run_captured(
+        transaction, frozen_self, arguments, 30000u);
+    cupidbuild_host_close_failure_test_arm(close_index);
+    closed = cupidbuild_host_transaction_close(transaction);
+    if (result != 0 || closed != 0) {
+      (void)fprintf(stderr,
+                    "injected close failure %u: run=%d close=%d\n",
+                    close_index, result, closed);
+      return 0;
+    }
+    if (!contract_expect_no_private_roots(
+            root, "native POSIX close failure")) {
+      return 0;
+    }
+  }
+  return 1;
+}
+#endif
 
 static int contract_test_exact_exits(const char *root, const char *self) {
   static const char *const arguments_124[] = {
@@ -818,6 +911,273 @@ static int contract_test_working_directory(const char *base,
   return success;
 }
 
+#if defined(CUPIDBUILD_HOST_WINDOWS_TERMINATION_TEST) && defined(_WIN32)
+static int contract_test_windows_termination_failure(const char *root,
+                                                     const char *self) {
+  static const char *const arguments[] = {
+      "--child-linger", (const char *)0};
+  cupidbuild_host_transaction_t *transaction =
+      (cupidbuild_host_transaction_t *)0;
+  const char *frozen_self = (const char *)0;
+  char error[CONTRACT_ERROR_BYTES];
+  ULONGLONG started;
+  ULONGLONG elapsed;
+  int result;
+  int closed;
+  int success = 1;
+  error[0] = '\0';
+  if (!contract_open_self_runner(root, self, &transaction, &frozen_self) ||
+      _putenv_s("CUPIDBUILD_WINDOWS_TEST_FORCE_TERMINATION_FAILURE", "1") !=
+          0) {
+    (void)cupidbuild_host_transaction_close(transaction);
+    return 0;
+  }
+  started = GetTickCount64();
+  result = cupidbuild_host_run_captured(
+      transaction, frozen_self, arguments, 1u);
+  elapsed = GetTickCount64() - started;
+  (void)_putenv_s("CUPIDBUILD_WINDOWS_TEST_FORCE_TERMINATION_FAILURE", "");
+  Sleep(3000u);
+  contract_capture_error(transaction, error, sizeof(error));
+  closed = cupidbuild_host_transaction_close(transaction);
+  if (result != -1 || error[0] == '\0' || closed == 0 || elapsed > 2000u) {
+    (void)fprintf(stderr,
+                  "Windows termination failure: status=%d close=%d "
+                  "elapsed=%llu error=%s\n",
+                  result, closed, (unsigned long long)elapsed, error);
+    success = 0;
+  }
+  if (!contract_expect_no_private_roots(
+          root, "Windows termination failure")) {
+    success = 0;
+  }
+  return success;
+}
+#endif
+
+#if !defined(_WIN32)
+static int contract_test_private_map_close_after_ownership_loss(
+    const char *root) {
+  char source[CONTRACT_PATH_BYTES];
+  cupidbuild_host_transaction_t *transaction =
+      (cupidbuild_host_transaction_t *)0;
+  int before;
+  int after;
+  int closed;
+  int reservation_removed;
+  int residue_removed;
+  if (!contract_join(source, sizeof(source), root, "map-source.txt") ||
+      !contract_write_file(source, "map source\n", 11u)) {
+    return 0;
+  }
+  before = contract_open_descriptor_count();
+  if (before < 0 ||
+      !cupidbuild_host_transaction_open(
+          root, "map-source.txt", "map-output.bin", &transaction)) {
+    (void)cupidbuild_host_transaction_close(transaction);
+    (void)contract_remove_file(source);
+    return 0;
+  }
+  reservation_removed =
+      contract_unlink_profile_entries(root, ".reserve", 1);
+  closed = cupidbuild_host_transaction_close(transaction);
+  after = contract_open_descriptor_count();
+  residue_removed = contract_unlink_profile_entries(
+      root, (const char *)0, 0);
+  if (!contract_remove_file(source)) {
+    return 0;
+  }
+  return reservation_removed == 1 && closed == 0 && after == before &&
+         residue_removed >= 0;
+}
+
+#if defined(CUPIDBUILD_HOST_LOW_FD_FAILURE_TEST)
+static int contract_test_low_descriptor_promotion_failure(
+    const char *root) {
+  char source[CONTRACT_PATH_BYTES];
+  char extra[CONTRACT_PATH_BYTES];
+  cupidbuild_host_transaction_t *transaction =
+      (cupidbuild_host_transaction_t *)0;
+  const char *frozen = (const char *)0;
+  int before;
+  int after;
+  int freeze_result;
+  int closed;
+  int success;
+  if (!contract_join(source, sizeof(source), root, "low-fd-source.txt") ||
+      !contract_join(extra, sizeof(extra), root, "low-fd-extra.txt") ||
+      !contract_write_file(source, "source\n", 7u) ||
+      !contract_write_file(extra, "extra\n", 6u) ||
+      !cupidbuild_host_transaction_open(
+          root, "low-fd-source.txt", "low-fd-output.bin", &transaction) ||
+      close(STDIN_FILENO) != 0) {
+    (void)cupidbuild_host_transaction_close(transaction);
+    (void)contract_remove_file(source);
+    (void)contract_remove_file(extra);
+    return 0;
+  }
+  before = contract_open_descriptor_count();
+  if (before < 0 ||
+      setenv("CUPIDBUILD_LOW_FD_TEST_FAIL_PROMOTION", "1", 1) != 0) {
+    (void)cupidbuild_host_transaction_close(transaction);
+    (void)contract_remove_file(source);
+    (void)contract_remove_file(extra);
+    return 0;
+  }
+  freeze_result = cupidbuild_host_freeze_input(
+      transaction, extra, "low-fd-extra", &frozen,
+      (cupidbuild_host_snapshot_t *)0);
+  (void)unsetenv("CUPIDBUILD_LOW_FD_TEST_FAIL_PROMOTION");
+  after = contract_open_descriptor_count();
+  closed = cupidbuild_host_transaction_close(transaction);
+  success = freeze_result == 0 && frozen == (const char *)0 &&
+            after == before && closed != 0 &&
+            contract_expect_no_private_roots(
+                root, "low descriptor promotion failure");
+  if (!contract_remove_file(source) || !contract_remove_file(extra)) {
+    success = 0;
+  }
+  return success;
+}
+#endif
+
+static int contract_copy_file(const char *source, const char *destination) {
+  unsigned char bytes[4096];
+  FILE *input = fopen(source, "rb");
+  FILE *output = input != (FILE *)0 ? fopen(destination, "wb")
+                                    : (FILE *)0;
+  int success = input != (FILE *)0 && output != (FILE *)0;
+  while (success != 0) {
+    size_t count = fread(bytes, 1u, sizeof(bytes), input);
+    if (count != 0u && fwrite(bytes, 1u, count, output) != count) {
+      success = 0;
+      break;
+    }
+    if (count < sizeof(bytes)) {
+      if (ferror(input) != 0) {
+        success = 0;
+      }
+      break;
+    }
+  }
+  if (output != (FILE *)0 &&
+      (fflush(output) != 0 || ferror(output) != 0 ||
+       fclose(output) != 0)) {
+    success = 0;
+  }
+  if (input != (FILE *)0 && fclose(input) != 0) {
+    success = 0;
+  }
+  return success;
+}
+
+static int contract_test_noreplace_ambiguity(const char *root,
+                                             const char *self) {
+  static const char source_bytes[] = "published candidate\n";
+  static const char replacement_bytes[] = "foreign replacement\n";
+  char source[CONTRACT_PATH_BYTES];
+  char output[CONTRACT_PATH_BYTES];
+  char lock[CONTRACT_PATH_BYTES];
+  char tool[CONTRACT_PATH_BYTES];
+  char error[CONTRACT_ERROR_BYTES];
+  cupidbuild_host_transaction_t *transaction =
+      (cupidbuild_host_transaction_t *)0;
+  cupidbuild_host_snapshot_t candidate_snapshot;
+  const char *frozen_self = (const char *)0;
+  const char *arguments[4];
+  unsigned char *candidate = (unsigned char *)0;
+  int result = -1;
+  int published = 1;
+  int closed = 1;
+  int residue_count;
+  int residue_removed;
+  int output_matches;
+  int lock_exists;
+  int success;
+  error[0] = '\0';
+  if (!contract_join(source, sizeof(source), root, "publish-source.txt") ||
+      !contract_join(output, sizeof(output), root, "publish-output.bin") ||
+      !contract_join(lock, sizeof(lock), root,
+                     "publish-output.bin.cupidbuild.lock") ||
+      !contract_join(tool, sizeof(tool), root, "publisher-tool") ||
+      !contract_write_file(source, source_bytes, sizeof(source_bytes) - 1u) ||
+      !contract_copy_file(self, tool) || chmod(tool, 0700) != 0 ||
+      !cupidbuild_host_transaction_open(
+          root, "publish-source.txt", "publish-output.bin", &transaction) ||
+      !cupidbuild_host_freeze_input(
+          transaction, tool, "publisher-self", &frozen_self,
+          (cupidbuild_host_snapshot_t *)0) ||
+      !cupidbuild_host_make_input_executable(transaction, frozen_self)) {
+    if (transaction != (cupidbuild_host_transaction_t *)0) {
+      (void)fprintf(stderr, "no-replace setup: %s\n",
+                    cupidbuild_host_error(transaction));
+    } else {
+      (void)fprintf(stderr, "no-replace setup failed before transaction\n");
+    }
+    (void)cupidbuild_host_transaction_close(transaction);
+    (void)contract_remove_file(source);
+    (void)contract_remove_file(tool);
+    return 0;
+  }
+  arguments[0] = "--child-copy";
+  arguments[1] = cupidbuild_host_frozen_source(transaction);
+  arguments[2] = cupidbuild_host_candidate(transaction);
+  arguments[3] = (const char *)0;
+  result = cupidbuild_host_run_in_private(
+      transaction, frozen_self, arguments, 30000u);
+  if (result == 0 &&
+      cupidbuild_host_capture_candidate(
+          transaction, &candidate_snapshot, &candidate) &&
+      cupidbuild_host_require_candidate(transaction, &candidate_snapshot) &&
+      cupidbuild_host_require_publication_boundary(transaction) &&
+      setenv("CUPIDBUILD_NOREPLACE_TEST_DESTINATION",
+             "publish-output.bin", 1) == 0 &&
+      setenv("CUPIDBUILD_NOREPLACE_TEST_FORCE_FALLBACK", "1", 1) == 0 &&
+      setenv("CUPIDBUILD_NOREPLACE_TEST_FAIL_SOURCE_UNLINK", "1", 1) == 0 &&
+      setenv("CUPIDBUILD_NOREPLACE_TEST_REPLACE_DESTINATION", "1", 1) == 0) {
+    published = cupidbuild_host_publish(transaction);
+  }
+  free(candidate);
+  contract_capture_error(transaction, error, sizeof(error));
+  closed = cupidbuild_host_transaction_close(transaction);
+  (void)unsetenv("CUPIDBUILD_NOREPLACE_TEST_DESTINATION");
+  (void)unsetenv("CUPIDBUILD_NOREPLACE_TEST_FORCE_FALLBACK");
+  (void)unsetenv("CUPIDBUILD_NOREPLACE_TEST_FAIL_SOURCE_UNLINK");
+  (void)unsetenv("CUPIDBUILD_NOREPLACE_TEST_REPLACE_DESTINATION");
+  residue_count = contract_unlink_profile_entries(
+      root, (const char *)0, 1);
+  residue_removed = contract_unlink_profile_entries(
+      root, (const char *)0, 0);
+  output_matches = contract_file_equals(output, replacement_bytes);
+  lock_exists = contract_file_exists(lock);
+  success = result == 0 && published == 0 && closed == 0 &&
+            error[0] != '\0' && output_matches != 0 && lock_exists != 0 &&
+            residue_count == 1 && residue_removed >= 0;
+  if (success == 0) {
+    (void)fprintf(
+        stderr,
+        "no-replace ambiguity: run=%d publish=%d close=%d output=%d "
+        "lock=%d first-residue=%d "
+        "remaining-residue=%d error=%s\n",
+        result, published, closed, output_matches, lock_exists,
+        residue_count, residue_removed, error);
+  }
+  if (contract_file_exists(lock) && !contract_remove_file(lock)) {
+    success = 0;
+  }
+  if (contract_file_exists(output) && !contract_remove_file(output)) {
+    success = 0;
+  }
+  if (!contract_remove_file(source)) {
+    success = 0;
+  }
+  if (!contract_remove_file(tool)) {
+    success = 0;
+  }
+  return success;
+}
+#endif
+
 static int contract_child_exit(int argc, char **argv) {
   char *end = (char *)0;
   unsigned long status;
@@ -831,6 +1191,12 @@ static int contract_child_exit(int argc, char **argv) {
   }
   return (int)status;
 }
+
+#if !defined(_WIN32)
+static int contract_child_copy(int argc, char **argv) {
+  return argc == 4 && contract_copy_file(argv[2], argv[3]) ? 0 : 236;
+}
+#endif
 
 static int contract_child_stream(int argc, char **argv, FILE *stream) {
   char bytes[256];
@@ -911,7 +1277,12 @@ static int contract_child_linger(int argc) {
     return 237;
   }
 #if defined(_WIN32)
-  return 237;
+#if defined(CUPIDBUILD_HOST_WINDOWS_TERMINATION_TEST)
+  Sleep(2500u);
+#else
+  Sleep(10000u);
+#endif
+  return 0;
 #else
   (void)sleep(10u);
   return 0;
@@ -943,18 +1314,32 @@ int main(int argc, char **argv) {
   if (argc >= 2 && strcmp(argv[1], "--child-linger") == 0) {
     return contract_child_linger(argc);
   }
+#if !defined(_WIN32)
+  if (argc >= 2 && strcmp(argv[1], "--child-copy") == 0) {
+    return contract_child_copy(argc, argv);
+  }
+#endif
   if (argc != 2 ||
       (strcmp(argv[1], "all") != 0 &&
        strcmp(argv[1], "capture-no-forward") != 0 &&
        strcmp(argv[1], "stdout-4096-forward") != 0 &&
        strcmp(argv[1], "stream-pair-forward") != 0 &&
        strcmp(argv[1], "stream-prefix-forward") != 0 &&
-       strcmp(argv[1], "native-posix-eintr") != 0)) {
+       strcmp(argv[1], "native-posix-eintr") != 0 &&
+       strcmp(argv[1], "native-posix-low-fd-failure") != 0 &&
+       strcmp(argv[1], "native-posix-close-failure") != 0 &&
+       strcmp(argv[1], "native-posix-map-cleanup") != 0 &&
+       strcmp(argv[1], "native-posix-noreplace") != 0 &&
+       strcmp(argv[1], "windows-termination-failure") != 0)) {
     (void)fprintf(stderr,
                   "usage: cupidbuild-host-runner-contract "
                   "{all|capture-no-forward|stdout-4096-forward|"
                   "stream-pair-forward|stream-prefix-forward|"
-                  "native-posix-eintr}\n");
+                  "native-posix-eintr|native-posix-low-fd-failure|"
+                  "native-posix-close-failure|"
+                  "native-posix-map-cleanup|"
+                  "native-posix-noreplace|"
+                  "windows-termination-failure}\n");
     return 2;
   }
   if (!contract_self_path(argv[0], self, sizeof(self)) ||
@@ -976,6 +1361,37 @@ int main(int argc, char **argv) {
 #else
     (void)fprintf(stderr,
                   "native POSIX EINTR injection is unavailable\n");
+    success = 0;
+#endif
+  } else if (strcmp(argv[1], "native-posix-map-cleanup") == 0) {
+#if !defined(_WIN32)
+    success = contract_test_private_map_close_after_ownership_loss(root);
+#else
+    success = 0;
+#endif
+  } else if (strcmp(argv[1], "native-posix-close-failure") == 0) {
+#if defined(CUPIDBUILD_HOST_CLOSE_FAILURE_TEST) && !defined(_WIN32)
+    success = contract_test_native_posix_close_failure(root, self);
+#else
+    (void)fprintf(stderr, "native POSIX close injection is unavailable\n");
+    success = 0;
+#endif
+  } else if (strcmp(argv[1], "native-posix-low-fd-failure") == 0) {
+#if defined(CUPIDBUILD_HOST_LOW_FD_FAILURE_TEST) && !defined(_WIN32)
+    success = contract_test_low_descriptor_promotion_failure(root);
+#else
+    success = 0;
+#endif
+  } else if (strcmp(argv[1], "native-posix-noreplace") == 0) {
+#if !defined(_WIN32)
+    success = contract_test_noreplace_ambiguity(root, self);
+#else
+    success = 0;
+#endif
+  } else if (strcmp(argv[1], "windows-termination-failure") == 0) {
+#if defined(CUPIDBUILD_HOST_WINDOWS_TERMINATION_TEST) && defined(_WIN32)
+    success = contract_test_windows_termination_failure(root, self);
+#else
     success = 0;
 #endif
   } else {

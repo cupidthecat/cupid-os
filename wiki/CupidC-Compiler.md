@@ -1067,9 +1067,10 @@ retains the explicit static string cast in `doom_libc_stubs.cc` and emits the ex
 `dg_setjmp` and `dg_longjmp` block through Cupid's x86 model. Two seed compiles
 produce byte-identical objects for all three roots. All 83 sources use `.cc`
 and the normal graph compiles them through the checked seed. The wrapper fixes
-the exact source memberships, freezes all 291 profile headers, and rechecks
-the visible `.c` and `.cc` tree before publishing each object. A legacy `.c`
-file or unlisted `.cc` file fails the closed scan. The validator also accepts
+the exact source memberships, freezes all 304 `.h` and `.inc` inputs, and
+rechecks the visible `.c` and `.cc` tree before publishing each object. A
+legacy `.c` file or unlisted `.cc` file fails the closed scan. The validator
+also accepts
 the two static-subobject `R_386_32` addends of 4 in `g_game.cc`, while
 direct-call `R_386_PC32` relocations remain fixed at -4. The active object is
 52,004 bytes with SHA-256
@@ -1077,9 +1078,9 @@ direct-call `R_386_PC32` relocations remain fixed at -4. The active object is
 The 67,155-byte dglibc source produces a 93,332-byte object with SHA-256
 `e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`.
 Repeated compatibility compiles also reproduce the 17,084-byte libc-stub and
-10,352-byte platform objects. The 69,366-byte closed profile manifest has
+10,352-byte platform objects. The 72,950-byte closed profile manifest has
 SHA-256
-`47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
+`eeb25fe8855563247c29bdd08a4fcc880ac023d37df810969251ba63177223f8`.
 
 Checked-seed CupidObj carries the deterministic `profile-manifest`
 operation. CupidC compiles its freestanding SHA-256, bounded `CUPROF1` parser,
@@ -1094,6 +1095,31 @@ under an adjacent no-follow lock. Identical bytes retain their timestamp;
 changed bytes publish atomically. CupidObj authors the production bytes, while
 Python retains the host transaction. ADR 0242 records the source capability,
 ADR 0243 records seed carriage, and ADR 0244 records production ownership.
+
+Source-head CupidBuild can now perform that complete profile transaction. It
+retains each directory visited during source and input discovery, freezes the
+83 sources and 304 `.h` and `.inc` inputs, runs frozen CupidObj first, and
+requires an independent native renderer to produce the same JSON. Two complete
+directory-binding passes run at every closure checkpoint. POSIX records
+nanosecond mtime and ctime. Windows checks file ID, LastWriteTime, and
+ChangeTime from exact named directory records around a retained-handle sample.
+The last successful pass is an observational checkpoint rather than a durable
+source-tree snapshot.
+
+Windows may create the fixed `build/bootstrap` parent chain and roll back only
+empty directories whose creation handles it owns. POSIX requires that chain to
+exist. Its flat transaction keeps frozen inputs and captured tool streams in
+sealed anonymous memfds reached through `/proc/self/fd/N`. A source-only change
+after installation can restore the previous manifest and clean normally once
+the publication bindings are rechecked. Ambiguous namespace state preserves
+the previous readable output and leaves private residue for recovery. The
+promoted seeds do not yet contain this command, so Make still enters the
+Python-coordinated publisher. On Windows, frozen inputs retain read sharing
+and reject write or delete opens. Cleanup reopens only the same fully verified
+identity with delete access. Mutable candidates use the broader sharing needed
+by checked tools. A dirty-tree paired fixed point passed on both hosts; clean,
+commit-pinned reconstruction remains before promotion. ADR 0377 records the
+source boundary, and ADR 0381 records the handle contract.
 
 Active dglibc uses the corrected form. Its 31-byte `dg_setjmp` saves the
 caller's post-return `ESP + 4` and is declared `returns_twice`; `dg_longjmp`,

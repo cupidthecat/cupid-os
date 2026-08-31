@@ -1,5 +1,48 @@
 # Toolchain Bootstrap
 
+Source-head CupidBuild now provides `generate-profile-manifest` for the closed
+Doom compile profiles. It discovers the exact 83-source cohort and 304 `.h`
+and `.inc` inputs, freezes them with the complete seed, builds `CUPROF1` from
+frozen input bytes, and runs frozen CupidObj first. An independent native
+renderer must produce the same canonical JSON before CupidBuild rechecks the
+closure and publication state. Equal bytes retain the existing timestamp;
+links, aliases, parity failures, locks, and drift preserve the previous file.
+Windows may create a missing `build` or `build/bootstrap` component with
+parent-relative `NtCreateFile` and removes only an empty directory whose
+returned identity still matches. POSIX requires both parents to exist. A clean
+root fails before publication because `mkdirat` followed by `openat` cannot
+prove creation ownership against a same-user replacement.
+
+Every discovered directory stays pinned. Two complete validation passes run
+at each closure checkpoint. POSIX compares nanosecond mtime and ctime. Windows
+compares the retained handle with exact named file ID, LastWriteTime, and
+ChangeTime records. The final pass is a checkpoint, not a durable source-tree
+snapshot.
+
+POSIX flat transactions keep frozen inputs, maps, and captured streams in
+sealed anonymous memfds and pass `/proc/self/fd/N` paths to checked tools. The
+reservation, lock, candidate, publication alias, and parked old output stay
+named. DrvFS no-replace fallback links the destination before unlinking the
+source, while existing-output fallback parks a verified hard link before
+replacement. These POSIX compare-then-unlink steps retain a formal same-user
+race. Verified source drift rolls back and cleans normally. Ambiguous namespace
+bindings preserve the old output and leave transaction residue for recovery.
+
+The Windows runner supplies an exact inherited-handle list containing standard
+input, standard output, and standard error. An unrelated inheritable handle is
+not passed to the child. Together with the checked CupidC runner, the
+source-head fixed-point definitions are 31/7/37 on Linux and 19/7/24 on native
+Windows. The promoted seeds do not yet carry the profile command, so Make
+still uses the Python profile publisher and the production graph remains at
+195 CupidBuild and 257 Python participations. ADR 0377 records the source
+boundary. The promoted Windows runtime also opens `wb` outputs with share mode
+zero. Source head separates read-shared frozen inputs from mutable candidates,
+and it reopens the same verified frozen identity with delete access only for
+cleanup. Guarded CupidASM calls write directly to the candidate retained by
+CupidBuild instead of nesting a second publisher. A dirty-tree v4 pair passed
+the 31/7/37 Linux and 19/7/24 Windows matrices. Clean, commit-pinned
+reconstruction, seed publication, and the separate Make handoff remain.
+
 Source-head CupidBuild now provides `flatten-kernel` for the full production
 code cohort. The transaction freezes the manifest, 431 active inputs, and the
 complete seed. It keeps one broad CupidDis request, checks both linked kernels,
@@ -127,8 +170,8 @@ ADR 0374 records the accepted pair.
 
 The policy-bound OS build passed all 83 Doom roots, both CupidLD links, strict
 CupidDis inspection, all 16 exact artifact rows, and image publication. The
-flat kernel is 9,533,840 bytes; the final and pass-one ELFs are 9,761,100 and
-9,630,028 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
+flat kernel is 9,536,524 bytes; the final and pass-one ELFs are 9,765,196 and
+9,634,124 bytes. A preceding 9,501,220-byte checkpoint, which differed only in
 embedded manual text, passed a four-vCPU E1000 boot and ran `/bin/ls.cc`. The
 final documentation-bearing image passed the same private gate and reached
 normal `/bin/ls.cc` JIT completion.
@@ -165,8 +208,8 @@ timeout-and-seed-drift precedence case.
 
 The final top-level replay passed after the exact-size check rejected the
 updated CTXT payload and its policy was updated. All 16 exact artifacts passed.
-The current sizes are 9,533,840 bytes for `kernel/kernel.bin`, 9,761,100 bytes
-for `kernel/kernel.elf`, and 9,630,028 bytes for
+The current sizes are 9,536,524 bytes for `kernel/kernel.bin`, 9,765,196 bytes
+for `kernel/kernel.elf`, and 9,634,124 bytes for
 `kernel/kernel.elf.pass1`. Whole-image CupidDis inspection and disk-image
 staging passed as part of that replay.
 
@@ -728,10 +771,14 @@ and atomic publication. Each caller keeps its image-size and raw-map policy.
 The expanded eleven-test suite passed in 1.708 seconds, including direct
 mismatch and live-output drift checks for both callers. Parent-replacement
 tests exposed a POSIX candidate leak when private work lived below the output
-parent. Private roots now live directly below the stable repository root. Both
-caller modules pass all 10 tests on Windows and through WSL. The normal
-bootloader Make edge now calls that transaction with the production manifest
-and full checked-seed closure. Standalone CupidASM overrides cannot bypass the
+parent. Windows keeps a handle-pinned private directory below the stable
+repository root. POSIX reserves one exclusive file there. Maps, captured
+streams, and frozen inputs are sealed anonymous memfds; the candidate and
+publication alias stay named for installation on the target filesystem.
+Checked tools receive direct `/proc/self/fd/N` paths. Both caller modules pass
+all 10 tests on Windows and through WSL. The normal bootloader Make edge now calls that transaction
+with the production manifest and full checked-seed closure. Standalone
+CupidASM overrides cannot bypass the
 guard. ADR 0283 records the cutover.
 
 Raw CupidASM requests accept one source `ORG` and one source section identity.
@@ -1032,8 +1079,8 @@ explicit static string cast in `doom_libc_stubs.cc` and emits the exact
 `dg_setjmp` and `dg_longjmp` file-scope block through Cupid's x86 model. A
 second checked-seed compile matches the first for all three objects. The
 normal graph owns all 83 roots through CupidC, and every source uses `.cc`.
-The wrapper fixes exact three-source and 80-source allowlists and freezes the
-complete 291-file header space. Its input manifest detects source removal,
+The wrapper fixes exact three-source and 80-source allowlists and freezes all
+304 `.h` and `.inc` inputs. Its input manifest detects source removal,
 while the wrapper recursively checks visible `.c` and `.cc` files and live
 bytes before publication. A legacy `.c` file, an unlisted `.cc` file, header
 drift, a symbolic link, or an NTFS junction fails closed. The 52,004-byte
@@ -1045,14 +1092,16 @@ source produces a 93,332-byte object with SHA-256
 Repeated compatibility compiles also reproduce the 17,084-byte libc-stub and
 10,352-byte platform objects. The 72,950-byte closed profile manifest has
 SHA-256
-`5dc44317835269b7bae279f727c2909cbd0cdcf90f517cdd4e9d585802929d18`.
+`eeb25fe8855563247c29bdd08a4fcc880ac023d37df810969251ba63177223f8`.
 Checked-seed CupidObj reproduces that manifest through `profile-manifest`. The
-command reads one bounded `CUPROF1` snapshot, hashes the 304 captured headers,
-and emits canonical JSON for both profiles. The profile-manifest promotion
-rebuild remains covered by the active behavior matrices: Linux has 27 failure,
-six help, and 34 success groups, while Windows has 16 failure, six help, and 21
-success groups. These checks include SHA padding boundaries, unsafe paths, case
-collisions, and preserved failure output. The normal wrapper derives the snapshot and independent Python
+command reads one bounded `CUPROF1` snapshot, hashes the 304 captured inputs,
+and emits canonical JSON for both profiles. The promoted seed matrices have
+28 failure, six help, and 35 success groups on Linux, plus 17 failure, six
+help, and 22 success groups on Windows. Source head adds the typed CupidBuild
+transaction and checked CupidC runner, bringing those definitions to 31/7/37
+and 19/7/24 without claiming seed carriage. These checks include SHA padding
+boundaries, unsafe paths, case collisions, and preserved failure output. The
+normal wrapper derives the snapshot and independent Python
 oracle from one stable capture, runs CupidObj from the exact frozen seed, and
 requires byte parity. Under an adjacent no-follow lock, it rechecks the seed,
 profile inputs, candidate, output directory, and existing output, then retains

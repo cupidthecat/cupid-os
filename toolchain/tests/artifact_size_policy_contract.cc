@@ -1275,6 +1275,18 @@ static int parse_expected_text(json_reader_t *reader, const char *expected,
   return ok;
 }
 
+static int parse_expected_text_pair(json_reader_t *reader, const char *first,
+                                    const char *second, const char *error) {
+  text_t value = {(unsigned char *)0, 0u};
+  int ok = json_parse_string(reader, &value);
+  if (ok && !text_equals_literal(&value, first) &&
+      !text_equals_literal(&value, second)) {
+    ok = set_error(error);
+  }
+  text_release(&value);
+  return ok;
+}
+
 static int parse_windows_target(json_reader_t *reader) {
   unsigned int fields = 0u;
   if (!json_take(reader, (unsigned char)'{')) {
@@ -1455,9 +1467,10 @@ static int parse_windows_provenance(json_reader_t *reader,
     } else if (text_equals_literal(&key, "native_build_plan_sha256") &&
                (fields & 16u) == 0u) {
       fields |= 16u;
-      ok = parse_expected_text(
+      ok = parse_expected_text_pair(
           reader,
           "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14",
+          "c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3",
           "Windows seed native build plan differs");
     } else if (text_equals_literal(
                    &key, "parent_execution_seed_manifest_sha256") &&

@@ -55,6 +55,8 @@ from tools.bootstrap_toolchain import (
     _corrupt_candidate_entry_instruction,
     _local_target_executable_payload,
     _local_target_object_payload,
+    _materialize_behavior_seed,
+    _materialize_behavior_seed_pair,
     _remove_private_tool_directory,
     _require_seed_pair_identity,
     _profile_snapshot_payload,
@@ -98,7 +100,215 @@ WINDOWS_SEED_MANIFEST = (
     / "i386-windows"
     / "manifest.json"
 )
+SOURCE_HEAD_INITIAL_MATCHES = {
+    name: name != "cupidbuild" for name in CANDIDATE_TOOL_NAMES
+}
+
+
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    def test_behavior_seed_can_bind_one_fixed_point_stage(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-stage-behavior-seed-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            seed_root = root / "checked-seed"
+            seed_root.mkdir()
+            artifacts = []
+            old_bytes = []
+            old_tools = {}
+            stage_tools = {}
+            next_stage_tools = {}
+            for index, name in enumerate(CANDIDATE_TOOL_NAMES):
+                filename = f"{name}.elf"
+                old_payload = f"old {name}\n".encode("ascii")
+                stage_payload = f"stage {index} {name}\n".encode("ascii")
+                old_path = seed_root / filename
+                old_path.write_bytes(old_payload)
+                stage_path = root / f"stage-{filename}"
+                stage_path.write_bytes(stage_payload)
+                next_stage_path = root / f"next-stage-{filename}"
+                next_stage_path.write_bytes(
+                    f"next stage {index} {name}\n".encode("ascii")
+                )
+                artifacts.append(
+                    {
+                        "file": filename,
+                        "name": name,
+                        "producer": name in PRODUCER_NAMES,
+                        "sha256": hashlib.sha256(old_payload).hexdigest(),
+                        "size": len(old_payload),
+                    }
+                )
+                old_bytes.append((name, old_payload))
+                old_tools[name] = old_path
+                stage_tools[name] = stage_path
+                next_stage_tools[name] = next_stage_path
+            document = {
+                "artifacts": artifacts,
+                "schema": PROMOTED_SEED_SCHEMA,
+            }
+            manifest_bytes = (
+                json.dumps(document, indent=2, sort_keys=True) + "\n"
+            ).encode("ascii")
+            live_manifest = seed_root / "manifest.json"
+            live_manifest.write_bytes(manifest_bytes)
+            seed_inputs = SeedInputs(
+                manifest=document,
+                manifest_bytes=manifest_bytes,
+                manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+                live_manifest_path=live_manifest,
+                artifact_bytes=tuple(old_bytes),
+                tools=old_tools,
+            )
+
+            materialized = _materialize_behavior_seed(
+                seed_inputs,
+                root,
+                "stage-three-seed",
+                Stage(objects={}, tools=stage_tools),
+            )
+
+            result = json.loads(materialized.read_text(encoding="ascii"))
+            result_artifacts = {
+                artifact["name"]: artifact
+                for artifact in result["artifacts"]
+            }
+            for index, name in enumerate(CANDIDATE_TOOL_NAMES):
+                payload = f"stage {index} {name}\n".encode("ascii")
+                artifact = result_artifacts[name]
+                self.assertEqual(artifact["size"], len(payload))
+                self.assertEqual(
+                    artifact["sha256"], hashlib.sha256(payload).hexdigest()
+                )
+                self.assertEqual(
+                    (materialized.parent / artifact["file"]).read_bytes(),
+                    payload,
+                )
+            self.assertEqual(seed_inputs.manifest_bytes, manifest_bytes)
+            for name, payload in old_bytes:
+                self.assertEqual(old_tools[name].read_bytes(), payload)
+
+            incomplete_tools = dict(stage_tools)
+            del incomplete_tools[CANDIDATE_TOOL_NAMES[-1]]
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "behavior seed stage tool inventory differs",
+            ):
+                _materialize_behavior_seed(
+                    seed_inputs,
+                    root,
+                    "incomplete-stage-seed",
+                    Stage(objects={}, tools=incomplete_tools),
+                )
+
+            pair_root = root / "pair"
+            pair_root.mkdir()
+            stage_three_manifest, stage_four_manifest = (
+                _materialize_behavior_seed_pair(
+                    seed_inputs,
+                    pair_root,
+                    Stage(objects={}, tools=stage_tools),
+                    Stage(objects={}, tools=next_stage_tools),
+                )
+            )
+            self.assertEqual(
+                stage_three_manifest.parent.name, "stage-three-seed"
+            )
+            self.assertEqual(
+                stage_four_manifest.parent.name, "stage-four-seed"
+            )
+            stage_three_records = {
+                artifact["name"]: artifact
+                for artifact in json.loads(
+                    stage_three_manifest.read_text(encoding="ascii")
+                )["artifacts"]
+            }
+            stage_four_records = {
+                artifact["name"]: artifact
+                for artifact in json.loads(
+                    stage_four_manifest.read_text(encoding="ascii")
+                )["artifacts"]
+            }
+            for index, name in enumerate(CANDIDATE_TOOL_NAMES):
+                filename = f"{name}.elf"
+                stage_payload = f"stage {index} {name}\n".encode("ascii")
+                next_stage_payload = (
+                    f"next stage {index} {name}\n".encode("ascii")
+                )
+                self.assertEqual(
+                    (stage_three_manifest.parent / filename).read_bytes(),
+                    stage_payload,
+                )
+                self.assertEqual(
+                    (stage_four_manifest.parent / filename).read_bytes(),
+                    next_stage_payload,
+                )
+                self.assertEqual(
+                    stage_three_records[name]["sha256"],
+                    hashlib.sha256(stage_payload).hexdigest(),
+                )
+                self.assertEqual(
+                    stage_four_records[name]["sha256"],
+                    hashlib.sha256(next_stage_payload).hexdigest(),
+                )
+
+            def seed_with_manifest(
+                candidate_document: dict[str, object],
+            ) -> SeedInputs:
+                candidate_bytes = (
+                    json.dumps(candidate_document, indent=2, sort_keys=True)
+                    + "\n"
+                ).encode("ascii")
+                return SeedInputs(
+                    manifest=candidate_document,
+                    manifest_bytes=candidate_bytes,
+                    manifest_sha256=hashlib.sha256(
+                        candidate_bytes
+                    ).hexdigest(),
+                    live_manifest_path=live_manifest,
+                    artifact_bytes=tuple(old_bytes),
+                    tools=old_tools,
+                )
+
+            duplicate_document = json.loads(json.dumps(document))
+            duplicate_document["artifacts"].append(
+                dict(duplicate_document["artifacts"][0])
+            )
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "behavior seed artifact inventory has duplicates",
+            ):
+                _materialize_behavior_seed(
+                    seed_with_manifest(duplicate_document),
+                    root,
+                    "duplicate-artifact-seed",
+                    Stage(objects={}, tools=stage_tools),
+                )
+
+            missing_document = json.loads(json.dumps(document))
+            missing_document["artifacts"].pop()
+            with self.assertRaisesRegex(
+                BootstrapError, "behavior seed artifact inventory differs"
+            ):
+                _materialize_behavior_seed(
+                    seed_with_manifest(missing_document),
+                    root,
+                    "missing-artifact-seed",
+                    Stage(objects={}, tools=stage_tools),
+                )
+
+            invalid_name_document = json.loads(json.dumps(document))
+            invalid_name_document["artifacts"][0]["file"] = "../tool.elf"
+            with self.assertRaisesRegex(
+                BootstrapError, "behavior seed artifact name is invalid"
+            ):
+                _materialize_behavior_seed(
+                    seed_with_manifest(invalid_name_document),
+                    root,
+                    "invalid-name-seed",
+                    Stage(objects={}, tools=stage_tools),
+                )
+
     @staticmethod
     def _legacy_linux_manifest_fixture(
         document: dict[str, object],
@@ -375,15 +585,43 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
 
     def test_windows_cupidbuild_import_profiles_are_exact_pairs(self):
-        legacy_kernel = WINDOWS_CUPIDBUILD_SEED_IMPORTS[0][1]
         current_kernel = WINDOWS_CUPIDBUILD_IMPORTS[0][1]
-        set_file_pointer = legacy_kernel.index("SetFilePointer")
         self.assertEqual(
             current_kernel,
             (
-                *legacy_kernel[: set_file_pointer + 1],
+                "CloseHandle",
+                "CreateDirectoryA",
+                "CreateFileA",
+                "CreateProcessA",
+                "DeleteFileA",
+                "DeleteProcThreadAttributeList",
+                "ExitProcess",
+                "FindClose",
+                "FindFirstFileA",
+                "FindNextFileA",
+                "FlushFileBuffers",
+                "GetCommandLineA",
+                "GetCurrentDirectoryA",
+                "GetCurrentProcessId",
+                "GetExitCodeProcess",
+                "GetFileAttributesA",
+                "GetFileInformationByHandle",
+                "GetFullPathNameA",
+                "GetLastError",
+                "GetStdHandle",
+                "InitializeProcThreadAttributeList",
+                "MoveFileExA",
+                "OpenProcess",
+                "ReadFile",
+                "RemoveDirectoryA",
+                "SetFilePointer",
                 "SetHandleInformation",
-                *legacy_kernel[set_file_pointer + 1 :],
+                "TerminateProcess",
+                "UpdateProcThreadAttribute",
+                "VirtualAlloc",
+                "VirtualFree",
+                "WaitForSingleObject",
+                "WriteFile",
             ),
         )
         self.assertEqual(
@@ -434,7 +672,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         for required in (
             "cupidbuild_legacy_imports",
             "cupidbuild_current_imports",
+            "DeleteProcThreadAttributeList",
+            "InitializeProcThreadAttributeList",
             '"SetFilePointer",\n        "SetHandleInformation",',
+            "UpdateProcThreadAttribute",
             "cupidbuild_legacy_ntdll_imports",
             "cupidbuild_current_ntdll_imports",
             "legacy_count + legacy_ntdll_count",
@@ -453,17 +694,184 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             / "cupidbuild_start.asm"
         ).read_text(encoding="utf-8")
         for required in (
+            "extern __imp_DeleteProcThreadAttributeList",
+            "extern __imp_InitializeProcThreadAttributeList",
             "extern __imp_SetHandleInformation",
+            "extern __imp_UpdateProcThreadAttribute",
             "extern __imp_NtQueryDirectoryFile",
+            "global cupid_windows_delete_proc_thread_attribute_list:function",
+            "global cupid_windows_initialize_proc_thread_attribute_list:function",
             "global cupid_windows_set_handle_information:function",
+            "global cupid_windows_update_proc_thread_attribute:function",
             "global cupid_windows_nt_query_directory_file:function",
+            "cupid_windows_delete_proc_thread_attribute_list:",
+            "cupid_windows_initialize_proc_thread_attribute_list:",
             "cupid_windows_set_handle_information:",
+            "cupid_windows_update_proc_thread_attribute:",
             "cupid_windows_nt_query_directory_file:",
+            "call dword [__imp_DeleteProcThreadAttributeList]",
+            "call dword [__imp_InitializeProcThreadAttributeList]",
             "call dword [__imp_SetHandleInformation]",
+            "call dword [__imp_UpdateProcThreadAttribute]",
             "call dword [__imp_NtQueryDirectoryFile]",
         ):
             self.assertIn(required, startup)
+        expected_exports = {
+            "cupid_windows_create_directory",
+            "cupid_windows_create_process",
+            "cupid_windows_delete_proc_thread_attribute_list",
+            "cupid_windows_find_close",
+            "cupid_windows_find_first_file",
+            "cupid_windows_find_next_file",
+            "cupid_windows_get_current_process_id",
+            "cupid_windows_get_exit_code_process",
+            "cupid_windows_get_file_attributes",
+            "cupid_windows_get_file_information",
+            "cupid_windows_initialize_proc_thread_attribute_list",
+            "cupid_windows_open_process",
+            "cupid_windows_remove_directory",
+            "cupid_windows_set_handle_information",
+            "cupid_windows_terminate_process",
+            "cupid_windows_update_proc_thread_attribute",
+            "cupid_windows_wait_for_single_object",
+            "cupid_windows_nt_create_file",
+            "cupid_windows_nt_query_directory_file",
+            "cupid_windows_nt_set_information_file",
+        }
+        self.assertEqual(
+            {
+                line.removeprefix("global ").removesuffix(":function")
+                for line in startup.splitlines()
+                if line.startswith("global ")
+            },
+            expected_exports,
+        )
         self.assertNotIn("cupid_windows_set_file_pointer", startup)
+
+    def test_windows_cupidbuild_handle_list_has_an_i386_hosted_abi(self):
+        header = (
+            REPO_ROOT
+            / "toolchain"
+            / "hosted"
+            / "i386-linux"
+            / "include"
+            / "windows.h"
+        ).read_text(encoding="utf-8")
+        startup = (
+            REPO_ROOT
+            / "toolchain"
+            / "hosted"
+            / "i386-windows"
+            / "cupidbuild_start.asm"
+        ).read_text(encoding="utf-8")
+        for required in (
+            "typedef unsigned int SIZE_T;",
+            "typedef void *LPPROC_THREAD_ATTRIBUTE_LIST;",
+            "STARTUPINFOEXA",
+            "EXTENDED_STARTUPINFO_PRESENT 0x00080000u",
+            "PROC_THREAD_ATTRIBUTE_HANDLE_LIST 0x00020002u",
+            "DeleteProcThreadAttributeList",
+            "InitializeProcThreadAttributeList",
+            "UpdateProcThreadAttribute",
+        ):
+            self.assertIn(required, header)
+
+        def wrapper_body(label):
+            lines = startup.splitlines()
+            start = lines.index(label + ":") + 1
+            end = start
+            while end < len(lines) and lines[end].startswith(" "):
+                end += 1
+            return lines[start:end]
+
+        self.assertEqual(
+            wrapper_body("cupid_windows_delete_proc_thread_attribute_list"),
+            [
+                " push ebp",
+                " mov ebp, esp",
+                " push dword [ebp + 8]",
+                " call dword [__imp_DeleteProcThreadAttributeList]",
+                " mov esp, ebp",
+                " pop ebp",
+                " ret",
+            ],
+        )
+        self.assertEqual(
+            wrapper_body(
+                "cupid_windows_initialize_proc_thread_attribute_list"
+            ),
+            [
+                " push ebp",
+                " mov ebp, esp",
+                " push dword [ebp + 20]",
+                " push dword [ebp + 16]",
+                " push dword [ebp + 12]",
+                " push dword [ebp + 8]",
+                " call dword [__imp_InitializeProcThreadAttributeList]",
+                " mov esp, ebp",
+                " pop ebp",
+                " ret",
+            ],
+        )
+        self.assertEqual(
+            wrapper_body("cupid_windows_update_proc_thread_attribute"),
+            [
+                " push ebp",
+                " mov ebp, esp",
+                " push dword [ebp + 32]",
+                " push dword [ebp + 28]",
+                " push dword [ebp + 24]",
+                " push dword [ebp + 20]",
+                " push dword [ebp + 16]",
+                " push dword [ebp + 12]",
+                " push dword [ebp + 8]",
+                " call dword [__imp_UpdateProcThreadAttribute]",
+                " mov esp, ebp",
+                " pop ebp",
+                " ret",
+            ],
+        )
+
+        compiler = shutil.which("clang")
+        if compiler is None:
+            self.skipTest("clang is required for the i386 layout check")
+        layout_source = (
+            "#include <windows.h>\n"
+            '_Static_assert(sizeof(SIZE_T) == 4u, "SIZE_T");\n'
+            '_Static_assert(sizeof(STARTUPINFOA) == 68u, "STARTUPINFOA");\n'
+            "_Static_assert(__builtin_offsetof(STARTUPINFOEXA, "
+            'lpAttributeList) == 68u, "attribute offset");\n'
+            '_Static_assert(sizeof(STARTUPINFOEXA) == 72u, "STARTUPINFOEXA");\n'
+        )
+        layout = subprocess.run(
+            [
+                compiler,
+                "--target=i386-pc-linux-gnu",
+                "-nostdinc",
+                "-I",
+                str(
+                    REPO_ROOT
+                    / "toolchain"
+                    / "hosted"
+                    / "i386-linux"
+                    / "include"
+                ),
+                "-std=c11",
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "-x",
+                "c",
+                "-fsyntax-only",
+                "-",
+            ],
+            input=layout_source,
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+        self.assertEqual(layout.returncode, 0, layout.stdout + layout.stderr)
 
     def test_native_windows_cupidbuild_enforces_paired_import_profiles(self):
         if os.name != "nt":
@@ -820,6 +1228,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "__imp_CreateProcessA",
                 ),
                 ("KERNEL32.dll", "DeleteFileA", "__imp_DeleteFileA"),
+                (
+                    "KERNEL32.dll",
+                    "DeleteProcThreadAttributeList",
+                    "__imp_DeleteProcThreadAttributeList",
+                ),
                 ("KERNEL32.dll", "ExitProcess", "__imp_ExitProcess"),
                 ("KERNEL32.dll", "FindClose", "__imp_FindClose"),
                 (
@@ -874,6 +1287,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 ("KERNEL32.dll", "GetLastError", "__imp_GetLastError"),
                 ("KERNEL32.dll", "GetStdHandle", "__imp_GetStdHandle"),
+                (
+                    "KERNEL32.dll",
+                    "InitializeProcThreadAttributeList",
+                    "__imp_InitializeProcThreadAttributeList",
+                ),
                 ("KERNEL32.dll", "MoveFileExA", "__imp_MoveFileExA"),
                 ("KERNEL32.dll", "OpenProcess", "__imp_OpenProcess"),
                 ("KERNEL32.dll", "ReadFile", "__imp_ReadFile"),
@@ -896,6 +1314,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "KERNEL32.dll",
                     "TerminateProcess",
                     "__imp_TerminateProcess",
+                ),
+                (
+                    "KERNEL32.dll",
+                    "UpdateProcThreadAttribute",
+                    "__imp_UpdateProcThreadAttribute",
                 ),
                 ("KERNEL32.dll", "VirtualAlloc", "__imp_VirtualAlloc"),
                 ("KERNEL32.dll", "VirtualFree", "__imp_VirtualFree"),
@@ -1353,6 +1776,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "CreateFileA",
                                 "CreateProcessA",
                                 "DeleteFileA",
+                                "DeleteProcThreadAttributeList",
                                 "ExitProcess",
                                 "FindClose",
                                 "FindFirstFileA",
@@ -1367,6 +1791,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "GetFullPathNameA",
                                 "GetLastError",
                                 "GetStdHandle",
+                                "InitializeProcThreadAttributeList",
                                 "MoveFileExA",
                                 "OpenProcess",
                                 "ReadFile",
@@ -1374,6 +1799,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "SetFilePointer",
                                 "SetHandleInformation",
                                 "TerminateProcess",
+                                "UpdateProcThreadAttribute",
                                 "VirtualAlloc",
                                 "VirtualFree",
                                 "WaitForSingleObject",
@@ -3141,18 +3567,39 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 objects={},
                 tools={name: tool for name in CANDIDATE_TOOL_NAMES},
             )
+            artifacts = []
+            artifact_bytes = []
+            seed_tools = {}
+            for name in CANDIDATE_TOOL_NAMES:
+                filename = f"{name}.elf"
+                payload = f"seed {name}\n".encode("ascii")
+                seed_tool = root / filename
+                seed_tool.write_bytes(payload)
+                artifacts.append(
+                    {
+                        "file": filename,
+                        "name": name,
+                        "producer": name in PRODUCER_NAMES,
+                        "sha256": hashlib.sha256(payload).hexdigest(),
+                        "size": len(payload),
+                    }
+                )
+                artifact_bytes.append((name, payload))
+                seed_tools[name] = seed_tool
+            manifest = {
+                "artifacts": artifacts,
+                "schema": PROMOTED_SEED_SCHEMA,
+            }
+            manifest_bytes = (
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+            ).encode("ascii")
             seed_inputs = SeedInputs(
-                manifest={},
-                manifest_bytes=b"{}\n",
-                manifest_sha256="1" * 64,
+                manifest=manifest,
+                manifest_bytes=manifest_bytes,
+                manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
                 live_manifest_path=root / "manifest.json",
-                artifact_bytes=tuple(
-                    (name, b"seed") for name in CANDIDATE_TOOL_NAMES
-                ),
-                tools={
-                    name: root / f"{name}.elf"
-                    for name in CANDIDATE_TOOL_NAMES
-                },
+                artifact_bytes=tuple(artifact_bytes),
+                tools=seed_tools,
             )
             linux_output = root / "linux"
             linux_output.mkdir()
@@ -3160,6 +3607,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             windows_output.mkdir()
 
             linux_calls: list[tuple[str, tuple[str, ...]]] = []
+            linux_manifest_pairs: list[tuple[Path, Path]] = []
 
             def linux_pair(
                 _runner,
@@ -3180,6 +3628,22 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     )
                 )
                 linux_calls.append((tool_name, arguments))
+                if "--seed-manifest" in arguments:
+                    linux_manifest_pairs.append(
+                        (
+                            Path(
+                                arguments[
+                                    arguments.index("--seed-manifest") + 1
+                                ]
+                            ),
+                            Path(
+                                paired_arguments[
+                                    paired_arguments.index("--seed-manifest")
+                                    + 1
+                                ]
+                            ),
+                        )
+                    )
                 if arguments == ("--help",):
                     output = "usage: candidate\n"
                     if tool_name == "cupidobj":
@@ -3262,6 +3726,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     for name in CANDIDATE_TOOL_NAMES
                 ],
             )
+            self.assertTrue(linux_manifest_pairs)
+            self.assertTrue(
+                all(
+                    first.parent.name == "stage-three-seed"
+                    and second.parent.name == "stage-four-seed"
+                    for first, second in linux_manifest_pairs
+                )
+            )
             linux_runner_root = linux_output / "behavior" / "cupidobj-runner"
             linux_runner_success = linux_calls[len(CANDIDATE_TOOL_NAMES)]
             self.assertEqual(linux_runner_success[0], "cupidbuild")
@@ -3316,7 +3788,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         "--seed-manifest",
                         str(
                             linux_cupidc_root
-                            / "cupidbuild-seed"
+                            / "stage-three-seed"
                             / "manifest.json"
                         ),
                         "--root",
@@ -3367,7 +3839,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 (
                     "embed-jpeg",
                     "--seed-manifest",
-                    str(linux_jpeg_root / "cupidbuild-seed" / "manifest.json"),
+                    str(linux_jpeg_root / "stage-three-seed" / "manifest.json"),
                     "--root",
                     str(root),
                     "--source",
@@ -3405,6 +3877,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
 
             windows_calls: list[tuple[str, tuple[str, ...]]] = []
+            windows_manifest_pairs: list[tuple[Path, Path]] = []
 
             def windows_pair(
                 _runner,
@@ -3425,6 +3898,22 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     )
                 )
                 windows_calls.append((tool_name, arguments))
+                if "--seed-manifest" in arguments:
+                    windows_manifest_pairs.append(
+                        (
+                            Path(
+                                arguments[
+                                    arguments.index("--seed-manifest") + 1
+                                ]
+                            ),
+                            Path(
+                                paired_arguments[
+                                    paired_arguments.index("--seed-manifest")
+                                    + 1
+                                ]
+                            ),
+                        )
+                    )
                 if arguments == ("--help",):
                     return subprocess.CompletedProcess(
                         [], 0, "usage: candidate\n", ""
@@ -3510,6 +3999,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 windows_calls[: len(expected_windows_calls)],
                 expected_windows_calls,
+            )
+            self.assertTrue(windows_manifest_pairs)
+            self.assertTrue(
+                all(
+                    first.parent.name == "stage-three-seed"
+                    and second.parent.name == "stage-four-seed"
+                    for first, second in windows_manifest_pairs
+                )
             )
             windows_runner_root = (
                 windows_output / "behavior" / "cupidobj-runner"
@@ -3612,7 +4109,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "--seed-manifest",
                     str(
                         windows_jpeg_root
-                        / "cupidbuild-seed"
+                        / "stage-three-seed"
                         / "manifest.json"
                     ),
                     "--root",
@@ -3960,7 +4457,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _stage_four,
                 _seed_inputs,
                 evidence,
+                profile_source_root,
             ):
+                self.assertEqual(profile_source_root, source_root)
                 (private_source_root / "behavior").mkdir()
                 evidence["windows_runtime"] = {
                     "artifacts": {},
@@ -4124,7 +4623,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _stage_four,
                 _seed_inputs,
                 evidence,
+                profile_source_root,
             ):
+                self.assertEqual(profile_source_root, source_root)
                 (private_source_root / "behavior").mkdir()
                 evidence["windows_runtime"] = {
                     "artifacts": {},
@@ -4292,7 +4793,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _native_plan,
                 _seed_inputs,
                 _linux_seed_inputs,
+                profile_source_root,
             ):
+                self.assertEqual(profile_source_root, source_root)
                 (private_source_root / "behavior").mkdir()
                 return {"success_cases": 0}
 
@@ -4499,7 +5002,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 _native_plan,
                 _seed_inputs,
                 _linux_seed_inputs,
+                profile_source_root,
             ):
+                self.assertEqual(profile_source_root, source_root)
                 (private_source_root / "behavior").mkdir()
                 return {"success_cases": 0}
 
@@ -4546,8 +5051,21 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["plan_source_revision"],
                 PROMOTED_SOURCE_REVISION,
             )
+            source_head_windows_plan_sha256 = _build_plan_sha256(
+                _windows_build_plan(
+                    _candidate_build_plan(plan_manifest["build_plan"])
+                )
+            )
             self.assertEqual(
                 report["candidate_build_plan_sha256"],
+                source_head_windows_plan_sha256,
+            )
+            self.assertEqual(
+                report["build_plan_sha256"],
+                source_head_windows_plan_sha256,
+            )
+            self.assertNotEqual(
+                source_head_windows_plan_sha256,
                 PROMOTED_WINDOWS_PLAN_SHA256,
             )
             self.assertEqual(
@@ -4795,7 +5313,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "e50758041199044e269e6b6dae52065cc2de2153efeb13b6b6983279ee2935c0",
+                "b17b2c5588fad1735d8dd1226bbeba7ae6f92fa2e70e5d70c1f0b4b979e34e17",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -5822,7 +6340,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 env=environment,
                 text=True,
                 capture_output=True,
-                timeout=2400,
+                timeout=3000,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -5900,9 +6418,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 17,
-                    "help_cases": 6,
-                    "success_cases": 22,
+                    "failure_cases": 19,
+                    "help_cases": 7,
+                    "success_cases": 24,
                 },
             )
             candidate_linux_plan = _candidate_build_plan(
@@ -5935,7 +6453,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
-                {name: True for name in CANDIDATE_TOOL_NAMES},
+                SOURCE_HEAD_INITIAL_MATCHES,
             )
             for stage_name in (
                 "stage-two",
@@ -6480,9 +6998,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            29,
+            31,
         )
-        self.assertEqual(returned["success_cases"].value, 36)
+        self.assertEqual(returned["success_cases"].value, 37)
         self.assertIsInstance(returned["help_cases"], ast.BinOp)
         self.assertIsInstance(returned["help_cases"].op, ast.Add)
         self.assertEqual(returned["help_cases"].right.value, 1)
@@ -6772,6 +7290,71 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 == "_check_cupidbuild_flatten_kernel_behavior"
             ]
             self.assertEqual(len(calls), 1)
+
+    def test_fixed_point_cupidbuild_checks_typed_profile_transaction(self):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+
+        def function(name):
+            return next(
+                node
+                for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name == name
+            )
+
+        behavior = function("_check_cupidbuild_generate_profile_behavior")
+        rendered = ast.unparse(behavior)
+        for expected in (
+            "'generate-profile-manifest'",
+            "Path('build/bootstrap/doom-cupidc-inputs.json')",
+            "'cupidbuild-profile-stage-three-success'",
+            "'cupidbuild-profile-stage-four-success'",
+            "'cupidbuild-profile-stage-three-failure'",
+            "'cupidbuild-profile-stage-four-failure'",
+            "'cupidbuild-profile-stage-three-missing-parent'",
+            "'cupidbuild-profile-stage-four-missing-parent'",
+            "'cupid.doom-profile-inputs.v1'",
+            "'unlisted.cc'",
+            "'approved source cohort'",
+            "'profile parent build component must already exist on POSIX'",
+            "stage_two_output.read_bytes() != stage_three_output.read_bytes()",
+            "stage_two_failure.exists()",
+            "stage_three_failure.exists()",
+            "(stage_two_failure_root / 'build').exists()",
+            "(stage_three_failure_root / 'build').exists()",
+        ):
+            self.assertIn(expected, rendered)
+
+        for matrix_name, clean_parent_creation in (
+            ("_run_behavior_checks", False),
+            ("_run_native_windows_behavior_checks", True),
+        ):
+            matrix = function(matrix_name)
+            calls = [
+                node
+                for node in ast.walk(matrix)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "_check_cupidbuild_generate_profile_behavior"
+            ]
+            self.assertEqual(len(calls), 1)
+            self.assertIsInstance(calls[0].args[1], ast.Name)
+            self.assertEqual(calls[0].args[1].id, "profile_source_root")
+            self.assertIsInstance(calls[0].args[-1], ast.Constant)
+            self.assertEqual(
+                calls[0].args[-1].value, clean_parent_creation
+            )
+
+        driver = function("_bootstrap_from_frozen_seed")
+        driver_calls = [
+            node
+            for node in ast.walk(driver)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_run_behavior_checks"
+        ]
+        self.assertEqual(len(driver_calls), 1)
+        self.assertIsInstance(driver_calls[0].args[-1], ast.Name)
+        self.assertEqual(driver_calls[0].args[-1].id, "source_root")
 
     def test_fixed_point_relocation_fixture_is_a_valid_i386_object(self):
         payload = _unowned_relocation_object_payload()
@@ -10191,7 +10774,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 env=environment,
                 text=True,
                 capture_output=True,
-                timeout=2400,
+                timeout=3000,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -10249,9 +10832,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 28,
-                    "help_cases": 6,
-                    "success_cases": 35,
+                    "failure_cases": 31,
+                    "help_cases": 7,
+                    "success_cases": 37,
                 },
             )
             self.assertEqual(
@@ -10310,7 +10893,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "20323a24be105b1b519962994b8e4e6a7f8e3cd0d005b8ee10c9aeb66da5d40a"
                             ),
                             "output_sha256": (
-                                "ef2fbefdcc83482a84d4514e40f078fa72f0d91efedb8ef592f0bd02c9764661"
+                                "e6f0e3e8e1f824edc76ef45036a2eb7fb2863ca9ab6098e4995e99d85efc1307"
                             ),
                             "output_size": 32768,
                             "return_code": 0,
@@ -10450,9 +11033,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "588485d496209eecf437e6f6fc9d02474d5c4ac1f236af86bdaad9f3f2d705ce"
+                        "36af89b475fdc11f674b9ca7cc1cb61d9f756ca212332a3f7fa9076d863d29e5"
                     ),
-                    "size": 516608,
+                    "size": 517120,
                 },
             )
             self.assertEqual(
@@ -10510,27 +11093,27 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             expected_native_images = {
                 "cupidasm": {
                     "sha256": (
-                        "9c50e204262a0b05b12d4fc0924670c66092d053ad12b99134ab79a254ef07ae"
+                        "dc004aa0026d37dfdf623441a85b539c2c65497c9159c7c394be03a9bc16b7ad"
                     ),
-                    "size": 479744,
+                    "size": 480256,
                 },
                 "cupidc": {
                     "sha256": (
-                        "fb7efa82fdcffa6a36a5c44bb83abe5b6a10ce7487c946eb3fab206e436b8522"
+                        "1a1bf6e016b5a61dfa61ff6f9c02672d338f2608341a26bf1a91b6376753f13b"
                     ),
                     "size": 2620416,
                 },
                 "cupidld": {
                     "sha256": (
-                        "aaa7b51a290646ef1d972f4904b1ed176a4dc912e53c1bc4cbdd8d1e39d8495f"
+                        "b89b42dd7df9fca44e59d93b97bbfd8f79da3352587da2dd50adfa72afee8f29"
                     ),
                     "size": 296960,
                 },
                 "cupidobj": {
                     "sha256": (
-                        "b6f6a5b66f8e2bcb4b779a16428d7b77a956113c5ca301344537b35839611572"
+                        "82e20c148756a1b1db7ed7b62b1077b88d45320fc01aea203111be34eea1e7b5"
                     ),
-                    "size": 375808,
+                    "size": 376320,
                 },
             }
             for tool_name, tool_evidence in native_tools.items():
@@ -10619,7 +11202,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 initial_matches,
-                {name: True for name in CANDIDATE_TOOL_NAMES},
+                SOURCE_HEAD_INITIAL_MATCHES,
             )
             self.assertEqual(
                 report["source_inputs"]["count"],

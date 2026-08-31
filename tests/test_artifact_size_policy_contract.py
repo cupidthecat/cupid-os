@@ -701,6 +701,39 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
             )
         )
 
+    def test_windows_seed_accepts_the_native_plan_transition_window(self):
+        digest = "3" * 64
+        current_plan = (
+            "c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3"
+        )
+        windows_manifest = _windows_manifest(digest)
+        windows_manifest["provenance"][
+            "native_build_plan_sha256"
+        ] = current_plan
+
+        result = self.run_request(
+            _request(
+                linux_manifest_digest=digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, SUCCESS_REPORT)
+        self.assertEqual(result.stderr, "")
+        for invalid in (current_plan.upper(), current_plan[:-1]):
+            with self.subTest(invalid=invalid):
+                invalid_manifest = _windows_manifest(digest)
+                invalid_manifest["provenance"][
+                    "native_build_plan_sha256"
+                ] = invalid
+                self.assert_contract_failure(
+                    _request(
+                        linux_manifest_digest=digest,
+                        windows_manifest=invalid_manifest,
+                    )
+                )
+
     def test_windows_seed_lineage_matches_the_checked_manifest_contract(self):
         checked_manifest = json.loads(
             (REPO_ROOT / WINDOWS_MANIFEST_PATH).read_text(encoding="utf-8")

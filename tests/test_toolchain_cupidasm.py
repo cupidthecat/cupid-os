@@ -125,6 +125,320 @@ class CupidAsmCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(output.read_bytes(), bytes.fromhex("b8 34 12 c3"))
 
+    def test_cli_writes_elf32_to_a_caller_owned_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "caller-owned-object.asm"
+            output = root / "caller-owned-object.o"
+            source.write_text(
+                "BITS 32\n"
+                "global entry:function\n"
+                "section .text\n"
+                "entry: ret\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"stale object")
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--caller-owned-output",
+                    "-f",
+                    "elf32",
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            _, sections = _elf_sections(output.read_bytes())
+            self.assertEqual(
+                {section["name"]: section for section in sections}[".text"][
+                    "data"
+                ],
+                b"\xc3",
+            )
+            self.assertEqual(list(root.glob("*.cupid-as-*")), [])
+
+    @unittest.skipUnless(os.name == "nt", "requires Windows file sharing")
+    def test_cli_keeps_a_retained_caller_owned_output_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "retained-caller-owned.asm"
+            output = root / "retained-caller-owned.o"
+            source.write_text(
+                "BITS 32\n"
+                "global entry:function\n"
+                "section .text\n"
+                "entry: ret\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"stale object")
+            identity = (output.stat().st_dev, output.stat().st_ino)
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.CreateFileW.argtypes = [
+                ctypes.c_wchar_p,
+                ctypes.c_uint32,
+                ctypes.c_uint32,
+                ctypes.c_void_p,
+                ctypes.c_uint32,
+                ctypes.c_uint32,
+                ctypes.c_void_p,
+            ]
+            kernel32.CreateFileW.restype = ctypes.c_void_p
+            kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+            kernel32.CloseHandle.restype = ctypes.c_int
+            retained = kernel32.CreateFileW(
+                str(output),
+                0x00000080,
+                0x00000001 | 0x00000002 | 0x00000004,
+                None,
+                3,
+                0x00000080,
+                None,
+            )
+            self.assertNotEqual(retained, ctypes.c_void_p(-1).value)
+            try:
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--caller-owned-output",
+                        "-f",
+                        "elf32",
+                        str(source),
+                        "-o",
+                        str(output),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+            finally:
+                kernel32.CloseHandle(retained)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((output.stat().st_dev, output.stat().st_ino), identity)
+            _, sections = _elf_sections(output.read_bytes())
+            self.assertEqual(
+                {section["name"]: section for section in sections}[".text"][
+                    "data"
+                ],
+                b"\xc3",
+            )
+            self.assertEqual(list(root.glob("*.cupid-as-*")), [])
+
+    def test_cli_writes_raw_pair_to_caller_owned_outputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "caller-owned-raw.asm"
+            output = root / "caller-owned-raw.bin"
+            range_map = root / "caller-owned-raw.cupidmap"
+            source.write_text(
+                "BITS 16\n"
+                "ORG 0x7c00\n"
+                "start:\n"
+                "    mov ax, 0x1234\n"
+                "    ret\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"stale image")
+            range_map.write_bytes(b"stale map")
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--caller-owned-output",
+                    "-f",
+                    "bin",
+                    "--map",
+                    str(range_map),
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(output.read_bytes(), bytes.fromhex("b8 34 12 c3"))
+            self.assertEqual(
+                range_map.read_bytes(),
+                b"cupid.raw-map.v2\n"
+                b"size 4\n"
+                b"base 0x00007c00\n"
+                b"edges 0\n"
+                b"range 0x00000000 code16\n",
+            )
+            self.assertEqual(list(root.glob("*.cupid-as-*")), [])
+
+    def test_cli_rejects_hardlinked_caller_owned_raw_outputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "caller-owned-hardlink.asm"
+            output = root / "caller-owned-hardlink.bin"
+            range_map = root / "caller-owned-hardlink.cupidmap"
+            source.write_text("BITS 16\nORG 0x7c00\nret\n", encoding="utf-8")
+            output.write_bytes(b"previous caller-owned pair")
+            os.link(output, range_map)
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--caller-owned-output",
+                    "-f",
+                    "bin",
+                    "--map",
+                    str(range_map),
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("assembly failed (input)", result.stderr)
+            self.assertEqual(output.read_bytes(), b"previous caller-owned pair")
+            self.assertEqual(range_map.read_bytes(), output.read_bytes())
+            self.assertEqual(list(root.glob("*.cupid-as-*")), [])
+
+    def test_cli_rejects_lexically_aliased_absent_caller_owned_outputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "caller-owned-absent-alias.asm"
+            output = root / "caller-owned-absent-alias.bin"
+            range_map = str(root) + os.sep + "." + os.sep + output.name
+            source.write_text("BITS 16\nORG 0x7c00\nret\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--caller-owned-output",
+                    "-f",
+                    "bin",
+                    "--map",
+                    range_map,
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("assembly failed (input)", result.stderr)
+            self.assertFalse(output.exists())
+            self.assertEqual(list(root.glob("*.cupid-as-*")), [])
+
+    def test_cli_rejects_absent_outputs_below_aliased_parents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "caller-owned-parent-alias.asm"
+            real_parent = root / "real-parent"
+            alias_parent = root / "parent-alias"
+            output = real_parent / "caller-owned-parent-alias.bin"
+            range_map = alias_parent / output.name
+            real_parent.mkdir()
+            try:
+                alias_parent.symlink_to(real_parent, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory links are unavailable: {error}")
+            source.write_text("BITS 16\nORG 0x7c00\nret\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--caller-owned-output",
+                    "-f",
+                    "bin",
+                    "--map",
+                    str(range_map),
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("assembly failed (input)", result.stderr)
+            self.assertFalse(output.exists())
+            self.assertEqual(list(real_parent.glob("*.cupid-as-*")), [])
+
+    @unittest.skipUnless(os.name == "nt", "requires case-insensitive paths")
+    def test_cli_rejects_case_aliased_caller_owned_raw_outputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "caller-owned-case.asm"
+            output = root / "caller-owned-case.bin"
+            range_map = root / "CALLER-OWNED-CASE.BIN"
+            source.write_text("BITS 16\nORG 0x7c00\nret\n", encoding="utf-8")
+            output.write_bytes(b"previous case-aliased pair")
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--caller-owned-output",
+                    "-f",
+                    "bin",
+                    "--map",
+                    str(range_map),
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("assembly failed (input)", result.stderr)
+            self.assertEqual(output.read_bytes(), b"previous case-aliased pair")
+            self.assertEqual(list(root.glob("*.cupid-as-*")), [])
+
+    def test_cli_rejects_duplicate_caller_owned_output_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "duplicate-caller-owned.asm"
+            output = root / "duplicate-caller-owned.bin"
+            source.write_text("BITS 32\n    ret\n", encoding="utf-8")
+            output.write_bytes(b"prior output")
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--caller-owned-output",
+                    "--caller-owned-output",
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("usage: cupidasm", result.stderr)
+            self.assertEqual(output.read_bytes(), b"prior output")
+            self.assertEqual(list(root.glob("*.cupid-as-*")), [])
+
     @unittest.skipUnless(
         os.name == "posix" and Path("/proc/self/fd").is_dir(),
         "requires Linux procfs descriptor paths",

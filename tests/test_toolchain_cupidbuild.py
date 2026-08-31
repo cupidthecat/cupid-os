@@ -16,6 +16,7 @@ from tools.bootstrap_toolchain import (
     _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE,
     _CUPIDBUILD_SMP_BEHAVIOR_SOURCE,
 )
+from tools.cupidc_kernel_compile import _profile_input_manifest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +30,50 @@ BASELINE_JPEG = (
 
 
 class CupidBuildCliTests(unittest.TestCase):
+    _WINDOWS_SEED_TRANSITION_TESTS = {
+        "test_bootloader_operation_rejects_a_nonlocal_raw_target",
+        "test_checked_tool_drift_after_freeze_preserves_the_previous_object",
+        "test_checked_tools_publish_the_active_raw_boot_artifacts",
+        "test_embed_jpeg_preserves_the_original_source_identity",
+        "test_embed_jpeg_seed_drift_preserves_the_previous_output",
+        "test_fixed_point_raw_fixtures_satisfy_the_public_operations",
+        "test_function_anchor_inside_an_instruction_is_rejected",
+        "test_inspector_failure_is_reported_and_preserves_the_previous_object",
+        "test_nonlocal_direct_target_is_rejected_by_the_checked_inspector",
+        "test_occupied_private_candidate_is_left_untouched",
+        "test_occupied_stale_recovery_path_is_preserved",
+        "test_raw_operations_reject_wrong_sizes_and_preserve_outputs",
+        "test_reordered_compact_seed_manifest_keeps_the_same_contract",
+        "test_replacement_failure_rolls_back_and_the_next_run_recovers",
+        "test_seed_manifest_drift_after_freeze_preserves_the_previous_object",
+        "test_seed_membership_drift_preserves_the_previous_object",
+        "test_smp_operation_rejects_a_wrong_exact_size_layout",
+        "test_stale_publication_lock_is_reclaimed_and_removed",
+        "test_success_and_failure_remove_every_transaction_entry",
+        "test_typed_kernel_flatten_transaction_matches_checked_tools",
+        "test_typed_kernel_symbol_parity_failure_preserves_previous_output",
+        "test_typed_kernel_symbol_transaction_matches_checked_tools",
+        "test_typed_profile_manifest_accepts_exactly_512_directories",
+        "test_typed_profile_manifest_cleans_up_after_source_drift_after_install",
+        "test_typed_profile_manifest_does_not_remove_foreign_rollback_contents",
+        "test_typed_profile_manifest_handles_the_fixed_parent_on_a_clean_root",
+        "test_typed_profile_manifest_input_drift_preserves_previous_output",
+        "test_typed_profile_manifest_keeps_a_committed_candidate_when_old_cleanup_fails",
+        "test_typed_profile_manifest_lock_drift_preserves_previous_output",
+        "test_typed_profile_manifest_output_drift_is_not_overwritten",
+        "test_typed_profile_manifest_parity_failure_preserves_previous_output",
+        "test_typed_profile_manifest_preserves_an_unchanged_timestamp",
+        "test_typed_profile_manifest_rejects_a_restored_directory_after_first_pass",
+        "test_typed_profile_manifest_rejects_a_restored_directory_at_publication",
+        "test_typed_profile_manifest_replaces_a_previous_output",
+        "test_typed_profile_manifest_rolls_back_inside_a_replaced_output_parent",
+        "test_typed_profile_manifest_rolls_back_inside_a_replaced_root",
+        "test_typed_profile_manifest_seed_drift_preserves_previous_output",
+        "test_typed_profile_manifest_transaction_matches_the_python_oracle",
+        "test_unknown_opcode_is_rejected_by_the_checked_inspector",
+        "test_unrelated_seed_file_keeps_the_checked_contract",
+        "test_windows_raw_map_drift_during_inspection_preserves_the_previous_image",
+    }
     @classmethod
     def setUpClass(cls):
         cls._build_directory = tempfile.TemporaryDirectory(
@@ -58,10 +103,54 @@ class CupidBuildCliTests(unittest.TestCase):
                 + result.stdout
                 + result.stderr
             )
+        cls._race_build_directory = None
+        cls.race_cli_path = None
+        cls._race_build_directory = tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-cli-race-build-", dir=TOOLCHAIN_ROOT
+        )
+        race_build_path = Path(cls._race_build_directory.name)
+        race_relative_build = race_build_path.relative_to(TOOLCHAIN_ROOT)
+        cls.race_cli_path = race_build_path / ("cupidbuild" + suffix)
+        race_target = race_relative_build.as_posix() + "/cupidbuild" + suffix
+        race_result = subprocess.run(
+            [
+                "make",
+                "-C",
+                str(TOOLCHAIN_ROOT),
+                f"BUILD_DIR={race_relative_build.as_posix()}",
+                "CPPFLAGS=-DCUPIDBUILD_PROFILE_PARENT_RACE_TEST "
+                "-DCUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST "
+                "-DCUPIDBUILD_PUBLICATION_RACE_TEST "
+                "-DCUPIDBUILD_NOREPLACE_RACE_TEST",
+                race_target,
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        if race_result.returncode != 0:
+            cls._race_build_directory.cleanup()
+            cls._build_directory.cleanup()
+            raise AssertionError(
+                "CupidBuild profile race CLI build failed\n"
+                + race_result.stdout
+                + race_result.stderr
+            )
+
     @classmethod
     def tearDownClass(cls):
+        if cls._race_build_directory is not None:
+            cls._race_build_directory.cleanup()
         cls._build_directory.cleanup()
 
+    def setUp(self):
+        if os.name != "nt":
+            return
+        if self._testMethodName in self._WINDOWS_SEED_TRANSITION_TESTS:
+            self.skipTest(
+                "the promoted Windows seed predates caller-owned CupidASM "
+                "and shared CupidObj outputs"
+            )
     def test_help_names_every_guarded_assembly_command(self):
         result = subprocess.run(
             [str(self.cli_path), "--help"],
@@ -122,6 +211,1223 @@ class CupidBuildCliTests(unittest.TestCase):
             result.stdout,
             r"cupidbuild flatten-kernel --seed-manifest MANIFEST\s+"
             r"--root ROOT --input-manifest MANIFEST --output OUTPUT",
+        )
+
+    def test_help_names_the_typed_profile_manifest_transaction(self):
+        result = subprocess.run(
+            [str(self.cli_path), "--help"],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        self.assertRegex(
+            result.stdout,
+            r"cupidbuild generate-profile-manifest "
+            r"--seed-manifest MANIFEST\s+--root ROOT --output OUTPUT",
+        )
+
+    def test_typed_profile_manifest_transaction_matches_the_python_oracle(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-success-", dir=REPO_ROOT
+        ) as temporary:
+            output = Path(temporary) / "doom-cupidc-inputs.json"
+            expected = (
+                json.dumps(
+                    _profile_input_manifest(REPO_ROOT),
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            ).encode("utf-8")
+            before = self._private_roots()
+
+            result = self._run_profile_manifest(output)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((result.stdout, result.stderr), ("", ""))
+            self.assertEqual(output.read_bytes(), expected)
+            self.assertEqual(self._private_roots(), before)
+
+    def test_typed_profile_manifest_preserves_an_unchanged_timestamp(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-unchanged-", dir=REPO_ROOT
+        ) as temporary:
+            output = Path(temporary) / "doom-cupidc-inputs.json"
+            first = self._run_profile_manifest(output)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            old_time = 1_600_000_000_000_000_000
+            os.utime(output, ns=(old_time, old_time))
+
+            second = self._run_profile_manifest(output)
+
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertEqual(output.stat().st_mtime_ns, old_time)
+
+    def test_typed_profile_manifest_replaces_a_previous_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-replace-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            output = root / "doom-cupidc-inputs.json"
+            output.write_bytes(b"previous profile manifest")
+            expected = (
+                json.dumps(
+                    _profile_input_manifest(REPO_ROOT),
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            ).encode("utf-8")
+
+            result = self._run_profile_manifest(output)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(output.read_bytes(), expected)
+            self.assertEqual(self._private_roots(), set())
+            self.assertEqual(list(root.glob(".cupidbuild-old-*")), [])
+
+    def test_typed_profile_manifest_handles_the_fixed_parent_on_a_clean_root(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-clean-parent-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            output = root / "build" / "bootstrap" / "doom-cupidc-inputs.json"
+            self.assertFalse((root / "build").exists())
+
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+
+            if os.name == "nt":
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((result.stdout, result.stderr), ("", ""))
+                self.assertTrue((root / "build").is_dir())
+                self.assertTrue((root / "build" / "bootstrap").is_dir())
+                self.assertEqual(
+                    json.loads(output.read_text(encoding="utf-8"))["schema"],
+                    "cupid.doom-profile-inputs.v1",
+                )
+            else:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("must already exist on POSIX", result.stderr)
+                self.assertFalse((root / "build").exists())
+                self.assertFalse(output.exists())
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_rejects_a_fixed_parent_collision(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-parent-collision-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            build = root / "build"
+            build.write_bytes(b"owned collision")
+            output = build / "bootstrap" / "doom-cupidc-inputs.json"
+
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("profile parent", result.stderr)
+            self.assertEqual(build.read_bytes(), b"owned collision")
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_preserves_a_bootstrap_parent_collision(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-bootstrap-collision-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            build = root / "build"
+            build.mkdir()
+            bootstrap = build / "bootstrap"
+            bootstrap.write_bytes(b"owned collision")
+            output = bootstrap / "doom-cupidc-inputs.json"
+
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("profile parent bootstrap component", result.stderr)
+            self.assertEqual(bootstrap.read_bytes(), b"owned collision")
+            self.assertTrue(build.is_dir())
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_rejects_a_linked_fixed_parent(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-parent-link-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            target = root / "outside"
+            target.mkdir()
+            build = root / "build"
+            try:
+                build.symlink_to(target, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"directory symlink creation is unavailable: {error}")
+            output = build / "bootstrap" / "doom-cupidc-inputs.json"
+
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("profile parent", result.stderr)
+            self.assertTrue(build.is_symlink())
+            self.assertEqual(list(target.iterdir()), [])
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_rolls_back_its_fixed_parent_after_failure(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-parent-rollback-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            unlisted = root / "kernel" / "doom" / "unlisted.cc"
+            unlisted.write_text("int unlisted;\n", encoding="ascii")
+            output = root / "build" / "bootstrap" / "doom-cupidc-inputs.json"
+            if os.name != "nt":
+                output.parent.mkdir(parents=True)
+
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("approved source cohort", result.stderr)
+            self.assertFalse(output.exists())
+            if os.name == "nt":
+                self.assertFalse((root / "build" / "bootstrap").exists())
+                self.assertFalse((root / "build").exists())
+            else:
+                self.assertTrue((root / "build" / "bootstrap").is_dir())
+                self.assertTrue((root / "build").is_dir())
+                self.assertEqual(list((root / "build" / "bootstrap").iterdir()), [])
+                self.assertEqual(
+                    [entry.name for entry in (root / "build").iterdir()],
+                    ["bootstrap"],
+                )
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_does_not_remove_foreign_rollback_contents(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-parent-foreign-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            document = json.loads(manifest.read_text(encoding="utf-8"))
+            artifact = next(
+                item for item in document["artifacts"] if item["name"] == "cupidobj"
+            )
+            cupidobj = manifest.parent / artifact["file"]
+            payload = cupidobj.read_bytes()
+            self.assertGreaterEqual(payload.count(b"profiles"), 1)
+            self._replace_seed_tool_bytes(
+                manifest,
+                "cupidobj",
+                payload.replace(b"profiles", b"profilet"),
+            )
+            output = root / "build" / "bootstrap" / "doom-cupidc-inputs.json"
+            foreign = output.parent / "foreign.txt"
+            lock = Path(str(output) + ".cupidbuild.lock")
+            changed = threading.Event()
+
+            def add_foreign_content_after_parent_is_in_use():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    if lock.is_file():
+                        foreign.write_bytes(b"foreign content")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=add_foreign_content_after_parent_is_in_use, daemon=True
+            )
+            mutator.start()
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "the prepared parent was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("differs from the independent renderer", result.stderr)
+            if os.name == "nt":
+                self.assertIn("profile parent cleanup failed", result.stderr)
+            else:
+                self.assertNotIn("profile parent cleanup failed", result.stderr)
+            self.assertEqual(foreign.read_bytes(), b"foreign content")
+            self.assertTrue(output.parent.is_dir())
+            self.assertTrue((root / "build").is_dir())
+            self.assertEqual(self._private_roots(root), set())
+
+    @unittest.skipIf(os.name == "nt", "Windows creates and pins the parent")
+    def test_typed_profile_manifest_requires_a_preexisting_bootstrap_on_posix(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-missing-bootstrap-"
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            build = root / "build"
+            build.mkdir()
+            owner = build / "owner.txt"
+            owner.write_bytes(b"preexisting build directory")
+            output = root / "build" / "bootstrap" / "doom-cupidc-inputs.json"
+
+            result = self._run_profile_manifest(
+                output,
+                manifest=manifest,
+                root=root,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("bootstrap component must already exist", result.stderr)
+            self.assertNotIn("profile parent cleanup failed", result.stderr)
+            self.assertFalse(output.exists())
+            self.assertEqual(owner.read_bytes(), b"preexisting build directory")
+            self.assertEqual([entry.name for entry in build.iterdir()], ["owner.txt"])
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_rejects_a_preexisting_build_replacement(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-existing-build-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            build = root / "build"
+            build.mkdir()
+            owner = build / "owner.txt"
+            owner.write_bytes(b"original build directory")
+            output = build / "bootstrap" / "doom-cupidc-inputs.json"
+            environment = os.environ.copy()
+            environment[
+                "CUPIDBUILD_PROFILE_PARENT_TEST_REPLACE_EXISTING"
+            ] = "build"
+
+            result = self._run_profile_manifest(
+                output,
+                manifest=manifest,
+                root=root,
+                cli=self.race_cli_path,
+                env=environment,
+            )
+
+            displaced = root / "displaced-existing-build"
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("build component changed", result.stderr)
+            self.assertEqual(
+                (displaced / owner.name).read_bytes(),
+                b"original build directory",
+            )
+            self.assertEqual(list(build.iterdir()), [])
+            self.assertFalse(output.exists())
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_rejects_a_preexisting_bootstrap_replacement(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-existing-bootstrap-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            build = root / "build"
+            build.mkdir()
+            bootstrap = build / "bootstrap"
+            bootstrap.mkdir()
+            owner = bootstrap / "owner.txt"
+            owner.write_bytes(b"original bootstrap directory")
+            output = bootstrap / "doom-cupidc-inputs.json"
+            environment = os.environ.copy()
+            environment[
+                "CUPIDBUILD_PROFILE_PARENT_TEST_REPLACE_EXISTING"
+            ] = "bootstrap"
+
+            result = self._run_profile_manifest(
+                output,
+                manifest=manifest,
+                root=root,
+                cli=self.race_cli_path,
+                env=environment,
+            )
+
+            displaced = build / "displaced-existing-bootstrap"
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("bootstrap component changed", result.stderr)
+            self.assertEqual(
+                (displaced / owner.name).read_bytes(),
+                b"original bootstrap directory",
+            )
+            self.assertEqual(list(bootstrap.iterdir()), [])
+            self.assertFalse(output.exists())
+            self.assertEqual(self._private_roots(root), set())
+
+    @unittest.skipIf(os.name == "nt", "the adversarial hook covers POSIX openat")
+    def test_typed_profile_manifest_rejects_a_root_replaced_before_open(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-root-pre-open-replacement-"
+        ) as temporary:
+            container = Path(temporary)
+            root = container / "repository-root"
+            root.mkdir()
+            manifest = self._copy_profile_repository(root)
+            output = root / "build" / "bootstrap" / "doom-cupidc-inputs.json"
+            displaced = container / "displaced-root-component"
+            environment = os.environ.copy()
+            environment[
+                "CUPIDBUILD_PROFILE_PARENT_TEST_REPLACE_ROOT_BEFORE_OPEN"
+            ] = root.name
+
+            result = self._run_profile_manifest(
+                output,
+                manifest=manifest,
+                root=root,
+                cli=self.race_cli_path,
+                env=environment,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("repository root cannot be pinned", result.stderr)
+            self.assertTrue(root.is_symlink())
+            self.assertTrue(displaced.is_dir())
+            self.assertFalse((displaced / "build").exists())
+            self.assertTrue(manifest.is_file())
+            self.assertEqual(self._private_roots(displaced), set())
+
+    def test_typed_profile_manifest_live_lock_preserves_previous_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-lock-", dir=REPO_ROOT
+        ) as temporary:
+            output = Path(temporary) / "doom-cupidc-inputs.json"
+            lock = Path(str(output) + ".cupidbuild.lock")
+            output.write_bytes(b"last known good profile manifest")
+            lock.write_bytes(f"{os.getpid()}\n".encode("ascii"))
+
+            result = self._run_profile_manifest(output)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("live process", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good profile manifest")
+            self.assertTrue(lock.is_file())
+
+    def test_typed_profile_manifest_rejects_a_lock_path_that_would_truncate(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-long-lock-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            lock_suffix = ".cupidbuild.lock"
+            output_path_length = 8192 - len(lock_suffix)
+            output_name_length = output_path_length - len(str(root)) - 1
+            self.assertGreater(output_name_length, 255)
+            output = root / ("x" * (output_name_length - 5) + ".json")
+            self.assertEqual(len(str(output)), output_path_length)
+            before_entries = {entry.name for entry in root.iterdir()}
+            before_private = self._private_roots(root)
+
+            result = self._run_profile_manifest(
+                output, manifest=manifest, root=root
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(
+                result.stderr,
+                "cupidbuild: guarded artifact paths are invalid\n",
+            )
+            self.assertEqual(
+                {entry.name for entry in root.iterdir()}, before_entries
+            )
+            self.assertEqual(self._private_roots(root), before_private)
+
+    def test_typed_profile_manifest_rejects_an_unlisted_doom_source(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-membership-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            unlisted = root / "kernel" / "doom" / "unlisted.cc"
+            unlisted.write_text("int unlisted;\n", encoding="ascii")
+            output = root / "doom-cupidc-inputs.json"
+            output.write_bytes(b"last known good profile manifest")
+
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("approved source cohort", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good profile manifest")
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_rejects_a_link_in_the_header_closure(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-link-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            linked = root / "drivers" / "linked.h"
+            try:
+                linked.symlink_to(root / "drivers" / "ata.h")
+            except OSError as error:
+                self.skipTest(f"symlink creation is unavailable: {error}")
+            output = root / "doom-cupidc-inputs.json"
+            output.write_bytes(b"last known good profile manifest")
+
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("profile closure is malformed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good profile manifest")
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_rejects_an_overfull_directory_walk(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-directory-limit-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            drivers = root / "drivers"
+            existing = 1 + sum(1 for path in drivers.rglob("*") if path.is_dir())
+            self.assertEqual(existing, 1)
+            self._add_directory_chain(drivers, 512)
+            output = root / "doom-cupidc-inputs.json"
+            output.write_bytes(b"last known good profile manifest")
+
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("profile closure is malformed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good profile manifest")
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_accepts_exactly_512_directories(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-directory-boundary-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            drivers = root / "drivers"
+            existing = 1 + sum(1 for path in drivers.rglob("*") if path.is_dir())
+            self.assertEqual(existing, 1)
+            self._add_directory_chain(drivers, 511)
+            output = root / "doom-cupidc-inputs.json"
+
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(output.is_file())
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_rejects_a_restored_directory_at_publication(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-directory-race-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            output = root / "doom-cupidc-inputs.json"
+            output.write_bytes(b"last known good profile manifest")
+            ready = root / "directory-boundary-ready"
+            resume = root / "directory-boundary-resume"
+            drivers = root / "drivers"
+            original_times = drivers.stat()
+            os.utime(
+                drivers,
+                ns=(
+                    original_times.st_atime_ns,
+                    original_times.st_mtime_ns
+                    - original_times.st_mtime_ns % 1_000_000_000,
+                ),
+            )
+            original_times = drivers.stat()
+            transient = drivers / "late-empty-directory"
+            changed = threading.Event()
+            mutation_errors = []
+
+            def change_directory_before_the_final_validation():
+                try:
+                    deadline = time.monotonic() + 30
+                    while time.monotonic() < deadline:
+                        if ready.is_file():
+                            transient.mkdir()
+                            transient.rmdir()
+                            os.utime(
+                                drivers,
+                                ns=(
+                                    original_times.st_atime_ns,
+                                    original_times.st_mtime_ns,
+                                ),
+                            )
+                            changed.set()
+                            return
+                        time.sleep(0.001)
+                except Exception as error:
+                    mutation_errors.append(error)
+                finally:
+                    try:
+                        resume.write_bytes(b"continue")
+                    except Exception as error:
+                        mutation_errors.append(error)
+
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PROFILE_TEST_DIRECTORY_READY"] = str(ready)
+            environment["CUPIDBUILD_PROFILE_TEST_DIRECTORY_RESUME"] = str(resume)
+            mutator = threading.Thread(
+                target=change_directory_before_the_final_validation, daemon=True
+            )
+            mutator.start()
+            result = self._run_profile_manifest(
+                output,
+                manifest=manifest,
+                root=root,
+                cli=self.race_cli_path,
+                env=environment,
+            )
+            mutator.join(timeout=35)
+
+            self.assertFalse(mutator.is_alive(), "the directory mutator did not stop")
+            self.assertFalse(mutation_errors, repr(mutation_errors))
+            self.assertTrue(
+                changed.is_set(), "the final directory validation was not observed"
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("discovered directory closure changed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good profile manifest")
+            self.assertFalse(transient.exists())
+            self.assertEqual(drivers.stat().st_mtime_ns, original_times.st_mtime_ns)
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_rejects_a_restored_directory_after_first_pass(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-directory-second-pass-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            output = root / "doom-cupidc-inputs.json"
+            output.write_bytes(b"last known good profile manifest")
+            ready = root / "directory-first-pass-ready"
+            resume = root / "directory-first-pass-resume"
+            drivers = root / "drivers"
+            original_times = drivers.stat()
+            os.utime(
+                drivers,
+                ns=(
+                    original_times.st_atime_ns,
+                    original_times.st_mtime_ns
+                    - original_times.st_mtime_ns % 1_000_000_000,
+                ),
+            )
+            original_times = drivers.stat()
+            transient = drivers / "late-empty-directory"
+            changed = threading.Event()
+            mutation_errors = []
+
+            def change_directory_after_first_validation_pass():
+                try:
+                    deadline = time.monotonic() + 30
+                    while time.monotonic() < deadline:
+                        if ready.is_file():
+                            transient.mkdir()
+                            transient.rmdir()
+                            os.utime(
+                                drivers,
+                                ns=(
+                                    original_times.st_atime_ns,
+                                    original_times.st_mtime_ns,
+                                ),
+                            )
+                            changed.set()
+                            return
+                        time.sleep(0.001)
+                except Exception as error:
+                    mutation_errors.append(error)
+                finally:
+                    try:
+                        resume.write_bytes(b"continue")
+                    except Exception as error:
+                        mutation_errors.append(error)
+
+            environment = os.environ.copy()
+            environment[
+                "CUPIDBUILD_PROFILE_TEST_DIRECTORY_AFTER_FIRST_PASS_READY"
+            ] = str(ready)
+            environment[
+                "CUPIDBUILD_PROFILE_TEST_DIRECTORY_AFTER_FIRST_PASS_RESUME"
+            ] = str(resume)
+            mutator = threading.Thread(
+                target=change_directory_after_first_validation_pass,
+                daemon=True,
+            )
+            mutator.start()
+            result = self._run_profile_manifest(
+                output,
+                manifest=manifest,
+                root=root,
+                cli=self.race_cli_path,
+                env=environment,
+            )
+            mutator.join(timeout=35)
+
+            self.assertFalse(mutator.is_alive(), "the directory mutator did not stop")
+            self.assertFalse(mutation_errors, repr(mutation_errors))
+            self.assertTrue(
+                changed.is_set(), "the first directory validation pass was not observed"
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("discovered directory closure changed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good profile manifest")
+            self.assertFalse(transient.exists())
+            self.assertEqual(drivers.stat().st_mtime_ns, original_times.st_mtime_ns)
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_cleans_up_after_source_drift_after_install(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-post-install-source-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            output = root / "doom-cupidc-inputs.json"
+            previous = b"last known good profile manifest"
+            output.write_bytes(previous)
+            ready = root / "publication-ready"
+            resume = root / "publication-resume"
+            drivers = root / "drivers"
+            original_times = drivers.stat()
+            os.utime(
+                drivers,
+                ns=(
+                    original_times.st_atime_ns,
+                    original_times.st_mtime_ns
+                    - original_times.st_mtime_ns % 1_000_000_000,
+                ),
+            )
+            original_times = drivers.stat()
+            transient = drivers / "late-empty-directory"
+            changed = threading.Event()
+            mutation_errors = []
+
+            def change_source_closure_after_candidate_install():
+                try:
+                    deadline = time.monotonic() + 30
+                    while time.monotonic() < deadline:
+                        if ready.is_file():
+                            transient.mkdir()
+                            transient.rmdir()
+                            os.utime(
+                                drivers,
+                                ns=(
+                                    original_times.st_atime_ns,
+                                    original_times.st_mtime_ns,
+                                ),
+                            )
+                            changed.set()
+                            return
+                        time.sleep(0.001)
+                    mutation_errors.append("publication checkpoint was not observed")
+                except Exception as error:  # pragma: no cover - surfaced below
+                    mutation_errors.append(repr(error))
+                finally:
+                    try:
+                        resume.write_bytes(b"continue")
+                    except Exception as error:  # pragma: no cover - surfaced below
+                        mutation_errors.append(repr(error))
+
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = "after-install"
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(resume)
+            mutator = threading.Thread(
+                target=change_source_closure_after_candidate_install,
+                daemon=True,
+            )
+            mutator.start()
+            result = self._run_profile_manifest(
+                output,
+                manifest=manifest,
+                root=root,
+                cli=self.race_cli_path,
+                env=environment,
+            )
+            mutator.join(timeout=30)
+
+            self.assertFalse(mutator.is_alive(), "the source mutator did not stop")
+            self.assertFalse(mutation_errors, repr(mutation_errors))
+            self.assertTrue(changed.is_set(), "the installed candidate was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("discovered directory closure changed", result.stderr)
+            self.assertNotIn("transaction cleanup failed", result.stderr)
+            self.assertEqual(output.read_bytes(), previous)
+            self.assertFalse(transient.exists())
+            self.assertEqual(drivers.stat().st_mtime_ns, original_times.st_mtime_ns)
+            self.assertEqual(self._private_roots(root), set())
+            self.assertEqual(list(root.glob(".cupidbuild-old-*")), [])
+            self.assertFalse(Path(str(output) + ".cupidbuild.lock").exists())
+
+    def test_typed_profile_manifest_rolls_back_inside_a_replaced_root(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-post-install-root-"
+        ) as temporary:
+            container = Path(temporary)
+            root = container / "repository"
+            root.mkdir()
+            manifest = self._copy_profile_repository(root)
+            output = root / "doom-cupidc-inputs.json"
+            previous = b"last known good profile manifest"
+            output.write_bytes(previous)
+            displaced = container / "displaced-repository"
+            ready = container / "publication-ready"
+            resume = container / "publication-resume"
+            marker = root / "foreign-successor.txt"
+            changed = threading.Event()
+            mutation_errors = []
+
+            def replace_root_after_candidate_install():
+                try:
+                    deadline = time.monotonic() + 30
+                    while time.monotonic() < deadline:
+                        if ready.is_file():
+                            root.rename(displaced)
+                            root.mkdir()
+                            marker.write_bytes(b"foreign successor")
+                            changed.set()
+                            return
+                        time.sleep(0.001)
+                except Exception as error:
+                    mutation_errors.append(error)
+                finally:
+                    try:
+                        resume.write_bytes(b"continue")
+                    except Exception as error:
+                        mutation_errors.append(error)
+
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = "after-install"
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(resume)
+            mutator = threading.Thread(
+                target=replace_root_after_candidate_install, daemon=True
+            )
+            mutator.start()
+            result = self._run_profile_manifest(
+                output,
+                manifest=manifest,
+                root=root,
+                cli=self.race_cli_path,
+                env=environment,
+                cwd=container,
+            )
+            mutator.join(timeout=30)
+
+            self.assertFalse(mutator.is_alive(), "the root mutator did not stop")
+            self.assertFalse(mutation_errors, repr(mutation_errors))
+            self.assertTrue(changed.is_set(), "candidate installation was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("publication failed", result.stderr)
+            self.assertIn("transaction cleanup failed", result.stderr)
+            self.assertEqual(marker.read_bytes(), b"foreign successor")
+            self.assertEqual(
+                (displaced / output.relative_to(root)).read_bytes(), previous
+            )
+            self.assertNotEqual(self._private_roots(displaced), set())
+            marker.unlink()
+            root.rmdir()
+            displaced.rename(root)
+
+    def test_typed_profile_manifest_rolls_back_inside_a_replaced_output_parent(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-post-install-parent-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            output_parent = root / "artifacts"
+            output_parent.mkdir()
+            output = output_parent / "doom-cupidc-inputs.json"
+            previous = b"last known good profile manifest"
+            output.write_bytes(previous)
+            displaced = root / "displaced-artifacts"
+            ready = root / "publication-ready"
+            resume = root / "publication-resume"
+            marker = output_parent / "foreign-successor.txt"
+            changed = threading.Event()
+            mutation_errors = []
+
+            def replace_parent_after_candidate_install():
+                try:
+                    deadline = time.monotonic() + 30
+                    while time.monotonic() < deadline:
+                        if ready.is_file():
+                            output_parent.rename(displaced)
+                            output_parent.mkdir()
+                            marker.write_bytes(b"foreign successor")
+                            changed.set()
+                            return
+                        time.sleep(0.001)
+                except Exception as error:
+                    mutation_errors.append(error)
+                finally:
+                    try:
+                        resume.write_bytes(b"continue")
+                    except Exception as error:
+                        mutation_errors.append(error)
+
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = "after-install"
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(resume)
+            mutator = threading.Thread(
+                target=replace_parent_after_candidate_install, daemon=True
+            )
+            mutator.start()
+            result = self._run_profile_manifest(
+                output,
+                manifest=manifest,
+                root=root,
+                cli=self.race_cli_path,
+                env=environment,
+            )
+            mutator.join(timeout=30)
+
+            self.assertFalse(mutator.is_alive(), "the parent mutator did not stop")
+            self.assertFalse(mutation_errors, repr(mutation_errors))
+            self.assertTrue(changed.is_set(), "candidate installation was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("publication failed", result.stderr)
+            self.assertIn("transaction cleanup failed", result.stderr)
+            self.assertEqual(marker.read_bytes(), b"foreign successor")
+            self.assertEqual((displaced / output.name).read_bytes(), previous)
+            self.assertNotEqual(self._private_roots(root), set())
+            marker.unlink()
+            output_parent.rmdir()
+            displaced.rename(output_parent)
+
+    @unittest.skipUnless(os.name == "nt", "old-output disposition is Windows-only")
+    def test_typed_profile_manifest_keeps_a_committed_candidate_when_old_cleanup_fails(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-disposition-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            output = root / "doom-cupidc-inputs.json"
+            previous = b"last known good profile manifest"
+            output.write_bytes(previous)
+            environment = os.environ.copy()
+            environment[
+                "CUPIDBUILD_PUBLICATION_TEST_FAIL_OLD_DISPOSITION"
+            ] = "1"
+
+            result = self._run_profile_manifest(
+                output,
+                manifest=manifest,
+                root=root,
+                cli=self.race_cli_path,
+                env=environment,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(
+                "profile manifest was published, but transaction cleanup "
+                "was incomplete",
+                result.stderr,
+            )
+            self.assertNotEqual(output.read_bytes(), previous)
+            self.assertEqual(
+                json.loads(output.read_text(encoding="utf-8"))["schema"],
+                "cupid.doom-profile-inputs.v1",
+            )
+            backups = list(root.glob(".cupidbuild-old-*"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].read_bytes(), previous)
+
+    def test_typed_profile_manifest_rejects_an_output_alias_of_an_input(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-alias-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            header = root / "drivers" / "ata.h"
+            original = header.read_bytes()
+            output = root / "doom-cupidc-inputs.json"
+            os.link(header, output)
+
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("output may not replace an input", result.stderr)
+            self.assertEqual(output.read_bytes(), original)
+            self.assertEqual(header.read_bytes(), original)
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_parity_failure_preserves_previous_output(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-parity-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            document = json.loads(manifest.read_text(encoding="utf-8"))
+            artifact = next(
+                item for item in document["artifacts"] if item["name"] == "cupidobj"
+            )
+            cupidobj = manifest.parent / artifact["file"]
+            payload = cupidobj.read_bytes()
+            self.assertEqual(payload.count(b"profiles"), 1)
+            self._replace_seed_tool_bytes(
+                manifest,
+                "cupidobj",
+                payload.replace(b"profiles", b"profilet"),
+            )
+            output = root / "doom-cupidc-inputs.json"
+            output.write_bytes(b"last known good profile manifest")
+            before = self._private_roots()
+
+            result = self._run_profile_manifest(output, manifest=manifest)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("differs from the independent renderer", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good profile manifest")
+            self.assertEqual(self._private_roots(), before)
+
+    def test_typed_profile_manifest_input_drift_preserves_previous_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-input-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            header = root / "drivers" / "ata.h"
+            output = root / "doom-cupidc-inputs.json"
+            output.write_bytes(b"last known good profile manifest")
+            changed = threading.Event()
+
+            def change_header_after_snapshot_is_frozen():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    if any(
+                        self._private_candidate_has_bytes(token)
+                        for token in self._private_roots(root)
+                    ):
+                        header.write_bytes(header.read_bytes() + b"\n")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=change_header_after_snapshot_is_frozen, daemon=True
+            )
+            mutator.start()
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "the frozen snapshot was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("inputs changed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good profile manifest")
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_seed_drift_preserves_previous_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-seed-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            output = root / "doom-cupidc-inputs.json"
+            output.write_bytes(b"last known good profile manifest")
+            changed = threading.Event()
+
+            def change_seed_after_snapshot_is_frozen():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    if any(
+                        self._private_candidate_has_bytes(token)
+                        for token in self._private_roots(root)
+                    ):
+                        manifest.write_bytes(manifest.read_bytes() + b" \n")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=change_seed_after_snapshot_is_frozen, daemon=True
+            )
+            mutator.start()
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "the frozen snapshot was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("checked seed inputs changed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good profile manifest")
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_output_drift_is_not_overwritten(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-output-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            output = root / "doom-cupidc-inputs.json"
+            output.write_bytes(b"last known good profile manifest")
+            changed = threading.Event()
+
+            def change_output_after_snapshot_is_frozen():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    if any(
+                        self._private_candidate_has_bytes(token)
+                        for token in self._private_roots(root)
+                    ):
+                        output.write_bytes(b"concurrent profile manifest")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=change_output_after_snapshot_is_frozen, daemon=True
+            )
+            mutator.start()
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "the frozen snapshot was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("output changed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"concurrent profile manifest")
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_lock_drift_preserves_previous_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-profile-lock-drift-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_profile_repository(root)
+            output = root / "doom-cupidc-inputs.json"
+            lock = Path(str(output) + ".cupidbuild.lock")
+            output.write_bytes(b"last known good profile manifest")
+            changed = threading.Event()
+
+            def change_lock_after_snapshot_is_frozen():
+                deadline = time.monotonic() + 20
+                while time.monotonic() < deadline:
+                    if lock.is_file() and any(
+                        self._private_candidate_has_bytes(token)
+                        for token in self._private_roots(root)
+                    ):
+                        lock.write_bytes(b"4294967295\n")
+                        changed.set()
+                        return
+                    time.sleep(0.001)
+
+            mutator = threading.Thread(
+                target=change_lock_after_snapshot_is_frozen, daemon=True
+            )
+            mutator.start()
+            result = self._run_profile_manifest(output, manifest=manifest, root=root)
+            mutator.join(timeout=20)
+
+            self.assertTrue(changed.is_set(), "the frozen snapshot was not observed")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("lock changed", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good profile manifest")
+            self.assertTrue(lock.is_file())
+            self.assertEqual(self._private_roots(root), set())
+
+    def test_typed_profile_manifest_runs_cupidobj_before_independent_parity(self):
+        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        operation = source.split("int cupidbuild_generate_profile_manifest(", 1)[
+            1
+        ].split("int cupidbuild_run_checked_tool(", 1)[0]
+
+        object_transform = operation.index("cupidbuild_host_run_in_private(")
+        independent_render = operation.index("cupidbuild_profile_render_json(")
+        parity = operation.index("memcmp(candidate, expected.bytes")
+        membership_recheck = operation.index("cupidbuild_profile_require_membership(")
+        publication = operation.index("cupidbuild_host_publish_if_changed(")
+
+        self.assertLess(object_transform, independent_render)
+        self.assertLess(independent_render, parity)
+        self.assertLess(parity, membership_recheck)
+        self.assertLess(membership_recheck, publication)
+        self.assertEqual(operation.count("cupidbuild_profile_render_json("), 1)
+
+    def test_typed_profile_manifest_binds_directory_tokens_to_publication(self):
+        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        host = (TOOLCHAIN_ROOT / "cupidbuild_host.cc").read_text(encoding="utf-8")
+        operation = source.split("int cupidbuild_generate_profile_manifest(", 1)[
+            1
+        ].split("int cupidbuild_run_checked_tool(", 1)[0]
+        equality = host.split("int cupidbuild_host_snapshot_equal(", 1)[1].split(
+            "static int cupidbuild_host_snapshot_identity_equal(", 1
+        )[0]
+        boundary = host.split(
+            "static int cupidbuild_host_require_public_binding(", 1
+        )[1].split("int cupidbuild_host_require_publication_boundary(", 1)[0]
+        closure = host.split(
+            "static int cupidbuild_host_require_discovery_directories(", 1
+        )[1].split("static int cupidbuild_host_write_lock_exclusive(", 1)[0]
+        validation = "cupidbuild_host_require_discovery_directory_pass(transaction)"
+        first_validation = closure.index(validation)
+        after_first_pass = closure.index(
+            "CUPIDBUILD_PROFILE_TEST_DIRECTORY_AFTER_FIRST_PASS_READY"
+        )
+        second_validation = closure.index(validation, first_validation + 1)
+
+        self.assertIn("memcmp(left->changed, right->changed", equality)
+        self.assertIn("cupidbuild_host_seal_discovery(transaction)", operation)
+        self.assertIn("cupidbuild_host_require_discovery_directories", boundary)
+        self.assertIn("transaction->discovery_boundary_count++", closure)
+        self.assertNotIn("static unsigned int boundary_count", closure)
+        self.assertEqual(closure.count(validation), 2)
+        self.assertLess(first_validation, after_first_pass)
+        self.assertLess(after_first_pass, second_validation)
+        self.assertIn("cupidbuild_host_bind_discovery_directory", host)
+        self.assertIn("cupidbuild_host_close_discovery_directories", host)
+        self.assertIn("information + 32u", host)
+        self.assertIn("information + 36u", host)
+        self.assertIn("opened.changed[0] = after.change_high", host)
+        self.assertIn("opened.changed[1] = after.change_low", host)
+
+    def test_typed_profile_manifest_prepares_only_its_fixed_parent_chain(self):
+        source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
+        host = (TOOLCHAIN_ROOT / "cupidbuild_host.cc").read_text(encoding="utf-8")
+        operation = source.split("int cupidbuild_generate_profile_manifest(", 1)[
+            1
+        ].split("int cupidbuild_run_checked_tool(", 1)[0]
+
+        preparation = operation.index("cupidbuild_host_profile_parent_prepare(")
+        transaction = operation.index("cupidbuild_host_profile_transaction_open(")
+        publication = operation.index("cupidbuild_host_publish_if_changed(")
+        commit = operation.index("cupidbuild_host_profile_parent_commit(")
+        transaction_close = operation.index("cupidbuild_finish_publication(")
+        parent_close = operation.index("cupidbuild_host_profile_parent_close(")
+
+        self.assertIn(
+            '#define CUPIDBUILD_PROFILE_OUTPUT '
+            '"build/bootstrap/doom-cupidc-inputs.json"',
+            source,
+        )
+        self.assertLess(preparation, transaction)
+        self.assertLess(publication, commit)
+        self.assertLess(transaction_close, parent_close)
+        self.assertIn("cupidbuild_host_transaction_close(transaction)", source)
+        self.assertIn("CUPIDBUILD_WINDOWS_FILE_CREATE", host)
+        self.assertIn("attributes.root_directory = parent", host)
+        self.assertIn("CUPIDBUILD_LINUX_SYS_MKDIRAT", host)
+        self.assertIn("mkdirat(parent, name, 0700)", host)
+        self.assertIn("cupidbuild_host_profile_parent_open_root", host)
+        self.assertIn("cupidbuild_host_snapshot_identity_equal", host)
+        self.assertIn("preparation->bootstrap_created", host)
+        self.assertIn("preparation->build_created", host)
+        self.assertLess(
+            host.index("if (preparation->bootstrap_created != 0"),
+            host.index("if (preparation->build_created != 0"),
         )
 
     def test_typed_kernel_flatten_transaction_matches_checked_tools(self):
@@ -390,7 +1696,7 @@ class CupidBuildCliTests(unittest.TestCase):
         source = (TOOLCHAIN_ROOT / "cupidbuild.cc").read_text(encoding="utf-8")
         operation = source.split(
             "int cupidbuild_flatten_kernel(", 1
-        )[1].split("int cupidbuild_run_checked_tool(", 1)[0]
+        )[1].split("int cupidbuild_generate_profile_manifest(", 1)[0]
 
         independent_render = operation.index("cupidbuild_render_flat_image(")
         object_transform = operation.index(
@@ -1218,47 +2524,57 @@ class CupidBuildCliTests(unittest.TestCase):
             source = root / "large.txt"
             output = root / "large.o"
             source.write_bytes(b"checked timeout drift input\n" * 1_500_000)
-            command = self._checked_tool_command(
+            ready = root / "tool-launch-ready"
+            resume = root / "tool-launch-resume"
+            changed = threading.Event()
+            mutation_errors = []
+
+            def change_manifest_after_launch():
+                try:
+                    deadline = time.monotonic() + 20
+                    while time.monotonic() < deadline:
+                        if ready.is_file():
+                            manifest.write_bytes(manifest.read_bytes() + b" \n")
+                            changed.set()
+                            return
+                        time.sleep(0.001)
+                    mutation_errors.append("checked tool launch was not observed")
+                except Exception as error:
+                    mutation_errors.append(error)
+                finally:
+                    try:
+                        resume.write_bytes(b"continue")
+                    except Exception as error:
+                        mutation_errors.append(error)
+
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = (
+                "after-tool-launch"
+            )
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(resume)
+            mutator = threading.Thread(
+                target=change_manifest_after_launch, daemon=True
+            )
+            mutator.start()
+            result = self._run_checked_tool(
                 "cupidobj",
                 ["wrap-text", source.name, "-o", output.name],
                 root=root,
                 timeout=1,
                 manifest=manifest,
+                cli=self.race_cli_path,
+                env=environment,
             )
-            process = subprocess.Popen(
-                command,
-                cwd=root,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            deadline = time.monotonic() + 20
-            launched = False
-            while time.monotonic() < deadline and process.poll() is None:
-                if os.name == "nt":
-                    launched = any(
-                        private.joinpath("tool.stdout").is_file()
-                        for private in root.glob(".cupidbuild-run-*")
-                    )
-                else:
-                    children = Path(
-                        f"/proc/{process.pid}/task/{process.pid}/children"
-                    )
-                    try:
-                        launched = bool(children.read_text(encoding="ascii").strip())
-                    except (FileNotFoundError, PermissionError, ProcessLookupError):
-                        launched = False
-                if launched:
-                    break
-                time.sleep(0.001)
-            self.assertTrue(launched, "checked tool launch was not observed")
-            manifest.write_bytes(manifest.read_bytes() + b" \n")
-            stdout, stderr = process.communicate(timeout=90)
+            mutator.join(timeout=20)
 
-            self.assertEqual(process.returncode, 1)
-            self.assertEqual(stdout, "")
-            self.assertIn("checked seed inputs changed", stderr)
-            self.assertNotIn("checked CupidObj timed out", stderr)
+            self.assertFalse(mutator.is_alive(), "the seed mutator did not stop")
+            self.assertFalse(mutation_errors, repr(mutation_errors))
+            self.assertTrue(changed.is_set(), "checked tool launch was not observed")
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("checked seed inputs changed", result.stderr)
+            self.assertNotIn("checked CupidObj timed out", result.stderr)
             self.assertEqual(list(root.glob(".cupidbuild-run-*")), [])
 
     @unittest.skipUnless(os.name == "nt", "Windows uses private runner roots")
@@ -1371,54 +2687,80 @@ class CupidBuildCliTests(unittest.TestCase):
                     shutil.rmtree(private)
 
     @unittest.skipUnless(os.name == "nt", "Windows uses named frozen inputs")
-    def test_checked_tool_runner_rejects_private_seed_drift(self):
+    def test_checked_tool_runner_seals_private_seed_before_launch(self):
         with tempfile.TemporaryDirectory(
-            prefix=".cupidbuild-run-private-seed-drift-", dir=REPO_ROOT
+            prefix=".cupidbuild-run-private-seed-seal-", dir=REPO_ROOT
         ) as temporary:
             root = Path(temporary)
             source = root / "large.txt"
             output = root / "large.o"
             source.write_bytes(b"private seed drift input\n" * 1_000_000)
-            changed = threading.Event()
+            ready = root / "tool-launch-ready"
+            resume = root / "tool-launch-resume"
+            denied = threading.Event()
+            mutation_errors = []
 
-            def change_frozen_tool_after_launch():
-                deadline = time.monotonic() + 20
-                while time.monotonic() < deadline:
-                    for private in root.glob(".cupidbuild-run-*"):
-                        if not private.joinpath("tool.stdout").is_file():
-                            continue
-                        frozen = next(private.glob("cupidc.*"), None)
-                        if frozen is None:
-                            continue
-                        with frozen.open("ab") as stream:
-                            stream.write(b"drift")
-                        changed.set()
-                        return
-                    time.sleep(0.001)
+            def try_to_change_frozen_tool_after_launch():
+                try:
+                    deadline = time.monotonic() + 20
+                    while time.monotonic() < deadline:
+                        if ready.is_file():
+                            frozen = next(
+                                (
+                                    path
+                                    for private in root.glob(".cupidbuild-run-*")
+                                    for path in private.glob("cupidc.*")
+                                ),
+                                None,
+                            )
+                            if frozen is None:
+                                raise AssertionError("frozen CupidObj is missing")
+                            try:
+                                with frozen.open("ab") as stream:
+                                    stream.write(b"drift")
+                            except OSError:
+                                denied.set()
+                            else:
+                                mutation_errors.append(
+                                    "the sealed frozen tool accepted a write"
+                                )
+                            return
+                        time.sleep(0.001)
+                    mutation_errors.append("tool launch checkpoint was not observed")
+                except Exception as error:
+                    mutation_errors.append(error)
+                finally:
+                    try:
+                        resume.write_bytes(b"continue")
+                    except Exception as error:
+                        mutation_errors.append(error)
 
             mutator = threading.Thread(
-                target=change_frozen_tool_after_launch, daemon=True
+                target=try_to_change_frozen_tool_after_launch, daemon=True
             )
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = "after-tool-launch"
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(resume)
             mutator.start()
             result = self._run_checked_tool(
                 "cupidobj",
                 ["wrap-text", source.name, "-o", output.name],
                 root=root,
+                cli=self.race_cli_path,
+                env=environment,
             )
             mutator.join(timeout=20)
             private_roots = list(root.glob(".cupidbuild-run-*"))
 
             try:
-                self.assertTrue(changed.is_set(), "checked tool launch was not observed")
-                self.assertEqual(result.returncode, 1)
+                self.assertFalse(mutator.is_alive(), "the seed mutator did not stop")
+                self.assertFalse(mutation_errors, repr(mutation_errors))
+                self.assertTrue(denied.is_set(), "the frozen tool was not sealed")
+                self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, "")
-                self.assertIn(
-                    "private checked seed changed while checked tool ran",
-                    result.stderr,
-                )
-                self.assertNotIn(
-                    "private checked-tool cleanup failed", result.stderr
-                )
+                self.assertEqual(result.stderr, "")
+                self.assertTrue(output.is_file())
                 self.assertEqual(private_roots, [])
             finally:
                 for private in private_roots:
@@ -1608,13 +2950,18 @@ class CupidBuildCliTests(unittest.TestCase):
         root=REPO_ROOT,
         timeout=None,
         manifest=None,
+        cli=None,
+        env=None,
     ):
         command = self._checked_tool_command(
             tool, arguments, root=root, timeout=timeout, manifest=manifest
         )
+        if cli is not None:
+            command[0] = str(cli)
         return subprocess.run(
             command,
             cwd=root,
+            env=env,
             text=True,
             capture_output=True,
             timeout=90,
@@ -1647,29 +2994,69 @@ class CupidBuildCliTests(unittest.TestCase):
     def _run_private_roots(self):
         return set(REPO_ROOT.glob(".cupidbuild-run-*"))
 
-    def _run_assembly(self, operation, source, output, manifest=None):
+    def _assembly_command(
+        self,
+        operation,
+        source,
+        output,
+        *,
+        manifest=None,
+        root=REPO_ROOT,
+    ):
+        return [
+            str(self.cli_path),
+            operation,
+            "--seed-manifest",
+            str(manifest or self._production_manifest()),
+            "--root",
+            str(root),
+            "--source",
+            source.relative_to(root).as_posix(),
+            "--output",
+            output.relative_to(root).as_posix(),
+        ]
+
+    def _run_assembly(
+        self,
+        operation,
+        source,
+        output,
+        manifest=None,
+        *,
+        root=REPO_ROOT,
+        preexec_fn=None,
+    ):
         return subprocess.run(
-            [
-                str(self.cli_path),
+            self._assembly_command(
                 operation,
-                "--seed-manifest",
-                str(manifest or self._production_manifest()),
-                "--root",
-                str(REPO_ROOT),
-                "--source",
-                source.relative_to(REPO_ROOT).as_posix(),
-                "--output",
-                output.relative_to(REPO_ROOT).as_posix(),
-            ],
-            cwd=REPO_ROOT,
+                source,
+                output,
+                manifest=manifest,
+                root=root,
+            ),
+            cwd=root,
             text=True,
             capture_output=True,
             timeout=90,
+            preexec_fn=preexec_fn,
         )
 
-    def _run_object(self, source, output, manifest=None):
+    def _run_object(
+        self,
+        source,
+        output,
+        manifest=None,
+        *,
+        root=REPO_ROOT,
+        preexec_fn=None,
+    ):
         return self._run_assembly(
-            "assemble-cupidasm-object", source, output, manifest
+            "assemble-cupidasm-object",
+            source,
+            output,
+            manifest,
+            root=root,
+            preexec_fn=preexec_fn,
         )
 
     def _run_embed_jpeg(self, source, output, manifest=None):
@@ -1697,6 +3084,53 @@ class CupidBuildCliTests(unittest.TestCase):
             capture_output=True,
             timeout=90,
         )
+
+    def _run_profile_manifest(
+        self,
+        output,
+        manifest=None,
+        root=REPO_ROOT,
+        *,
+        cli=None,
+        env=None,
+        cwd=None,
+    ):
+        return subprocess.run(
+            [
+                str(cli or self.cli_path),
+                "generate-profile-manifest",
+                "--seed-manifest",
+                str(manifest or self._production_manifest()),
+                "--root",
+                str(root),
+                "--output",
+                output.relative_to(root).as_posix(),
+            ],
+            cwd=cwd or root,
+            text=True,
+            capture_output=True,
+            timeout=90,
+            env=env,
+        )
+
+    def _copy_profile_repository(self, destination):
+        document = _profile_input_manifest(REPO_ROOT)
+        relative_paths = {item["path"] for item in document["inputs"]}
+        for paths in document["sources"].values():
+            relative_paths.update(paths)
+        for relative in sorted(relative_paths):
+            source = REPO_ROOT / relative
+            target = destination / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        return self._copy_checked_assembly_seed(destination / "seed")
+
+    @staticmethod
+    def _add_directory_chain(parent, count):
+        current = parent
+        for _ in range(count):
+            current = current / "d"
+            current.mkdir()
 
     def _build_ksyms_elf(self, root, source_text):
         source = root / "entry.asm"
@@ -1757,12 +3191,77 @@ class CupidBuildCliTests(unittest.TestCase):
     def _large_baseline_jpeg(entropy_size=8 * 1024 * 1024):
         return BASELINE_JPEG[:-2] + b"\x12" * entropy_size + BASELINE_JPEG[-2:]
 
-    def _private_roots(self):
-        return {
-            path
-            for path in REPO_ROOT.glob(".cupidbuild-object-*")
-            if re.fullmatch(r"\.cupidbuild-object-[0-9a-f]{8}", path.name)
-        }
+    def test_private_transaction_census_covers_both_host_layouts(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-transaction-census-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            directory_token = root / ".cupidbuild-object-00000001"
+            flat_token = root / ".cupidbuild-object-00000002.reserve"
+            orphaned_flat_token = root / ".cupidbuild-object-00000003.reserve"
+            cleanup_alias_token = root / ".cupidbuild-object-00000004.reserve"
+            directory_token.mkdir()
+            flat_token.write_bytes(b"")
+            (root / ".cupidbuild-object-00000003.tool.stderr").write_bytes(
+                b"orphaned stream"
+            )
+            (
+                root
+                / "..cupidbuild-object-00000004.candidate.o."
+                "cleanup-link-00001234"
+            ).write_bytes(b"orphaned cleanup alias")
+            (root / ".cupidbuild-object-not-a-token.reserve").write_bytes(
+                b"unrelated"
+            )
+
+            self.assertEqual(
+                self._private_roots(root),
+                {
+                    directory_token,
+                    flat_token,
+                    orphaned_flat_token,
+                    cleanup_alias_token,
+                },
+            )
+            self.assertEqual(
+                self._private_entry(directory_token, "candidate.o"),
+                directory_token / "candidate.o",
+            )
+            self.assertEqual(
+                self._private_entry(flat_token, "candidate.o"),
+                root / ".cupidbuild-object-00000002.candidate.o",
+            )
+
+    def _private_roots(self, root=REPO_ROOT):
+        tokens = set()
+        for pattern in (".cupidbuild-object-*", "..cupidbuild-object-*"):
+            for path in root.glob(pattern):
+                match = re.fullmatch(
+                    r"(?P<cleanup>\.)?"
+                    r"(?P<token>\.cupidbuild-object-[0-9a-f]{8})"
+                    r"(?P<entry>\..*)?",
+                    path.name,
+                )
+                if match is None:
+                    continue
+                if match["cleanup"] is None and match["entry"] is None:
+                    tokens.add(path)
+                else:
+                    tokens.add(root / f"{match['token']}.reserve")
+        return tokens
+
+    @staticmethod
+    def _private_entry(token, logical_name):
+        if token.name.endswith(".reserve"):
+            prefix = token.name[: -len(".reserve")]
+            return token.with_name(f"{prefix}.{logical_name}")
+        return token / logical_name
+
+    def _private_candidate_has_bytes(self, token):
+        try:
+            return self._private_entry(token, "candidate.o").stat().st_size > 0
+        except FileNotFoundError:
+            return False
 
     def _copy_checked_assembly_seed(self, destination):
         destination.mkdir()
@@ -2032,6 +3531,10 @@ class CupidBuildCliTests(unittest.TestCase):
             ]
         return value
 
+    @unittest.skipIf(
+        os.name == "nt",
+        "the promoted Windows seed predates caller-owned CupidASM output",
+    )
     def test_checked_tools_publish_a_guarded_relocatable_object(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-success-", dir=REPO_ROOT
@@ -2051,6 +3554,279 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertEqual(result.stdout, "")
             self.assertEqual(result.stderr, "")
             self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
+    @unittest.skipIf(os.name == "nt", "DrvFS fallback is POSIX-only")
+    def test_ambiguous_noreplace_fallback_preserves_recovery_evidence(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-noreplace-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.asm"
+            output = root / "output.o"
+            ready = root / "noreplace-ready"
+            resume = root / "noreplace-resume"
+            replacement = b"foreign replacement\n"
+            mutation_errors = []
+            source.write_text(
+                "bits 32\nsection .text\nglobal entry\nentry: nop\nret\n",
+                encoding="ascii",
+            )
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_NOREPLACE_TEST_DESTINATION"] = output.name
+            environment["CUPIDBUILD_NOREPLACE_TEST_FORCE_FALLBACK"] = "1"
+            environment["CUPIDBUILD_NOREPLACE_TEST_FAIL_SOURCE_UNLINK"] = "1"
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = (
+                "after-noreplace-link"
+            )
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(resume)
+            command = self._assembly_command(
+                "assemble-cupidasm-object",
+                source,
+                output,
+                manifest=manifest,
+                root=root,
+            )
+            command[0] = str(self.race_cli_path)
+
+            def replace_linked_candidate():
+                try:
+                    deadline = time.monotonic() + 30
+                    while time.monotonic() < deadline:
+                        if ready.is_file():
+                            output.unlink()
+                            output.write_bytes(replacement)
+                            return
+                        time.sleep(0.001)
+                    mutation_errors.append(
+                        "no-replace checkpoint was not observed"
+                    )
+                except Exception as error:  # pragma: no cover - surfaced below
+                    mutation_errors.append(repr(error))
+                finally:
+                    try:
+                        resume.write_bytes(b"continue")
+                    except Exception as error:  # pragma: no cover - surfaced below
+                        mutation_errors.append(repr(error))
+
+            mutator = threading.Thread(
+                target=replace_linked_candidate, daemon=True
+            )
+            mutator.start()
+
+            result = subprocess.run(
+                command,
+                cwd=root,
+                env=environment,
+                text=True,
+                capture_output=True,
+                timeout=90,
+            )
+            mutator.join(timeout=30)
+
+            self.assertFalse(
+                mutator.is_alive(), "the no-replace mutator did not stop"
+            )
+            self.assertFalse(mutation_errors, repr(mutation_errors))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(
+                "checked output could not claim the missing output",
+                result.stderr,
+            )
+            self.assertTrue(output.is_file())
+            self.assertEqual(output.read_bytes(), replacement)
+            self.assertNotEqual(self._private_roots(root), set())
+            self.assertTrue(Path(str(output) + ".cupidbuild.lock").is_file())
+
+    @unittest.skipIf(os.name == "nt", "POSIX uses the flat transaction namespace")
+    def test_posix_private_tool_uses_proc_without_relative_repository_writes(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-proc-cwd-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text(
+                "bits 32\nsection .text\nglobal entry\nentry:\n"
+                + "nop\n" * 1_000_000
+                + "ret\n",
+                encoding="ascii",
+            )
+            sentinels = {
+                root / name: f"owned {name}\n".encode("ascii")
+                for name in (
+                    "candidate.o",
+                    "candidate.map",
+                    "source.asm",
+                    "tool.stdout",
+                    "tool.stderr",
+                )
+            }
+            for path, payload in sentinels.items():
+                path.write_bytes(payload)
+            before = self._private_roots(root)
+            process = subprocess.Popen(
+                self._assembly_command(
+                    "assemble-cupidasm-object",
+                    source,
+                    output,
+                    manifest=manifest,
+                    root=root,
+                ),
+                cwd=root,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            deadline = time.monotonic() + 20
+            observed_proc_cwd = False
+            children_path = Path(
+                f"/proc/{process.pid}/task/{process.pid}/children"
+            )
+            while time.monotonic() < deadline and process.poll() is None:
+                try:
+                    child_pids = children_path.read_text(
+                        encoding="ascii"
+                    ).split()
+                except (FileNotFoundError, PermissionError, ProcessLookupError):
+                    child_pids = []
+                for child_pid in child_pids:
+                    try:
+                        if os.readlink(f"/proc/{child_pid}/cwd") == "/proc":
+                            observed_proc_cwd = True
+                            break
+                    except (FileNotFoundError, PermissionError, ProcessLookupError):
+                        continue
+                if observed_proc_cwd:
+                    break
+                time.sleep(0.001)
+            stdout, stderr = process.communicate(timeout=90)
+
+            self.assertTrue(observed_proc_cwd, "the private tool cwd was not observed")
+            self.assertEqual(process.returncode, 0, stderr)
+            self.assertEqual((stdout, stderr), ("", ""))
+            self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+            for path, payload in sentinels.items():
+                self.assertEqual(path.read_bytes(), payload)
+            self.assertEqual(self._private_roots(root), before)
+
+    @unittest.skipIf(os.name == "nt", "POSIX uses anonymous private artifacts")
+    def test_posix_flat_transaction_names_only_publication_artifacts(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-anonymous-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.asm"
+            output = root / "output.o"
+            ready = root / "publication-ready"
+            resume = root / "publication-resume"
+            lock = Path(str(output) + ".cupidbuild.lock")
+            source.write_text(
+                "bits 32\nsection .text\nglobal entry\nentry: nop\nret\n",
+                encoding="ascii",
+            )
+            output.write_bytes(b"last known good object")
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = "before-mutation"
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(resume)
+            command = self._assembly_command(
+                "assemble-cupidasm-object",
+                source,
+                output,
+                manifest=manifest,
+                root=root,
+            )
+            command[0] = str(self.race_cli_path)
+            process = subprocess.Popen(
+                command,
+                cwd=root,
+                env=environment,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            checkpoint_seen = False
+            token_count = 0
+            flat_token_seen = False
+            private_entries = set()
+            lock_seen = False
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline and process.poll() is None:
+                if ready.is_file():
+                    checkpoint_seen = True
+                    tokens = list(self._private_roots(root))
+                    token_count = len(tokens)
+                    if token_count == 1:
+                        token = tokens[0]
+                        flat_token_seen = token.name.endswith(".reserve")
+                        if flat_token_seen:
+                            prefix = token.name[: -len(".reserve")]
+                            private_entries = {
+                                path.name[len(prefix) + 1 :]
+                                for path in root.iterdir()
+                                if path.name.startswith(prefix + ".")
+                            }
+                    lock_seen = lock.is_file()
+                    break
+                time.sleep(0.001)
+            if process.poll() is None:
+                resume.write_bytes(b"continue")
+            stdout, stderr = process.communicate(timeout=90)
+
+            self.assertTrue(
+                checkpoint_seen,
+                "the pre-publication checkpoint was not reached\n" + stderr,
+            )
+            self.assertEqual(token_count, 1)
+            self.assertTrue(flat_token_seen, "the flat reservation was not retained")
+            self.assertEqual(
+                private_entries,
+                {"reserve", "candidate.o", "candidate.publish"},
+            )
+            self.assertTrue(lock_seen, "the publication lock was not retained")
+            self.assertEqual(process.returncode, 0, stderr)
+            self.assertEqual((stdout, stderr), ("", ""))
+            self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+            self.assertEqual(self._private_roots(root), set())
+            self.assertFalse(lock.exists())
+
+    @unittest.skipIf(os.name == "nt", "POSIX assigns numeric file descriptors")
+    def test_posix_private_tool_launches_with_closed_standard_descriptors(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-low-fds-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text(
+                "bits 32\nsection .text\nglobal entry\nentry: nop\nret\n",
+                encoding="ascii",
+            )
+            before = self._private_roots(root)
+
+            def close_standard_descriptors():
+                for descriptor in (0, 1, 2):
+                    try:
+                        os.close(descriptor)
+                    except OSError:
+                        pass
+
+            result = self._run_object(
+                source,
+                output,
+                manifest,
+                root=root,
+                preexec_fn=close_standard_descriptors,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+            self.assertEqual(self._private_roots(root), before)
 
     def test_embed_jpeg_preserves_the_original_source_identity(self):
         before = self._private_roots()
@@ -2182,7 +3958,10 @@ class CupidBuildCliTests(unittest.TestCase):
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
-                    if any((path / "source.asm").is_file() for path in new_roots):
+                    if any(
+                        self._private_entry(token, "candidate.o").is_file()
+                        for token in new_roots
+                    ):
                         source.write_bytes(original_source + b"\x00")
                         changed.set()
                         return
@@ -2208,7 +3987,6 @@ class CupidBuildCliTests(unittest.TestCase):
         ) as temporary:
             root = Path(temporary)
             manifest = self._copy_checked_assembly_seed(root / "seed")
-            suffix = ".exe" if os.name == "nt" else ".elf"
             source = root / "input.jpg"
             output = root / "output.o"
             source.write_bytes(self._large_baseline_jpeg())
@@ -2221,8 +3999,8 @@ class CupidBuildCliTests(unittest.TestCase):
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
                     if any(
-                        (path / f"cupidobj{suffix}").is_file()
-                        for path in new_roots
+                        self._private_candidate_has_bytes(token)
+                        for token in new_roots
                     ):
                         with manifest.open("ab") as stream:
                             stream.write(b"\n")
@@ -2254,13 +4032,21 @@ class CupidBuildCliTests(unittest.TestCase):
             output.write_bytes(b"last known good object")
             before = self._private_roots()
             changed = threading.Event()
+            blocked = threading.Event()
 
             def replace_output_after_wrapping():
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
-                    if any((path / "candidate.o").is_file() for path in new_roots):
-                        output.write_bytes(b"competing publisher")
+                    if any(
+                        self._private_entry(token, "candidate.o").is_file()
+                        for token in new_roots
+                    ):
+                        try:
+                            output.write_bytes(b"competing publisher")
+                        except PermissionError:
+                            blocked.set()
+                            return
                         changed.set()
                         return
                     time.sleep(0.001)
@@ -2272,11 +4058,29 @@ class CupidBuildCliTests(unittest.TestCase):
             result = self._run_embed_jpeg(source, output)
             mutator.join(timeout=20)
 
-            self.assertTrue(changed.is_set(), "checked JPEG output was not observed")
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("output changed while checked tools ran", result.stderr)
-            self.assertNotIn("code output", result.stderr)
-            self.assertEqual(output.read_bytes(), b"competing publisher")
+            self.assertTrue(
+                changed.is_set() or blocked.is_set(),
+                "checked JPEG output was not observed",
+            )
+            if os.name == "nt":
+                self.assertTrue(blocked.is_set())
+                if result.returncode == 0:
+                    self.assertNotEqual(
+                        output.read_bytes(), b"last known good object"
+                    )
+                else:
+                    self.assertIn("cupidobj: cannot write", result.stderr)
+                    self.assertIn("checked CupidObj failed", result.stderr)
+                    self.assertEqual(
+                        output.read_bytes(), b"last known good object"
+                    )
+            else:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(
+                    "output changed while checked tools ran", result.stderr
+                )
+                self.assertNotIn("code output", result.stderr)
+                self.assertEqual(output.read_bytes(), b"competing publisher")
             self.assertEqual(self._private_roots(), before)
 
     def test_checked_tools_publish_the_active_raw_boot_artifacts(self):
@@ -2565,6 +4369,33 @@ class CupidBuildCliTests(unittest.TestCase):
                     output.read_bytes()[:7], b"\x7fELF\x01\x01\x01"
                 )
 
+    @unittest.skipUnless(os.name == "nt", "native Windows seed contract")
+    def test_six_tool_v2_contract_accepts_the_current_windows_plan(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-object-v2-current-plan-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            document = self._promote_seed_contract(manifest)
+            document["provenance"]["native_build_plan_sha256"] = (
+                "c27481d2c532486648a1170a8a44b3b0020cea1460408f5606f340fb86976ed3"
+            )
+            manifest.write_text(
+                json.dumps(document, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            source = root / "input.asm"
+            output = root / "output.o"
+            source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
+            output.write_bytes(b"last known good object")
+
+            result = self._run_object(source, output, manifest)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertNotIn("fixed-point provenance differs", result.stderr)
+            self.assertIn("execution profile mismatch", result.stderr)
+            self.assertEqual(output.read_bytes(), b"last known good object")
+
     def test_six_tool_v2_contract_rejects_parent_and_revision_drift(self):
         def uppercase_revision(document):
             revision = document["provenance"]["source_revision"]
@@ -2640,6 +4471,18 @@ class CupidBuildCliTests(unittest.TestCase):
         )
         if os.name == "nt":
             cases += (
+                (
+                    "unknown native build plan",
+                    lambda document: document["provenance"].update(
+                        {"native_build_plan_sha256": "0" * 64}
+                    ),
+                ),
+                (
+                    "malformed native build plan",
+                    lambda document: document["provenance"].update(
+                        {"native_build_plan_sha256": "C" * 64}
+                    ),
+                ),
                 (
                     "matched parents from different generations",
                     lambda document: document["provenance"].update(
@@ -3052,7 +4895,7 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertIn("checked CupidDis failed", result.stderr)
             self.assertEqual(output.read_bytes(), original)
 
-    def test_success_and_failure_remove_every_new_private_candidate(self):
+    def test_success_and_failure_remove_every_transaction_entry(self):
         before = self._private_roots()
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-cleanup-", dir=REPO_ROOT
@@ -3424,15 +5267,21 @@ class CupidBuildCliTests(unittest.TestCase):
             replacement.write_bytes(replacement_owner)
             before = self._private_roots()
             changed = threading.Event()
+            blocked = threading.Event()
 
             def replace_lock_after_transaction_opens():
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
                     if lock.is_file() and any(
-                        (path / "source.asm").is_file() for path in new_roots
+                        self._private_entry(token, "candidate.o").is_file()
+                        for token in new_roots
                     ):
-                        os.replace(replacement, lock)
+                        try:
+                            os.replace(replacement, lock)
+                        except PermissionError:
+                            blocked.set()
+                            return
                         changed.set()
                         return
                     time.sleep(0.001)
@@ -3444,11 +5293,29 @@ class CupidBuildCliTests(unittest.TestCase):
             result = self._run_object(source, output)
             mutator.join(timeout=20)
 
-            self.assertTrue(changed.is_set(), "publication lock was not observed")
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("publication lock changed", result.stderr)
-            self.assertEqual(output.read_bytes(), b"last known good object")
-            self.assertEqual(lock.read_bytes(), replacement_owner)
+            self.assertTrue(
+                changed.is_set() or blocked.is_set(),
+                "publication lock was not observed",
+            )
+            if os.name == "nt":
+                self.assertTrue(blocked.is_set())
+                if result.returncode == 0:
+                    self.assertNotEqual(
+                        output.read_bytes(), b"last known good object"
+                    )
+                else:
+                    self.assertIn("usage: cupidasm", result.stderr)
+                    self.assertIn("checked CupidASM failed", result.stderr)
+                    self.assertEqual(
+                        output.read_bytes(), b"last known good object"
+                    )
+                self.assertFalse(lock.exists())
+                self.assertEqual(replacement.read_bytes(), replacement_owner)
+            else:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("publication lock changed", result.stderr)
+                self.assertEqual(output.read_bytes(), b"last known good object")
+                self.assertEqual(lock.read_bytes(), replacement_owner)
 
     def test_occupied_private_candidate_is_left_untouched(self):
         occupied = None
@@ -3496,17 +5363,15 @@ class CupidBuildCliTests(unittest.TestCase):
             source.write_text(original_source, encoding="utf-8")
             output.write_bytes(b"last known good object")
             changed = threading.Event()
-            existing_private_roots = set(
-                REPO_ROOT.glob(".cupidbuild-object-[0-9a-f]*")
-            )
+            existing_private_roots = self._private_roots()
 
             def replace_source_when_transaction_opens():
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
                     private_sources = [
-                        path / "source.asm"
-                        for path in REPO_ROOT.glob(".cupidbuild-object-[0-9a-f]*")
-                        if path not in existing_private_roots
+                        self._private_entry(token, "candidate.o")
+                        for token in self._private_roots()
+                        if token not in existing_private_roots
                     ]
                     if any(path.is_file() for path in private_sources):
                         source.write_text(
@@ -3550,7 +5415,10 @@ class CupidBuildCliTests(unittest.TestCase):
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
-                    if any((path / "source.asm").is_file() for path in new_roots):
+                    if any(
+                        self._private_entry(token, "candidate.o").is_file()
+                        for token in new_roots
+                    ):
                         source.write_text(
                             original_source + "; live source changed\n",
                             encoding="ascii",
@@ -3576,7 +5444,10 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertNotIn("object source", result.stderr)
             self.assertEqual(output.read_bytes(), b"last known good raw image")
 
-    def test_raw_map_drift_during_inspection_preserves_the_previous_image(self):
+    @unittest.skipUnless(os.name == "nt", "POSIX keeps the private map anonymous")
+    def test_windows_raw_map_drift_during_inspection_preserves_the_previous_image(
+        self,
+    ):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-raw-map-drift-", dir=REPO_ROOT
         ) as temporary:
@@ -3585,6 +5456,7 @@ class CupidBuildCliTests(unittest.TestCase):
             output = root / "output.bin"
             source.write_text(
                 "bits 16\norg 0x7c00\n"
+                + "; wait\n" * 500_000
                 + "nop\ndb 0\n" * 1279
                 + "nop\nret\n",
                 encoding="ascii",
@@ -3595,31 +5467,33 @@ class CupidBuildCliTests(unittest.TestCase):
 
             def touch_map_after_inspector_starts():
                 deadline = time.monotonic() + 20
-                private_root = None
                 map_path = None
                 stdout_path = None
                 initial_stdout = None
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
                     for candidate_root in new_roots:
-                        candidate_map = candidate_root / "candidate.map"
-                        candidate_stdout = candidate_root / "tool.stdout"
+                        candidate_map = self._private_entry(
+                            candidate_root, "candidate.map"
+                        )
+                        candidate_stdout = self._private_entry(
+                            candidate_root, "tool.stdout"
+                        )
                         if not candidate_map.is_file():
                             continue
-                        private_root = candidate_root
+                        try:
+                            status = candidate_stdout.stat()
+                        except FileNotFoundError:
+                            continue
                         map_path = candidate_map
                         stdout_path = candidate_stdout
-                        try:
-                            status = stdout_path.stat()
-                            initial_stdout = (
-                                status.st_ino,
-                                status.st_ctime_ns,
-                                status.st_mtime_ns,
-                            )
-                        except FileNotFoundError:
-                            initial_stdout = None
+                        initial_stdout = (
+                            status.st_ino,
+                            status.st_ctime_ns,
+                            status.st_mtime_ns,
+                        )
                         break
-                    if private_root is not None:
+                    if initial_stdout is not None:
                         break
                     time.sleep(0.001)
                 while time.monotonic() < deadline and map_path is not None:
@@ -3633,7 +5507,7 @@ class CupidBuildCliTests(unittest.TestCase):
                     except FileNotFoundError:
                         time.sleep(0.001)
                         continue
-                    if initial_stdout is not None and current_stdout == initial_stdout:
+                    if current_stdout == initial_stdout:
                         time.sleep(0.001)
                         continue
                     map_status = map_path.stat()
@@ -3689,7 +5563,10 @@ class CupidBuildCliTests(unittest.TestCase):
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
-                    if any((path / assembler.name).is_file() for path in new_roots):
+                    if any(
+                        self._private_candidate_has_bytes(token)
+                        for token in new_roots
+                    ):
                         with assembler.open("ab") as stream:
                             stream.write(b"drift")
                         changed.set()
@@ -3714,7 +5591,6 @@ class CupidBuildCliTests(unittest.TestCase):
             seed = root / "seed"
             manifest = self._copy_checked_assembly_seed(seed)
             suffix = ".exe" if os.name == "nt" else ".elf"
-            assembler = seed / f"cupidasm{suffix}"
             unlisted = seed / f"unlisted{suffix}"
             source = root / "input.asm"
             output = root / "output.o"
@@ -3730,7 +5606,10 @@ class CupidBuildCliTests(unittest.TestCase):
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
-                    if any((path / assembler.name).is_file() for path in new_roots):
+                    if any(
+                        self._private_candidate_has_bytes(token)
+                        for token in new_roots
+                    ):
                         unlisted.write_bytes(b"not trusted")
                         changed.set()
                         return
@@ -3760,19 +5639,52 @@ class CupidBuildCliTests(unittest.TestCase):
             output = root / "output.o"
             source.write_text(
                 "bits 32\nsection .text\n"
-                + "nop\n" * 10000
+                + "nop\n" * 250_000
                 + "not_an_instruction\n",
                 encoding="utf-8",
             )
             output.write_bytes(b"last known good object")
             before = self._private_roots()
             changed = threading.Event()
+            process = None
+            children_path = None
+
+            if os.name != "nt":
+                command = self._assembly_command(
+                    "assemble-cupidasm-object",
+                    source,
+                    output,
+                    manifest=manifest,
+                )
+                process = subprocess.Popen(
+                    command,
+                    cwd=REPO_ROOT,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                children_path = Path(
+                    f"/proc/{process.pid}/task/{process.pid}/children"
+                )
 
             def add_peer_after_freeze():
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
-                    new_roots = self._private_roots() - before
-                    if any((path / assembler.name).is_file() for path in new_roots):
+                    tool_started = False
+                    if os.name == "nt":
+                        new_roots = self._private_roots() - before
+                        tool_started = any(
+                            self._private_entry(token, assembler.name).is_file()
+                            for token in new_roots
+                        )
+                    else:
+                        try:
+                            tool_started = bool(
+                                children_path.read_text(encoding="ascii").split()
+                            )
+                        except (FileNotFoundError, PermissionError):
+                            tool_started = False
+                    if tool_started:
                         unlisted.write_bytes(b"not trusted")
                         changed.set()
                         return
@@ -3780,7 +5692,16 @@ class CupidBuildCliTests(unittest.TestCase):
 
             mutator = threading.Thread(target=add_peer_after_freeze, daemon=True)
             mutator.start()
-            result = self._run_object(source, output, manifest)
+            if os.name == "nt":
+                result = self._run_object(source, output, manifest)
+            else:
+                stdout, stderr = process.communicate(timeout=90)
+                result = subprocess.CompletedProcess(
+                    command,
+                    process.returncode,
+                    stdout,
+                    stderr,
+                )
             mutator.join(timeout=20)
 
             self.assertTrue(changed.is_set(), "frozen checked tool was not observed")
@@ -3809,7 +5730,10 @@ class CupidBuildCliTests(unittest.TestCase):
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
-                    if any((path / "manifest.json").is_file() for path in new_roots):
+                    if any(
+                        self._private_candidate_has_bytes(token)
+                        for token in new_roots
+                    ):
                         with manifest.open("ab") as stream:
                             stream.write(b"\n")
                         changed.set()
@@ -3842,13 +5766,21 @@ class CupidBuildCliTests(unittest.TestCase):
             output.write_bytes(b"last known good object")
             before = self._private_roots()
             changed = threading.Event()
+            blocked = threading.Event()
 
             def replace_destination_after_assembly():
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
-                    if any((path / "candidate.o").is_file() for path in new_roots):
-                        output.write_bytes(b"competing publisher")
+                    if any(
+                        self._private_entry(token, "candidate.o").is_file()
+                        for token in new_roots
+                    ):
+                        try:
+                            output.write_bytes(b"competing publisher")
+                        except PermissionError:
+                            blocked.set()
+                            return
                         changed.set()
                         return
                     time.sleep(0.001)
@@ -3860,10 +5792,26 @@ class CupidBuildCliTests(unittest.TestCase):
             result = self._run_object(source, output)
             mutator.join(timeout=20)
 
-            self.assertTrue(changed.is_set(), "private object was not observed")
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("output changed", result.stderr)
-            self.assertEqual(output.read_bytes(), b"competing publisher")
+            self.assertTrue(
+                changed.is_set() or blocked.is_set(),
+                "private object was not observed",
+            )
+            if os.name == "nt":
+                self.assertTrue(blocked.is_set())
+                if result.returncode == 0:
+                    self.assertNotEqual(
+                        output.read_bytes(), b"last known good object"
+                    )
+                else:
+                    self.assertIn("usage: cupidasm", result.stderr)
+                    self.assertIn("checked CupidASM failed", result.stderr)
+                    self.assertEqual(
+                        output.read_bytes(), b"last known good object"
+                    )
+            else:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("output changed", result.stderr)
+                self.assertEqual(output.read_bytes(), b"competing publisher")
 
     def test_output_parent_drift_preserves_the_original_parent(self):
         with tempfile.TemporaryDirectory(
@@ -3882,13 +5830,21 @@ class CupidBuildCliTests(unittest.TestCase):
             output.write_bytes(b"last known good object")
             before = self._private_roots()
             changed = threading.Event()
+            blocked = threading.Event()
 
             def replace_parent_after_assembly():
                 deadline = time.monotonic() + 20
                 while time.monotonic() < deadline:
                     new_roots = self._private_roots() - before
-                    if any((path / "candidate.o").is_file() for path in new_roots):
-                        parent.rename(displaced)
+                    if any(
+                        self._private_entry(token, "candidate.o").is_file()
+                        for token in new_roots
+                    ):
+                        try:
+                            parent.rename(displaced)
+                        except PermissionError:
+                            blocked.set()
+                            return
                         parent.mkdir()
                         changed.set()
                         return
@@ -3899,13 +5855,32 @@ class CupidBuildCliTests(unittest.TestCase):
             result = self._run_object(source, output)
             mutator.join(timeout=20)
 
-            self.assertTrue(changed.is_set(), "private object was not observed")
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("output parent changed", result.stderr)
-            self.assertEqual(
-                (displaced / "output.o").read_bytes(), b"last known good object"
+            self.assertTrue(
+                changed.is_set() or blocked.is_set(),
+                "private object was not observed",
             )
-            self.assertFalse(output.exists())
+            if os.name == "nt":
+                self.assertTrue(blocked.is_set())
+                self.assertFalse(displaced.exists())
+                self.assertTrue(output.is_file())
+                if result.returncode == 0:
+                    self.assertNotEqual(
+                        output.read_bytes(), b"last known good object"
+                    )
+                else:
+                    self.assertIn("usage: cupidasm", result.stderr)
+                    self.assertIn("checked CupidASM failed", result.stderr)
+                    self.assertEqual(
+                        output.read_bytes(), b"last known good object"
+                    )
+            else:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("output parent changed", result.stderr)
+                self.assertEqual(
+                    (displaced / "output.o").read_bytes(),
+                    b"last known good object",
+                )
+                self.assertFalse(output.exists())
 
     @unittest.skipUnless(os.name == "nt", "Windows replacement semantics")
     def test_replacement_failure_rolls_back_and_the_next_run_recovers(self):

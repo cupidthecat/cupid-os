@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 
 #define CUPID_RUNTIME_UINT_MAX 4294967295u
 
@@ -55,12 +57,43 @@ static int file_contract(const char *output_path,
   static const char expected[] = "headtail";
   char contents[9];
   FILE *stream = (FILE *)0;
+  FILE *shared_reader = (FILE *)0;
+  HANDLE shared_handle = INVALID_HANDLE_VALUE;
 
   if (fopen_s(&stream, output_path, "wb") != 0 ||
       stream == (FILE *)0) {
     return 21;
   }
-  if (fwrite(first, 1u, 4u, stream) != 4u || fclose(stream) != 0) {
+  if (fwrite(first, 1u, 4u, stream) != 4u || fflush(stream) != 0) {
+    return 22;
+  }
+  shared_handle = CreateFileA(
+      output_path, GENERIC_READ | GENERIC_WRITE | DELETE,
+      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+      (LPSECURITY_ATTRIBUTES)0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+      (HANDLE)0);
+  if (shared_handle == INVALID_HANDLE_VALUE ||
+      !CloseHandle(shared_handle)) {
+    (void)fclose(stream);
+    return 22;
+  }
+  shared_reader = fopen(output_path, "rb");
+  (void)memset(contents, 0, sizeof(contents));
+  if (shared_reader == (FILE *)0) {
+    (void)fclose(stream);
+    return 22;
+  }
+  if (fread(contents, 1u, 4u, shared_reader) != 4u) {
+    (void)fclose(shared_reader);
+    (void)fclose(stream);
+    return 22;
+  }
+  if (fclose(shared_reader) != 0) {
+    (void)fclose(stream);
+    return 22;
+  }
+  shared_reader = (FILE *)0;
+  if (memcmp(contents, first, 4u) != 0 || fclose(stream) != 0) {
     return 22;
   }
 
