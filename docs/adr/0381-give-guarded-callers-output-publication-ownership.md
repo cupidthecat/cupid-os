@@ -58,6 +58,8 @@ CupidBuild and the Cupid-built artifact-size verifier reject every other
 value. CupidBuild carries the accepted native-plan generation out of manifest
 parsing and applies its matching ordinary, linker, and CupidBuild import
 profiles to all six artifacts. A seed cannot mix profiles from the two plans.
+Temporary Windows behavior manifests name the plan used to build the copied
+stage tools; this does not change the checked manifest or its tool images.
 The parent-generation window from ADR 0380 is unchanged.
 
 ## Evidence
@@ -109,7 +111,28 @@ the two-argument wrapper. The source-current ordinary import profile grows from
 12 to 13 `KERNEL32.dll` procedures, and the linker profile grows from 16 to 17.
 The promoted seed profiles remain exact and unchanged. The obsolete,
 unpromoted `c27481d2...` plan is rejected. Neither failed run authored a paired
-manifest, so clean proof must restart from this repair before promotion.
+manifest.
+
+The clean `ae32be64` Linux reconstruction matched all 22 C objects, the startup
+object, and six tools between stages three and four, then passed all 31/7/37
+behavior groups. Native Windows matched 23 C objects, three assembly objects,
+and every stage-three and stage-four tool before a later behavior gate stopped.
+The fixtures copied source-current tools but retained the promoted plan identity
+in their private manifests. CupidBuild correctly treated that identity as the
+older execution profile and rejected the mixed generation.
+
+The coordinator now replaces only the native-plan field in each copied Windows
+behavior manifest with the digest of the plan being executed, then recomputes
+the private manifest bytes and hash. It leaves the checked manifest, artifact
+bytes, and tool map unchanged, and Linux behavior inputs pass through without
+alteration. Positive and negative tests cover the retarget, the complete
+stage-three/stage-four manifest pairs, and audit rejection when the retarget or
+its seven checked CupidBuild consumers disappear. The Windows behavior gate
+did not finish at `ae32be64`, so no paired manifest or seed was promoted.
+A source-current Windows rerun with the corrected private manifests then
+matched every stage-three and stage-four artifact and completed all 19/7/24
+behavior groups. Because it began from an uncommitted tree, a clean paired proof
+remains separate.
 
 Focused tests pass the promoted-profile verifier, the exact two-plan import
 pairing, the direct native Windows tool boundary, all 46 hosted CupidASM cases,

@@ -184,11 +184,16 @@ from 12 to 13 `KERNEL32.dll` imports, and the linker profile moves from 16 to
 promoted parents keep the preceding profiles for verification. Source head
 separates read-shared frozen inputs from mutable candidates and gives guarded
 CupidASM calls one caller-owned candidate identity. A dirty-tree v4 pair
-converged, but neither clean attempt at `f3c14b86` or `c967ddee` produced a
-paired manifest. The repaired exact Windows plan is
+converged. After the `f3c14b86` and `c967ddee` clean failures, the `ae32be64`
+Linux reconstruction passed its complete fixed point and Windows matched every
+stage-three and stage-four artifact. Windows then stopped in a later behavior
+fixture whose copied manifest still named the promoted plan while carrying the
+current tools. The host coordinator now binds only temporary Windows behavior
+manifests to the exact executed plan
 `98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
-Clean reconstruction is still required; none of these changes adds a
-host-tool dependency.
+This changes no checked seed, production owner, or host-tool dependency. A
+source-current Windows rerun completes all 19/7/24 behavior groups. A clean
+same-commit two-host pass is still required before paired publication.
 Host Python still freezes inputs, launches the checked tools, compares stages,
 and publishes the evidence. ADR 0345 records this separation.
 Both final-stage CupidDis images now inspect the corresponding six candidate

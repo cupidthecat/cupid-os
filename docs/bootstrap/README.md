@@ -141,20 +141,25 @@ Guarded assembly uses CupidASM's
 candidate identity from creation through publication.
 
 A dirty-tree v4 reconstruction passed on Linux and native Windows with the
-source-current behavior totals below. The result is not yet promotable because
-the source was not commit-pinned. A clean paired reconstruction still has to
-author and validate both seed manifests.
-The first clean attempt at `f3c14b86` stopped at Linux stage two on a misspelled
-custom-Linux syscall wrapper and authored no manifest. The second attempt at
-`c967ddee` reached native Windows stage two, where CupidLD rejected an
-unresolved `cupid_windows_get_file_information`. The shared host adapter used
-that wrapper, but only CupidBuild's private startup provided it. The common
-Windows tool startup now provides the wrapper. The ordinary and linker import
-profiles include `GetFileInformationByHandle`. This changes the exact
-source-current Windows plan to
+source-current behavior totals below. The first clean attempt at `f3c14b86`
+stopped at Linux stage two on a misspelled custom-Linux syscall wrapper. The
+`c967ddee` retry reached native Windows stage two, where CupidLD found that
+`cupid_windows_get_file_information` was missing from the common startup. The
+startup now provides the wrapper, and the ordinary and linker profiles include
+`GetFileInformationByHandle`. The exact source-current Windows plan is
 `98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
-Neither failed run produced a promotable pair, so clean reconstruction must
-restart from this repair.
+
+The clean `ae32be64` Linux reconstruction completed the fixed point and all
+31/7/37 behavior groups. Native Windows matched every stage-three and
+stage-four artifact before a later behavior check found that temporary
+fixtures had copied the current tools without replacing the promoted plan
+identity in the copied manifest. The coordinator now binds only those copied
+manifests to the plan executed by their tool cohort and recomputes the manifest
+hash. It leaves the checked seed and tool bytes unchanged. No pair was
+promoted because the Windows behavior gate did not finish.
+A source-current Windows rerun with plan-matched temporary manifests now
+completes all 19/7/24 behavior groups. A clean same-commit proof on both hosts
+still precedes paired publication.
 
 Together with the checked CupidC runner, the source-head behavior definitions
 are 31/7/37 on Linux and 19/7/24 on native Windows. The active promoted seeds

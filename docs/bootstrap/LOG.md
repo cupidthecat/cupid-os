@@ -34408,3 +34408,77 @@ transforms, 255 feature requirements, and 28 accounted unreachable inputs. The
 `9b3c8790e867689c1656cbd07a739574502f9baed287864c6812ff41807547a9`.
 The 13,193-byte summary has SHA-256
 `555a30f78da238ba5a679e1b487b3ed4ad411980664578ca056a22f9f12c6b20`.
+
+### Third clean reconstruction and behavior-manifest plan binding
+
+The detached `ae32be64` Linux reconstruction passed the complete fixed point.
+It matched 22 C objects, one startup object, and all six tools between stages
+three and four, then completed 31 failure, seven help, and 37 success groups.
+Its 52,435-byte report has SHA-256
+`1595687c8663926383d9ad9b5f54abfe3f406a5f4f24fa3a9d93a515b74798eb`
+and binds source snapshot
+`50398b66e617a61e34b8c6ae1c0f3bb856de2ca114640a3722851ef337c2b684`.
+This is clean Linux evidence, not a promotion record on its own.
+
+Native Windows also passed the fixed-point comparison. All 23 C objects, three
+assembly objects, and six PE32 tools matched between stages three and four.
+The run stopped afterward at the checked CupidObj runner with `checked seed
+execution profile mismatch`. The behavior fixture had copied the
+source-current stage tools and refreshed their artifact hashes, but its
+temporary manifest still carried the promoted plan identity. CupidBuild
+correctly selected the older exact execution profiles from that identity and
+rejected the mixed generation. The failure was in fixture construction, not
+tool convergence. The Windows behavior gate did not finish, so the candidate
+pair was not promotable and neither seed manifest changed.
+
+Native Windows behavior setup now copies the frozen manifest, replaces only
+its `native_build_plan_sha256` field with the digest of the plan being
+executed, and recomputes the private manifest bytes and hash. It does not
+modify the frozen checked manifest, artifact bytes, tool map, or seed files.
+Linux behavior inputs pass through unchanged. Every typed and checked
+CupidBuild behavior operation receives the same plan-matched copy.
+
+Positive coverage checks the replacement, copied-manifest hash, unchanged
+frozen seed, and unchanged Linux path. Negative coverage rejects malformed or
+missing native-plan identity. The orchestration test reads both generated
+manifest generations for every checked behavior operation and verifies the
+executed plan digest. The active-build audit requires the retarget helper, its
+exact plan derivation, and all seven checked CupidBuild consumers; a mutation
+that restores the promoted plan identity fails the audit.
+
+A source-current native Windows rerun then matched every stage-three and
+stage-four artifact and completed all 19 failure, seven help, and 24 success
+groups. Its 68,212-byte report has SHA-256
+`80b02aa403f81f0bc5fdcb654c954389aca0883ce1c96f2f3876ef19c5f98bab`,
+binds build plan
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`,
+and records source snapshot
+`50398b66e617a61e34b8c6ae1c0f3bb856de2ca114640a3722851ef337c2b684`.
+This proves the coordinator repair on the native host, but the run began from
+an uncommitted working tree. It is not clean paired promotion evidence.
+
+The 142-case seed-bootstrap module also exposed two stale assertion sets left
+behind by the shared Windows runtime change in `ae32be64`. All six
+source-current Windows tools now differ from the older execution seed at stage
+two, while the Linux rebuild still matches CupidC, CupidDis, and CupidLD. The
+Linux report oracle now uses that split and the source-current 13-procedure
+import profile instead of the promoted PE identities. The native CupidLD
+fixture is 33,792 bytes with SHA-256
+`37ab28ec87bfcc3f6c27cb35beb0c773f7731e043566ac19a77985dd18bb61f8`.
+The generated bootstrap reports were valid; only the assertions still described the
+previous tool generation. The tests now record the current artifacts.
+
+The full module ran all 142 cases in 4,717.891 seconds: 140 passed, and two
+failed on stale artifact expectations.
+After correction, the native Windows fixed-point case passed in 2,283.942
+seconds and the Linux fixed-point case passed in 2,300.456 seconds. The focused
+retarget and orchestration cases passed together in 0.231 seconds, and the
+changed Python modules compiled without syntax errors.
+
+The complete fail-closed audit mutation test passed in 308.477 seconds. Audit
+regeneration and check-only mode then passed at 748 active inputs, 452
+transforms, 255 feature requirements, and 28 accounted unreachable inputs. The
+2,821,144-byte JSON has SHA-256
+`9e6b2a19066e765c1f09bf42becbd371cf10cbaabb4ba34e8943d6f506ee8056`.
+The unchanged 13,193-byte summary has SHA-256
+`555a30f78da238ba5a679e1b487b3ed4ad411980664578ca056a22f9f12c6b20`.

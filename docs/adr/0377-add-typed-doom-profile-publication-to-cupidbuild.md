@@ -194,8 +194,14 @@ file-information wrapper existed only in CupidBuild's private startup. The
 common startup now provides that wrapper. The ordinary and linker profiles
 include the matching import, producing the exact source-current Windows plan
 `98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
-Neither clean run produced a promotable pair. ADR 0381 records the handle,
-publication, and import transition.
+The clean `ae32be64` Linux reconstruction then completed its fixed point and
+all 31/7/37 behavior groups. Native Windows matched every stage-three and
+stage-four artifact before a later behavior fixture paired copied current
+tools with a temporary manifest that still named the promoted plan. The
+coordinator now binds only those private manifests to the executed native plan.
+The checked seed and tool bytes stay unchanged. A source-current Windows rerun
+then completed all 19/7/24 behavior groups. No pair was promoted. ADR 0381
+records the handle, publication, import, and behavior-fixture transition.
 
 The success fixture still produces the same 72,950-byte canonical JSON as
 `tools/cupidc_kernel_compile.py`. It contains the current 304 `.h` and `.inc`
@@ -251,9 +257,10 @@ because Make still invokes
 `tools/cupidc_kernel_compile.py --write-profile-input-manifest`. The next step
 is a paired Linux and native Windows seed promotion that carries
 `generate-profile-manifest`, the repaired common startup and import profiles,
-and the retained output share mode. That proof must start from the repair after
-both earlier clean attempts failed closed. Only after it passes may Make invoke
-the promoted command and transfer production publication ownership.
+and the retained output share mode. The next proof will use plan-matched
+temporary manifests for the copied Windows behavior tools. Only after a
+complete two-host pass may Make invoke the promoted command and transfer
+production publication ownership.
 
 No `.c` file is renamed. The command rejects a `.c` file in the active Doom
 closure. No GCC, NASM, host linker, or host object utility is added.

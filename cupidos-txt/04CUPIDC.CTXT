@@ -58,7 +58,7 @@ Windows retains frozen inputs with read sharing and rejects write or delete
 opens. Cleanup verifies the retained and named snapshots, reopens the same
 identity with delete access, and verifies it again before removal. A
 dirty-tree v4 pair passed the source-current Linux and Windows matrices; a
-clean commit-pinned rebuild is still required for seed publication. The
+complete clean two-host rebuild is still required for seed publication. The
 f3c14b86 rebuild failed on the custom-Linux syscall spelling. The c967ddee
 retry reached native Windows stage two before CupidLD found that the common
 startup lacked the file-information wrapper used by the shared host adapter.
@@ -66,7 +66,14 @@ The common startup now provides the wrapper. The source-current ordinary and
 linker profiles include the matching import.
 The exact source-current Windows plan is
 98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669.
-Neither failed run produced a promotable pair.
+The ae32be64 clean Linux run passed the complete fixed point and all 31/7/37
+behavior groups. Native Windows matched every stage-three and stage-four
+object and tool, then stopped in behavior checks because a copied current tool
+cohort was paired with a temporary manifest that still named the promoted
+plan. Windows behavior fixtures now bind only their copied manifest to the
+plan executed by that cohort. Checked manifests and tool bytes remain
+unchanged. A source-current Windows rerun completes all 19/7/24 behavior
+groups. No seed was promoted.
 
 Promoted CupidBuild now has a typed flatten-kernel transaction. It freezes
 the strict production manifest, up to 500 code inputs, and the complete

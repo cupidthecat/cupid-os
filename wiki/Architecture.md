@@ -6,8 +6,8 @@ The current build graph contains 452 transforms, including 443 under root
 `all`. CupidBuild directly coordinates the ISR and context-switch object
 publications plus the bootloader and SMP raw-image publications. It also runs
 the typed JPEG publication, generated kernel-symbol source, 186 ordinary
-CupidObj recipes, and both normal kernel links, bringing its total to 194
-transforms and leaving Python in 258.
+CupidObj recipes, and both normal kernel links, bringing its total to 195
+transforms and leaving Python in 257.
 CupidASM remains the language owner,
 and CupidDis remains the
 inspection owner for the four guarded assembly publications.
@@ -44,6 +44,10 @@ uses it outside CupidBuild. Source-current ordinary and linker images therefore
 import `GetFileInformationByHandle`; the promoted parent profiles remain exact
 and unchanged during the transition. The resulting source-current Windows plan
 is `98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+Native Windows fixed-point behavior copies bind their temporary manifest to
+the plan that built the copied stage tools. This keeps execution-profile
+selection consistent without changing the checked seed manifest or any tool
+image.
 
 The fixed parent policy differs by host. Windows can create and pin missing
 `build` and `build/bootstrap` components in one `NtCreateFile` operation per

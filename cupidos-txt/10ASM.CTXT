@@ -69,8 +69,15 @@ CupidBuild's private startup. This moves the ordinary import profile from 12
 to 13 KERNEL32 procedures and the linker profile from 16 to 17. The exact
 source-current Windows plan is
 98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669.
-Neither clean attempt at f3c14b86 or c967ddee produced a paired manifest, so
-reconstruction still precedes seed promotion.
+The f3c14b86 and c967ddee attempts produced no paired manifest. The
+ae32be64 clean Linux run passed the complete fixed point. Native Windows
+matched every stage-three and stage-four object and tool, then stopped in
+behavior checks because copied current tools were paired with a temporary
+manifest that still named the promoted plan. Windows behavior fixtures now
+bind only their copied manifest to the plan executed by that cohort. Checked
+manifests and tool bytes remain unchanged. A source-current Windows rerun
+completes all 19/7/24 behavior groups. No seed was promoted.
+
 Source-head CupidBuild also has a narrow checked runner for CupidObj. Linux
 creates no .cupidbuild-run namespace: it fully seals the manifest and six
 tools in anonymous memfds and pins the working directory by descriptor. The

@@ -63,6 +63,7 @@ from tools.bootstrap_toolchain import (
     _remove_private_tool_directory,
     _require_seed_pair_identity,
     _profile_snapshot_payload,
+    _retarget_native_windows_behavior_seed,
     _run_behavior_checks,
     _run_native_windows_behavior_checks,
     _run_stage_pair,
@@ -103,12 +104,105 @@ WINDOWS_SEED_MANIFEST = (
     / "i386-windows"
     / "manifest.json"
 )
-SOURCE_HEAD_INITIAL_MATCHES = {
-    name: name != "cupidbuild" for name in CANDIDATE_TOOL_NAMES
+WINDOWS_SOURCE_HEAD_INITIAL_MATCHES = {
+    name: False for name in CANDIDATE_TOOL_NAMES
+}
+LINUX_SOURCE_HEAD_INITIAL_MATCHES = {
+    "cupidasm": False,
+    "cupidbuild": False,
+    "cupidc": True,
+    "cupiddis": True,
+    "cupidld": True,
+    "cupidobj": False,
 }
 
 
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    def test_native_windows_behavior_seed_tracks_the_executed_plan(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-windows-behavior-plan-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            frozen = freeze_seed_inputs(
+                WINDOWS_SEED_MANIFEST, root / "windows-seed"
+            )
+            current_plan_sha256 = "1" * 64
+
+            retargeted = _retarget_native_windows_behavior_seed(
+                frozen, current_plan_sha256
+            )
+
+            self.assertEqual(
+                retargeted.manifest["provenance"][
+                    "native_build_plan_sha256"
+                ],
+                current_plan_sha256,
+            )
+            self.assertEqual(
+                json.loads(retargeted.manifest_bytes)["provenance"][
+                    "native_build_plan_sha256"
+                ],
+                current_plan_sha256,
+            )
+            self.assertEqual(
+                retargeted.manifest_sha256,
+                hashlib.sha256(retargeted.manifest_bytes).hexdigest(),
+            )
+            self.assertEqual(retargeted.artifact_bytes, frozen.artifact_bytes)
+            self.assertEqual(retargeted.tools, frozen.tools)
+            self.assertEqual(
+                frozen.manifest["provenance"][
+                    "native_build_plan_sha256"
+                ],
+                PROMOTED_WINDOWS_PLAN_SHA256,
+            )
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "native Windows behavior build plan SHA-256 is invalid",
+            ):
+                _retarget_native_windows_behavior_seed(frozen, "not-a-digest")
+
+            missing_plan_document = json.loads(frozen.manifest_bytes)
+            del missing_plan_document["provenance"][
+                "native_build_plan_sha256"
+            ]
+            missing_plan_bytes = (
+                json.dumps(
+                    missing_plan_document,
+                    indent=2,
+                    sort_keys=True,
+                    ensure_ascii=True,
+                )
+                + "\n"
+            ).encode("ascii")
+            missing_plan = SeedInputs(
+                manifest=missing_plan_document,
+                manifest_bytes=missing_plan_bytes,
+                manifest_sha256=hashlib.sha256(
+                    missing_plan_bytes
+                ).hexdigest(),
+                live_manifest_path=frozen.live_manifest_path,
+                artifact_bytes=frozen.artifact_bytes,
+                tools=frozen.tools,
+            )
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "native Windows behavior seed build plan is unavailable",
+            ):
+                _retarget_native_windows_behavior_seed(
+                    missing_plan, current_plan_sha256
+                )
+
+            linux = freeze_seed_inputs(
+                SEED_MANIFEST, root / "linux-seed"
+            )
+            self.assertIs(
+                _retarget_native_windows_behavior_seed(
+                    linux, current_plan_sha256
+                ),
+                linux,
+            )
+
     def test_behavior_seed_can_bind_one_fixed_point_stage(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-stage-behavior-seed-", dir=REPO_ROOT
@@ -3744,6 +3838,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             linux_output.mkdir()
             windows_output = root / "windows"
             windows_output.mkdir()
+            windows_seed_inputs = freeze_seed_inputs(
+                WINDOWS_SEED_MANIFEST, root / "windows-checked-seed"
+            )
+            native_plan = {"behavior_fixture_plan": "source-current"}
 
             linux_calls: list[tuple[str, tuple[str, ...]]] = []
             linux_manifest_pairs: list[tuple[Path, Path]] = []
@@ -4122,8 +4220,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     windows_output,
                     stage,
                     stage,
-                    {},
-                    seed_inputs,
+                    native_plan,
+                    windows_seed_inputs,
                     seed_inputs,
                 )
 
@@ -4146,6 +4244,24 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     and second.parent.name == "stage-four-seed"
                     for first, second in windows_manifest_pairs
                 )
+            )
+            expected_native_plan = _build_plan_sha256(native_plan)
+            for manifest_pair in windows_manifest_pairs:
+                for manifest_path in manifest_pair:
+                    materialized = json.loads(
+                        manifest_path.read_text(encoding="ascii")
+                    )
+                    self.assertEqual(
+                        materialized["provenance"][
+                            "native_build_plan_sha256"
+                        ],
+                        expected_native_plan,
+                    )
+            self.assertEqual(
+                windows_seed_inputs.manifest["provenance"][
+                    "native_build_plan_sha256"
+                ],
+                PROMOTED_WINDOWS_PLAN_SHA256,
             )
             windows_runner_root = (
                 windows_output / "behavior" / "cupidobj-runner"
@@ -6592,7 +6708,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["initial_seed_matches_stage_two"],
-                SOURCE_HEAD_INITIAL_MATCHES,
+                WINDOWS_SOURCE_HEAD_INITIAL_MATCHES,
             )
             for stage_name in (
                 "stage-two",
@@ -11033,9 +11149,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "20323a24be105b1b519962994b8e4e6a7f8e3cd0d005b8ee10c9aeb66da5d40a"
                             ),
                             "output_sha256": (
-                                "e6f0e3e8e1f824edc76ef45036a2eb7fb2863ca9ab6098e4995e99d85efc1307"
+                                "37ab28ec87bfcc3f6c27cb35beb0c773f7731e043566ac19a77985dd18bb61f8"
                             ),
-                            "output_size": 32768,
+                            "output_size": 33792,
                             "return_code": 0,
                             "status": "pass",
                         }
@@ -11173,7 +11289,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "36af89b475fdc11f674b9ca7cc1cb61d9f756ca212332a3f7fa9076d863d29e5"
+                        "87a6ba895bd52a1da6e287a7b5d585b5ca54a82dd9d43347aa441b7b9d8ed034"
                     ),
                     "size": 517120,
                 },
@@ -11189,6 +11305,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "ExitProcess",
                     "GetCommandLineA",
                     "GetCurrentDirectoryA",
+                    "GetFileInformationByHandle",
                     "GetLastError",
                     "GetStdHandle",
                     "ReadFile",
@@ -11233,27 +11350,27 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             expected_native_images = {
                 "cupidasm": {
                     "sha256": (
-                        "dc004aa0026d37dfdf623441a85b539c2c65497c9159c7c394be03a9bc16b7ad"
+                        "17ab4874dab63bf614f9b0d94d9d64017ec5f70ddd87c59ade71646c0a1ab83c"
                     ),
-                    "size": 480256,
+                    "size": 484352,
                 },
                 "cupidc": {
                     "sha256": (
-                        "1a1bf6e016b5a61dfa61ff6f9c02672d338f2608341a26bf1a91b6376753f13b"
+                        "ba7d387400d96faa7e4fc7e6b7534757f2c79347472212de05217dde7982e6ee"
                     ),
                     "size": 2620416,
                 },
                 "cupidld": {
                     "sha256": (
-                        "b89b42dd7df9fca44e59d93b97bbfd8f79da3352587da2dd50adfa72afee8f29"
+                        "206b33ae6a044143a45300b175c9443559bbb748af5f6293a4505f860535196b"
                     ),
                     "size": 296960,
                 },
                 "cupidobj": {
                     "sha256": (
-                        "82e20c148756a1b1db7ed7b62b1077b88d45320fc01aea203111be34eea1e7b5"
+                        "f2a56f4177af4b15c7dde23f6408876729c3a795b01d28ffb60d16d5d0fbd83b"
                     ),
-                    "size": 376320,
+                    "size": 377856,
                 },
             }
             for tool_name, tool_evidence in native_tools.items():
@@ -11342,7 +11459,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 initial_matches,
-                SOURCE_HEAD_INITIAL_MATCHES,
+                LINUX_SOURCE_HEAD_INITIAL_MATCHES,
             )
             self.assertEqual(
                 report["source_inputs"]["count"],

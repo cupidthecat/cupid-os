@@ -1124,7 +1124,12 @@ common file-information wrapper. The common startup now provides the wrapper.
 The source-current ordinary and linker profiles include the matching import,
 yielding exact plan
 `98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
-Neither attempt produced a promotable pair, so clean reconstruction remains.
+The clean `ae32be64` Linux run completed every fixed-point and behavior gate.
+Windows matched every stage-three and stage-four artifact, then stopped when a
+temporary behavior manifest paired copied current tools with the promoted plan
+identity. Windows behavior copies now name the plan executed by their copied
+cohort without changing the checked seed. A source-current Windows rerun
+completes all 19/7/24 behavior groups. No pair was promoted.
 ADR 0377 records the source boundary, and ADR 0381 records the handle and
 import contract.
 

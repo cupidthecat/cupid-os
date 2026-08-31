@@ -40,17 +40,24 @@ zero. Source head separates read-shared frozen inputs from mutable candidates,
 and it reopens the same verified frozen identity with delete access only for
 cleanup. Guarded CupidASM calls write directly to the candidate retained by
 CupidBuild instead of nesting a second publisher. A dirty-tree v4 pair passed
-the 31/7/37 Linux and 19/7/24 Windows matrices. Clean, commit-pinned
-reconstruction, seed publication, and the separate Make handoff remain.
-The first clean attempt at `f3c14b86` stopped at Linux stage two on a misspelled
-custom-Linux syscall wrapper and authored no manifest. The `c967ddee` retry
-reached native Windows stage two before CupidLD found that the common startup
-lacked the file-information wrapper called by the shared host adapter. The
-common startup now provides the wrapper. The source-current ordinary and
-linker profiles include the matching import. The repaired Windows plan is
+the 31/7/37 Linux and 19/7/24 Windows matrices. The first clean attempt at
+`f3c14b86` stopped at Linux stage two, and `c967ddee` reached native Windows
+stage two before exposing a common startup wrapper that was missing. The
+common startup now provides the wrapper, and the ordinary and linker profiles
+include its import.
+
+The repaired Windows plan is
 `98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
-Neither failed run produced a promotable pair, so the proof must restart from
-this repair.
+
+The clean `ae32be64` Linux run completed its fixed point and all 31/7/37
+behavior groups. Windows matched every stage-three and stage-four artifact,
+then stopped because temporary behavior manifests paired copied current tools
+with the promoted plan identity. Those private manifests now name the plan
+executed by their copied cohort. Checked manifests and tool images remain
+unchanged. No pair was promoted. The corrected source-current Windows rerun
+completes all 19/7/24 behavior groups, but a clean same-commit proof on both hosts
+still precedes publication. Seed publication and the separate Make handoff
+remain.
 
 Source-head CupidBuild now provides `flatten-kernel` for the full production
 code cohort. The transaction freezes the manifest, 431 active inputs, and the

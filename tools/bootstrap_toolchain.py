@@ -3227,6 +3227,38 @@ def _expect_status(
         )
 
 
+def _retarget_native_windows_behavior_seed(
+    seed_inputs: SeedInputs,
+    native_plan_sha256: str,
+) -> SeedInputs:
+    if seed_inputs.manifest.get("schema") != PROMOTED_WINDOWS_SEED_SCHEMA:
+        return seed_inputs
+    digest = _require_lower_hex(
+        native_plan_sha256,
+        64,
+        "native Windows behavior build plan SHA-256",
+    )
+    document = json.loads(seed_inputs.manifest_bytes)
+    provenance = _require_object(document.get("provenance"), "provenance")
+    if "native_build_plan_sha256" not in provenance:
+        raise BootstrapError(
+            "native Windows behavior seed build plan is unavailable"
+        )
+    provenance["native_build_plan_sha256"] = digest
+    manifest_bytes = (
+        json.dumps(document, indent=2, sort_keys=True, ensure_ascii=True)
+        + "\n"
+    ).encode("ascii")
+    return SeedInputs(
+        manifest=document,
+        manifest_bytes=manifest_bytes,
+        manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+        live_manifest_path=seed_inputs.live_manifest_path,
+        artifact_bytes=seed_inputs.artifact_bytes,
+        tools=seed_inputs.tools,
+    )
+
+
 def _materialize_behavior_seed(
     seed_inputs: SeedInputs,
     behavior_root: Path,
@@ -4522,12 +4554,16 @@ def _run_native_windows_behavior_checks(
         "native Windows ",
     )
 
+    behavior_seed_inputs = _retarget_native_windows_behavior_seed(
+        seed_inputs, _build_plan_sha256(native_plan)
+    )
+
     _check_cupidbuild_cupidobj_runner_behavior(
         runner,
         behavior_root,
         stage_two,
         stage_three,
-        seed_inputs,
+        behavior_seed_inputs,
         "native Windows ",
     )
 
@@ -4536,7 +4572,7 @@ def _run_native_windows_behavior_checks(
         behavior_root,
         stage_two,
         stage_three,
-        seed_inputs,
+        behavior_seed_inputs,
         "native Windows ",
     )
 
@@ -4546,7 +4582,7 @@ def _run_native_windows_behavior_checks(
         behavior_root,
         stage_two,
         stage_three,
-        seed_inputs,
+        behavior_seed_inputs,
         "native Windows ",
     )
 
@@ -4556,7 +4592,7 @@ def _run_native_windows_behavior_checks(
         behavior_root,
         stage_two,
         stage_three,
-        seed_inputs,
+        behavior_seed_inputs,
         dict(linux_seed_inputs.artifact_bytes)["cupidbuild"],
         "native Windows ",
     )
@@ -4567,7 +4603,7 @@ def _run_native_windows_behavior_checks(
         behavior_root,
         stage_two,
         stage_three,
-        seed_inputs,
+        behavior_seed_inputs,
         "native Windows ",
     )
 
@@ -4581,7 +4617,7 @@ def _run_native_windows_behavior_checks(
         behavior_root,
         stage_two,
         stage_three,
-        seed_inputs,
+        behavior_seed_inputs,
         "native Windows ",
         True,
     )
@@ -4592,7 +4628,7 @@ def _run_native_windows_behavior_checks(
         behavior_root,
         stage_two,
         stage_three,
-        seed_inputs,
+        behavior_seed_inputs,
         "native Windows ",
     )
 

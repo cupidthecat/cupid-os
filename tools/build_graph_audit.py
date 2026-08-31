@@ -13238,6 +13238,7 @@ def _cupid_toolchain_fixed_point_contract(
         "_windows_link_arguments",
         "_build_windows_stage",
         "_compare_windows_stages",
+        "_retarget_native_windows_behavior_seed",
         "_run_native_windows_behavior_checks",
     )
     native_windows_functions = {
@@ -13323,6 +13324,15 @@ def _cupid_toolchain_fixed_point_contract(
             '"all_equal": True',
             '"compared_generations": ["stage-three", "stage-four"]',
         ),
+        "_retarget_native_windows_behavior_seed": (
+            'seed_inputs.manifest.get("schema") '
+            "!= PROMOTED_WINDOWS_SEED_SCHEMA",
+            "document = json.loads(seed_inputs.manifest_bytes)",
+            'provenance["native_build_plan_sha256"] = digest',
+            "manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest()",
+            "artifact_bytes=seed_inputs.artifact_bytes",
+            "tools=seed_inputs.tools",
+        ),
         "_run_native_windows_behavior_checks": (
             "for tool_name in tool_names:",
             "_check_cupidbuild_cupidobj_runner_behavior(",
@@ -13348,6 +13358,9 @@ def _cupid_toolchain_fixed_point_contract(
             'stage_three.tools["cupidasm"].read_bytes()',
             "_validate_static_i386_pe32(",
             '_windows_imports("cupidasm")',
+            "behavior_seed_inputs = _retarget_native_windows_behavior_seed(\n"
+            "        seed_inputs, _build_plan_sha256(native_plan)\n"
+            "    )",
         ),
     }
     for name, fragments in native_windows_fragment_contracts.items():
@@ -13363,6 +13376,16 @@ def _cupid_toolchain_fixed_point_contract(
     ):
         missing_native_windows_fragments.append(
             "_windows_build_plan: include arguments bypass the Linux plan"
+        )
+    if (
+        native_windows_sources["_run_native_windows_behavior_checks"].count(
+            "behavior_seed_inputs,"
+        )
+        != 7
+    ):
+        missing_native_windows_fragments.append(
+            "_run_native_windows_behavior_checks: seven checked CupidBuild "
+            "operations use the plan-matched behavior seed"
         )
 
     behavior_functions = native_windows_functions[

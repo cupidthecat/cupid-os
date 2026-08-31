@@ -6886,7 +6886,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "        behavior_root,\n"
                 "        stage_two,\n"
                 "        stage_three,\n"
-                "        seed_inputs,\n"
+                "        behavior_seed_inputs,\n"
                 '        "native Windows ",\n'
                 "    )\n",
                 "    if False:\n"
@@ -6951,7 +6951,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "        behavior_root,\n"
                 "        stage_two,\n"
                 "        stage_three,\n"
-                "        seed_inputs,\n"
+                "        behavior_seed_inputs,\n"
                 '        "native Windows ",\n'
                 "    )\n",
                 "    if False:\n"
@@ -6973,13 +6973,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "        stage_three,\n"
                 '        "cupidbuild",\n'
                 "        [\n"
-                "            *common_arguments,\n"
+                "            *common_arguments(stage_two_manifest),\n"
                 '            "--output",\n'
                 "            stage_two_output.relative_to("
                 "source_root).as_posix(),\n"
                 "        ],\n"
                 "        [\n"
-                "            *common_arguments,\n"
+                "            *common_arguments(stage_three_manifest),\n"
                 '            "--output",\n'
                 "            stage_three_output.relative_to("
                 "source_root).as_posix(),\n"
@@ -6993,13 +6993,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            stage_three,\n"
                 '            "cupidbuild",\n'
                 "            [\n"
-                "                *common_arguments,\n"
+                "                *common_arguments(stage_two_manifest),\n"
                 '                "--output",\n'
                 "                stage_two_output.relative_to("
                 "source_root).as_posix(),\n"
                 "            ],\n"
                 "            [\n"
-                "                *common_arguments,\n"
+                "                *common_arguments(stage_three_manifest),\n"
                 '                "--output",\n'
                 "                stage_three_output.relative_to("
                 "source_root).as_posix(),\n"
@@ -8258,6 +8258,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            source_root,\n"
                 "        )\n",
                 r"fixed-point source freeze differs",
+            ),
+            "native Windows behavior keeps the promoted plan identity": (
+                "bootstrap",
+                "    behavior_seed_inputs = "
+                "_retarget_native_windows_behavior_seed(\n"
+                "        seed_inputs, _build_plan_sha256(native_plan)\n"
+                "    )\n",
+                "    behavior_seed_inputs = seed_inputs\n",
+                r"native Windows fixed-point behavior differs",
             ),
             "native Windows closure boundary rehash disappears": (
                 "bootstrap",

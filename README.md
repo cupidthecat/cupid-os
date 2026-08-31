@@ -115,18 +115,25 @@ Guarded assembly also asks CupidASM for caller-owned output, so CupidBuild's
 retained candidate identity survives until inspection and publication.
 
 A dirty-tree v4 reconstruction converged on both hosts with the source-current
-matrices below. It proves the implementation, but it is not a promotion: a
-clean, commit-pinned paired rebuild must still produce the seed manifests.
-The first clean attempt at `f3c14b86` stopped at Linux stage two on a misspelled
-custom-Linux syscall wrapper and published no manifest. The second attempt,
-pinned to `c967ddee`, reached native Windows stage two before CupidLD found an
-unresolved file-information wrapper. That wrapper had lived only in
-CupidBuild's private startup even though the shared host adapter called it.
-The common Windows tool startup now provides the wrapper. Source-current
-ordinary and linker profiles include `GetFileInformationByHandle`, and the exact candidate
-plan is `98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
-Neither failed run produced a promotable pair. Clean reconstruction must
-restart from this repair.
+matrices below. The first clean attempt at `f3c14b86` stopped at Linux stage
+two on a misspelled custom-Linux syscall wrapper. The `c967ddee` retry reached
+native Windows stage two before CupidLD found a file-information wrapper that
+was missing from the common startup. The startup now provides the wrapper,
+and the source-current ordinary and linker profiles include
+`GetFileInformationByHandle`. The exact candidate plan is
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`.
+
+The clean `ae32be64` Linux reconstruction completed the fixed point and all
+31/7/37 behavior groups. Native Windows also matched every stage-three and
+stage-four artifact, then stopped in the later behavior checks. Those fixtures
+had copied the current tools but retained the promoted plan identity in their
+temporary manifest. The coordinator now rewrites only that copied behavior
+manifest to name the native plan being executed and recomputes its hash. It
+does not alter the checked seed or any tool bytes. Because the Windows behavior
+gate did not finish, no pair was promoted.
+A source-current Windows rerun with the corrected temporary manifests now
+completes all 19/7/24 behavior groups. A clean, commit-pinned two-host proof is
+still required before paired publication.
 The combined source-head behavior matrices define 31 failure, 7 help,
 and 37 success cases on Linux, and 19 failure, 7 help, and 24 success cases on
 native Windows. The promoted seeds do not carry this command yet, so the
