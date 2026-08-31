@@ -39,7 +39,7 @@ active. Fresh candidates converged and replaced the checked pair together.
 The independent Cupid-built artifact verifier follows the same narrow
 transition: it accepts either complete adjacent parent pair and rejects a
 digest paired with the other generation's revision. The promoted normal build
-passes all 16 exact artifact rows with a 9,514,816-byte flat kernel, and its
+passes all 16 exact artifact rows with a 9,533,840-byte flat kernel, and its
 private four-vCPU E1000 smoke reaches `/bin/ls.cc` JIT completion under the
 strong SMP runtime check.
 ADR 0366 records the compatibility boundary, ADR 0367 and ADR 0370 record

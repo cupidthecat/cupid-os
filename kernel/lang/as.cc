@@ -1973,14 +1973,17 @@ static ctool_status_t as_publish_output(as_output_artifact_t *assembled,
                                         const char *out_path,
                                         const char *map_path) {
   ctool_u8 publication_scratch[VFS_MAX_PATH * 4u + 32u];
+  ctool_u8 publication_peer_scratch[VFS_MAX_PATH * 4u + 32u];
   ctool_path_t root;
   ctool_path_t output;
   ctool_path_t output_candidate;
   ctool_path_t output_backup;
+  ctool_path_t output_absent;
   ctool_path_t publication_commit;
   ctool_path_t map;
   ctool_path_t map_candidate;
   ctool_path_t map_backup;
+  ctool_path_t map_absent;
   ctool_path_t map_commit;
   as_artifact_publication_ops_t ops;
   as_artifact_publication_request_t request;
@@ -2002,6 +2005,11 @@ static ctool_status_t as_publish_output(as_output_artifact_t *assembled,
   }
   if (status == CTOOL_OK) {
     status = as_publication_private_path(assembled->job, &output,
+                                         ".cupid-as-absent",
+                                         &output_absent);
+  }
+  if (status == CTOOL_OK) {
+    status = as_publication_private_path(assembled->job, &output,
                                          ".cupid-as-done",
                                          &publication_commit);
   }
@@ -2020,6 +2028,10 @@ static ctool_status_t as_publish_output(as_output_artifact_t *assembled,
   }
   if (status == CTOOL_OK && map_path != (const char *)0) {
     status = as_publication_private_path(assembled->job, &map,
+                                         ".cupid-as-absent", &map_absent);
+  }
+  if (status == CTOOL_OK && map_path != (const char *)0) {
+    status = as_publication_private_path(assembled->job, &map,
                                          ".cupid-as-done", &map_commit);
   }
   if (status != CTOOL_OK) return status;
@@ -2034,14 +2046,19 @@ static ctool_status_t as_publish_output(as_output_artifact_t *assembled,
   request.artifact.target = output.text;
   request.artifact.candidate = output_candidate.text;
   request.artifact.backup = output_backup.text;
+  request.artifact.absent = output_absent.text;
   request.artifact.commit = publication_commit.text;
   request.scratch.data = publication_scratch;
   request.scratch.size = (ctool_u32)sizeof(publication_scratch);
+  request.peer_scratch.data = publication_peer_scratch;
+  request.peer_scratch.size =
+      (ctool_u32)sizeof(publication_peer_scratch);
   request.artifact_bytes = assembled->result.bytes;
   if (map_path != (const char *)0) {
     request.map.target = map.text;
     request.map.candidate = map_candidate.text;
     request.map.backup = map_backup.text;
+    request.map.absent = map_absent.text;
     request.map.commit = map_commit.text;
     request.map_bytes = ctool_buffer_view(assembled->map_output);
   }

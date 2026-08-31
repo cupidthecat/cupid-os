@@ -71,6 +71,18 @@ that promoted `flatten-kernel` transaction directly. Hostbuild remains an
 optional parity oracle. ADR 0372 records the source capability, ADR 0374
 records seed carriage, and ADR 0375 records the production handoff.
 
+Kernel CupidASM publication now uses the same linked recovery model as the
+hosted command. It writes v2 pending records before either target moves, uses
+validated tombstones for targets that were absent, and advances records to v3
+after both replacements. Either exact v3 record commits the pair. Pending
+old/old, absent/absent, and mixed pairs recover to their earlier state, while
+a failed backup restore leaves the readable target in place. Valid v1 records
+from the earlier kernel protocol remain recoverable. The public boundary binds
+each candidate, backup, tombstone, and record path to the normalized absolute
+target, so private state cannot be redirected to another file. The VFS still
+has no durable two-file transaction or concurrent publisher lock. ADR 0379
+records the kernel recovery boundary.
+
 The native Windows fixed point runs every stage-two producer from the checked
 PE32 execution seed. The Linux seed supplies the reviewed build plan and paired
 provenance, but no Linux executable runs during native reconstruction. The preceding
@@ -150,8 +162,8 @@ ADR 0370 records the active promotion.
 
 The final policy-bound OS build passed all 83 Doom roots, both CupidLD links,
 strict CupidDis validation, all 16 exact artifacts, and image publication. The
-current flat kernel is 9,514,816 bytes; the final and pass-one ELFs are
-9,740,344 and 9,613,368 bytes. The Cupid-built artifact contract accepts the
+current flat kernel is 9,533,840 bytes; the final and pass-one ELFs are
+9,761,100 and 9,630,028 bytes. The Cupid-built artifact contract accepts the
 complete kernel-symbol or active kernel-flattening parent pair and rejects
 mixed lineage. Source-head CupidBuild uses the same two-generation v2 window,
 while the v1 parser keeps its historical contract. ADR 0380 records this

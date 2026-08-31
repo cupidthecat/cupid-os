@@ -34047,3 +34047,106 @@ Production compiler wrappers and Make ownership are unchanged. Full Linux and
 native Windows fixed-point reconstructions, paired seed promotion, and any
 compiler-wrapper handoff remain later gates. ADR 0376 records the source
 decision.
+
+## 2026-08-30: align kernel CupidASM publication recovery with the hosted protocol
+
+The in-kernel publisher previously wrote v1 completion records only after the
+artifact and optional map had both moved. Recovery could not distinguish a
+target that had been absent from one whose backup was missing. It also removed
+the public target before restoring a backup, so a failed replacement could
+turn a readable partial result into a missing file.
+
+The public `as_artifact_publish` boundary now writes linked v2 pending records
+before either target moves. Existing targets move to backups, while exact
+absence tombstones represent targets that did not exist. After both candidates
+become public, either linked v3 record is a sufficient commit witness. Recovery
+restores pending old/old, absent/absent, and mixed pairs, and it completes a
+committed pair from either surviving witness. Backups replace their targets
+directly. The request also carries two disjoint bounded scratch spans so one
+parsed record stays stable while its peer is read.
+
+The public contract accepts only normalized absolute targets whose candidate,
+backup, tombstone, and transaction paths are the target plus their fixed
+publication suffix. This closes a review finding in which otherwise valid
+private state could have been redirected to another target. Valid v1 records
+from the earlier kernel publisher remain readable, including a single marker
+beside either member.
+
+Three test-first corrections shaped the implementation. A restore-failure case
+first showed the public target disappearing; replacing the backup directly
+made the test pass. An absent/absent recovery case then exposed the missing
+tombstone state and drove the linked v2/v3 protocol. Review added two
+partially-overlapping scratch cases; the old validation crashed when one read
+overwrote the other record, and disjoint-span validation made both cases pass.
+Further review added target-to-private-path binding, standalone v1 cleanup, and
+fail-before and ambiguous tombstone-write cases. An ambiguous tombstone write
+is recovered on the next call.
+
+The combined hosted and kernel CupidASM suites pass 41 tests in 9.747 seconds.
+Checked-seed CupidC rebuilt `kernel/lang/as.cc` and `kernel/lang/as_elf.cc`.
+A guarded `make -j2 all` completed the full source and Doom compilation, both
+CupidLD kernel links, symbol generation, and the 431-entry kernel flattening
+transaction. It stopped only at the expected exact-size gate:
+
+| Artifact | Previous bytes | Current bytes | SHA-256 |
+| --- | ---: | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,609,272 | 9,630,028 | `8af08a3befb916a3fdb0216590e4141f1770b4c0a23b180b1b762ef72abb6e12` |
+| `kernel/kernel.elf` | 9,740,344 | 9,761,100 | `de2a0955db9f16cb39436e17ecc21c2c442c1c367ecdb49ffaf18eb329fbfd07` |
+| `kernel/kernel.bin` | 9,514,384 | 9,532,388 | `2fe22a34eb2b672c2bd639fb6135b2729ad55eaaf0faefa8d7e1e4cc1f4c832f` |
+
+After those three policy rows moved, the direct Cupid-built verifier accepted
+all 16 exact artifacts. The 3,382-byte policy covers 38,390,504 bytes and has
+SHA-256
+`36e7d5cbacf8b57f88924a235fc57a845055abd0841b42731e553c435f82c28f`.
+An incremental Make image request would have repeated the complete compile
+because the policy timestamp invalidated the tree, so it was stopped before a
+second expensive build. The exact image-publication command then ran directly
+against the verified outputs, created the 200 MiB FAT16 `cupidos.img`, and
+staged `/hello.iso`. That image has SHA-256
+`4f68c236ca8a838fd59be80376b94b278723afd3c40bdda0c3f1fa0eb2d53e69`.
+
+This slice changes recovery behavior, not production ownership or host-tool
+participation. A durable two-file VFS transaction and concurrent-publisher
+lock remain open. The hosted and kernel publishers still carry separate copies
+of the bounded state machine. A shared implementation or one common
+conformance-vector suite would reduce future protocol drift. The integrated
+branch will supply the final complete replay and repeated guest publication
+smoke after its combined kernel-size policy is settled.
+
+### Combined integration replay
+
+After this change joined the parent-window and checked CupidC runner commits,
+the first full `make -j2 all` completed all 83 Doom roots, both CupidLD links,
+and the guarded 431-input flatten transaction. The exact-size gate then
+reported one intentional difference from the isolated branch: the combined
+embedded manuals made `kernel/kernel.bin` 9,533,840 bytes. Both ELF sizes
+remained at 9,630,028 and 9,761,100 bytes.
+
+After that one measured row changed, the direct verifier accepted all 16
+artifacts. A second complete `make -j2 all` rebuilt the same source cohort,
+repeated both links and the guarded flatten transaction, accepted every exact
+row, and restaged `/hello.iso` in the 200 MiB image. The 3,382-byte policy now
+covers 38,391,956 bytes and has SHA-256
+`561b2914740c51bb0e83d5d06308393e5300ad0050a91c6dcdc987761048e576`.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,630,028 | `1cb435cd15e426a8a222a1ee6e5ffc041faf3ece8a58593fbecc4151996d9d72` |
+| `kernel/kernel.elf` | 9,761,100 | `17ef71cde813ad3caeedbfa2a3c3b4331b2db5623f84d21041361782987181cf` |
+| `kernel/kernel.bin` | 9,533,840 | `84d5e615f54a3f896f0aec3ad8a950896319bf1c337d2179f0227cb00b38f7c2` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `cupidos.img` | 209,715,200 | `602934d88c77336659a7aa4a50e38ac7ae740fd76114cc2dfa334936b915c713` |
+
+The hosted and kernel CupidASM modules passed all 41 tests in 7.420 seconds.
+A private four-vCPU `max`/E1000 smoke then brought all four CPUs online under
+the strong SMP runtime check and ran `/bin/ls.cc` to normal JIT completion.
+Its 21,888-byte serial log has SHA-256
+`969fd7bae0c4cf9c92983bb45d5ac5a09905cc2ee2c4811403d12be959edd714`.
+Audit regeneration and its independent check both passed. The 2,779,327-byte
+JSON has SHA-256
+`694dcaf50372d6cfc392ed68d0e1476bc99f66c335cfdb2586cf9ab29edec906`,
+and the 13,192-byte summary has SHA-256
+`8c62028b29be19478c95038b56030662231f8bb0b655594ac2830d09827f0ea4`.
+The graph remains at 748 active inputs, 452 transforms, 255 feature
+requirements, and 28 accounted unreachable inputs.

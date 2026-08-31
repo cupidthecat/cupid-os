@@ -14,6 +14,28 @@ static void as_zero_bytes(void *value, ctool_u32 size) {
   }
 }
 
+static ctool_bool as_bytes_equal(const ctool_u8 *left,
+                                 const ctool_u8 *right,
+                                 ctool_u32 size) {
+  ctool_u32 index;
+  for (index = 0u; index < size; index++) {
+    if (left[index] != right[index]) return CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_bool as_mut_bytes_overlap(ctool_mut_bytes_t left,
+                                       ctool_mut_bytes_t right) {
+  ctool_u32 index;
+  for (index = 0u; index < left.size; index++) {
+    if (left.data + index == right.data) return CTOOL_TRUE;
+  }
+  for (index = 0u; index < right.size; index++) {
+    if (right.data + index == left.data) return CTOOL_TRUE;
+  }
+  return CTOOL_FALSE;
+}
+
 static void as_artifact_zero_result(as_artifact_result_t *result) {
   as_zero_bytes(result, (ctool_u32)sizeof(*result));
 }
@@ -621,6 +643,19 @@ static ctool_u32 as_publication_load_u32(const ctool_u8 *source) {
          ((ctool_u32)source[2] << 16u) | ((ctool_u32)source[3] << 24u);
 }
 
+static const ctool_u8 as_publication_absent_record[] = {
+    'C', 'U', 'P', 'I', 'D', '-', 'A', 'S', '-', 'A', 'B', 'S', 'E', 'N',
+    'T', 1u};
+
+typedef struct {
+  ctool_string_t backups[2];
+  ctool_string_t commits[2];
+  ctool_u32 count;
+  ctool_u32 storage_size;
+  ctool_bool committed;
+  ctool_bool linked;
+} as_publication_record_t;
+
 static ctool_bool as_publication_private_path_valid(ctool_string_t path,
                                                     const char *suffix) {
   ctool_u32 suffix_size = 0u;
@@ -654,28 +689,54 @@ static ctool_bool as_publication_private_path_valid(ctool_string_t path,
   return CTOOL_TRUE;
 }
 
-static ctool_bool as_publication_private_pair_matches(
-    ctool_string_t backup, ctool_string_t commit) {
-  static const char backup_suffix[] = ".cupid-as-old";
-  static const char commit_suffix[] = ".cupid-as-done";
-  ctool_u32 backup_suffix_size =
-      (ctool_u32)(sizeof(backup_suffix) - 1u);
-  ctool_u32 commit_suffix_size =
-      (ctool_u32)(sizeof(commit_suffix) - 1u);
-  ctool_u32 backup_stem = backup.size - backup_suffix_size;
-  ctool_u32 commit_stem = commit.size - commit_suffix_size;
+static ctool_bool as_publication_private_stems_match(
+    ctool_string_t left, const char *left_suffix, ctool_string_t right,
+    const char *right_suffix) {
+  ctool_u32 left_suffix_size = 0u;
+  ctool_u32 right_suffix_size = 0u;
+  ctool_u32 left_stem;
+  ctool_u32 right_stem;
   ctool_u32 index;
-  if (backup_stem != commit_stem) return CTOOL_FALSE;
-  for (index = 0u; index < backup_stem; index++) {
-    if (backup.data[index] != commit.data[index]) return CTOOL_FALSE;
+  while (left_suffix[left_suffix_size] != '\0') left_suffix_size++;
+  while (right_suffix[right_suffix_size] != '\0') right_suffix_size++;
+  if (left.size < left_suffix_size || right.size < right_suffix_size) {
+    return CTOOL_FALSE;
+  }
+  left_stem = left.size - left_suffix_size;
+  right_stem = right.size - right_suffix_size;
+  if (left_stem != right_stem) return CTOOL_FALSE;
+  for (index = 0u; index < left_stem; index++) {
+    if (left.data[index] != right.data[index]) return CTOOL_FALSE;
   }
   return CTOOL_TRUE;
 }
 
-static ctool_status_t as_publication_render_commit(
+static ctool_bool as_publication_target_private_path_matches(
+    ctool_string_t target, ctool_string_t path, const char *suffix) {
+  ctool_u32 suffix_size = 0u;
+  ctool_u32 index;
+  while (suffix[suffix_size] != '\0') suffix_size++;
+  if (target.data == (const char *)0 || target.size == 0u ||
+      path.data == (const char *)0 ||
+      target.size > 0xffffffffu - suffix_size ||
+      path.size != target.size + suffix_size) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < target.size; index++) {
+    if (path.data[index] != target.data[index]) return CTOOL_FALSE;
+  }
+  for (index = 0u; index < suffix_size; index++) {
+    if (path.data[target.size + index] != suffix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t as_publication_render_record(
     const as_artifact_publication_path_t *paths, ctool_u32 count,
     ctool_mut_bytes_t scratch, ctool_bytes_t *record_out) {
-  static const ctool_u8 magic[8] = {'C', 'U', 'P', 'I', 'D', 'A', 'S', 1u};
+  static const ctool_u8 magic[8] = {'C', 'U', 'P', 'I', 'D', 'A', 'S', 2u};
   ctool_u32 required = 12u;
   ctool_u32 cursor;
   ctool_u32 index;
@@ -718,41 +779,49 @@ static ctool_status_t as_publication_render_commit(
   return CTOOL_OK;
 }
 
-static ctool_status_t as_publication_parse_commit(
-    ctool_bytes_t record, ctool_string_t *backups, ctool_string_t *commits,
-    ctool_u32 *count_out) {
-  static const ctool_u8 magic[8] = {'C', 'U', 'P', 'I', 'D', 'A', 'S', 1u};
+static ctool_status_t as_publication_parse_record(
+    ctool_bytes_t bytes, as_publication_record_t *record) {
+  static const ctool_u8 magic[7] = {'C', 'U', 'P', 'I', 'D', 'A', 'S'};
   ctool_u32 count;
   ctool_u32 cursor = 12u;
   ctool_u32 index;
-  if (record.data == (const ctool_u8 *)0 || backups == (ctool_string_t *)0 ||
-      commits == (ctool_string_t *)0 ||
-      count_out == (ctool_u32 *)0 || record.size < cursor) {
+  if (record != (as_publication_record_t *)0) {
+    as_zero_bytes(record, (ctool_u32)sizeof(*record));
+  }
+  if (bytes.data == (const ctool_u8 *)0 ||
+      record == (as_publication_record_t *)0 || bytes.size < cursor) {
     return CTOOL_ERR_INPUT;
   }
-  for (index = 0u; index < 8u; index++) {
-    if (record.data[index] != magic[index]) return CTOOL_ERR_INPUT;
+  for (index = 0u; index < 7u; index++) {
+    if (bytes.data[index] != magic[index]) return CTOOL_ERR_INPUT;
   }
-  count = as_publication_load_u32(record.data + 8u);
+  if (bytes.data[7] != 1u && bytes.data[7] != 2u &&
+      bytes.data[7] != 3u) {
+    return CTOOL_ERR_INPUT;
+  }
+  record->committed =
+      bytes.data[7] == 1u || bytes.data[7] == 3u ? CTOOL_TRUE : CTOOL_FALSE;
+  record->linked =
+      bytes.data[7] == 2u || bytes.data[7] == 3u ? CTOOL_TRUE : CTOOL_FALSE;
+  count = as_publication_load_u32(bytes.data + 8u);
   if (count == 0u || count > 2u) return CTOOL_ERR_INPUT;
   for (index = 0u; index < count; index++) {
     ctool_u32 field;
     for (field = 0u; field < 2u; field++) {
-      ctool_string_t *value = field == 0u ? &backups[index]
-                                         : &commits[index];
+      ctool_string_t *value = field == 0u ? &record->backups[index]
+                                         : &record->commits[index];
       ctool_u32 size;
-      if (cursor > record.size || record.size - cursor < 4u) {
+      if (cursor > bytes.size || bytes.size - cursor < 4u) {
         return CTOOL_ERR_INPUT;
       }
-      size = as_publication_load_u32(record.data + cursor);
+      size = as_publication_load_u32(bytes.data + cursor);
       cursor += 4u;
-      if (size == 0u || cursor > record.size ||
-          size > record.size - cursor ||
-          record.size - cursor - size < 1u ||
-          record.data[cursor + size] != 0u) {
+      if (size == 0u || cursor > bytes.size ||
+          size > bytes.size - cursor || bytes.size - cursor - size < 1u ||
+          bytes.data[cursor + size] != 0u) {
         return CTOOL_ERR_INPUT;
       }
-      value->data = (const char *)(record.data + cursor);
+      value->data = (const char *)(bytes.data + cursor);
       value->size = size;
       if (as_publication_private_path_valid(
               *value, field == 0u ? ".cupid-as-old"
@@ -761,114 +830,293 @@ static ctool_status_t as_publication_parse_commit(
       }
       cursor += size + 1u;
     }
-    if (as_publication_private_pair_matches(backups[index], commits[index]) ==
-        CTOOL_FALSE) {
+    if (as_publication_private_stems_match(
+            record->backups[index], ".cupid-as-old", record->commits[index],
+            ".cupid-as-done") == CTOOL_FALSE) {
       return CTOOL_ERR_INPUT;
     }
   }
-  if (cursor != record.size) return CTOOL_ERR_INPUT;
+  if (cursor != bytes.size) return CTOOL_ERR_INPUT;
   if (count == 2u &&
-      (as_string_equal(backups[0], backups[1]) == CTOOL_TRUE ||
-       as_string_equal(commits[0], commits[1]) == CTOOL_TRUE)) {
+      (as_string_equal(record->backups[0], record->backups[1]) == CTOOL_TRUE ||
+       as_string_equal(record->commits[0], record->commits[1]) == CTOOL_TRUE)) {
     return CTOOL_ERR_INPUT;
   }
-  *count_out = count;
+  record->count = count;
+  record->storage_size = bytes.size;
   return CTOOL_OK;
 }
 
-static ctool_status_t as_publication_read_commit(
+static ctool_status_t as_publication_read_record(
     const as_artifact_publication_ops_t *ops, ctool_string_t commit,
-    ctool_mut_bytes_t scratch, ctool_string_t *backups,
-    ctool_string_t *commits, ctool_u32 *count_out) {
+    ctool_mut_bytes_t scratch, as_publication_record_t *record) {
   ctool_u32 record_size = 0u;
   ctool_status_t status = ops->read(ops->context, commit, scratch,
                                     &record_size);
   if (status != CTOOL_OK) return status;
   if (record_size > scratch.size) return CTOOL_ERR_IO;
-  return as_publication_parse_commit(ctool_bytes(scratch.data, record_size),
-                                     backups, commits, count_out);
+  return as_publication_parse_record(ctool_bytes(scratch.data, record_size),
+                                     record);
 }
 
-static ctool_bool as_publication_commit_matches(
-    const ctool_string_t *backups, const ctool_string_t *commits,
-    ctool_u32 backup_count,
+static ctool_bool as_publication_record_matches(
+    const as_publication_record_t *record,
     const as_artifact_publication_path_t *paths, ctool_u32 path_count) {
   ctool_u32 index;
-  if (backup_count != path_count) return CTOOL_FALSE;
+  if (record->count != path_count) return CTOOL_FALSE;
   for (index = 0u; index < path_count; index++) {
-    if (as_string_equal(backups[index], paths[index].backup) == CTOOL_FALSE ||
-        as_string_equal(commits[index], paths[index].commit) == CTOOL_FALSE) {
+    if (as_string_equal(record->backups[index], paths[index].backup) ==
+            CTOOL_FALSE ||
+        as_string_equal(record->commits[index], paths[index].commit) ==
+            CTOOL_FALSE) {
       return CTOOL_FALSE;
     }
   }
   return CTOOL_TRUE;
 }
 
-static ctool_status_t as_publication_prepare_path(
+static ctool_bool as_publication_records_equal(
+    const as_publication_record_t *left,
+    const as_publication_record_t *right) {
+  ctool_u32 index;
+  if (left->count != right->count) return CTOOL_FALSE;
+  for (index = 0u; index < left->count; index++) {
+    if (as_string_equal(left->backups[index], right->backups[index]) ==
+            CTOOL_FALSE ||
+        as_string_equal(left->commits[index], right->commits[index]) ==
+            CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t as_publication_require_absent_record(
     const as_artifact_publication_ops_t *ops,
-    const as_artifact_publication_path_t *path) {
-  ctool_bool backup_exists = CTOOL_FALSE;
-  ctool_bool target_exists = CTOOL_FALSE;
-  ctool_status_t status = as_publication_remove_if_present(
-      ops, path->candidate);
-  if (status == CTOOL_OK) {
-    status = ops->inspect(ops->context, path->backup, &backup_exists);
-  }
-  if (status == CTOOL_OK && backup_exists == CTOOL_TRUE) {
-    status = ops->inspect(ops->context, path->target, &target_exists);
-  }
-  if (status == CTOOL_OK && backup_exists == CTOOL_TRUE) {
-    if (target_exists == CTOOL_TRUE) {
-      status = ops->remove(ops->context, path->target);
-    }
-    if (status == CTOOL_OK) {
-      status = ops->replace(ops->context, path->backup, path->target);
-    }
+    ctool_string_t path, ctool_mut_bytes_t scratch) {
+  ctool_u32 size = 0u;
+  ctool_status_t status = ops->read(ops->context, path, scratch, &size);
+  if (status == CTOOL_OK &&
+      (size != (ctool_u32)sizeof(as_publication_absent_record) ||
+       as_bytes_equal(scratch.data, as_publication_absent_record,
+                      (ctool_u32)sizeof(as_publication_absent_record)) ==
+           CTOOL_FALSE)) {
+    status = CTOOL_ERR_INPUT;
   }
   return status;
+}
+
+static ctool_status_t as_publication_find_commit(
+    const as_artifact_publication_ops_t *ops,
+    const as_publication_record_t *record, ctool_bool inspect_linked_peers,
+    ctool_mut_bytes_t peer_scratch, ctool_bool *committed_out) {
+  ctool_u32 index;
+  ctool_bool linked_committed =
+      record->linked == CTOOL_TRUE && record->committed == CTOOL_TRUE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  ctool_bool pending =
+      record->linked == CTOOL_TRUE && record->committed == CTOOL_FALSE
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  *committed_out = record->committed;
+  if ((record->linked == CTOOL_FALSE && inspect_linked_peers == CTOOL_FALSE) ||
+      linked_committed == CTOOL_TRUE) {
+    return CTOOL_OK;
+  }
+  for (index = 0u; index < record->count; index++) {
+    ctool_bool exists = CTOOL_FALSE;
+    ctool_status_t status =
+        ops->inspect(ops->context, record->commits[index], &exists);
+    if (status != CTOOL_OK) return status;
+    if (exists == CTOOL_TRUE) {
+      as_publication_record_t peer;
+      status = as_publication_read_record(
+          ops, record->commits[index], peer_scratch, &peer);
+      if (status != CTOOL_OK) return status;
+      if (as_publication_records_equal(record, &peer) == CTOOL_TRUE) {
+        if (peer.committed == CTOOL_TRUE && peer.linked == CTOOL_TRUE) {
+          *committed_out = CTOOL_TRUE;
+          return CTOOL_OK;
+        }
+        if (peer.committed == CTOOL_FALSE && peer.linked == CTOOL_TRUE) {
+          pending = CTOOL_TRUE;
+        }
+      }
+    }
+  }
+  if (pending == CTOOL_TRUE) *committed_out = CTOOL_FALSE;
+  return CTOOL_OK;
+}
+
+static ctool_status_t as_publication_remove_commit_records(
+    const as_artifact_publication_ops_t *ops,
+    const as_artifact_publication_path_t *paths, ctool_u32 count,
+    ctool_mut_bytes_t scratch) {
+  ctool_bool exists[2] = {CTOOL_FALSE, CTOOL_FALSE};
+  ctool_u32 witness = count;
+  ctool_u32 index;
+  for (index = 0u; index < count; index++) {
+    ctool_status_t status =
+        ops->inspect(ops->context, paths[index].commit, &exists[index]);
+    if (status != CTOOL_OK) return status;
+    if (exists[index] == CTOOL_TRUE) {
+      as_publication_record_t record;
+      status = as_publication_read_record(
+          ops, paths[index].commit, scratch, &record);
+      if (status == CTOOL_OK && record.committed == CTOOL_TRUE &&
+          as_publication_record_matches(&record, paths, count) == CTOOL_TRUE &&
+          witness == count) {
+        witness = index;
+      }
+    }
+  }
+  if (witness == count) return CTOOL_ERR_INPUT;
+  for (index = 0u; index < count; index++) {
+    ctool_status_t status;
+    if (index == witness || exists[index] == CTOOL_FALSE) continue;
+    status = as_publication_remove_if_present(ops, paths[index].commit);
+    if (status != CTOOL_OK) return status;
+  }
+  return as_publication_remove_if_present(ops, paths[witness].commit);
 }
 
 static ctool_status_t as_publication_prepare(
     const as_artifact_publication_ops_t *ops,
     const as_artifact_publication_path_t *paths, ctool_u32 count,
-    ctool_mut_bytes_t scratch) {
+    ctool_mut_bytes_t scratch, ctool_mut_bytes_t peer_scratch) {
   ctool_status_t status = CTOOL_OK;
   ctool_u32 index;
   for (index = 0u; index < count && status == CTOOL_OK; index++) {
-    ctool_bool committed = CTOOL_FALSE;
-    status = ops->inspect(ops->context, paths[index].commit, &committed);
-    if (status == CTOOL_OK && committed == CTOOL_TRUE) {
-      ctool_string_t backups[2];
-      ctool_string_t commits[2];
-      ctool_u32 record_count = 0u;
+    ctool_bool commit_exists = CTOOL_FALSE;
+    status = ops->inspect(ops->context, paths[index].commit,
+                          &commit_exists);
+    if (status == CTOOL_OK && commit_exists == CTOOL_TRUE) {
+      as_publication_record_t record;
       ctool_u32 cleanup;
+      ctool_u32 matched_entry;
+      ctool_bool transaction_committed = CTOOL_FALSE;
+      ctool_bool exact_scope;
       ctool_bool marker_listed = CTOOL_FALSE;
-      status = as_publication_read_commit(
-          ops, paths[index].commit, scratch, backups, commits, &record_count);
-      for (cleanup = 0u; cleanup < record_count && status == CTOOL_OK;
-           cleanup++) {
-        if (as_string_equal(commits[cleanup], paths[index].commit) ==
+      status = as_publication_read_record(
+          ops, paths[index].commit, scratch, &record);
+      if (status != CTOOL_OK) return status;
+      matched_entry = record.count;
+      for (cleanup = 0u; cleanup < record.count; cleanup++) {
+        if (as_string_equal(record.commits[cleanup], paths[index].commit) ==
             CTOOL_TRUE) {
           marker_listed = CTOOL_TRUE;
+          matched_entry = cleanup;
+          break;
         }
       }
-      if (status == CTOOL_OK && marker_listed == CTOOL_FALSE) {
-        status = CTOOL_ERR_INPUT;
+      if (marker_listed == CTOOL_FALSE || matched_entry == record.count) {
+        return CTOOL_ERR_INPUT;
       }
-      for (cleanup = 0u; cleanup < record_count && status == CTOOL_OK;
-           cleanup++) {
-        status = as_publication_remove_if_present(ops, backups[cleanup]);
+      exact_scope = as_publication_record_matches(&record, paths, count);
+      status = as_publication_find_commit(
+          ops, &record, exact_scope, peer_scratch, &transaction_committed);
+      if (status != CTOOL_OK) return status;
+      if (transaction_committed == CTOOL_TRUE && exact_scope == CTOOL_TRUE) {
+        for (cleanup = 0u; cleanup < count && status == CTOOL_OK; cleanup++) {
+          status = as_publication_remove_if_present(ops,
+                                                    paths[cleanup].backup);
+          if (status == CTOOL_OK) {
+            status = as_publication_remove_if_present(
+                ops, paths[cleanup].absent);
+          }
+        }
+        if (status == CTOOL_OK) {
+          status = as_publication_remove_commit_records(
+              ops, paths, count, peer_scratch);
+        }
+      } else if (transaction_committed == CTOOL_TRUE &&
+                 record.linked == CTOOL_TRUE) {
+        status = as_publication_remove_if_present(
+            ops, paths[index].backup);
+        if (status == CTOOL_OK) {
+          status = as_publication_remove_if_present(
+              ops, paths[index].absent);
+        }
+        if (status == CTOOL_OK && record.committed == CTOOL_FALSE) {
+          scratch.data[7] = 3u;
+          status = as_publication_remove_if_present(
+              ops, paths[index].commit);
+          if (status == CTOOL_OK) {
+            status = ops->write_new(
+                ops->context, paths[index].commit,
+                ctool_bytes(scratch.data, record.storage_size));
+          }
+        }
+        if (status == CTOOL_OK) status = CTOOL_ERR_IO;
+      } else if (transaction_committed == CTOOL_TRUE) {
+        status = as_publication_remove_if_present(
+            ops, paths[index].backup);
+        if (status == CTOOL_OK) {
+          status = as_publication_remove_if_present(
+              ops, paths[index].absent);
+        }
+        if (status == CTOOL_OK) {
+          status = as_publication_remove_if_present(
+              ops, paths[index].commit);
+        }
+      } else if (exact_scope == CTOOL_TRUE) {
+        for (cleanup = 0u; cleanup < count && status == CTOOL_OK; cleanup++) {
+          status = as_publication_remove_if_present(
+              ops, paths[cleanup].commit);
+        }
+      } else {
+        status = as_publication_remove_if_present(
+            ops, paths[index].commit);
       }
-      for (cleanup = 0u; cleanup < record_count && status == CTOOL_OK;
-           cleanup++) {
-        status = as_publication_remove_if_present(ops, commits[cleanup]);
-      }
+      if (status != CTOOL_OK) return status;
     }
   }
-  for (index = 0u; index < count && status == CTOOL_OK; index++) {
-    status = as_publication_prepare_path(ops, &paths[index]);
+  {
+    ctool_bool backup_exists[2] = {CTOOL_FALSE, CTOOL_FALSE};
+    ctool_bool absent_exists[2] = {CTOOL_FALSE, CTOOL_FALSE};
+    for (index = 0u; index < count; index++) {
+      status = ops->inspect(ops->context, paths[index].backup,
+                            &backup_exists[index]);
+      if (status == CTOOL_OK) {
+        status = ops->inspect(ops->context, paths[index].absent,
+                              &absent_exists[index]);
+      }
+      if (status == CTOOL_OK && backup_exists[index] == CTOOL_TRUE &&
+          absent_exists[index] == CTOOL_TRUE) {
+        status = CTOOL_ERR_INPUT;
+      }
+      if (status == CTOOL_OK && absent_exists[index] == CTOOL_TRUE) {
+        status = as_publication_require_absent_record(
+            ops, paths[index].absent, scratch);
+      }
+      if (status != CTOOL_OK) return status;
+    }
+    for (index = 0u; index < count; index++) {
+      if (backup_exists[index] == CTOOL_TRUE) {
+        status = ops->replace(ops->context, paths[index].backup,
+                              paths[index].target);
+      } else if (absent_exists[index] == CTOOL_TRUE) {
+        ctool_bool target_exists = CTOOL_FALSE;
+        status = ops->inspect(ops->context, paths[index].target,
+                              &target_exists);
+        if (status == CTOOL_OK && target_exists == CTOOL_TRUE) {
+          status = as_publication_remove_if_present(
+              ops, paths[index].target);
+        }
+        if (status == CTOOL_OK) {
+          status = as_publication_remove_if_present(
+              ops, paths[index].absent);
+        }
+      }
+      if (status != CTOOL_OK) return status;
+    }
   }
-  return status;
+  for (index = 0u; index < count; index++) {
+    status = as_publication_remove_if_present(ops, paths[index].candidate);
+    if (status != CTOOL_OK) return status;
+  }
+  return CTOOL_OK;
 }
 
 ctool_status_t as_artifact_publish(
@@ -878,8 +1126,10 @@ ctool_status_t as_artifact_publish(
   ctool_bytes_t contents[2];
   ctool_bool existed[2] = {CTOOL_FALSE, CTOOL_FALSE};
   ctool_bool backed_up[2] = {CTOOL_FALSE, CTOOL_FALSE};
+  ctool_bool tombstoned[2] = {CTOOL_FALSE, CTOOL_FALSE};
   ctool_bool published[2] = {CTOOL_FALSE, CTOOL_FALSE};
-  ctool_string_t all_paths[8];
+  ctool_bool committed = CTOOL_FALSE;
+  ctool_string_t all_paths[10];
   ctool_u32 count;
   ctool_u32 path_count;
   ctool_u32 index;
@@ -907,16 +1157,42 @@ ctool_status_t as_artifact_publish(
       request->artifact.candidate.size == 0u ||
       request->artifact.backup.data == (const char *)0 ||
       request->artifact.backup.size == 0u ||
+      request->artifact.absent.data == (const char *)0 ||
+      request->artifact.absent.size == 0u ||
       request->artifact.commit.data == (const char *)0 ||
       request->artifact.commit.size == 0u ||
+      as_publication_private_path_valid(request->artifact.candidate,
+                                        ".cupid-as-new") == CTOOL_FALSE ||
       as_publication_private_path_valid(request->artifact.backup,
                                         ".cupid-as-old") == CTOOL_FALSE ||
+      as_publication_private_path_valid(request->artifact.absent,
+                                        ".cupid-as-absent") == CTOOL_FALSE ||
       as_publication_private_path_valid(request->artifact.commit,
                                         ".cupid-as-done") == CTOOL_FALSE ||
-      as_publication_private_pair_matches(request->artifact.backup,
-                                          request->artifact.commit) ==
+      as_publication_private_stems_match(
+          request->artifact.backup, ".cupid-as-old",
+          request->artifact.absent, ".cupid-as-absent") == CTOOL_FALSE ||
+      as_publication_private_stems_match(
+          request->artifact.backup, ".cupid-as-old",
+          request->artifact.commit, ".cupid-as-done") ==
           CTOOL_FALSE ||
+      as_publication_target_private_path_matches(
+          request->artifact.target, request->artifact.candidate,
+          ".cupid-as-new") == CTOOL_FALSE ||
+      as_publication_target_private_path_matches(
+          request->artifact.target, request->artifact.backup,
+          ".cupid-as-old") == CTOOL_FALSE ||
+      as_publication_target_private_path_matches(
+          request->artifact.target, request->artifact.absent,
+          ".cupid-as-absent") == CTOOL_FALSE ||
+      as_publication_target_private_path_matches(
+          request->artifact.target, request->artifact.commit,
+          ".cupid-as-done") == CTOOL_FALSE ||
       request->scratch.data == (ctool_u8 *)0 || request->scratch.size == 0u ||
+      request->peer_scratch.data == (ctool_u8 *)0 ||
+      request->peer_scratch.size == 0u ||
+      as_mut_bytes_overlap(request->scratch, request->peer_scratch) ==
+          CTOOL_TRUE ||
       (request->artifact_bytes.data == (const ctool_u8 *)0 &&
        request->artifact_bytes.size != 0u)) {
     return CTOOL_ERR_INVALID_ARGUMENT;
@@ -928,20 +1204,42 @@ ctool_status_t as_artifact_publish(
         request->map.candidate.size == 0u ||
         request->map.backup.data == (const char *)0 ||
         request->map.backup.size == 0u ||
+        request->map.absent.data == (const char *)0 ||
+        request->map.absent.size == 0u ||
         request->map.commit.data == (const char *)0 ||
         request->map.commit.size == 0u ||
+        as_publication_private_path_valid(request->map.candidate,
+                                          ".cupid-as-new") == CTOOL_FALSE ||
         as_publication_private_path_valid(request->map.backup,
                                           ".cupid-as-old") == CTOOL_FALSE ||
+        as_publication_private_path_valid(request->map.absent,
+                                          ".cupid-as-absent") == CTOOL_FALSE ||
         as_publication_private_path_valid(request->map.commit,
                                           ".cupid-as-done") == CTOOL_FALSE ||
-        as_publication_private_pair_matches(request->map.backup,
-                                            request->map.commit) ==
+        as_publication_private_stems_match(
+            request->map.backup, ".cupid-as-old", request->map.absent,
+            ".cupid-as-absent") == CTOOL_FALSE ||
+        as_publication_private_stems_match(
+            request->map.backup, ".cupid-as-old", request->map.commit,
+            ".cupid-as-done") ==
             CTOOL_FALSE ||
+        as_publication_target_private_path_matches(
+            request->map.target, request->map.candidate,
+            ".cupid-as-new") == CTOOL_FALSE ||
+        as_publication_target_private_path_matches(
+            request->map.target, request->map.backup,
+            ".cupid-as-old") == CTOOL_FALSE ||
+        as_publication_target_private_path_matches(
+            request->map.target, request->map.absent,
+            ".cupid-as-absent") == CTOOL_FALSE ||
+        as_publication_target_private_path_matches(
+            request->map.target, request->map.commit,
+            ".cupid-as-done") == CTOOL_FALSE ||
         (request->map_bytes.data == (const ctool_u8 *)0 &&
          request->map_bytes.size != 0u))) ||
       (have_map == CTOOL_FALSE &&
        (request->map.candidate.size != 0u || request->map.backup.size != 0u ||
-        request->map.commit.size != 0u ||
+        request->map.absent.size != 0u || request->map.commit.size != 0u ||
         request->map_bytes.size != 0u))) {
     return CTOOL_ERR_INVALID_ARGUMENT;
   }
@@ -954,12 +1252,13 @@ ctool_status_t as_artifact_publish(
     contents[1] = request->map_bytes;
     count = 2u;
   }
-  path_count = count * 4u;
+  path_count = count * 5u;
   for (index = 0u; index < count; index++) {
-    all_paths[index * 4u] = paths[index].target;
-    all_paths[index * 4u + 1u] = paths[index].candidate;
-    all_paths[index * 4u + 2u] = paths[index].backup;
-    all_paths[index * 4u + 3u] = paths[index].commit;
+    all_paths[index * 5u] = paths[index].target;
+    all_paths[index * 5u + 1u] = paths[index].candidate;
+    all_paths[index * 5u + 2u] = paths[index].backup;
+    all_paths[index * 5u + 3u] = paths[index].absent;
+    all_paths[index * 5u + 4u] = paths[index].commit;
   }
   for (index = 0u; index < path_count; index++) {
     for (other = index + 1u; other < path_count; other++) {
@@ -969,9 +1268,10 @@ ctool_status_t as_artifact_publish(
     }
   }
 
-  status = as_publication_prepare(ops, paths, count, request->scratch);
+  status = as_publication_prepare(ops, paths, count, request->scratch,
+                                  request->peer_scratch);
   if (status != CTOOL_OK) return status;
-  status = as_publication_render_commit(paths, count, request->scratch,
+  status = as_publication_render_record(paths, count, request->scratch,
                                         &commit_record);
   if (status != CTOOL_OK) return status;
   for (index = 0u; index < count; index++) {
@@ -980,8 +1280,22 @@ ctool_status_t as_artifact_publish(
     if (status != CTOOL_OK) goto rollback;
   }
   for (index = 0u; index < count; index++) {
+    status = ops->write_new(ops->context, paths[index].commit, commit_record);
+    if (status != CTOOL_OK) goto rollback;
+  }
+  for (index = 0u; index < count; index++) {
     status = ops->inspect(ops->context, paths[index].target, &existed[index]);
     if (status != CTOOL_OK) goto rollback;
+  }
+  for (index = 0u; index < count; index++) {
+    if (existed[index] == CTOOL_FALSE) {
+      status = ops->write_new(
+          ops->context, paths[index].absent,
+          ctool_bytes(as_publication_absent_record,
+                      (ctool_u32)sizeof(as_publication_absent_record)));
+      if (status != CTOOL_OK) goto rollback;
+      tombstoned[index] = CTOOL_TRUE;
+    }
   }
   for (index = 0u; index < count; index++) {
     if (existed[index] == CTOOL_TRUE) {
@@ -997,38 +1311,46 @@ ctool_status_t as_artifact_publish(
     if (status != CTOOL_OK) goto rollback;
     published[index] = CTOOL_TRUE;
   }
+  request->scratch.data[7] = 3u;
   for (index = 0u; index < count; index++) {
-    status = ops->write_new(ops->context, paths[index].commit, commit_record);
+    status = as_publication_remove_if_present(ops, paths[index].commit);
+    if (status == CTOOL_OK) {
+      status = ops->write_new(ops->context, paths[index].commit,
+                              commit_record);
+    }
     if (status != CTOOL_OK) {
       ctool_bool commit_exists = CTOOL_FALSE;
       ctool_status_t write_status = status;
       ctool_status_t inspect_status = ops->inspect(
           ops->context, paths[index].commit, &commit_exists);
-      if (inspect_status != CTOOL_OK) return inspect_status;
-      if (commit_exists == CTOOL_FALSE) goto rollback;
-      {
-        ctool_string_t committed_backups[2];
-        ctool_string_t committed_markers[2];
-        ctool_u32 committed_count = 0u;
-        ctool_status_t read_status = as_publication_read_commit(
-            ops, paths[index].commit, request->scratch, committed_backups,
-            committed_markers, &committed_count);
-        if (read_status == CTOOL_ERR_INPUT ||
-            read_status == CTOOL_ERR_LIMIT ||
-            (read_status == CTOOL_OK &&
-             as_publication_commit_matches(
-                 committed_backups, committed_markers, committed_count,
-                 paths, count) == CTOOL_FALSE)) {
-          ctool_status_t remove_status =
-              ops->remove(ops->context, paths[index].commit);
-          if (remove_status != CTOOL_OK) return remove_status;
-          status = write_status;
-          goto rollback;
-        }
-        if (read_status != CTOOL_OK) return read_status;
+      if (inspect_status != CTOOL_OK) {
+        status = inspect_status;
+        if (committed == CTOOL_TRUE) goto committed_cleanup;
+        goto rollback;
       }
+      if (commit_exists == CTOOL_FALSE) {
+        status = write_status;
+        if (committed == CTOOL_TRUE) goto committed_cleanup;
+        goto rollback;
+      }
+      {
+        as_publication_record_t observed;
+        ctool_status_t read_status = as_publication_read_record(
+            ops, paths[index].commit, request->peer_scratch, &observed);
+        if (read_status == CTOOL_OK && observed.committed == CTOOL_TRUE &&
+            observed.linked == CTOOL_TRUE &&
+            as_publication_record_matches(&observed, paths, count) ==
+                CTOOL_TRUE) {
+          committed = CTOOL_TRUE;
+        }
+      }
+      status = write_status;
+      if (committed == CTOOL_TRUE) goto committed_cleanup;
+      goto rollback;
     }
+    committed = CTOOL_TRUE;
   }
+committed_cleanup:
   for (index = 0u; index < count; index++) {
     if (backed_up[index] == CTOOL_TRUE) {
       ctool_status_t cleanup =
@@ -1037,24 +1359,22 @@ ctool_status_t as_artifact_publish(
         cleanup_status = cleanup;
       }
     }
-  }
-  if (cleanup_status == CTOOL_OK) {
-    for (index = 0u; index < count; index++) {
-      (void)as_publication_remove_if_present(ops, paths[index].commit);
-    }
-  }
-  return CTOOL_OK;
-
-rollback:
-  for (index = 0u; index < count; index++) {
-    ctool_status_t cleanup;
-    if (published[index] == CTOOL_TRUE) {
-      cleanup = as_publication_remove_if_present(ops, paths[index].target);
-      if (rollback_status == CTOOL_OK && cleanup != CTOOL_OK) {
-        rollback_status = cleanup;
+    if (tombstoned[index] == CTOOL_TRUE) {
+      ctool_status_t cleanup =
+          as_publication_remove_if_present(ops, paths[index].absent);
+      if (cleanup == CTOOL_OK) tombstoned[index] = CTOOL_FALSE;
+      if (cleanup_status == CTOOL_OK && cleanup != CTOOL_OK) {
+        cleanup_status = cleanup;
       }
     }
   }
+  if (cleanup_status == CTOOL_OK) {
+    cleanup_status = as_publication_remove_commit_records(
+        ops, paths, count, request->peer_scratch);
+  }
+  return cleanup_status;
+
+rollback:
   for (index = 0u; index < count; index++) {
     ctool_status_t cleanup;
     if (backed_up[index] == CTOOL_TRUE) {
@@ -1063,7 +1383,17 @@ rollback:
       if (rollback_status == CTOOL_OK && cleanup != CTOOL_OK) {
         rollback_status = cleanup;
       }
-      if (cleanup == CTOOL_OK) backed_up[index] = CTOOL_FALSE;
+      if (cleanup == CTOOL_OK) {
+        backed_up[index] = CTOOL_FALSE;
+        published[index] = CTOOL_FALSE;
+      }
+    } else if (published[index] == CTOOL_TRUE &&
+               tombstoned[index] == CTOOL_TRUE) {
+      cleanup = as_publication_remove_if_present(ops, paths[index].target);
+      if (rollback_status == CTOOL_OK && cleanup != CTOOL_OK) {
+        rollback_status = cleanup;
+      }
+      if (cleanup == CTOOL_OK) published[index] = CTOOL_FALSE;
     }
   }
   for (index = 0u; index < count; index++) {
@@ -1074,6 +1404,13 @@ rollback:
     }
     if (backed_up[index] == CTOOL_FALSE) {
       cleanup = as_publication_remove_if_present(ops, paths[index].backup);
+      if (rollback_status == CTOOL_OK && cleanup != CTOOL_OK) {
+        rollback_status = cleanup;
+      }
+    }
+    if (tombstoned[index] == CTOOL_TRUE &&
+        published[index] == CTOOL_FALSE) {
+      cleanup = as_publication_remove_if_present(ops, paths[index].absent);
       if (rollback_status == CTOOL_OK && cleanup != CTOOL_OK) {
         rollback_status = cleanup;
       }

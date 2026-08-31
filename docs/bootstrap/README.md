@@ -76,8 +76,8 @@ ADR 0369 records typed kernel-symbol publication, ADR 0370 records its paired
 seed carriage, ADR 0371 records production ownership, and ADR 0372 records
 typed source-head kernel flattening. ADR 0374 records the paired seed promotion
 that carries that transaction, ADR 0375 records its normal-build handoff, and
-ADR 0380 advances the exact promoted-v2 parent window for the next paired
-refresh.
+ADR 0379 records linked kernel CupidASM publication recovery, and ADR 0380
+advances the exact promoted-v2 parent window for the next paired refresh.
 
 ## 2026-08-30 source-current checkpoint
 
@@ -240,8 +240,8 @@ ADR 0361 records seed promotion, and ADR 0362 records the recipe handoff.
 The final policy-bound build compiled all 83 Doom roots, linked both kernel
 stages with CupidLD, and passed strict CupidDis validation. A post-policy
 top-level replay accepted all 16 exact artifacts and published the image.
-`kernel/kernel.bin` is 9,514,816 bytes; the final and pass-one ELFs are
-9,740,344 and 9,613,368 bytes. A preceding 9,501,220-byte checkpoint, which
+`kernel/kernel.bin` is 9,533,840 bytes; the final and pass-one ELFs are
+9,761,100 and 9,630,028 bytes. A preceding 9,501,220-byte checkpoint, which
 differed only in embedded manual text, passed a four-vCPU E1000 smoke and ran
 `/bin/ls.cc` to normal JIT completion. The final documentation-bearing image
 then passed the same private four-vCPU E1000 gate with `--cpu max`, strong SMP
@@ -617,27 +617,28 @@ control edges, and render canonical `cupid.raw-map.v2`. The shell accepts
 `-f bin|elf32|exec`;
 the older `as -o`, `cupidasm -o`, and source-only `cupidasm` forms still write
 a linked executable. Raw image and map publication prepares both candidates
-before moving a target and restores the previous pair when a command write or
-replacement fails. This is rollback within a running command, not a
-crash-atomic multi-file commit. A retained backup takes precedence over a
-partial target when the next command starts. The kernel publisher writes
-matching v1 completion records only after both targets move. A later command
-can use a valid record to finish private cleanup; without one, retained backups
-are restored. The publisher reads back a marker whose write reported failure
-and accepts only the complete current record. An uncertain check leaves the
-targets and backups in place for the next command to resolve. This VFS path
-does not yet write a pending record or absence tombstone before mutation, and
-its recovery removes a readable target before backup restoration. The hosted
-CLI has the stronger linked v2/v3 protocol described above. The focused hosted
-and kernel contracts pass 41 tests, and the DEBUG kernel includes an exact
-mixed 16/32-bit raw-map self-test.
+before moving a target. It also writes matching linked v2 pending records
+before the first public move. Backups preserve targets that existed, and
+validated tombstones preserve the fact that a target was absent. After both
+replacements succeed, the records advance to v3 one at a time. Either exact
+v3 record commits the pair. Recovery restores an old/old, absent/absent, or
+mixed pending pair, and it finishes committed cleanup from either surviving
+witness. A v2 marker remains pending beside a legacy v1 marker in either read
+order. Valid v1 records from the earlier kernel protocol remain readable.
+Backup recovery now replaces the target directly, so a failed restore leaves
+the readable target and backup in place. Exact suffix checks bind every
+candidate, backup, tombstone, and record path to its normalized absolute
+target. The focused hosted and kernel contracts pass 41 tests, including
+standalone v1 cleanup and faults while tombstones are written. The DEBUG
+kernel includes an exact mixed 16/32-bit raw-map self-test.
 The checked production compiler rebuilds `as.cc`, `as_elf.cc`, and `shell.cc`
 from this source head. The complete Toolchain gate and both fixed-point builds
-pass, and seed promotion is complete. Only a repeated guest exercise and the
-transfer of hosted recovery into the VFS publisher remain, so the capability
-stays Partial. ADR 0337 records the request, command, and kernel publication
-boundaries. ADR 0348 records v2 edge carriage and the hosted-only linked
-recovery protocol.
+pass, and seed promotion is complete. The publication contract is still not a
+durable two-file VFS transaction and has no concurrent-writer lock. A repeated
+guest exercise also remains, so the capability stays Partial. ADR 0337 records
+the request, command, and kernel publication boundaries. ADR 0348 records v2
+edge carriage and the hosted linked protocol. ADR 0379 records its transfer to
+the kernel publisher.
 
 Private CupidC carries a file-scope function-pointer typedef signature on direct
 free-function parameters, Cupid class method parameters,

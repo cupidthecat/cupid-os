@@ -101,6 +101,7 @@ typedef struct {
   ctool_string_t target;
   ctool_string_t candidate;
   ctool_string_t backup;
+  ctool_string_t absent;
   ctool_string_t commit;
 } as_artifact_publication_path_t;
 
@@ -110,15 +111,17 @@ typedef struct {
   ctool_bytes_t artifact_bytes;
   ctool_bytes_t map_bytes;
   ctool_mut_bytes_t scratch;
+  ctool_mut_bytes_t peer_scratch;
 } as_artifact_publication_request_t;
 
-/* Publish an artifact and its optional range map as one rollback-capable
- * pair. Both candidates are written before either target moves. A failed
- * write leaves both targets untouched. A later replacement failure restores
- * every target that existed when the operation began. The caller supplies
- * scratch space for a commit record that names every backup and marker in the
- * pair. The publisher writes that record beside each member, so a later
- * request can finish deferred cleanup after reusing either path. */
+/* Publish an artifact and its optional range map as one recoverable pair.
+ * Linked pending records are present before either target moves. Backups
+ * represent targets that existed, while tombstones represent targets that
+ * were absent. One linked committed record is enough to preserve the new
+ * pair after an interrupted cleanup. Each private path must be its normalized
+ * absolute target plus the documented suffix. The two caller-owned scratch
+ * spans must be separate because recovery may inspect two records at the same
+ * time. */
 ctool_status_t as_artifact_publish(
     const as_artifact_publication_ops_t *ops,
     const as_artifact_publication_request_t *request);

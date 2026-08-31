@@ -1367,16 +1367,19 @@ and its origin. The adapter validates that borrowed view and renders canonical
 keeps its sections, undefined symbols, and relocations for a later link. The
 executable form selects `main` or `_start` and passes the object to in-kernel
 CupidLD. Raw image and map publication writes both private candidates before
-moving either target and restores previous targets after a command failure.
-The kernel publisher writes matching v1 completion records only after both
-public replacements. A later command can use a valid record to finish private
-cleanup; without one, retained backups belong to an interrupted publication
-and are restored. Unlike the hosted CLI, this VFS path has no pending record or
-absence tombstone before public mutation, and its recovery removes a readable
-target before replacing it from backup.
-This rollback pair is not crash-atomic and does not lock concurrent shell
-publishers. ADR 0337 records the artifact boundary. ADR 0348 records v2 edge
-carriage and the stronger hosted-only v2/v3 recovery protocol.
+moving either target. Matching linked v2 records are also present before the
+first target move. Backups record old files, while validated tombstones record
+targets that were absent. After both candidates become public, the records
+advance to v3 one at a time; either exact v3 record commits the pair. Recovery
+rolls back an exact pending pair or finishes cleanup from either surviving
+witness. It restores a backup directly over the target, so a failed restore
+leaves the readable public file in place. Valid v1 records from the older
+kernel protocol remain recoverable. The public request requires each private
+path to be the normalized absolute target plus its fixed suffix, which keeps
+recovery state bound to that target. This publication pair is not a durable
+two-file transaction and does not lock concurrent shell publishers. ADR 0337
+records the artifact boundary, ADR 0348 records raw-map v2 and the hosted
+protocol, and ADR 0379 records kernel recovery parity.
 _Avoid_: separate kernel assembler, inferred byte-only mode map, durable pair
 
 **Cupid ASM alignment statement**:
@@ -1920,17 +1923,17 @@ The two Windows parent roles must use the same generation. The historical v1
 reader keeps its original parent contract. ADR 0380 records the window used
 by the next paired refresh. All sixteen exact artifacts passed, along with
 whole-image CupidDis inspection and disk-image staging. The current artifacts
-are a 9,613,368-byte `kernel/kernel.elf.pass1` with SHA-256
-`b053778960e812de604807d4f3e7cdfb43f10d5fa4ca172699ff532d3d58c37a`, a
-9,740,344-byte `kernel/kernel.elf` with SHA-256
-`28d1e9c242dea3ae08146c005787f2f50aa537b9ca08162b10fceb07e7cd899c`,
-and a 9,514,816-byte `kernel/kernel.bin` with SHA-256
-`8078c11fbb1e4ef78410f634c69e0f176649e7d1d32e0dab23118c88696bdead`.
-The current 3,382-byte exact-size policy covers 38,335,516 bytes and has
+are a 9,630,028-byte `kernel/kernel.elf.pass1` with SHA-256
+`1cb435cd15e426a8a222a1ee6e5ffc041faf3ece8a58593fbecc4151996d9d72`, a
+9,761,100-byte `kernel/kernel.elf` with SHA-256
+`17ef71cde813ad3caeedbfa2a3c3b4331b2db5623f84d21041361782987181cf`,
+and a 9,533,840-byte `kernel/kernel.bin` with SHA-256
+`84d5e615f54a3f896f0aec3ad8a950896319bf1c337d2179f0227cb00b38f7c2`.
+The current 3,382-byte exact-size policy covers 38,391,956 bytes and has
 SHA-256
-`22e5e9c011876f3991eefff13bef44b199c10839f5a69a521f052bd750472027`.
+`561b2914740c51bb0e83d5d06308393e5300ad0050a91c6dcdc987761048e576`.
 The normal 209,715,200-byte `cupidos.img` has SHA-256
-`e07e7424d1f9818b87ab9700406a5036e4ed56dcaad724c7a3aec48004ffb7b6`.
+`602934d88c77336659a7aa4a50e38ac7ae740fd76114cc2dfa334936b915c713`.
 A preceding 9,501,220-byte checkpoint, which differed only in embedded manual
 text, passed a private four-vCPU E1000 QEMU smoke with
 `--cpu max --verify-smp-runtime` and ran `/bin/ls.cc`. The final
@@ -1948,6 +1951,10 @@ strong SMP verification. All four CPUs came online, and `/bin/ls.cc` compiled
 to 911 code bytes and 71 data bytes before normal JIT completion. Its
 33,159-byte serial log has SHA-256
 `c40c6ca664ca7e627c19b44bd85745865ab9969cdcd6702e822b810d408d7fc8`.
+The current publisher-recovery image passed the same private gate. All four
+CPUs came online, and `/bin/ls.cc` reached normal JIT completion. Its
+21,888-byte serial log has SHA-256
+`969fd7bae0c4cf9c92983bb45d5ac5a09905cc2ee2c4811403d12be959edd714`.
 The verifier is a direct prerequisite of `cupidos.img`, so a failure prevents
 image publication and preserves the existing image. Missing, unknown,
 duplicate, linked, nonregular, or differently sized members fail. An
