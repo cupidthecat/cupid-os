@@ -12,17 +12,29 @@
 */
 
 void js_push_domnode(int dom_idx) {
-    js_push_undef();
-    int t = jvs_top - 1;
+    int t = js_push_slot();
+    if (t < 0) return;
     jvs_tag[t] = JS_VAL_DOMNODE;
     jvs_dom_idx[t] = dom_idx;
 }
 
 void js_push_native(int native_id) {
-    js_push_undef();
-    int t = jvs_top - 1;
+    int t = js_push_slot();
+    if (t < 0) return;
     jvs_tag[t] = JS_VAL_NATIVE;
     jvs_native_id[t] = native_id;
+}
+
+int jsd_push_interned_string(char *source, int length) {
+    int offset = js_str_intern(source, length);
+    if (offset < 0) return -1;
+    int stack_base = jvs_top;
+    js_push_str(offset, length);
+    if (js_last_error[0] != 0 || jvs_top != stack_base + 1) {
+        jvs_top = stack_base;
+        return -1;
+    }
+    return 0;
 }
 
 /* Find the first DOM node whose tag matches; -1 if none. Used by
@@ -111,45 +123,40 @@ void jsd_dom_member_get(int dom_idx, int koff, int klen) {
     if (klen == 11 && b_strieq_n(name, "textContent", 11)) {
         char buf[1024];
         int n = jsd_collect_text(dom_idx, buf, 1024);
-        int off = js_str_intern(buf, n);
-        js_push_str(off, n);
+        jsd_push_interned_string(buf, n);
         return;
     }
     if (klen == 9 && b_strieq_n(name, "innerText", 9)) {
         char buf[1024];
         int n = jsd_collect_text(dom_idx, buf, 1024);
-        int off = js_str_intern(buf, n);
-        js_push_str(off, n);
+        jsd_push_interned_string(buf, n);
         return;
     }
     if (klen == 7 && b_strieq_n(name, "tagName", 7)) {
         char buf[32];
         int n = jsd_tag_name(n_tag[dom_idx], buf, 32);
-        int off = js_str_intern(buf, n);
-        js_push_str(off, n);
+        jsd_push_interned_string(buf, n);
         return;
     }
     if (klen == 2 && b_strieq_n(name, "id", 2)) {
         int idoff = dom_id_off[dom_idx];
-        if (idoff < 0) { js_push_str(js_str_intern("", 0), 0); return; }
+        if (idoff < 0) { jsd_push_interned_string("", 0); return; }
         char *idv = attr_pool + idoff;
         int idlen = b_strlen(idv);
-        int o = js_str_intern(idv, idlen);
-        js_push_str(o, idlen);
+        jsd_push_interned_string(idv, idlen);
         return;
     }
     if (klen == 9 && b_strieq_n(name, "className", 9)) {
         int co = dom_class_off[dom_idx];
-        if (co < 0) { js_push_str(js_str_intern("", 0), 0); return; }
+        if (co < 0) { jsd_push_interned_string("", 0); return; }
         char *cv = attr_pool + co;
         int cl = b_strlen(cv);
-        int o = js_str_intern(cv, cl);
-        js_push_str(o, cl);
+        jsd_push_interned_string(cv, cl);
         return;
     }
     if (klen == 5 && b_strieq_n(name, "style", 5)) {
-        js_push_undef();
-        int t = jvs_top - 1;
+        int t = js_push_slot();
+        if (t < 0) return;
         jvs_tag[t] = JS_VAL_STYLE;
         jvs_dom_idx[t] = dom_idx;
         return;
@@ -367,7 +374,7 @@ void jsd_dom_set_attr(int dom_idx, char *name, int nlen, char *value, int vlen) 
  * empty string if absent.*/
 void jsd_style_get(int dom_idx, int koff, int klen) {
     int sty = dom_attr_get(dom_idx, "style");
-    if (sty < 0) { js_push_str(js_str_intern("", 0), 0); return; }
+    if (sty < 0) { jsd_push_interned_string("", 0); return; }
     char *src = attr_pool + sty;
     int n = b_strlen(src);
     char *want = js_str_pool + koff;
@@ -387,12 +394,11 @@ void jsd_style_get(int dom_idx, int koff, int klen) {
         while (v_end > v_start && (src[v_end-1] == ' ' || src[v_end-1] == '\t')) v_end = v_end - 1;
         if (i < n) i = i + 1;
         if (p_end - p_start == klen && b_strieq_n(src + p_start, want, klen)) {
-            int off = js_str_intern(src + v_start, v_end - v_start);
-            js_push_str(off, v_end - v_start);
+            jsd_push_interned_string(src + v_start, v_end - v_start);
             return;
         }
     }
-    js_push_str(js_str_intern("", 0), 0);
+    jsd_push_interned_string("", 0);
 }
 
 /* Append (or update) a single declaration in an element's inline
@@ -561,8 +567,8 @@ void js_native_return(int saved, int result_top) {
     int new_obj = jvs_obj_idx[result_top];
     int new_native = jvs_native_id[result_top];
     jvs_top = saved;
-    js_push_undef();
-    int t = jvs_top - 1;
+    int t = js_push_slot();
+    if (t < 0) return;
     jvs_tag[t]      = new_tag;
     jvs_dom_idx[t]  = new_dom;
     jvs_num[t]      = new_num;
@@ -617,8 +623,7 @@ void js_native_call(int native_id, int argc) {
         if (off < 0) { js_push_null(); return; }
         char *v = attr_pool + off;
         int vl = b_strlen(v);
-        int interned = js_str_intern(v, vl);
-        js_push_str(interned, vl);
+        jsd_push_interned_string(v, vl);
         return;
     }
     if (native_id == JS_NATIVE_EL_SET_ATTRIBUTE) {
@@ -654,65 +659,99 @@ void js_native_call(int native_id, int argc) {
  * running queued scripts so document.body has a valid DOM index.*/
 void js_install_globals() {
     /* Ensure root scope exists. */
-    if (jsc_top == 0) jsc_cur = js_scope_enter(-1);
+    if (jsc_top == 0) {
+        jsc_cur = js_scope_enter(-1);
+        if (jsc_cur < 0) return;
+    }
+    int stack_base = jvs_top;
+    int url_len = b_strlen(cur_url);
+    int body_key = js_str_intern("body", 4);
+    int get_key = js_str_intern("getElementById", 14);
+    int create_key = js_str_intern("createElement", 13);
+    int query_key = js_str_intern("querySelector", 13);
+    int document_name = js_str_intern("document", 8);
+    int window_name = js_str_intern("window", 6);
+    int url_off = js_str_intern(cur_url, url_len);
+    int href_key = js_str_intern("href", 4);
+    int location_name = js_str_intern("location", 8);
+    if (body_key < 0 || get_key < 0 || create_key < 0 ||
+        query_key < 0 || document_name < 0 || window_name < 0 ||
+        url_off < 0 || href_key < 0 || location_name < 0) {
+        return;
+    }
 
     /* document = { body: <body-domnode>, getElementById: <native> } */
     int doc = js_alloc_object(0);
-    if (doc >= 0) {
-        int body = jsd_get_body();
-        if (body >= 0) {
-            js_push_domnode(body);
-            int koff = js_str_intern("body", 4);
-            js_obj_set_prop_from_top(doc, koff, 4);
-            js_pop();
+    if (doc < 0) return;
+    int body = jsd_get_body();
+    if (body >= 0) {
+        js_push_domnode(body);
+        if (js_last_error[0] != 0 ||
+            js_obj_set_prop_from_top(doc, body_key, 4) < 0) {
+            jvs_top = stack_base;
+            return;
         }
-        js_push_native(JS_NATIVE_DOC_GET_ELEMENT_BY_ID);
-        int koff = js_str_intern("getElementById", 14);
-        js_obj_set_prop_from_top(doc, koff, 14);
-        js_pop();
-        js_push_native(JS_NATIVE_DOC_CREATE_ELEMENT);
-        int koff2 = js_str_intern("createElement", 13);
-        js_obj_set_prop_from_top(doc, koff2, 13);
-        js_pop();
-        js_push_native(JS_NATIVE_DOC_QUERY_SELECTOR);
-        int koff3 = js_str_intern("querySelector", 13);
-        js_obj_set_prop_from_top(doc, koff3, 13);
-        js_pop();
-
-        int b = js_lookup_binding(0, js_str_intern("document", 8), 8);
-        if (b < 0) b = js_binding_alloc(0, js_str_intern("document", 8), 8);
-        if (b >= 0) {
-            jb_tag[b]     = JS_VAL_OBJ;
-            jb_obj_idx[b] = doc;
-        }
+        jvs_top = stack_base;
     }
+    js_push_native(JS_NATIVE_DOC_GET_ELEMENT_BY_ID);
+    if (js_last_error[0] != 0 ||
+        js_obj_set_prop_from_top(doc, get_key, 14) < 0) {
+        jvs_top = stack_base;
+        return;
+    }
+    jvs_top = stack_base;
+    js_push_native(JS_NATIVE_DOC_CREATE_ELEMENT);
+    if (js_last_error[0] != 0 ||
+        js_obj_set_prop_from_top(doc, create_key, 13) < 0) {
+        jvs_top = stack_base;
+        return;
+    }
+    jvs_top = stack_base;
+    js_push_native(JS_NATIVE_DOC_QUERY_SELECTOR);
+    if (js_last_error[0] != 0 ||
+        js_obj_set_prop_from_top(doc, query_key, 13) < 0) {
+        jvs_top = stack_base;
+        return;
+    }
+    jvs_top = stack_base;
 
-    /* window: a plain object alias to a global namespace - empty for now. */
+    int document_binding =
+        js_lookup_binding_in_scope(0, document_name, 8);
+    if (document_binding < 0) {
+        document_binding = js_binding_alloc(0, document_name, 8);
+    }
+    if (document_binding < 0) return;
+    jb_tag[document_binding] = JS_VAL_OBJ;
+    jb_obj_idx[document_binding] = doc;
+
+    /* window is a plain object alias to a global namespace. */
     int win_obj = js_alloc_object(0);
-    if (win_obj >= 0) {
-        int b = js_lookup_binding(0, js_str_intern("window", 6), 6);
-        if (b < 0) b = js_binding_alloc(0, js_str_intern("window", 6), 6);
-        if (b >= 0) {
-            jb_tag[b]     = JS_VAL_OBJ;
-            jb_obj_idx[b] = win_obj;
-        }
+    if (win_obj < 0) return;
+    int window_binding = js_lookup_binding_in_scope(0, window_name, 6);
+    if (window_binding < 0) {
+        window_binding = js_binding_alloc(0, window_name, 6);
     }
+    if (window_binding < 0) return;
+    jb_tag[window_binding] = JS_VAL_OBJ;
+    jb_obj_idx[window_binding] = win_obj;
 
-    /* location object holds href as a string property. Read works,
-     * write updates the property but does not trigger navigate.*/
+    /* location.href is readable and writable but does not navigate. */
     int loc = js_alloc_object(0);
-    if (loc >= 0) {
-        int url_len = b_strlen(cur_url);
-        int url_off = js_str_intern(cur_url, url_len);
-        js_push_str(url_off, url_len);
-        int koff = js_str_intern("href", 4);
-        js_obj_set_prop_from_top(loc, koff, 4);
-        js_pop();
-        int b = js_lookup_binding(0, js_str_intern("location", 8), 8);
-        if (b < 0) b = js_binding_alloc(0, js_str_intern("location", 8), 8);
-        if (b >= 0) {
-            jb_tag[b]     = JS_VAL_OBJ;
-            jb_obj_idx[b] = loc;
-        }
+    if (loc < 0) return;
+    js_push_str(url_off, url_len);
+    if (js_last_error[0] != 0 ||
+        js_obj_set_prop_from_top(loc, href_key, 4) < 0) {
+        jvs_top = stack_base;
+        return;
     }
+    jvs_top = stack_base;
+
+    int location_binding =
+        js_lookup_binding_in_scope(0, location_name, 8);
+    if (location_binding < 0) {
+        location_binding = js_binding_alloc(0, location_name, 8);
+    }
+    if (location_binding < 0) return;
+    jb_tag[location_binding] = JS_VAL_OBJ;
+    jb_obj_idx[location_binding] = loc;
 }

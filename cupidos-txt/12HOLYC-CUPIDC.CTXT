@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-05-15
+Verified against source on: 2026-08-31
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -13,10 +13,113 @@ Verified against source on: 2026-05-15
 >style linkhover #0B3AA8
 >rule
 
+>h2 Hosted Bootstrap Use
+>tree open Hosted Bootstrap Use
+The first CupidBuild implementation stays within the represented hosted C
+profile. Checked CupidC builds its Linux and Windows command, policy, and
+transaction modules. CupidBuild now parses the exact seed schema, target,
+provenance, artifact roles, and Linux build plan before it runs a tool. The
+current Windows and Linux command suites accept the expanded source. This adds
+no new HolyC-style syntax and does not change the in-OS language surface.
+The same hosted source now enumerates the seed directory, rejects unlisted
+executable-shaped peers, and checks every frozen image against the selected
+ELF32 or PE32 execution profile. It repeats membership checks after both
+attempted checked commands, including failure and timeout paths.
+The hosted i386 string runtime now supplies standard binary memchr so the same
+CupidBuild source compiles and links through CupidC. The runtime probe checks
+matching, absent, embedded-zero, unsigned-byte, and empty-range searches.
+It also supplies standard strrchr for the promoted kernel-flatten path, with
+runtime coverage for matches, misses, and the terminating null byte.
+The current checked Toolchain run rebuilt all 22 hosted artifacts and passed
+the full contract surface. Its Linux candidate proof freezes 59 inputs and
+matches 22 C objects, one startup object, and all six tool images between
+stages three and four. Both CupidBuild images also pass the guarded object
+command and its missing-source rollback. The six-tool cohorts are active, and
+their promoted-seed self-consumption reproof passes with all six initial
+images equal to stage two on both platforms. This changes hosted bootstrap
+evidence, not CupidC language behavior. CupidBuild owns the ISR,
+context-switch, bootloader, and SMP-trampoline recipes, while Python retains
+coordination and publication elsewhere.
+The active Linux and native Windows cohorts now carry flatten-kernel from
+revision 0232cb57aad5d6bdfd7bd77499762514b2f0ebfd. This changes hosted
+bootstrap evidence, not the CupidC language surface.
+Source-head CupidBuild now adds a native checked CupidObj runner without adding
+language syntax. Linux creates no .cupidbuild-run namespace. It freezes the
+manifest and six tools in fully sealed anonymous memfds and pins the working
+directory by descriptor. The child calls fchdir before remapping captured
+streams. A tool descriptor in slot 0, 1, or 2 is moved above the standard
+descriptors before fexecve or execveat. The dup2, pipe read and write, and wait
+loops retry EINTR; dup2 also retries EBUSY. The stream memfds are sealed before
+reading. A close-on-exec launch-status pipe preserves a genuine exit of 125.
+The static i386 startup supplies cupid_linux_syscall5.
+
+Windows pins and rechecks the working-directory identity. Its private root and
+files are handle-pinned, and it retains the tool without write or delete
+sharing through CreateProcessA. It forwards captured streams in binary mode.
+This preserves their exact bytes. Cleanup deletes a file that changed in place
+when its identity still matches, but preserves a replacement with a different
+identity. Both paths withhold captured output if the live cohort changes. Both
+checked seeds carry the command, and Make uses it for every direct CupidObj
+recipe.
+
+The checked runner now admits CupidLD as well as CupidObj and rejects every
+other tool name. A direct and checked fixed-address CupidLD link must produce
+the same ELF bytes. Both source-head fixed points run checked CupidObj through
+their stage-three and stage-four CupidBuild images, compare the relocatable
+result, and check the invalid-option diagnostic. With the later JPEG and
+kernel-symbol transactions, Linux has 27 failure, six help, and 34 success
+cases. Native Windows has 16 failure, six help, and 21 success cases. Make now
+runs 186 ordinary CupidObj recipes through that checked
+command without changing their output formats. Both normal kernel links use
+the same checked runner.
+
+The same represented hosted C profile now builds a typed CupidBuild JPEG
+transaction and its independent native validator. Both source-head fixed-point
+matrices run the command across consecutive CupidBuild images, compare the
+relocatable result, and prove rollback for a progressive JPEG. Typed
+kernel-symbol publication brings the complete inventories to 28/6/35 on Linux
+and 17/6/22 on native Windows. Both active seed cohorts carry both capabilities,
+and the normal JPEG Make edges now invoke CupidBuild directly.
+
+The first paired candidate refresh stopped before publication because the
+hosted include root had no stddef.h for CupidBuild's public size_t interface.
+The Linux run stopped after about 412.25 seconds, and the native Windows run
+stopped after about 449.43 seconds. Neither run produced a candidate report or
+seed image.
+
+Source head now provides the i386 size_t, ptrdiff_t, wchar_t, max_align_t,
+NULL, and offsetof contract without a host C library. The offsetof macro uses
+the typed __builtin_offsetof operation, which source-head CupidC accepts as
+strict C implementation support. The repaired fixed-point closure has 59
+inputs and snapshot SHA-256
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
+The active manifests bind this 59-input closure. CupidBuild accepts
+promoted-v2 source inventories with 58 or 59 entries and rejects inventories
+with 57 or 60. This preserves the preceding pair while allowing the current
+generation. The first promotion attempt failed its provenance check before
+publication, so no invalid seed became active. Fresh candidates then converged.
+After promotion, separate self-consumption reproofs passed on both hosts. ADR
+0365 records the repair, ADR 0366
+records compatibility, and ADR 0367 records the preceding pair, and ADR 0370 records the active pair.
+
+The Windows CupidBuild CLI suite completed 66 tests in 65.934 seconds with
+three expected skips. The host-runner Python module completed eight tests in
+0.962 seconds with four POSIX skips, and its dedicated Make contract passed.
+All six CupidASM source tests passed in 3.771 seconds. Strict Windows and
+freestanding i386 adapter compilation passed, as did timeout-and-seed-drift
+precedence. After WSL restarted, the complete 129-case bootstrap-seed module
+ran. It passed 126 cases; three final assertions still held stale transition
+expectations. The corrected focused cases now pass. A complete Linux
+fixed-point rerun passed in 2,158.113 seconds, and an independent native
+Windows fixed-point rerun passed in 1,847.207 seconds. All 129 cases then
+passed in 3,569.451 seconds.
+>endtree
+
 >h2 Purpose
 >tree open Purpose
-This page documents HolyC-inspired language features currently implemented in
-CupidC (kernel/lang/cupidc.c and related files), plus important behavior notes.
+This page documents the HolyC-inspired features implemented in CupidC
+(kernel/lang/cupidc.cc and related files) and records their behavior. The
+normal build compiles cupidc.cc with the checked CupidC seed.
 
 Try a quick REPL expression:
 [Evaluate 42](repl:U32 answer = 42; answer;)
@@ -45,9 +148,9 @@ Demo: bin/feature1_types.cc
 
 >h2 Feature 2: Top-Level Execution
 >tree open Feature 2: Top-Level Execution
-Main is no longer mandatory.
+main is optional.
 
-These both work:
+Both forms work:
   U32 x = 7;
   Print("x=%u\n", x);
 
@@ -99,6 +202,64 @@ Demo: bin/feature4_forward_calls.cc
 [Run feature4_forward_calls](shell:feature4_forward_calls)
 >endtree
 
+>h2 Doom Compatibility
+>tree open Doom Compatibility
+CupidC has an explicit --doom-compat profile for the
+vendored Doom source. It represents a bare call made before any declaration
+as an old-style external int() function. Calls parsed before a later prototype
+keep the usual default argument promotions. The profile also marks the eleven
+audited conversions between unqualified function pointers and unqualified
+four-byte data or void pointers. The i386 emitter keeps those pointer bits
+unchanged.
+
+Strict C and plain GNU mode still reject the implicit conversions, and
+explicit function/data casts remain outside Linear IR. One-active-member
+union initialization and ordinary narrow bit-field promotion close the other
+two audited source boundaries. The checked seed now emits all 80 Doom-tree
+objects.
+
+The production wrapper also emits the three compatibility roots. It preserves
+the explicit static string cast in doom_libc_stubs.cc and emits the exact
+dg_setjmp and dg_longjmp block through Cupid's x86 model. Two seed compiles
+agree on those three objects. All 83 Doom and platform sources use .cc and
+compile through the checked seed. The wrapper freezes the selected source and
+all 304 profile inputs before it publishes an object. Its exact source
+memberships make a missing, renamed, or unlisted root fail the normal build.
+
+It scans visible .c and .cc files beneath the Doom tree before publication, so
+a legacy .c file or an unlisted .cc file also fails. Four-CPU e1000 and RTL8139
+boots pass the no-WAD, missing-IWAD recovery, shell-survival, and full frontier
+checks. Gameplay still needs a staged WAD.
+
+Checked-seed CupidC represents the GNU returns_twice function attribute. A
+marked function must remain a direct call target. Supported calls use four-byte
+cdecl arguments and may return void or any nonaggregate type. A live-prefix
+call protects its surrounding expression with call-owned frame slots, then
+restores those words after cleanup. Such a site fails if any returns-twice
+continuation can reach it again. A marked call with no live prefix may repeat.
+Aggregate, wide-integer, and wider-than-four-byte floating arguments, aggregate
+results, and marked-function pointer conversions fail explicitly.
+
+The corrected dg_setjmp form records the caller stack after a normal return.
+Active dg_setjmp uses that 31-byte ESP-plus-four form and returns_twice.
+dg_longjmp, dg_exit, and dg_abort use noreturn; dg_longjmp remains 38 bytes.
+A decoder-driven i386 oracle models both returns. The guest dglibc_test also
+executes the active jump and exit landings, then runs two quit and two error
+cycles. It checks LIFO callbacks, error filtering, and cleanup between shell
+sessions.
+
+The active config and game-save routines use checked temporary streams and
+native same-mount rename beneath /home/doom. HomeFS and RamFS reject busy
+replacement. Block-cache reads stage incoming bytes before changing a victim.
+FAT16 distinguishes resource and I/O failures from a missing file, blocks
+replacement of live entries, enforces one-level 8.3 paths, and publishes a
+flushed replacement or deletion before releasing the detached chain. HomeFS
+rejects corrupt containers and duplicate mounts, reserves HOMEFS.SYS against
+raw FAT writes, and supports nested batches with one outer durable publish.
+The asset-free self-test covers these paths with test-only files. A staged WAD
+is still required for gameplay and menu-driven save/load proof.
+>endtree
+
 >h2 Feature 5: Print Builtin
 >tree open Feature 5: Print Builtin
 Language-level builtins:
@@ -146,9 +307,8 @@ Demo: bin/feature7_new_del.cc
 >tree open Feature 8: reg / noreg
 reg and noreg are accepted as storage hints.
 
-Current behavior:
-- Parsed and accepted.
-- Treated as semantic no-op hints in current compiler backend.
+The parser accepts both keywords as semantic no-op hints in the current
+compiler backend.
 
 Demo: bin/feature8_reg_noreg.cc
 [Run feature8_reg_noreg](shell:feature8_reg_noreg)
@@ -215,13 +375,316 @@ These features were added in P1. See 14FPU-SSE.CTXT for full reference.
 
 Summary:
 - Feature 12: scalar float arithmetic, casts, element access
-- Feature 13: double + transcendentals
+- Feature 13: double, transcendentals, unary signs, comparisons, and truth
 - Feature 14: float4 / double2 SIMD + intrinsics
 - Feature 15: libm (25 operations, 50 symbols with f-variants)
 - Feature 16: CupidC inline asm using SSE + x87
 
 Types added: float, double, float4, double2
 Intrinsics: _mm_*_ps (17 variants), _mm_*_pd (11 variants)
+
+Unary plus accepts char, int, float, and double. Unary minus uses integer NEG
+for char and int. For float and double it changes only the IEEE-754 sign bit,
+so negative zero and payload bits stay exact. Other operand types fail with a
+clear diagnostic, and the next REPL expression can still compile.
+The boot frontier accepts that deliberate diagnostic only during the
+feature13_double check. A stale or repeated copy still fails the run.
+The same guest checks four float or double to unsigned-word conversions on
+both sides of 2^31, signed and high-bit unsigned %=, and one evaluation of a
+side-effecting array destination. The boot gate requires
+[feature13-unsigned] PASS conversions=4 remainders=2 once=1 and rejects the
+separate conversion and remainder failure markers.
+
+All six float and double comparisons return a normalized int. Matching
+widths compare directly, while a mixed pair compares as double. Signed zero
+compares equal to positive zero. If either operand is NaN, only != is true.
+
+Float and double values can control !, if, ?:, while, for, and do-while
+directly. Both signed zero encodings are false. Finite nonzero values,
+infinities, and NaNs are true.
+
+All kernel bindings carry their declared result type. The private compiler
+uses that metadata to keep returned integers, pointers, floats, and doubles
+in later expressions and conditions.
+
+Each binding's advertised argument count must match its C declaration.
+kmalloc takes one unsigned size and uses a kernel wrapper that supplies stable
+debug provenance. New and array new return zeroed storage through that typed
+binding. Del releases the storage through kfree and resets the pointer.
+
+Scalar float and double lvalues support prefix and postfix ++ and --.
+Postfix expressions return the old payload, while all four forms store the
+one-unit update. The same path handles locals, parameters, globals, pointer
+dereferences, fixed-array elements, and scalar fields reached through direct,
+pointer, or indexed-record members. The destination expression runs once.
+
+One-dimensional fixed float and double array symbols preserve their element
+type. Global, automatic, block-static, and persistent REPL arrays use
+four-byte or eight-byte strides with indirect SSE loads and stores. Plain
+indexed assignment converts from represented integer and floating sources,
+while +=, -=, *=, and /= use the element width. One-, two-, and
+three-dimensional fixed arrays retain their remaining row stride, and
+sizeof(array[index]) reports that row without running the index. Depth-one
+floating pointers preserve their pointee width through address expressions,
+returns, array parameters, dereference, subscripts, scaled direct pointer
+updates, and assignment. Structure and class objects, arrays, and pointers
+retain scalar floating fields and one-dimensional fixed floating field arrays.
+Bounds and dimension products are checked before storage is reserved. Deeper
+floating pointers, pointer-to-array types, and
+assignment through a pointer-valued floating field subscript
+remain unsupported.
+
+Matching float4 and double2 values support direct +, -, *, and /. Fixed arrays
+with one, two, or three dimensions work in global, automatic, block-static,
+and persistent REPL storage. Each vector leaf uses 16 bytes and unaligned-safe
+packed moves. Declared rank remains independent of byte stride, so a unit inner
+extent still needs its final subscript. Indexed assignment and +=, -=, *=, and
+/= preserve lane access and evaluate every destination index once. Row and
+vector sizeof do not evaluate their indexes. Every direct operator keeps the
+written left value in the machine destination. Prefix and postfix ++ and --
+work on modifiable direct vectors and fully indexed leaves. Direct automatic,
+global, block-static, and persistent REPL vectors use complete 16-byte storage.
+Each indexed destination is evaluated once. Prefix returns the stored vector,
+and postfix returns the exact old payload. Const qualification is retained
+through typedef aliases. Const direct vectors and fixed-array leaves remain
+readable. Plain and arithmetic compound assignment, plus prefix and postfix ++
+and --, are rejected before a store. Lane updates, computed vector updates,
+SIMD pointers, record fields, new, array parameters, and row values remain
+unsupported. MIN and MAX intrinsics keep the second input for NaN and
+equal signed-zero cases. For a both-NaN ADD or MUL, the processor or emulator
+may preserve either input payload. Vector expressions reject incomplete rows
+instead of letting them escape as untyped pointers.
+
+Private CupidC uses one cdecl layout for direct functions and methods.
+Integers, pointers, function pointers, float, and the implicit method self
+value occupy four bytes. Double occupies eight bytes with its low word at the
+lower address. A fixed float4 or double2 parameter occupies 16 bytes and
+returns through XMM0. Arguments are evaluated from left to right, then arranged
+at increasing addresses in source order. Callees use MOVUPS for vector slots,
+and callers reclaim the complete outgoing area. Slots are packed at four-byte
+granularity; the private boundary does not promise 16-byte call-site alignment.
+A fixed SIMD prefix may precede scalar variadic values. SIMD variadic tails,
+unprototyped SIMD calls, and signature-erased function-pointer SIMD calls are
+rejected. A named block-local function pointer with an explicit prototype
+retains fixed parameter types, variadic state, and its result. The indirect
+call uses the same conversions and four-, eight-, or sixteen-byte cdecl slots,
+including SIMD arguments and XMM0 results. A file-scope function-pointer
+typedef retains its result, fixed parameters, record identities, prototype
+state, and variadic boundary. A free-function or Cupid class method parameter
+declared through that typedef gets the same signature. A
+declaration-initialized automatic object gets an independent copy for every
+declarator. A file object declared directly with the typedef also keeps the
+signature across null or compatible function initialization, checked plain
+assignment, indirect call, and clearing. A defined function address is written
+into initialized data, while a later definition receives an absolute data
+patch. A direct &function address uses the same signature check, data write or
+patch, automatic initialization, and checked assignment as the plain function
+designator. Runtime initialization and assignment accept &(function) and
+nested grouping. JIT and private AOT calls use the retained signatures. A
+structure or class field declared through a typedef or raw function-pointer
+declarator keeps the signature for checked stores, copies, null checks,
+clearing, and direct postfix calls. Fixed and variadic arguments use cdecl.
+Represented scalar, pointer, floating, and SIMD results retain their normal
+types. Nested and indexed field designators are evaluated once, and a real
+field takes precedence over same-named method sugar. Empty (), alias chains,
+raw method parameters, void-pointer forms,
+and aggregate callback results remain unsupported or signature-erased.
+A named raw callback file object and direct free-function parameter retain the
+parsed signature without a typedef. The file object uses the same data write or
+patch, and the parameter uses the same cdecl slot and arity checks. The private
+raw-signature pool owns those parameter signatures. ADR 0315 records the raw
+forms, and ADR 0319 records direct explicit
+function addresses. ADR 0321 records typedef-backed record and class fields,
+ADR 0324 records grouped runtime addresses, and ADR 0325 records raw fields and
+direct postfix field calls.
+
+Raw one-dimensional function-pointer arrays retain the parsed signature when
+they use file, block-static, or persistent REPL storage. The block-static raw
+scalar form shares this data allocation, initializer, and patch path. A fixed
+array needs a positive checked bound. An omitted bound is inferred from a
+nonempty braced initializer; an unsized declaration without that initializer
+fails. Fixed storage is cleared before its elements are written, so an omitted
+initializer and missing trailing entries stay null. An initializer cannot
+exceed the declared bound, and each non-null element must match the array
+signature. Known function addresses are stored immediately. Later definitions
+use absolute data patches.
+
+An indexed element keeps the callback result, fixed parameters, record
+identities, prototype state, and variadic boundary through assignment, copying,
+argument conversion, and calls. Direct indexed calls and the explicit
+(*callbacks[index])(...) spelling use the same typed cdecl path, with one
+evaluation of the index. The private source contract follows Doom's active
+kernel/doom/src/f_wipe.cc declaration, static int (*wipes[])(int, int, int),
+and its wipeno*3 phase dispatch. The
+production Doom object remains a checked-seed hosted CupidC output.
+
+Fixed-size automatic raw callback arrays use cleared four-byte local frame
+slots and retain their signature through brace initialization, indexed stores,
+copies, and calls. Unsized automatic arrays, raw callback array parameters,
+raw callback array fields, and multidimensional raw callback arrays remain unsupported.
+Typedef-backed fixed callback arrays on record fields keep their retained
+signature under ADR 0328. ADR 0330 records the data-backed raw array and shared
+block-static scalar rules. ADR 0351 records the fixed automatic form.
+Feature 13
+retains ten calls through one mixed-width tolerance helper. Feature 14 adds six
+nested pass-by-value vector
+calls and named SIMD callback forms. ADR 0301 records the earlier named-local
+boundary.
+Plain function initializers and direct &function addresses must match the
+retained signature. An explicit
+void-pointer cast remains the deliberate erasure path. Local callback copies
+are checked, later addresses are fixed up, and provisional signatures must
+match their definitions. Compatible conditional selection checks every named
+arm. A represented integer constant expression that evaluates to zero is a
+null initializer. Unary signs, integer casts, arithmetic, character zero, and
+sizeof(int) - 4 are represented. Runtime zero is not. Null arms are neutral for
+explicit erasure, while every non-null object-pointer arm must be cast. Failed
+functions and methods restore emitted state, patches, signatures, labels, and
+control nesting. A failed source also restores touched prototypes, definitions,
+kernel bindings, and a reused __start. The implicit thunk is typed void(void).
+
+kernel/fs/iso9660.cc supplies the active scalar case with susp_entry_cb, whose
+three fixed parameters are preserved when susp_walk calls it. The feature14
+source adds a float4 callback typedef and uses it on a free-function parameter,
+a file object, a declaration-initialized automatic object, a Cupid class method
+parameter, and a record field. Focused JIT and private AOT tests execute these
+forms, including the 16-byte float4 slot and XMM0 result. They also cover arity,
+variadic promotion, record identity, incompatible signatures, null constant
+expressions, explicit erasure, forward definitions, and same-state recovery.
+
+The four-vCPU e1000 feature14 guest contract requires ordered direct-call,
+named-callback, typedef-parameter, typedef-global, automatic-callback, and
+callback-field evidence. The retained paths must print
+`[feature14-callback-typedef] PASS float4=4 calls=1`,
+`[feature14-callback-global] PASS float4=4 initialized=1 assigned=1`
+`cleared=1 calls=2`,
+`[feature14-callback-automatic] PASS local=4 method=4 calls=2`, and
+`[feature14-callback-field] PASS stored=1 copied=1 cleared=1 float4=4 calls=1`
+in that order. The host contract proves the source and required marker. A
+focused four-vCPU QEMU boot also observes the field marker. The command then
+prints the overall feature14 PASS and finishes with CupidC JIT completion.
+
+Function-pointer typedef declarations remain file-scope, allow one alias per
+declaration, and share a sixteen-entry table. Direct record and array results
+are rejected. Record-pointer results retain identity.
+
+Nested function-pointer parameters keep child signature handles. A raw child
+uses an interned raw-signature handle, while a child named by a direct callback
+typedef keeps that typedef handle. The parser and compatibility checker follow
+those handles through further callback parameters. Equivalent prototyped raw
+and typedef-backed forms are compatible when their result, record-pointer
+identity, fixed parameter list, and variadic boundary agree. The existing
+unprototyped compatibility rule remains in force. The structural check applies
+at each retained child.
+
+Every nested callback is still one four-byte i386 cdecl argument. Its handle is
+compile-time metadata. Nesting is bounded at sixteen signature levels. The
+backing pool holds 33 signatures; the active kernel callback uses one and
+leaves 32 for source declarations. A rejected function, complete source,
+or persistent REPL unit restores the child handles and raw pool together with
+symbols, data patches, and emitted state.
+
+The active set_icon_drawer binding uses
+void (*p_icon_set_drawer)(int, void (*)(int, int)). Private CupidC retains the
+outer setter and inner drawer shapes. Function pointers cannot return records
+or arrays, and raw callback array parameters remain unsupported. Raw Cupid
+class method parameters, callback alias chains, and aggregate callback results
+also remain outside the retained path. Checked-seed hosted CupidC still owns
+the production kernel/lang/cupidc.cc object.
+
+Reviewed native kernel bindings publish complete fixed or variadic metadata
+through the existing function-pointer signature representation. Direct
+SYM_KERNEL calls reuse the ordinary typed conversion, cdecl layout, cleanup,
+arity, default promotion, and result paths. Console, string, port, and all 50
+libm bindings form the first reviewed set. Other registrations use the named
+legacy result-only path and keep their previous source-width arguments. The
+active set_icon_drawer binding publishes its retained void(int, int) child
+through this seam. ADR 0333 records the nested binding.
+
+Direct functions and methods with parsed fixed parameter types convert
+represented integer, char, float, and double arguments to the declared cdecl
+slot before the call. Represented pointer categories and integer null forms can
+fill a pointer slot. A represented object pointer can fill a fixed int or
+unsigned int slot as one unchanged i386 word. Narrow and floating destinations
+remain rejected, and the existing represented pointer-category rule is
+unchanged. The unchanged /bin/ctxt.cc call to ctxt_parse_action reaches this
+coercion boundary. That file is an include fragment. /bin/notepad.cc includes
+it completely and passes private AOT compilation. A parsed variadic tail widens float to double and promotes
+char to int. Calls without fixed parameter metadata keep their source-width
+slots. Character operands undergo
+integer promotion and use the scalar integer conversion path when mixed with
+floating values or explicitly cast. Fresh subscript metadata prevents a
+pointer result from inheriting an earlier array stride.
+
+Decimal float and double tokens use a fixed 1536-bit integer workspace. The
+compiler forms the exact decimal ratio and rounds once to the requested IEEE
+width with ties going to even. An f suffix selects binary32 before rounding.
+The path covers subnormals, finite limits, infinity, and signed zero. Numeric
+tokens may contain up to 95 characters, including the suffix. Longer tokens
+and missing exponent digits receive focused errors. Hexadecimal floating and
+long double literals remain unsupported.
+
+The Browser's JavaScript numeric tables use the fixed double-array path.
+browser --selftest exercises that path without opening a window. Its 26 result
+fields cover decimal and radix literals, numeric separators, whole-string
+number conversion with ECMAScript whitespace, primitive equality, UTF-16
+string relations, negative zero, NaN and infinity, division, IEEE remainder,
+%=, and string +=. Long concatenation and pool exhaustion share the string
+field. Compound member and index writes keep the reference selected before the
+right side runs, even when that side changes the receiver or key. A 1,100-write
+loop checks that assignment leaves the value stack balanced. Ten malformed
+forms must report their expected errors before a valid script proves recovery.
+String interning fails before publishing a token, binding, property, DOM
+value, or global, and failed global setup blocks queued scripts. Native
+function IDs survive user-function arguments and returns. Array index writes
+grow the unsigned length lane through index 4,294,967,294. Direct length
+assignment fails explicitly, while 4,294,967,295 remains an ordinary property.
+Finite formatting covers 4,294,967,295, 1e20, and 1e-7 without a
+signed 32-bit narrowing.
+
+Private CupidC joins adjacent ordinary string tokens in one data object for
+automatic expressions, file-scope pointer initializers, and persistent REPL
+declarations. Each token may decode to 1,023 bytes. The joined string can use
+the remaining private data section. Longer tokens and data exhaustion fail
+without truncation.
+
+Private CupidC accepts both anonymous and tagged structure typedefs. One field
+layout path serves both forms, and the typedef table keeps the structure index
+through alias chains and structure-pointer aliases. The same metadata persists
+across REPL lines. A missing alias and an incomplete by-value field receive
+focused errors. Fixed array products, cumulative record layout, final
+alignment, REPL data capacity, and cumulative local frames are checked before
+allocation. Signed constant arithmetic rejects overflow, while an unsigned
+operand wraps modulo 2^32. Integer tokens stop at UINT32_MAX, hexadecimal
+literals require at least one digit, and the suffix counts inside the
+95-character limit. Failed REPL
+input restores complete records, including a previously declared forward tag.
+Member address expressions select their storage without reading its value.
+The &record.field form starts at the object, while &pointer->field loads the
+pointed-to record before applying the field offset. Missing fields keep the
+unknown-struct-field diagnostic.
+
+Private typedef declarations may publish several value or pointer aliases.
+One-dimensional array aliases keep their complete storage in automatic,
+global, block-static, record, class, and persistent REPL declarations. An
+array member keeps its complete sizeof result and the structure identity of
+its elements through direct or pointer access. Reads and assignments may
+continue after the index, including when the outer record came from an array.
+
+Unsigned 32-bit values keep their type through objects, calls, conditional
+arms, sizeof, scalar returns, and conversion to float or double. Comparisons,
+division, remainder, and right shift use unsigned i386 behavior. /=, %=, and
+>>= keep that rule and evaluate their destination once. Values in C's defined
+interval convert back from float or double through casts, initialization,
+assignment, fixed arguments, and returns. Forty kernel
+bindings with uint32_t, size_t, or swap_handle_t results publish that lane;
+narrower unsigned results keep integer promotion.
+
+The libm bindings also retain their fixed parameter widths. A base function
+such as sqrt publishes double(double), while its f-suffixed partner publishes
+float(float). Integer arguments convert before the call, and a float widens for
+a declared double parameter. Arity and type failures leave the compiler ready
+for a later valid program.
 
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)
@@ -263,14 +726,164 @@ Useful commands:
 [Open Networking guide](open:18NET.CTXT)
 >endtree
 
+>h2 Current Bootstrap Boundary
+>tree open Current Bootstrap Boundary
+Normal `all` uses poisoned-host Cupid tooling. Its exact artifact-size policy
+covers sixteen paths: four OS artifacts, six Linux seed images, and six
+Windows seed images. CUPSIZE2 gives the CupidC-built policy contract the
+Windows manifest, Linux parent digest, and six regular-file size and digest
+observations. The contract validates the Windows target, provenance, exact
+inventory, and observed bytes. The focused semantic-contract, checked-runner,
+and independent-policy modules contain 22, 16, and 13 tests, for 51 total.
+They pass with four existing platform-specific skips. The host bootstrap log
+records the complete source-consistent normal build, final checked publication,
+and private four-vCPU proof for this increment. Exact artifact and runtime
+measurements stay there because this manual is an image input.
+
+The active Linux and Windows v2 cohorts are complete six-tool trust units.
+CupidBuild is checked in both and owns four normal guarded assembly
+publications: two objects and two raw images. It also runs the 186 direct
+CupidObj recipes and both normal kernel links selected by Make.
+Their CupidDis images carry local-target validation for raw images,
+relocatable objects, and static linked executables. Active-source tests cover
+all nine bootloader targets and all four trampoline targets. Production also
+checks active CupidASM objects and both kernel ELFs before publication. The
+promoted images also validate static ELF entry points and defined function
+symbols against decoded instruction starts. Production selects that rule for
+both kernel ELFs before flattening.
+Separate Linux and Windows seed fixtures exercise positive and negative cases.
+
+The private in-kernel callback parser and AOT writer remain separate from the
+standalone toolchain compiler seeds. Private CupidC retains file-scope callback
+typedef signatures on free-function parameters, Cupid class method parameters,
+declaration-initialized automatic objects, and direct file objects. A direct
+function address keeps the same callback signature and data patch as a plain
+function designator. A direct file object supports null initialization, checked
+plain assignment, indirect calls, and clearing. Structure and class fields
+declared directly with a callback typedef retain the signature for checked
+stores, named copies, null checks, and clearing. Raw callback fields retain the
+same signature. Direct postfix calls through raw or typedef-backed fields use
+typed cdecl conversion and evaluate the designator once. Data-backed raw
+callback arrays and block-static raw callback scalars use the ADR 0330 path.
+Nested raw or typedef-backed callback parameters retain child handles and are
+checked recursively. Alias chains, aggregate results, raw Cupid class method
+parameters, and `void *` forms remain outside that typed path. ADR 0325 records
+the field-call boundary.
+
+The active set_icon_drawer binding has one four-byte nested drawer parameter.
+Its private signature graph uses the sixteen-level depth bound and one record
+from the 33-entry backing pool. Source retains a 32-entry budget. Rollback
+restores both parent and child handles. The standalone checked seeds do not
+contain this private parser; checked-seed hosted CupidC remains the production
+owner of kernel/lang/cupidc.cc.
+
+The Toolchain manifest has a Cupid-built author and verifier, while Python keeps
+descriptor-pinned filesystem capture and atomic publication. Linux runs the
+author as a static ELF. Windows runs a validated native PE built by the same
+Linux stage-four CupidC, CupidASM, and CupidLD producers with the checked
+Windows runtime, startup, and exact imports. The publisher uses
+a private pending bootstrap path and gives the author all 62 raw stage pairs
+before Python performs its independent comparisons. The next schema-v3
+publication from source head must bind exactly 22 artifacts, 76 publication
+inputs, 59 bootstrap inputs, and 17 object comparisons. The latest complete
+publication retains 75 publication inputs and 58 bootstrap inputs. Both checked Python contract launchers put
+this checkout ahead of installed packages before importing `tools`. The direct
+contract passes 40 tests in 51.723 seconds, the publisher passes 65 in 7.258
+seconds, and the pinned runner passes 25 in 32.773 seconds. The host bootstrap
+log records the exact publication identity and completion evidence.
+
+Audit generation and checked reproduction pass. The audit records 748 active
+inputs, 452 transforms, 255 feature requirements,
+and 28 accounted unreachable files. Ownership participation is CupidC 250,
+CupidObj 192, CupidASM 9, CupidLD 9, CupidDis 9, and CupidBuild 194. Python
+participates in 258. Four transforms run Cupid-built contracts, and none is
+Python-only. The host bootstrap log records
+the post-manual-freeze poisoned build and strong private four-vCPU e1000
+frontier. Exact OS identities and runtime measurements stay there because this
+manual is an image input.
+>endtree
+
 >h2 Practical Notes
 >tree open Practical Notes
-1) CupidC is intentionally small and kernel-integrated, not full GCC C.
-2) Keep programs simple, direct, and one-file where possible.
-3) For large programs, prefer incremental testing with small compile units.
+1) CupidC is kernel-integrated; C and GNU-extension coverage remains incomplete.
+2) Keep the source's natural modules and abstractions. When active code reaches
+   a compiler limit, extend CupidC instead of simplifying the program.
+3) Separate compilation and multi-file linking remain toolchain work. Focused
+   tests should isolate each new capability while that support is built.
 4) #pragma once is supported for include-guard patterns.
-5) __attribute__((...)) and common storage/width spellings are accepted
-   mainly so imported examples parse cleanly.
+5) The private compiler accepts __attribute__((...)) mainly for source
+   compatibility. The shared bootstrap compiler gives its documented entity
+   attributes real declaration or call behavior and rejects unknown forms.
+>endtree
+
+>h2 Active Six-Tool Bootstrap Lineage
+>tree
+The active v2 checked-seed format includes CupidBuild with the five existing
+tools. Both manifests bind revision
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`, 59 source inputs, and snapshot
+`0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2`.
+
+Those are the active promoted identities. The pair carries hosted stddef.h,
+typed __builtin_offsetof, and the guarded CupidBuild JPEG transaction.
+
+Source-head CupidBuild adds the typed Doom profile publisher and a stricter
+host transaction profile. Windows child launch passes only standard input,
+standard output, and standard error through its exact handle list. Its current
+source plan has 33 KERNEL32 imports and three NTDLL imports: NtCreateFile,
+NtQueryDirectoryFile, and NtSetInformationFile. The promoted parent keeps its
+older import profile until the next paired refresh. The promoted Windows
+runtime also opens wb outputs with share mode zero. Source head retains frozen
+inputs with read sharing and blocks write or delete opens. It gives mutable
+candidates the broader sharing needed by checked tools and asks CupidASM to
+write directly into the candidate owned by CupidBuild. A dirty-tree v4 pair
+converged on Linux and Windows; a complete clean two-host reconstruction remains
+before seed publication.
+The first clean attempt at f3c14b86 stopped at Linux stage two on a misspelled
+custom-Linux syscall wrapper and authored no manifest. The c967ddee retry
+reached native Windows stage two before CupidLD found that the shared host
+adapter called a file-information wrapper available only in CupidBuild's
+private startup. The common startup now provides the wrapper. The ordinary
+profile includes the matching import and moves from 12 to 13 KERNEL32
+procedures; the linker profile moves from 16 to 17. The exact source-current native plan is
+98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669.
+The ae32be64 clean Linux run passed the complete fixed point and all 31/7/37
+behavior groups. Native Windows matched every stage-three and stage-four
+object and tool, then stopped in behavior checks because a copied current tool
+cohort was paired with a temporary manifest that still named the promoted
+plan. Windows behavior fixtures now bind only their copied manifest to the
+plan executed by that cohort. Checked manifests and tool bytes remain
+unchanged. A source-current Windows rerun completes all 19/7/24 behavior
+groups. No seed was promoted.
+
+The profile publisher retains every discovered directory and validates the
+complete retained-to-public set twice at each closure checkpoint. POSIX
+requires a pre-existing build/bootstrap chain and uses nanosecond mtime and
+ctime. Windows may create missing parents and checks file ID, LastWriteTime,
+and ChangeTime. Flat POSIX work keeps frozen inputs, maps, and captured streams
+in sealed anonymous memfds reached through /proc/self/fd/N. Ambiguous namespace
+state preserves the old output and leaves transaction names for recovery.
+
+The Linux plan has SHA-256
+`52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd`.
+Its 6,602-byte manifest has SHA-256
+`470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781`.
+The Windows native plan has SHA-256
+`f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14`.
+Its 2,852-byte manifest has SHA-256
+`e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4`
+and pairs to the exact Linux manifest bytes.
+
+Candidate proof and promoted-seed self-consumption pass on Linux and native
+Windows. In the self-consumption runs, all six initial images equal stage two.
+The behavior inventories are
+28/6/35 on Linux and 17/6/22 on Windows. The normal ISR, context-switch,
+bootloader, SMP-trampoline, JPEG, and kernel-symbol recipes use CupidBuild
+directly, as do the 186 ordinary CupidObj recipes and both normal kernel links. Python
+participates in the remaining 258 transforms. ADR 0357 records the raw recipe transfer, ADR 0360 records the
+checked runner, ADR 0361 records its first paired seed promotion, ADR 0362
+records the direct CupidObj handoff, ADR 0363 records the kernel-link handoff,
+ADR 0367 records the preceding pair, ADR 0368 records the JPEG handoff, ADR
+0370 records the active pair, and ADR 0371 records the kernel-symbol handoff.
 >endtree
 
 >h2 See Also

@@ -1,10 +1,10 @@
 # Ed Editor
 
-cupid-os includes a faithful implementation of the classic Unix `ed(1)` line editor, written entirely in CupidC. Ed operates in-memory and can read/write files through the VFS (both ramfs and FAT16 disk).
+cupid-os includes an implementation of the Unix `ed(1)` line editor written in CupidC. Ed keeps its editing buffer in memory and reads or writes files through the VFS, including ramfs and FAT16.
 
 ## Implementation
 
-Ed is implemented as a CupidC program at `bin/ed.cc`. It is automatically embedded into the kernel image at build time and is available as `/bin/ed.cc` in the in-memory filesystem. When you type `ed` at the shell prompt, the auto-discovery system finds `/bin/ed.cc` and JIT-compiles it.
+The source is `bin/ed.cc`. The build embeds it as `/bin/ed.cc` in the in-memory filesystem. When `ed` is entered at the shell prompt, command discovery finds that file and JIT-compiles it.
 
 Source: `bin/ed.cc` (~900 lines of CupidC)
 

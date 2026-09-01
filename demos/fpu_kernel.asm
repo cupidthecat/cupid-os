@@ -12,16 +12,13 @@
 ; - Task 10: MOVUPS / ADDPS         (SSE packed single-precision)
 ; - Task 11: FLD m32fp / FSIN / FSTP m32fp (x87 single-precision)
 ;
-; CupidASM has no `align` directive, so all SSE loads/stores go through
-; MOVUPS (unaligned) and the FXSAVE buffer is placed at the start of the
-; .data section (which the kernel aligns for us on load).
-;
 ; Run interactively from the CupidOS shell:
 ; as /demos/fpu_kernel.asm
 ; Expected stdout: "PASS fpu_kernel"
 
 section .data
-    ; FXSAVE/FXRSTOR area - 512 bytes, first in .data.
+    ; FXSAVE/FXRSTOR require a 16-byte-aligned 512-byte save area.
+    align 16
     fp_buf:         times 512 db 0
     mxcsr_tmp:      dd 0
 

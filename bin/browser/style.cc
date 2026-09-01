@@ -2340,7 +2340,7 @@ int css_value_string(int off, int len, char *out, int omax) {
             }
             if (v == 0xA0) { out[o] = ' '; o = o + 1; continue; }
             /* Emit raw UTF-8 so TTF cmap renders the real glyph
-             * (e.g. \201C -> U+201C left double quote). fontsys.c
+             * (e.g. \201C -> U+201C left double quote). kernel/gfx/fontsys.cc
              * UTF-8-decodes runs in run_width / draw_run_styled.*/
             int wn = emit_utf8_codepoint(v, out + o, omax - 1 - o);
             if (wn > 0) { o = o + wn; continue; }

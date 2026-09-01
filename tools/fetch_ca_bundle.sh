@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Fetch trust-anchor DERs and emit kernel/tls/tls_ca_bundle_data.c.
+# Fetch trust-anchor DERs and emit kernel/tls/tls_ca_bundle_data.cc.
 # Run from the repo root:
 #   bash tools/fetch_ca_bundle.sh
 # Requires: curl, openssl, xxd.
 
 set -euo pipefail
 
-OUT="kernel/tls/tls_ca_bundle_data.c"
+OUT="kernel/tls/tls_ca_bundle_data.cc"
 TMP="$(mktemp -d)"
 trap "rm -rf $TMP" EXIT
 

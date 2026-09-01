@@ -40,7 +40,9 @@ typedef struct {
     int      type;
     uint32_t color;
     void   (*custom_draw)(int x, int y);
+    uint32_t custom_draw_owner;
     void   (*launch)(void);     /* Direct launch callback (kernel icons) */
+    uint32_t launch_owner;
     int      selected;
     int      enabled;
 } gfx2d_icon_t;
@@ -67,8 +69,9 @@ void gfx2d_icon_set_custom_drawer(int handle, void (*drawer)(int, int));
 /* * Set direct launch callback (for kernel-level icons) */
 void gfx2d_icon_set_launch(int handle, void (*launch_fn)(void));
 
-/* * Get launch callback (NULL if none) */
-void (*gfx2d_icon_get_launch(int handle))(void);
+/* Invoke a registered launch callback while its code image remains protected
+ * by the shared writer lease. Returns one when a callback ran. */
+int gfx2d_icon_invoke_launch(int handle);
 
 /* * Get icon at desktop position. Returns handle or -1. */
 int gfx2d_icon_at_pos(int x, int y);
@@ -79,13 +82,13 @@ void gfx2d_icon_set_pos(int handle, int x, int y);
 /* * Snap icon to grid */
 void gfx2d_icon_snap_to_grid(int handle);
 
-/* * Get icon label */
+/* Get a per-process label snapshot. Valid until that process asks again. */
 const char *gfx2d_icon_get_label(int handle);
 
-/* * Get icon program path */
+/* Get a per-process path snapshot. Valid until that process asks again. */
 const char *gfx2d_icon_get_path(int handle);
 
-/* * Get icon description */
+/* Get a per-process description snapshot. Valid until the next such call. */
 const char *gfx2d_icon_get_desc(int handle);
 
 /* * Get icon X position */
@@ -114,6 +117,17 @@ void gfx2d_icons_save(void);
 
 /* * Load icon positions from disk */
 void gfx2d_icons_load(void);
+
+/* Monotonic visual-registry generation used by Desktop cache validation. */
+uint32_t gfx2d_icons_generation(void);
+
+/* Callback code may live in a reusable JIT/AOT arena. Tear it down before
+ * restoring or reclaiming the owning process image. The try variant is for
+ * the quiescent process reaper and returns zero when another writer owns the
+ * graphics registry. */
+int  gfx2d_icons_process_owns_callbacks(uint32_t pid);
+void gfx2d_icons_release_process_callbacks(uint32_t pid);
+int  gfx2d_icons_try_release_process_callbacks(uint32_t pid);
 
 /* * Unregister an icon */
 void gfx2d_icon_unregister(int handle);

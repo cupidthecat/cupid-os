@@ -1,6 +1,6 @@
 # Debugging & Memory Safety
 
-cupid-os provides extensive debugging facilities through serial logging, memory safety checks, and introspection commands.
+cupid-os provides serial logging, memory safety checks, and introspection commands for debugging the kernel.
 
 ---
 
@@ -74,7 +74,7 @@ The kernel maintains a circular log buffer in memory. Use `logdump` to view rece
 
 ## Memory Safety
 
-cupid-os implements multiple layers of memory protection to catch bugs early.
+cupid-os checks heap and stack metadata to catch memory corruption near its source.
 
 ### Heap Canaries
 
@@ -90,7 +90,7 @@ Every allocation from `kmalloc()` is wrapped with canary values:
 - **Head canary**: `0xDEADBEEF` - placed before user data
 - **Tail canary**: `0xBEEFDEAD` - placed after user data
 - Checked on every `kfree()` call
-- Buffer overflows and underflows corrupt canaries -> detected and reported
+- A corrupt canary indicates an out-of-bounds write before or after the buffer.
 
 ### Free-Memory Poisoning
 
@@ -179,7 +179,7 @@ Every process stack has a canary at the bottom:
 |-------|----------|---------|
 | `0xDEADC0DE` | Bottom of stack | Detect stack overflow |
 
-Checked on every context switch. If the canary is corrupted -> **kernel panic** identifying the process.
+The scheduler checks the canary on every context switch. A corrupted canary causes a kernel panic that identifies the process.
 
 ---
 
@@ -266,7 +266,7 @@ KASSERT(condition, "message");
 KASSERT(ptr != NULL, "Null pointer in process_create");
 ```
 
-If the condition is false -> kernel panic with file, line, and message.
+If the condition is false, the kernel panics with the file, line, and message.
 
 ---
 

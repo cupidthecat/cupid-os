@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Command Quick Reference
-Verified against source on: 2026-05-15
+Verified against source on: 2026-08-01
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -17,7 +17,7 @@ Verified against source on: 2026-05-15
 >tree open Help System
 help reads //help: lines directly from /bin/*.cc and /home/bin/*.cc.
 
-That means command source is also command documentation.
+Each command source file also carries its help text.
 
 Use:
   help
@@ -29,7 +29,7 @@ Use:
 
 >h2 Shell Built-Ins
 >tree open Shell Built-Ins
-Built-ins verified in kernel/lang/shell.c (commands[] table):
+Built-ins verified in kernel/lang/shell.cc (commands[] table):
 
 Language / compiler:
 - cupid        run a .cup script
@@ -94,7 +94,8 @@ Command lookup order after built-ins:
 3) /home/bin/<cmd>
 4) /home/bin/<cmd>.cc
 
-This is the TempleOS-style source-first workflow for shipped and user programs.
+This lookup order supports source-first execution for shipped and user
+programs.
 >button ls /bin | shell:ls /bin
 >button ls /home/bin | shell:ls /home/bin
 >endtree
@@ -178,6 +179,11 @@ Source-backed network tools:
 - curl         HTTP/HTTPS client
 - wget         HTTP/HTTPS downloader
 - browser      graphical HTTP/HTTPS browser
+- browser --selftest
+                run 26 decimal, radix, separator, conversion, equality,
+                Unicode relation, long string, remainder, saved compound
+                target, native identity, array-limit, bounded-pool,
+                stack-balance, finite-format, and recovery checks
 - ssh          SSH-2 client
 - telnet       Telnet client
 - sshd         SSH server manager
@@ -185,6 +191,7 @@ Source-backed network tools:
 Examples:
   curl -i https://www.iana.org/
   browser http://example.com/
+  browser --selftest
   ssh user@host
   telnet telehack.com
 
@@ -199,7 +206,7 @@ Host-to-guest SSH server:
 
 >h2 Process and Debug Commands
 >tree open Process and Debug Commands
-Process/debug tools currently shipped:
+The image includes these process and debug tools:
 - ps
 - kill
 - spawn
@@ -253,6 +260,8 @@ Media/runtime commands:
 - doom -iwad <path>   choose an IWAD manually
 
 WADs are staged under /disk/wads with make stage-wads.
+default.cfg and save slots live under /home/doom. They are written to a
+temporary file and committed with native same-mount rename.
 >button Audio Test | shell:audiotest all
 >endtree
 
@@ -284,8 +293,9 @@ Compiler/language test programs currently embedded in /bin:
 - feature10_repl
 - feature11_ternary
 - feature12_float          (P1 FPU/SSE)
-- feature13_double         (P1 FPU/SSE)
-- feature14_simd           (P1 FPU/SSE)
+- feature13_double         (decimal payloads, floating lvalues, calls, and libm)
+- feature13_derived_aot    (ccc + exec proof for derived floating updates)
+- feature14_simd           (SIMD operators, arrays, calls, and intrinsics)
 - feature15_libm           (P1 FPU/SSE)
 - feature16_asm_fpu        (P1 FPU/SSE)
 - feature17_iso            (P2 ISO9660)
@@ -296,8 +306,8 @@ Compiler/language test programs currently embedded in /bin:
 - feature22_net_server     (P6 TCP server)
 - feature23_full_access    (binding sanity)
 - feature24_widetypes      (CupidC C-compat types/control flow)
-- fp_drill                 (FPU exception drill — reboots kernel!)
-- dglibc_test
+- fp_drill                 (FPU exception drill; reboots kernel!)
+- dglibc_test             jump/exit, VFS, cache, FAT, and batched HomeFS checks
 - kbdsub_test
 - test
 - test_fpaug
@@ -324,8 +334,8 @@ Command forms verified in the shell:
 Source-backed shell hotkey:
 - F7 in shell/Terminal -> godspeak
 
-Desktop/global app hotkeys are documented in the desktop docs; this page keeps
-the shell-facing command behavior only.
+The desktop docs cover global app hotkeys. This page covers shell command
+behavior.
 >endtree
 
 >h2 See Also

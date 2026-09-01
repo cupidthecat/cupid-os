@@ -517,6 +517,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   void (*p_process_kill)(uint32_t) = process_kill;
   BIND("process_kill", p_process_kill, 1);
 
+  uint32_t (*p_process_kill_after_ms)(uint32_t, uint32_t) =
+      process_kill_after_ms;
+  BIND_T("process_kill_after_ms", p_process_kill_after_ms, 2, TYPE_UINT);
+
   uint32_t (*p_spawn_test)(uint32_t) = cc_spawn_test;
   BIND("spawn_test", p_spawn_test, 1);
 

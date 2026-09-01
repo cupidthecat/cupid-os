@@ -1,0 +1,2512 @@
+import hashlib
+import os
+import shutil
+import struct
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
+sys.path.insert(0, str(REPO_ROOT / "tools"))
+
+from hostbuild import _symbols_from_nm
+import bootstrap_baseline
+import bootstrap_toolchain
+
+
+def elf32_executable(segments):
+    header_size = 52
+    program_header_size = 32
+    payload_offset = header_size + program_header_size * len(segments)
+    image = bytearray(payload_offset + sum(len(data) for _, _, data, _ in segments))
+    image[:7] = b"\x7fELF\x01\x01\x01"
+    entry = segments[0][0] if segments else 0
+    struct.pack_into(
+        "<HHIIIIIHHHHHH",
+        image,
+        16,
+        2,
+        3,
+        1,
+        entry,
+        header_size,
+        0,
+        0,
+        header_size,
+        program_header_size,
+        len(segments),
+        0,
+        0,
+        0,
+    )
+    cursor = payload_offset
+    for index, (address, flags, data, memory_size) in enumerate(segments):
+        struct.pack_into(
+            "<IIIIIIII",
+            image,
+            header_size + index * program_header_size,
+            1,
+            cursor,
+            address,
+            address,
+            len(data),
+            memory_size,
+            flags,
+            1,
+        )
+        image[cursor : cursor + len(data)] = data
+        cursor += len(data)
+    return bytes(image)
+
+
+def elf32_symbolized_executable(*, entry=0x00100000, alias=0x00100000):
+    text = bytes.fromhex("b8 78 56 34 12 c3")
+    strings = b"\0entry\0alias\0ignored\0\0"
+    section_strings = b"\0.text\0.symtab\0.strtab\0.shstrtab\0\0"
+    section_headers = 212
+    image = bytearray(section_headers + 5 * 40)
+    image[:7] = b"\x7fELF\x01\x01\x01"
+    struct.pack_into(
+        "<HHIIIIIHHHHHH",
+        image,
+        16,
+        2,
+        3,
+        1,
+        entry,
+        52,
+        section_headers,
+        0,
+        52,
+        32,
+        1,
+        40,
+        5,
+        4,
+    )
+    struct.pack_into(
+        "<IIIIIIII",
+        image,
+        52,
+        1,
+        84,
+        0x00100000,
+        0x00100000,
+        len(text),
+        8,
+        5,
+        4,
+    )
+    image[84:90] = text
+    image[90 : 90 + len(strings)] = strings
+    struct.pack_into("<IIIBBH", image, 128, 1, 0x00100000, len(text), 0x12, 0, 1)
+    struct.pack_into("<IIIBBH", image, 144, 7, alias, 0, 0x12, 0, 1)
+    struct.pack_into("<IIIBBH", image, 160, 13, 0x00100001, 1, 0x11, 0, 1)
+    image[176 : 176 + len(section_strings)] = section_strings
+    struct.pack_into(
+        "<IIIIIIIIII",
+        image,
+        section_headers + 40,
+        1,
+        1,
+        6,
+        0x00100000,
+        84,
+        len(text),
+        0,
+        0,
+        4,
+        0,
+    )
+    struct.pack_into(
+        "<IIIIIIIIII",
+        image,
+        section_headers + 80,
+        7,
+        2,
+        0,
+        0,
+        112,
+        64,
+        3,
+        1,
+        4,
+        16,
+    )
+    struct.pack_into(
+        "<IIIIIIIIII",
+        image,
+        section_headers + 120,
+        15,
+        3,
+        0,
+        0,
+        90,
+        len(strings),
+        0,
+        0,
+        1,
+        0,
+    )
+    struct.pack_into(
+        "<IIIIIIIIII",
+        image,
+        section_headers + 160,
+        23,
+        3,
+        0,
+        0,
+        176,
+        len(section_strings),
+        0,
+        0,
+        1,
+        0,
+    )
+    return bytes(image)
+
+
+def configured_symbol_reader_command():
+    configured = bootstrap_baseline.optional_oracle_commands()[
+        "symbol_reader"
+    ]
+    return bootstrap_baseline.resolve_tool_command(configured)
+
+
+def elf32_relocation_sections(image):
+    section_headers = struct.unpack_from("<I", image, 32)[0]
+    section_header_size = struct.unpack_from("<H", image, 46)[0]
+    section_count = struct.unpack_from("<H", image, 48)[0]
+    sections = []
+    for section_index in range(section_count):
+        header = section_headers + section_index * section_header_size
+        section_type = struct.unpack_from("<I", image, header + 4)[0]
+        if section_type != 9:
+            continue
+        target_index = struct.unpack_from("<I", image, header + 28)[0]
+        target_header = section_headers + target_index * section_header_size
+        target_flags = struct.unpack_from("<I", image, target_header + 8)[0]
+        relocation_offset = struct.unpack_from("<I", image, header + 16)[0]
+        relocation_size = struct.unpack_from("<I", image, header + 20)[0]
+        sections.append(
+            (
+                header,
+                target_index,
+                target_flags,
+                relocation_offset,
+                relocation_size,
+            )
+        )
+    return sections
+
+
+def python_pe32_records(path):
+    data = path.read_bytes()
+    pe_offset = struct.unpack_from("<I", data, 0x3C)[0]
+    section_count = struct.unpack_from("<H", data, pe_offset + 6)[0]
+    optional_offset = pe_offset + 24
+    optional_size = struct.unpack_from("<H", data, pe_offset + 20)[0]
+    image_base = struct.unpack_from("<I", data, optional_offset + 28)[0]
+    entry_rva = struct.unpack_from("<I", data, optional_offset + 16)[0]
+    image_size = struct.unpack_from("<I", data, optional_offset + 56)[0]
+    headers_size = struct.unpack_from("<I", data, optional_offset + 60)[0]
+    directories = tuple(
+        struct.unpack_from("<II", data, optional_offset + 96 + index * 8)
+        for index in range(16)
+    )
+    sections = []
+    section_offset = optional_offset + optional_size
+    for index in range(section_count):
+        header = section_offset + index * 40
+        name = data[header : header + 8].split(b"\0", 1)[0].decode("ascii")
+        virtual_size, rva, raw_size, raw_offset = struct.unpack_from(
+            "<IIII", data, header + 8
+        )
+        characteristics = struct.unpack_from("<I", data, header + 36)[0]
+        sections.append(
+            {
+                "index": index,
+                "name": name,
+                "rva": rva,
+                "vaddr": image_base + rva,
+                "virtual_size": virtual_size,
+                "raw_offset": raw_offset,
+                "raw_size": raw_size,
+                "characteristics": characteristics,
+            }
+        )
+
+    idata = next(section for section in sections if section["name"] == ".idata")
+
+    def rva_offset(rva):
+        return idata["raw_offset"] + rva - idata["rva"]
+
+    def rva_string(rva):
+        offset = rva_offset(rva)
+        end = data.index(0, offset, idata["raw_offset"] + idata["virtual_size"])
+        return data[offset:end].decode("ascii")
+
+    libraries = []
+    descriptor_offset = rva_offset(directories[1][0])
+    library_index = 0
+    while True:
+        lookup_rva, timestamp, forwarder, name_rva, iat_rva = struct.unpack_from(
+            "<IIIII", data, descriptor_offset + library_index * 20
+        )
+        if (lookup_rva, timestamp, forwarder, name_rva, iat_rva) == (0, 0, 0, 0, 0):
+            break
+        procedures = []
+        procedure_index = 0
+        while True:
+            lookup_cell_rva = lookup_rva + procedure_index * 4
+            iat_cell_rva = iat_rva + procedure_index * 4
+            hint_rva = struct.unpack_from("<I", data, rva_offset(lookup_cell_rva))[0]
+            iat_value = struct.unpack_from("<I", data, rva_offset(iat_cell_rva))[0]
+            if hint_rva == 0:
+                break
+            procedures.append(
+                {
+                    "name": rva_string(hint_rva + 2),
+                    "hint_rva": hint_rva,
+                    "lookup_rva": lookup_cell_rva,
+                    "iat_rva": iat_cell_rva,
+                    "iat_value": iat_value,
+                }
+            )
+            procedure_index += 1
+        libraries.append(
+            {
+                "name": rva_string(name_rva),
+                "lookup_rva": lookup_rva,
+                "iat_rva": iat_rva,
+                "procedures": procedures,
+            }
+        )
+        library_index += 1
+    return {
+        "entry": image_base + entry_rva,
+        "image_base": image_base,
+        "image_size": image_size,
+        "headers_size": headers_size,
+        "directories": directories,
+        "sections": sections,
+        "libraries": libraries,
+    }
+
+
+def render_python_pe32_records(records):
+    imports = [
+        (library, procedure)
+        for library in records["libraries"]
+        for procedure in library["procedures"]
+    ]
+    lines = [
+        "PE32 i386 "
+        f"entry=0x{records['entry']:08X} "
+        f"image-base=0x{records['image_base']:08X} "
+        f"sections={len(records['sections'])} "
+        f"imports={len(imports)} "
+        f"libraries={len(records['libraries'])} "
+        f"image-size=0x{records['image_size']:08X} "
+        f"headers-size=0x{records['headers_size']:08X}",
+        "[directories]",
+        f"import rva=0x{records['directories'][1][0]:08X} "
+        f"size=0x{records['directories'][1][1]:08X}",
+        f"iat rva=0x{records['directories'][12][0]:08X} "
+        f"size=0x{records['directories'][12][1]:08X}",
+        "[sections]",
+    ]
+    for section in records["sections"]:
+        characteristics = section["characteristics"]
+        flags = ""
+        if characteristics & 0x40000000:
+            flags += "R"
+        if characteristics & 0x80000000:
+            flags += "W"
+        if characteristics & 0x20000000:
+            flags += "X"
+        lines.append(
+            f"[{section['index']}] {section['name']} flags={flags} "
+            f"rva=0x{section['rva']:08X} vaddr=0x{section['vaddr']:08X} "
+            f"vsize=0x{section['virtual_size']:08X} "
+            f"off=0x{section['raw_offset']:08X} "
+            f"rawsize=0x{section['raw_size']:08X}"
+        )
+    lines.append("[imports]")
+    for index, (library, procedure) in enumerate(imports):
+        lines.append(
+            f"[{index}] {library['name']}!{procedure['name']} "
+            f"lookup=0x{procedure['lookup_rva']:08X} "
+            f"iat=0x{procedure['iat_rva']:08X}"
+        )
+    return "\n".join(lines) + "\n"
+
+
+class CupidDisOracleConfigurationTests(unittest.TestCase):
+    def test_configured_symbol_reader_arguments_are_preserved(self):
+        with mock.patch.dict(
+            os.environ,
+            {"NM": f'"{sys.executable}" --symbol-oracle-mode'},
+        ):
+            command = configured_symbol_reader_command()
+
+        self.assertEqual(
+            command,
+            (str(Path(sys.executable).resolve()), "--symbol-oracle-mode"),
+        )
+
+
+class CupidDisContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._build_directory = tempfile.TemporaryDirectory(
+            prefix=".cupiddis-build-", dir=TOOLCHAIN_ROOT
+        )
+        cls._fixture_directory = tempfile.TemporaryDirectory(
+            prefix=".cupiddis-fixture-", dir=TOOLCHAIN_ROOT
+        )
+        build_path = Path(cls._build_directory.name)
+        relative_build = build_path.relative_to(TOOLCHAIN_ROOT)
+        suffix = ".exe" if os.name == "nt" else ""
+        cls.contract_path = build_path / ("cupiddis-contract" + suffix)
+        cls.elf_contract_path = build_path / ("elf32-contract" + suffix)
+        cls.cli_path = build_path / ("cupiddis" + suffix)
+        cls.asm_path = build_path / ("cupidasm" + suffix)
+        cls.ld_path = build_path / ("cupidld" + suffix)
+        relative_prefix = relative_build.as_posix()
+        result = subprocess.run(
+            [
+                "make",
+                "-C",
+                str(TOOLCHAIN_ROOT),
+                f"BUILD_DIR={relative_build}",
+                f"{relative_prefix}/cupiddis-contract{suffix}",
+                f"{relative_prefix}/elf32-contract{suffix}",
+                f"{relative_prefix}/cupiddis{suffix}",
+                f"{relative_prefix}/cupidasm{suffix}",
+                f"{relative_prefix}/cupidld{suffix}",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode != 0:
+            cls._fixture_directory.cleanup()
+            cls._build_directory.cleanup()
+            raise AssertionError(
+                "CupidDis hosted build failed\n" + result.stdout + result.stderr
+            )
+        fixture = subprocess.run(
+            [
+                str(cls.elf_contract_path),
+                "write-oracle",
+                cls._fixture_directory.name,
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        if fixture.returncode != 0:
+            cls._fixture_directory.cleanup()
+            cls._build_directory.cleanup()
+            raise AssertionError(
+                "CupidDis fixture creation failed\n"
+                + fixture.stdout
+                + fixture.stderr
+            )
+        cls.object_path = Path(cls._fixture_directory.name) / "cupid.o"
+        cls.unowned_relocation_path = (
+            Path(cls._fixture_directory.name) / "unowned-relocation.o"
+        )
+        unowned_relocation = bytearray(cls.object_path.read_bytes())
+        relocation_rewritten = False
+        for _, _, target_flags, relocation_offset, _ in (
+            elf32_relocation_sections(unowned_relocation)
+        ):
+            if target_flags & 4 == 0:
+                continue
+            struct.pack_into("<I", unowned_relocation, relocation_offset, 0)
+            relocation_rewritten = True
+            break
+        if not relocation_rewritten:
+            raise AssertionError("CupidDis fixture has no code relocation")
+        cls.unowned_relocation_path.write_bytes(unowned_relocation)
+        cls.duplicate_relocation_path = (
+            Path(cls._fixture_directory.name) / "duplicate-relocation.o"
+        )
+        duplicate_relocation = bytearray(cls.object_path.read_bytes())
+        relocation_sections = elf32_relocation_sections(duplicate_relocation)
+        executable_section = next(
+            (section for section in relocation_sections if section[2] & 4),
+            None,
+        )
+        spare_section = next(
+            (
+                section
+                for section in relocation_sections
+                if (section[2] & 4) == 0
+            ),
+            None,
+        )
+        if executable_section is None or spare_section is None:
+            raise AssertionError(
+                "CupidDis fixture needs code and data relocations"
+            )
+        _, code_target, _, code_offset, code_size = (
+            executable_section
+        )
+        spare_header, _, _, spare_offset, spare_size = spare_section
+        if code_size == 0 or code_size % 8 != 0 or spare_size < 8:
+            raise AssertionError("CupidDis fixture has invalid relocation rows")
+        duplicate_relocation[spare_offset : spare_offset + 8] = (
+            duplicate_relocation[code_offset : code_offset + 8]
+        )
+        struct.pack_into("<I", duplicate_relocation, spare_header + 20, 8)
+        struct.pack_into(
+            "<I", duplicate_relocation, spare_header + 28, code_target
+        )
+        cls.duplicate_relocation_path.write_bytes(duplicate_relocation)
+        cls.raw_path = Path(cls._fixture_directory.name) / "boot.bin"
+        cls.raw_path.write_bytes(bytes([0xB8, 0x34, 0x12, 0xC3]))
+        cls.shrd_path = Path(cls._fixture_directory.name) / "ctool-shrd.bin"
+        cls.shrd_path.write_bytes(
+            bytes([0x0F, 0xAD, 0xF8, 0x0F, 0xAD, 0xF8, 0xC3])
+        )
+        cls.parity_setcc_path = (
+            Path(cls._fixture_directory.name) / "cupidc-parity-setcc.bin"
+        )
+        cls.parity_setcc_path.write_bytes(
+            bytes.fromhex(
+                "0f 94 c0 0f 9b c2 20 d0 0f b6 c0 "
+                "0f 95 c0 0f 9a c2 08 d0 0f b6 c0 c3"
+            )
+        )
+        cls.mixed_raw_path = (
+            Path(cls._fixture_directory.name) / "mixed-mode.bin"
+        )
+        cls.mixed_raw_path.write_bytes(
+            bytes(
+                [
+                    0xB8, 0x34, 0x12,
+                    0x00, 0x00, 0x90, 0xC3,
+                    0xB8, 0x78, 0x56, 0x34, 0x12,
+                    0xB8, 0xCD, 0xAB, 0xC3,
+                ]
+            )
+        )
+        cls.mode_alias_path = (
+            Path(cls._fixture_directory.name) / "code-only-modes.bin"
+        )
+        cls.mode_alias_path.write_bytes(
+            bytes(
+                [
+                    0xB8, 0x34, 0x12,
+                    0xB8, 0x78, 0x56, 0x34, 0x12,
+                    0xB8, 0xCD, 0xAB, 0xC3,
+                ]
+            )
+        )
+        cls.not_elf_path = Path(cls._fixture_directory.name) / "not-elf.bin"
+        cls.not_elf_path.write_bytes(b"not elf")
+        cls.bad_elf_path = Path(cls._fixture_directory.name) / "bad.elf"
+        cls.bad_elf_path.write_bytes(b"\x7fELF")
+        cls.incomplete_code_path = (
+            Path(cls._fixture_directory.name) / "incomplete-code.bin"
+        )
+        cls.incomplete_code_path.write_bytes(
+            bytes.fromhex("90 0f ff c0 66 66 90 0f 0f ff 66 66 0f")
+        )
+        cls.clean_code_path = (
+            Path(cls._fixture_directory.name) / "clean-code.bin"
+        )
+        cls.clean_code_path.write_bytes(bytes.fromhex("90 c3"))
+        cls.bad_code_path = Path(cls._fixture_directory.name) / "bad-code.bin"
+        cls.bad_code_path.write_bytes(
+            bytes.fromhex("90 0f ff c0 66 66 90 0f")
+        )
+        cls.truncated_code_path = (
+            Path(cls._fixture_directory.name) / "truncated-code.bin"
+        )
+        cls.truncated_code_path.write_bytes(bytes.fromhex("90 0f"))
+        cls.valid_target_path = (
+            Path(cls._fixture_directory.name) / "valid-target.bin"
+        )
+        cls.valid_target_path.write_bytes(bytes.fromhex("eb 01 90 c3"))
+        cls.middle_target_path = (
+            Path(cls._fixture_directory.name) / "middle-target.bin"
+        )
+        cls.middle_target_path.write_bytes(
+            bytes.fromhex("eb 01 b8 00 00 00 00 c3")
+        )
+        cls.outside_target_path = (
+            Path(cls._fixture_directory.name) / "outside-target.bin"
+        )
+        cls.outside_target_path.write_bytes(bytes.fromhex("eb 7f"))
+        cls.data_target_path = (
+            Path(cls._fixture_directory.name) / "data-target.bin"
+        )
+        cls.data_target_path.write_bytes(bytes.fromhex("eb 00 90 c3"))
+        cls.wrong_mode_target_path = (
+            Path(cls._fixture_directory.name) / "wrong-mode-target.bin"
+        )
+        cls.wrong_mode_target_path.write_bytes(bytes.fromhex("eb 00 c3"))
+        cls.cross_data_target_path = (
+            Path(cls._fixture_directory.name) / "cross-data-target.bin"
+        )
+        cls.cross_data_target_path.write_bytes(
+            bytes.fromhex("eb 02 11 22 c3")
+        )
+        cls.wrapped_target_path = (
+            Path(cls._fixture_directory.name) / "wrapped-target.bin"
+        )
+        cls.wrapped_target_path.write_bytes(bytes.fromhex("eb 00 c3"))
+        local_object_sources = (
+            (
+                "local_target_object_path",
+                "valid-local-target.asm",
+                "valid-local-target.o",
+                "BITS 32\n"
+                "extern external\n"
+                "section .text\n"
+                "entry:\n"
+                "    call external\n"
+                "    jmp done\n"
+                "    nop\n"
+                "done:\n"
+                "    ret\n",
+            ),
+            (
+                "outside_target_object_path",
+                "outside-local-target.asm",
+                "outside-local-target.o",
+                "BITS 32\nsection .text\ndb 0xeb, 0x7f\n",
+            ),
+            (
+                "middle_target_object_path",
+                "middle-local-target.asm",
+                "middle-local-target.o",
+                "BITS 32\nsection .text\n"
+                "db 0xeb, 0x01, 0xb8, 0, 0, 0, 0, 0xc3\n",
+            ),
+            (
+                "valid_object_anchor_path",
+                "valid-object-anchor.asm",
+                "valid-object-anchor.o",
+                "BITS 32\n"
+                "extern external:function\n"
+                "global entry:function, done:function\n"
+                "section .text\n"
+                "entry:\n"
+                "    call external\n"
+                "done:\n"
+                "    ret\n",
+            ),
+            (
+                "middle_object_anchor_path",
+                "middle-object-anchor.asm",
+                "middle-object-anchor.o",
+                "BITS 32\n"
+                "global entry:function, bad:function\n"
+                "section .text\n"
+                "entry:\n"
+                "    db 0xb8\n"
+                "bad:\n"
+                "    dd 0\n"
+                "    ret\n",
+            ),
+            (
+                "data_object_anchor_path",
+                "data-object-anchor.asm",
+                "data-object-anchor.o",
+                "BITS 32\n"
+                "global entry:function, bad:function\n"
+                "section .text\n"
+                "entry: ret\n"
+                "section .data\n"
+                "bad: db 0xc3\n",
+            ),
+        )
+        for attribute, source_name, object_name, source_text in (
+            local_object_sources
+        ):
+            source_path = Path(cls._fixture_directory.name) / source_name
+            object_path = Path(cls._fixture_directory.name) / object_name
+            source_path.write_text(source_text, encoding="utf-8")
+            assembled = subprocess.run(
+                [
+                    str(cls.asm_path),
+                    "-f",
+                    "elf32",
+                    str(source_path),
+                    "-o",
+                    str(object_path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            if assembled.returncode != 0:
+                raise AssertionError(
+                    "CupidDis local-target fixture assembly failed\n"
+                    + assembled.stdout
+                    + assembled.stderr
+                )
+            setattr(cls, attribute, object_path)
+        cls.exec_path = Path(cls._fixture_directory.name) / "program.elf"
+        executable = bytearray(90)
+        executable[:7] = b"\x7fELF\x01\x01\x01"
+        struct.pack_into("<HHIIIIIHHHHHH", executable, 16, 2, 3, 1,
+                         0x00400000, 52, 0, 0, 52, 32, 1, 0, 0, 0)
+        struct.pack_into("<IIIIIIII", executable, 52, 1, 84, 0x00400000,
+                         0x00400000, 6, 6, 5, 4)
+        executable[84:] = bytes([0xB8, 0x78, 0x56, 0x34, 0x12, 0xC3])
+        cls.exec_path.write_bytes(executable)
+        exec_target_fixtures = (
+            (
+                "valid_exec_target_path",
+                "valid-exec-target.elf",
+                (
+                    (
+                        0x00400000,
+                        5,
+                        bytes.fromhex("eb 01 90 c3 e9 f7 00 00 00"),
+                        9,
+                    ),
+                    (0x00400100, 5, bytes.fromhex("c3"), 1),
+                ),
+            ),
+            (
+                "outside_exec_target_path",
+                "outside-exec-target.elf",
+                ((0x00400000, 5, bytes.fromhex("e9 fb 02 00 00 c3"), 6),),
+            ),
+            (
+                "data_exec_target_path",
+                "data-exec-target.elf",
+                (
+                    (0x00400000, 5, bytes.fromhex("e9 fb 01 00 00 c3"), 6),
+                    (0x00400200, 4, bytes.fromhex("00"), 1),
+                ),
+            ),
+            (
+                "executable_bss_exec_target_path",
+                "executable-bss-exec-target.elf",
+                (
+                    (
+                        0x00400000,
+                        5,
+                        bytes.fromhex("e9 fb 00 00 00 c3"),
+                        0x101,
+                    ),
+                ),
+            ),
+            (
+                "middle_exec_target_path",
+                "middle-exec-target.elf",
+                ((0x00400000, 5, bytes.fromhex("eb ff c3"), 3),),
+            ),
+            (
+                "far_indirect_exec_target_path",
+                "far-indirect-exec-target.elf",
+                (
+                    (
+                        0x00400000,
+                        5,
+                        bytes.fromhex(
+                            "ea 00 01 40 00 08 00 ff d0 c3"
+                        ),
+                        10,
+                    ),
+                ),
+            ),
+            (
+                "overlapping_exec_target_path",
+                "overlapping-exec-target.elf",
+                (
+                    (0x00400000, 5, bytes.fromhex("90 c3"), 2),
+                    (0x00400001, 5, bytes.fromhex("c3"), 1),
+                ),
+            ),
+        )
+        for attribute, name, segments in exec_target_fixtures:
+            fixture_path = Path(cls._fixture_directory.name) / name
+            fixture_path.write_bytes(elf32_executable(segments))
+            setattr(cls, attribute, fixture_path)
+        anchor_fixtures = (
+            ("valid_code_anchors_path", "valid-code-anchors.elf", {}),
+            (
+                "middle_entry_anchor_path",
+                "middle-entry-anchor.elf",
+                {"entry": 0x00100001},
+            ),
+            (
+                "middle_function_anchor_path",
+                "middle-function-anchor.elf",
+                {"alias": 0x00100001},
+            ),
+            (
+                "outside_entry_anchor_path",
+                "outside-entry-anchor.elf",
+                {"entry": 0x00200000},
+            ),
+            (
+                "memory_only_entry_anchor_path",
+                "memory-only-entry-anchor.elf",
+                {"entry": 0x00100006},
+            ),
+        )
+        for attribute, name, arguments in anchor_fixtures:
+            fixture_path = Path(cls._fixture_directory.name) / name
+            fixture_path.write_bytes(elf32_symbolized_executable(**arguments))
+            setattr(cls, attribute, fixture_path)
+        cls.pe32_object_path = (
+            Path(cls._fixture_directory.name) / "cupiddis-pe32.o"
+        )
+        pe32_source = (
+            Path(cls._fixture_directory.name) / "cupiddis-pe32.asm"
+        )
+        pe32_source.write_text(
+            "BITS 32\n"
+            "section .text\n"
+            "global _start\n"
+            "_start:\n"
+            "    jmp done\n"
+            "    nop\n"
+            "done:\n"
+            "    ret\n",
+            encoding="utf-8",
+        )
+        pe32_assembled = subprocess.run(
+            [
+                str(cls.asm_path),
+                "-f",
+                "elf32",
+                str(pe32_source),
+                "-o",
+                str(cls.pe32_object_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        if pe32_assembled.returncode != 0:
+            raise AssertionError(
+                "CupidDis PE32 fixture assembly failed\n"
+                + pe32_assembled.stdout
+                + pe32_assembled.stderr
+            )
+        cls.pe32_path = (
+            Path(cls._fixture_directory.name) / "cupiddis-pe32.exe"
+        )
+        pe32_linked = subprocess.run(
+            [
+                str(cls.ld_path),
+                "-m",
+                "i386pe",
+                "--text-address",
+                "0x00401000",
+                "--entry",
+                "_start",
+                "-o",
+                str(cls.pe32_path),
+                str(cls.pe32_object_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        if pe32_linked.returncode != 0:
+            raise AssertionError(
+                "CupidDis PE32 fixture link failed\n"
+                + pe32_linked.stdout
+                + pe32_linked.stderr
+            )
+        unsupported_exec_programs = (
+            ("dynamic_exec_target_path", "dynamic-exec-target.elf", 2),
+            ("interpreter_exec_target_path", "interpreter-exec-target.elf", 3),
+        )
+        for attribute, name, program_type in unsupported_exec_programs:
+            executable = bytearray(
+                elf32_executable(
+                    (
+                        (0x00400000, 5, bytes.fromhex("c3"), 1),
+                        (0x00400100, 4, b"/ld.so\0", 7),
+                    )
+                )
+            )
+            struct.pack_into("<I", executable, 84, program_type)
+            fixture_path = Path(cls._fixture_directory.name) / name
+            fixture_path.write_bytes(executable)
+            setattr(cls, attribute, fixture_path)
+        cls.symbol_reader_command = configured_symbol_reader_command()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._fixture_directory.cleanup()
+        cls._build_directory.cleanup()
+
+    def run_contract(self, mode):
+        result = subprocess.run(
+            [str(self.contract_path), mode],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, f"{mode}: ok\n")
+
+    def test_raw_16_and_32_bit_decode_and_recovery(self):
+        self.run_contract("raw")
+
+    def test_prepared_decoder_is_reused_across_indexed_inspections(self):
+        self.run_contract("indexed")
+
+    def test_typed_local_relative_target_policy(self):
+        self.run_contract("targets")
+
+    def test_typed_static_executable_code_anchor_policy(self):
+        self.run_contract("anchors")
+
+    def test_typed_pe32_reader_inspection_and_recovery(self):
+        self.run_contract("pe32")
+
+    def test_relocatable_object_report_and_relocation_overlay(self):
+        self.run_contract("object")
+
+    def test_sectionless_executable_uses_executable_load_segment(self):
+        self.run_contract("exec")
+
+    def test_nm_order_and_failure_contracts(self):
+        self.run_contract("nm")
+        self.run_contract("errors")
+
+    def test_cli_default_inspects_all_relocatable_object_views(self):
+        result = subprocess.run(
+            [str(self.cli_path), str(self.object_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("ELF32 REL i386", result.stdout)
+        self.assertIn("[sections]", result.stdout)
+        self.assertIn("[symbols]", result.stdout)
+        self.assertIn("[relocations]", result.stdout)
+        self.assertIn("[disassembly .text]", result.stdout)
+
+    def test_cli_inspects_sectionless_executable_load_segment(self):
+        result = subprocess.run(
+            [
+                str(self.cli_path),
+                "--headers",
+                "--disassemble",
+                str(self.exec_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("ELF32 EXEC i386", result.stdout)
+        self.assertIn("[program headers]", result.stdout)
+        self.assertIn("[disassembly LOAD#0]", result.stdout)
+        self.assertIn("mov eax, 0x12345678", result.stdout)
+
+    def test_cli_inspects_cupidld_pe32_fixture(self):
+        result = subprocess.run(
+            [str(self.cli_path), str(self.pe32_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PE32 i386 entry=0x00401000", result.stdout)
+        self.assertIn("[sections]\n", result.stdout)
+        self.assertIn("[imports]\n", result.stdout)
+        self.assertIn("[disassembly .text]\n", result.stdout)
+        self.assertIn("jmp 0x00401003", result.stdout)
+
+    def test_cli_inspects_and_strictly_checks_all_windows_seeds(self):
+        seed_root = REPO_ROOT / "bootstrap" / "seeds" / "i386-windows"
+        expected_names = {
+            "cupidasm.exe",
+            "cupidc.exe",
+            "cupiddis.exe",
+            "cupidld.exe",
+            "cupidobj.exe",
+            "cupidbuild.exe",
+        }
+        seeds = sorted(seed_root.glob("*.exe"))
+        self.assertEqual({path.name for path in seeds}, expected_names)
+        for path in seeds:
+            expected_imports = bootstrap_toolchain._windows_imports(path.stem)
+            bootstrap_toolchain._validate_static_i386_pe32(
+                path,
+                0x00401000,
+                expected_imports,
+            )
+            records = python_pe32_records(path)
+            self.assertEqual(
+                tuple(
+                    (
+                        library["name"],
+                        tuple(
+                            procedure["name"]
+                            for procedure in library["procedures"]
+                        ),
+                    )
+                    for library in records["libraries"]
+                ),
+                tuple(
+                    (library, tuple(procedures))
+                    for library, procedures in expected_imports
+                ),
+            )
+            for library in records["libraries"]:
+                self.assertEqual(
+                    tuple(
+                        procedure["lookup_rva"]
+                        for procedure in library["procedures"]
+                    ),
+                    tuple(
+                        library["lookup_rva"] + index * 4
+                        for index in range(len(library["procedures"]))
+                    ),
+                )
+                self.assertEqual(
+                    tuple(
+                        procedure["iat_rva"]
+                        for procedure in library["procedures"]
+                    ),
+                    tuple(
+                        library["iat_rva"] + index * 4
+                        for index in range(len(library["procedures"]))
+                    ),
+                )
+                self.assertTrue(
+                    all(
+                        procedure["iat_value"] == procedure["hint_rva"]
+                        for procedure in library["procedures"]
+                    )
+                )
+            with self.subTest(seed=path.name, mode="report"):
+                report = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--headers",
+                        "--sections",
+                        "--imports",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(report.returncode, 0, report.stderr)
+                self.assertEqual(
+                    report.stdout, render_python_pe32_records(records)
+                )
+            with self.subTest(seed=path.name, mode="strict"):
+                checked = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-local-targets",
+                        "--require-code-anchors",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(checked.returncode, 0, checked.stderr)
+                self.assertEqual(checked.stdout, "")
+                self.assertEqual(checked.stderr, "")
+
+    def test_cli_pe32_failures_preserve_empty_output(self):
+        image = self.pe32_path.read_bytes()
+        cases = []
+        truncated = Path(self._fixture_directory.name) / "pe32-truncated.exe"
+        truncated.write_bytes(image[:64])
+        cases.append((truncated, (), "PE32 DOS header is truncated"))
+
+        unknown = Path(self._fixture_directory.name) / "pe32-unknown.exe"
+        unknown_image = bytearray(image)
+        text_offset = struct.unpack_from("<I", unknown_image, 376 + 20)[0]
+        unknown_image[text_offset : text_offset + 2] = b"\x0f\xff"
+        unknown.write_bytes(unknown_image)
+        cases.append((unknown, ("--require-known",), "code check failed"))
+
+        local_target = (
+            Path(self._fixture_directory.name) / "pe32-bad-target.exe"
+        )
+        target_image = bytearray(image)
+        target_image[text_offset : text_offset + 2] = bytes.fromhex("eb 7f")
+        local_target.write_bytes(target_image)
+        cases.append(
+            (
+                local_target,
+                ("--require-known", "--require-local-targets"),
+                "local target check failed",
+            )
+        )
+
+        entry_anchor = (
+            Path(self._fixture_directory.name) / "pe32-bad-entry.exe"
+        )
+        anchor_image = bytearray(image)
+        entry_rva = struct.unpack_from("<I", anchor_image, 152 + 16)[0]
+        struct.pack_into("<I", anchor_image, 152 + 16, entry_rva + 1)
+        entry_anchor.write_bytes(anchor_image)
+        cases.append(
+            (
+                entry_anchor,
+                ("--require-known", "--require-code-anchors"),
+                "code anchor check failed",
+            )
+        )
+
+        for path, arguments, expected in cases:
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    [str(self.cli_path), *arguments, str(path)],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(expected, result.stderr)
+
+    def test_cli_requires_every_code_region_to_decode_cleanly(self):
+        clean = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                str(self.exec_path),
+                str(self.object_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(clean.returncode, 0, clean.stderr)
+        self.assertEqual(clean.stdout, "")
+        self.assertEqual(clean.stderr, "")
+
+        incomplete = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--raw",
+                "--mode=32",
+                "--range-at=8:data",
+                "--base=0x407000",
+                str(self.incomplete_code_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(incomplete.returncode, 1)
+        self.assertEqual(incomplete.stdout, "")
+        self.assertIn(
+            f"{self.incomplete_code_path}: code check failed: "
+            "3 known, 1 unknown, 1 invalid, 1 truncated",
+            incomplete.stderr,
+        )
+
+        mixed = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--raw",
+                "--mode=32",
+                "--base=0",
+                str(self.clean_code_path),
+                str(self.bad_code_path),
+                str(self.truncated_code_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(mixed.returncode, 1)
+        self.assertEqual(mixed.stdout, "")
+        self.assertIn(
+            f"{self.bad_code_path}: code check failed: "
+            "3 known, 1 unknown, 1 invalid, 1 truncated",
+            mixed.stderr,
+        )
+        self.assertIn(
+            f"{self.truncated_code_path}: code check failed: "
+            "1 known, 0 unknown, 0 invalid, 1 truncated",
+            mixed.stderr,
+        )
+        self.assertNotIn(
+            f"{self.clean_code_path}: code check failed", mixed.stderr
+        )
+
+        unowned_relocation = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                str(self.unowned_relocation_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(unowned_relocation.returncode, 1)
+        self.assertEqual(unowned_relocation.stdout, "")
+        self.assertIn(
+            f"{self.unowned_relocation_path}: code check failed: "
+            "2 known, 0 unknown, 0 invalid, 0 truncated, "
+            "1 of 1 executable relocations unmatched",
+            unowned_relocation.stderr,
+        )
+
+        duplicate_relocation = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                str(self.duplicate_relocation_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(duplicate_relocation.returncode, 1)
+        self.assertEqual(duplicate_relocation.stdout, "")
+        self.assertIn(
+            "ELF32 relocation fields overlap",
+            duplicate_relocation.stderr,
+        )
+
+        missing_path = Path(self._fixture_directory.name) / "missing-code.bin"
+        missing = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--raw",
+                "--mode=32",
+                "--base=0",
+                str(self.clean_code_path),
+                str(missing_path),
+                str(self.truncated_code_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(missing.returncode, 1)
+        self.assertEqual(missing.stdout, "")
+        self.assertIn(str(missing_path), missing.stderr)
+        self.assertIn(
+            f"{self.truncated_code_path}: code check failed: "
+            "1 known, 0 unknown, 0 invalid, 1 truncated",
+            missing.stderr,
+        )
+
+        ordinary_multi = subprocess.run(
+            [str(self.cli_path), str(self.exec_path), str(self.object_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(ordinary_multi.returncode, 2)
+        self.assertEqual(ordinary_multi.stdout, "")
+        self.assertIn("usage: cupiddis", ordinary_multi.stderr)
+
+    def test_cli_prepares_one_decoder_for_the_whole_strict_batch(self):
+        source = (TOOLCHAIN_ROOT / "cupiddis_main.cc").read_text(
+            encoding="utf-8"
+        )
+        strict_start = source.index("if (cli.require_known == CTOOL_TRUE)")
+        strict_end = source.index("free(cli.raw_ranges);", strict_start)
+        strict_branch = source[strict_start:strict_end]
+
+        self.assertEqual(
+            strict_branch.count("ctool_x86_decoder_prepare("), 1
+        )
+        prepare = strict_branch.index("ctool_x86_decoder_prepare(")
+        loop = strict_branch.index(
+            "for (index = 0u; index < cli.input_count; index++)"
+        )
+        reuse = strict_branch.index(
+            "cupiddis_check_known_input(&cli, decoder,"
+        )
+        self.assertLess(prepare, loop)
+        self.assertLess(loop, reuse)
+
+        helper_start = source.index("static int cupiddis_check_known_input(")
+        helper_end = source.index("\nint main(", helper_start)
+        helper = source[helper_start:helper_end]
+        self.assertIn(
+            "ctool_dis_inspect_indexed(job, decoder,", helper
+        )
+
+    def test_strict_policies_reuse_the_summary_decode_map(self):
+        source = (TOOLCHAIN_ROOT / "cupiddis.cc").read_text(
+            encoding="utf-8"
+        )
+
+        raw_start = source.index(
+            "static ctool_status_t dis_prepare_raw_policy_summaries("
+        )
+        raw_end = source.index(
+            "static ctool_status_t dis_scan_elf_local_target_section(",
+            raw_start,
+        )
+        raw_helper = source[raw_start:raw_end]
+        self.assertEqual(raw_helper.count("dis_summarize_region("), 2)
+        self.assertEqual(raw_helper.count("dis_scan_raw_policy_region("), 2)
+        self.assertNotIn("for (pass =", raw_helper)
+
+        rel_start = source.index(
+            "static ctool_status_t dis_prepare_rel_policy_summaries("
+        )
+        rel_end = source.index("typedef struct {", rel_start)
+        rel_helper = source[rel_start:rel_end]
+        self.assertEqual(rel_helper.count("dis_summarize_region("), 1)
+        self.assertEqual(
+            rel_helper.count("dis_scan_elf_local_target_section("), 1
+        )
+        self.assertNotIn("CTOOL_TRUE", rel_helper)
+
+        exec_start = source.index(
+            "static ctool_status_t dis_prepare_exec_policy_summaries("
+        )
+        exec_end = source.index(
+            "static ctool_status_t\ndis_summarize_region(", exec_start
+        )
+        exec_helper = source[exec_start:exec_end]
+        self.assertEqual(exec_helper.count("dis_summarize_region("), 1)
+        self.assertEqual(
+            exec_helper.count("dis_scan_exec_local_target_region("), 1
+        )
+        self.assertNotIn("CTOOL_TRUE", exec_helper)
+
+        ownership_start = source.index(
+            "typedef struct {\n  const ctool_dis_report_t *report;"
+        )
+        ownership_end = source.index(
+            "} dis_relocation_ownership_t;", ownership_start
+        )
+        ownership = source[ownership_start:ownership_end]
+        self.assertIn(
+            "claimed_indices[CTOOL_X86_MAX_FIELDS]", ownership
+        )
+        self.assertNotIn("relocation_claimed", ownership)
+
+        inspect_start = source.index("static ctool_status_t dis_inspect(")
+        inspect_end = source.index(
+            "ctool_status_t ctool_dis_inspect(", inspect_start
+        )
+        dispatch = source[inspect_start:inspect_end]
+        self.assertEqual(
+            dispatch.count("dis_prepare_raw_policy_summaries("), 1
+        )
+        self.assertEqual(
+            dispatch.count("dis_prepare_rel_policy_summaries("), 1
+        )
+        self.assertEqual(
+            dispatch.count("dis_prepare_exec_policy_summaries("), 2
+        )
+        self.assertEqual(dispatch.count("dis_prepare_decode_summary("), 3)
+
+    def test_cli_requires_local_targets_on_raw_object_and_executable_code(self):
+        def run(path, *options):
+            return subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--require-known",
+                    "--require-local-targets",
+                    "--raw",
+                    *options,
+                    str(path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+        valid = run(self.valid_target_path, "--mode=32", "--base=0")
+        self.assertEqual(valid.returncode, 0, valid.stderr)
+        self.assertEqual(valid.stdout, "")
+        self.assertEqual(valid.stderr, "")
+
+        legacy = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--raw",
+                "--mode=32",
+                "--base=0",
+                str(self.middle_target_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(legacy.returncode, 0, legacy.stderr)
+
+        failures = (
+            (
+                self.middle_target_path,
+                ("--mode=32", "--base=0"),
+                "0 outside image, 0 in data, 0 wrong mode, "
+                "1 mid-instruction",
+            ),
+            (
+                self.outside_target_path,
+                ("--mode=32", "--base=0"),
+                "1 outside image, 0 in data, 0 wrong mode, "
+                "0 mid-instruction",
+            ),
+            (
+                self.data_target_path,
+                ("--mode=32", "--range-at=2:data", "--base=0"),
+                "0 outside image, 1 in data, 0 wrong mode, "
+                "0 mid-instruction",
+            ),
+            (
+                self.wrong_mode_target_path,
+                ("--mode=32", "--range-at=2:16", "--base=0"),
+                "0 outside image, 0 in data, 1 wrong mode, "
+                "0 mid-instruction",
+            ),
+        )
+        for path, options, reason in failures:
+            with self.subTest(path=path.name):
+                result = run(path, *options)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(
+                    f"{path}: local target check failed: "
+                    "1 of 1 direct relative targets invalid",
+                    result.stderr,
+                )
+                self.assertIn(reason, result.stderr)
+
+        cross_data = run(
+            self.cross_data_target_path,
+            "--mode=32",
+            "--range-at=2:data",
+            "--range-at=4:32",
+            "--base=0",
+        )
+        self.assertEqual(cross_data.returncode, 0, cross_data.stderr)
+
+        wrapped = run(
+            self.wrapped_target_path, "--mode=16", "--base=0xfffe"
+        )
+        self.assertEqual(wrapped.returncode, 0, wrapped.stderr)
+
+        missing_known = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-local-targets",
+                "--raw",
+                "--mode=32",
+                "--base=0",
+                str(self.valid_target_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(missing_known.returncode, 2)
+        self.assertIn("usage: cupiddis", missing_known.stderr)
+
+        valid_object = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--require-local-targets",
+                str(self.local_target_object_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(valid_object.returncode, 0, valid_object.stderr)
+        self.assertEqual(valid_object.stdout, "")
+        self.assertEqual(valid_object.stderr, "")
+
+        object_failures = (
+            (self.outside_target_object_path, "1 outside section, "),
+            (self.middle_target_object_path, "0 outside section, "),
+        )
+        for path, outside_reason in object_failures:
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-local-targets",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(
+                    f"{path}: local target check failed: "
+                    "1 of 1 direct relative targets invalid",
+                    result.stderr,
+                )
+                self.assertIn(outside_reason, result.stderr)
+                self.assertIn(
+                    "0 mid-instruction"
+                    if path == self.outside_target_object_path
+                    else "1 mid-instruction",
+                    result.stderr,
+                )
+
+        for path in (
+            self.valid_exec_target_path,
+            self.far_indirect_exec_target_path,
+        ):
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-local-targets",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+
+        exec_failures = (
+            (
+                self.outside_exec_target_path,
+                "1 outside loaded image, 0 in loaded bytes without "
+                "file-backed executable code, "
+                "0 mid-instruction",
+            ),
+            (
+                self.data_exec_target_path,
+                "0 outside loaded image, 1 in loaded bytes without "
+                "file-backed executable code, "
+                "0 mid-instruction",
+            ),
+            (
+                self.executable_bss_exec_target_path,
+                "0 outside loaded image, 1 in loaded bytes without "
+                "file-backed executable code, "
+                "0 mid-instruction",
+            ),
+            (
+                self.middle_exec_target_path,
+                "0 outside loaded image, 0 in loaded bytes without "
+                "file-backed executable code, "
+                "1 mid-instruction",
+            ),
+        )
+        for path, reason in exec_failures:
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-local-targets",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(
+                    f"{path}: local target check failed: "
+                    "1 of 1 direct relative targets invalid",
+                    result.stderr,
+                )
+                self.assertIn(reason, result.stderr)
+
+        overlap = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--require-local-targets",
+                str(self.overlapping_exec_target_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(overlap.returncode, 1)
+        self.assertEqual(overlap.stdout, "")
+        self.assertNotIn("usage: cupiddis", overlap.stderr)
+        self.assertIn(
+            "executable local target checks require non-overlapping "
+            "executable load regions",
+            overlap.stderr,
+        )
+
+        for path in (
+            self.dynamic_exec_target_path,
+            self.interpreter_exec_target_path,
+        ):
+            with self.subTest(path=path.name):
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-local-targets",
+                        str(path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertNotIn("usage: cupiddis", result.stderr)
+                self.assertIn(
+                    "executable local target checks require a static image "
+                    "without PT_DYNAMIC or PT_INTERP",
+                    result.stderr,
+                )
+
+    def test_cli_requires_static_executable_code_anchors(self):
+        def run(path, *extra):
+            return subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--require-known",
+                    "--require-code-anchors",
+                    *extra,
+                    str(path),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+        valid = run(self.valid_code_anchors_path)
+        self.assertEqual(valid.returncode, 0, valid.stderr)
+        self.assertEqual(valid.stdout, "")
+        self.assertEqual(valid.stderr, "")
+
+        failures = (
+            (
+                self.middle_entry_anchor_path,
+                "1 of 3 code anchors invalid (0 outside file-backed "
+                "executable code, 1 mid-instruction)",
+            ),
+            (
+                self.middle_function_anchor_path,
+                "1 of 3 code anchors invalid (0 outside file-backed "
+                "executable code, 1 mid-instruction)",
+            ),
+            (
+                self.outside_entry_anchor_path,
+                "1 of 3 code anchors invalid (1 outside file-backed "
+                "executable code, 0 mid-instruction)",
+            ),
+            (
+                self.memory_only_entry_anchor_path,
+                "1 of 3 code anchors invalid (1 outside file-backed "
+                "executable code, 0 mid-instruction)",
+            ),
+        )
+        for path, diagnostic in failures:
+            with self.subTest(path=path.name):
+                result = run(path)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(
+                    result.stderr,
+                    f"cupiddis: {path}: code anchor check failed: "
+                    f"{diagnostic}\n",
+                )
+
+        missing_known = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-code-anchors",
+                str(self.valid_code_anchors_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(missing_known.returncode, 2)
+        self.assertIn("usage: cupiddis", missing_known.stderr)
+
+        raw = run(
+            self.clean_code_path,
+            "--raw",
+            "--mode=32",
+            "--base=0",
+        )
+        self.assertEqual(raw.returncode, 2)
+        self.assertIn("usage: cupiddis", raw.stderr)
+
+        for path in (self.object_path, self.valid_object_anchor_path):
+            with self.subTest(path=path.name):
+                relocatable = run(path)
+                self.assertEqual(relocatable.returncode, 0, relocatable.stderr)
+                self.assertEqual(relocatable.stdout, "")
+                self.assertEqual(relocatable.stderr, "")
+
+        relocatable_failures = (
+            (
+                self.middle_object_anchor_path,
+                "1 of 2 code anchors invalid (0 outside executable "
+                "PROGBITS, 1 mid-instruction)",
+            ),
+            (
+                self.data_object_anchor_path,
+                "1 of 2 code anchors invalid (1 outside executable "
+                "PROGBITS, 0 mid-instruction)",
+            ),
+        )
+        for path, diagnostic in relocatable_failures:
+            with self.subTest(path=path.name):
+                relocatable = run(path)
+                self.assertEqual(relocatable.returncode, 1)
+                self.assertEqual(relocatable.stdout, "")
+                self.assertEqual(
+                    relocatable.stderr,
+                    f"cupiddis: {path}: code anchor check failed: "
+                    f"{diagnostic}\n",
+                )
+
+        overlap = run(self.overlapping_exec_target_path)
+        self.assertEqual(overlap.returncode, 1)
+        self.assertEqual(overlap.stdout, "")
+        self.assertIn(
+            "executable code anchor checks require non-overlapping "
+            "executable load regions",
+            overlap.stderr,
+        )
+
+        for path in (
+            self.dynamic_exec_target_path,
+            self.interpreter_exec_target_path,
+        ):
+            with self.subTest(path=path.name):
+                result = run(path)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertNotIn("usage: cupiddis", result.stderr)
+                self.assertIn(
+                    "executable code anchor checks require a static image "
+                    "without PT_DYNAMIC or PT_INTERP",
+                    result.stderr,
+                )
+
+    def test_cli_explicit_view_and_nm_modes_are_deterministic(self):
+        sections = subprocess.run(
+            [str(self.cli_path), "--sections", str(self.object_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(sections.returncode, 0, sections.stderr)
+        self.assertIn("[sections]", sections.stdout)
+        self.assertNotIn("[symbols]", sections.stdout)
+        symbols = subprocess.run(
+            [str(self.cli_path), "--nm", str(self.object_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(symbols.returncode, 0, symbols.stderr)
+        self.assertIn("00000000 T entry\n", symbols.stdout)
+        self.assertNotIn("[symbols]", symbols.stdout)
+        addressed_rows = [
+            line.split() for line in symbols.stdout.splitlines()
+            if len(line.split()) >= 3
+        ]
+        addresses = [parts[0] for parts in addressed_rows]
+        self.assertEqual(addresses, sorted(addresses))
+        numeric_sort = subprocess.run(
+            [str(self.cli_path), "-n", str(self.object_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(numeric_sort.returncode, 0, numeric_sort.stderr)
+        self.assertEqual(numeric_sort.stdout, symbols.stdout)
+
+    def test_cli_is_a_drop_in_numeric_nm_symbol_reader(self):
+        oracle = self.symbol_reader_command
+        if oracle is None:
+            self.skipTest("configured host nm oracle is not installed")
+        expected = _symbols_from_nm(oracle, self.object_path)
+        actual = _symbols_from_nm(str(self.cli_path), self.object_path)
+        self.assertEqual(actual, expected)
+
+    def test_cli_raw_mode_requires_explicit_mode_and_base(self):
+        missing = subprocess.run(
+            [str(self.cli_path), "--raw", str(self.raw_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(missing.returncode, 2)
+        self.assertIn("usage: cupiddis", missing.stderr)
+        decoded = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=16",
+                "--base",
+                "0x7c00",
+                str(self.raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertIn("00007C00", decoded.stdout)
+        self.assertIn("mov ax, 0x1234", decoded.stdout)
+
+    def test_cupidasm_source_selectors_round_trip_through_cupiddis(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "shared-x86-selectors.asm"
+            image = root / "shared-x86-selectors.bin"
+            source.write_text(
+                "BITS 32\n"
+                "    shrd eax, edi, cl\n"
+                "    nop word [eax]\n"
+                "    setc dl\n"
+                "    iretd\n"
+                "    pushad\n"
+                "    popad\n"
+                "    pushfd\n"
+                "    popfd\n",
+                encoding="utf-8",
+            )
+            assembled = subprocess.run(
+                [
+                    str(self.asm_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(image),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            self.assertEqual(
+                image.read_bytes(),
+                bytes.fromhex(
+                    "0f ad f8 66 0f 1f 00 0f 92 c2 cf 60 61 9c 9d"
+                ),
+            )
+
+            command = [
+                str(self.cli_path),
+                "--raw",
+                "--mode=32",
+                "--base=0x2000",
+                str(image),
+            ]
+            decoded = subprocess.run(
+                command, cwd=REPO_ROOT, text=True, capture_output=True
+            )
+            repeated = subprocess.run(
+                command, cwd=REPO_ROOT, text=True, capture_output=True
+            )
+            checked = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--require-known",
+                    "--raw",
+                    "--mode=32",
+                    "--base=0x2000",
+                    str(image),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(decoded.returncode, 0, decoded.stderr)
+            self.assertEqual(repeated.returncode, 0, repeated.stderr)
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+            self.assertEqual(decoded.stdout, repeated.stdout)
+            self.assertEqual(checked.stdout, "")
+            self.assertIn("shrd eax, edi, cl", decoded.stdout)
+            self.assertIn("nop word [eax]", decoded.stdout)
+            self.assertIn("setb dl", decoded.stdout)
+            self.assertIn("iret", decoded.stdout)
+            self.assertIn("pusha", decoded.stdout)
+            self.assertIn("popa", decoded.stdout)
+            self.assertIn("pushf", decoded.stdout)
+            self.assertIn("popf", decoded.stdout)
+
+    def test_cli_decodes_active_ctool_double_precision_right_shifts(self):
+        decoded = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=32",
+                "--base=0x1790",
+                str(self.shrd_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertIn(
+            "00001790:  0F AD F8  shrd eax, edi, cl", decoded.stdout
+        )
+        self.assertIn(
+            "00001793:  0F AD F8  shrd eax, edi, cl", decoded.stdout
+        )
+        self.assertIn("00001796:  C3  ret", decoded.stdout)
+        self.assertNotIn("db 0x0F", decoded.stdout)
+        self.assertNotIn("clc", decoded.stdout)
+
+    def test_cli_decodes_private_cupidc_parity_setcc_sequences(self):
+        decoded = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=32",
+                "--base=0x1800",
+                str(self.parity_setcc_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertIn("00001803:  0F 9B C2  setnp dl", decoded.stdout)
+        self.assertIn("00001806:  20 D0  and al, dl", decoded.stdout)
+        self.assertIn("0000180E:  0F 9A C2  setp dl", decoded.stdout)
+        self.assertIn("00001811:  08 D0  or al, dl", decoded.stdout)
+        self.assertIn(
+            "00001813:  0F B6 C0  movzx eax, al", decoded.stdout
+        )
+        self.assertIn("00001816:  C3  ret", decoded.stdout)
+        self.assertNotIn("db 0x0F", decoded.stdout)
+
+    def test_cli_raw_mode_changes_decode_one_flat_image(self):
+        decoded = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=16",
+                "--range-at",
+                "3:data",
+                "--range-at=7:32",
+                "--range-at=12:16",
+                "--base",
+                "0x7c00",
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertIn("00007C00", decoded.stdout)
+        self.assertIn("mov ax, 0x1234", decoded.stdout)
+        self.assertIn("00007C03", decoded.stdout)
+        self.assertIn("db 0x00, 0x00, 0x90, 0xC3", decoded.stdout)
+        self.assertNotIn("add byte", decoded.stdout)
+        self.assertIn("00007C07", decoded.stdout)
+        self.assertIn("mov eax, 0x12345678", decoded.stdout)
+        self.assertIn("00007C0C", decoded.stdout)
+        self.assertIn("mov ax, 0xABCD", decoded.stdout)
+
+        duplicate_start = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=16",
+                "--mode-at=0:32",
+                "--base=0x7c00",
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(duplicate_start.returncode, 1)
+        self.assertIn(
+            "raw range starts must increase without overlap",
+            duplicate_start.stderr,
+        )
+
+        outside_input = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=16",
+                f"--range-at={len(self.mixed_raw_path.read_bytes())}:data",
+                "--base=0x7c00",
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(outside_input.returncode, 1)
+        self.assertIn("raw range start is outside input", outside_input.stderr)
+
+        code_only_alias = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=16",
+                "--mode-at=3:32",
+                "--mode-at=8:16",
+                "--base=0x7c00",
+                str(self.mode_alias_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(code_only_alias.returncode, 0, code_only_alias.stderr)
+        self.assertIn("mov eax, 0x12345678", code_only_alias.stdout)
+        self.assertIn("00007C08", code_only_alias.stdout)
+
+    def test_cli_consumes_a_size_bound_raw_range_map(self):
+        range_map = Path(self._fixture_directory.name) / "mixed-mode.cupidmap"
+        range_map.write_text(
+            "cupid.raw-map.v1\n"
+            "size 16\n"
+            "base 0x7c00\n"
+            "range 0 code16\n"
+            "range 3 data\n"
+            "range 7 code32\n"
+            "range 12 code16\n",
+            encoding="ascii",
+        )
+        command = [
+            str(self.cli_path),
+            "--raw",
+            "--range-map",
+            str(range_map),
+            str(self.mixed_raw_path),
+        ]
+        decoded = subprocess.run(
+            command, cwd=REPO_ROOT, text=True, capture_output=True
+        )
+        repeated = subprocess.run(
+            command, cwd=REPO_ROOT, text=True, capture_output=True
+        )
+        checked = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--raw",
+                "--range-map",
+                str(range_map),
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertEqual(repeated.returncode, 0, repeated.stderr)
+        self.assertEqual(decoded.stdout, repeated.stdout)
+        self.assertIn("mov ax, 0x1234", decoded.stdout)
+        self.assertIn("db 0x00, 0x00, 0x90, 0xC3", decoded.stdout)
+        self.assertIn("mov eax, 0x12345678", decoded.stdout)
+        self.assertIn("mov ax, 0xABCD", decoded.stdout)
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        self.assertEqual(checked.stdout, "")
+        self.assertEqual(checked.stderr, "")
+
+    def test_cli_binds_a_valid_boundary_target_to_the_source_resolved_edge(self):
+        fixture_root = Path(self._fixture_directory.name)
+        image = fixture_root / "source-edge.bin"
+        changed = fixture_root / "source-edge-changed.bin"
+        range_map = fixture_root / "source-edge.cupidmap"
+        image.write_bytes(bytes.fromhex("eb 00 c3 c3"))
+        changed.write_bytes(bytes.fromhex("eb 01 c3 c3"))
+        range_map.write_text(
+            "cupid.raw-map.v2\n"
+            "size 4\n"
+            "base 0x1000\n"
+            "edges 1\n"
+            "range 0 code32\n"
+            "edge 0 relative local 2 0x1002 32 0\n",
+            encoding="ascii",
+        )
+        policy = [
+            str(self.cli_path),
+            "--require-known",
+            "--require-local-targets",
+            "--require-source-edges",
+            "--raw",
+            "--range-map",
+            str(range_map),
+        ]
+
+        valid = subprocess.run(
+            [*policy, str(image)], cwd=REPO_ROOT, text=True, capture_output=True
+        )
+        structural_only = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--require-local-targets",
+                "--raw",
+                "--range-map",
+                str(range_map),
+                str(changed),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        rejected = subprocess.run(
+            [*policy, str(changed)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(valid.returncode, 0, valid.stderr)
+        self.assertEqual(valid.stdout, "")
+        self.assertEqual(structural_only.returncode, 0, structural_only.stderr)
+        self.assertEqual(rejected.returncode, 1)
+        self.assertEqual(rejected.stdout, "")
+        self.assertIn(
+            "source control-edge check failed: 1 of 1 edges invalid",
+            rejected.stderr,
+        )
+        self.assertIn("1 target mismatch", rejected.stderr)
+
+    def test_cli_rejects_malformed_and_instruction_mismatched_edge_rows(self):
+        fixture_root = Path(self._fixture_directory.name)
+        image = fixture_root / "edge-map-errors.bin"
+        image.write_bytes(bytes.fromhex("eb 00 c3 c3"))
+        parse_cases = (
+            (
+                "missing count",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\n"
+                "range 0 code32\n",
+                "raw range map v2 requires one edge count",
+            ),
+            (
+                "count mismatch",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 2\n"
+                "range 0 code32\n"
+                "edge 0 relative local 2 0x1002 32 0\n",
+                "raw range map edge count does not match its records",
+            ),
+            (
+                "duplicate source",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 2\n"
+                "range 0 code32\n"
+                "edge 0 relative local 2 0x1002 32 0\n"
+                "edge 0 relative local 2 0x1002 32 0\n",
+                "raw edge sources must increase without overlap",
+            ),
+            (
+                "outside source",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 1\n"
+                "range 0 code32\n"
+                "edge 4 relative local 2 0x1002 32 0\n",
+                "raw edge source is outside the mapped image",
+            ),
+            (
+                "wrong target mode",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 1\n"
+                "range 0 code32\n"
+                "edge 0 relative local 2 0x1002 16 0\n",
+                "raw local edge target mode disagrees with ranges",
+            ),
+            (
+                "external target inside image",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 1\n"
+                "range 0 code32\n"
+                "edge 0 relative external - 0x1002 32 0\n",
+                "raw external edge target is inside the mapped image",
+            ),
+        )
+        for name, contents, expected in parse_cases:
+            with self.subTest(name=name):
+                range_map = fixture_root / f"edge-{name.replace(' ', '-')}.map"
+                range_map.write_text(contents, encoding="ascii")
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-source-edges",
+                        "--raw",
+                        "--range-map",
+                        str(range_map),
+                        str(image),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(expected, result.stderr)
+
+        semantic_cases = (
+            (
+                "missing row",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 0\n"
+                "range 0 code32\n",
+                "1 of 1 edges invalid",
+            ),
+            (
+                "middle source",
+                "cupid.raw-map.v2\nsize 4\nbase 0x1000\nedges 1\n"
+                "range 0 code32\n"
+                "edge 1 relative local 2 0x1002 32 0\n",
+                "2 of 2 edges invalid",
+            ),
+        )
+        for name, contents, expected in semantic_cases:
+            with self.subTest(name=name):
+                range_map = fixture_root / f"edge-{name.replace(' ', '-')}.map"
+                range_map.write_text(contents, encoding="ascii")
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-source-edges",
+                        "--raw",
+                        "--range-map",
+                        str(range_map),
+                        str(image),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(expected, result.stderr)
+                self.assertIn("source mismatch", result.stderr)
+
+    def test_cli_accepts_cross_mode_external_wrapping_and_maximum_targets(self):
+        fixture_root = Path(self._fixture_directory.name)
+        cases = (
+            (
+                "cross-mode-external",
+                bytes.fromhex("66 ea 00 00 10 00 08 00"),
+                "cupid.raw-map.v2\nsize 8\nbase 0x8000\nedges 1\n"
+                "range 0 code16\n"
+                "edge 0 far external - 0x00100000 32 8\n",
+            ),
+            (
+                "wrapped-local",
+                bytes.fromhex("eb 00 c3"),
+                "cupid.raw-map.v2\nsize 3\nbase 0xffff\nedges 1\n"
+                "range 0 code16\n"
+                "edge 0 relative local 2 0x10001 16 0\n",
+            ),
+            (
+                "maximum-external",
+                bytes.fromhex("ea ff ff ff ff 08 00"),
+                "cupid.raw-map.v2\nsize 7\nbase 0\nedges 1\n"
+                "range 0 code32\n"
+                "edge 0 far external - 0xffffffff 32 8\n",
+            ),
+        )
+        for name, contents, raw_map in cases:
+            with self.subTest(name=name):
+                image = fixture_root / f"{name}.bin"
+                range_map = fixture_root / f"{name}.map"
+                image.write_bytes(contents)
+                range_map.write_text(raw_map, encoding="ascii")
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--require-known",
+                        "--require-source-edges",
+                        "--raw",
+                        "--range-map",
+                        str(range_map),
+                        str(image),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+
+    def test_cli_rejects_stale_and_malformed_raw_range_maps(self):
+        fixture_root = Path(self._fixture_directory.name)
+        cases = (
+            (
+                "unknown schema",
+                "cupid.raw-map.v3\nsize 16\nbase 0\nrange 0 code16\n",
+                "raw range map has an unsupported schema",
+            ),
+            (
+                "missing size",
+                "cupid.raw-map.v1\nbase 0\nrange 0 code16\n",
+                "raw range map requires one size",
+            ),
+            (
+                "duplicate start",
+                "cupid.raw-map.v1\nsize 16\nbase 0\n"
+                "range 0 code16\nrange 0 data\n",
+                "raw range starts must increase",
+            ),
+            (
+                "invalid kind",
+                "cupid.raw-map.v1\nsize 16\nbase 0\nrange 0 maybe\n",
+                "raw range kind must be code16, code32, or data",
+            ),
+        )
+        for name, contents, expected in cases:
+            with self.subTest(name=name):
+                range_map = fixture_root / f"bad-{name.replace(' ', '-')}.cupidmap"
+                range_map.write_text(contents, encoding="ascii")
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--raw",
+                        "--range-map",
+                        str(range_map),
+                        str(self.mixed_raw_path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(expected, result.stderr)
+
+        stale_map = fixture_root / "stale.cupidmap"
+        stale_map.write_text(
+            "cupid.raw-map.v1\n"
+            "size 15\n"
+            "base 0x7c00\n"
+            "range 0 code16\n",
+            encoding="ascii",
+        )
+        stale = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--range-map",
+                str(stale_map),
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(stale.returncode, 1)
+        self.assertEqual(stale.stdout, "")
+        self.assertIn(
+            "raw range map expects 15 bytes, input has 16",
+            stale.stderr,
+        )
+
+        conflict = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--range-map",
+                str(stale_map),
+                "--mode=16",
+                "--base=0x7c00",
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(conflict.returncode, 2)
+        self.assertEqual(conflict.stdout, "")
+        self.assertIn("usage: cupiddis", conflict.stderr)
+
+    def test_cli_typed_ranges_follow_the_active_smp_trampoline_layout(self):
+        trampoline = Path(self._fixture_directory.name) / "smp-trampoline.bin"
+        assembled = subprocess.run(
+            [
+                str(self.asm_path),
+                "-f",
+                "bin",
+                str(REPO_ROOT / "kernel" / "smp" / "smp_trampoline.S"),
+                "-o",
+                str(trampoline),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(assembled.returncode, 0, assembled.stderr)
+        image = trampoline.read_bytes()
+        self.assertEqual(len(image), 4096)
+        self.assertEqual(
+            hashlib.sha256(image).hexdigest(),
+            "b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90",
+        )
+
+        command = [
+            str(self.cli_path),
+            "--raw",
+            "--mode=16",
+            "--range-at=0x1f:data",
+            "--range-at=0x210:32",
+            "--range-at=0x254:data",
+            "--base=0x8000",
+            str(trampoline),
+        ]
+        decoded = subprocess.run(
+            command, cwd=REPO_ROOT, text=True, capture_output=True
+        )
+        repeated = subprocess.run(
+            command, cwd=REPO_ROOT, text=True, capture_output=True
+        )
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertEqual(repeated.returncode, 0, repeated.stderr)
+        self.assertEqual(decoded.stdout, repeated.stdout)
+        self.assertIn("00008000", decoded.stdout)
+        self.assertIn("cli", decoded.stdout)
+        self.assertIn("0000801F", decoded.stdout)
+        self.assertIn("db 0x00", decoded.stdout)
+        self.assertIn("00008210", decoded.stdout)
+        self.assertIn("mov ax, 0x10", decoded.stdout)
+        self.assertIn("00008254", decoded.stdout)
+        self.assertNotIn("add byte [bx+si], al", decoded.stdout)
+        self.assertNotIn("add byte [eax], al", decoded.stdout)
+
+    def test_cli_distinguishes_usage_and_processing_failures(self):
+        not_elf = subprocess.run(
+            [str(self.cli_path), str(self.not_elf_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(not_elf.returncode, 1)
+        self.assertIn("raw input requires --raw", not_elf.stderr)
+        malformed = subprocess.run(
+            [str(self.cli_path), str(self.bad_elf_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(malformed.returncode, 1)
+        self.assertIn("ELF32 header is truncated", malformed.stderr)
+
+    def test_cli_reports_late_stdout_flush_failures(self):
+        full_device = Path("/dev/full")
+        if not full_device.exists():
+            self.skipTest("/dev/full is not available on this host")
+        with full_device.open("wb") as output:
+            result = subprocess.run(
+                [str(self.cli_path), "--headers", str(self.object_path)],
+                cwd=REPO_ROOT,
+                stdout=output,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("CupidDis could not complete report output", result.stderr)
+
+    def test_cli_overlays_relocations_retained_in_executable(self):
+        compiler = shutil.which("clang") or shutil.which("gcc")
+        linker = shutil.which("ld.lld") or shutil.which("ld")
+        if compiler is None or linker is None:
+            self.skipTest("assembler/linker oracle tools are not installed")
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "retained.s"
+            object_path = root / "retained.o"
+            executable = root / "retained.elf"
+            source.write_text(
+                ".text\n"
+                ".globl _start\n"
+                ".type _start,@function\n"
+                "_start:\n"
+                "  movl $data_symbol, %eax\n"
+                "  call target_symbol\n"
+                "  ret\n"
+                ".size _start, .-_start\n"
+                ".globl target_symbol\n"
+                ".type target_symbol,@function\n"
+                "target_symbol:\n"
+                "  ret\n"
+                ".size target_symbol, .-target_symbol\n"
+                ".data\n"
+                ".globl data_symbol\n"
+                ".type data_symbol,@object\n"
+                "data_symbol:\n"
+                "  .long 1\n"
+                ".size data_symbol, .-data_symbol\n",
+                encoding="utf-8",
+            )
+            command = [compiler]
+            if "clang" in Path(compiler).name.lower():
+                command.append("--target=i386-unknown-elf")
+            else:
+                command.append("-m32")
+            command.extend(["-c", str(source), "-o", str(object_path)])
+            assembled = subprocess.run(
+                command, cwd=REPO_ROOT, text=True, capture_output=True
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            linked = subprocess.run(
+                [
+                    linker,
+                    "-m",
+                    "elf_i386",
+                    "--emit-relocs",
+                    "-e",
+                    "_start",
+                    str(object_path),
+                    "-o",
+                    str(executable),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(linked.returncode, 0, linked.stderr)
+            report = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "--relocations",
+                    "--disassemble",
+                    str(executable),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(report.returncode, 0, report.stderr)
+            self.assertIn("R_386_32 data_symbol", report.stdout)
+            self.assertIn("R_386_PC32 target_symbol-4", report.stdout)
+            self.assertIn("mov eax, data_symbol\n", report.stdout)
+            self.assertIn("call target_symbol-4\n", report.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

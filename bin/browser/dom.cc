@@ -464,7 +464,7 @@ int match_named_entity(char *name, int nlen, int *out_ch) {
 /* Emit `cp` as 1..4 UTF-8 bytes into out (up to omax bytes). Returns byte
  * count written, or 0 if cp is outside U+0000..U+10FFFF. The CSS value
  * decoder and entity decoder both feed this so text in attr_pool stays
- * UTF-8 end-to-end and fontsys.c can look up real cmap glyphs (e.g.
+ * UTF-8 end-to-end and kernel/gfx/fontsys.cc can look up real cmap glyphs (e.g.
  * U+2022 bullet, U+201C/D curly quotes) instead of folding to ASCII.*/
 int emit_utf8_codepoint(int cp, char *out, int omax) {
     if (cp < 0) return 0;
@@ -565,7 +565,7 @@ int decode_entities(char *src, int slen, char *out, int omax) {
                         i = end + 1; continue;
                     }
                     /* Emit raw UTF-8 so TTF cmap can look up the real glyph.
-                     * fontsys.c decodes UTF-8 in run_width / draw_run_styled.*/
+                     * kernel/gfx/fontsys.cc decodes UTF-8 in run_width / draw_run_styled.*/
                     int wn = emit_utf8_codepoint(v, out + o, omax - 1 - o);
                     if (wn > 0) { o = o + wn; i = end + 1; continue; }
                     out[o] = '?'; o = o + 1; i = end + 1; continue;

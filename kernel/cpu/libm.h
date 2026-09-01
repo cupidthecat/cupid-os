@@ -36,7 +36,7 @@ float  atan2f(float y, float x);
 
 /* Phase E Task 24: abs / rounding / fmod.  Same CupidC-internal ABI as
  * Task 23 (stack args, XMM0 return).  `round` uses x87 round-to-nearest-
- * even, which differs from C99 round-half-away-from-zero; see libm.c.*/
+ * even, which differs from C99 round-half-away-from-zero; see libm.cc.*/
 double fabs  (double x);
 float  fabsf (float x);
 double floor (double x);

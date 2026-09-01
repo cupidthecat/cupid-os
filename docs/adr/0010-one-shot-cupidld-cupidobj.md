@@ -1,0 +1,23 @@
+# Keep CupidLD and CupidObj behind one-shot final-artifact operations
+
+CupidLD exposes one transactional link operation over ordered ELF32 objects and either the tracked GNU-script subset or a fixed-text layout profile. Parsing, merge-entry interning, symbol resolution, relocation, segment layout, and executable serialization remain private. CupidObj exposes one transactional transformation operation that either wraps bytes as a relocatable object with final section and symbol spellings or extracts a flat file-backed image from an executable. Both operations use the existing job-owned, caller-buffer pattern. As required by ADR 0002, CupidLD retains ownership of final executable layout.
+
+A public linker-script AST plus parse/plan/emit lifecycle was rejected because no current caller needs to construct or retain linker internals, and freezing that vocabulary would make the module shallow while the active corpus is still driving semantics. A generic object-edit graph was rejected because every current rename and section change is known when bytes are wrapped; producing the final form directly removes an intermediate parse-and-rewrite pass. The hosted CLIs retain only argument/path adaptation, and new allocated sections, relocation kinds, or transformation needs must deepen these operations instead of creating parallel format authorities.
+
+Compatible `SHF_MERGE` entries are interned in exact first-occurrence order across the ordered inputs. Reproducing LLVM LLD 22's internal hash-table iteration was rejected: it is undocumented, version-specific behavior rather than an object or ABI contract. CupidLD must instead prove identical output-section addresses/sizes, segment layout, symbols, and relocation semantics, and comparisons may mask only the deliberate merge-entry permutation and words whose resolved addresses derive from it. No suffix merging is performed until an active source requires a specified rule.
+
+Merge and string flags describe one homogeneous entry domain and require a truthful nonzero entry size. CupidLD output sections can combine ordinary read-only data, strings, and multiple constant-width merge groups, while the v1 executable model does not expose a final per-group entry size. It therefore uses those flags only while interning compatible inputs and clears `SHF_MERGE`/`SHF_STRINGS` on final allocated output sections. Splitting final sections is deferred until a runtime or object consumer needs preserved merge-group metadata.
+
+Relocations through a merge-section `STT_SECTION` symbol map the combined input offset `S+A`, because the addend selects a byte in that input section. Relocations through named object/function symbols first map `S` and then apply `A`, preserving ordinary ELF semantics when merge interning reorders neighboring entries. The full kernel corpus and a minimized `C,B,A` contract pin this distinction.
+
+Linker-script `ASSERT` diagnostics preserve the supplied script message in the job-owned diagnostic store. Replacing it with generic text was rejected because the source-owned size/overlap contract must remain actionable when a build fails.
+
+ADR 0247 extends the same one-shot link operation with a fixed-layout PE32
+serializer. ELF32 remains the default for zero-initialized requests. The new
+format selector does not expose layout, symbol, relocation, or serialization
+internals.
+
+ADR 0248 adds deterministic PE32 import records to that request. CupidLD keeps
+`.idata` layout, IAT binding, directory emission, and import-relocation checks
+private. Callers name the slot, library, and export without constructing a PE
+table or retaining linker state.

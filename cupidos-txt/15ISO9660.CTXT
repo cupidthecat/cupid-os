@@ -1,6 +1,5 @@
->comment CupidMark converted document
 >h1 ISO9660 Read-Only Mount
-Verified against source on: 2026-05-15
+Verified against source on: 2026-08-05
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,16 +14,25 @@ Verified against source on: 2026-05-15
 
 >h2 Overview
 >tree open Overview
-CupidOS mounts `.iso` files (ECMA-119 + Rock Ridge) as read-only
+Cupid OS mounts `.iso` files (ECMA-119 with Rock Ridge names) as read-only
 filesystems at arbitrary mount points.
 >endtree
 
 >h2 Quick Start
 >tree open Quick Start
 1. Host-side: build a test ISO:
-   `make sync-iso` — generates `test_iso/hello.iso` via `mkisofs -R`
-   (or `genisoimage` / `xorrisofs`) from `test_iso/fixtures/` and
-   mcopies it to `/disk/hello.iso`.
+   `make sync-iso` first asks checked CupidASM to assemble
+   `test_iso/fixtures/big.bin` from `test_iso/big_pattern.asm`. Python checks
+   the exact 4,096-byte lane pattern and publishes it atomically. The command
+   then freezes the members in `test_iso/fixtures.manifest`, asks checked
+   CupidObj to build `test_iso/hello.iso`, compares an independent Python
+   render, and writes it to the FAT16 disk image as `/hello.iso`. No external
+   ISO utility is needed.
+   Cupid OS exposes that file as `/disk/hello.iso`.
+
+   Checked-seed CupidObj authors the complete image through `iso-fixture`.
+   Python retains native-path checks, drift detection, and guarded
+   publication.
 
 2. Boot CupidOS (`make run`).
 
@@ -32,23 +40,25 @@ filesystems at arbitrary mount points.
 
 mount /disk/hello.iso /iso
 
-4. `ls /iso` — shows `readme.txt`, `long_named_file.txt`, `sub/`, `big.bin`.
+4. `ls /iso` shows `big.bin`, `gen_big.sh`, `jpeg_baseline_8x8.jpg`,
+   `long_named_file.txt`, `readme.txt`, and `sub/`.
 
-5. `cat /iso/readme.txt` — prints the content.
+5. `cat /iso/readme.txt` prints the content.
 
 6. `umount /iso` when done.
 
 [Mount test ISO](shell:mount /disk/hello.iso /iso)
 [List mounted ISO](shell:ls /iso)
-[Read hello file](shell:cat /iso/HELLO.TXT)
+[Read fixture file](shell:cat /iso/README.TXT)
 >endtree
 
 >h2 Features
 >tree open Features
   ECMA-119 base format (8.3 uppercase filenames, `;1` versions).
-  Rock Ridge (SUSP/RRIP): NM records for long filenames, PX/TF
-    preserved where possible. SUSP CE continuation chains followed up
-    to 8 levels.
+  Rock Ridge NM records provide long names. SUSP CE continuation chains
+    are followed up to 8 levels. PX and TF metadata is ignored.
+  The repository image keeps its continuation after the directory stream,
+    so sequential host readers and Cupid OS see the same Rock Ridge names.
   Case-insensitive path lookups: `/iso/README.TXT` matches `readme.txt`.
     Display names are preserved case.
   Multi-mount: up to 4 ISOs mounted concurrently.
@@ -63,8 +73,8 @@ mount /disk/hello.iso /iso
     (e.g. on FAT16 at `/disk/...` or in homefs at `/home/...`).
   No Joliet. Windows-made Unicode-only ISOs use base names (8.3).
   No symlink traversal. Rock Ridge `SL` records are ignored.
-  No deep-tree relocation (CL/PL/RE records). Use `mkisofs -D 1`
-    (the default) to produce ISOs that don't need them.
+  No deep-tree relocation through CL, PL, or RE records.
+  The repository fixture writer rejects more than 8 directory levels.
   4 GB filesize limit (ECMA-119 32-bit LBA).
 >endtree
 
@@ -75,22 +85,43 @@ Stack layers (top to bottom):
   shell `mount`
     vfs_mount
       iso9660_vfs  (adapter, 4-slot pool)
-        iso9660.c  (PVD / dir records / SUSP)
-          loopdev.c  (file-backed block_device_t)
+        iso9660.cc  (PVD / dir records / SUSP)
+          loopdev.cc  (file-backed block_device_t)
             blockcache  (existing LRU sector cache)
               vfs_read on the .iso file
 
 Source files:
-  kernel/iso9660.h + iso9660.c   PVD parser, directory walker, SUSP/RR
-  kernel/fs/loopdev.c            file-backed block device adapter
-  kernel/iso9660_vfs.c           VFS mount/open/read/readdir adapter
+  kernel/fs/iso9660.h + iso9660.cc PVD parser, directory walker, SUSP/RR
+  kernel/fs/loopdev.cc           file-backed block device adapter
+  kernel/fs/iso9660_vfs.cc       VFS mount/open/read/readdir adapter
+  test_iso/big_pattern.asm       CupidASM source for the spanning read lane
+  tools/hostbuild.py             freezer, independent verifier, and publisher
+  toolchain/cupidobj.cc          production ISO byte author
 >endtree
 
 >h2 Testing
 >tree open Testing
   `test_iso/fixtures/`      checked-in source tree.
+  `test_iso/big_pattern.asm` checked CupidASM source for `big.bin`.
+  `test_iso/fixtures.manifest` exact build membership.
+  `test_iso/hello.iso`      byte-reproducible tracked image.
   `make sync-iso`           rebuilds hello.iso and syncs into the FAT partition.
-  `bin/feature17_iso.cc`    end-to-end smoke test.
+  `bin/feature17_iso.cc`    checks all 6 root names, reads, and mount reuse.
+
+The CupidObj tests compare the command output with the complete
+61,440-byte tracked image, reverse the typed input order, and check useful
+manifest, source, and request failures without replacing an old output.
+The checked-seed suite repeats the exact image and rollback paths in both
+fixed-point stages. The normal publisher also checks unsafe candidates,
+seed-directory aliases, drift, parity, and competing publishers without
+replacing an old image. ADR 0240 records seed carriage, and ADR 0241 records
+production ownership.
+
+The spanning lane is bytes 00 through FF repeated sixteen times. Hostbuild
+freezes the CupidASM source and seed, verifies the candidate independently,
+and rechecks live source, manifest, and destination state before replacement.
+NASM treats `$` differently inside this TIMES statement, so this source is not
+used as a NASM byte-parity fixture.
 
 Run `feature17_iso` from the shell; expect `PASS feature17_iso`.
 
@@ -102,12 +133,12 @@ Run `feature17_iso` from the shell; expect `PASS feature17_iso`.
 How to verify P2 ISO9660:
 
 mount /disk/hello.iso /iso
-cat /iso/HELLO.TXT
+cat /iso/README.TXT
 
 Expected: file contents printed without error.
 
 [Mount ISO](shell:mount /disk/hello.iso /iso)
-[Cat HELLO.TXT](shell:cat /iso/HELLO.TXT)
+[Cat README.TXT](shell:cat /iso/README.TXT)
 >endbox
 
 >rule

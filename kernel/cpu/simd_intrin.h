@@ -4,7 +4,7 @@
  * CupidC doesn't process #include directives, so this header is
  * documentation-only. Each name below is recognized by the CupidC code
  * generator and inlined as a single SSE instruction. See
- * kernel/cupidc_parse.c's `cc_intrin_table` for the full name->opcode
+ * kernel/lang/cupidc_parse.cc's `cc_intrin_table` for the full name->opcode
  * mapping and the shared `cc_emit_intrinsic` emitter.
  *
  * Codegen notes:
