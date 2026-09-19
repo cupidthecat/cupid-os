@@ -3840,12 +3840,18 @@ def _check_cupidbuild_flatten_kernel_behavior(
     linked = kernel_root / "kernel.elf"
     pass_one.write_bytes(elf_payload)
     linked.write_bytes(elf_payload)
+    code_members = []
+    for index in range(498):
+        member = flatten_root / f"cohort-{index:03d}.elf"
+        member.write_bytes(elf_payload)
+        code_members.append(member)
     code_inputs = flatten_root / "code-inputs.txt"
     code_inputs.write_text(
         "\n".join(
             (
                 pass_one.relative_to(source_root).as_posix(),
                 linked.relative_to(source_root).as_posix(),
+                *(member.relative_to(source_root).as_posix() for member in code_members),
                 "",
             )
         ),
@@ -3896,6 +3902,49 @@ def _check_cupidbuild_flatten_kernel_behavior(
         raise BootstrapError(
             f"{label_prefix}CupidBuild flat kernel output differs"
         )
+
+    previous_times = (
+        stage_two_output.stat().st_mtime_ns,
+        stage_three_output.stat().st_mtime_ns,
+    )
+    code_members[-1].write_bytes(b"invalid final ELF input\n")
+    final_input_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidbuild",
+        [
+            *common_arguments(stage_two_manifest),
+            "--output",
+            stage_two_output.relative_to(source_root).as_posix(),
+        ],
+        [
+            *common_arguments(stage_three_manifest),
+            "--output",
+            stage_three_output.relative_to(source_root).as_posix(),
+        ],
+        180,
+    )
+    _expect_status(
+        final_input_result,
+        1,
+        f"{label_prefix}CupidBuild invalid final code input",
+    )
+    if (
+        final_input_result.stdout
+        or "checked CupidDis failed" not in final_input_result.stderr
+        or "could not be started" in final_input_result.stderr
+        or stage_two_output.read_bytes() != expected
+        or stage_three_output.read_bytes() != expected
+        or (
+            stage_two_output.stat().st_mtime_ns,
+            stage_three_output.stat().st_mtime_ns,
+        ) != previous_times
+    ):
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild final code input rejection differs"
+        )
+    code_members[-1].write_bytes(elf_payload)
 
     malformed = flatten_root / "malformed-code-inputs.txt"
     malformed.write_text(
@@ -4870,7 +4919,7 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 14,
+        "failure_cases": len(tool_names) + 15,
         "help_cases": len(tool_names) + 1,
         "success_cases": len(tool_names) + 19,
     }
@@ -8399,7 +8448,7 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 32,
+        "failure_cases": 33,
         "help_cases": len(tool_names) + 1,
         "success_cases": 38,
     }

@@ -34672,3 +34672,64 @@ smoke tests pass together on native Windows and Linux: 137 tests on each host.
 The Windows run completed in 0.694 seconds and Linux in 0.576 seconds.
 OS sources, installed CTXT, the
 toolchain source closure, and production artifacts remain unchanged.
+
+## 2026-09-19: retain the complete Windows kernel inspection cohort
+
+The pending `962e476b` seed replay compiled the OS and linked both kernels,
+but the final CupidBuild flatten transaction could not start CupidDis. Its
+431 quoted absolute input paths occupied 45,255 characters before the
+executable and options, exceeding Windows' 32,767-character command limit.
+The previous raw kernel remained in place; disk-image publication did not
+run. The paired fixed-point proofs had exercised only two inputs at this
+boundary and therefore did not catch the failure.
+
+CupidBuild now passes short filenames on Windows, relative to its retained
+private working directory. The pointers refer to retained frozen-path
+storage, and file and directory guards remain unchanged. Linux still passes
+sealed descriptor paths. The complete source-driven input cohort reaches
+CupidDis on both hosts.
+
+The new standalone regression supplies 500 distinct ELF inputs beneath a
+path containing spaces. Before the repair, Windows rejected the launch.
+Afterward, both full-cohort success and invalid-final-input preservation
+passed with the complete `962e476b` candidates: two tests in 35.699 seconds
+on Windows and 54.562 seconds on Linux. The original checked Linux cohort
+passed both tests in 51.583 seconds. Original-cohort Windows passed the
+negative test and skipped the positive test in 12.780 seconds because that
+exact cohort predates CupidObj's retained candidate support. The skip is
+limited to its full manifest digest and source revision.
+
+An initial repeat-success assertion required an unchanged timestamp. That
+was not the existing flatten contract, which republishes equal bytes. The
+test now compares output bytes on both successful calls and requires the
+old timestamp after a rejected final input.
+
+Both fixed-point definitions now use all 500 inputs and corrupt the final
+member after successful publication. They require a real CupidDis rejection,
+not a launch failure, while preserving both generations' output bytes and
+timestamps. Sixteen fixed-point definition tests passed in 1.885 seconds.
+The expected Linux failure/help/success groups are 33/7/38; native Windows
+expects 21/7/25. Those counts describe the new checks, not completed candidate
+proofs. Fresh paired reconstruction and a complete OS/runtime replay remain
+required before promotion. ADR 0387 records the implementation boundary.
+
+Source-only audit regeneration and deterministic check mode passed. The graph
+still contains 748 active inputs, 452 transforms, 255 feature requirements,
+and 28 accounted unreachable inputs. Ownership remains 195 CupidBuild
+transforms and 257 Python transforms; neither Make nor the checked seeds
+changed. The audit JSON has SHA-256
+`500d0c13bc6f04591bacb0d0ab5f758fc02511aeb7d7d6f30c1783107f233e31`;
+the summary has SHA-256
+`9e3468dc73c11a7310a99eb437f0b3e55522f00410f4324fc4098bce8804b34d`.
+Separate standards and specification reviews found no actionable issue. The
+specification review also reran the Windows invalid-final-input case, which
+passed in 13.007 seconds.
+
+The fixed-point fail-closed audit test passed in 292.990 seconds. Its source
+mutations still reject missing behavior checks and stale Linux or Windows
+case totals.
+
+All 140 selected bootstrap verifier and integration tests passed in 270.482
+seconds, without skips. Only the two full fixed-point rebuild methods were
+excluded; new clean paired proofs remain required. This run used the original
+checked cohorts and changed no seed bytes.

@@ -1,11 +1,19 @@
 # Cupid Toolchain bootstrap
 
+Source-head CupidBuild keeps the full 500-input kernel inspection within
+Windows' command-line limit by using filenames relative to its retained
+private working directory. Linux keeps its sealed descriptor paths. Tests
+cover successful full-cohort inspection and failure at the final input with
+the previous output preserved. [ADR 0387](../adr/0387-keep-windows-kernel-inspection-within-the-command-line-limit.md)
+records the failed production replay, repair, and pending candidate proofs.
+
 Source-head CupidBuild provides `assemble-iso-pattern` for the active
 4,096-byte ISO spanning fixture. It freezes the source and six-tool seed,
 checks every byte and the complete data-only raw map, runs checked CupidDis,
 and preserves the timestamp when the output is unchanged. Both fixed-point
-definitions include successful publication and wrong-pattern rollback, for
-32/7/38 Linux and 20/7/25 Windows failure/help/success groups. The normal
+definitions include successful publication and wrong-pattern rollback. With
+the full-cohort flatten check, their failure/help/success groups total
+33/7/38 on Linux and 21/7/25 on Windows. The normal
 recipe remains on Hostbuild until this capability passes paired seed
 promotion. [ADR 0384](../adr/0384-add-typed-iso-pattern-publication-to-cupidbuild.md)
 records the boundary.

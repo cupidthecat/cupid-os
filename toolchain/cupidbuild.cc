@@ -3565,6 +3565,18 @@ int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request) {
       goto done;
     }
     private_paths[index] = frozen_path;
+#if defined(_WIN32)
+    /* The retained private directory is the child's working directory. */
+    {
+      const char *cursor = frozen_path;
+      while (*cursor != '\0') {
+        if (*cursor == '/' || *cursor == '\\') {
+          private_paths[index] = cursor + 1;
+        }
+        cursor++;
+      }
+    }
+#endif
     if (strcmp(logical_paths[index], "kernel/kernel.elf.pass1") == 0) {
       pass_one = private_paths[index];
     } else if (strcmp(logical_paths[index], "kernel/kernel.elf") == 0) {

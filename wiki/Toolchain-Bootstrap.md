@@ -1,5 +1,13 @@
 # Toolchain Bootstrap
 
+Source-head CupidBuild passes short private filenames to the Windows
+disassembler during whole-kernel inspection. This admits the complete
+500-input limit without exceeding the Windows command line. Linux keeps its
+sealed `/proc/self/fd/N` paths. The transaction still freezes and verifies
+every input, compares the complete flat output with an independent renderer,
+and preserves previous output after rejection. ADR 0387 records the source
+repair; checked-seed promotion and full-image validation remain separate.
+
 The ordinary GUI smoke requires Cupid OS to remain running through its
 post-command survival interval. An early QEMU exit reports its status and
 bounded host output; a live boot timeout remains a separate failure. The

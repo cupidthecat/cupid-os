@@ -6673,7 +6673,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 20,
+                    "failure_cases": 21,
                     "help_cases": 7,
                     "success_cases": 25,
                 },
@@ -7253,7 +7253,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            32,
+            33,
         )
         self.assertEqual(returned["success_cases"].value, 38)
         self.assertIsInstance(returned["help_cases"], ast.BinOp)
@@ -7526,6 +7526,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "'kernel.elf.pass1'",
             "'kernel.elf'",
             "'code-inputs.txt'",
+            "range(498)",
+            "code_members[-1].write_bytes(b'invalid final ELF input\\n')",
+            "'could not be started' in final_input_result.stderr",
+            "stage_two_output.stat().st_mtime_ns",
+            "stage_three_output.stat().st_mtime_ns",
             "'malformed-code-inputs.txt'",
             "'must end with a newline'",
             "b'preserved CupidBuild flat kernel\\n'",
@@ -11093,7 +11098,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 32,
+                    "failure_cases": 33,
                     "help_cases": 7,
                     "success_cases": 38,
                 },
