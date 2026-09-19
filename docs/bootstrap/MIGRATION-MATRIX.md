@@ -2,6 +2,13 @@
 
 `TempleOS/` is excluded: it is reference material, not a source cohort. Statuses describe ownership, not how much code exists.
 
+The Windows full-cohort launch repair and POSIX private-cwd repair change no
+production owner. They need fresh paired seed proof before the pending ISO
+and profile-manifest handoff can proceed. DrvFS recovery tests now distinguish
+verified backup preservation from native Linux's exact restoration contract.
+ADRs 0387, 0388, and 0389 record these boundaries; no C suffix changes follow
+from this source step.
+
 Source-head `cupidbuild assemble-iso-pattern` can publish the exact ISO spanning
 fixture through the guarded assembly transaction. It checks the 4,096-byte
 pattern, complete data-only raw map, and checked CupidDis result, and retains

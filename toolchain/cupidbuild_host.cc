@@ -5359,6 +5359,16 @@ static int cupidbuild_host_run_process(const char *tool,
   free(argv);
   pause_time.tv_sec = 0;
   pause_time.tv_nsec = 10000000L;
+#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)
+  if (!cupidbuild_host_publication_test_pause("after-tool-launch")) {
+    (void)kill(child, SIGKILL);
+    do {
+      wait_result = CUPIDBUILD_HOST_LAUNCH_WAITPID(child, &status, 0);
+    } while (wait_result < 0 && errno == EINTR);
+    (void)close(launch_pipe[0]);
+    return -1;
+  }
+#endif
   for (;;) {
     wait_result = CUPIDBUILD_HOST_LAUNCH_WAITPID(
         child, &status, WNOHANG);
@@ -10893,7 +10903,13 @@ int cupidbuild_host_run(cupidbuild_host_transaction_t *transaction,
                         const char *tool, const char *const *arguments,
                         unsigned int timeout_milliseconds) {
   return cupidbuild_host_run_at(transaction, tool, arguments,
-                                timeout_milliseconds, 0);
+                                timeout_milliseconds,
+#if defined(_WIN32)
+                                0);
+#else
+                                transaction != (cupidbuild_host_transaction_t *)0 &&
+                                    transaction->private_flat != 0);
+#endif
 }
 
 int cupidbuild_host_run_in_private(
@@ -10959,10 +10975,14 @@ int cupidbuild_host_run_to_private_output(
       transaction->private_output_descriptor,
       transaction->tool_stderr_descriptor,
  #endif
-      (const char *)0, -1,
 #if defined(_WIN32)
+      (const char *)0, -1,
       (const cupidbuild_host_transaction_t *)0,
 #else
+      transaction->private_flat != 0 ? "/proc" : (const char *)0,
+      transaction->private_flat != 0
+          ? transaction->working_directory_descriptor
+          : -1,
       transaction->private_flat != 0
           ? transaction
           : (const cupidbuild_host_transaction_t *)0,

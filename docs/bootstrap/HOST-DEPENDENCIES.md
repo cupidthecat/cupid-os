@@ -1,5 +1,19 @@
 # Host dependency inventory
 
+Source-head Windows kernel inspection uses retained private filenames to keep
+the complete 500-input cohort within the command-line limit. Anonymous POSIX
+author and inspection calls use a pinned `/proc` working directory and sealed
+descriptor arguments. Generic checked commands retain their requested cwd.
+ADRs 0387 and 0389 record the source repairs; the checked cohorts still need a
+fresh paired reconstruction before they carry both changes.
+
+WSL `/mnt/c` publication remains supported with the recovery limit in ADR 0388.
+DrvFS can invalidate relative lookup through a retained directory after a
+concurrent parent replacement. CupidBuild then rejects publication and retains
+the verified old file and transaction state, without changing foreign files.
+Native Linux filesystems with stable retained lookup require exact restoration.
+Neither outcome adds a host compiler or assembler to the normal build.
+
 Both promoted CupidBuild seeds now contain the complete kernel-flatten coordinator.
 It replaces the Python algorithm with pinned manifest and seed capture, one
 broad CupidDis invocation, strict linked-image checks, CupidObj flattening, an

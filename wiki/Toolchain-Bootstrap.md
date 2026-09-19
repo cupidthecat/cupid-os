@@ -1,5 +1,17 @@
 # Toolchain Bootstrap
 
+Anonymous POSIX publication tools run from the retained `/proc` directory;
+generic checked commands keep their requested working directory. This keeps
+relative writes by typed author and inspection calls away from the repository.
+It is not a process sandbox. ADR 0389 records the launch boundary.
+
+On WSL Windows-mounted filesystems, a concurrent parent-directory replacement
+can invalidate retained relative lookup. CupidBuild rejects the publication
+and preserves the verified old file and transaction evidence when it cannot
+restore the old output safely. Foreign files remain untouched. Native Linux
+filesystems with stable lookup still require exact restoration. ADR 0388
+records this recovery limit; `/mnt/c` remains a supported build location.
+
 Source-head CupidBuild passes short private filenames to the Windows
 disassembler during whole-kernel inspection. This admits the complete
 500-input limit without exceeding the Windows command line. Linux keeps its

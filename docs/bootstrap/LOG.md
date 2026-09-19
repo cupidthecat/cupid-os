@@ -34733,3 +34733,150 @@ All 140 selected bootstrap verifier and integration tests passed in 270.482
 seconds, without skips. Only the two full fixed-point rebuild methods were
 excluded; new clean paired proofs remain required. This run used the original
 checked cohorts and changed no seed bytes.
+
+## 2026-09-19: define the DrvFS publication recovery limit
+
+The source-962 Linux CLI replay exposed a real difference between native Linux
+filesystems and the tested DrvFS mount. After a concurrent output-parent rename,
+the profile publisher could not read the installed candidate through its
+retained directory descriptor. It rejected publication and retained the old
+file as a verified hard-link backup, but did not restore the old public name.
+The original test required restoration on every POSIX filesystem and failed.
+
+A one-source ISO-pattern replay reduced the failure from the full profile
+fixture to about half a second. A syscall probe observed successful fallback
+installation followed by `openat` returning `ENOENT` through the retained
+parent. An independent directory fixture showed that this descriptor can read
+a foreign replacement child while reporting the original directory identity.
+Native `/tmp` controls kept the original child binding and restored the old
+output. `O_PATH`, reopening the proc-fd path, and reopening its reported path
+did not repair the tested DrvFS behavior. No production source was instrumented.
+
+Question: should CupidBuild reject `/mnt/c`, or keep it with an explicit
+recovery limit? The user chose: "Keep /mnt/c support with explicit recovery
+limits."
+
+ADR 0388 records that boundary. Regression coverage probes actual filesystem
+semantics using an independently owned fixture. Stable retained-parent lookup
+still requires exact restoration. Limited lookup requires the previous file's
+exact identity, bytes, and mtime in the recovery backup, preservation of the
+foreign successor and ambiguous transaction evidence, and a nonzero result.
+The existing profile case and a compact ISO case cover the shared publisher.
+No production-source repair is needed for the approved recovery behavior.
+
+The unmodified source-962 hosted publisher passed the revised profile and
+compact ISO cases on DrvFS and on native `/tmp`. The native cases require exact
+restoration; the DrvFS cases require the verified backup. Fresh hosted builds
+then passed the five-case group containing profile-parent recovery, compact ISO
+recovery, whole-root recovery, foreign rollback contents, and malformed-author
+parity: Linux completed all five in 195.205 seconds; Windows completed the
+group in 24.617 seconds with the separate POSIX parent-rename case skipped.
+Its profile case still requires Windows to deny the retained-parent rename.
+
+Review tightened both recovery branches to reject symlinks and require the
+foreign parent's identity and mtime to stay unchanged. Both compact filesystem
+cases passed again with those assertions. Python compilation and whitespace
+checks passed. Diagnostic instruments remain only in ignored build storage;
+the tracked host adapter and test module contain no diagnostic probes from
+this investigation. These results are separate from paired seed proof, normal
+OS publication, and runtime smoke evidence.
+
+## 2026-09-19: anonymous tool directories and Linux launch observation
+
+The full Linux CLI run exposed two watcher failures. Both reproduced together
+in 36.437 seconds. An ignored diagnostic wrapper then captured the command
+results hidden behind the first failed assertions in 37.551 seconds.
+
+The timeout-and-drift case returned status 1, empty standard output, and
+`checked CupidObj timed out`. Its mutator never ran because the requested
+`after-tool-launch` pause existed only in the Windows adapter. The native
+POSIX test adapter now exposes the same pause after a successful fork. A
+failed pause kills and reaps the child and closes the launch-status pipe.
+The existing hosted test macro excludes this pause from production builds.
+The test still requires seed drift to suppress the timeout and captured
+output.
+
+The assembly watcher observed the repository directory 8,191 times, never
+`/proc`. Its command also failed with `CT6000017` at line 444,976 because one
+million `nop` lines exhausted the job arena. Reducing only that fixture to
+10,000 lines produced a successful assembly with empty streams, but the
+watcher still observed the wrong directory 6,717 times. This isolated the
+directory selection bug from the oversized fixture.
+
+Anonymous transactions already retain `/proc`. The typed launcher and the
+separate kernel-symbol capture path now use that descriptor. Generic checked
+commands retain their requested working directory, and Windows is unchanged.
+The watcher keeps its `/proc` requirement, valid ELF result, untouched
+sentinels, and clean transaction census. It now checks process status before
+the watcher result so a future tool failure is visible.
+
+The two reported watcher cases pass in 20.606 seconds. A representative
+ten-case Linux set passes in 21.213 seconds, including author and inspector
+success/failure for raw assembly, ISO, JPEG, and kernel symbols, plus quoted
+generic-runner arguments and timeout cleanup. The first representative run
+selected a manifest outside the worktree and correctly failed the manifest
+root guard. Repeating with exact complete cohort copies beneath ignored
+`build/bootstrap/watcher-seeds/` passed. The copied manifests retain hashes
+`1695d4bfa68701fb5e087e45942578445e97eb44dbc73b029c7533f07e4f4b58`
+and `c537034852bf8273dad21e3f908215638cec18cf7048c277133e22ad8be3cec8`.
+No checked seed bytes or manifest were changed.
+
+Native Windows passes the same ten representative cases plus the existing
+timeout-and-drift hook case: eleven tests in 18.607 seconds, without skips.
+
+Strict i386 custom-runtime syntax checking passes with `-Wall -Wextra -Werror`
+and the hosted Make warning flags. ADR 0389 records the source decision.
+These are isolated source tests; fresh paired reconstruction and a final OS
+build remain required before production promotion.
+
+Review identified missing coverage for failed ready-file creation. The new
+Linux regression passes a directory as the ready path, which fails without
+waiting for the resume timeout. Its native driver links the existing race
+objects, stops a real forked child, and calls the public checked-runner API.
+It verifies SIGKILL reaping and `ECHILD`, both closed launch-pipe descriptors,
+and the same in-process descriptor count before and after the call. Python
+checks the unchanged process diagnostic and absence of transaction residue.
+The child requests SIGKILL if its test driver dies, so interruption does not
+leave a stopped process behind.
+
+The first focused run passed in 21.974 seconds. A diagnostic-only host build
+that suppresses read-only pipe closure then failed with contract result 95,
+the descriptor-count check, in 9.870 seconds. The actual implementation and
+the final test pass together with both original watcher cases: three tests
+in 19.271 seconds. The ignored mutation driver and source are
+`build/bootstrap/pause_cleanup_mutation.py` and
+`build/bootstrap/pause_cleanup_no_pipe_close.cc`; no production source was
+changed for that check. Python compilation and `git diff --check` pass.
+
+The integrated source-only checkout passed six Windows tests in 53.676
+seconds and nine Linux tests in 174.690 seconds, without skips. These runs
+combine the 500-input flatten checks with timeout-and-drift, live-child
+cleanup, private cwd, profile recovery, compact ISO recovery, and the two
+fixture repairs, as applicable to each platform. They use hash-verified copies
+of the complete `962e476b` cohorts under ignored validation storage.
+
+An original-cohort Linux check passed both generic-runner cases but stopped
+the typed cwd case at CupidASM usage, before assembly. The exact `0232cb57`
+assembler predates `--caller-owned-output`. That cwd test and the new compact
+ISO test now share the existing source-transition skip, qualified by the
+full original manifest digest and revision. The Windows transition guard is
+also limited to its exact original manifest, so a selected current candidate
+must run those cases. This preserves the old checked-seed path without hiding
+failures in replacement cohorts. Final promotion removes these old-cohort
+qualifications.
+
+Sixteen fixed-point definition tests passed in 1.580 seconds. Source-only
+audit regeneration and check mode passed with 748 active inputs, 452
+transforms, 255 feature requirements, and 28 accounted unreachable inputs.
+Ownership remains 195 CupidBuild transforms and 257 Python transforms. The
+audit JSON has SHA-256
+`53755a5481e27434cdb8dbf16a75ed0782c099904bbfdb1ee45d5b0bbcb90a27`;
+the summary has SHA-256
+`3f23eba1e351479ef302b6c7d51ca427b31a5ebcf49bc9a5c7e0e36328b212bf`.
+Standards and specification reviews are complete, including both corrected
+test-coverage findings. No new seed has been promoted.
+
+The final original-cohort checks passed: three Linux cases in 11.142 seconds
+with one qualified old-assembler skip, and six Windows cases in 24.428 seconds
+with four qualified old-cohort skips. The replacement-cohort runs above
+execute those applicable cases without skips.

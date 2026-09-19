@@ -1,3 +1,4 @@
+import errno
 import hashlib
 import json
 import os
@@ -67,7 +68,7 @@ class CupidBuildCliTests(unittest.TestCase):
         "test_typed_profile_manifest_rejects_a_restored_directory_after_first_pass",
         "test_typed_profile_manifest_rejects_a_restored_directory_at_publication",
         "test_typed_profile_manifest_replaces_a_previous_output",
-        "test_typed_profile_manifest_rolls_back_inside_a_replaced_output_parent",
+        "test_typed_profile_manifest_preserves_recovery_inside_a_replaced_output_parent",
         "test_typed_profile_manifest_rolls_back_inside_a_replaced_root",
         "test_typed_profile_manifest_seed_drift_preserves_previous_output",
         "test_typed_profile_manifest_transaction_matches_the_python_oracle",
@@ -148,25 +149,33 @@ class CupidBuildCliTests(unittest.TestCase):
         if self._testMethodName in (
             "test_iso_pattern_matches_active_source_and_preserves_timestamp",
             "test_iso_pattern_rejects_size_bytes_layout_and_assembly_failures",
+            "test_iso_pattern_preserves_recovery_when_the_output_parent_is_replaced",
+            "test_posix_private_tool_uses_proc_without_relative_repository_writes",
         ):
-            manifest = json.loads(
-                self._production_manifest().read_text(encoding="utf-8")
-            )
+            seed_bytes = self._production_manifest().read_bytes()
+            manifest = json.loads(seed_bytes)
             if manifest.get("provenance", {}).get("source_revision") == (
                 "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
-            ):
+            ) and hashlib.sha256(seed_bytes).hexdigest() in {
+                "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781",
+                "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4",
+            }:
                 self.skipTest(
-                    "the 0232cb57 seed predates caller-owned CupidASM; set "
+                    "the exact 0232cb57 seed predates caller-owned CupidASM; set "
                     "CUPIDBUILD_TEST_SEED_MANIFEST to a source-current "
                     "candidate manifest"
                 )
         if os.name != "nt":
             return
         if self._testMethodName in self._WINDOWS_SEED_TRANSITION_TESTS:
-            self.skipTest(
-                "the promoted Windows seed predates caller-owned CupidASM "
-                "and shared CupidObj outputs"
-            )
+            seed_bytes = self._production_manifest().read_bytes()
+            if hashlib.sha256(seed_bytes).hexdigest() == (
+                "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+            ):
+                self.skipTest(
+                    "the original Windows seed predates caller-owned CupidASM "
+                    "and shared CupidObj outputs"
+                )
     def test_help_names_every_guarded_assembly_command(self):
         result = subprocess.run(
             [str(self.cli_path), "--help"],
@@ -519,13 +528,16 @@ class CupidBuildCliTests(unittest.TestCase):
             )
             cupidobj = manifest.parent / artifact["file"]
             payload = cupidobj.read_bytes()
-            self.assertGreaterEqual(payload.count(b"profiles"), 1)
+            profile_key = b'"profiles":'
+            self.assertEqual(payload.count(profile_key), 1)
             self._replace_seed_tool_bytes(
                 manifest,
                 "cupidobj",
-                payload.replace(b"profiles", b"profilet"),
+                payload.replace(profile_key, b'"profilet":'),
             )
             output = root / "build" / "bootstrap" / "doom-cupidc-inputs.json"
+            if os.name != "nt":
+                output.parent.mkdir(parents=True)
             foreign = output.parent / "foreign.txt"
             lock = Path(str(output) + ".cupidbuild.lock")
             changed = threading.Event()
@@ -1138,25 +1150,33 @@ class CupidBuildCliTests(unittest.TestCase):
             root.rmdir()
             displaced.rename(root)
 
-    def test_typed_profile_manifest_rolls_back_inside_a_replaced_output_parent(
+    def test_typed_profile_manifest_preserves_recovery_inside_a_replaced_output_parent(
         self,
     ):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-profile-post-install-parent-", dir=REPO_ROOT
         ) as temporary:
             root = Path(temporary)
+            stable_parent_lookup = (
+                self._retained_directory_lookup_survives_rename(root)
+                if os.name != "nt" else None
+            )
             manifest = self._copy_profile_repository(root)
             output_parent = root / "artifacts"
             output_parent.mkdir()
             output = output_parent / "doom-cupidc-inputs.json"
             previous = b"last known good profile manifest"
             output.write_bytes(previous)
+            os.utime(output, ns=(1_600_000_000_000_000_000,) * 2)
+            previous_stat = output.stat()
             displaced = root / "displaced-artifacts"
             ready = root / "publication-ready"
             resume = root / "publication-resume"
             marker = output_parent / "foreign-successor.txt"
             changed = threading.Event()
+            blocked = threading.Event()
             mutation_errors = []
+            foreign_parent_stat = []
 
             def replace_parent_after_candidate_install():
                 try:
@@ -1166,9 +1186,15 @@ class CupidBuildCliTests(unittest.TestCase):
                             output_parent.rename(displaced)
                             output_parent.mkdir()
                             marker.write_bytes(b"foreign successor")
+                            foreign_parent_stat.append(output_parent.stat())
                             changed.set()
                             return
                         time.sleep(0.001)
+                except PermissionError as error:
+                    if os.name == "nt":
+                        blocked.set()
+                    else:
+                        mutation_errors.append(error)
                 except Exception as error:
                     mutation_errors.append(error)
                 finally:
@@ -1196,13 +1222,31 @@ class CupidBuildCliTests(unittest.TestCase):
 
             self.assertFalse(mutator.is_alive(), "the parent mutator did not stop")
             self.assertFalse(mutation_errors, repr(mutation_errors))
+            if os.name == "nt":
+                self.assertTrue(blocked.is_set(), "the retained parent was not observed")
+                self.assertFalse(changed.is_set())
+                self.assertFalse(displaced.exists())
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(
+                    json.loads(output.read_text(encoding="utf-8")),
+                    _profile_input_manifest(root),
+                )
+                self.assertEqual(self._private_roots(root), set())
+                return
             self.assertTrue(changed.is_set(), "candidate installation was not observed")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("publication failed", result.stderr)
             self.assertIn("transaction cleanup failed", result.stderr)
             self.assertEqual(marker.read_bytes(), b"foreign successor")
-            self.assertEqual((displaced / output.name).read_bytes(), previous)
-            self.assertNotEqual(self._private_roots(root), set())
+            self._assert_replaced_parent_recovery(
+                root, output, displaced, previous, previous_stat,
+                stable_parent_lookup, foreign_parent_stat[0],
+            )
+            if not stable_parent_lookup:
+                self.assertEqual(
+                    json.loads((displaced / output.name).read_text(encoding="utf-8")),
+                    _profile_input_manifest(root),
+                )
             marker.unlink()
             output_parent.rmdir()
             displaced.rename(output_parent)
@@ -1280,11 +1324,12 @@ class CupidBuildCliTests(unittest.TestCase):
             )
             cupidobj = manifest.parent / artifact["file"]
             payload = cupidobj.read_bytes()
-            self.assertEqual(payload.count(b"profiles"), 1)
+            profile_key = b'"profiles":'
+            self.assertEqual(payload.count(profile_key), 1)
             self._replace_seed_tool_bytes(
                 manifest,
                 "cupidobj",
-                payload.replace(b"profiles", b"profilet"),
+                payload.replace(profile_key, b'"profilet":'),
             )
             output = root / "doom-cupidc-inputs.json"
             output.write_bytes(b"last known good profile manifest")
@@ -3236,6 +3281,323 @@ class CupidBuildCliTests(unittest.TestCase):
             current = current / "d"
             current.mkdir()
 
+    def _retained_directory_lookup_survives_rename(self, container):
+        """Probe the fixture filesystem without depending on a mount name."""
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-dirfd-capability-", dir=container
+        ) as temporary:
+            root = Path(temporary)
+            parent = root / "parent"
+            parent.mkdir()
+            (parent / "entry").write_bytes(b"owned directory entry")
+            descriptor = os.open(
+                parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+            )
+            try:
+                parent.rename(root / "displaced")
+                parent.mkdir()
+                (parent / "entry").write_bytes(b"foreign directory entry")
+                try:
+                    entry = os.open(
+                        "entry", os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC,
+                        dir_fd=descriptor,
+                    )
+                except OSError as error:
+                    if error.errno == errno.ENOENT:
+                        return False
+                    raise
+                try:
+                    payload = os.read(entry, 100)
+                finally:
+                    os.close(entry)
+                self.assertIn(
+                    payload, (b"owned directory entry", b"foreign directory entry"),
+                    "retained-directory probe returned an unexpected entry",
+                )
+                return payload == b"owned directory entry"
+            finally:
+                os.close(descriptor)
+
+    def _assert_replaced_parent_recovery(
+        self, root, output, displaced, previous, previous_stat,
+        stable_parent_lookup, foreign_parent_stat,
+    ):
+        current_parent_stat = output.parent.stat()
+        self.assertEqual(
+            (current_parent_stat.st_dev, current_parent_stat.st_ino,
+             current_parent_stat.st_mtime_ns),
+            (foreign_parent_stat.st_dev, foreign_parent_stat.st_ino,
+             foreign_parent_stat.st_mtime_ns),
+            "publication changed the foreign replacement directory identity or mtime",
+        )
+        self.assertEqual(
+            {path.name for path in output.parent.iterdir()},
+            {"foreign-successor.txt"},
+            "publication changed the foreign replacement directory",
+        )
+        if stable_parent_lookup:
+            recovered = displaced / output.name
+        else:
+            backups = list(displaced.glob(".cupidbuild-old-*"))
+            self.assertEqual(len(backups), 1, "the recovery backup was not retained")
+            recovered = backups[0]
+        self.assertFalse(recovered.is_symlink())
+        recovered_stat = recovered.stat()
+        self.assertTrue(stat.S_ISREG(recovered_stat.st_mode))
+        self.assertEqual(recovered.read_bytes(), previous)
+        self.assertEqual(recovered_stat.st_mtime_ns, previous_stat.st_mtime_ns)
+        self.assertEqual(
+            (recovered_stat.st_dev, recovered_stat.st_ino),
+            (previous_stat.st_dev, previous_stat.st_ino),
+        )
+        private_roots = self._private_roots(root)
+        self.assertEqual(len(private_roots), 1)
+        self.assertTrue(
+            self._private_entry(next(iter(private_roots)), "candidate.o").is_file()
+        )
+        self.assertTrue((displaced / (output.name + ".cupidbuild.lock")).is_file())
+
+    @unittest.skipIf(os.name == "nt", "Windows retains the output parent against rename")
+    def test_iso_pattern_preserves_recovery_when_the_output_parent_is_replaced(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-iso-post-install-parent-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            stable_parent_lookup = self._retained_directory_lookup_survives_rename(root)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            source = root / "pattern.asm"
+            source.write_text("bits 32\norg 0\ntimes 4096 db $\n", encoding="ascii")
+            output_parent = root / "artifacts"
+            output_parent.mkdir()
+            output = output_parent / "pattern.bin"
+            previous = b"previous ISO pattern"
+            output.write_bytes(previous)
+            os.utime(output, ns=(1_600_000_000_000_000_000,) * 2)
+            previous_stat = output.stat()
+            displaced = root / "displaced-artifacts"
+            ready = root / "publication-ready"
+            resume = root / "publication-resume"
+            marker = output_parent / "foreign-successor.txt"
+            changed = threading.Event()
+            mutation_errors = []
+            foreign_parent_stat = []
+
+            def replace_parent_after_candidate_install():
+                try:
+                    deadline = time.monotonic() + 30
+                    while not ready.is_file():
+                        if time.monotonic() >= deadline:
+                            raise AssertionError("candidate installation was not observed")
+                        time.sleep(0.001)
+                    output_parent.rename(displaced)
+                    output_parent.mkdir()
+                    marker.write_bytes(b"foreign successor")
+                    foreign_parent_stat.append(output_parent.stat())
+                    changed.set()
+                except Exception as error:
+                    mutation_errors.append(error)
+                finally:
+                    try:
+                        resume.write_bytes(b"continue")
+                    except Exception as error:
+                        mutation_errors.append(error)
+
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = "after-install"
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(resume)
+            mutator = threading.Thread(target=replace_parent_after_candidate_install, daemon=True)
+            mutator.start()
+            command = self._assembly_command(
+                "assemble-iso-pattern", source, output,
+                manifest=manifest, root=root,
+            )
+            command[0] = str(self.race_cli_path)
+            result = subprocess.run(
+                command, cwd=root, text=True, capture_output=True,
+                timeout=90, env=environment,
+            )
+            mutator.join(timeout=30)
+
+            self.assertFalse(mutator.is_alive(), "the parent mutator did not stop")
+            self.assertFalse(mutation_errors, repr(mutation_errors))
+            self.assertTrue(changed.is_set())
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertRegex(result.stderr, "could not be published|output parent changed")
+            self.assertIn("transaction cleanup failed", result.stderr)
+            self.assertEqual(marker.read_bytes(), b"foreign successor")
+            self._assert_replaced_parent_recovery(
+                root, output, displaced, previous, previous_stat,
+                stable_parent_lookup, foreign_parent_stat[0],
+            )
+            if not stable_parent_lookup:
+                self.assertEqual((displaced / output.name).read_bytes(), bytes(range(256)) * 16)
+            marker.unlink()
+            output_parent.rmdir()
+            displaced.rename(output_parent)
+
+    @unittest.skipIf(os.name == "nt", "POSIX fork and descriptor cleanup")
+    def test_checked_tool_runner_cleans_up_after_launch_pause_failure(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-run-pause-failure-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            ready = root / "ready-is-a-directory"
+            ready.mkdir()
+            source = root / "pause_cleanup.cc"
+            executable = root / "pause_cleanup"
+            source.write_text(
+                r'''#define _GNU_SOURCE
+#include "cupidbuild.h"
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/prctl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+pid_t __real_fork(void);
+pid_t __real_waitpid(pid_t child, int *status, int options);
+int __real_pipe(int descriptors[2]);
+pid_t __wrap_fork(void);
+pid_t __wrap_waitpid(pid_t child, int *status, int options);
+int __wrap_pipe(int descriptors[2]);
+
+static pid_t observed_child = -1;
+static int child_was_live;
+static int child_was_killed;
+static int launch_pipe[2] = {-1, -1};
+
+pid_t __wrap_fork(void) {
+  pid_t child = __real_fork();
+  if (child == 0) {
+    if (prctl(PR_SET_PDEATHSIG, SIGKILL) != 0) _exit(89);
+    if (raise(SIGSTOP) != 0) _exit(90);
+  } else if (child > 0) {
+    int status = 0;
+    pid_t waited;
+    observed_child = child;
+    do {
+      waited = __real_waitpid(child, &status, WUNTRACED);
+    } while (waited < 0 && errno == EINTR);
+    child_was_live = waited == child && WIFSTOPPED(status);
+  }
+  return child;
+}
+
+pid_t __wrap_waitpid(pid_t child, int *status, int options) {
+  pid_t waited = __real_waitpid(child, status, options);
+  if (waited == observed_child && status != NULL && WIFSIGNALED(*status) &&
+      WTERMSIG(*status) == SIGKILL) child_was_killed = 1;
+  return waited;
+}
+
+int __wrap_pipe(int descriptors[2]) {
+  int result = __real_pipe(descriptors);
+  if (result == 0) {
+    launch_pipe[0] = descriptors[0];
+    launch_pipe[1] = descriptors[1];
+  }
+  return result;
+}
+
+static int descriptor_count(void) {
+  DIR *directory = opendir("/proc/self/fd");
+  struct dirent *entry;
+  int count = 0;
+  if (directory == NULL) return -1;
+  while ((entry = readdir(directory)) != NULL) {
+    if (entry->d_name[0] >= '0' && entry->d_name[0] <= '9') count++;
+  }
+  if (closedir(directory) != 0) return -1;
+  return count;
+}
+
+int main(int argc, char **argv) {
+  const char *arguments[] = {"--help", NULL};
+  cupidbuild_run_request_t request;
+  int descriptors_before;
+  int status;
+  int index;
+  int child_status = 0;
+  int failure = 0;
+  if (argc != 3) return 91;
+  request.seed_manifest = argv[1];
+  request.working_directory = argv[2];
+  request.tool = "cupidobj";
+  request.arguments = arguments;
+  request.timeout_seconds = 1u;
+  descriptors_before = descriptor_count();
+  status = cupidbuild_run_checked_tool(&request);
+  if (status != 1 || !child_was_live || !child_was_killed) failure = 92;
+  errno = 0;
+  if (__real_waitpid(observed_child, &child_status, WNOHANG) != -1 ||
+      errno != ECHILD) failure = 93;
+  for (index = 0; index < 2; index++) {
+    errno = 0;
+    if (launch_pipe[index] < 0 || fcntl(launch_pipe[index], F_GETFD) != -1 ||
+        errno != EBADF) failure = 94;
+  }
+  if (descriptors_before < 0 || descriptor_count() != descriptors_before)
+    failure = 95;
+  if (failure != 0) {
+    if (observed_child > 0) {
+      (void)kill(observed_child, SIGKILL);
+      (void)__real_waitpid(observed_child, &child_status, 0);
+    }
+    fprintf(stderr, "pause cleanup contract failed: %d\n", failure);
+    return failure;
+  }
+  puts("pause cleanup contract: live child killed and reaped; descriptors closed");
+  return 0;
+}
+''',
+                encoding="ascii",
+            )
+            objects = [
+                self.race_cli_path.parent / f"{name}.o"
+                for name in (
+                    "ctool", "ctool_host", "elf32", "cupidbuild_host", "cupidbuild"
+                )
+            ]
+            built = subprocess.run(
+                [
+                    "gcc", "-x", "c", "-std=c11", "-Wall", "-Wextra", "-Werror",
+                    "-I", str(TOOLCHAIN_ROOT), str(source), "-x", "none",
+                    *(str(path) for path in objects),
+                    "-Wl,--wrap=fork", "-Wl,--wrap=waitpid", "-Wl,--wrap=pipe",
+                    "-o", str(executable),
+                ],
+                cwd=root, text=True, capture_output=True, timeout=90,
+            )
+            self.assertEqual(built.returncode, 0, built.stdout + built.stderr)
+            before = set(root.rglob("*"))
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = "after-tool-launch"
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(root / "resume")
+            result = subprocess.run(
+                [str(executable), str(manifest), str(root)],
+                cwd=root, env=environment, text=True, capture_output=True, timeout=10,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(
+                result.stdout,
+                "pause cleanup contract: live child killed and reaped; descriptors closed\n",
+            )
+            self.assertEqual(
+                result.stderr,
+                "cupidbuild: checked tool could not be started or captured\n",
+            )
+            self.assertEqual(set(root.rglob("*")), before)
+            self.assertEqual(self._private_roots(root), set())
+
     def _build_ksyms_elf(self, root, source_text):
         source = root / "entry.asm"
         object_path = root / "entry.o"
@@ -3754,7 +4116,7 @@ class CupidBuildCliTests(unittest.TestCase):
             output = root / "output.o"
             source.write_text(
                 "bits 32\nsection .text\nglobal entry\nentry:\n"
-                + "nop\n" * 1_000_000
+                + "nop\n" * 10_000
                 + "ret\n",
                 encoding="ascii",
             )
@@ -3808,9 +4170,9 @@ class CupidBuildCliTests(unittest.TestCase):
                 time.sleep(0.001)
             stdout, stderr = process.communicate(timeout=90)
 
-            self.assertTrue(observed_proc_cwd, "the private tool cwd was not observed")
             self.assertEqual(process.returncode, 0, stderr)
             self.assertEqual((stdout, stderr), ("", ""))
+            self.assertTrue(observed_proc_cwd, "the private tool cwd was not observed")
             self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
             for path, payload in sentinels.items():
                 self.assertEqual(path.read_bytes(), payload)

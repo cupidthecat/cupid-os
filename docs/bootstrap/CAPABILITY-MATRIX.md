@@ -7,6 +7,21 @@ The matrix uses these statuses:
 - **Missing**: no implementation satisfying the bootstrap contract was found.
 - **Required**: the checked active-source audit proves the capability is exercised, but the Cupid implementation does not yet satisfy it.
 
+Source-head checked-tool launch repairs are **Observed**, pending seed
+promotion. Windows retains one broad inspection of all 500 inputs without
+exceeding the command-line limit. Anonymous POSIX author and capture paths use
+the pinned `/proc` directory, while generic commands keep their requested cwd.
+Tests cover exact full-cohort output, final-input rejection, seed drift after
+timeout, and failed-launch child and descriptor cleanup. ADRs 0387 and 0389
+record those boundaries.
+
+Publication recovery depends on retained-directory semantics. Native Linux
+requires the prior output's exact identity, bytes, and timestamp after the
+tested parent replacement. On DrvFS, a failed publication may instead retain
+those same verified bytes in a backup while preserving foreign directory
+identity, timestamp, and contents. Both paths retain ambiguous transaction
+evidence. ADR 0388 distinguishes recovery from successful restoration.
+
 Typed kernel flattening is **Production-owned**. CupidBuild accepts the
 strict production input manifest, freezes up to 500 named inputs plus the
 six-tool seed, and preserves ADR 0318's one-call broad CupidDis contract. It
@@ -18,9 +33,9 @@ renderer before guarded publication. A CupidC-built image
 processed all 431 production inputs and reproduced the tracked 9,513,536-byte
 kernel exactly. The paired Linux 28/6/35 and native Windows 17/6/22 matrices
 define success and rollback cases and converged from revision
-`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`. The production recipe has not
-moved yet. ADR 0372 records the source capability, and ADR 0374 records seed
-carriage.
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`. The production recipe calls checked
+CupidBuild directly. ADR 0372 records the source capability, ADR 0374 records
+seed carriage, and ADR 0375 records recipe ownership.
 
 Hosted `strrchr` is **Carried by both active seeds**. The declaration and static
 i386 implementation follow the standard last-match and terminating-null

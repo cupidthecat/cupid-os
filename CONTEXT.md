@@ -39,6 +39,10 @@ _Avoid_: decoded instruction boundary, assumed local target
 The narrow allocator, whole-file, and text-output capabilities that connect the shared Cupid Toolchain core to a hosted runtime or the Cupid OS kernel.
 _Avoid_: tool backend, giant platform vtable
 
+**CupidBuild recovery evidence**:
+The verified previous output and retained transaction state left after a failed publication when the output namespace is ambiguous. Preserving this evidence keeps the old bytes recoverable; it does not mean the old public name was restored or the new candidate was committed.
+_Avoid_: successful rollback, committed output
+
 **Guarded build transaction**:
 A hosted CupidBuild operation that freezes its source and checked tool cohort,
 uses a private candidate, validates and inspects that candidate, rechecks live

@@ -1,5 +1,18 @@
 # Cupid Toolchain bootstrap
 
+Anonymous POSIX publication tools run from CupidBuild's retained `/proc`
+directory, with frozen descriptor paths as their inputs. Generic checked
+commands keep their requested working directory. [ADR 0389](../adr/0389-use-the-pinned-proc-directory-for-anonymous-tool-launches.md)
+records the launch repair and child-cleanup tests.
+
+WSL publication on `/mnt/c` remains supported. A concurrent directory
+replacement can prevent DrvFS from resolving the retained parent safely.
+CupidBuild then rejects publication, preserves the verified old output as
+recovery evidence, and leaves foreign files untouched. Native Linux
+filesystems with stable retained-directory lookup still require exact
+restoration. [ADR 0388](../adr/0388-keep-drvfs-publication-with-explicit-recovery-limits.md)
+defines this limit; a recovery backup is not a restored public output.
+
 Source-head CupidBuild keeps the full 500-input kernel inspection within
 Windows' command-line limit by using filenames relative to its retained
 private working directory. Linux keeps its sealed descriptor paths. Tests

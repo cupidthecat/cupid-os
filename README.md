@@ -56,6 +56,21 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 - System clipboard, x86-32 disassembler, BMP / PNG / JPEG image codecs, TrueType font system with bundled Liberation fonts and live `fontswitch`
 - Panic backtrace decoded against a kernel symbol table (`addr  function_name+offset` per frame)
 
+## 2026-09-19 checked-tool launch repairs
+
+Source-head CupidBuild keeps all 500 supported kernel-inspection inputs within
+the Windows command limit by using retained private filenames. Anonymous
+POSIX author and inspector calls run from the pinned `/proc` directory; the
+generic checked runner keeps its caller's working directory. Positive and
+failure tests cover both launch paths and failed-launch child cleanup.
+
+WSL builds on `/mnt/c` remain supported. If concurrent directory replacement
+makes retained lookup unsafe, CupidBuild preserves the verified previous file
+as recovery evidence and leaves foreign files untouched. A recovery backup
+does not mean the old public name was restored. The [bootstrap guide](docs/bootstrap/README.md)
+and ADRs 0387, 0388, and 0389 describe these source changes. Fresh paired seed
+reconstruction and a full OS/runtime replay remain required before promotion.
+
 ## 2026-08-31 source-current checkpoint
 
 Source-head CupidBuild now has a typed `flatten-kernel` transaction. It pins
