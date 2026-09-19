@@ -2299,18 +2299,26 @@ def run(args: argparse.Namespace) -> int:
             )
             return 2
 
-    monitor_port = free_tcp_port()
-    proc = subprocess.Popen(
-        qemu_args(runtime_args, monitor_port),
-        cwd=REPO_ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.STDOUT,
-    )
+    qemu_output = None
+    proc = None
     mon: socket.socket | None = None
     try:
+        qemu_output = tempfile.TemporaryFile(mode="w+b")
+        monitor_port = free_tcp_port()
+        proc = subprocess.Popen(
+            qemu_args(runtime_args, monitor_port),
+            cwd=REPO_ROOT,
+            stdout=qemu_output,
+            stderr=subprocess.STDOUT,
+        )
         ok, data = wait_log(proc, args.log, r"Entering desktop environment", args.timeout)
         if not ok:
-            print("GUI desktop did not boot before timeout", file=sys.stderr)
+            reason = (
+                "GUI desktop did not boot"
+                if proc.poll() is not None
+                else "GUI desktop did not boot before timeout"
+            )
+            print(reason, file=sys.stderr)
             print(data[-4000:], file=sys.stderr)
             return 1
 
@@ -2370,6 +2378,14 @@ def run(args: argparse.Namespace) -> int:
             print("GUI terminal smoke failed: panic detected", file=sys.stderr)
             print(data_after[-5000:], file=sys.stderr)
             return 1
+        if proc.poll() is not None:
+            print(
+                "GUI terminal smoke failed: QEMU exited during the "
+                "post-command survival window",
+                file=sys.stderr,
+            )
+            print(data_after[-5000:], file=sys.stderr)
+            return 1
         if args.verify_smp_runtime:
             try:
                 validate_smp_runtime_log(data_after, args.nic)
@@ -2384,7 +2400,13 @@ def run(args: argparse.Namespace) -> int:
         print("GUI terminal smoke passed")
         return 0
     finally:
-        stop_qemu(proc, mon)
+        if proc is not None:
+            detail = qemu_exit_diagnostic(proc, qemu_output)
+            if detail:
+                print(detail, file=sys.stderr)
+            stop_qemu(proc, mon)
+        if qemu_output is not None:
+            qemu_output.close()
         if private_directory is not None:
             private_directory.cleanup()
 

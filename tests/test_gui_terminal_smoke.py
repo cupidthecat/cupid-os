@@ -1,6 +1,9 @@
 import hashlib
 import io
+import itertools
 import re
+import subprocess
+import sys
 import tempfile
 import unittest
 import wave
@@ -597,6 +600,186 @@ class ReplugMonitorSocket(FakeMonitorSocket):
 
 
 class GuiTerminalInputTests(unittest.TestCase):
+    def _run_ordinary_runtime(self, exit_stage):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            image = root / "cupidos.img"
+            image.write_bytes(b"system image")
+            log = root / "serial.log"
+            args = gui_terminal_smoke.parse_args(
+                ["--image", str(image), "--log", str(log),
+                 "--setup-command", "setup", "--setup-success-pattern", "ready"]
+            )
+            process = mock.Mock()
+            process.poll.return_value = None
+            monitor = mock.Mock()
+            monitor.recv.return_value = b"(qemu)"
+            command_count = 0
+            capture = None
+            output = io.StringIO()
+            errors = io.StringIO()
+
+            def launch(_command, **kwargs):
+                nonlocal capture
+                capture = kwargs["stdout"]
+                capture.write(b"qemu-system-i386: host runtime failure\n")
+                log.write_text("Entering desktop environment\n", encoding="utf-8")
+                return process
+
+            def send(data):
+                nonlocal command_count
+                if data.startswith(b"sendkey ctrl-alt-t "):
+                    stage = "terminal"
+                    marker = "Terminal launched\n"
+                elif data.startswith(b"sendkey ret "):
+                    command_count += 1
+                    stage = "setup" if command_count == 1 else "command"
+                    marker = "ready\n" if command_count == 1 else "JIT execution complete\n"
+                elif data == b"quit\n":
+                    process.poll.return_value = 0
+                    return
+                else:
+                    return
+                if exit_stage == stage:
+                    process.poll.return_value = 9
+                    return
+                with log.open("a", encoding="utf-8") as serial:
+                    serial.write(marker)
+                    if stage == "command" and exit_stage == "survival":
+                        process.poll.return_value = 9
+                    if stage == "command" and exit_stage == "panic":
+                        serial.write("KERNEL PANIC: test failure\n")
+
+            monitor.sendall.side_effect = send
+            with (
+                mock.patch("tools.gui_terminal_smoke.subprocess.Popen",
+                           side_effect=launch),
+                mock.patch("tools.gui_terminal_smoke.socket.create_connection",
+                           return_value=monitor),
+                mock.patch("tools.gui_terminal_smoke.time.sleep"),
+                mock.patch("tools.gui_terminal_smoke.time.time",
+                           side_effect=itertools.count()),
+                mock.patch("sys.stdout", output),
+                mock.patch("sys.stderr", errors),
+            ):
+                status = gui_terminal_smoke.run(args)
+
+            self.assertTrue(capture.closed)
+            self.assertEqual(image.read_bytes(), b"system image")
+            return status, output.getvalue(), errors.getvalue()
+
+    def test_ordinary_smoke_rejects_qemu_exit_after_command_completion(self):
+        status, output, errors = self._run_ordinary_runtime("survival")
+
+        self.assertEqual(status, 1)
+        self.assertNotIn("smoke passed", output)
+        self.assertIn("QEMU exited with status 9", errors)
+        self.assertIn("host runtime failure", errors)
+
+    def test_ordinary_smoke_reports_qemu_exit_during_terminal_commands(self):
+        for stage, reason in (
+            ("terminal", "Terminal did not launch"),
+            ("setup", "setup command did not complete"),
+            ("command", "command did not complete"),
+        ):
+            with self.subTest(stage=stage):
+                status, output, errors = self._run_ordinary_runtime(stage)
+                self.assertEqual(status, 1)
+                self.assertNotIn("smoke passed", output)
+                self.assertIn(reason, errors)
+                self.assertIn("QEMU exited with status 9", errors)
+                self.assertIn("host runtime failure", errors)
+
+    def test_ordinary_smoke_keeps_success_and_panic_checks(self):
+        status, output, errors = self._run_ordinary_runtime(None)
+        self.assertEqual(status, 0)
+        self.assertIn("GUI terminal smoke passed", output)
+        self.assertEqual(errors, "")
+
+        status, output, errors = self._run_ordinary_runtime("panic")
+        self.assertEqual(status, 1)
+        self.assertNotIn("smoke passed", output)
+        self.assertIn("KERNEL PANIC: test failure", errors)
+
+    def _run_ordinary_child(self, child_source, *, timeout="2", launch_error=False):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            image = root / "cupidos.img"
+            image.write_bytes(b"system image")
+            args = gui_terminal_smoke.parse_args(
+                ["--image", str(image), "--log", str(root / "serial.log"),
+                 "--private-image", "--timeout", timeout]
+            )
+            output = io.StringIO()
+            launch = subprocess.Popen
+            capture = None
+            private_image = None
+
+            def failed_qemu(command, **kwargs):
+                nonlocal capture, private_image
+                capture = kwargs["stdout"]
+                drive = command[command.index("-drive") + 1]
+                private_image = Path(drive.removeprefix("file=").split(",format=")[0])
+                private_image.write_bytes(b"guest changed private image")
+                if launch_error:
+                    raise OSError("QEMU launch failed")
+                return launch(
+                    [sys.executable, "-c", child_source],
+                    **kwargs,
+                )
+
+            with (
+                mock.patch("tools.gui_terminal_smoke.subprocess.Popen",
+                           side_effect=failed_qemu),
+                mock.patch("sys.stderr", output),
+            ):
+                if launch_error:
+                    with self.assertRaisesRegex(OSError, "QEMU launch failed"):
+                        gui_terminal_smoke.run(args)
+                    status = None
+                else:
+                    status = gui_terminal_smoke.run(args)
+
+            self.assertTrue(capture.closed)
+            self.assertFalse(private_image.exists())
+            self.assertEqual(image.read_bytes(), b"system image")
+            return status, output.getvalue()
+
+    def test_ordinary_smoke_reports_qemu_startup_failure_without_a_timeout(self):
+        status, output = self._run_ordinary_child(
+            "import sys; sys.stderr.write("
+            "'qemu-system-i386: cannot set up guest memory: "
+            "Cannot allocate memory\\n'); sys.exit(7)"
+        )
+
+        self.assertEqual(status, 1)
+        self.assertIn("QEMU exited with status 7", output)
+        self.assertIn("cannot set up guest memory", output)
+        self.assertNotIn("timeout", output)
+
+    def test_ordinary_smoke_captures_large_qemu_output_without_blocking(self):
+        status, output = self._run_ordinary_child(
+            "import sys; sys.stdout.write('x' * 1048576); sys.stdout.flush(); "
+            "sys.stderr.write('qemu: final startup error\\n'); sys.exit(3)"
+        )
+
+        self.assertEqual(status, 1)
+        self.assertIn("QEMU exited with status 3", output)
+        self.assertIn("qemu: final startup error", output)
+        self.assertLess(len(output), 4200)
+
+    def test_ordinary_smoke_keeps_a_live_qemu_timeout_distinct_from_exit(self):
+        status, output = self._run_ordinary_child(
+            "import time; time.sleep(30)", timeout="0.1"
+        )
+
+        self.assertEqual(status, 1)
+        self.assertIn("GUI desktop did not boot before timeout", output)
+        self.assertNotIn("QEMU exited", output)
+
+    def test_ordinary_smoke_cleans_up_capture_and_private_image_when_launch_fails(self):
+        self._run_ordinary_child("", launch_error=True)
+
     def test_read_log_retries_one_host_allocation_failure(self):
         log = Path("serial.log")
         with (

@@ -34632,3 +34632,27 @@ inputs. The 2,821,360-byte JSON has SHA-256
 `a151d4920afe51f8366a2f99f3d667ebfccbbe2f6d25e2c21f7d285c4fb151b92`.
 The 13,193-byte summary has SHA-256
 `a3f550ababf9df4dc4a437eeae9afd82cf137a14331c23e8f74d5c1968959723`.
+
+## 2026-09-19: retain ordinary QEMU smoke failures
+
+The ordinary GUI terminal smoke now captures QEMU output in a temporary file
+and reuses the frontier runner's bounded exit diagnostic. A child that exits
+before boot reports its status and the last 4,000 bytes of output. A live
+child that reaches the deadline still reports a timeout. File-backed capture
+does not block a verbose child on an unread pipe, and the cleanup scope now
+also covers launch failures.
+
+A public-runner regression exposed a second failure: QEMU could exit after
+command completion and the final survival wait would still return success.
+The runner now rejects that exit, retaining the existing panic and SMP
+assertions. Guest settings, command checks, and private-image behavior are
+unchanged. Diagnostics are read before intentional shutdown so cleanup does
+not produce a false exit report.
+
+Eight new tests cover startup and runtime exits, the survival failure, real
+subprocess output exceeding 1 MiB, a live timeout, unchanged success and panic
+checks, and capture/private-image cleanup. All 136 tests in the GUI smoke
+module passed in 0.756 seconds; Python compilation checks passed. The repaired
+runner also passed a private-image four-CPU `max`/e1000 GUI smoke with SMP
+runtime checks and `ls` against the source-step OS image. This host-side test
+repair changes no toolchain source closure or production artifact ownership.

@@ -1368,6 +1368,12 @@ make HDD_MB=100
 
 `make bootstrap-baseline` records tool versions and hashes, runs the host tests plus explicit CupidC/CupidASM GUI smokes, and compares two clean builds artifact by artifact across the root, user, and hosted-toolchain roots. Checked revision `1e079d1` reproduces all 447 artifacts independently on Windows Clang/LLVM and Linux GCC/binutils; `make check-bootstrap-host-comparison` verifies the shared logical cohort and behavior/quality contract without requiring cross-toolchain byte equality. See `docs/bootstrap/BASELINE.md` for the evidence contract. Networking integration remains available through `make test-net-quick` and `make test-net`.
 
+The ordinary GUI terminal smoke retains QEMU's exit status and the last
+4,000 bytes of its output. It distinguishes a premature exit from a live
+boot timeout and requires the guest to survive the post-command interval.
+Host startup failures therefore include QEMU's diagnostic instead of only
+an empty serial log.
+
 The network tests use only Python's standard library. They give QEMU the
 same 512 MiB that Cupid OS identity-maps, drive the headless shell over a
 local TCP serial channel, retain QEMU startup diagnostics, and stop any guest

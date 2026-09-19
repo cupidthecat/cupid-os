@@ -1,5 +1,10 @@
 # Toolchain Bootstrap
 
+The ordinary GUI smoke requires Cupid OS to remain running through its
+post-command survival interval. An early QEMU exit reports its status and
+bounded host output; a live boot timeout remains a separate failure. The
+runner retains its panic, command-completion, and SMP runtime checks.
+
 Source-head `cupidbuild assemble-iso-pattern` publishes the ISO spanning
 fixture from `test_iso/big_pattern.asm`. It requires exactly 4,096 bytes that
 repeat `00` through `ff`, plus a base-zero raw map containing one data range
