@@ -1374,6 +1374,10 @@ boot timeout and requires the guest to survive the post-command interval.
 Host startup failures therefore include QEMU's diagnostic instead of only
 an empty serial log.
 
+Host tests form an explicit Python package. From the repository root,
+`python -m unittest tests.test_gui_terminal_smoke` uses this checkout even
+when another installed package is also named `tests`.
+
 The network tests use only Python's standard library. They give QEMU the
 same 512 MiB that Cupid OS identity-maps, drive the headless shell over a
 local TCP serial channel, retain QEMU startup diagnostics, and stop any guest

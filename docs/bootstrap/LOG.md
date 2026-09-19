@@ -34656,3 +34656,19 @@ module passed in 0.756 seconds; Python compilation checks passed. The repaired
 runner also passed a private-image four-CPU `max`/e1000 GUI smoke with SMP
 runtime checks and `ls` against the source-step OS image. This host-side test
 repair changes no toolchain source closure or production artifact ownership.
+
+## 2026-09-19: resolve host tests from the checkout
+
+Package-qualified unittest commands failed on Linux because an installed
+regular package named `tests` took precedence over the repository's implicit
+namespace package. Discovery selected the checkout correctly. An explicit
+`tests/__init__.py` now makes both invocation styles resolve consistently.
+
+The regression starts a real Python child with the checkout first on its
+search path and an unrelated regular `tests` package after it. Before the
+fix, Python loaded the unrelated package and the test failed. After the fix,
+the child imports the repository package. The package regression and all GUI
+smoke tests pass together on native Windows and Linux: 137 tests on each host.
+The Windows run completed in 0.694 seconds and Linux in 0.576 seconds.
+OS sources, installed CTXT, the
+toolchain source closure, and production artifacts remain unchanged.
