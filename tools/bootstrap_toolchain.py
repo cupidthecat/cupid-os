@@ -4205,6 +4205,11 @@ _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE = (
 )
 
 
+_CUPIDBUILD_ISO_PATTERN_BEHAVIOR_SOURCE = (
+    "bits 32\norg 0\ntimes 4096 db $\n"
+)
+
+
 _CUPIDBUILD_SMP_BEHAVIOR_SOURCE = (
     "bits 16\n"
     "org 0x8000\n"
@@ -4328,14 +4333,17 @@ def _check_cupidbuild_guarded_object_behavior(
     raw_operations = (
         "assemble-bootloader",
         "assemble-smp-trampoline",
+        "assemble-iso-pattern",
     )
     raw_sources = (
         ("guarded-bootloader.asm", 2560),
         ("guarded-smp-trampoline.S", 4096),
+        ("guarded-iso-pattern.asm", 4096),
     )
     raw_contents = (
         _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE,
         _CUPIDBUILD_SMP_BEHAVIOR_SOURCE,
+        _CUPIDBUILD_ISO_PATTERN_BEHAVIOR_SOURCE,
     )
     for operation, (fixture_name, expected_size), contents in zip(
         raw_operations, raw_sources, raw_contents, strict=True
@@ -4385,6 +4393,10 @@ def _check_cupidbuild_guarded_object_behavior(
             or raw_result.stderr
             or stage_two_raw.read_bytes() != stage_three_raw.read_bytes()
             or stage_two_raw.stat().st_size != expected_size
+            or (
+                operation == "assemble-iso-pattern"
+                and stage_two_raw.read_bytes() != bytes(range(256)) * 16
+            )
         ):
             raise BootstrapError(
                 f"{label_prefix}CupidBuild {operation} output differs"
@@ -4433,58 +4445,67 @@ def _check_cupidbuild_guarded_object_behavior(
             f"{label_prefix}CupidBuild failure behavior differs"
         )
 
-    malformed_source = behavior_root / "malformed-bootloader.asm"
-    malformed_source.write_text(
-        "bits 16\norg 0x7c00\nnop\n",
-        encoding="ascii",
-        newline="\n",
-    )
     raw_sentinel = b"preserved CupidBuild raw output\n"
     stage_two_raw_failure = behavior_root / "stage-three-raw-failure.bin"
     stage_three_raw_failure = behavior_root / "stage-four-raw-failure.bin"
-    stage_two_raw_failure.write_bytes(raw_sentinel)
-    stage_three_raw_failure.write_bytes(raw_sentinel)
-    def raw_failure_arguments(manifest: Path) -> list[str | Path]:
-        return [
+    raw_failures = (
+        (
             "assemble-bootloader",
-            "--seed-manifest",
-            manifest,
-            "--root",
-            source_root,
-            "--source",
-            malformed_source.relative_to(source_root).as_posix(),
-        ]
-    malformed_boot_result = _run_stage_pair(
-        runner,
-        stage_two,
-        stage_three,
-        "cupidbuild",
-        [
-            *raw_failure_arguments(stage_two_manifest),
-            "--output",
-            stage_two_raw_failure.relative_to(source_root).as_posix(),
-        ],
-        [
-            *raw_failure_arguments(stage_three_manifest),
-            "--output",
-            stage_three_raw_failure.relative_to(source_root).as_posix(),
-        ],
-        180,
+            "malformed-bootloader.asm",
+            "bits 16\norg 0x7c00\nnop\n",
+            "raw output validation failed",
+        ),
+        (
+            "assemble-iso-pattern",
+            "malformed-iso-pattern.asm",
+            "bits 32\norg 0\ntimes 4096 db 0\n",
+            "ISO pattern differs",
+        ),
     )
-    _expect_status(
-        malformed_boot_result,
-        1,
-        f"{label_prefix}CupidBuild malformed bootloader",
-    )
-    if (
-        malformed_boot_result.stdout
-        or "cupidbuild:" not in malformed_boot_result.stderr
-        or stage_two_raw_failure.read_bytes() != raw_sentinel
-        or stage_three_raw_failure.read_bytes() != raw_sentinel
-    ):
-        raise BootstrapError(
-            f"{label_prefix}CupidBuild raw failure behavior differs"
+    for operation, fixture_name, contents, diagnostic in raw_failures:
+        malformed_source = behavior_root / fixture_name
+        malformed_source.write_text(contents, encoding="ascii", newline="\n")
+        stage_two_raw_failure.write_bytes(raw_sentinel)
+        stage_three_raw_failure.write_bytes(raw_sentinel)
+        def raw_failure_arguments(manifest: Path) -> list[str | Path]:
+            return [
+                operation,
+                "--seed-manifest",
+                manifest,
+                "--root",
+                source_root,
+                "--source",
+                malformed_source.relative_to(source_root).as_posix(),
+            ]
+        malformed_raw_result = _run_stage_pair(
+            runner,
+            stage_two,
+            stage_three,
+            "cupidbuild",
+            [
+                *raw_failure_arguments(stage_two_manifest),
+                "--output",
+                stage_two_raw_failure.relative_to(source_root).as_posix(),
+            ],
+            [
+                *raw_failure_arguments(stage_three_manifest),
+                "--output",
+                stage_three_raw_failure.relative_to(source_root).as_posix(),
+            ],
+            180,
         )
+        _expect_status(
+            malformed_raw_result, 1, f"{label_prefix}CupidBuild {operation}"
+        )
+        if (
+            malformed_raw_result.stdout
+            or diagnostic not in malformed_raw_result.stderr
+            or stage_two_raw_failure.read_bytes() != raw_sentinel
+            or stage_three_raw_failure.read_bytes() != raw_sentinel
+        ):
+            raise BootstrapError(
+                f"{label_prefix}CupidBuild raw failure behavior differs"
+            )
 
 
 def _run_native_windows_behavior_checks(
@@ -4849,9 +4870,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 13,
+        "failure_cases": len(tool_names) + 14,
         "help_cases": len(tool_names) + 1,
-        "success_cases": len(tool_names) + 18,
+        "success_cases": len(tool_names) + 19,
     }
 
 
@@ -8378,9 +8399,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 31,
+        "failure_cases": 32,
         "help_cases": len(tool_names) + 1,
-        "success_cases": 37,
+        "success_cases": 38,
     }
 
 

@@ -1968,7 +1968,11 @@ snapshot, then compares its report with an independent Python oracle over the
 same bytes. It produces no OS code. Checked CupidASM now
 assembles `big.bin` from
 `test_iso/big_pattern.asm`. Python freezes the inputs, checks the exact
-4,096-byte candidate, and publishes it atomically. The ISO transform freezes
+4,096-byte candidate, and publishes it atomically. Source-head CupidBuild has
+the equivalent typed `assemble-iso-pattern` transaction with exact byte and
+data-map checks, checked CupidDis inspection, and unchanged-timestamp reuse.
+It awaits paired seed promotion before the normal recipe can use it.
+The ISO transform freezes
 the fixture tree and asks checked-seed CupidObj to build the deterministic
 ISO9660/Rock Ridge bytes through `iso-fixture` from the checked manifest and
 an explicit typed inventory. Python renders the same snapshot independently

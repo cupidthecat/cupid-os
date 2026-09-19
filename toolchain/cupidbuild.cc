@@ -2248,8 +2248,16 @@ static int cupidbuild_seed_require_live(
 typedef enum {
   CUPIDBUILD_ASSEMBLY_OBJECT,
   CUPIDBUILD_ASSEMBLY_BOOTLOADER,
-  CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE
+  CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE,
+  CUPIDBUILD_ASSEMBLY_ISO_PATTERN
 } cupidbuild_assembly_kind_t;
+
+static const unsigned char cupidbuild_iso_pattern_map[] =
+    "cupid.raw-map.v2\n"
+    "size 4096\n"
+    "base 0x00000000\n"
+    "edges 0\n"
+    "range 0x00000000 data\n";
 
 static const unsigned char cupidbuild_smp_trampoline_map[] =
     "cupid.raw-map.v2\n"
@@ -2348,11 +2356,22 @@ static int cupidbuild_assemble(
     }
   } else if ((kind == CUPIDBUILD_ASSEMBLY_BOOTLOADER &&
               candidate_snapshot.size != 2560u) ||
-             (kind == CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE &&
+             ((kind == CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE ||
+               kind == CUPIDBUILD_ASSEMBLY_ISO_PATTERN) &&
               candidate_snapshot.size != 4096u)) {
     (void)fprintf(stderr,
                   "cupidbuild: checked CupidASM raw output validation failed\n");
     goto done;
+  }
+  if (kind == CUPIDBUILD_ASSEMBLY_ISO_PATTERN) {
+    size_t index;
+    for (index = 0u; index < candidate_snapshot.size; index++) {
+      if (candidate[index] != (unsigned char)(index & 0xffu)) {
+        (void)fprintf(stderr,
+                      "cupidbuild: checked CupidASM ISO pattern differs\n");
+        goto done;
+      }
+    }
   }
   free(candidate);
   candidate = (unsigned char *)0;
@@ -2376,6 +2395,15 @@ static int cupidbuild_assemble(
       (void)fprintf(stderr,
                     "cupidbuild: checked CupidASM range map does not match "
                     "the SMP layout policy\n");
+      goto done;
+    }
+    if (kind == CUPIDBUILD_ASSEMBLY_ISO_PATTERN &&
+        (map_snapshot.size != sizeof(cupidbuild_iso_pattern_map) - 1u ||
+         memcmp(map, cupidbuild_iso_pattern_map,
+                sizeof(cupidbuild_iso_pattern_map) - 1u) != 0)) {
+      (void)fprintf(stderr,
+                    "cupidbuild: checked CupidASM range map does not match "
+                    "the ISO pattern layout policy\n");
       goto done;
     }
     free(map);
@@ -2418,8 +2446,15 @@ static int cupidbuild_assemble(
     (void)fprintf(stderr, "cupidbuild: checked CupidDis failed\n");
     goto done;
   }
-  if (!cupidbuild_host_require_publication_boundary(transaction) ||
-      !cupidbuild_host_publish(transaction)) {
+  if (kind == CUPIDBUILD_ASSEMBLY_ISO_PATTERN) {
+    int changed;
+    if (!cupidbuild_host_publish_if_changed(transaction, &changed)) {
+      (void)fprintf(stderr, "cupidbuild: %s\n",
+                    cupidbuild_host_error(transaction));
+      goto done;
+    }
+  } else if (!cupidbuild_host_require_publication_boundary(transaction) ||
+             !cupidbuild_host_publish(transaction)) {
     (void)fprintf(stderr, "cupidbuild: %s\n",
                   cupidbuild_host_error(transaction));
     goto done;
@@ -2447,6 +2482,11 @@ int cupidbuild_assemble_bootloader(
 int cupidbuild_assemble_smp_trampoline(
     const cupidbuild_assembly_request_t *request) {
   return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_SMP_TRAMPOLINE);
+}
+
+int cupidbuild_assemble_iso_pattern(
+    const cupidbuild_assembly_request_t *request) {
+  return cupidbuild_assemble(request, CUPIDBUILD_ASSEMBLY_ISO_PATTERN);
 }
 
 int cupidbuild_embed_jpeg(const cupidbuild_jpeg_request_t *request) {

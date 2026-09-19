@@ -14,6 +14,7 @@ from pathlib import Path
 
 from tools.bootstrap_toolchain import (
     _CUPIDBUILD_BOOTLOADER_BEHAVIOR_SOURCE,
+    _CUPIDBUILD_ISO_PATTERN_BEHAVIOR_SOURCE,
     _CUPIDBUILD_SMP_BEHAVIOR_SOURCE,
 )
 from tools.cupidc_kernel_compile import _profile_input_manifest
@@ -144,6 +145,21 @@ class CupidBuildCliTests(unittest.TestCase):
         cls._build_directory.cleanup()
 
     def setUp(self):
+        if self._testMethodName in (
+            "test_iso_pattern_matches_active_source_and_preserves_timestamp",
+            "test_iso_pattern_rejects_size_bytes_layout_and_assembly_failures",
+        ):
+            manifest = json.loads(
+                self._production_manifest().read_text(encoding="utf-8")
+            )
+            if manifest.get("provenance", {}).get("source_revision") == (
+                "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+            ):
+                self.skipTest(
+                    "the 0232cb57 seed predates caller-owned CupidASM; set "
+                    "CUPIDBUILD_TEST_SEED_MANIFEST to a source-current "
+                    "candidate manifest"
+                )
         if os.name != "nt":
             return
         if self._testMethodName in self._WINDOWS_SEED_TRANSITION_TESTS:
@@ -164,6 +180,91 @@ class CupidBuildCliTests(unittest.TestCase):
         self.assertIn("cupidbuild assemble-cupidasm-object", result.stdout)
         self.assertIn("cupidbuild assemble-bootloader", result.stdout)
         self.assertIn("cupidbuild assemble-smp-trampoline", result.stdout)
+        self.assertIn("cupidbuild assemble-iso-pattern", result.stdout)
+
+    def test_iso_pattern_matches_active_source_and_preserves_timestamp(self):
+        before = self._private_roots()
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-iso-pattern-", dir=REPO_ROOT
+        ) as temporary:
+            output = Path(temporary) / "big.bin"
+            source = REPO_ROOT / "test_iso" / "big_pattern.asm"
+            expected = bytes(range(256)) * 16
+            for previous in (None, b"previous ISO pattern", expected):
+                with self.subTest(
+                    existing_size=None if previous is None else len(previous)
+                ):
+                    if previous is not None:
+                        output.write_bytes(previous)
+                        os.utime(output, ns=(1_600_000_000_000_000_000,) * 2)
+                        previous_mtime = output.stat().st_mtime_ns
+                    result = self._run_assembly(
+                        "assemble-iso-pattern", source, output
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(result.stderr, "")
+                    self.assertEqual(output.read_bytes(), expected)
+                    if previous == expected:
+                        self.assertEqual(output.stat().st_mtime_ns, previous_mtime)
+        self.assertEqual(self._private_roots(), before)
+
+    def test_iso_pattern_rejects_size_bytes_layout_and_assembly_failures(self):
+        cases = (
+            ("bits 32\norg 0\ntimes 4095 db $\n", "raw output validation failed"),
+            ("bits 32\norg 0\ntimes 4097 db $\n", "raw output validation failed"),
+            ("bits 32\norg 0\ntimes 4096 db 0\n", "ISO pattern differs"),
+            ("bits 32\norg 256\ntimes 4096 db $\n", "ISO pattern layout policy"),
+            (
+                "bits 32\norg 0\nadd byte [ecx], al\ntimes 4094 db $\n",
+                "ISO pattern layout policy",
+            ),
+            ("bits 32\ninvalid_instruction\n", "checked CupidASM failed"),
+        )
+        before = self._private_roots()
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-iso-pattern-invalid-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "pattern.asm"
+            output = root / "big.bin"
+            for contents, diagnostic in cases:
+                with self.subTest(diagnostic=diagnostic, contents=contents):
+                    source.write_text(contents, encoding="ascii")
+                    output.write_bytes(b"previous ISO pattern")
+                    previous_mtime = output.stat().st_mtime_ns
+                    result = self._run_assembly(
+                        "assemble-iso-pattern", source, output
+                    )
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertIn(diagnostic, result.stderr)
+                    self.assertEqual(output.read_bytes(), b"previous ISO pattern")
+                    self.assertEqual(output.stat().st_mtime_ns, previous_mtime)
+        self.assertEqual(self._private_roots(), before)
+
+    def test_iso_pattern_rejects_a_live_lock_and_source_alias(self):
+        before = self._private_roots()
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-iso-pattern-guard-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "pattern.asm"
+            output = root / "big.bin"
+            contents = b"bits 32\norg 0\ntimes 4096 db $\n"
+            source.write_bytes(contents)
+            output.write_bytes(b"previous ISO pattern")
+            lock = Path(str(output) + ".cupidbuild.lock")
+            lock.write_text(str(os.getpid()) + "\n", encoding="ascii")
+            result = self._run_assembly("assemble-iso-pattern", source, output)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("lock", result.stderr)
+            self.assertEqual(output.read_bytes(), b"previous ISO pattern")
+            self.assertTrue(lock.exists())
+            result = self._run_assembly("assemble-iso-pattern", source, source)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("output may not replace an input", result.stderr)
+            self.assertEqual(source.read_bytes(), contents)
+        self.assertEqual(self._private_roots(), before)
 
     def test_help_names_the_typed_jpeg_transaction(self):
         result = subprocess.run(
@@ -2929,6 +3030,9 @@ class CupidBuildCliTests(unittest.TestCase):
             self.assertEqual(set(root.glob(".cupidbuild-run-*")), set())
 
     def _production_manifest(self):
+        selected = os.environ.get("CUPIDBUILD_TEST_SEED_MANIFEST")
+        if selected:
+            return Path(selected).resolve()
         platform = "i386-windows" if os.name == "nt" else "i386-linux"
         return REPO_ROOT / "bootstrap" / "seeds" / platform / "manifest.json"
 
@@ -4152,7 +4256,16 @@ class CupidBuildCliTests(unittest.TestCase):
                     "--unexpected",
                 ],
             )
-            for arguments in invocations:
+            raw_invocations = (
+                [arguments[0], operation, *arguments[2:]]
+                for operation in (
+                    "assemble-bootloader",
+                    "assemble-smp-trampoline",
+                    "assemble-iso-pattern",
+                )
+                for arguments in invocations
+            )
+            for arguments in raw_invocations:
                 with self.subTest(arguments=arguments):
                     result = subprocess.run(
                         arguments,
@@ -4939,6 +5052,12 @@ class CupidBuildCliTests(unittest.TestCase):
                     "assemble-smp-trampoline",
                     "guarded-smp-trampoline.S",
                     _CUPIDBUILD_SMP_BEHAVIOR_SOURCE,
+                    4096,
+                ),
+                (
+                    "assemble-iso-pattern",
+                    "guarded-iso-pattern.asm",
+                    _CUPIDBUILD_ISO_PATTERN_BEHAVIOR_SOURCE,
                     4096,
                 ),
             )

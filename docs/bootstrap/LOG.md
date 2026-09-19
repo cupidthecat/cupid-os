@@ -34482,3 +34482,153 @@ transforms, 255 feature requirements, and 28 accounted unreachable inputs. The
 `9e6b2a19066e765c1f09bf42becbd371cf10cbaabb4ba34e8943d6f506ee8056`.
 The unchanged 13,193-byte summary has SHA-256
 `555a30f78da238ba5a679e1b487b3ed4ad411980664578ca056a22f9f12c6b20`.
+
+## 2026-09-19: typed ISO spanning-fixture publication
+
+Source-head CupidBuild now provides `assemble-iso-pattern`. It reuses the
+guarded assembly transaction, freezes the active source and complete seed,
+and asks checked CupidASM for a private binary and raw-map v2 file. Validation
+requires exactly 4,096 bytes repeating `00` through `ff`, base zero, no control
+edges, and one data range. Checked CupidDis inspects the pinned image and map
+before the common publication checks run. Equal output uses the existing
+`publish_if_changed` helper and keeps its timestamp.
+
+The source remains `test_iso/big_pattern.asm`; no assembler feature or source
+rewrite is needed. ADR 0227 already establishes the intended `$` behavior in
+`TIMES`. ADR 0384 records the typed publication contract. The normal Make edge
+still uses Hostbuild, and this change does not replace either checked seed or
+rename a C translation unit.
+
+Both fixed-point matrices now include the ISO fixture and a wrong-pattern
+rollback case. The definitions contain 32 failure, seven help, and 38 success
+groups on Linux, and 20 failure, seven help, and 25 success groups on Windows.
+The audit requires the fixture, exact byte comparison, and specific failure
+diagnostic. Mutation cases remove each of those checks independently.
+
+Six focused hosted CLI cases passed on native Windows in 19.744 seconds and
+Linux in 28.145 seconds, using temporary copies of the retained `34b597aa`
+candidate seed pair. They cover creation, replacement, unchanged timestamps,
+undersize and oversize output, wrong bytes, wrong base, code in the data-only map,
+assembler failure, a live owner lock, source/output aliasing, all three raw
+behavior fixtures, and the active bootloader and SMP trampoline. The two
+fixed-point definition tests passed in 0.698 seconds. The raw option contract
+also rejects missing, repeated, and stray options for every raw command.
+The original `0232cb57` checked assemblers reject `--caller-owned-output` on
+both hosts, so they cannot serve as the tool cohort for these source-head
+transaction tests. Their normal production recipes retain the older complete
+cohort until the next paired promotion.
+The source-step tests now expose `CUPIDBUILD_TEST_SEED_MANIFEST` instead of
+requiring a test-method override. The default remains the normal checked
+manifest. Only the two new ISO publication and size/bytes/layout tests skip
+for the exact original source revision
+`0232cb57aad5d6bdfd7bd77499762514b2f0ebfd`; their message requires a candidate
+cohort with caller-owned CupidASM. Lock, alias, help, and option checks remain
+active. A candidate with a newer revision runs the publication cases normally.
+The narrow transition can be removed after the repaired seed promotion.
+
+The retained candidate runs are reproducible from the repository root:
+
+```powershell
+$env:CUPIDBUILD_TEST_SEED_MANIFEST = (Resolve-Path 'build/bootstrap/iso-pattern-validation/seeds/i386-windows/manifest.json').Path
+python -m unittest discover -s tests -p test_toolchain_cupidbuild.py -k iso_pattern -v
+```
+
+```sh
+CUPIDBUILD_TEST_SEED_MANIFEST="$PWD/build/bootstrap/iso-pattern-validation/seeds/i386-linux/manifest.json" python3 -m unittest discover -s tests -p test_toolchain_cupidbuild.py -k iso_pattern -v
+```
+
+The manifests and all six images are retained beneath those directories.
+Other candidate cohorts use the same command with their host-matching
+manifest path. With the variable unset, the same selector exercises the
+documented old-seed transition.
+
+The five selected default checks passed on Windows in 5.492 seconds and Linux
+in 7.317 seconds, each with exactly the two documented skips. With the
+environment-selected candidate, the three ISO cases all passed on Windows in
+12.640 seconds and Linux in 11.196 seconds, without skips. These runs used the
+normal test selection path rather than a test-method override.
+
+The complete fail-closed audit mutation test passed in 523.121 seconds,
+including the three new ISO cases. Python syntax checks and `git diff --check`
+also passed.
+
+Checked CupidC compiled the changed core for Linux and Windows, plus the
+shared CLI source. Checked CupidLD linked the new objects with the unchanged
+support objects from the retained `34b597aa` stage-four proof. Strict checked
+CupidDis inspection passed for the new objects and both complete images. The
+511,572-byte Linux executable has SHA-256
+`38d9ccae5ebdb94ba152ff5ff4d0e7a59d08e09118af446fa005f8032c826bea`.
+The 524,288-byte Windows executable has SHA-256
+`ea84c4e54832bdb9a20f88e40c128314319fa8094a4d277805f4557ee01892a3`.
+The same six runtime cases passed through the Cupid-built Linux image in
+162.701 seconds. The Cupid-built Windows image passed those six cases and the
+raw option contract in 282.760 seconds. These executable checks reuse verified
+support objects; they are not a new fixed-point proof.
+
+An initial concurrent Windows/Linux replay reported an extra transaction
+reservation because both suites inspected the same worktree. Sequential
+replays pass. The audit also caught a substring collision between
+`raw_result` and `malformed_raw_result`; its required success assignment now
+includes the line's indentation. Neither failure changed a published OS
+artifact.
+
+The shared Windows publication rollback also needed a repair before either
+the profile or ISO recipe can change owner. NT rejects rename-back while the
+retained private-directory handle has `DELETE` access. The publisher now
+opens a read/traverse bridge relative to the retained repository root,
+checks its identity, closes cleanup authority during rename-back, and
+reacquires that authority before releasing the bridge. It verifies both
+identity and the public binding. Uncertain recovery preserves evidence.
+ADR 0385 records the decision and the rejected sharing changes.
+
+Two seed-independent tests cover existing and absent outputs. A real
+directory-replacement attempt during the bridge is denied by retained child
+handles; both cases require unchanged private identity and foreign contents,
+exact rollback, and complete cleanup. The shared-publication group passed
+13 cases in 27.013 seconds with one older-seed skip. The full native Windows
+process module passed eight cases in 6.263 seconds with that same skip. A
+final source-only replay of both CLI and Windows process modules passed
+151 cases in 77.958 seconds with 55 platform and original-seed skips. The
+original post-install profile source-drift regression passed in 10.118
+seconds. A separate CLI replay with the candidate seed passed 143 cases in
+251.084 seconds with ten platform skips.
+
+Checked CupidC compiled the final repaired host adapter for both targets.
+The Linux object remains byte-identical because the repair is Windows-only.
+Strict CupidDis inspection passed for both objects and complete executables.
+The final Linux executable retains the size and hash recorded above. The
+final Windows executable is 525,312 bytes with SHA-256
+`3aab8e143edfdbc5e49b3cc43b0227278b1ee683f57bd8f1f8fa82a1fc8a0ccb`.
+The test-only race variant cannot yet use this Cupid-built hosted runtime:
+its pause seam calls `getenv`, which is not declared there (`CTB000010`), and
+also needs `Sleep`. The production source does not use that seam. Native
+host-built race tests and Cupid-built production checks remain separate.
+
+The original-seed source-only worktree passed `make -j2 all`, including all
+kernel and Doom objects, strict disassembly, kernel flattening, exact size
+checks, ISO staging, and the 200 MiB FAT16 image. The three kernel policy
+sizes are 9,544,624 bytes for `kernel.bin`, 9,773,388 for `kernel.elf`, and
+9,642,316 for `kernel.elf.pass1`. The kernel binary has SHA-256
+`5d2f440ef3e8f576aa7b82de214330acdcabddfbe65caee4666a60746480446f`;
+the disk image has SHA-256
+`a48485bceb902a65eab545010f5ed460d96caaeeca7f82925fc2423a07e09e53`.
+The private-image GUI terminal smoke passed with four CPUs, `max` CPU
+features, e1000 networking, SMP runtime assertions, and `ls`.
+
+The first QEMU launch failed before boot because Windows could not reserve
+its 1 GiB translation cache. A smaller-cache diagnostic launch did not yield
+a boot result, and WSL reported a crashed virtual machine. After host commit
+memory recovered, the unmodified smoke command passed. These failed runs
+provide no evidence of an OS boot regression.
+
+Paired source reconstruction, seed promotion, and the production recipe
+handoff remain integration work. No host dependency is removed by this
+source-only step. The production ownership count remains 195 CupidBuild
+transforms and 257 Python transforms.
+
+Final source-only audit regeneration and check-only mode passed at 748 active
+inputs, 452 transforms, 255 feature requirements, and 28 accounted unreachable
+inputs. The 2,821,360-byte JSON has SHA-256
+`a151d4920afe51f8366a2f99f3d667ebfccbbe2f6d25e2c21f7d285c4fb151b92`.
+The 13,193-byte summary has SHA-256
+`a3f550ababf9df4dc4a437eeae9afd82cf137a14331c23e8f74d5c1968959723`.

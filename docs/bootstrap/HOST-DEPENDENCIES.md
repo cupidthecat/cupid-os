@@ -705,6 +705,11 @@ pattern, and controls atomic publication. It does not author the candidate.
 NASM remains an optional oracle for the other production assembly sources.
 Its different `$` behavior inside `TIMES` makes this fixture the single
 explicit byte-parity exception. ADR 0227 records the boundary.
+Source-head CupidBuild has the corresponding typed `assemble-iso-pattern`
+transaction, including exact byte and raw-map checks and unchanged-output
+reuse. The promoted seeds and Make edge do not yet use it, so this source
+capability does not reduce the remaining Python dependency. ADR 0384 records
+the source boundary.
 
 Checked-seed CupidObj generates the three installation-table sources from the
 same ordinal inventories. The production outputs match their pre-transfer

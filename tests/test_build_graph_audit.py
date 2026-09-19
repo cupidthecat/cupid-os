@@ -2579,9 +2579,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 398)
+            self.assertEqual(contract["if_occurrences"], 400)
             self.assertEqual(contract["elif_occurrences"], 12)
-            self.assertEqual(contract["expression_occurrences"], 410)
+            self.assertEqual(contract["expression_occurrences"], 412)
             self.assertEqual(contract["unique_expressions"], 55)
             self.assertEqual(contract["directive_expression_pairs"], 57)
             self.assertTrue(
@@ -2769,7 +2769,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             audit = json.loads(output.read_text(encoding="utf-8"))
             features = {entry["id"]: entry for entry in audit["features"]}
             self.assertEqual(
-                features["asm.addressing.memory"]["occurrences"], 168
+                features["asm.addressing.memory"]["occurrences"], 171
             )
             self.assertEqual(features["asm.directive.bits"]["occurrences"], 10)
             self.assertEqual(features["asm.directive.org"]["occurrences"], 3)
@@ -4057,9 +4057,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 712)
-            self.assertEqual(contract["include_occurrences"], 2503)
+            self.assertEqual(contract["include_occurrences"], 2505)
             self.assertEqual(contract["direct_quoted_occurrences"], 2220)
-            self.assertEqual(contract["direct_angle_occurrences"], 283)
+            self.assertEqual(contract["direct_angle_occurrences"], 285)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(
@@ -6194,15 +6194,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 7)
-        self.assertEqual(contract["success_behavior_cases"], 37)
-        self.assertEqual(contract["failure_behavior_cases"], 31)
+        self.assertEqual(contract["success_behavior_cases"], 38)
+        self.assertEqual(contract["failure_behavior_cases"], 32)
         self.assertEqual(contract["tool_c_sources"], 22)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 22)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 7)
-        self.assertEqual(contract["windows_success_behavior_cases"], 24)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 19)
+        self.assertEqual(contract["windows_success_behavior_cases"], 25)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 20)
         self.assertEqual(contract["contract_manifest_inputs"], 76)
         self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 76)
         self.assertIn(
@@ -6690,19 +6690,37 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
-                '        "success_cases": 37,\n',
+                '        "success_cases": 38,\n',
                 '        "success_cases": 36,\n',
                 r"fixed-point behavior matrix differs",
             ),
+            "ISO pattern fixture leaves the raw operation matrix": (
+                "bootstrap",
+                '        ("guarded-iso-pattern.asm", 4096),\n',
+                '        ("guarded-iso-pattern.asm", 4095),\n',
+                r"fixed-point CupidBuild behavior differs",
+            ),
+            "ISO pattern output loses its byte check": (
+                "bootstrap",
+                "and stage_two_raw.read_bytes() != bytes(range(256)) * 16",
+                "and stage_two_raw.read_bytes() != stage_three_raw.read_bytes()",
+                r"fixed-point CupidBuild behavior differs",
+            ),
+            "ISO pattern rollback accepts any diagnostic": (
+                "bootstrap",
+                "or diagnostic not in malformed_raw_result.stderr",
+                'or "cupidbuild:" not in malformed_raw_result.stderr',
+                r"fixed-point CupidBuild behavior differs",
+            ),
             "local-target failure count becomes stale": (
                 "bootstrap",
-                '        "failure_cases": 31,\n',
+                '        "failure_cases": 32,\n',
                 '        "failure_cases": 30,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
-                '        "failure_cases": len(tool_names) + 13,\n',
+                '        "failure_cases": len(tool_names) + 14,\n',
                 '        "failure_cases": len(tool_names) + 12,\n',
                 r"native Windows fixed-point behavior differs",
             ),
@@ -9353,7 +9371,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6742, 179),
+                "c.expression.sizeof": (6884, 179),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }

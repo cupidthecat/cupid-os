@@ -1,5 +1,13 @@
 # Toolchain Bootstrap
 
+Source-head `cupidbuild assemble-iso-pattern` publishes the ISO spanning
+fixture from `test_iso/big_pattern.asm`. It requires exactly 4,096 bytes that
+repeat `00` through `ff`, plus a base-zero raw map containing one data range
+and no control edges. Checked CupidDis inspects the pinned bytes before the
+guarded transaction can publish them. Failed checks preserve the previous
+fixture, and equal bytes retain its timestamp. The normal recipe remains on
+Hostbuild until this command passes paired seed promotion.
+
 Source-head CupidBuild now provides `generate-profile-manifest` for the closed
 Doom compile profiles. It discovers the exact 83-source cohort and 304 `.h`
 and `.inc` inputs, freezes them with the complete seed, builds `CUPROF1` from

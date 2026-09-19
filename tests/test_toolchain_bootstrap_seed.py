@@ -6673,9 +6673,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 19,
+                    "failure_cases": 20,
                     "help_cases": 7,
-                    "success_cases": 24,
+                    "success_cases": 25,
                 },
             )
             candidate_linux_plan = _candidate_build_plan(
@@ -7253,9 +7253,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            31,
+            32,
         )
-        self.assertEqual(returned["success_cases"].value, 37)
+        self.assertEqual(returned["success_cases"].value, 38)
         self.assertIsInstance(returned["help_cases"], ast.BinOp)
         self.assertIsInstance(returned["help_cases"].op, ast.Add)
         self.assertEqual(returned["help_cases"].right.value, 1)
@@ -7411,11 +7411,16 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "assemble-cupidasm-object",
             "assemble-bootloader",
             "assemble-smp-trampoline",
+            "assemble-iso-pattern",
         ):
             self.assertIn(repr(operation), rendered)
         self.assertIn("('guarded-bootloader.asm', 2560)", rendered)
         self.assertIn("('guarded-smp-trampoline.S', 4096)", rendered)
+        self.assertIn("('guarded-iso-pattern.asm', 4096)", rendered)
         self.assertIn("malformed-bootloader.asm", rendered)
+        self.assertIn("malformed-iso-pattern.asm", rendered)
+        self.assertIn("bytes(range(256)) * 16", rendered)
+        self.assertIn("ISO pattern differs", rendered)
         self.assertIn("preserved CupidBuild raw output", rendered)
 
     def test_fixed_point_cupidbuild_checks_typed_jpeg_transaction(self):
@@ -11088,9 +11093,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 31,
+                    "failure_cases": 32,
                     "help_cases": 7,
-                    "success_cases": 37,
+                    "success_cases": 38,
                 },
             )
             self.assertEqual(

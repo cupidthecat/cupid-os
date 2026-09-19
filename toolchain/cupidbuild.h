@@ -42,6 +42,8 @@ int cupidbuild_assemble_bootloader(
     const cupidbuild_assembly_request_t *request);
 int cupidbuild_assemble_smp_trampoline(
     const cupidbuild_assembly_request_t *request);
+int cupidbuild_assemble_iso_pattern(
+    const cupidbuild_assembly_request_t *request);
 int cupidbuild_embed_jpeg(const cupidbuild_jpeg_request_t *request);
 int cupidbuild_generate_ksyms(const cupidbuild_ksyms_request_t *request);
 int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request);

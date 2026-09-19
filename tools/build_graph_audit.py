@@ -9450,9 +9450,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 31,
+        "failure_cases": 32,
         "help_cases": 7,
-        "success_cases": 37,
+        "success_cases": 38,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -9953,13 +9953,21 @@ def _cupid_toolchain_fixed_point_contract(
         "stage_two_failure.read_bytes() != sentinel",
         "stage_three_failure.read_bytes() != sentinel",
         'raw_operations = (\n        "assemble-bootloader",\n'
-        '        "assemble-smp-trampoline",\n    )',
+        '        "assemble-smp-trampoline",\n'
+        '        "assemble-iso-pattern",\n    )',
         '("guarded-bootloader.asm", 2560)',
         '("guarded-smp-trampoline.S", 4096)',
-        "raw_result = _run_stage_pair(",
+        '("guarded-iso-pattern.asm", 4096)',
+        "_CUPIDBUILD_ISO_PATTERN_BEHAVIOR_SOURCE",
+        "        raw_result = _run_stage_pair(",
         "stage_two_raw.read_bytes() != stage_three_raw.read_bytes()",
-        'malformed_source = behavior_root / "malformed-bootloader.asm"',
-        "malformed_boot_result = _run_stage_pair(",
+        'operation == "assemble-iso-pattern"',
+        "stage_two_raw.read_bytes() != bytes(range(256)) * 16",
+        '"malformed-bootloader.asm"',
+        '"malformed-iso-pattern.asm"',
+        '"ISO pattern differs"',
+        "malformed_raw_result = _run_stage_pair(",
+        "diagnostic not in malformed_raw_result.stderr",
         "stage_two_raw_failure.read_bytes() != raw_sentinel",
         "stage_three_raw_failure.read_bytes() != raw_sentinel",
     )
@@ -13405,9 +13413,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 13, "
+            "'failure_cases': len(tool_names) + 14, "
             "'help_cases': len(tool_names) + 1, "
-            "'success_cases': len(tool_names) + 18"
+            "'success_cases': len(tool_names) + 19"
             "}",
             mode="eval",
         ).body
@@ -14107,8 +14115,8 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 7,
-        "windows_success_behavior_cases": 24,
-        "windows_failure_behavior_cases": 19,
+        "windows_success_behavior_cases": 25,
+        "windows_failure_behavior_cases": 20,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_checked_cupidc_runner",

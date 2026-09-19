@@ -12,6 +12,8 @@ static void cupidbuild_usage(FILE *stream) {
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild assemble-smp-trampoline "
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
+      "       cupidbuild assemble-iso-pattern "
+      "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild embed-jpeg "
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild generate-ksyms "
@@ -104,6 +106,8 @@ int main(int argc, char **argv) {
       operation = 6;
     } else if (strcmp(argv[1], "generate-profile-manifest") == 0) {
       operation = 7;
+    } else if (strcmp(argv[1], "assemble-iso-pattern") == 0) {
+      operation = 8;
     }
   }
   if (operation != 0) {
@@ -168,6 +172,9 @@ int main(int argc, char **argv) {
     }
     if (operation == 6) {
       return cupidbuild_flatten_kernel(&kernel_request);
+    }
+    if (operation == 8) {
+      return cupidbuild_assemble_iso_pattern(&request);
     }
     return cupidbuild_generate_profile_manifest(&profile_request);
   }

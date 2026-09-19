@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-08-31
+Verified against source on: 2026-09-19
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -35,6 +35,12 @@ They keep the raw image and v2 map private, require the exact artifact size and
 layout, and ask CupidDis to validate known code, local targets, and
 source-resolved edges. The refreshed seeds carry both commands, and the normal
 raw recipes invoke them directly.
+Source-head CupidBuild also provides assemble-iso-pattern for the ISO spanning
+fixture. It requires exactly 4,096 bytes repeating 00 through ff and a
+base-zero raw map with one data range and no control edges. Checked CupidDis
+inspects the private output before publication. Failed checks preserve the
+previous fixture; equal bytes retain its timestamp. The normal fixture recipe
+remains on Hostbuild until the command passes paired seed promotion.
 The current checked Toolchain gate publishes 22 artifacts and passes all 22
 assembler demos. Its Linux candidate proof freezes 59 sources and matches 22
 C objects, startup, and all six final tool images between stages three and

@@ -1,5 +1,21 @@
 # Cupid Toolchain bootstrap
 
+Source-head CupidBuild provides `assemble-iso-pattern` for the active
+4,096-byte ISO spanning fixture. It freezes the source and six-tool seed,
+checks every byte and the complete data-only raw map, runs checked CupidDis,
+and preserves the timestamp when the output is unchanged. Both fixed-point
+definitions include successful publication and wrong-pattern rollback, for
+32/7/38 Linux and 20/7/25 Windows failure/help/success groups. The normal
+recipe remains on Hostbuild until this capability passes paired seed
+promotion. [ADR 0384](../adr/0384-add-typed-iso-pattern-publication-to-cupidbuild.md)
+records the boundary.
+
+Source-head Windows publication also restores a rejected candidate through
+a verified read/traverse directory handle, then reacquires cleanup authority.
+This avoids the rename-back sharing violation without relaxing frozen-input
+protection. The checked seeds do not yet carry the repair. See
+[ADR 0385](../adr/0385-restore-windows-candidates-through-a-retained-directory-bridge.md).
+
 This directory records Cupid OS's move from a host-produced bootstrap to the
 current checked-seed build and the remaining work toward a native,
 Python-free fixed point. [GitHub issue #13](https://github.com/cupidthecat/cupid-os/issues/13)

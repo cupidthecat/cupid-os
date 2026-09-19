@@ -35,6 +35,204 @@ def _host_compiler():
 
 @unittest.skipUnless(os.name == "nt", "native Win32 process test")
 class CupidBuildWindowsProcessTests(unittest.TestCase):
+    def _check_post_install_rollback(self, attempt_replacement):
+        compiler = _host_compiler()
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-publication-rollback-", dir=TOOLCHAIN_ROOT
+        ) as temporary:
+            build_root = Path(temporary)
+            driver_source = build_root / "rollback_driver.cc"
+            driver = build_root / "rollback_driver.exe"
+            driver_source.write_text(
+                r'''#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "cupidbuild_host.h"
+int main(int argc, char **argv) {
+  cupidbuild_host_transaction_t *transaction = 0;
+  cupidbuild_host_path_list_t paths;
+  cupidbuild_host_snapshot_t snapshot;
+  const char *roots[] = {"drivers"};
+  const char *suffixes[] = {".h"};
+  const char *frozen_self = 0;
+  const char *arguments[3];
+  unsigned char *candidate = 0;
+  int published;
+  int cleaned;
+  if (argc == 3 && strcmp(argv[1], "--write") == 0) {
+    static const char bytes[] = "candidate output\n";
+    DWORD written = 0;
+    HANDLE output = CreateFileA(argv[2], GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    if (output == INVALID_HANDLE_VALUE) return 2;
+    if (!WriteFile(output, bytes, sizeof(bytes) - 1u, &written, 0) ||
+        written != sizeof(bytes) - 1u) {
+      (void)CloseHandle(output);
+      return 3;
+    }
+    return CloseHandle(output) ? 0 : 4;
+  }
+  if (argc != 3) return 10;
+  if (!cupidbuild_host_transaction_open(argv[1], "source.txt", "output.bin",
+                                        &transaction)) goto failed;
+  if (!cupidbuild_host_discover_files(transaction, roots, 1u, suffixes, 1u,
+                                      0, 1, &paths)) goto failed;
+  cupidbuild_host_path_list_close(&paths);
+  if (!cupidbuild_host_seal_discovery(transaction) ||
+      !cupidbuild_host_freeze_input(transaction, argv[2], "writer.exe",
+                                    &frozen_self, 0) ||
+      !cupidbuild_host_make_input_executable(transaction, frozen_self))
+    goto failed;
+  arguments[0] = "--write";
+  arguments[1] = cupidbuild_host_candidate(transaction);
+  arguments[2] = 0;
+  if (cupidbuild_host_run_in_private(transaction, frozen_self, arguments,
+                                     10000u) != 0 ||
+      !cupidbuild_host_capture_candidate(transaction, &snapshot, &candidate) ||
+      !cupidbuild_host_require_candidate(transaction, &snapshot) ||
+      !cupidbuild_host_require_publication_boundary(transaction)) goto failed;
+  free(candidate);
+  published = cupidbuild_host_publish(transaction);
+  (void)printf("published=%d error=%s\n", published,
+               cupidbuild_host_error(transaction));
+  cleaned = cupidbuild_host_transaction_close(transaction);
+  (void)printf("cleaned=%d\n", cleaned);
+  return published ? 12 : 0;
+failed:
+  (void)fprintf(stderr, "setup: %s\n", cupidbuild_host_error(transaction));
+  free(candidate);
+  (void)cupidbuild_host_transaction_close(transaction);
+  return 11;
+}
+''',
+                encoding="utf-8",
+                newline="\n",
+            )
+            built = subprocess.run(
+                [
+                    *compiler,
+                    "-std=c11",
+                    "-Wall",
+                    "-Wextra",
+                    "-Werror",
+                    "-DCUPIDBUILD_PUBLICATION_RACE_TEST",
+                    "-x",
+                    "c",
+                    "-I",
+                    str(TOOLCHAIN_ROOT),
+                    str(driver_source),
+                    str(TOOLCHAIN_ROOT / "cupidbuild_host.cc"),
+                    "-o",
+                    str(driver),
+                    "-lntdll",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=180,
+            )
+            self.assertEqual(built.returncode, 0, built.stdout + built.stderr)
+
+            for previous_output in (False, True):
+                with self.subTest(previous_output=previous_output):
+                    root = build_root / f"repository-{int(previous_output)}"
+                    root.mkdir()
+                    drivers = root / "drivers"
+                    drivers.mkdir()
+                    (root / "source.txt").write_bytes(b"source\n")
+                    writer = root / "writer.exe"
+                    shutil.copy2(driver, writer)
+                    output = root / "output.bin"
+                    if previous_output:
+                        output.write_bytes(b"previous output\n")
+                    original_times = drivers.stat()
+                    ready = root / "ready"
+                    resume = root / "resume"
+                    bridge_ready = root / "bridge-ready"
+                    bridge_resume = root / "bridge-resume"
+                    environment = os.environ.copy()
+                    environment.update(
+                        CUPIDBUILD_PUBLICATION_TEST_PHASE="after-install",
+                        CUPIDBUILD_PUBLICATION_TEST_READY=str(ready),
+                        CUPIDBUILD_PUBLICATION_TEST_RESUME=str(resume),
+                    )
+                    if attempt_replacement:
+                        environment.update(
+                            CUPIDBUILD_PUBLICATION_TEST_BRIDGE_READY=str(bridge_ready),
+                            CUPIDBUILD_PUBLICATION_TEST_BRIDGE_RESUME=str(bridge_resume),
+                        )
+                    process = subprocess.Popen(
+                        [str(driver), str(root), str(writer)],
+                        cwd=root,
+                        env=environment,
+                        text=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+
+                    def wait_for_signal(path):
+                        deadline = time.monotonic() + 30
+                        while not path.is_file() and process.poll() is None:
+                            self.assertLess(time.monotonic(), deadline, str(path))
+                            time.sleep(0.001)
+                        self.assertTrue(path.is_file(), str(path))
+
+                    try:
+                        wait_for_signal(ready)
+                        self.assertTrue(output.is_file())
+                        transient = drivers / "late-empty-directory"
+                        transient.mkdir()
+                        transient.rmdir()
+                        os.utime(drivers, ns=(original_times.st_atime_ns,
+                                              original_times.st_mtime_ns))
+                        resume.write_bytes(b"continue")
+                        if attempt_replacement:
+                            wait_for_signal(bridge_ready)
+                            private_roots = list(root.glob(".cupidbuild-object-*"))
+                            self.assertEqual(len(private_roots), 1)
+                            private_root = private_roots[0]
+                            private_identity = private_root.stat().st_ino
+                            displaced = root / "displaced-private-directory"
+                            replacement = root / "foreign-private-directory"
+                            replacement.mkdir()
+                            foreign = replacement / "foreign.txt"
+                            foreign.write_bytes(b"foreign directory contents\n")
+                            with self.assertRaises(PermissionError):
+                                private_root.rename(displaced)
+                            self.assertFalse(displaced.exists())
+                            self.assertEqual(private_root.stat().st_ino,
+                                             private_identity)
+                            bridge_resume.write_bytes(b"continue")
+                        stdout, stderr = process.communicate(timeout=30)
+                    finally:
+                        if process.poll() is None:
+                            process.kill()
+                            process.communicate(timeout=10)
+                    self.assertEqual(process.returncode, 0, stdout + stderr)
+                    self.assertIn("discovered directory closure changed", stdout)
+                    self.assertIn("cleaned=1\n", stdout)
+                    if previous_output:
+                        self.assertEqual(output.read_bytes(), b"previous output\n")
+                    else:
+                        self.assertFalse(output.exists())
+                    self.assertEqual(list(root.glob(".cupidbuild-old-*")), [])
+                    if attempt_replacement:
+                        self.assertEqual(foreign.read_bytes(),
+                                         b"foreign directory contents\n")
+                        self.assertEqual(list(replacement.iterdir()), [foreign])
+                        self.assertFalse(displaced.exists())
+                    self.assertEqual(list(root.glob(".cupidbuild-*")), [])
+                    self.assertFalse((root / "output.bin.cupidbuild.lock").exists())
+
+    def test_post_install_source_drift_restores_output_and_cleans_up(self):
+        self._check_post_install_rollback(attempt_replacement=False)
+
+    def test_rollback_bridge_rejects_private_directory_replacement(self):
+        self._check_post_install_rollback(attempt_replacement=True)
+
     def test_frozen_input_allows_legacy_read_sharing_but_rejects_writes(self):
         compiler = _host_compiler()
         with tempfile.TemporaryDirectory(

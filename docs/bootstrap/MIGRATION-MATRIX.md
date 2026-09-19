@@ -2,6 +2,13 @@
 
 `TempleOS/` is excluded: it is reference material, not a source cohort. Statuses describe ownership, not how much code exists.
 
+Source-head `cupidbuild assemble-iso-pattern` can publish the exact ISO spanning
+fixture through the guarded assembly transaction. It checks the 4,096-byte
+pattern, complete data-only raw map, and checked CupidDis result, and retains
+the existing timestamp for equal bytes. The normal `big.bin` edge still uses
+Hostbuild; this capability needs paired seed promotion before that owner
+changes. ADR 0384 records the source boundary.
+
 Source-head CupidBuild can now publish the closed Doom profile manifest through
 `generate-profile-manifest`. The transaction discovers and freezes the exact
 83-source cohort and 304 `.h`/`.inc` inputs with the complete seed. It builds

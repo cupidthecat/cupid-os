@@ -310,6 +310,11 @@ CupidASM participates in five production transforms. Four produce boot or
 kernel objects. The fifth assembles the ISO spanning fixture from
 `test_iso/big_pattern.asm`, while Python checks the candidate and controls
 publication. ADR 0227 records that transfer.
+Source-head CupidBuild also provides `assemble-iso-pattern`. It checks every
+byte, the exact base-zero data-only raw map, and the checked CupidDis result
+inside the shared transaction, with timestamp-preserving reuse. The fixed-point
+matrices include success and wrong-pattern rollback; seed carriage and the
+normal recipe handoff remain pending. ADR 0384 records this capability.
 The external-program ABI check captures the exact bytes of its six
 declaration inputs, compares the reviewed i386 contract, and rechecks every
 input before success. The hello, ls, and cat guest checks each boot a private

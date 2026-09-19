@@ -466,6 +466,11 @@ static int cupidbuild_host_publication_test_pause(const char *phase) {
   const char *resume = getenv("CUPIDBUILD_PUBLICATION_TEST_RESUME");
   FILE *signal;
   unsigned int attempt;
+  if (strcmp(phase, "rollback-directory-bridge") == 0) {
+    ready = getenv("CUPIDBUILD_PUBLICATION_TEST_BRIDGE_READY");
+    resume = getenv("CUPIDBUILD_PUBLICATION_TEST_BRIDGE_RESUME");
+    requested = ready != (const char *)0 ? phase : (const char *)0;
+  }
   if (requested == (const char *)0 || strcmp(requested, phase) != 0) {
     return 1;
   }
@@ -2588,6 +2593,53 @@ static int cupidbuild_host_windows_park_initial_output(
              &parked, &transaction->initial_output_snapshot);
 }
 
+static int cupidbuild_host_windows_restore_private_candidate(
+    cupidbuild_host_transaction_t *transaction) {
+  cupidbuild_host_snapshot_t snapshot;
+  HANDLE bridge = cupidbuild_host_windows_open_relative(
+      transaction->repository_root_handle, transaction->private_name, 1, 0);
+  HANDLE cleanup;
+  int restored;
+  if (bridge == INVALID_HANDLE_VALUE ||
+      !cupidbuild_host_windows_directory_handle_snapshot(bridge, &snapshot) ||
+      !cupidbuild_host_snapshot_identity_equal(
+          &snapshot, &transaction->private_root_snapshot)) {
+    if (bridge != INVALID_HANDLE_VALUE) {
+      (void)CloseHandle(bridge);
+    }
+    return 0;
+  }
+  /* A retained DELETE directory handle conflicts with NT rename's target
+     directory open. Keep its identity live while restoring the candidate. */
+  if (!CloseHandle(transaction->private_handle)) {
+    (void)CloseHandle(bridge);
+    return 0;
+  }
+  transaction->private_handle = bridge;
+#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)
+  if (!cupidbuild_host_publication_test_pause("rollback-directory-bridge")) {
+    return 0;
+  }
+#endif
+  restored = cupidbuild_host_windows_rename_handle(
+      transaction->candidate_handle, bridge, "candidate.o", 0);
+  cleanup = cupidbuild_host_windows_open_relative_access_share_status(
+      transaction->repository_root_handle, transaction->private_name, 1, 0,
+      DELETE, FILE_SHARE_READ | FILE_SHARE_WRITE, (long *)0);
+  if (cleanup == INVALID_HANDLE_VALUE ||
+      !cupidbuild_host_windows_directory_handle_snapshot(cleanup, &snapshot) ||
+      !cupidbuild_host_snapshot_identity_equal(
+          &snapshot, &transaction->private_root_snapshot) ||
+      !cupidbuild_host_private_root_is_owned(transaction)) {
+    if (cleanup != INVALID_HANDLE_VALUE) {
+      (void)CloseHandle(cleanup);
+    }
+    return 0;
+  }
+  transaction->private_handle = cleanup;
+  return CloseHandle(bridge) != 0 && restored;
+}
+
 static int cupidbuild_host_atomic_replace(
     cupidbuild_host_transaction_t *transaction) {
   cupidbuild_host_snapshot_t published;
@@ -2643,9 +2695,7 @@ static int cupidbuild_host_atomic_replace(
       cupidbuild_host_snapshot_t restored_candidate;
       int candidate_restored = 0;
       int output_restored = 0;
-      if (cupidbuild_host_windows_rename_handle(
-              transaction->candidate_handle, transaction->private_handle,
-              "candidate.o", 0)) {
+      if (cupidbuild_host_windows_restore_private_candidate(transaction)) {
         candidate_at_output = 0;
         candidate_restored =
             cupidbuild_host_windows_read_relative_regular(
