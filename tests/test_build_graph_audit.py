@@ -2579,9 +2579,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 400)
+            self.assertEqual(contract["if_occurrences"], 403)
             self.assertEqual(contract["elif_occurrences"], 12)
-            self.assertEqual(contract["expression_occurrences"], 412)
+            self.assertEqual(contract["expression_occurrences"], 415)
             self.assertEqual(contract["unique_expressions"], 55)
             self.assertEqual(contract["directive_expression_pairs"], 57)
             self.assertTrue(

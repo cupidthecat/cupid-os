@@ -34880,3 +34880,22 @@ The final original-cohort checks passed: three Linux cases in 11.142 seconds
 with one qualified old-assembler skip, and six Windows cases in 24.428 seconds
 with four qualified old-cohort skips. The replacement-cohort runs above
 execute those applicable cases without skips.
+
+## 2026-09-19 conditional inventory after publication guard changes
+
+The source checkpoint's publication repairs added three preprocessor guards.
+The checked inventory now matches 403 `#if` and 12 `#elif` occurrences, 415
+in total. The `defined ( _WIN32 )` expression occurs 179 times and
+`defined ( CUPIDBUILD_PUBLICATION_RACE_TEST )` occurs six times. All 55
+expressions, 57 directive/expression pairs, and evaluated expectations remain
+unchanged. This corrects test metadata without changing Toolchain source or
+checked seed bytes.
+
+The focused active-source inventory test passed against the unchanged
+`0232cb57` seeds in a separate source-only checkout: one test in 129.649
+seconds, with no skip. Full audit check mode also passed against the checked
+JSON and summary, including `user:all` and `toolchain:all`. That source-only
+graph still has 195 CupidBuild and 257 Python participations; the production
+handoffs are separate work. Independent review matched every expression
+count. The source-only test log has SHA-256
+`a424869624de0bff6a39bae3953bfb39004954b98f5ad625f1e28f9095ee8caf`.
