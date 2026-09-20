@@ -1,5 +1,22 @@
 # Cupid Toolchain bootstrap
 
+Source-head CupidC accepts closed `CUPSRC1` source bundles, and source-head
+CupidBuild provides `compile-kernel` for the eleven established frozen kernel
+closures. Logical include paths and `__FILE__` survive capture; missing entries
+cannot fall back to live files. The transaction retains the fixed kernel
+profile, seed verification, compiler-object validation, output lock, and
+rollback. Full publication checks now recheck captured file contents after
+installation as well as directory state. [ADR 0390](../adr/0390-compile-closed-kernel-inputs-with-cupidbuild.md)
+records the format and transaction. The promoted seeds predate this command's
+compiler requirement. Production ownership remains 197 CupidBuild and 255
+Python participations until paired seed proof and recipe adoption.
+
+The current Windows normal-build replay passes all 16 artifact-size checks
+and publishes a 9,551,388-byte raw kernel, including the expanded manual.
+Both ELF outputs and the raw kernel reproduce byte for byte. A private
+four-CPU SMP and `ls` boot smoke passes without changing the published image.
+The bootstrap log records the exact artifacts and cross-platform tool tests.
+
 Committed source `16a86f5b` runs anonymous POSIX publication tools from
 CupidBuild's retained `/proc` directory, with frozen descriptor paths as
 inputs. Generic checked commands keep their requested working directory.
@@ -60,9 +77,9 @@ The pre-correction Linux normal build passed all 16 measured artifact rows
 and published an image byte-identical to the validation image. Its private
 four-CPU E1000 runtime frontier passed, including SMP verification and `ls`.
 Both hosts then passed their default builds at the first corrected-manual
-checkpoint. The final five-manual freeze now produces the same
+checkpoint. The earlier five-manual freeze produced the same
 9,550,844-byte raw kernel on Windows and native Linux. Both repaired
-parallel replays pass all 16 artifact checks and image publication. The
+parallel replays passed all 16 artifact checks and image publication. The
 private four-CPU runtime frontiers on the Linux image with E1000 and RTL8139
 pass compiler, ISO, swap, graphics, audio, USB replug, and SMP checks. A
 separate pinned-IWAD Doom probe still panics during HomeFS rewriting with an

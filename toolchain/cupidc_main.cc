@@ -24,6 +24,7 @@ typedef struct {
   const char *input;
   const char *output;
   const char *native_root;
+  const char *source_bundle;
   const char **include_arguments;
   ctool_u32 *include_forms;
   ctool_u32 include_count;
@@ -54,13 +55,191 @@ typedef struct {
   ctool_bool doom_compatibility;
 } cupidc_invocation_context_t;
 
+/* CUPSRC1 carries a closed logical filesystem. The coordinator owns capture
+ * and drift checks; the compiler reads only this retained byte snapshot. */
+#define CUPIDC_BUNDLE_FILES 512u
+#define CUPIDC_BUNDLE_PATH_BYTES 4095u
+typedef struct {
+  ctool_string_t path;
+  ctool_bytes_t contents;
+} cupidc_bundle_file_t;
+
+typedef struct {
+  unsigned char *bytes;
+  cupidc_bundle_file_t files[CUPIDC_BUNDLE_FILES];
+  ctool_u32 count;
+  ctool_file_store_t output_store;
+} cupidc_bundle_t;
+
+static ctool_u32 cupidc_bundle_u32(const unsigned char *bytes) {
+  return (ctool_u32)bytes[0] | ((ctool_u32)bytes[1] << 8u) |
+         ((ctool_u32)bytes[2] << 16u) | ((ctool_u32)bytes[3] << 24u);
+}
+
+static int cupidc_bundle_path_valid(const unsigned char *path,
+                                   ctool_u32 size) {
+  ctool_u32 index;
+  ctool_u32 component = 1u;
+  if (size < 2u || size > CUPIDC_BUNDLE_PATH_BYTES || path[0] != '/') {
+    return 0;
+  }
+  for (index = 1u; index <= size; index++) {
+    if (index == size || path[index] == '/') {
+      ctool_u32 length = index - component;
+      if (length == 0u ||
+          (length == 1u && path[component] == '.') ||
+          (length == 2u && path[component] == '.' &&
+           path[component + 1u] == '.')) {
+        return 0;
+      }
+      component = index + 1u;
+    } else if (path[index] < 32u || path[index] >= 127u ||
+               path[index] == '\\' || path[index] == ':') {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int cupidc_bundle_path_order(ctool_string_t left,
+                                   ctool_string_t right) {
+  ctool_u32 common = left.size < right.size ? left.size : right.size;
+  int compared = memcmp(left.data, right.data, common);
+  if (compared != 0) {
+    return compared;
+  }
+  return left.size < right.size ? -1 : left.size != right.size;
+}
+
+static int cupidc_bundle_open(cupidc_bundle_t *bundle, const char *path) {
+  FILE *file;
+  long length;
+  size_t size;
+  size_t offset = 12u;
+  ctool_u32 index;
+  int read_ok;
+#if defined(_WIN32)
+  file = (FILE *)0;
+  if (fopen_s(&file, path, "rb") != 0) {
+    return 0;
+  }
+#else
+  file = fopen(path, "rb");
+#endif
+  if (file == (FILE *)0) {
+    return 0;
+  }
+  if (fseek(file, 0L, SEEK_END) != 0 || (length = ftell(file)) < 12L ||
+      (unsigned long)length > CUPIDC_HOST_SOURCE_BYTES ||
+      fseek(file, 0L, SEEK_SET) != 0) {
+    (void)fclose(file);
+    return 0;
+  }
+  size = (size_t)length;
+  bundle->bytes = (unsigned char *)malloc(size);
+  if (bundle->bytes == (unsigned char *)0) {
+    (void)fclose(file);
+    return 0;
+  }
+  read_ok = fread(bundle->bytes, 1u, size, file) == size;
+  if (read_ok != 0) {
+    unsigned char extra;
+    read_ok = fread(&extra, 1u, 1u, file) == 0u && ferror(file) == 0;
+  }
+  if (fclose(file) != 0 || read_ok == 0 ||
+      memcmp(bundle->bytes, "CUPSRC1\n", 8u) != 0) {
+    return 0;
+  }
+  bundle->count = cupidc_bundle_u32(bundle->bytes + 8u);
+  if (bundle->count == 0u || bundle->count > CUPIDC_BUNDLE_FILES) {
+    return 0;
+  }
+  for (index = 0u; index < bundle->count; index++) {
+    cupidc_bundle_file_t *entry = &bundle->files[index];
+    ctool_u32 path_size;
+    ctool_u32 content_size;
+    if (size - offset < 8u) {
+      return 0;
+    }
+    path_size = cupidc_bundle_u32(bundle->bytes + offset);
+    content_size = cupidc_bundle_u32(bundle->bytes + offset + 4u);
+    offset += 8u;
+    if (path_size > size - offset ||
+        !cupidc_bundle_path_valid(bundle->bytes + offset, path_size)) {
+      return 0;
+    }
+    entry->path.data = (const char *)bundle->bytes + offset;
+    entry->path.size = path_size;
+    if (index != 0u &&
+        cupidc_bundle_path_order(bundle->files[index - 1u].path,
+                                entry->path) >= 0) {
+      return 0;
+    }
+    offset += path_size;
+    if (content_size > size - offset) {
+      return 0;
+    }
+    entry->contents = ctool_bytes(bundle->bytes + offset, content_size);
+    offset += content_size;
+  }
+  return offset == size;
+}
+
+static const cupidc_bundle_file_t *cupidc_bundle_find(
+    const cupidc_bundle_t *bundle, ctool_string_t path) {
+  ctool_u32 index;
+  for (index = 0u; index < bundle->count; index++) {
+    if (cupidc_bundle_path_order(bundle->files[index].path, path) == 0) {
+      return &bundle->files[index];
+    }
+  }
+  return (const cupidc_bundle_file_t *)0;
+}
+
+static ctool_status_t cupidc_bundle_size(void *context, ctool_string_t path,
+                                        ctool_u32 *size_out) {
+  const cupidc_bundle_file_t *entry =
+      cupidc_bundle_find((const cupidc_bundle_t *)context, path);
+  *size_out = entry == (const cupidc_bundle_file_t *)0
+                  ? 0u : entry->contents.size;
+  return entry == (const cupidc_bundle_file_t *)0 ? CTOOL_ERR_NOT_FOUND
+                                                : CTOOL_OK;
+}
+
+static ctool_status_t cupidc_bundle_read(void *context, ctool_string_t path,
+                                        ctool_u8 *destination,
+                                        ctool_u32 size) {
+  const cupidc_bundle_file_t *entry =
+      cupidc_bundle_find((const cupidc_bundle_t *)context, path);
+  if (entry == (const cupidc_bundle_file_t *)0) {
+    return CTOOL_ERR_NOT_FOUND;
+  }
+  if (entry->contents.size != size) {
+    return CTOOL_ERR_IO;
+  }
+  if (size != 0u) {
+    (void)memcpy(destination, entry->contents.data, size);
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cupidc_bundle_write(void *context, ctool_string_t path,
+                                         ctool_bytes_t contents) {
+  cupidc_bundle_t *bundle = (cupidc_bundle_t *)context;
+  if (cupidc_bundle_find(bundle, path) != (const cupidc_bundle_file_t *)0) {
+    return CTOOL_ERR_PATH;
+  }
+  return bundle->output_store.write_all(bundle->output_store.context, path,
+                                        contents);
+}
+
 static void cupidc_usage(FILE *stream) {
   (void)fprintf(
       stream,
       "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
       "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
       "[-U NAME] [--cupid] [--gnu] [--doom-compat] [--freestanding] "
-      "[--root NATIVE_ROOT]\n");
+      "[--root NATIVE_ROOT] [--source-bundle CUPSRC1_FILE]\n");
 }
 
 static ctool_bool cupidc_string_equal_literal(ctool_string_t value,
@@ -274,6 +453,17 @@ static int cupidc_parse_cli(int argc, char **argv, cupidc_cli_t *cli) {
       cli->macro_action_count++;
       continue;
     }
+    if (strcmp(argument, "--source-bundle") == 0) {
+      if (cli->source_bundle != (const char *)0 || index + 1 >= argc) {
+        return 0;
+      }
+      index++;
+      if (argv[index][0] == '\0') {
+        return 0;
+      }
+      cli->source_bundle = argv[index];
+      continue;
+    }
     if (strcmp(argument, "--root") == 0) {
       if (cli->native_root != (const char *)0 || index + 1 >= argc) {
         return 0;
@@ -289,6 +479,11 @@ static int cupidc_parse_cli(int argc, char **argv, cupidc_cli_t *cli) {
       return 0;
     }
     cli->input = argument;
+  }
+  if (cli->source_bundle != (const char *)0 &&
+      cli->native_root == (const char *)0) {
+    cli->error = "cupidc: --source-bundle requires --root\n";
+    return 0;
   }
   if (have_cupid == CTOOL_TRUE &&
       have_doom_compatibility == CTOOL_TRUE) {
@@ -501,6 +696,7 @@ int main(int argc, char **argv) {
   cupidc_cli_t cli;
   cupidc_invocation_context_t context;
   ctool_host_adapter_t adapter;
+  cupidc_bundle_t *bundle = (cupidc_bundle_t *)0;
   ctool_limits_t limits = ctool_default_limits();
   ctool_job_config_t config;
   ctool_invocation_request_t request;
@@ -640,6 +836,19 @@ int main(int argc, char **argv) {
   limits.arena_block_bytes = CUPIDC_HOST_ARENA_BLOCK_BYTES;
 #endif
   config = ctool_host_job_config(&adapter, limits);
+  if (cli.source_bundle != (const char *)0) {
+    bundle = (cupidc_bundle_t *)calloc(1u, sizeof(*bundle));
+    if (bundle == (cupidc_bundle_t *)0 ||
+        !cupidc_bundle_open(bundle, cli.source_bundle)) {
+      (void)fprintf(stderr, "cupidc: invalid or unreadable CUPSRC1 source bundle\n");
+      goto done;
+    }
+    bundle->output_store = config.files;
+    config.files.context = bundle;
+    config.files.file_size = cupidc_bundle_size;
+    config.files.read_exact = cupidc_bundle_read;
+    config.files.write_all = cupidc_bundle_write;
+  }
   (void)memset(&context, 0, sizeof(context));
   context.include_paths = include_paths;
   context.include_forms = cli.include_forms;
@@ -678,6 +887,10 @@ int main(int argc, char **argv) {
   exit_code = 0;
 
 done:
+  if (bundle != (cupidc_bundle_t *)0) {
+    free(bundle->bytes);
+    free(bundle);
+  }
   if (owned_include_paths != (char **)0) {
     for (index = 0u; index < cli.include_count; index++) {
       free(owned_include_paths[index]);

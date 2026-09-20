@@ -11916,6 +11916,10 @@ static int cupidbuild_host_require_public_binding(
         "discovered directory closure changed while checked tools ran");
     return 0;
   }
+  if (require_discovery != 0 &&
+      !cupidbuild_host_require_inputs(transaction)) {
+    return 0;
+  }
   if (!cupidbuild_host_read_output(transaction, 1, &output,
                                    (unsigned char **)0) ||
       !cupidbuild_host_snapshot_equal(

@@ -108,6 +108,216 @@ typedef struct {
   cupidbuild_host_path_list_t sources;
 } cupidbuild_profile_membership_t;
 
+typedef struct {
+  const char *source;
+  const char *inputs[66];
+  size_t count;
+} cupidbuild_compile_closure_t;
+
+static const cupidbuild_compile_closure_t cupidbuild_compile_closures[] = {
+    {"kernel/audio/nuked_opl3.cc", {
+        "kernel/audio/nuked_opl3.cc",
+        "kernel/audio/nuked_opl3.h",
+        "kernel/core/string.h",
+        "kernel/core/types.h"
+    }, 4u},
+    {"kernel/core/kernel.cc", {
+        "drivers/ata.h",
+        "drivers/keyboard.h",
+        "drivers/mouse.h",
+        "drivers/pci.h",
+        "drivers/pit.h",
+        "drivers/rtc.h",
+        "drivers/serial.h",
+        "drivers/speaker.h",
+        "drivers/timer.h",
+        "drivers/vga.h",
+        "kernel/core/debug.h",
+        "kernel/core/kernel.cc",
+        "kernel/core/kernel.h",
+        "kernel/core/panic.h",
+        "kernel/core/ports.h",
+        "kernel/core/process.h",
+        "kernel/core/string.h",
+        "kernel/core/syscall.h",
+        "kernel/core/types.h",
+        "kernel/cpu/fpu.h",
+        "kernel/cpu/idt.h",
+        "kernel/cpu/irq.h",
+        "kernel/cpu/isr.h",
+        "kernel/cpu/pic.h",
+        "kernel/cpu/simd.h",
+        "kernel/crypto/csprng.h",
+        "kernel/fs/blockcache.h",
+        "kernel/fs/blockdev.h",
+        "kernel/fs/devfs.h",
+        "kernel/fs/fat16.h",
+        "kernel/fs/fat16_vfs.h",
+        "kernel/fs/fs.h",
+        "kernel/fs/homefs.h",
+        "kernel/fs/iso9660_vfs.h",
+        "kernel/fs/ramfs.h",
+        "kernel/fs/vfs.h",
+        "kernel/gfx/fontsys.h",
+        "kernel/gfx/gfx2d.h",
+        "kernel/gfx/gfx2d_assets.h",
+        "kernel/gfx/graphics.h",
+        "kernel/gui/clipboard.h",
+        "kernel/gui/desktop.h",
+        "kernel/gui/gui.h",
+        "kernel/gui/gui_containers.h",
+        "kernel/gui/gui_events.h",
+        "kernel/gui/gui_menus.h",
+        "kernel/gui/gui_themes.h",
+        "kernel/gui/gui_widgets.h",
+        "kernel/gui/ui.h",
+        "kernel/lang/as.h",
+        "kernel/lang/ctool_kernel.h",
+        "kernel/lang/exec.h",
+        "kernel/lang/shell.h",
+        "kernel/mm/memory.h",
+        "kernel/network/net_if.h",
+        "kernel/smp/bkl.h",
+        "kernel/smp/ioapic.h",
+        "kernel/smp/lapic.h",
+        "kernel/smp/percpu.h",
+        "kernel/smp/smp.h",
+        "kernel/tls/tls_selftest.h",
+        "kernel/usb/usb.h",
+        "kernel/usb/usb_hc.h",
+        "kernel/util/calendar.h",
+        "toolchain/ctool.h"
+    }, 65u},
+    {"kernel/core/string.cc", {
+        "kernel/core/string.cc",
+        "kernel/core/string.h",
+        "kernel/core/types.h"
+    }, 3u},
+    {"kernel/cpu/fpu.cc", {
+        "drivers/serial.h",
+        "kernel/core/panic.h",
+        "kernel/core/process.h",
+        "kernel/core/types.h",
+        "kernel/cpu/fpu.cc",
+        "kernel/cpu/fpu.h",
+        "kernel/cpu/isr.h",
+        "kernel/cpu/libm.h"
+    }, 8u},
+    {"kernel/cpu/libm.cc", {
+        "kernel/core/types.h",
+        "kernel/cpu/libm.cc",
+        "kernel/cpu/libm.h"
+    }, 3u},
+    {"kernel/cpu/simd.cc", {
+        "drivers/serial.h",
+        "drivers/timer.h",
+        "kernel/core/kernel.h",
+        "kernel/core/string.h",
+        "kernel/core/types.h",
+        "kernel/cpu/isr.h",
+        "kernel/cpu/simd.cc",
+        "kernel/cpu/simd.h"
+    }, 8u},
+    {"kernel/gfx/glyph_raster.cc", {
+        "kernel/core/string.h",
+        "kernel/core/types.h",
+        "kernel/gfx/glyph_raster.cc",
+        "kernel/gfx/glyph_raster.h",
+        "kernel/mm/memory.h"
+    }, 5u},
+    {"kernel/gfx/jpeg.cc", {
+        "kernel/core/types.h",
+        "kernel/cpu/libm.h",
+        "kernel/gfx/jpeg.cc",
+        "kernel/gfx/jpeg.h",
+        "kernel/mm/memory.h"
+    }, 5u},
+    {"kernel/smp/percpu.cc", {
+        "drivers/serial.h",
+        "kernel/core/process.h",
+        "kernel/core/types.h",
+        "kernel/smp/percpu.cc",
+        "kernel/smp/percpu.h"
+    }, 5u},
+    {"kernel/smp/smp.cc", {
+        "drivers/serial.h",
+        "kernel/core/process.h",
+        "kernel/core/types.h",
+        "kernel/cpu/fpu.h",
+        "kernel/cpu/idt.h",
+        "kernel/cpu/isr.h",
+        "kernel/mm/memory.h",
+        "kernel/smp/acpi.h",
+        "kernel/smp/bkl.h",
+        "kernel/smp/ioapic.h",
+        "kernel/smp/lapic.h",
+        "kernel/smp/mp_tables.h",
+        "kernel/smp/percpu.h",
+        "kernel/smp/smp.cc",
+        "kernel/smp/smp.h"
+    }, 15u},
+    {"kernel/cpu/ksyms_data.cc", {
+        "kernel/core/types.h",
+        "kernel/cpu/ksyms.h",
+        "kernel/cpu/ksyms_data.cc"
+    }, 3u},
+};
+
+static const char *const cupidbuild_compile_profile[] = {
+    "--gnu",
+    "--freestanding",
+    "-D",
+    "__GNUC__=1",
+    "-D",
+    "__ORDER_LITTLE_ENDIAN__=1234",
+    "-D",
+    "__ORDER_BIG_ENDIAN__=4321",
+    "-D",
+    "__ORDER_PDP_ENDIAN__=3412",
+    "-D",
+    "__BYTE_ORDER__=__ORDER_LITTLE_ENDIAN__",
+    "-D",
+    "__SSE2__=1",
+    "-D",
+    "DEBUG=1",
+    "-I",
+    "/kernel",
+    "-I",
+    "/kernel/audio",
+    "-I",
+    "/kernel/core",
+    "-I",
+    "/kernel/cpu",
+    "-I",
+    "/kernel/crypto",
+    "-I",
+    "/kernel/doom",
+    "-I",
+    "/kernel/fs",
+    "-I",
+    "/kernel/gfx",
+    "-I",
+    "/kernel/gui",
+    "-I",
+    "/kernel/lang",
+    "-I",
+    "/kernel/mm",
+    "-I",
+    "/kernel/network",
+    "-I",
+    "/kernel/smp",
+    "-I",
+    "/kernel/tls",
+    "-I",
+    "/kernel/usb",
+    "-I",
+    "/kernel/util",
+    "-I",
+    "/drivers",
+    "-I",
+    "/toolchain"
+};
+
 static int cupidbuild_finish_publication(
     cupidbuild_host_transaction_t *transaction, int result,
     const char *artifact) {
@@ -1506,6 +1716,89 @@ static int cupidbuild_jpeg_symbol_name_matches(ctool_string_t actual,
   return 1;
 }
 
+static int cupidbuild_string_equals(ctool_string_t actual,
+                                     const char *expected);
+
+int cupidbuild_validate_compiler_object_bytes(const unsigned char *bytes,
+                                              size_t size) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_source_t source;
+  ctool_elf32_object_t object;
+  ctool_u32 index;
+  unsigned int required = 0u;
+  int valid = 0;
+  if (bytes == (const unsigned char *)0 || size > 4294967295u ||
+      ctool_host_adapter_init(&adapter, ".") != CTOOL_OK) {
+    return 0;
+  }
+  config = ctool_host_job_config(&adapter, ctool_default_limits());
+  if (ctool_job_open(&config, &job) != CTOOL_OK) {
+    return 0;
+  }
+  source.path.text = ctool_string("/compiler-candidate.o");
+  source.contents = ctool_bytes(bytes, (ctool_u32)size);
+  if (ctool_elf32_read(job, &source, &object) != CTOOL_OK ||
+      object.file_type != CTOOL_ELF32_ET_REL ||
+      object.program_header_count != 0u || object.symbol_count == 0u ||
+      bytes[42] != 0u || bytes[43] != 0u) {
+    goto done;
+  }
+  for (index = 0u; index < object.section_count; index++) {
+    const ctool_elf32_section_t *section = &object.sections[index];
+    ctool_u32 character;
+    if (section->type == 4u ||
+        (section->type == 9u &&
+         object.sections[section->info].type == CTOOL_ELF32_SHT_NOBITS) ||
+        (section->type != CTOOL_ELF32_SHT_NOBITS &&
+         section->alignment > 1u &&
+         section->file_offset % section->alignment != 0u)) {
+      goto done;
+    }
+    for (character = 0u; character < section->name.size; character++) {
+      if ((unsigned char)section->name.data[character] >= 128u) {
+        goto done;
+      }
+    }
+    if (cupidbuild_string_equals(section->name, ".symtab")) {
+      if (section->type != 2u) {
+        goto done;
+      }
+      required |= 1u;
+    } else if (cupidbuild_string_equals(section->name, ".strtab")) {
+      if (section->type != 3u) {
+        goto done;
+      }
+      required |= 2u;
+    } else if (cupidbuild_string_equals(section->name, ".shstrtab")) {
+      if (section->type != 3u) {
+        goto done;
+      }
+      required |= 4u;
+    }
+  }
+  for (index = 0u; index < object.symbol_count; index++) {
+    if (object.symbols[index].placement == CTOOL_ELF32_SYMBOL_RESERVED) {
+      goto done;
+    }
+  }
+  for (index = 0u; index < object.relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation = &object.relocations[index];
+    if ((relocation->type != CTOOL_ELF32_R_386_32 &&
+         relocation->type != CTOOL_ELF32_R_386_PC32) ||
+        relocation->addend_known == CTOOL_FALSE ||
+        (relocation->type == CTOOL_ELF32_R_386_PC32 &&
+         relocation->addend != -4)) {
+      goto done;
+    }
+  }
+  valid = required == 7u;
+done:
+  ctool_job_close(job);
+  return valid;
+}
+
 int cupidbuild_validate_jpeg_object_bytes(
     const unsigned char *object_bytes, size_t object_size,
     const unsigned char *jpeg_bytes, size_t jpeg_size,
@@ -1829,7 +2122,6 @@ int cupidbuild_validate_jpeg_bytes(const unsigned char *bytes, size_t size,
   return 1;
 }
 
-#if defined(_WIN32)
 static int cupidbuild_string_equals(ctool_string_t actual,
                                     const char *expected) {
   size_t expected_size = strlen(expected);
@@ -1837,7 +2129,6 @@ static int cupidbuild_string_equals(ctool_string_t actual,
          actual.size == (ctool_u32)expected_size &&
          memcmp(actual.data, expected, expected_size) == 0;
 }
-#endif
 
 static int cupidbuild_validate_execution_profile(
                                                    cupidbuild_host_transaction_t *transaction,
@@ -4363,6 +4654,222 @@ done:
     result = 1;
   }
   return result;
+}
+
+static void cupidbuild_compile_put_u32(unsigned char *bytes, size_t value) {
+  bytes[0] = (unsigned char)value;
+  bytes[1] = (unsigned char)(value >> 8u);
+  bytes[2] = (unsigned char)(value >> 16u);
+  bytes[3] = (unsigned char)(value >> 24u);
+}
+
+static int cupidbuild_compile_bundle(
+    cupidbuild_host_transaction_t *transaction, const char *root,
+    const cupidbuild_compile_closure_t *closure,
+    cupidbuild_host_snapshot_t *bundle_snapshot) {
+  const char *frozen[66];
+  cupidbuild_host_snapshot_t snapshots[66];
+  size_t total = 12u;
+  size_t offset = 12u;
+  size_t index;
+  unsigned char *bundle = (unsigned char *)0;
+  int result = 0;
+  if (!cupidbuild_host_reserve_inputs(transaction, closure->count + 7u)) {
+    return 0;
+  }
+  for (index = 0u; index < closure->count; index++) {
+    char live_path[CUPIDBUILD_PATH_BYTES];
+    char private_name[32];
+    size_t overhead = 9u + strlen(closure->inputs[index]);
+    int written = snprintf(private_name, sizeof(private_name),
+                           "compile-input-%03u", (unsigned int)index);
+    if (written <= 0 || (size_t)written >= sizeof(private_name) ||
+        !cupidbuild_join(live_path, sizeof(live_path), root,
+                         closure->inputs[index])) {
+      return 0;
+    }
+    if (strcmp(closure->inputs[index], closure->source) == 0) {
+      size_t source_size;
+      unsigned char *source = cupidbuild_host_read_frozen_input(
+          transaction, cupidbuild_host_frozen_source(transaction),
+          CUPIDBUILD_TOOL_BYTES, &source_size);
+      if (source == (unsigned char *)0) {
+        return 0;
+      }
+      free(source);
+      frozen[index] = cupidbuild_host_frozen_source(transaction);
+      snapshots[index].size = source_size;
+    } else if (!cupidbuild_host_freeze_input(transaction, live_path,
+                                             private_name, &frozen[index],
+                                             &snapshots[index])) {
+      return 0;
+    }
+    if (overhead > CUPIDBUILD_TOOL_BYTES - total ||
+        snapshots[index].size > CUPIDBUILD_TOOL_BYTES - total - overhead) {
+      return 0;
+    }
+    total += overhead + snapshots[index].size;
+  }
+  bundle = (unsigned char *)malloc(total);
+  if (bundle == (unsigned char *)0) {
+    return 0;
+  }
+  (void)memcpy(bundle, "CUPSRC1\n", 8u);
+  cupidbuild_compile_put_u32(bundle + 8u, closure->count);
+  for (index = 0u; index < closure->count; index++) {
+    size_t size = 0u;
+    size_t path_size = strlen(closure->inputs[index]) + 1u;
+    unsigned char *contents = cupidbuild_host_read_frozen_input(
+        transaction, frozen[index], CUPIDBUILD_TOOL_BYTES, &size);
+    if (contents == (unsigned char *)0 || size != snapshots[index].size) {
+      free(contents);
+      goto done;
+    }
+    cupidbuild_compile_put_u32(bundle + offset, path_size);
+    cupidbuild_compile_put_u32(bundle + offset + 4u, size);
+    offset += 8u;
+    bundle[offset++] = '/';
+    (void)memcpy(bundle + offset, closure->inputs[index], path_size - 1u);
+    offset += path_size - 1u;
+    if (size != 0u) {
+      (void)memcpy(bundle + offset, contents, size);
+    }
+    offset += size;
+    free(contents);
+  }
+  result = offset == total &&
+           cupidbuild_host_write_private_output(transaction, bundle, total) &&
+           cupidbuild_host_capture_private_output(transaction, bundle_snapshot,
+                                                    (unsigned char **)0);
+done:
+  free(bundle);
+  return result;
+}
+
+int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request) {
+  cupidbuild_host_transaction_t *transaction =
+      (cupidbuild_host_transaction_t *)0;
+  cupidbuild_seed_capture_t seed;
+  const cupidbuild_compile_closure_t *closure =
+      (const cupidbuild_compile_closure_t *)0;
+  cupidbuild_host_snapshot_t bundle_snapshot;
+  cupidbuild_host_snapshot_t candidate_snapshot;
+  unsigned char *candidate = (unsigned char *)0;
+  char logical_source[CUPIDBUILD_PATH_BYTES];
+  char compiler_root[CUPIDBUILD_PATH_BYTES];
+  char logical_output[CUPIDBUILD_PATH_BYTES];
+  char expected_output[CUPIDBUILD_PATH_BYTES];
+  const char *arguments[80];
+  const char *candidate_path;
+  const char *separator;
+  size_t index;
+  size_t count = 0u;
+  size_t source_size;
+  int status;
+  int result = 1;
+  (void)memset(&seed, 0, sizeof(seed));
+  if (request == (const cupidbuild_compile_request_t *)0 ||
+      !cupidbuild_path_safe(request->repository_root, 0) ||
+      !cupidbuild_path_safe(request->source, 1) ||
+      !cupidbuild_path_safe(request->output, 1) ||
+      !cupidbuild_path_safe(request->seed_manifest, 0)) {
+    (void)fprintf(stderr, "cupidbuild: invalid kernel compile request\n");
+    return 1;
+  }
+  for (index = 0u; index < sizeof(cupidbuild_compile_closures) /
+                              sizeof(cupidbuild_compile_closures[0]); index++) {
+    if (strcmp(request->source, cupidbuild_compile_closures[index].source) == 0) {
+      closure = &cupidbuild_compile_closures[index];
+      break;
+    }
+  }
+  if (closure == (const cupidbuild_compile_closure_t *)0) {
+    (void)fprintf(stderr, "cupidbuild: source has no approved frozen kernel closure\n");
+    return 1;
+  }
+  source_size = strlen(request->source);
+  (void)memcpy(expected_output, request->source, source_size - 2u);
+  expected_output[source_size - 2u] = 'o';
+  expected_output[source_size - 1u] = '\0';
+  if (strcmp(request->output, expected_output) != 0) {
+    (void)fprintf(stderr, "cupidbuild: kernel source and output binding differ\n");
+    return 1;
+  }
+  logical_source[0] = '/';
+  (void)memcpy(logical_source + 1u, request->source, source_size + 1u);
+  if (!cupidbuild_host_transaction_open(request->repository_root,
+                                        request->source, request->output,
+                                        &transaction)) {
+    goto host_failure;
+  }
+  if (!cupidbuild_compile_bundle(transaction, request->repository_root, closure,
+                                  &bundle_snapshot)) {
+    (void)fprintf(stderr, "cupidbuild: frozen compiler closure cannot be captured\n");
+    goto host_failure;
+  }
+  if (!cupidbuild_seed_freeze(transaction, request->repository_root,
+                              request->seed_manifest, 1, 1, &seed)) {
+    goto done;
+  }
+  candidate_path = cupidbuild_host_candidate(transaction);
+  separator = strrchr(candidate_path, '/');
+  if (separator == (const char *)0 || separator == candidate_path ||
+      (size_t)(separator - candidate_path) >= sizeof(compiler_root) ||
+      strlen(separator) >= sizeof(logical_output)) {
+    goto host_failure;
+  }
+  (void)memcpy(compiler_root, candidate_path,
+               (size_t)(separator - candidate_path));
+  compiler_root[separator - candidate_path] = '\0';
+  (void)memcpy(logical_output, separator, strlen(separator) + 1u);
+  arguments[count++] = "-c";
+  arguments[count++] = logical_source;
+  arguments[count++] = "-o";
+  arguments[count++] = logical_output;
+  for (index = 0u; index < sizeof(cupidbuild_compile_profile) /
+                              sizeof(cupidbuild_compile_profile[0]); index++) {
+    arguments[count++] = cupidbuild_compile_profile[index];
+  }
+  arguments[count++] = "--root";
+  arguments[count++] = compiler_root;
+  arguments[count++] = "--source-bundle";
+  arguments[count++] = cupidbuild_host_private_output(transaction);
+  arguments[count] = (const char *)0;
+  status = cupidbuild_host_run(transaction, seed.frozen_tools[1], arguments,
+                               strcmp(request->source, "kernel/cpu/ksyms_data.cc") == 0
+                                   ? 600000u : 180000u);
+  if (!cupidbuild_seed_require_live(transaction, &seed)) {
+    goto done;
+  }
+  if (!cupidbuild_host_require_private_output(transaction, &bundle_snapshot)) {
+    goto host_failure;
+  }
+  if (status != 0) {
+    (void)fprintf(stderr, "cupidbuild: checked CupidC failed\n");
+    goto done;
+  }
+  if (!cupidbuild_host_capture_candidate(transaction, &candidate_snapshot,
+                                         &candidate)) {
+    goto host_failure;
+  }
+  if (!cupidbuild_validate_compiler_object_bytes(candidate,
+                                                 candidate_snapshot.size)) {
+    (void)fprintf(stderr, "cupidbuild: compiler object validation failed\n");
+    goto done;
+  }
+  if (!cupidbuild_host_require_candidate(transaction, &candidate_snapshot) ||
+      !cupidbuild_host_require_publication_boundary(transaction) ||
+      !cupidbuild_host_publish(transaction)) {
+    goto host_failure;
+  }
+  result = 0;
+  goto done;
+host_failure:
+  (void)fprintf(stderr, "cupidbuild: %s\n", cupidbuild_host_error(transaction));
+done:
+  free(candidate);
+  cupidbuild_seed_capture_close(&seed);
+  return cupidbuild_finish_publication(transaction, result, "kernel compiler object");
 }
 
 int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {

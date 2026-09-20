@@ -36347,3 +36347,140 @@ Python still coordinates 255 audited participations, and the separate
 IWAD-backed Doom probe has not passed gameplay or persistence acceptance.
 The next compiler-coordinator record describes a proposed eleven-source
 handoff and claims no additional production ownership.
+
+## 2026-09-20: compile closed kernel inputs with CupidBuild
+
+CupidC now reads a closed `CUPSRC1` source bundle. The bundle retains logical
+paths for nested includes, include-root ordering, forced includes, and
+`__FILE__`, while forbidding live-source fallback. Parsing checks the complete
+archive before compilation, including sorted canonical paths, duplicate names,
+record lengths, trailing bytes, and the 512-file/64-MiB limits. Output cannot
+overwrite a bundled input. ADR 0390 records the format and ownership boundary.
+
+CupidBuild now implements `compile-kernel` for all eleven frozen kernel input
+closures, not just the first small source. Its native closure table and fixed
+argument profile match the existing Python wrapper. It captures source and
+headers, freezes and verifies the six-tool seed, runs CupidC against the bundle,
+validates the resulting ELF object, and publishes through the guarded output
+transaction. The generated symbol source keeps its 600-second deadline; other
+sources keep 180 seconds. A closed bundle replaced the proposed nested private
+directory tree because the existing retained byte stream can carry the same
+compiler input semantics without a second directory-lifecycle implementation.
+
+The new post-install header-mutation test found a shared publication gap:
+the last boundary checked discovered directories but omitted captured file
+contents. Full boundary checks now verify both. The namespace-only rollback
+check remains separate so a source mutation can restore the old output without
+being mistaken for namespace interference. The test checks restored bytes,
+mtime, and private-file cleanup.
+
+The Standards and Spec reviews identified two compiler-object policy gaps:
+nonzero ELF program-header entry size, and an empty REL section targeting
+NOBITS. Both are now rejected, with executable mutation tests. Valid empty REL
+sections, data-only objects, and nonzero absolute subobject addends still pass.
+Both reviews reported no remaining findings after those corrections.
+
+Early validation exposed test-harness mistakes as well as the publication bug.
+The Linux target link initially omitted `-m elf_i386`; the target link now uses
+the supported profile explicitly. The ordinary generated-symbol comparison
+initially used a 180-second harness timeout instead of the existing 600-second
+source deadline. The corrected test retains that deadline and uses the native
+compiler as its independent byte oracle. The coordinator still runs a real
+CupidC-built compiler. A Windows checkpoint probe tried to read an installed
+file while its exclusive publication handle was held; the test now observes
+the checkpoint and verifies the file after rollback. No product sharing rule
+was relaxed.
+
+The default Linux GCC probe hit the existing `old` maybe-uninitialized warning
+in `cupidc_ir.cc` under `-Werror`. Linux checks use Clang with the strict build
+flags; the unrelated IR code and warning policy are unchanged. One Windows
+publication-regression run overlapped the OS build and its global private-root
+census observed an unrelated build transaction disappear. The isolated Windows
+rerun passed without changing the cleanup assertion.
+
+The checked production seeds and Make recipes are unchanged. Tests substitute
+the current compiler only in private verified seed cohorts. The old seed
+rejects the new compiler option and preserves the prior output. Paired
+fixed-point behavior coverage, seed promotion, and Make adoption remain open.
+Production ownership stays at 197 CupidBuild and 255 Python participations,
+including 240 kernel/Doom compilations. The eleven admitted sources already
+have `.cc` suffixes. TempleOS remains untouched reference material. Issues
+#25, #29, #31, #32, and #34 still have unmet acceptance items.
+
+Validation for this source capability:
+
+- Reproduce the new checks with `python -m unittest
+  tests.test_cupidc_source_bundle tests.test_cupidbuild_compile_kernel -v`.
+  On Linux, use `CC=clang python3 -m unittest` with the same module names.
+  The publication regression command uses `tests.test_toolchain_cupidbuild`
+  and `tests.test_toolchain_cupidbuild_host_runner` instead. Run those suites
+  without another publisher in their repository root.
+- All 18 new bundle and compiler-transaction tests pass on native Windows
+  (272.939 seconds) and Linux (280.591 seconds), including the linked target
+  coordinator checks and the review corrections.
+- Every admitted closure compiles through the new transaction with a real
+  CupidC-built target compiler and matches ordinary compilation byte for byte.
+  The current compiler driver compiles itself identically; the checked seed
+  also reproduces it and the three changed coordinator translation units.
+- The existing compiler wrapper passes all 35 tests (120.861 seconds). Three
+  selected driver/object regressions pass (44.581 seconds).
+- The complete CupidBuild CLI and host-runner regression suites pass in
+  isolated source copies: 159 tests on Windows (219.792 seconds, 21 platform
+  skips) and 159 on native Linux storage (130.541 seconds, nine platform
+  skips). The source copies exclude TempleOS. The new Linux transaction tests
+  also pass from the supported `/mnt/c` worktree.
+- `make check-bootstrap-audit` and `git diff --check` pass. The regenerated
+  audit records source-feature counts without claiming a production transfer.
+
+Logs are under `build/bootstrap/20260920-compile-coordinator-*`. The final
+Windows test log ends in `complete-windows.log`; the complete Linux run ends
+in `complete-linux.log`. The isolated regression
+logs end in `isolated-regression.log` and `isolated-linux-regression.log`.
+
+The normal build completed compilation, both kernel links, and guarded kernel
+flattening, then correctly failed the old exact-size policy before image
+publication. `kernel.bin` grew from 9,550,844 to 9,551,388 bytes. The embedded
+manual grew by 543 bytes, matching the 544-byte aligned raw-image increase;
+both ELF sizes remain unchanged within their existing layout padding. The
+artifact timestamps confirm that the manual object and both links were rebuilt.
+Following ADR 0267, only the raw-kernel policy row moves to the measured exact
+size. No tolerance, seed size, producer rule, or validation check changes.
+All 67 artifact-size policy, semantic-contract, and runner tests pass on
+Windows in 4.043 seconds, with four platform skips, and on Linux in 4.827
+seconds without skips. Both review axes accepted this
+exact-size update. The normal Make replay repeats its guarded writer checks
+before returning to the size gate and image publisher.
+
+The final self-hosting check also links the updated coordinator with CupidLD
+from CupidC-built objects and CupidASM-built startup adapters. The resulting
+Linux ELF and Windows PE32 both run the new compiler transaction successfully
+and preserve output bytes and mtime on compiler failure. The Windows harness
+initially omitted the publication adapters from its link; it now uses the
+assembly and runtime entries in the existing Windows build plan. The corrected
+target checks pass on Linux (103.873 seconds) and Windows (115.899 seconds).
+These private target-tool checks are not a seed promotion or a fixed-point proof.
+
+The final `make -j4 all` replay exited with status zero. Its CupidC-built
+artifact verifier and independent oracle accepted all 16 exact artifacts
+before image publication. Both kernel ELFs and the raw kernel match the first
+completed build byte for byte. `cupidos.img` retained its existing FAT data,
+and the normal publisher staged `hello.iso`.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,646,412 | `6f0ce53f7639ad2d44ebfc295d250b68278670c472e0c190ff6ad35328209c09` |
+| `kernel/kernel.elf` | 9,777,484 | `fd5a3bf3c3024dc016c006cfa781d44cab2a8bb6c26353608beefcecd5d3bf58` |
+| `kernel/kernel.bin` | 9,551,388 | `f5abb3fb2bc7be7dbfdbc76726518e4b68ff6ae31cd71c6de68e3d6e14042b55` |
+| `cupidos.img` | 209,715,200 | `9231283ba414411dedaf1a2e72210152ce1ed6500c50b0fab260da2f8cf30cd7` |
+
+The successful replay log is
+`build/bootstrap/20260920-compile-coordinator-final-os.log`. Its preceding
+size-policy failure remains in `20260920-compile-coordinator-os.log`.
+
+The private-image boot check passed with `--smp 4 --cpu max
+--verify-smp-runtime --command ls --timeout 180`. It verified the SMP, RDRAND,
+TLS, E1000, desktop, and command-completion contract. The serial log is
+`build/bootstrap/20260920-compile-coordinator-smoke.log`; its driver reports
+`GUI terminal smoke passed`. The published image hash is unchanged after the
+boot. This is an SMP and terminal smoke, not a new Doom gameplay or full
+graphics/audio/USB frontier proof.

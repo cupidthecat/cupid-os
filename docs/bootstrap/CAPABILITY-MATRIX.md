@@ -1,9 +1,16 @@
 # Cupid Toolchain capability matrix
 
+Source-head CupidC implements closed `CUPSRC1` input bundles. Source-head
+CupidBuild compiles all eleven established frozen kernel closures through
+`compile-kernel`, with the fixed kernel profile and native compiler-object
+validation. The checked seeds still lack the compiler bundle option, so this
+is a source capability with no production handoff. ADR 0390 defines the
+format, limits, and publication contract.
+
 Both clean `16a86f5b` fixed-point proofs passed, and both checked seeds
 carry the Windows full-cohort launch and POSIX working-directory repairs.
-Final-manual parallel production replays pass on Windows and native Linux,
-including all 16 artifact checks and image publication. Both produce the
+The earlier five-manual parallel replays passed on Windows and native Linux,
+including all 16 artifact checks and image publication. Both produced the
 same 9,550,844-byte raw kernel. The private four-CPU runtime frontiers on
 the Linux image with E1000 and RTL8139 pass. A separate pinned-IWAD Doom
 probe still panics during HomeFS rewriting; the asset-free frontier does not

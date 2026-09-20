@@ -1,5 +1,20 @@
 # Toolchain Bootstrap
 
+Source-head CupidC can compile a closed `CUPSRC1` source bundle. It preserves
+logical include paths and reads no live source file when an entry is absent.
+Source-head CupidBuild uses it in `compile-kernel` for the eleven established
+frozen kernel closures, retaining the kernel profile, object validation,
+publication lock, and rollback. Final publication checks also recheck captured
+file contents after installation. The promoted seeds predate the bundle reader;
+the normal build still has 240 Python-coordinated kernel and Doom compilations.
+ADR 0390 records the capability. Paired seed proof and recipe adoption remain
+required before ownership changes.
+
+This checkpoint's Windows normal build passes all 16 artifact checks with
+the expanded manual and a 9,551,388-byte raw kernel. Both kernel ELFs and the
+raw output reproduce byte for byte. A private four-CPU SMP and `ls` smoke
+passes; the published image remains unchanged by the boot test.
+
 Committed source `16a86f5b` runs anonymous POSIX publication tools from the
 retained `/proc` directory; generic checked commands keep their requested
 working directory. This keeps relative writes by typed author and inspection
@@ -44,7 +59,7 @@ isolated guarded replay later published the Linux-matching raw kernel with
 unchanged timeouts. That diagnostic-root result does not establish main
 Windows Make acceptance or the original timeout's cause. Both hosts later
 passed their default builds at the first corrected-manual checkpoint. The
-final five-manual freeze produces matching 9,550,844-byte raw kernels. Both
+earlier five-manual freeze produced matching 9,550,844-byte raw kernels. Both
 repaired parallel replays pass all 16 artifact checks and image publication.
 The private four-CPU runtime frontiers on the Linux image with E1000 and
 RTL8139 pass compiler, ISO, swap, graphics, audio, USB replug, and SMP

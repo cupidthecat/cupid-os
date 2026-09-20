@@ -15,6 +15,7 @@ typedef struct {
 typedef cupidbuild_assembly_request_t cupidbuild_object_request_t;
 typedef cupidbuild_assembly_request_t cupidbuild_jpeg_request_t;
 typedef cupidbuild_assembly_request_t cupidbuild_ksyms_request_t;
+typedef cupidbuild_assembly_request_t cupidbuild_compile_request_t;
 
 typedef struct {
   const char *seed_manifest;
@@ -46,6 +47,9 @@ int cupidbuild_assemble_iso_pattern(
     const cupidbuild_assembly_request_t *request);
 int cupidbuild_embed_jpeg(const cupidbuild_jpeg_request_t *request);
 int cupidbuild_generate_ksyms(const cupidbuild_ksyms_request_t *request);
+int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request);
+int cupidbuild_validate_compiler_object_bytes(const unsigned char *bytes,
+                                              size_t size);
 int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request);
 int cupidbuild_generate_profile_manifest(
     const cupidbuild_profile_request_t *request);

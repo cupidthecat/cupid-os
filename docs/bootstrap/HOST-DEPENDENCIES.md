@@ -1,5 +1,12 @@
 # Host dependency inventory
 
+The native `compile-kernel` source capability captures the eleven established
+kernel closures in a `CUPSRC1` bundle and runs checked CupidC without Python
+inside the transaction. The current production seeds predate CupidC's bundle
+reader, so Make still uses the Python compiler wrapper for all 240 kernel and
+Doom compilations. Seed promotion and recipe adoption remain separate work.
+ADR 0390 records this boundary.
+
 Committed source `16a86f5b` uses retained private filenames for Windows kernel
 inspection to keep all 500 inputs within the command-line limit. Anonymous
 POSIX author and inspection calls use a pinned `/proc` working directory and
@@ -14,8 +21,8 @@ the verified old file and transaction state, without changing foreign files.
 Native Linux filesystems with stable retained lookup require exact restoration.
 Neither outcome adds a host compiler or assembler to the normal build.
 
-The final five-manual freeze produced matching 9,550,844-byte raw kernels on
-Windows and native Linux. Both repaired parallel replays pass all 16
+The earlier five-manual freeze produced matching 9,550,844-byte raw kernels on
+Windows and native Linux. Both repaired parallel replays passed all 16
 artifact checks and image publication. The private four-CPU runtime
 frontiers on the Linux image with E1000 and RTL8139 also pass; the separate
 IWAD-backed Doom gameplay gate remains open. The earlier `962e476b` Windows

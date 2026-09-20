@@ -2,6 +2,13 @@
 
 `TempleOS/` is excluded: it is reference material, not a source cohort. Statuses describe ownership, not how much code exists.
 
+The eleven frozen kernel closures now have a native source-head
+`cupidbuild compile-kernel` transaction. Its closed source bundle requires a
+newer CupidC than the promoted seeds provide. No normal recipe changes owner:
+the graph remains at 197 CupidBuild and 255 Python participations. All eleven
+sources already have `.cc` names. ADR 0390 records the capability and the
+remaining seed and production checks.
+
 The committed Windows full-cohort launch repair and POSIX private-cwd repair
 change no production owner. Both clean paired proofs from `16a86f5b` passed,
 and both checked seeds carry the repairs. DrvFS
@@ -9,9 +16,9 @@ recovery tests distinguish verified backup preservation from native Linux's
 exact restoration contract. ADRs 0387, 0388, and 0389 record these boundaries;
 no C suffix changes follow from this source step.
 
-Final-manual parallel OS replays with the `16a86f5b` pair pass on Windows and
+The earlier five-manual OS replays with the `16a86f5b` pair passed on Windows and
 native Linux, including all 16 artifact checks and image publication. Both
-produce the same 9,550,844-byte raw kernel. Private four-CPU runtime frontiers
+produced the same 9,550,844-byte raw kernel. Private four-CPU runtime frontiers
 on the Linux image with E1000 and RTL8139 pass; IWAD-backed Doom gameplay acceptance remains
 open. The earlier `962e476b` Windows replay exceeded
 the command-line limit with 431 absolute input paths and preserved the old

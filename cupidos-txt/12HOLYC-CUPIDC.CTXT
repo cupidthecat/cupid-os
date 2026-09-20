@@ -15,6 +15,14 @@ Verified against source on: 2026-09-19
 
 >h2 Source and seed checkpoint
 >tree open Source and seed checkpoint
+Source-head hosted CupidC accepts closed CUPSRC1 source bundles. The compiler
+keeps logical include paths and reads only captured source and header bytes.
+Source-head CupidBuild uses this interface in compile-kernel for eleven frozen
+kernel closures. The transaction validates ELF32 objects, checks live inputs,
+and restores the previous output when publication fails. These hosted commands
+still need paired seed promotion before normal Make recipes can adopt them.
+The promoted seeds and in-kernel compiler retain their current interfaces.
+
 Both checked seed cohorts bind source
 16a86f5b1693e017c36c6d902df9946c5d674b17 and carry the 500-input Windows
 kernel-inspection repair. Short filenames remain beneath the retained private

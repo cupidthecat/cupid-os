@@ -26,6 +26,10 @@ _Avoid_: directory (a cohort may cross directories), individual file count
 An owned, bounded lifetime for deterministic Cupid Toolchain arena, buffer, logical-path, source, and diagnostic state.
 _Avoid_: global compiler state, platform context
 
+**Closed compiler source bundle**:
+A complete set of captured source and header bytes addressed by their original logical paths. During that compilation, an absent path is a missing input and cannot fall back to the live filesystem.
+_Avoid_: include overlay, private directory copy, production ownership
+
 **Source-resolved raw control edge**:
 A bounded record that binds a raw call or jump at one source instruction offset
 to the address CupidASM resolved before encoding. Local rows also retain the

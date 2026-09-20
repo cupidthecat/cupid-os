@@ -1,8 +1,17 @@
 # Next compiler coordinator
 
-This is an investigation record. It proposes a bounded source-capability step
-and transfers no production ownership. Python still coordinates all 240
+The first source-capability step is implemented as `cupidbuild compile-kernel`.
+It transfers no production ownership. Python still coordinates all 240
 compilations described below. The shared terms follow [CONTEXT.md](../../CONTEXT.md).
+
+[ADR 0390](../adr/0390-compile-closed-kernel-inputs-with-cupidbuild.md) replaces
+the proposed nested private directory with a closed `CUPSRC1` file store in
+CupidC. The native coordinator captures all eleven closures and preserves the
+fixed kernel profile, logical paths, object validation, and publication rules.
+The promoted compiler lacks the bundle option and fails without replacing the
+previous object. Paired fixed-point coverage, seed promotion, and Make adoption
+remain the next production steps. The investigation below records the original
+requirements and why a plain checked runner was insufficient.
 
 ## Current boundary
 

@@ -14,6 +14,12 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 
 ## Current features
 
+The bootstrap branch now has a source-head `cupidbuild compile-kernel`
+transaction for eleven frozen kernel closures. It uses CupidC's closed source
+bundles to preserve include paths without live-file fallback. The promoted
+seeds and normal compiler recipes retain their current ownership; see
+[the compiler coordinator record](docs/bootstrap/NEXT-COMPILER-COORDINATOR.md).
+
 - VBE 640x480 32bpp graphics with a window manager, taskbar, and desktop icons
 - CupidC, a HolyC-inspired C compiler with JIT and ELF32 AOT output
 - Hardware FPU (x87) and SSE/SSE2 with eager FXSAVE context switch
@@ -78,9 +84,9 @@ The checked `16a86f5b` pair passed independent source-inventory and
 final-stage byte comparisons on Linux and Windows. The final-cohort 155-test
 CupidBuild CLI suite passed on both hosts, with only platform-specific
 skips. The corrected 167-case production suite and 48-case Linux handoff
-suite also passed. The final-manual parallel production replays passed on
+suite also passed. The earlier five-manual parallel production replays passed on
 Windows and native Linux, including all 16 artifact checks and image
-publication. Both produce the same 9,550,844-byte raw kernel. Its private
+publication. Both produced the same 9,550,844-byte raw kernel. Its private
 four-CPU runtime frontiers on the Linux image with E1000 and RTL8139 passed
 compiler, ISO, swap, graphics, audio, USB replug, and SMP checks. A separate
 pinned-IWAD Doom probe still fails during HomeFS rewriting with an EHCI

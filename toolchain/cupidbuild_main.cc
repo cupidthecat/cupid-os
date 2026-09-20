@@ -21,6 +21,8 @@ static void cupidbuild_usage(FILE *stream) {
       "       cupidbuild flatten-kernel "
       "--seed-manifest MANIFEST --root ROOT --input-manifest MANIFEST "
       "--output OUTPUT\n"
+      "       cupidbuild compile-kernel "
+      "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild generate-profile-manifest "
       "--seed-manifest MANIFEST --root ROOT --output OUTPUT\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
@@ -108,6 +110,8 @@ int main(int argc, char **argv) {
       operation = 7;
     } else if (strcmp(argv[1], "assemble-iso-pattern") == 0) {
       operation = 8;
+    } else if (strcmp(argv[1], "compile-kernel") == 0) {
+      operation = 9;
     }
   }
   if (operation != 0) {
@@ -175,6 +179,9 @@ int main(int argc, char **argv) {
     }
     if (operation == 8) {
       return cupidbuild_assemble_iso_pattern(&request);
+    }
+    if (operation == 9) {
+      return cupidbuild_compile_kernel(&request);
     }
     return cupidbuild_generate_profile_manifest(&profile_request);
   }
