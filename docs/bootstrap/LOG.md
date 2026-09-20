@@ -36568,3 +36568,112 @@ compilations. All eleven eligible sources already use `.cc`. The recorded
 compiler-coordinator plan supplied the migration order; the question above
 concerned the host resource failure. TempleOS remains untouched and excluded
 from all counts.
+
+## 2026-09-20: capture the complete kernel compiler profile
+
+The kernel profile has 157 approved roots, of which 146 previously compiled
+against the live repository. Both coordinator tables now capture every root.
+There are 1,627 source and header entries across the tables. The largest
+closure contains 90 files for `kernel/lang/cupidc.cc`; `kernel/lang/as.cc` has
+79. CupidBuild uses one named capacity for its table and temporary arrays,
+checks the count before indexing, and validates sorted entries and source
+membership. The Python wrapper reports a missing closure instead of falling
+back to live reads. Compiler arguments, timeout policy, and OS source remain
+unchanged.
+
+Comparison with recursive includes found six incomplete Make dependencies:
+the desktop omitted `toolchain/pe32.h`; the shell omitted that header plus
+`gfx2d_icons.h`, `as_elf.h`, `cupidasm.h`, and `cupidld.h`. The rules now name
+them. A first script rewrite also changed four existing Unicode comments
+because it read the Makefile through the Windows default encoding. Those
+comment bytes were restored from HEAD, and subsequent text reads and writes
+use explicit UTF-8. The final Make diff contains only the six header additions.
+
+The source-bundle suite passes all seven tests on Windows in 34.880 seconds.
+Its parity loop now compares all 157 closed compilations with ordinary
+compilation. The wrapper's command, operation, and Make tests pass 31 tests
+in 13.613 seconds, and its separate CLI failure check passes. Review requested
+a complete static closure check instead of subset coverage. That test now
+compares all 157 entries with Make and recursive includes, retaining the
+explicit generated-symbol contract, and passes in 0.387 seconds.
+
+The earlier broad graph run was stopped after 26 passing tests because this
+expansion changed its source inputs. Its fixed-point mutation test had not
+finished, so the partial run is not a full-suite result. The source audit was
+regenerated for the expanded tables. Linux and Windows transaction suites,
+the fresh production replay, and its runtime smoke are recorded below when
+complete. Production ownership remains 197 CupidBuild and 255 Python
+participations; the native source capability still awaits checked-seed proof
+and adoption. ADR 0392 records the capture policy. All 157 roots already use
+`.cc`, and TempleOS remains excluded.
+
+The baseline image replay completed with all 16 artifact checks passing. Both
+kernel ELFs, the raw kernel, and the image match the preceding baseline hashes
+in this log exactly. Its log is
+`build/bootstrap/20260920-compile-promotion-source-os-resumed.log`. This replay
+started before the complete capture and manual edits, so a fresh production
+build is required for the expanded source checkpoint.
+
+The first audit regeneration used the wrong optional include-output filename,
+creating an extra file in `toolchain/tests`. The publication-input contract
+correctly rejected that extra include. The file was removed, generation was
+repeated with `cupidc_pp_active_cases.inc`, and the complete JSON, Markdown,
+and active-case check passed. No audit rule was relaxed.
+
+Investigation of the next 83 Doom compilations found that their 305-record
+bundles fit existing byte and transaction limits. Their objects are published
+inside recursively discovered directories, however. The strict directory
+timestamps used by profile-manifest publication would reject the compiler's
+own output and concurrent unrelated object writes. The required separate
+identity and filtered-membership policy is documented in
+`NEXT-DOOM-COORDINATOR.md`; no Doom transaction or directory check changed.
+
+The complete Linux transaction and bundle suites pass 20 tests in 1,121.313
+seconds. They compare all 157 native transactions and all 157 direct bundles
+with ordinary compilation, exercise missing final headers in the 79- and
+90-file closures, reject other profiles, and run the Cupid-built coordinator's
+paired behavior checks. The log is
+`build/bootstrap/20260920-kernel157-linux-transactions.log`.
+
+Native Windows passes all 13 transaction tests in 1,392.486 seconds, including
+the same all-source parity and large-closure failures, both compiler and
+coordinator object comparisons, and the paired behavior helper through the
+Cupid-built executable. Its separate seven-test source-bundle pass is recorded
+above. The transaction log is
+`build/bootstrap/20260920-kernel157-windows-transactions.log`.
+
+The embedded manual grows from 48,430 to 48,730 bytes. The first fresh kernel
+link contains exactly 300 additional `.data` bytes; every other section size
+is unchanged. The ELF file grows by 4,096 bytes because of file alignment.
+The independent section comparison is retained in
+`build/bootstrap/20260920-kernel157-pass1-growth.json`.
+
+The final ELF also has exactly 300 additional `.data` bytes and unchanged
+sizes for every other section. Existing file padding keeps its total size
+unchanged. The size policy changes only the measured pass-one and raw entries.
+The fresh normal image build passes all 16 artifact checks, and the policy's
+14 tests pass in 2.006 seconds. The build log is
+`build/bootstrap/20260920-kernel157-source-os.log`.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Pass-one ELF | 9,650,508 | `9cf986077563fbcc5daaf5aa89b85d87a532d1607c992ed9cbb32cc1a2849de7` |
+| Final ELF | 9,777,484 | `291839791ef5b59eb3ad4ce18b02800db3c93113d612350aa1118a1f2bfd6c81` |
+| Raw kernel | 9,551,688 | `3499e839645f5a42df04150fbcd09b67148a456e211ba227b462a69f7188cbd6` |
+
+The first smoke command omitted `--private-image` and passed against the
+published image. It is not evidence of private-image preservation. The repeat
+explicitly uses `--private-image --smp 4 --cpu max --verify-smp-runtime
+--command ls --timeout 180` and passes. The published 209,715,200-byte image
+has SHA-256 `f03dcdb1d3a36cee81a6ac42662d5189d95414b729ba79b8c6e04edaf48b9487`
+both before and after that private run. The logs are
+`build/bootstrap/20260920-kernel157-source-private-smoke.log` and its
+`-driver.log` companion. This checks boot, SMP runtime, and CupidC JIT command
+execution; it does not establish full Doom gameplay acceptance.
+
+During this check, replacement Windows RuntimeBroker PID 12444 held 34.08 GiB
+of private memory. WSL again returned `Wsl/Service/E_UNEXPECTED`, and the Git
+helper encountered `OutOfMemoryException`. The user had authorized stopping
+the affected RuntimeBroker. After verifying its name and memory, only that
+process was stopped. WSL and the identity check then succeeded. No repository
+or test contract changed to accommodate the host failure.

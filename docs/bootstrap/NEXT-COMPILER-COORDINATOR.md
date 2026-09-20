@@ -6,31 +6,34 @@ compilations described below. The shared terms follow [CONTEXT.md](../../CONTEXT
 
 [ADR 0390](../adr/0390-compile-closed-kernel-inputs-with-cupidbuild.md) replaces
 the proposed nested private directory with a closed `CUPSRC1` file store in
-CupidC. The native coordinator captures all eleven closures and preserves the
+CupidC. The native coordinator captures all 157 kernel-profile closures and preserves the
 fixed kernel profile, logical paths, object validation, and publication rules.
 The promoted compiler lacks the bundle option and fails without replacing the
 previous object. Paired fixed-point coverage, seed promotion, and Make adoption
-remain the next production steps. The investigation below records the original
+remain the next production steps. [ADR 0392](../adr/0392-capture-every-kernel-profile-closure.md)
+extends capture to the complete kernel profile and repairs six omitted Make
+header dependencies. The investigation below records the original
 requirements and why a plain checked runner was insufficient.
 
 ## Current boundary
 
 The root [Makefile](../../Makefile#L43) defines `CUPIDC_KERNEL_COMPILE` through
-[`tools/cupidc_kernel_compile.py`](../../tools/cupidc_kernel_compile.py#L2051).
+[`tools/cupidc_kernel_compile.py`](../../tools/cupidc_kernel_compile.py#L3703).
 Its `compile_kernel_source` operation owns 157 kernel and generated-symbol
 objects, three Doom compatibility objects, and 80 Doom-tree objects. The three
 generated installation tables and three separate user objects use another
 wrapper and are outside this 240-transform count.
 
-The kernel profile has two input policies. Eleven sources have explicit
-[`FROZEN_KERNEL_INPUT_CLOSURES`](../../tools/cupidc_kernel_compile.py#L303).
-The other 146 kernel entries compile against the live repository root. Doom
+Every kernel-profile source has an explicit
+[`FROZEN_KERNEL_INPUT_CLOSURES`](../../tools/cupidc_kernel_compile.py#L303)
+entry. Both coordinators reject a missing closure. The largest entry contains
+90 files, including its source. Doom
 compilation freezes its selected source and complete profile header space,
 then checks header membership, the approved 83-source membership, and captured
-bytes before publication. These are existing differences in the coordinator;
-they are not equivalent frozen-input guarantees.
+bytes before publication. Its profile-wide capture remains separate from the
+kernel's per-source closure tables.
 
-[`build_compile_arguments`](../../tools/cupidc_kernel_compile.py#L654) fixes
+[`build_compile_arguments`](../../tools/cupidc_kernel_compile.py#L2304) fixes
 the language mode, freestanding definitions, include order, and logical paths.
 Doom adds its compatibility mode and profile definitions; the tree profile
 also forces `kernel/doom/dglibc_compat.h`. Source approval and output validation
@@ -38,9 +41,9 @@ require the selected cohort, an output inside the repository, an existing
 parent, and the `.o` suffix.
 
 The wrapper freezes the complete checked seed before launching CupidC. For
-the frozen cohorts, [`_kernel_input_paths`](../../tools/cupidc_kernel_compile.py#L1182),
+the frozen cohorts, [`_kernel_input_paths`](../../tools/cupidc_kernel_compile.py#L2832),
 `_capture_kernel_inputs`, and
-[`_write_kernel_inputs`](../../tools/cupidc_kernel_compile.py#L2040) construct a
+[`_write_kernel_inputs`](../../tools/cupidc_kernel_compile.py#L3692) construct a
 private compiler root with the original logical directory layout. Compilation
 must produce a regular, non-symlink candidate. After object validation and live
 input checks, `_replace_with_retry` atomically replaces the destination. A
@@ -48,7 +51,11 @@ compiler, seed, validation, or input-drift failure preserves the previous
 object. Ordinary compilation currently has no explicit output owner lock or
 post-install rollback.
 
-## First coherent implementation
+## Initial eleven-source scope
+
+The first source checkpoint used the following eleven closures. ADR 0392
+extends it to all 157 roots; the fixed profile and transaction requirements
+below still apply.
 
 Add a typed `cupidbuild compile-kernel` operation for all eleven existing frozen
 kernel closures under the unchanged `kernel` profile:

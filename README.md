@@ -15,7 +15,7 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 ## Current features
 
 The bootstrap branch now has a source-head `cupidbuild compile-kernel`
-transaction for eleven frozen kernel closures. It uses CupidC's closed source
+transaction for all 157 kernel-profile closures. It uses CupidC's closed source
 bundles to preserve include paths without live-file fallback. The promoted
 seeds and normal compiler recipes retain their current ownership; see
 [the compiler coordinator record](docs/bootstrap/NEXT-COMPILER-COORDINATOR.md).
@@ -23,7 +23,9 @@ seeds and normal compiler recipes retain their current ownership; see
 The next staged proof checks that transaction through each compared tool
 generation, including output parity and failure preservation. The provenance
 readers retain exactly two adjacent parent generations. [ADR 0391](docs/adr/0391-prove-closed-compilation-across-bootstrap-generations.md)
-describes these prerequisites for the next seed refresh.
+describes these prerequisites for the next seed refresh. The expanded capture
+includes drivers, the in-kernel compiler and assembler, and generated symbols;
+[ADR 0392](docs/adr/0392-capture-every-kernel-profile-closure.md) records its limits.
 
 - VBE 640x480 32bpp graphics with a window manager, taskbar, and desktop icons
 - CupidC, a HolyC-inspired C compiler with JIT and ELF32 AOT output

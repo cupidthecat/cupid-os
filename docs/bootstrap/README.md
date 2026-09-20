@@ -9,8 +9,10 @@ do not replace the checked seeds or move production recipes. [ADR 0391](../adr/0
 records the proof boundary.
 
 Source-head CupidC accepts closed `CUPSRC1` source bundles, and source-head
-CupidBuild provides `compile-kernel` for the eleven established frozen kernel
-closures. Logical include paths and `__FILE__` survive capture; missing entries
+CupidBuild provides `compile-kernel` for all 157 kernel-profile closures.
+The largest closure contains 90 files. [ADR 0392](../adr/0392-capture-every-kernel-profile-closure.md)
+records the complete capture policy and repaired Make header dependencies.
+Logical include paths and `__FILE__` survive capture; missing entries
 cannot fall back to live files. The transaction retains the fixed kernel
 profile, seed verification, compiler-object validation, output lock, and
 rollback. Full publication checks now recheck captured file contents after
@@ -19,10 +21,16 @@ records the format and transaction. The promoted seeds predate this command's
 compiler requirement. Production ownership remains 197 CupidBuild and 255
 Python participations until paired seed proof and recipe adoption.
 
+The remaining Doom coordinator has a separate directory-publication boundary:
+its objects are written inside the recursively discovered input tree.
+[The Doom coordinator audit](NEXT-DOOM-COORDINATOR.md) records the 83-source
+profile, capture sizes, reusable native code, and required race tests.
+
 The current Windows normal-build replay passes all 16 artifact-size checks
-and publishes a 9,551,388-byte raw kernel, including the expanded manual.
-Both ELF outputs and the raw kernel reproduce byte for byte. A private
-four-CPU SMP and `ls` boot smoke passes without changing the published image.
+and publishes a 9,551,688-byte raw kernel, including the expanded manual.
+The manual adds exactly 300 bytes to `.data`; all other section sizes remain
+unchanged. A private four-CPU SMP and `ls` boot smoke passes without changing
+the published image.
 The bootstrap log records the exact artifacts and cross-platform tool tests.
 
 Committed source `16a86f5b` runs anonymous POSIX publication tools from

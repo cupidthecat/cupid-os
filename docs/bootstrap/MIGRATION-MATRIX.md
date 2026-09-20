@@ -2,11 +2,11 @@
 
 `TempleOS/` is excluded: it is reference material, not a source cohort. Statuses describe ownership, not how much code exists.
 
-The eleven frozen kernel closures now have a native source-head
+All 157 kernel-profile closures now have a native source-head
 `cupidbuild compile-kernel` transaction. Its closed source bundle requires a
 newer CupidC than the promoted seeds provide. No normal recipe changes owner:
-the graph remains at 197 CupidBuild and 255 Python participations. All eleven
-sources already have `.cc` names. ADR 0390 records the capability and the
+the graph remains at 197 CupidBuild and 255 Python participations. All 157
+sources already have `.cc` names. ADRs 0390 and 0392 record the capability and the
 remaining seed and production checks.
 
 The committed Windows full-cohort launch repair and POSIX private-cwd repair

@@ -408,6 +408,7 @@ OPERAND_FREE_DEPENDENCIES = {
         "toolchain/ctool.h",
         "toolchain/cupiddis.h",
         "toolchain/elf32.h",
+        "toolchain/pe32.h",
         "toolchain/x86.h",
     ),
     "kernel/network/socket.cc": (
@@ -595,12 +596,14 @@ PORT_IO_DEPENDENCIES = {
         "kernel/fs/fs.h",
         "kernel/fs/vfs.h",
         "kernel/gfx/gfx2d.h",
+        "kernel/gfx/gfx2d_icons.h",
         "kernel/gui/ansi.h",
         "kernel/gui/desktop.h",
         "kernel/gui/gui.h",
         "kernel/gui/gui_themes.h",
         "kernel/gui/terminal_app.h",
         "kernel/lang/as.h",
+        "kernel/lang/as_elf.h",
         "kernel/lang/cupidc.h",
         "kernel/lang/cupidscript.h",
         "kernel/lang/cupidscript_arrays.h",
@@ -625,8 +628,11 @@ PORT_IO_DEPENDENCIES = {
         "kernel/usb/usb_hc.h",
         "kernel/util/calendar.h",
         "toolchain/ctool.h",
+        "toolchain/cupidasm.h",
         "toolchain/cupiddis.h",
+        "toolchain/cupidld.h",
         "toolchain/elf32.h",
+        "toolchain/pe32.h",
         "toolchain/x86.h",
     ),
     "kernel/usb/ehci.cc": (
@@ -934,9 +940,15 @@ class KernelCompileCommandTests(unittest.TestCase):
             GENERATED_KERNEL_SOURCES,
         )
         self.assertEqual(
-            kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES,
+            {source: kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES[source]
+             for source in FROZEN_KERNEL_INPUT_CLOSURES},
             FROZEN_KERNEL_INPUT_CLOSURES,
         )
+        self.assertEqual(
+            tuple(sorted(kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES)),
+            tuple(sorted(KERNEL_SOURCES + GENERATED_KERNEL_SOURCES)),
+        )
+        self.assertEqual(len(kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES), 157)
         self.assertEqual(
             kernel_compile.APPROVED_KERNEL_SOURCES,
             KERNEL_SOURCES,
@@ -1358,8 +1370,21 @@ class KernelCompileMakefileTests(unittest.TestCase):
                     pending.extend(entry["includes"])
             return closure
 
-        for source in NEW_PRODUCTION_SOURCES + SOURCE_DRIVEN_SOURCES:
+        self.assertEqual(len(kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES), 157)
+        self.assertEqual(
+            set(kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES),
+            set(kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES),
+        )
+        for source in kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES:
             with self.subTest(source=source):
+                if source == "kernel/cpu/ksyms_data.cc":
+                    # The generated table has no checked-in include graph.
+                    expected_headers = {"kernel/cpu/ksyms.h", "kernel/core/types.h"}
+                else:
+                    expected_headers = recursive_includes(source)
+                frozen_headers = kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES[source]
+                self.assertEqual(set(frozen_headers), expected_headers, source)
+                self.assertEqual(len(frozen_headers), len(expected_headers), source)
                 output = Path(source).with_suffix(".o").as_posix()
                 match = re.search(
                     rf"^{re.escape(output)}: ([^\n]+)$",
@@ -1371,7 +1396,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
                     set(match.group(1).split()),
                     {
                         source,
-                        *recursive_includes(source),
+                        *expected_headers,
                         "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
                     },
                     source,
@@ -1610,6 +1635,10 @@ class KernelCompileOperationTests(unittest.TestCase):
         source = root / "kernel" / "crypto" / "ct.cc"
         source.parent.mkdir(parents=True)
         source.write_text("int ct_fixture;\n", encoding="utf-8")
+        for relative in kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES["kernel/crypto/ct.cc"]:
+            header = root / relative
+            header.parent.mkdir(parents=True, exist_ok=True)
+            header.write_bytes((REPO_ROOT / relative).read_bytes())
         seed = root / "seed" / "cupidc.elf"
         seed.parent.mkdir()
         seed.write_bytes(b"seed")
@@ -1688,7 +1717,20 @@ class KernelCompileOperationTests(unittest.TestCase):
         temporary, root, source, seed, manifest, output = self._root_fixture()
         self.addCleanup(temporary.cleanup)
         events = []
-        executor = FakeExecutor(
+        captured = {}
+        relative_paths = (
+            "kernel/crypto/ct.cc",
+            *kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES["kernel/crypto/ct.cc"],
+        )
+
+        class ClosureExecutor(FakeExecutor):
+            def run(self, executable, arguments, timeout):
+                compiler_root = Path(arguments[arguments.index("--root") + 1])
+                for relative in relative_paths:
+                    captured[relative] = (compiler_root / relative).read_bytes()
+                return super().run(executable, arguments, timeout)
+
+        executor = ClosureExecutor(
             root,
             payload=_valid_elf32_object(),
             events=events,
@@ -1727,7 +1769,11 @@ class KernelCompileOperationTests(unittest.TestCase):
         compiler_root = arguments[arguments.index("--root") + 1]
         self.assertIsInstance(compiler_root, Path)
         self.assertTrue(compiler_root.is_absolute())
-        self.assertEqual(compiler_root, root)
+        self.assertNotEqual(compiler_root, root)
+        self.assertEqual(captured, {
+            relative: (root / relative).read_bytes()
+            for relative in relative_paths
+        })
         self.run_seed_tool.assert_called_once()
         self.assertEqual(self.run_seed_tool.call_args.args[:3], (
             manifest,
@@ -1878,6 +1924,33 @@ class KernelCompileOperationTests(unittest.TestCase):
                 )
         self.assertEqual(executor.calls, [])
 
+    def test_approved_source_without_a_closure_cannot_read_live_inputs(self):
+        temporary, root, source, _seed, manifest, output = self._root_fixture()
+        self.addCleanup(temporary.cleanup)
+        output.write_bytes(b"existing object")
+        before = output.stat().st_mtime_ns
+        executor = FakeExecutor(root, payload=_valid_elf32_object())
+        remaining = {
+            name: headers
+            for name, headers in kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES.items()
+            if name != "kernel/crypto/ct.cc"
+        }
+        with (
+            mock.patch.dict(kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES, remaining, clear=True),
+            mock.patch.object(kernel_compile, "freeze_seed_inputs") as freeze,
+            self.assertRaisesRegex(
+                kernel_compile.KernelCompileError,
+                "approved kernel source has no frozen input closure: kernel/crypto/ct.cc",
+            ),
+        ):
+            kernel_compile.compile_kernel_source(
+                root, source, output, manifest=manifest, executor=executor,
+            )
+        freeze.assert_not_called()
+        self.assertEqual(executor.calls, [])
+        self.assertEqual(output.read_bytes(), b"existing object")
+        self.assertEqual(output.stat().st_mtime_ns, before)
+
     def _source_driven_closure_fixture(self, relative_source):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -1890,7 +1963,7 @@ class KernelCompileOperationTests(unittest.TestCase):
         )
         frozen_inputs = {}
         for index, relative in enumerate(
-            FROZEN_KERNEL_INPUT_CLOSURES[relative_source]
+            kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES[relative_source]
         ):
             path = root / relative
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -1915,7 +1988,7 @@ class KernelCompileOperationTests(unittest.TestCase):
         )
 
     def test_source_driven_inputs_are_compiled_from_one_frozen_closure(self):
-        for relative_source in FROZEN_KERNEL_INPUT_CLOSURES:
+        for relative_source in kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES:
             if relative_source in GENERATED_KERNEL_SOURCES:
                 continue
             with self.subTest(source=relative_source):
@@ -1930,7 +2003,7 @@ class KernelCompileOperationTests(unittest.TestCase):
                 captured = {}
                 relative_paths = (
                     relative_source,
-                    *FROZEN_KERNEL_INPUT_CLOSURES[relative_source],
+                    *kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES[relative_source],
                 )
 
                 class ClosureExecutor(FakeExecutor):
@@ -1988,7 +2061,7 @@ class KernelCompileOperationTests(unittest.TestCase):
                 self.assertNotEqual(compiler_root, root)
 
     def test_source_driven_input_drift_preserves_the_existing_object(self):
-        for relative_source in FROZEN_KERNEL_INPUT_CLOSURES:
+        for relative_source in kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES:
             if relative_source in GENERATED_KERNEL_SOURCES:
                 continue
             with self.subTest(source=relative_source):
@@ -2000,7 +2073,7 @@ class KernelCompileOperationTests(unittest.TestCase):
                     manifest,
                     output,
                 ) = self._source_driven_closure_fixture(relative_source)
-                drifted_input = next(iter(frozen_inputs.values()))
+                drifted_input = next(iter(frozen_inputs.values()), source)
                 output.write_bytes(b"existing object")
 
                 class DriftingExecutor(FakeExecutor):

@@ -455,7 +455,9 @@ kernel/lang/shell.o: kernel/lang/shell.cc drivers/keyboard.h drivers/pci.h \
 	kernel/network/sshd.h kernel/smp/bkl.h kernel/smp/percpu.h \
 	kernel/smp/smp.h kernel/usb/usb.h kernel/usb/usb_hc.h \
 	kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h \
-	toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	toolchain/elf32.h toolchain/x86.h kernel/gfx/gfx2d_icons.h \
+	kernel/lang/as_elf.h toolchain/cupidasm.h toolchain/cupidld.h \
+	toolchain/pe32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/shell.cc --output kernel/lang/shell.o
 
 # Add new rule for string.o
@@ -918,7 +920,7 @@ kernel/util/calendar.o: kernel/util/calendar.cc drivers/rtc.h kernel/core/string
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/util/calendar.cc --output kernel/util/calendar.o
 
 # Desktop shell
-kernel/gui/desktop.o: kernel/gui/desktop.cc drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/app_launch.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/terminal_app.h kernel/gui/ui.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/gui/desktop.o: kernel/gui/desktop.cc drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/app_launch.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/terminal_app.h kernel/gui/ui.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h toolchain/pe32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/desktop.cc --output kernel/gui/desktop.o
 
 kernel/core/app_launch.o: kernel/core/app_launch.cc kernel/core/app_launch.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/gui/ctxt_image_worker.h kernel/gui/gui.h kernel/gui/terminal_app.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)

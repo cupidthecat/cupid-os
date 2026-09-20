@@ -34794,6 +34794,7 @@
           "toolchain/cupiddis.h",
           "toolchain/elf32.h",
           "toolchain/x86.h",
+          "toolchain/pe32.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
           "tools/kernel_cupidc_frontier.py",
@@ -37474,6 +37475,11 @@
           "toolchain/cupiddis.h",
           "toolchain/elf32.h",
           "toolchain/x86.h",
+          "kernel/gfx/gfx2d_icons.h",
+          "kernel/lang/as_elf.h",
+          "toolchain/cupidasm.h",
+          "toolchain/cupidld.h",
+          "toolchain/pe32.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
           "tools/kernel_cupidc_frontier.py",
@@ -39928,19 +39934,19 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 970,
+              "line": 2766,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1242,
+              "line": 3038,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1581,
+              "line": 3377,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if !defined(_WIN32)"
             },
@@ -41669,43 +41675,43 @@
             },
             {
               "directive": "if",
-              "line": 493,
+              "line": 2289,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1507,
+              "line": 3303,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 1569,
+              "line": 3365,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 2160,
+              "line": 3956,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 2475,
+              "line": 4271,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 2520,
+              "line": 4316,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 3859,
+              "line": 5655,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -48830,7 +48836,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4861
+      "occurrences": 4862
     },
     {
       "category": "control",
@@ -49291,7 +49297,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 43745
+      "occurrences": 43749
     },
     {
       "category": "control",
@@ -49668,7 +49674,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 27057
+      "occurrences": 27060
     },
     {
       "category": "control",
@@ -51679,7 +51685,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3362
+      "occurrences": 3363
     },
     {
       "category": "preprocessor",
@@ -53802,7 +53808,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 17822
+      "occurrences": 17825
     },
     {
       "category": "qualifier",
@@ -54798,7 +54804,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 11213
+      "occurrences": 11215
     },
     {
       "category": "type",
@@ -55573,7 +55579,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 25277
+      "occurrences": 25278
     },
     {
       "category": "type",
@@ -58080,11 +58086,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "905b6f73b7aa67e7ebd593c93ca9f1c1105c6f069bea99890264c7463959fa39",
+    "active_source_digest": "cbf7c2e96a98b13fb99d56773de7e9b113ee2d60a9e115804c5934c3ac502071",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "08ba23cd8def249388a362e6851c99d0ba7593c3958399e30920b616d87a56e5"
+        "sha256": "81ff2048ce2137bf1659adbba2418f36cb96c3c3651a565c5a09492e510f034a"
       },
       {
         "path": "user/Makefile",
@@ -58100,7 +58106,7 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "b5989553f9fe378faed7cc250244e921ecaabd5b4deb4bf0db29b1c7c8b5b9f7"
+        "sha256": "330b1bc96c8eb43373a6261a9a8f49e47b1827d92dafd74f9318f778e4c10dda"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -83167,12 +83173,12 @@
         "toolchain/pe32_impl.h"
       ],
       "language": "cupid_c",
-      "lines": 4956,
+      "lines": 6771,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "14b57718cf682775bd219ec0cf3a0c6bdf58689d3fecf4b20fc4c8cc71c8177e"
+      "sha256": "3f509a7fafdf4802ff0e31374b0d0fbda8618b36bcb6a77b56021b551821d7af"
     },
     {
       "build_owners": [

@@ -17,6 +17,7 @@ from tools.bootstrap_toolchain import (
 )
 from tests.test_cupidc_source_bundle import active_input_bytes
 from tools.cupidc_kernel_compile import (
+    APPROVED_KERNEL_COMPILE_SOURCES,
     FROZEN_KERNEL_INPUT_CLOSURES,
     KERNEL_I386_ARGUMENTS,
     validate_i386_relocatable_bytes,
@@ -164,7 +165,12 @@ int main(int argc, char **argv) {
         checked_run([SEED / ("cupidc" + SUFFIX), *arguments])
         self.assertEqual(output.read_bytes(), self.driver_object.read_bytes())
 
-    def test_all_eleven_transactions_match_the_ordinary_compiler(self):
+    def test_all_kernel_transactions_match_the_ordinary_compiler(self):
+        self.assertEqual(tuple(sorted(FROZEN_KERNEL_INPUT_CLOSURES)),
+                         APPROVED_KERNEL_COMPILE_SOURCES)
+        self.assertEqual(len(FROZEN_KERNEL_INPUT_CLOSURES), 157)
+        self.assertEqual(len(FROZEN_KERNEL_INPUT_CLOSURES["kernel/lang/as.cc"]) + 1, 79)
+        self.assertEqual(len(FROZEN_KERNEL_INPUT_CLOSURES["kernel/lang/cupidc.cc"]) + 1, 90)
         for source in FROZEN_KERNEL_INPUT_CLOSURES:
             with self.subTest(source=source):
                 output = self.closure(source)
@@ -177,6 +183,24 @@ int main(int argc, char **argv) {
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(output.read_bytes(), expected.read_bytes())
                 validate_i386_relocatable_bytes(output.read_bytes())
+                self.assert_clean()
+
+    def test_missing_last_header_in_large_closures_preserves_output(self):
+        for source, input_count in (("kernel/lang/as.cc", 79),
+                                    ("kernel/lang/cupidc.cc", 90)):
+            with self.subTest(source=source):
+                inputs = sorted((source, *FROZEN_KERNEL_INPUT_CLOSURES[source]))
+                self.assertEqual(len(inputs), input_count)
+                self.assertEqual(inputs[-1], "toolchain/x86.h")
+                output = self.closure(source)
+                output.write_bytes(b"previous large-closure object")
+                before = output.stat().st_mtime_ns
+                (self.root / inputs[-1]).unlink()
+                result = self.run_compile(source)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("closure cannot be captured", result.stderr)
+                self.assertEqual(output.read_bytes(), b"previous large-closure object")
+                self.assertEqual(output.stat().st_mtime_ns, before)
                 self.assert_clean()
 
     def test_coordinator_sources_compile_identically_with_the_checked_seed(self):
@@ -347,13 +371,27 @@ int main(int argc, char **argv) {
         self.assert_clean()
 
     def test_rejects_unapproved_sources_and_wrong_output_bindings(self):
-        for source, output in (("drivers/serial.cc", "drivers/serial.o"),
-                               ("kernel/cpu/ksyms_data.c", "kernel/cpu/ksyms_data.o"),
-                               ("kernel/cpu/ksyms_data.cc", "other.o"),
-                               ("../kernel/cpu/ksyms_data.cc", "other.o")):
+        unapproved = (
+            "kernel/doom/src/d_main.cc",
+            "kernel/doom/dglibc.cc",
+            "user/examples/hello.cc",
+            "kernel/util/bin_programs_gen.cc",
+            "kernel/util/demos_programs_gen.cc",
+            "kernel/util/docs_programs_gen.cc",
+            "kernel/cpu/ksyms_data.c",
+        )
+        cases = [(source, Path(source).with_suffix(".o").as_posix(),
+                  "source has no approved frozen kernel closure")
+                 for source in unapproved]
+        cases.extend((
+            ("kernel/cpu/ksyms_data.cc", "other.o", "kernel source and output binding differ"),
+            ("../kernel/cpu/ksyms_data.cc", "other.o", "invalid kernel compile request"),
+        ))
+        for source, output, diagnostic in cases:
             with self.subTest(source=source, output=output):
                 result = self.run_compile(source, output)
                 self.assertNotEqual(result.returncode, 0)
+                self.assertIn(diagnostic, result.stderr)
                 self.assert_clean()
 
     def test_live_output_lock_and_input_alias_preserve_files(self):
@@ -379,6 +417,9 @@ int main(int argc, char **argv) {
         matches = re.findall(r'\{"([^"]+)", \{(.*?)\}, (\d+)u\}', block, re.S)
         actual = {name: re.findall(r'"([^"]+)"', inputs) for name, inputs, _ in matches}
         expected = {name: sorted((name, *headers)) for name, headers in FROZEN_KERNEL_INPUT_CLOSURES.items()}
+        self.assertEqual(len(matches), 157)
+        self.assertEqual(tuple(sorted(actual)), APPROVED_KERNEL_COMPILE_SOURCES)
+        self.assertEqual(max(int(count) for _, _, count in matches), 90)
         self.assertEqual(actual, expected)
         for name, _, count in matches:
             self.assertEqual(int(count), len(expected[name]))

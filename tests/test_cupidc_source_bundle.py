@@ -151,7 +151,7 @@ class CupidCSourceBundleTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 2, result.stderr)
                 self.assertFalse(self.output.exists())
 
-    def test_all_eleven_active_frozen_closures_match_live_compilation(self):
+    def test_all_kernel_profile_closures_match_live_compilation(self):
         for source, headers in FROZEN_KERNEL_INPUT_CLOSURES.items():
             with self.subTest(source=source):
                 entries = sorted(("/" + path, active_input_bytes(path))

@@ -1,11 +1,12 @@
 # Cupid Toolchain capability matrix
 
 Source-head CupidC implements closed `CUPSRC1` input bundles. Source-head
-CupidBuild compiles all eleven established frozen kernel closures through
+CupidBuild compiles all 157 kernel-profile closures through
 `compile-kernel`, with the fixed kernel profile and native compiler-object
 validation. The checked seeds still lack the compiler bundle option, so this
 is a source capability with no production handoff. ADR 0390 defines the
-format, limits, and publication contract.
+format, limits, and publication contract. ADR 0392 extends capture to the full
+kernel profile, including the 79-file assembler and 90-file compiler closures.
 
 The source transaction also preserves the timestamp when the validated object
 matches the previous output. Input capture and publication checks still run.

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-09-19
+Verified against source on: 2026-09-20
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -17,9 +17,13 @@ Verified against source on: 2026-09-19
 >tree open Source and seed checkpoint
 Source-head hosted CupidC accepts closed CUPSRC1 source bundles. The compiler
 keeps logical include paths and reads only captured source and header bytes.
-Source-head CupidBuild uses this interface in compile-kernel for eleven frozen
-kernel closures. The transaction validates ELF32 objects, checks live inputs,
-and restores the previous output when publication fails. These hosted commands
+Source-head CupidBuild uses this interface in compile-kernel for all 157
+kernel-profile closures. The largest contains 90 source and header files;
+the assembler entry point contains 79. Both the native coordinator and Python
+reference wrapper require an explicit closure for every approved kernel root.
+The transaction validates ELF32 objects, checks live inputs, and restores the
+previous output when publication fails. Equal validated objects retain their
+timestamps after the same input and publication checks. These hosted commands
 still need paired seed promotion before normal Make recipes can adopt them.
 The promoted seeds and in-kernel compiler retain their current interfaces.
 

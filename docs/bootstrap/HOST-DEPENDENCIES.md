@@ -1,11 +1,12 @@
 # Host dependency inventory
 
-The native `compile-kernel` source capability captures the eleven established
-kernel closures in a `CUPSRC1` bundle and runs checked CupidC without Python
+The native `compile-kernel` source capability captures all 157 kernel-profile
+closures in a `CUPSRC1` bundle and runs checked CupidC without Python
 inside the transaction. The current production seeds predate CupidC's bundle
 reader, so Make still uses the Python compiler wrapper for all 240 kernel and
 Doom compilations. Seed promotion and recipe adoption remain separate work.
-ADR 0390 records this boundary.
+ADRs 0390 and 0392 record this boundary. The Python reference wrapper also
+captures all 157 closures; an absent closure is an error, not a live-file path.
 
 Committed source `16a86f5b` uses retained private filenames for Windows kernel
 inspection to keep all 500 inputs within the command-line limit. Anonymous

@@ -14,18 +14,22 @@ required header fails even when the previous object is present.
 
 Source-head CupidC can compile a closed `CUPSRC1` source bundle. It preserves
 logical include paths and reads no live source file when an entry is absent.
-Source-head CupidBuild uses it in `compile-kernel` for the eleven established
-frozen kernel closures, retaining the kernel profile, object validation,
+Source-head CupidBuild uses it in `compile-kernel` for all 157 kernel-profile
+closures, retaining the kernel profile, object validation,
 publication lock, and rollback. Final publication checks also recheck captured
 file contents after installation. The promoted seeds predate the bundle reader;
 the normal build still has 240 Python-coordinated kernel and Doom compilations.
 ADR 0390 records the capability. Paired seed proof and recipe adoption remain
-required before ownership changes.
+required before ownership changes. The largest closure has 90 files; the
+assembler entry point has 79. The desktop and shell Make rules include the
+six headers that their previous prerequisite lists omitted. The Python
+reference wrapper also captures the complete kernel profile. ADR 0392 records
+the tables and bounds.
 
 This checkpoint's Windows normal build passes all 16 artifact checks with
-the expanded manual and a 9,551,388-byte raw kernel. Both kernel ELFs and the
-raw output reproduce byte for byte. A private four-CPU SMP and `ls` smoke
-passes; the published image remains unchanged by the boot test.
+the expanded manual and a 9,551,688-byte raw kernel. The manual adds exactly
+300 bytes to `.data`; all other section sizes remain unchanged. A private
+four-CPU SMP and `ls` smoke passes, with no change to the published image.
 
 Committed source `16a86f5b` runs anonymous POSIX publication tools from the
 retained `/proc` directory; generic checked commands keep their requested
