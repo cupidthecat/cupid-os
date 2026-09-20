@@ -4266,9 +4266,6 @@
           "kernel/cpu/isr.h",
           "kernel/fs/blockdev.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4283,11 +4280,13 @@
         ],
         "output": "drivers/ata.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/ata.cc --output drivers/ata.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/ata.cc --output drivers/ata.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4301,9 +4300,6 @@
           "kernel/mm/memory.h",
           "kernel/network/net_if.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4318,11 +4314,13 @@
         ],
         "output": "drivers/e1000.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/e1000.cc --output drivers/e1000.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/e1000.cc --output drivers/e1000.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4343,9 +4341,6 @@
           "kernel/lang/shell.h",
           "kernel/util/calendar.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4360,11 +4355,13 @@
         ],
         "output": "drivers/keyboard.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/keyboard.cc --output drivers/keyboard.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/keyboard.cc --output drivers/keyboard.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4380,9 +4377,6 @@
           "kernel/cpu/pic.h",
           "kernel/gfx/graphics.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4397,11 +4391,13 @@
         ],
         "output": "drivers/mouse.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/mouse.cc --output drivers/mouse.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/mouse.cc --output drivers/mouse.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4412,9 +4408,6 @@
           "kernel/core/ports.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4429,11 +4422,13 @@
         ],
         "output": "drivers/pci.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/pci.cc --output drivers/pci.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/pci.cc --output drivers/pci.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4443,9 +4438,6 @@
           "kernel/core/ports.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4460,11 +4452,13 @@
         ],
         "output": "drivers/pit.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/pit.cc --output drivers/pit.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/pit.cc --output drivers/pit.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4477,9 +4471,6 @@
           "kernel/core/types.h",
           "kernel/cpu/isr.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4494,11 +4485,13 @@
         ],
         "output": "drivers/rtc.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/rtc.cc --output drivers/rtc.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/rtc.cc --output drivers/rtc.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4513,9 +4506,6 @@
           "kernel/mm/memory.h",
           "kernel/network/net_if.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4530,11 +4520,13 @@
         ],
         "output": "drivers/rtl8139.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/rtl8139.cc --output drivers/rtl8139.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/rtl8139.cc --output drivers/rtl8139.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4549,9 +4541,6 @@
           "kernel/cpu/isr.h",
           "kernel/smp/bkl.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4566,11 +4555,13 @@
         ],
         "output": "drivers/serial.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/serial.cc --output drivers/serial.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/serial.cc --output drivers/serial.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4584,9 +4575,6 @@
           "kernel/core/types.h",
           "kernel/cpu/isr.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4601,11 +4589,13 @@
         ],
         "output": "drivers/speaker.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/speaker.cc --output drivers/speaker.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/speaker.cc --output drivers/speaker.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4620,9 +4610,6 @@
           "kernel/cpu/isr.h",
           "kernel/cpu/math.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4637,11 +4624,13 @@
         ],
         "output": "drivers/timer.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/timer.cc --output drivers/timer.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/timer.cc --output drivers/timer.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4657,9 +4646,6 @@
           "kernel/cpu/simd.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4674,11 +4660,13 @@
         ],
         "output": "drivers/vga.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source drivers/vga.cc --output drivers/vga.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source drivers/vga.cc --output drivers/vga.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4784,9 +4772,6 @@
           "kernel/cpu/isr.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4801,11 +4786,13 @@
         ],
         "output": "kernel/audio/ac97.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/ac97.cc --output kernel/audio/ac97.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/audio/ac97.cc --output kernel/audio/ac97.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4816,9 +4803,6 @@
           "kernel/core/types.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4833,11 +4817,13 @@
         ],
         "output": "kernel/audio/memio.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/memio.cc --output kernel/audio/memio.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/audio/memio.cc --output kernel/audio/memio.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4849,9 +4835,6 @@
           "kernel/core/string.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4866,11 +4849,13 @@
         ],
         "output": "kernel/audio/midiopl.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/midiopl.cc --output kernel/audio/midiopl.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/audio/midiopl.cc --output kernel/audio/midiopl.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4879,9 +4864,6 @@
           "kernel/audio/mixer.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4896,11 +4878,13 @@
         ],
         "output": "kernel/audio/mixer.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mixer.cc --output kernel/audio/mixer.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/audio/mixer.cc --output kernel/audio/mixer.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4912,9 +4896,6 @@
           "kernel/core/types.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4929,11 +4910,13 @@
         ],
         "output": "kernel/audio/mus2midi.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mus2midi.cc --output kernel/audio/mus2midi.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/audio/mus2midi.cc --output kernel/audio/mus2midi.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4943,9 +4926,6 @@
           "kernel/core/string.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4960,11 +4940,13 @@
         ],
         "output": "kernel/audio/nuked_opl3.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/nuked_opl3.cc --output kernel/audio/nuked_opl3.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/audio/nuked_opl3.cc --output kernel/audio/nuked_opl3.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -4977,9 +4959,6 @@
           "kernel/audio/opl_smoke.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -4994,11 +4973,13 @@
         ],
         "output": "kernel/audio/opl_smoke.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/opl_smoke.cc --output kernel/audio/opl_smoke.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/audio/opl_smoke.cc --output kernel/audio/opl_smoke.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5020,9 +5001,6 @@
           "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5037,11 +5015,13 @@
         ],
         "output": "kernel/core/app_launch.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/app_launch.cc --output kernel/core/app_launch.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/core/app_launch.cc --output kernel/core/app_launch.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5140,9 +5120,6 @@
           "kernel/util/calendar.h",
           "toolchain/ctool.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5157,11 +5134,13 @@
         ],
         "output": "kernel/core/kernel.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/kernel.cc --output kernel/core/kernel.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/core/kernel.cc --output kernel/core/kernel.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5179,9 +5158,6 @@
           "kernel/cpu/math.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5196,11 +5172,13 @@
         ],
         "output": "kernel/core/panic.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/panic.cc --output kernel/core/panic.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/core/panic.cc --output kernel/core/panic.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5224,9 +5202,6 @@
           "kernel/smp/percpu.h",
           "kernel/smp/smp.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5241,11 +5216,13 @@
         ],
         "output": "kernel/core/process.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/process.cc --output kernel/core/process.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/core/process.cc --output kernel/core/process.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5254,9 +5231,6 @@
           "kernel/core/string.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5271,11 +5245,13 @@
         ],
         "output": "kernel/core/string.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/string.cc --output kernel/core/string.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/core/string.cc --output kernel/core/string.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5310,9 +5286,6 @@
           "kernel/smp/bkl.h",
           "kernel/smp/lapic.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5327,11 +5300,13 @@
         ],
         "output": "kernel/core/syscall.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/syscall.cc --output kernel/core/syscall.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/core/syscall.cc --output kernel/core/syscall.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5345,9 +5320,6 @@
           "kernel/cpu/isr.h",
           "kernel/cpu/libm.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5362,11 +5334,13 @@
         ],
         "output": "kernel/cpu/fpu.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/fpu.cc --output kernel/cpu/fpu.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/cpu/fpu.cc --output kernel/cpu/fpu.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5379,9 +5353,6 @@
           "kernel/cpu/idt.h",
           "kernel/cpu/isr.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5396,11 +5367,13 @@
         ],
         "output": "kernel/cpu/idt.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/idt.cc --output kernel/cpu/idt.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/cpu/idt.cc --output kernel/cpu/idt.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5415,9 +5388,6 @@
           "kernel/smp/ioapic.h",
           "kernel/smp/lapic.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5432,11 +5402,13 @@
         ],
         "output": "kernel/cpu/irq.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/irq.cc --output kernel/cpu/irq.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/cpu/irq.cc --output kernel/cpu/irq.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5473,9 +5445,6 @@
           "kernel/core/types.h",
           "kernel/cpu/ksyms.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5490,11 +5459,13 @@
         ],
         "output": "kernel/cpu/ksyms.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/ksyms.cc --output kernel/cpu/ksyms.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/cpu/ksyms.cc --output kernel/cpu/ksyms.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5531,9 +5502,6 @@
           "kernel/cpu/ksyms.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5548,11 +5516,13 @@
         ],
         "output": "kernel/cpu/ksyms_data.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/ksyms_data.cc --output kernel/cpu/ksyms_data.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/cpu/ksyms_data.cc --output kernel/cpu/ksyms_data.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5561,9 +5531,6 @@
           "kernel/core/types.h",
           "kernel/cpu/libm.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5578,11 +5545,13 @@
         ],
         "output": "kernel/cpu/libm.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/libm.cc --output kernel/cpu/libm.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/cpu/libm.cc --output kernel/cpu/libm.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5593,9 +5562,6 @@
           "kernel/cpu/isr.h",
           "kernel/cpu/math.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5610,11 +5576,13 @@
         ],
         "output": "kernel/cpu/math.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/math.cc --output kernel/cpu/math.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/cpu/math.cc --output kernel/cpu/math.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5625,9 +5593,6 @@
           "kernel/cpu/isr.h",
           "kernel/cpu/pic.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5642,11 +5607,13 @@
         ],
         "output": "kernel/cpu/pic.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/pic.cc --output kernel/cpu/pic.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/cpu/pic.cc --output kernel/cpu/pic.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5660,9 +5627,6 @@
           "kernel/cpu/isr.h",
           "kernel/cpu/simd.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5677,11 +5641,13 @@
         ],
         "output": "kernel/cpu/simd.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/simd.cc --output kernel/cpu/simd.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/cpu/simd.cc --output kernel/cpu/simd.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5690,9 +5656,6 @@
           "kernel/crypto/aes.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5707,11 +5670,13 @@
         ],
         "output": "kernel/crypto/aes.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/aes.cc --output kernel/crypto/aes.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/aes.cc --output kernel/crypto/aes.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5722,9 +5687,6 @@
           "kernel/crypto/ct.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5739,11 +5701,13 @@
         ],
         "output": "kernel/crypto/aes_gcm.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/aes_gcm.cc --output kernel/crypto/aes_gcm.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/aes_gcm.cc --output kernel/crypto/aes_gcm.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5752,9 +5716,6 @@
           "kernel/crypto/asn1.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5769,11 +5730,13 @@
         ],
         "output": "kernel/crypto/asn1.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/asn1.cc --output kernel/crypto/asn1.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/asn1.cc --output kernel/crypto/asn1.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5782,9 +5745,6 @@
           "kernel/crypto/bigint.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5799,11 +5759,13 @@
         ],
         "output": "kernel/crypto/bigint.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/bigint.cc --output kernel/crypto/bigint.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/bigint.cc --output kernel/crypto/bigint.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5812,9 +5774,6 @@
           "kernel/crypto/chacha20.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5829,11 +5788,13 @@
         ],
         "output": "kernel/crypto/chacha20.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/chacha20.cc --output kernel/crypto/chacha20.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/chacha20.cc --output kernel/crypto/chacha20.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5845,9 +5806,6 @@
           "kernel/crypto/ct.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5862,11 +5820,13 @@
         ],
         "output": "kernel/crypto/chacha20poly1305.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/chacha20poly1305.cc --output kernel/crypto/chacha20poly1305.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/chacha20poly1305.cc --output kernel/crypto/chacha20poly1305.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5877,9 +5837,6 @@
           "kernel/core/types.h",
           "drivers/serial.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5894,11 +5851,13 @@
         ],
         "output": "kernel/crypto/csprng.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/csprng.cc --output kernel/crypto/csprng.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/csprng.cc --output kernel/crypto/csprng.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5907,9 +5866,6 @@
           "kernel/crypto/ct.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5924,11 +5880,13 @@
         ],
         "output": "kernel/crypto/ct.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ct.cc --output kernel/crypto/ct.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/ct.cc --output kernel/crypto/ct.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5941,9 +5899,6 @@
           "kernel/core/string.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5958,11 +5913,13 @@
         ],
         "output": "kernel/crypto/ecdsa.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ecdsa.cc --output kernel/crypto/ecdsa.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/ecdsa.cc --output kernel/crypto/ecdsa.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -5972,9 +5929,6 @@
           "kernel/crypto/sha512.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -5989,11 +5943,13 @@
         ],
         "output": "kernel/crypto/ed25519.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ed25519.cc --output kernel/crypto/ed25519.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/ed25519.cc --output kernel/crypto/ed25519.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -6004,9 +5960,6 @@
           "kernel/crypto/sha256.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -6021,11 +5974,13 @@
         ],
         "output": "kernel/crypto/hkdf.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/hkdf.cc --output kernel/crypto/hkdf.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/hkdf.cc --output kernel/crypto/hkdf.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -6035,9 +5990,6 @@
           "kernel/crypto/sha256.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -6052,11 +6004,13 @@
         ],
         "output": "kernel/crypto/hmac.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/hmac.cc --output kernel/crypto/hmac.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/hmac.cc --output kernel/crypto/hmac.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -6065,9 +6019,6 @@
           "kernel/crypto/p256.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -6082,11 +6033,13 @@
         ],
         "output": "kernel/crypto/p256.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/p256.cc --output kernel/crypto/p256.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/p256.cc --output kernel/crypto/p256.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -6096,9 +6049,6 @@
           "kernel/crypto/ct.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -6113,11 +6063,13 @@
         ],
         "output": "kernel/crypto/poly1305.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/poly1305.cc --output kernel/crypto/poly1305.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/poly1305.cc --output kernel/crypto/poly1305.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -6129,9 +6081,6 @@
           "kernel/crypto/ct.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -6146,11 +6095,13 @@
         ],
         "output": "kernel/crypto/rsa.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/rsa.cc --output kernel/crypto/rsa.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/rsa.cc --output kernel/crypto/rsa.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -6159,9 +6110,6 @@
           "kernel/crypto/sha256.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -6176,11 +6124,13 @@
         ],
         "output": "kernel/crypto/sha256.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/sha256.cc --output kernel/crypto/sha256.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/sha256.cc --output kernel/crypto/sha256.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -6189,9 +6139,6 @@
           "kernel/crypto/sha512.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -6206,11 +6153,13 @@
         ],
         "output": "kernel/crypto/sha512.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/sha512.cc --output kernel/crypto/sha512.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/sha512.cc --output kernel/crypto/sha512.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -6219,9 +6168,6 @@
           "kernel/crypto/x25519.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -6236,11 +6182,13 @@
         ],
         "output": "kernel/crypto/x25519.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x25519.cc --output kernel/crypto/x25519.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/x25519.cc --output kernel/crypto/x25519.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -6250,9 +6198,6 @@
           "kernel/crypto/asn1.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -6267,11 +6212,13 @@
         ],
         "output": "kernel/crypto/x509.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509.cc --output kernel/crypto/x509.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/x509.cc --output kernel/crypto/x509.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -6287,9 +6234,6 @@
           "kernel/crypto/asn1.h",
           "kernel/core/types.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -6304,11 +6248,13 @@
         ],
         "output": "kernel/crypto/x509_chain.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509_chain.cc --output kernel/crypto/x509_chain.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/crypto/x509_chain.cc --output kernel/crypto/x509_chain.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -33716,9 +33662,6 @@
           "kernel/mm/memory.h",
           "kernel/smp/bkl.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -33733,11 +33676,13 @@
         ],
         "output": "kernel/fs/blockcache.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockcache.cc --output kernel/fs/blockcache.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/blockcache.cc --output kernel/fs/blockcache.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -33748,9 +33693,6 @@
           "kernel/cpu/isr.h",
           "kernel/fs/blockdev.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -33765,11 +33707,13 @@
         ],
         "output": "kernel/fs/blockdev.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockdev.cc --output kernel/fs/blockdev.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/blockdev.cc --output kernel/fs/blockdev.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -33783,9 +33727,6 @@
           "kernel/fs/vfs.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -33800,11 +33741,13 @@
         ],
         "output": "kernel/fs/devfs.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/devfs.cc --output kernel/fs/devfs.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/devfs.cc --output kernel/fs/devfs.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -33821,9 +33764,6 @@
           "kernel/fs/fat16.h",
           "kernel/fs/fat16_control.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -33838,11 +33778,13 @@
         ],
         "output": "kernel/fs/fat16.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16.cc --output kernel/fs/fat16.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/fat16.cc --output kernel/fs/fat16.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -33858,9 +33800,6 @@
           "kernel/fs/vfs.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -33875,11 +33814,13 @@
         ],
         "output": "kernel/fs/fat16_vfs.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16_vfs.cc --output kernel/fs/fat16_vfs.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/fat16_vfs.cc --output kernel/fs/fat16_vfs.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -33889,9 +33830,6 @@
           "kernel/core/types.h",
           "kernel/fs/fs.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -33906,11 +33844,13 @@
         ],
         "output": "kernel/fs/fs.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fs.cc --output kernel/fs/fs.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/fs.cc --output kernel/fs/fs.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -33928,9 +33868,6 @@
           "kernel/fs/vfs.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -33945,11 +33882,13 @@
         ],
         "output": "kernel/fs/homefs.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/homefs.cc --output kernel/fs/homefs.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/homefs.cc --output kernel/fs/homefs.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -33962,9 +33901,6 @@
           "kernel/fs/iso9660.h",
           "kernel/fs/vfs.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -33979,11 +33915,13 @@
         ],
         "output": "kernel/fs/iso9660.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/iso9660.cc --output kernel/fs/iso9660.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/iso9660.cc --output kernel/fs/iso9660.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -33999,9 +33937,6 @@
           "kernel/fs/vfs.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34016,11 +33951,13 @@
         ],
         "output": "kernel/fs/iso9660_vfs.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/iso9660_vfs.cc --output kernel/fs/iso9660_vfs.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/iso9660_vfs.cc --output kernel/fs/iso9660_vfs.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34034,9 +33971,6 @@
           "kernel/fs/vfs.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34051,11 +33985,13 @@
         ],
         "output": "kernel/fs/loopdev.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/loopdev.cc --output kernel/fs/loopdev.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/loopdev.cc --output kernel/fs/loopdev.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34068,9 +34004,6 @@
           "kernel/fs/vfs.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34085,11 +34018,13 @@
         ],
         "output": "kernel/fs/ramfs.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/ramfs.cc --output kernel/fs/ramfs.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/ramfs.cc --output kernel/fs/ramfs.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34101,9 +34036,6 @@
           "kernel/fs/vfs.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34118,11 +34050,13 @@
         ],
         "output": "kernel/fs/vfs.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs.cc --output kernel/fs/vfs.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/vfs.cc --output kernel/fs/vfs.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34133,9 +34067,6 @@
           "kernel/fs/vfs.h",
           "kernel/fs/vfs_helpers.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34150,11 +34081,13 @@
         ],
         "output": "kernel/fs/vfs_helpers.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs_helpers.cc --output kernel/fs/vfs_helpers.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/fs/vfs_helpers.cc --output kernel/fs/vfs_helpers.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34169,9 +34102,6 @@
           "kernel/gfx/gfx2d.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34186,11 +34116,13 @@
         ],
         "output": "kernel/gfx/bmp.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/bmp.cc --output kernel/gfx/bmp.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/bmp.cc --output kernel/gfx/bmp.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34199,9 +34131,6 @@
           "kernel/core/types.h",
           "kernel/gfx/deflate.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34216,11 +34145,13 @@
         ],
         "output": "kernel/gfx/deflate.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/deflate.cc --output kernel/gfx/deflate.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/deflate.cc --output kernel/gfx/deflate.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34229,9 +34160,6 @@
           "kernel/core/types.h",
           "kernel/gfx/font_8x8.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34246,11 +34174,13 @@
         ],
         "output": "kernel/gfx/font_8x8.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/font_8x8.cc --output kernel/gfx/font_8x8.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/font_8x8.cc --output kernel/gfx/font_8x8.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34267,9 +34197,6 @@
           "kernel/gfx/ttf.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34284,11 +34211,13 @@
         ],
         "output": "kernel/gfx/fontsys.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/fontsys.cc --output kernel/gfx/fontsys.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/fontsys.cc --output kernel/gfx/fontsys.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34320,9 +34249,6 @@
           "kernel/mm/memory.h",
           "kernel/util/calendar.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34337,11 +34263,13 @@
         ],
         "output": "kernel/gfx/gfx2d.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d.cc --output kernel/gfx/gfx2d.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/gfx2d.cc --output kernel/gfx/gfx2d.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34360,9 +34288,6 @@
           "kernel/gfx/png.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34377,11 +34302,13 @@
         ],
         "output": "kernel/gfx/gfx2d_assets.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_assets.cc --output kernel/gfx/gfx2d_assets.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/gfx2d_assets.cc --output kernel/gfx/gfx2d_assets.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34395,9 +34322,6 @@
           "kernel/gfx/gfx2d_effects.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34412,11 +34336,13 @@
         ],
         "output": "kernel/gfx/gfx2d_effects.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_effects.cc --output kernel/gfx/gfx2d_effects.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/gfx2d_effects.cc --output kernel/gfx/gfx2d_effects.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34432,9 +34358,6 @@
           "kernel/gfx/gfx2d_icons.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34449,11 +34372,13 @@
         ],
         "output": "kernel/gfx/gfx2d_icons.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_icons.cc --output kernel/gfx/gfx2d_icons.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/gfx2d_icons.cc --output kernel/gfx/gfx2d_icons.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34467,9 +34392,6 @@
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_transform.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34484,11 +34406,13 @@
         ],
         "output": "kernel/gfx/gfx2d_transform.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_transform.cc --output kernel/gfx/gfx2d_transform.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/gfx2d_transform.cc --output kernel/gfx/gfx2d_transform.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34499,9 +34423,6 @@
           "kernel/gfx/glyph_raster.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34516,11 +34437,13 @@
         ],
         "output": "kernel/gfx/glyph_raster.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/glyph_raster.cc --output kernel/gfx/glyph_raster.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/glyph_raster.cc --output kernel/gfx/glyph_raster.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34535,9 +34458,6 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/graphics.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34552,11 +34472,13 @@
         ],
         "output": "kernel/gfx/graphics.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/graphics.cc --output kernel/gfx/graphics.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/graphics.cc --output kernel/gfx/graphics.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34567,9 +34489,6 @@
           "kernel/gfx/jpeg.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34584,11 +34503,13 @@
         ],
         "output": "kernel/gfx/jpeg.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/jpeg.cc --output kernel/gfx/jpeg.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/jpeg.cc --output kernel/gfx/jpeg.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34598,9 +34519,6 @@
           "kernel/gfx/png.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34615,11 +34533,13 @@
         ],
         "output": "kernel/gfx/png.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/png.cc --output kernel/gfx/png.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/png.cc --output kernel/gfx/png.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34630,9 +34550,6 @@
           "kernel/core/types.h",
           "kernel/gfx/ttf.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34647,11 +34564,13 @@
         ],
         "output": "kernel/gfx/ttf.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/ttf.cc --output kernel/gfx/ttf.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gfx/ttf.cc --output kernel/gfx/ttf.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34661,9 +34580,6 @@
           "kernel/core/types.h",
           "kernel/gui/ansi.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34678,11 +34594,13 @@
         ],
         "output": "kernel/gui/ansi.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ansi.cc --output kernel/gui/ansi.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/ansi.cc --output kernel/gui/ansi.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34693,9 +34611,6 @@
           "kernel/core/types.h",
           "kernel/gui/clipboard.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34710,11 +34625,13 @@
         ],
         "output": "kernel/gui/clipboard.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/clipboard.cc --output kernel/gui/clipboard.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/clipboard.cc --output kernel/gui/clipboard.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34733,9 +34650,6 @@
           "kernel/network/dns.h",
           "kernel/network/socket.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34750,11 +34664,13 @@
         ],
         "output": "kernel/gui/ctxt_image_worker.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ctxt_image_worker.cc --output kernel/gui/ctxt_image_worker.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/ctxt_image_worker.cc --output kernel/gui/ctxt_image_worker.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34796,9 +34712,6 @@
           "toolchain/x86.h",
           "toolchain/pe32.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34813,11 +34726,13 @@
         ],
         "output": "kernel/gui/desktop.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/desktop.cc --output kernel/gui/desktop.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/desktop.cc --output kernel/gui/desktop.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34836,9 +34751,6 @@
           "kernel/gui/ed.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34853,11 +34765,13 @@
         ],
         "output": "kernel/gui/ed.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ed.cc --output kernel/gui/ed.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/ed.cc --output kernel/gui/ed.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34881,9 +34795,6 @@
           "kernel/smp/bkl.h",
           "kernel/util/calendar.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34898,11 +34809,13 @@
         ],
         "output": "kernel/gui/gui.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui.cc --output kernel/gui/gui.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/gui.cc --output kernel/gui/gui.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34918,9 +34831,6 @@
           "kernel/gui/gui_themes.h",
           "kernel/gui/ui.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34935,11 +34845,13 @@
         ],
         "output": "kernel/gui/gui_containers.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_containers.cc --output kernel/gui/gui_containers.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/gui_containers.cc --output kernel/gui/gui_containers.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34956,9 +34868,6 @@
           "kernel/gui/ui.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -34973,11 +34882,13 @@
         ],
         "output": "kernel/gui/gui_events.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_events.cc --output kernel/gui/gui_events.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/gui_events.cc --output kernel/gui/gui_events.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -34993,9 +34904,6 @@
           "kernel/gui/gui_themes.h",
           "kernel/gui/ui.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -35010,11 +34918,13 @@
         ],
         "output": "kernel/gui/gui_menus.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_menus.cc --output kernel/gui/gui_menus.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/gui_menus.cc --output kernel/gui/gui_menus.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -35031,9 +34941,6 @@
           "kernel/mm/memory.h",
           "kernel/util/calendar.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -35048,11 +34955,13 @@
         ],
         "output": "kernel/gui/gui_themes.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_themes.cc --output kernel/gui/gui_themes.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/gui_themes.cc --output kernel/gui/gui_themes.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -35069,9 +34978,6 @@
           "kernel/gui/gui_widgets.h",
           "kernel/gui/ui.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -35086,11 +34992,13 @@
         ],
         "output": "kernel/gui/gui_widgets.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_widgets.cc --output kernel/gui/gui_widgets.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/gui_widgets.cc --output kernel/gui/gui_widgets.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -35113,9 +35021,6 @@
           "kernel/gui/terminal_app.h",
           "kernel/lang/shell.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -35130,11 +35035,13 @@
         ],
         "output": "kernel/gui/terminal_app.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/terminal_app.cc --output kernel/gui/terminal_app.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/terminal_app.cc --output kernel/gui/terminal_app.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -35149,9 +35056,6 @@
           "kernel/gui/gui_themes.h",
           "kernel/gui/ui.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -35166,11 +35070,13 @@
         ],
         "output": "kernel/gui/ui.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ui.cc --output kernel/gui/ui.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/gui/ui.cc --output kernel/gui/ui.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -36622,9 +36528,6 @@
           "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -36639,11 +36542,13 @@
         ],
         "output": "kernel/lang/as.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as.cc --output kernel/lang/as.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/as.cc --output kernel/lang/as.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -36656,9 +36561,6 @@
           "toolchain/elf32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -36673,11 +36575,13 @@
         ],
         "output": "kernel/lang/as_elf.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as_elf.cc --output kernel/lang/as_elf.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/as_elf.cc --output kernel/lang/as_elf.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -36700,9 +36604,6 @@
           "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -36717,11 +36618,13 @@
         ],
         "output": "kernel/lang/ctool_kernel.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ctool_kernel.cc --output kernel/lang/ctool_kernel.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/ctool_kernel.cc --output kernel/lang/ctool_kernel.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -36817,9 +36720,6 @@
           "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -36834,11 +36734,13 @@
         ],
         "output": "kernel/lang/cupidc.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc.cc --output kernel/lang/cupidc.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidc.cc --output kernel/lang/cupidc.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -36859,9 +36761,6 @@
           "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -36876,11 +36775,13 @@
         ],
         "output": "kernel/lang/cupidc_elf.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_elf.cc --output kernel/lang/cupidc_elf.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidc_elf.cc --output kernel/lang/cupidc_elf.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -36896,9 +36797,6 @@
           "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -36913,11 +36811,13 @@
         ],
         "output": "kernel/lang/cupidc_lex.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_lex.cc --output kernel/lang/cupidc_lex.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidc_lex.cc --output kernel/lang/cupidc_lex.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -36936,9 +36836,6 @@
           "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -36953,11 +36850,13 @@
         ],
         "output": "kernel/lang/cupidc_parse.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_parse.cc --output kernel/lang/cupidc_parse.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidc_parse.cc --output kernel/lang/cupidc_parse.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -36968,9 +36867,6 @@
           "kernel/lang/cupidc_string.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -36985,11 +36881,13 @@
         ],
         "output": "kernel/lang/cupidc_string.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_string.cc --output kernel/lang/cupidc_string.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidc_string.cc --output kernel/lang/cupidc_string.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37001,9 +36899,6 @@
           "kernel/lang/cupidscript_arrays.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37018,11 +36913,13 @@
         ],
         "output": "kernel/lang/cupidscript_arrays.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_arrays.cc --output kernel/lang/cupidscript_arrays.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidscript_arrays.cc --output kernel/lang/cupidscript_arrays.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37056,9 +36953,6 @@
           "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37073,11 +36967,13 @@
         ],
         "output": "kernel/lang/cupidscript_exec.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_exec.cc --output kernel/lang/cupidscript_exec.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidscript_exec.cc --output kernel/lang/cupidscript_exec.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37091,9 +36987,6 @@
           "kernel/lang/cupidscript_jobs.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37108,11 +37001,13 @@
         ],
         "output": "kernel/lang/cupidscript_jobs.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_jobs.cc --output kernel/lang/cupidscript_jobs.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidscript_jobs.cc --output kernel/lang/cupidscript_jobs.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37127,9 +37022,6 @@
           "kernel/lang/cupidscript_jobs.h",
           "kernel/lang/cupidscript_streams.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37144,11 +37036,13 @@
         ],
         "output": "kernel/lang/cupidscript_lex.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_lex.cc --output kernel/lang/cupidscript_lex.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidscript_lex.cc --output kernel/lang/cupidscript_lex.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37164,9 +37058,6 @@
           "kernel/lang/cupidscript_streams.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37181,11 +37072,13 @@
         ],
         "output": "kernel/lang/cupidscript_parse.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_parse.cc --output kernel/lang/cupidscript_parse.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidscript_parse.cc --output kernel/lang/cupidscript_parse.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37204,9 +37097,6 @@
           "kernel/lang/cupidscript_streams.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37221,11 +37111,13 @@
         ],
         "output": "kernel/lang/cupidscript_runtime.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_runtime.cc --output kernel/lang/cupidscript_runtime.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidscript_runtime.cc --output kernel/lang/cupidscript_runtime.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37244,9 +37136,6 @@
           "kernel/lang/cupidscript_streams.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37261,11 +37150,13 @@
         ],
         "output": "kernel/lang/cupidscript_streams.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_streams.cc --output kernel/lang/cupidscript_streams.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidscript_streams.cc --output kernel/lang/cupidscript_streams.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37281,9 +37172,6 @@
           "kernel/lang/cupidscript_streams.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37298,11 +37186,13 @@
         ],
         "output": "kernel/lang/cupidscript_strings.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_strings.cc --output kernel/lang/cupidscript_strings.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/cupidscript_strings.cc --output kernel/lang/cupidscript_strings.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37320,9 +37210,6 @@
           "toolchain/pe32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37337,11 +37224,13 @@
         ],
         "output": "kernel/lang/dis.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/dis.cc --output kernel/lang/dis.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/dis.cc --output kernel/lang/dis.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37358,9 +37247,6 @@
           "kernel/lang/exec.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37375,11 +37261,13 @@
         ],
         "output": "kernel/lang/exec.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/exec.cc --output kernel/lang/exec.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/exec.cc --output kernel/lang/exec.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37392,9 +37280,6 @@
           "kernel/cpu/isr.h",
           "kernel/lang/godspeak.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37409,11 +37294,13 @@
         ],
         "output": "kernel/lang/godspeak.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/godspeak.cc --output kernel/lang/godspeak.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/godspeak.cc --output kernel/lang/godspeak.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37481,9 +37368,6 @@
           "toolchain/cupidld.h",
           "toolchain/pe32.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37498,11 +37382,13 @@
         ],
         "output": "kernel/lang/shell.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/shell.cc --output kernel/lang/shell.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/shell.cc --output kernel/lang/shell.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37522,9 +37408,6 @@
           "kernel/lang/shell.h",
           "kernel/lang/ssh_io.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37539,11 +37422,13 @@
         ],
         "output": "kernel/lang/ssh_io.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ssh_io.cc --output kernel/lang/ssh_io.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/lang/ssh_io.cc --output kernel/lang/ssh_io.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37559,9 +37444,6 @@
           "kernel/mm/memory.h",
           "kernel/smp/bkl.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37576,11 +37458,13 @@
         ],
         "output": "kernel/mm/memory.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/memory.cc --output kernel/mm/memory.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/mm/memory.cc --output kernel/mm/memory.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37589,9 +37473,6 @@
           "kernel/core/types.h",
           "kernel/mm/memory.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37606,11 +37487,13 @@
         ],
         "output": "kernel/mm/paging.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/paging.cc --output kernel/mm/paging.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/mm/paging.cc --output kernel/mm/paging.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37625,9 +37508,6 @@
           "kernel/mm/swap.h",
           "kernel/mm/swap_disk.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37642,11 +37522,13 @@
         ],
         "output": "kernel/mm/swap.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/swap.cc --output kernel/mm/swap.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/mm/swap.cc --output kernel/mm/swap.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37657,9 +37539,6 @@
           "kernel/fs/vfs.h",
           "kernel/mm/swap_disk.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37674,11 +37553,13 @@
         ],
         "output": "kernel/mm/swap_disk.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/swap_disk.cc --output kernel/mm/swap_disk.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/mm/swap_disk.cc --output kernel/mm/swap_disk.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37692,9 +37573,6 @@
           "kernel/network/arp.h",
           "kernel/network/net_if.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37709,11 +37587,13 @@
         ],
         "output": "kernel/network/arp.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/arp.cc --output kernel/network/arp.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/network/arp.cc --output kernel/network/arp.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37728,9 +37608,6 @@
           "kernel/network/ip.h",
           "kernel/network/net_if.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37745,11 +37622,13 @@
         ],
         "output": "kernel/network/dhcp.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dhcp.cc --output kernel/network/dhcp.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/network/dhcp.cc --output kernel/network/dhcp.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37765,9 +37644,6 @@
           "kernel/network/socket.h",
           "kernel/smp/bkl.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37782,11 +37658,13 @@
         ],
         "output": "kernel/network/dns.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dns.cc --output kernel/network/dns.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/network/dns.cc --output kernel/network/dns.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37800,9 +37678,6 @@
           "kernel/network/ip.h",
           "kernel/network/net_if.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37817,11 +37692,13 @@
         ],
         "output": "kernel/network/icmp.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/icmp.cc --output kernel/network/icmp.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/network/icmp.cc --output kernel/network/icmp.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37839,9 +37716,6 @@
           "kernel/network/tcp.h",
           "kernel/network/udp.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37856,11 +37730,13 @@
         ],
         "output": "kernel/network/ip.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/ip.cc --output kernel/network/ip.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/network/ip.cc --output kernel/network/ip.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37874,9 +37750,6 @@
           "kernel/network/net_if.h",
           "kernel/network/tcp.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37891,11 +37764,13 @@
         ],
         "output": "kernel/network/net_if.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/net_if.cc --output kernel/network/net_if.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/network/net_if.cc --output kernel/network/net_if.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37919,9 +37794,6 @@
           "kernel/tls/tls_ctx.h",
           "kernel/tls/tls_record.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37936,11 +37808,13 @@
         ],
         "output": "kernel/network/socket.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/socket.cc --output kernel/network/socket.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/network/socket.cc --output kernel/network/socket.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -37968,9 +37842,6 @@
           "kernel/network/socket.h",
           "kernel/network/sshd.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -37985,11 +37856,13 @@
         ],
         "output": "kernel/network/sshd.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/sshd.cc --output kernel/network/sshd.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/network/sshd.cc --output kernel/network/sshd.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38007,9 +37880,6 @@
           "kernel/network/tcp.h",
           "kernel/smp/bkl.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38024,11 +37894,13 @@
         ],
         "output": "kernel/network/tcp.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/tcp.cc --output kernel/network/tcp.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/network/tcp.cc --output kernel/network/tcp.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38041,9 +37913,6 @@
           "kernel/network/net_if.h",
           "kernel/network/udp.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38058,11 +37927,13 @@
         ],
         "output": "kernel/network/udp.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/udp.cc --output kernel/network/udp.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/network/udp.cc --output kernel/network/udp.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38076,9 +37947,6 @@
           "kernel/core/types.h",
           "drivers/serial.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38093,11 +37961,13 @@
         ],
         "output": "kernel/smp/acpi.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/acpi.cc --output kernel/smp/acpi.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/smp/acpi.cc --output kernel/smp/acpi.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38108,9 +37978,6 @@
           "kernel/smp/bkl.h",
           "kernel/smp/percpu.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38125,11 +37992,13 @@
         ],
         "output": "kernel/smp/bkl.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/bkl.cc --output kernel/smp/bkl.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/smp/bkl.cc --output kernel/smp/bkl.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38140,9 +38009,6 @@
           "kernel/mm/memory.h",
           "kernel/smp/ioapic.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38157,11 +38023,13 @@
         ],
         "output": "kernel/smp/ioapic.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/ioapic.cc --output kernel/smp/ioapic.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/smp/ioapic.cc --output kernel/smp/ioapic.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38173,9 +38041,6 @@
           "kernel/mm/memory.h",
           "kernel/smp/lapic.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38190,11 +38055,13 @@
         ],
         "output": "kernel/smp/lapic.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/lapic.cc --output kernel/smp/lapic.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/smp/lapic.cc --output kernel/smp/lapic.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38207,9 +38074,6 @@
           "kernel/core/types.h",
           "drivers/serial.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38224,11 +38088,13 @@
         ],
         "output": "kernel/smp/mp_tables.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/mp_tables.cc --output kernel/smp/mp_tables.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/smp/mp_tables.cc --output kernel/smp/mp_tables.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38239,9 +38105,6 @@
           "kernel/core/types.h",
           "kernel/smp/percpu.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38256,11 +38119,13 @@
         ],
         "output": "kernel/smp/percpu.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/percpu.cc --output kernel/smp/percpu.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/smp/percpu.cc --output kernel/smp/percpu.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38281,9 +38146,6 @@
           "kernel/smp/percpu.h",
           "kernel/smp/smp.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38298,11 +38160,13 @@
         ],
         "output": "kernel/smp/smp.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/smp.cc --output kernel/smp/smp.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/smp/smp.cc --output kernel/smp/smp.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38377,9 +38241,6 @@
           "kernel/tls/tls_kdf.h",
           "kernel/tls/tls_record.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38394,11 +38255,13 @@
         ],
         "output": "kernel/tls/tls12_handshake.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls12_handshake.cc --output kernel/tls/tls12_handshake.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/tls/tls12_handshake.cc --output kernel/tls/tls12_handshake.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38408,9 +38271,6 @@
           "kernel/crypto/x509.h",
           "kernel/crypto/x509_chain.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38425,11 +38285,13 @@
         ],
         "output": "kernel/tls/tls_ca_bundle.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ca_bundle.cc --output kernel/tls/tls_ca_bundle.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/tls/tls_ca_bundle.cc --output kernel/tls/tls_ca_bundle.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38439,9 +38301,6 @@
           "kernel/crypto/x509.h",
           "kernel/crypto/x509_chain.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38456,11 +38315,13 @@
         ],
         "output": "kernel/tls/tls_ca_bundle_data.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ca_bundle_data.cc --output kernel/tls/tls_ca_bundle_data.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/tls/tls_ca_bundle_data.cc --output kernel/tls/tls_ca_bundle_data.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38477,9 +38338,6 @@
           "kernel/tls/tls_ctx.h",
           "kernel/tls/tls_record.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38494,11 +38352,13 @@
         ],
         "output": "kernel/tls/tls_ctx.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ctx.cc --output kernel/tls/tls_ctx.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/tls/tls_ctx.cc --output kernel/tls/tls_ctx.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38523,9 +38383,6 @@
           "kernel/tls/tls_kdf.h",
           "kernel/tls/tls_record.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38540,11 +38397,13 @@
         ],
         "output": "kernel/tls/tls_handshake.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_handshake.cc --output kernel/tls/tls_handshake.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/tls/tls_handshake.cc --output kernel/tls/tls_handshake.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38556,9 +38415,6 @@
           "kernel/crypto/sha256.h",
           "kernel/tls/tls_kdf.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38573,11 +38429,13 @@
         ],
         "output": "kernel/tls/tls_kdf.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_kdf.cc --output kernel/tls/tls_kdf.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/tls/tls_kdf.cc --output kernel/tls/tls_kdf.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38590,9 +38448,6 @@
           "kernel/crypto/ct.h",
           "kernel/tls/tls_record.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38607,11 +38462,13 @@
         ],
         "output": "kernel/tls/tls_record.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_record.cc --output kernel/tls/tls_record.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/tls/tls_record.cc --output kernel/tls/tls_record.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38639,9 +38496,6 @@
           "kernel/crypto/x509_chain.h",
           "kernel/tls/tls_selftest.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38656,11 +38510,13 @@
         ],
         "output": "kernel/tls/tls_selftest.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_selftest.cc --output kernel/tls/tls_selftest.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/tls/tls_selftest.cc --output kernel/tls/tls_selftest.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38679,9 +38535,6 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38696,11 +38549,13 @@
         ],
         "output": "kernel/usb/ehci.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/ehci.cc --output kernel/usb/ehci.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/usb/ehci.cc --output kernel/usb/ehci.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38719,9 +38574,6 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38736,11 +38588,13 @@
         ],
         "output": "kernel/usb/uhci.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/uhci.cc --output kernel/usb/uhci.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/usb/uhci.cc --output kernel/usb/uhci.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38756,9 +38610,6 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38773,11 +38624,13 @@
         ],
         "output": "kernel/usb/usb.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb.cc --output kernel/usb/usb.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/usb/usb.cc --output kernel/usb/usb.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38795,9 +38648,6 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38812,11 +38662,13 @@
         ],
         "output": "kernel/usb/usb_hid.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_hid.cc --output kernel/usb/usb_hid.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/usb/usb_hid.cc --output kernel/usb/usb_hid.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38828,9 +38680,6 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38845,11 +38694,13 @@
         ],
         "output": "kernel/usb/usb_hub.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_hub.cc --output kernel/usb/usb_hub.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/usb/usb_hub.cc --output kernel/usb/usb_hub.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38862,9 +38713,6 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38879,11 +38727,13 @@
         ],
         "output": "kernel/usb/usb_msc.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_msc.cc --output kernel/usb/usb_msc.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/usb/usb_msc.cc --output kernel/usb/usb_msc.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -39084,9 +38934,6 @@
           "kernel/fs/vfs.h",
           "kernel/util/calendar.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -39101,11 +38948,13 @@
         ],
         "output": "kernel/util/calendar.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source kernel/util/calendar.cc --output kernel/util/calendar.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source kernel/util/calendar.cc --output kernel/util/calendar.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -39465,9 +39314,6 @@
           "toolchain/ctool.cc",
           "toolchain/ctool.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -39482,11 +39328,13 @@
         ],
         "output": "toolchain/ctool.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/ctool.cc --output toolchain/ctool.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source toolchain/ctool.cc --output toolchain/ctool.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -39497,9 +39345,6 @@
           "toolchain/elf32.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -39514,11 +39359,13 @@
         ],
         "output": "toolchain/cupidasm.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidasm.cc --output toolchain/cupidasm.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source toolchain/cupidasm.cc --output toolchain/cupidasm.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -39531,9 +39378,6 @@
           "toolchain/pe32_impl.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -39548,11 +39392,13 @@
         ],
         "output": "toolchain/cupiddis.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupiddis.cc --output toolchain/cupiddis.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source toolchain/cupiddis.cc --output toolchain/cupiddis.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -39562,9 +39408,6 @@
           "toolchain/cupidld.h",
           "toolchain/elf32.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -39579,11 +39422,13 @@
         ],
         "output": "toolchain/cupidld.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidld.cc --output toolchain/cupidld.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source toolchain/cupidld.cc --output toolchain/cupidld.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -39592,9 +39437,6 @@
           "toolchain/ctool.h",
           "toolchain/elf32.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -39609,11 +39451,13 @@
         ],
         "output": "toolchain/elf32.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/elf32.cc --output toolchain/elf32.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source toolchain/elf32.cc --output toolchain/elf32.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -39622,9 +39466,6 @@
           "toolchain/ctool.h",
           "toolchain/x86.h",
           "Makefile",
-          "tools/cupidc_kernel_compile.py",
-          "tools/kernel_cupidc_frontier.py",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -39639,11 +39480,13 @@
         ],
         "output": "toolchain/x86.o",
         "recipe": [
-          "$(CUPIDC_KERNEL_COMPILE) --source toolchain/x86.cc --output toolchain/x86.o"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source toolchain/x86.cc --output toolchain/x86.o"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -58086,11 +57929,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "cbf7c2e96a98b13fb99d56773de7e9b113ee2d60a9e115804c5934c3ac502071",
+    "active_source_digest": "b5aff92f490ccc0667b2e173275b2cb1d8308e2d01fd42309437eb5ef851c765",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "81ff2048ce2137bf1659adbba2418f36cb96c3c3651a565c5a09492e510f034a"
+        "sha256": "90ef3b256ebc02211a92f0f409ab705e8d83619f01a9964de7f0e7c1f8e23a9b"
       },
       {
         "path": "user/Makefile",
@@ -58114,11 +57957,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "fed5476556bdc3af10ffd37a022bcc20878ee9adb5502eeca011558705c240d1"
+        "sha256": "7245440921db82fea3d271d0918ccc70cc993eb564c2112625614ff7cfb46883"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
+        "sha256": "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
       },
       {
         "path": "tools/cupidc_production_compile.py",
@@ -58139,7 +57982,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "5ea35e9d22b42bef9a8707c6f0703d87a7f0b62ff6ffdf32989b192665dc23c8"
+      "sha256": "fc79c9e094704572ed445de90cdcb216585ac5c78ff9e2d099e8fc47597ff022"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -63532,8 +63375,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -63605,8 +63448,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -63650,8 +63493,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -63736,8 +63579,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -63814,8 +63657,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -63880,8 +63723,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -63940,8 +63783,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64013,8 +63856,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64059,8 +63902,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64154,8 +63997,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64214,8 +64057,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64291,8 +64134,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64360,8 +64203,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64445,8 +64288,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64527,8 +64370,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64606,8 +64449,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64675,8 +64518,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64765,8 +64608,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64850,8 +64693,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -64910,8 +64753,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -65119,8 +64962,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -65259,8 +65102,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -65388,8 +65231,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -65521,8 +65364,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -65595,6 +65438,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -65780,8 +65624,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -65855,8 +65699,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -65927,8 +65771,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66086,8 +65930,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66165,8 +66009,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66186,8 +66030,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66256,8 +66100,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66321,8 +66165,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66383,8 +66227,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66483,8 +66327,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66545,8 +66389,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66611,8 +66455,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66676,8 +66520,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66743,8 +66587,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66808,8 +66652,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66875,8 +66719,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -66946,8 +66790,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67008,8 +66852,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67075,8 +66919,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67139,8 +66983,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67206,8 +67050,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67266,8 +67110,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67333,8 +67177,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67400,8 +67244,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67467,8 +67311,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67533,8 +67377,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67600,8 +67444,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67662,8 +67506,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -67732,8 +67576,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -75280,8 +75124,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -75361,8 +75205,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -75433,8 +75277,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -75511,8 +75355,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -75627,8 +75471,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -75705,8 +75549,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -75773,8 +75617,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -75855,8 +75699,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -75936,8 +75780,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76015,8 +75859,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76086,8 +75930,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76165,8 +76009,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76245,8 +76089,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76312,8 +76156,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76388,8 +76232,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76454,8 +76298,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76509,8 +76353,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76590,8 +76434,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76687,8 +76531,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76770,8 +76614,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76883,8 +76727,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -76967,8 +76811,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77041,8 +76885,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77111,8 +76955,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77185,8 +77029,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77255,8 +77099,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77326,8 +77170,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77396,8 +77240,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77468,8 +77312,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77536,8 +77380,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77610,8 +77454,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77718,8 +77562,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77802,8 +77646,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77890,8 +77734,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -77965,8 +77809,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -78051,8 +77895,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -78130,8 +77974,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -78216,8 +78060,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -78361,8 +78205,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -78441,8 +78285,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -78520,8 +78364,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -78673,9 +78517,9 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
         ".",
@@ -78754,8 +78598,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -78832,8 +78676,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79008,8 +78852,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79045,8 +78889,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79092,8 +78936,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79183,8 +79027,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79294,8 +79138,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79363,8 +79207,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79422,8 +79266,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79499,8 +79343,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79537,8 +79381,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79580,8 +79424,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79629,8 +79473,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79709,8 +79553,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79747,8 +79591,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79830,8 +79674,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79915,8 +79759,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -79984,8 +79828,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80113,8 +79957,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80193,8 +80037,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80276,8 +80120,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80310,8 +80154,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80386,8 +80230,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80455,8 +80299,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80527,8 +80371,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80603,8 +80447,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80680,8 +80524,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80747,8 +80591,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80829,8 +80673,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80907,8 +80751,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -80993,8 +80837,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81086,8 +80930,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81166,8 +81010,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81237,8 +81081,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81309,8 +81153,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81373,8 +81217,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81441,8 +81285,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81504,8 +81348,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81579,8 +81423,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81662,8 +81506,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81808,8 +81652,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81888,8 +81732,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81914,8 +81758,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -81944,8 +81788,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82020,8 +81864,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82077,8 +81921,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82140,8 +81984,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82211,8 +82055,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82289,8 +82133,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82343,8 +82187,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82397,8 +82241,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82523,8 +82367,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82567,8 +82411,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82609,8 +82453,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82675,8 +82519,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82820,6 +82664,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -82996,9 +82841,9 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
         ".",
@@ -83777,9 +83622,9 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
         ".",
@@ -83909,9 +83754,9 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
         ".",
@@ -84167,9 +84012,9 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
         ".",
@@ -85971,7 +85816,7 @@
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b3efc735e156aac570be9b02c05c1103c10a626961a4372fa9e3383c77959079"
+      "sha256": "9aff5f5112440568b84703057d80075d69c6027fd82d809e86a1bcd06d99c9d5"
     },
     {
       "build_owners": [
@@ -86071,9 +85916,9 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
-        "cupid_c_contract",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
         ".",

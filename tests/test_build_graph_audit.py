@@ -11,6 +11,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from tools.cupidc_kernel_compile import FROZEN_KERNEL_INPUT_CLOSURES
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 AUDIT_TOOL = REPO_ROOT / "tools" / "build_graph_audit.py"
@@ -9572,7 +9574,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6884, 179),
+                "c.expression.sizeof": (6895, 179),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -9679,12 +9681,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 system_image_transform["inputs"],
             )
             checked_cupidc_roots = []
+            native_cupidc_roots = []
+            python_cupidc_roots = []
             for transform in root_transform_by_output.values():
-                if (
-                    transform["tools"] != ["cupid_c_compiler", "host_python"]
-                    or transform["operation"] != "compile_c_to_elf32_object"
-                ):
+                if transform["operation"] != "compile_c_to_elf32_object":
                     continue
+                self.assertIn(transform["tools"], (
+                    ["cupid_builder", "cupid_c_compiler"],
+                    ["cupid_c_compiler", "host_python"],
+                ))
                 roots = [
                     path
                     for path in transform["inputs"]
@@ -9692,6 +9697,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ]
                 self.assertEqual(len(roots), 1, transform["output"])
                 checked_cupidc_roots.extend(roots)
+                if "cupid_builder" in transform["tools"]:
+                    native_cupidc_roots.extend(roots)
+                else:
+                    python_cupidc_roots.extend(roots)
+            self.assertEqual(len(native_cupidc_roots), 157)
+            self.assertEqual(set(native_cupidc_roots), set(FROZEN_KERNEL_INPUT_CLOSURES))
+            self.assertEqual(len(python_cupidc_roots), 86)
+            self.assertFalse(set(native_cupidc_roots) & set(python_cupidc_roots))
             seed_bound_roots = {
                 "toolchain/ctool.cc",
                 "toolchain/cupidasm.cc",
@@ -9957,6 +9970,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "toolchain/cupiddis.h",
                     "toolchain/elf32.h",
                     "toolchain/x86.h",
+                    "kernel/gfx/gfx2d_icons.h",
+                    "kernel/lang/as_elf.h",
+                    "toolchain/cupidasm.h",
+                    "toolchain/cupidld.h",
+                    "toolchain/pe32.h",
                 ),
                 "kernel/usb/ehci.cc": (
                     "drivers/pci.h",
@@ -10059,7 +10077,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 with self.subTest(port_io_closure=source_path):
                     self.assertEqual(
                         root_transform_by_output[output_path]["inputs"],
-                        [source_path, *headers, *cupidc_control_inputs],
+                        [source_path, *headers, *(
+                            ("Makefile", *WINDOWS_PRODUCTION_SEED_INPUTS)
+                            if source_path in FROZEN_KERNEL_INPUT_CLOSURES
+                            else cupidc_control_inputs
+                        )],
                     )
 
             cupidc_kernel_sources = (
@@ -10075,7 +10097,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     transform = root_transform_by_output[output_path]
                     self.assertEqual(
                         transform["tools"],
-                        ["cupid_c_compiler", "host_python"],
+                        (["cupid_builder", "cupid_c_compiler"]
+                         if source_path in FROZEN_KERNEL_INPUT_CLOSURES
+                         else ["cupid_c_compiler", "host_python"]),
                     )
                     self.assertEqual(
                         transform["operation"],
@@ -10112,13 +10136,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
-                    "cupid_builder": 197,
+                    "cupid_builder": 354,
                     "cupid_object": 192,
                     "cupid_linker": 9,
                     "cupid_disassembler": 10,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 255,
+                    "host_python": 98,
                 },
             )
             self.assertFalse(
@@ -11050,7 +11074,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 6,
-            "cupid_builder": 197,
+            "cupid_builder": 354,
             "cupid_object": 192,
             "cupid_linker": 3,
             "cupid_disassembler": 7,
@@ -12179,7 +12203,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             compiled = transforms["kernel/cpu/ksyms_data.o"]
             self.assertEqual(
                 compiled["tools"],
-                ["cupid_c_compiler", "host_python"],
+                ["cupid_builder", "cupid_c_compiler"],
             )
             self.assertEqual(
                 compiled["operation"],
@@ -12192,9 +12216,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/cpu/ksyms.h",
                     "kernel/core/types.h",
                     "Makefile",
-                    "tools/cupidc_kernel_compile.py",
-                    "tools/kernel_cupidc_frontier.py",
-                    "tools/bootstrap_toolchain.py",
                     *WINDOWS_PRODUCTION_SEED_INPUTS,
                 },
             )

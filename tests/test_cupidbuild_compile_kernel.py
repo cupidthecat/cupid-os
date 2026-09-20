@@ -311,14 +311,32 @@ int main(int argc, char **argv) {
         self.assertEqual(output.stat().st_mtime_ns, before)
         self.assert_clean()
 
-    def test_unsupported_seed_preserves_output(self):
-        output = self.closure(contents=b"int x;\n")
-        output.write_bytes(b"previous object")
+    def test_promoted_seed_compiles_closed_inputs_and_preserves_failed_output(self):
+        source = "kernel/cpu/ksyms_data.cc"
+        output = self.closure(contents=b'#include "ksyms.h"\nint x;\n')
         self.replace_compiler((SEED / ("cupidc" + SUFFIX)).read_bytes())
-        result = self.run_compile()
+        expected = self.root / "ordinary.o"
+        checked_run([self.seed / ("cupidc" + SUFFIX), "-c", "/" + source,
+                     "-o", "/ordinary.o", "--root", self.root,
+                     *KERNEL_I386_ARGUMENTS])
+        for cli in (self.cli, self.seed / ("cupidbuild" + SUFFIX)):
+            with self.subTest(coordinator=cli.name):
+                output.write_bytes(b"previous object")
+                result = self.run_compile(cli=cli)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(output.read_bytes(), expected.read_bytes())
+                before = output.stat().st_mtime_ns
+                result = self.run_compile(cli=cli)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(output.stat().st_mtime_ns, before)
+                self.assert_clean()
+        previous = output.read_bytes()
+        (self.root / "kernel/cpu/ksyms.h").unlink()
+        result = self.run_compile(cli=self.seed / ("cupidbuild" + SUFFIX))
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("checked CupidC failed", result.stderr)
-        self.assertEqual(output.read_bytes(), b"previous object")
+        self.assertIn("closure cannot be captured", result.stderr)
+        self.assertEqual(output.read_bytes(), previous)
+        self.assertEqual(output.stat().st_mtime_ns, before)
         self.assert_clean()
 
     def test_successful_compiler_with_invalid_object_cannot_publish(self):

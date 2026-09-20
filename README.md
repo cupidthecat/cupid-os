@@ -14,18 +14,19 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 
 ## Current features
 
-The bootstrap branch now has a source-head `cupidbuild compile-kernel`
-transaction for all 157 kernel-profile closures. It uses CupidC's closed source
-bundles to preserve include paths without live-file fallback. The promoted
-seeds and normal compiler recipes retain their current ownership; see
-[the compiler coordinator record](docs/bootstrap/NEXT-COMPILER-COORDINATOR.md).
+The bootstrap branch now runs all 157 kernel-profile compiler recipes through
+checked `cupidbuild compile-kernel`. CupidC compiles captured source bundles
+with the original logical paths and no live-file fallback. Both Linux and
+Windows seeds come from the clean `9d2529a7` proofs. Successive generations
+match every final tool and object, and their behavior checks cover failed
+compilation, missing inputs, rollback, and unchanged-output reuse.
 
-The next staged proof checks that transaction through each compared tool
-generation, including output parity and failure preservation. The provenance
-readers retain exactly two adjacent parent generations. [ADR 0391](docs/adr/0391-prove-closed-compilation-across-bootstrap-generations.md)
-describes these prerequisites for the next seed refresh. The expanded capture
-includes drivers, the in-kernel compiler and assembler, and generated symbols;
-[ADR 0392](docs/adr/0392-capture-every-kernel-profile-closure.md) records its limits.
+The audited build has 354 CupidBuild and 98 Python participations. Doom,
+generated installation and user compilation, complete image publication, and
+bootstrap verification still have separate coordinators. The
+[bootstrap guide](docs/bootstrap/README.md) and
+[ADR 0393](docs/adr/0393-adopt-closed-kernel-compilation-in-make.md)
+record the checked tools, production evidence, and remaining host dependencies.
 
 - VBE 640x480 32bpp graphics with a window manager, taskbar, and desktop icons
 - CupidC, a HolyC-inspired C compiler with JIT and ELF32 AOT output
@@ -87,7 +88,7 @@ carry the repairs from `16a86f5b`, whose clean paired proofs passed.
 
 ## Current bootstrap ownership
 
-The checked `16a86f5b` pair passed independent source-inventory and
+The preceding `16a86f5b` pair passed independent source-inventory and
 final-stage byte comparisons on Linux and Windows. The final-cohort 155-test
 CupidBuild CLI suite passed on both hosts, with only platform-specific
 skips. The corrected 167-case production suite and 48-case Linux handoff
@@ -109,7 +110,7 @@ Makefile, and complete six-tool seed; the transaction checks the 4,096-byte
 pattern and data-only raw map before checked CupidDis inspection and guarded
 publication. Equal bytes keep their timestamp. Both repaired seeds carry the
 command. Real Make publication and rollback pass on both hosts with the
-final `16a86f5b` pair.
+preceding `16a86f5b` pair.
 
 The normal Doom input-manifest recipe now calls the promoted CupidBuild
 `generate-profile-manifest` transaction directly on Linux and Windows. It
@@ -127,23 +128,30 @@ ordinary content dependencies. The audit keeps scheduling edges separate
 from content inputs.
 
 Both six-tool seeds come from revision
-`16a86f5b1693e017c36c6d902df9946c5d674b17` and the same 59-input snapshot
-`54b411b6ed05725101f5859106facb43639f2d02cb2b0ea2f6334e21375bda55`.
+`9d2529a718672edcd970f24960535db6ddbde5e4` and the same 59-input snapshot
+`bb4f598b2f72140d82d01fbfdedc14e4c774965d08c155ca848596daf3aa054f`.
 Their candidate fixed points matched all final objects and tool images and
-passed 33/7/38 failure/help/success groups on Linux and 21/7/25 on Windows.
-The promoted runner also carries checked CupidC calls. Production compiler
-wrappers remain a separate transfer.
+passed 36/7/42 failure/help/success groups on Linux and 24/7/29 on Windows.
+Make now calls checked CupidBuild for all 157 kernel-profile compilations.
+Python still coordinates the 83 Doom compilations and separate compiler profiles.
+OS build and runtime validation for this handoff remain separate from these
+completed bootstrap proofs. Both host image builds pass all 16 exact artifact
+checks and produce identical kernel bytes. Poisoned replays run all 157 native
+compiles on each host while preserving 448 artifacts and 471 controls, including
+their timestamps. Both images pass private four-CPU SMP and CupidC `ls` smokes.
+The bootstrap log records the Windows validator repair and separate replay.
 
 Windows rollback now moves a rejected candidate through a verified
 read/traverse directory handle before reacquiring cleanup authority. This
 avoids the rename-back sharing violation without relaxing frozen-input
 protection. ADR 0385 records the repair carried by the new seed.
 
-CupidBuild participates in 197 of the 452 audited transforms; Python
-participates in 255. Disk and ISO publication still use Python for their
+CupidBuild participates in 354 of the 452 audited transforms; Python
+participates in 98. Disk and ISO publication still use Python for their
 independent checks and filesystem transactions. GCC, NASM, and host linkers
 remain optional oracles. [ADR 0383](docs/adr/0383-transfer-doom-profile-publication-to-cupidbuild.md)
-records the recipe handoff, and the [bootstrap log](docs/bootstrap/LOG.md)
+records the profile handoff, ADR 0393 records the kernel compiler handoff,
+and the [bootstrap log](docs/bootstrap/LOG.md)
 records verification and remaining work.
 
 ## 2026-08-31 implementation checkpoint
@@ -700,7 +708,7 @@ recipe has one `$(ARTIFACT_SIZE_CONTRACT)` command, and that command carries
 `--checked-manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)`. The source-current
 `make bootstrap-audit` and `make check-bootstrap-audit` both pass. The
 generated fixed-point inventory records failure, help, and success counts of
-33/7/38 for Linux and 21/7/25 for Windows. The audit records 748 active
+36/7/42 for Linux and 24/7/29 for Windows. The audit records 748 active
 sources, 452 transforms, 255 feature requirements, and 28 accounted unreachable
 files.
 [ADR 0304](docs/adr/0304-author-toolchain-publication-manifests-with-cupidc.md)
@@ -711,8 +719,8 @@ That publication carried the six-tool candidate, including
 named five tools. The current paired seeds contain six tools, and the
 Toolchain schema binds 76 publication inputs, 59 bootstrap inputs, and 22
 artifacts. The earlier 16a cohort passed stable-copy `CUPMAN2` verification;
-fresh publication after `b25a3374` and refreshed object expectations agrees
-on all 62 stage pairs and passes native verification on Linux and Windows.
+its publication after `b25a3374` and refreshed object expectations agreed
+on all 62 stage pairs and passed native verification on Linux and Windows.
 The full executable suite and user build pass. The bootstrap
 log keeps the earlier bundle separate from the current source cohort.
 Each final-stage CupidDis now inspects the corresponding six candidate images
@@ -2170,7 +2178,7 @@ three. The 38,164-byte report has SHA-256
 Those PEs formed a preceding checked Windows execution seed. The following
 table records the historical ADR 0374 stage-four cohort. The active pair is
 described under [Current bootstrap ownership](#current-bootstrap-ownership)
-and in ADR 0382:
+and in ADR 0393:
 
 | Tool | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -2579,7 +2587,7 @@ across reboot remain open.
 
 At the historical ADR 0374 checkpoint, six static i386 Linux tools formed one
 checked bootstrap seed. The identities below belong to that checkpoint;
-ADR 0382 records the current `16a86f5b` pair. Its v2
+ADR 0393 records the current `9d2529a7` pair. The historical v2
 manifest binds their exact bytes, target ABI, stage-three producer lineage,
 22-source build plan, and six link orders before execution. That
 generation-four cohort came from revision
@@ -3492,16 +3500,17 @@ tests. Production closures, artifact-size verification, and Toolchain
 publication freeze and recheck all six active images. CupidBuild directly owns
 the two guarded relocatable objects, all three guarded raw images, the typed JPEG
 publication, the generated kernel-symbol source, final kernel flattening,
-and Doom profile publication. It also runs the 186 ordinary CupidObj recipes
-and both normal kernel links. CupidBuild participates in 197 transforms,
-while Python participates in 255. ADR
+Doom profile publication, and all 157 kernel-profile compilations. It also
+runs the 186 ordinary CupidObj recipes and both normal kernel links.
+CupidBuild participates in 354 transforms, while Python participates in 98. ADR
 0353 records the paired v2 contract, ADR 0354 records the first
 normal recipe transfer, ADR 0357 records the raw publication handoff, ADR 0362
 records the direct CupidObj handoff, ADR 0363 records the kernel-link handoff,
 ADR 0367 records the preceding pair, ADR 0368 records the JPEG handoff, ADR
 0370 records the preceding kernel-symbol pair, ADR 0371 records its handoff,
-ADR 0375 records the kernel-flatten handoff, ADR 0382 records the active pair,
-and ADR 0383 records the profile handoff.
+ADR 0375 records the kernel-flatten handoff, ADR 0382 records the preceding pair,
+ADR 0383 records the profile handoff, and ADR 0393 records the active pair and
+kernel compiler handoff.
 The audit obtains this ownership from the evaluated Make binding, so a
 Python-backed or direct CupidObj command cannot be mislabeled as CupidBuild.
 

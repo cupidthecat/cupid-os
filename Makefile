@@ -372,18 +372,24 @@ kernel/core/kernel.o: kernel/core/kernel.cc drivers/ata.h drivers/keyboard.h \
 	kernel/smp/lapic.h kernel/smp/percpu.h kernel/smp/smp.h \
 	kernel/tls/tls_selftest.h kernel/usb/usb.h kernel/usb/usb_hc.h \
 	kernel/util/calendar.h toolchain/ctool.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/kernel.cc --output kernel/core/kernel.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/core/kernel.cc --output kernel/core/kernel.o
 
 kernel/cpu/simd.o: kernel/cpu/simd.cc drivers/serial.h drivers/timer.h \
 	kernel/core/kernel.h kernel/core/string.h kernel/core/types.h \
-	kernel/cpu/isr.h kernel/cpu/simd.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/simd.cc --output kernel/cpu/simd.o
+	kernel/cpu/isr.h kernel/cpu/simd.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/cpu/simd.cc --output kernel/cpu/simd.o
 
 kernel/cpu/idt.o: kernel/cpu/idt.cc drivers/serial.h kernel/core/kernel.h \
 	kernel/core/panic.h kernel/core/types.h kernel/cpu/idt.h kernel/cpu/isr.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/idt.cc --output kernel/cpu/idt.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/cpu/idt.cc --output kernel/cpu/idt.o
 
 # Compile assembly files
 kernel/cpu/isr.o: kernel/cpu/isr.asm Makefile $(PRODUCTION_SEED_INPUTS)
@@ -392,49 +398,67 @@ kernel/cpu/isr.o: kernel/cpu/isr.asm Makefile $(PRODUCTION_SEED_INPUTS)
 		--source $< --output $@
 
 kernel/cpu/pic.o: kernel/cpu/pic.cc kernel/core/kernel.h kernel/core/types.h \
-	kernel/cpu/isr.h kernel/cpu/pic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/pic.cc --output kernel/cpu/pic.o
+	kernel/cpu/isr.h kernel/cpu/pic.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/cpu/pic.cc --output kernel/cpu/pic.o
 
-kernel/cpu/irq.o: kernel/cpu/irq.cc kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h kernel/cpu/pic.h kernel/smp/bkl.h kernel/smp/ioapic.h kernel/smp/lapic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/irq.cc --output kernel/cpu/irq.o
+kernel/cpu/irq.o: kernel/cpu/irq.cc kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h kernel/cpu/pic.h kernel/smp/bkl.h kernel/smp/ioapic.h kernel/smp/lapic.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/cpu/irq.cc --output kernel/cpu/irq.o
 
 # Symbol-table runtime + (weak) blob fallback. The strong blob lives in
 # the auto-generated kernel/cpu/ksyms_data.o; see the kernel link rule.
-kernel/cpu/ksyms.o: kernel/cpu/ksyms.cc kernel/core/types.h kernel/cpu/ksyms.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/ksyms.cc --output kernel/cpu/ksyms.o
+kernel/cpu/ksyms.o: kernel/cpu/ksyms.cc kernel/core/types.h kernel/cpu/ksyms.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/cpu/ksyms.cc --output kernel/cpu/ksyms.o
 
 # PS/2 keyboard driver
 drivers/keyboard.o: drivers/keyboard.cc drivers/keyboard.h drivers/rtc.h \
 	drivers/serial.h drivers/vga.h kernel/core/kernel.h kernel/core/ports.h \
 	kernel/core/process.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h \
 	kernel/gui/desktop.h kernel/gui/gui.h kernel/lang/shell.h \
-	kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/keyboard.cc --output drivers/keyboard.o
+	kernel/util/calendar.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/keyboard.cc --output drivers/keyboard.o
 
 # Add new rule for timer.o
-drivers/timer.o: drivers/timer.cc drivers/keyboard.h drivers/timer.h kernel/core/kernel.h kernel/core/ports.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/timer.cc --output drivers/timer.o
+drivers/timer.o: drivers/timer.cc drivers/keyboard.h drivers/timer.h kernel/core/kernel.h kernel/core/ports.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/timer.cc --output drivers/timer.o
 
 # Compile the shared integer and graphics math helpers with CupidC.
-kernel/cpu/math.o: kernel/cpu/math.cc kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/cpu/math.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/math.cc --output kernel/cpu/math.o
+kernel/cpu/math.o: kernel/cpu/math.cc kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/cpu/math.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/cpu/math.cc --output kernel/cpu/math.o
 
 # Programmable interval timer driver
 drivers/pit.o: drivers/pit.cc drivers/pit.h kernel/core/ports.h \
-	kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/pit.cc --output drivers/pit.o
+	kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/pit.cc --output drivers/pit.o
 
 # PC speaker driver
 drivers/speaker.o: drivers/speaker.cc drivers/pit.h drivers/speaker.h \
 	drivers/timer.h kernel/core/kernel.h kernel/core/ports.h \
-	kernel/core/types.h kernel/cpu/isr.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/speaker.cc --output drivers/speaker.o
+	kernel/core/types.h kernel/cpu/isr.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/speaker.cc --output drivers/speaker.o
 
 # ATA block-device driver
 drivers/ata.o: drivers/ata.cc drivers/ata.h kernel/core/debug.h \
 	kernel/core/kernel.h kernel/core/ports.h kernel/core/types.h \
-	kernel/cpu/isr.h kernel/fs/blockdev.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/ata.cc --output drivers/ata.o
+	kernel/cpu/isr.h kernel/fs/blockdev.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/ata.cc --output drivers/ata.o
 
 # Kernel command shell
 kernel/lang/shell.o: kernel/lang/shell.cc drivers/keyboard.h drivers/pci.h \
@@ -455,27 +479,35 @@ kernel/lang/shell.o: kernel/lang/shell.cc drivers/keyboard.h drivers/pci.h \
 	kernel/network/sshd.h kernel/smp/bkl.h kernel/smp/percpu.h \
 	kernel/smp/smp.h kernel/usb/usb.h kernel/usb/usb_hc.h \
 	kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h \
-	toolchain/elf32.h toolchain/x86.h kernel/gfx/gfx2d_icons.h \
-	kernel/lang/as_elf.h toolchain/cupidasm.h toolchain/cupidld.h \
-	toolchain/pe32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/shell.cc --output kernel/lang/shell.o
+	toolchain/elf32.h toolchain/x86.h kernel/gfx/gfx2d_icons.h kernel/lang/as_elf.h toolchain/cupidasm.h toolchain/cupidld.h toolchain/pe32.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/shell.cc --output kernel/lang/shell.o
 
 # Add new rule for string.o
-kernel/core/string.o: kernel/core/string.cc kernel/core/string.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/string.cc --output kernel/core/string.o
+kernel/core/string.o: kernel/core/string.cc kernel/core/string.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/core/string.cc --output kernel/core/string.o
 
 # Add new rule for fs.o
-kernel/fs/fs.o: kernel/fs/fs.cc kernel/core/string.h kernel/core/types.h kernel/fs/fs.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fs.cc --output kernel/fs/fs.o
+kernel/fs/fs.o: kernel/fs/fs.cc kernel/core/string.h kernel/core/types.h kernel/fs/fs.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/fs.cc --output kernel/fs/fs.o
 
 # Add new rule for memory.o
-kernel/mm/memory.o: kernel/mm/memory.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/mm/memory.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/memory.cc --output kernel/mm/memory.o
+kernel/mm/memory.o: kernel/mm/memory.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/mm/memory.h kernel/smp/bkl.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/mm/memory.cc --output kernel/mm/memory.o
 
 # PCI configuration space layer
 drivers/pci.o: drivers/pci.cc drivers/pci.h drivers/serial.h \
-	kernel/core/ports.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/pci.cc --output drivers/pci.o
+	kernel/core/ports.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/pci.cc --output drivers/pci.o
 
 # AP trampoline raw binary blob (P5 SMP T8)
 kernel/smp_trampoline.bin: kernel/smp/smp_trampoline.S \
@@ -490,243 +522,363 @@ kernel/smp/smp_trampoline.o: kernel/smp_trampoline.bin \
 
 # Per-CPU data infrastructure (P5 SMP)
 kernel/smp/percpu.o: kernel/smp/percpu.cc drivers/serial.h kernel/core/process.h \
-	kernel/core/types.h kernel/smp/percpu.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/percpu.cc --output kernel/smp/percpu.o
+	kernel/core/types.h kernel/smp/percpu.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/smp/percpu.cc --output kernel/smp/percpu.o
 
 # Local APIC BSP init + timer calibration (P5 SMP)
 kernel/smp/lapic.o: kernel/smp/lapic.cc drivers/serial.h kernel/core/ports.h \
 	kernel/core/types.h kernel/mm/memory.h kernel/smp/lapic.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/lapic.cc --output kernel/smp/lapic.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/smp/lapic.cc --output kernel/smp/lapic.o
 
 # IOAPIC redirection table + 8259 mask (P5 SMP)
-kernel/smp/ioapic.o: kernel/smp/ioapic.cc drivers/serial.h kernel/core/types.h kernel/mm/memory.h kernel/smp/ioapic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/ioapic.cc --output kernel/smp/ioapic.o
+kernel/smp/ioapic.o: kernel/smp/ioapic.cc drivers/serial.h kernel/core/types.h kernel/mm/memory.h kernel/smp/ioapic.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/smp/ioapic.cc --output kernel/smp/ioapic.o
 
 # Big Kernel Lock: recursive ticket spinlock, IRQ-save (P5 T7)
-kernel/smp/bkl.o: kernel/smp/bkl.cc kernel/core/process.h kernel/core/types.h kernel/smp/bkl.h kernel/smp/percpu.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/bkl.cc --output kernel/smp/bkl.o
+kernel/smp/bkl.o: kernel/smp/bkl.cc kernel/core/process.h kernel/core/types.h kernel/smp/bkl.h kernel/smp/percpu.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/smp/bkl.cc --output kernel/smp/bkl.o
 
 # MP tables discovery (P5 SMP)
-kernel/smp/mp_tables.o: kernel/smp/mp_tables.cc kernel/smp/mp_tables.h kernel/smp/ioapic.h kernel/smp/percpu.h kernel/core/process.h kernel/core/types.h drivers/serial.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/mp_tables.cc --output kernel/smp/mp_tables.o
+kernel/smp/mp_tables.o: kernel/smp/mp_tables.cc kernel/smp/mp_tables.h kernel/smp/ioapic.h kernel/smp/percpu.h kernel/core/process.h kernel/core/types.h drivers/serial.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/smp/mp_tables.cc --output kernel/smp/mp_tables.o
 
 # ACPI MADT fallback discovery (P5 SMP)
-kernel/smp/acpi.o: kernel/smp/acpi.cc kernel/smp/acpi.h kernel/smp/mp_tables.h kernel/smp/ioapic.h kernel/smp/percpu.h kernel/core/process.h kernel/core/types.h drivers/serial.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/acpi.cc --output kernel/smp/acpi.o
+kernel/smp/acpi.o: kernel/smp/acpi.cc kernel/smp/acpi.h kernel/smp/mp_tables.h kernel/smp/ioapic.h kernel/smp/percpu.h kernel/core/process.h kernel/core/types.h drivers/serial.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/smp/acpi.cc --output kernel/smp/acpi.o
 
 # SMP discovery orchestration + AP bringup (P5 T9)
 kernel/smp/smp.o: kernel/smp/smp.cc drivers/serial.h kernel/core/process.h \
 	kernel/core/types.h kernel/cpu/fpu.h kernel/cpu/idt.h kernel/cpu/isr.h \
 	kernel/mm/memory.h kernel/smp/acpi.h kernel/smp/bkl.h kernel/smp/ioapic.h \
 	kernel/smp/lapic.h kernel/smp/mp_tables.h kernel/smp/percpu.h kernel/smp/smp.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/smp.cc --output kernel/smp/smp.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/smp/smp.cc --output kernel/smp/smp.o
 
 # NIC interface scaffold + 64-slot lockless RX ring (P6 T1)
-kernel/network/net_if.o: kernel/network/net_if.cc drivers/serial.h kernel/core/types.h kernel/network/arp.h kernel/network/dhcp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/tcp.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/net_if.cc --output kernel/network/net_if.o
+kernel/network/net_if.o: kernel/network/net_if.cc drivers/serial.h kernel/core/types.h kernel/network/arp.h kernel/network/dhcp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/tcp.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/network/net_if.cc --output kernel/network/net_if.o
 
 # ARP: 16-entry cache + blocking resolve + Ethernet dispatch (P6 T6)
-kernel/network/arp.o: kernel/network/arp.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/arp.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/arp.cc --output kernel/network/arp.o
+kernel/network/arp.o: kernel/network/arp.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/arp.h kernel/network/net_if.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/network/arp.cc --output kernel/network/arp.o
 
 # IPv4: parse + build + dispatch to ICMP/UDP/TCP (P6 T7)
-kernel/network/ip.o: kernel/network/ip.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/arp.h kernel/network/icmp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/tcp.h kernel/network/udp.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/ip.cc --output kernel/network/ip.o
+kernel/network/ip.o: kernel/network/ip.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/arp.h kernel/network/icmp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/tcp.h kernel/network/udp.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/network/ip.cc --output kernel/network/ip.o
 
 # ICMP: echo reply (P6 T8)
-kernel/network/icmp.o: kernel/network/icmp.cc drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/icmp.h kernel/network/ip.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/icmp.cc --output kernel/network/icmp.o
+kernel/network/icmp.o: kernel/network/icmp.cc drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/icmp.h kernel/network/ip.h kernel/network/net_if.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/network/icmp.cc --output kernel/network/icmp.o
 
 # UDP: send + recv + pseudo-header checksum (P6 T9)
-kernel/network/udp.o: kernel/network/udp.cc drivers/serial.h kernel/core/types.h kernel/network/dhcp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/udp.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/udp.cc --output kernel/network/udp.o
+kernel/network/udp.o: kernel/network/udp.cc drivers/serial.h kernel/core/types.h kernel/network/dhcp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/udp.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/network/udp.cc --output kernel/network/udp.o
 
 # Socket table + BSD UDP API (P6 T10)
-kernel/network/socket.o: kernel/network/socket.cc drivers/rtc.h drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/isr.h kernel/crypto/sha256.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/mm/memory.h kernel/network/socket.h kernel/network/tcp.h kernel/network/udp.h kernel/smp/bkl.h kernel/tls/tls_ctx.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/socket.cc --output kernel/network/socket.o
+kernel/network/socket.o: kernel/network/socket.cc drivers/rtc.h drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/isr.h kernel/crypto/sha256.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/mm/memory.h kernel/network/socket.h kernel/network/tcp.h kernel/network/udp.h kernel/smp/bkl.h kernel/tls/tls_ctx.h kernel/tls/tls_record.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/network/socket.cc --output kernel/network/socket.o
 
 # TCP client state machine (P6 T13)
-kernel/network/tcp.o: kernel/network/tcp.cc drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/cpu.h kernel/cpu/isr.h kernel/network/ip.h kernel/network/net_if.h kernel/network/socket.h kernel/network/tcp.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/tcp.cc --output kernel/network/tcp.o
+kernel/network/tcp.o: kernel/network/tcp.cc drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/cpu.h kernel/cpu/isr.h kernel/network/ip.h kernel/network/net_if.h kernel/network/socket.h kernel/network/tcp.h kernel/smp/bkl.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/network/tcp.cc --output kernel/network/tcp.o
 
 # DHCP client with static fallback (P6 T11)
-kernel/network/dhcp.o: kernel/network/dhcp.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/dhcp.h kernel/network/ip.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dhcp.cc --output kernel/network/dhcp.o
+kernel/network/dhcp.o: kernel/network/dhcp.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/dhcp.h kernel/network/ip.h kernel/network/net_if.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/network/dhcp.cc --output kernel/network/dhcp.o
 
 # DNS A-record resolver + 16-entry cache (P6 T12)
-kernel/network/dns.o: kernel/network/dns.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/dns.h kernel/network/net_if.h kernel/network/socket.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dns.cc --output kernel/network/dns.o
+kernel/network/dns.o: kernel/network/dns.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/network/dns.h kernel/network/net_if.h kernel/network/socket.h kernel/smp/bkl.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/network/dns.cc --output kernel/network/dns.o
 
-kernel/network/sshd.o: kernel/network/sshd.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/crypto/chacha20.h kernel/crypto/csprng.h kernel/crypto/ecdsa.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/p256.h kernel/crypto/poly1305.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/fs/vfs.h kernel/lang/shell.h kernel/mm/memory.h kernel/network/socket.h kernel/network/sshd.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/network/sshd.cc --output kernel/network/sshd.o
+kernel/network/sshd.o: kernel/network/sshd.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/crypto/chacha20.h kernel/crypto/csprng.h kernel/crypto/ecdsa.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/p256.h kernel/crypto/poly1305.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/fs/vfs.h kernel/lang/shell.h kernel/mm/memory.h kernel/network/socket.h kernel/network/sshd.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/network/sshd.cc --output kernel/network/sshd.o
 
 # RTL8139 NIC driver: PCI probe, reset, RX/TX buffers, MAC read (P6 T3)
 drivers/rtl8139.o: drivers/rtl8139.cc drivers/pci.h drivers/serial.h \
 	kernel/core/ports.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h \
-	kernel/mm/memory.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/rtl8139.cc --output drivers/rtl8139.o
+	kernel/mm/memory.h kernel/network/net_if.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/rtl8139.cc --output drivers/rtl8139.o
 
 # E1000 (Intel 82540EM) NIC driver: MMIO probe, RX/TX rings, MAC read (P6 T15)
-drivers/e1000.o: drivers/e1000.cc drivers/pci.h drivers/serial.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h kernel/network/net_if.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/e1000.cc --output drivers/e1000.o
+drivers/e1000.o: drivers/e1000.cc drivers/pci.h drivers/serial.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h kernel/network/net_if.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/e1000.cc --output drivers/e1000.o
 
 # TLS subsystem: crypto primitives, X.509, handshake state machine.
 # Built phase by phase under kernel/tls/. See plan in
 # /home/frank/.claude/plans/implementy-tls-into-the-breezy-biscuit.md.
-kernel/crypto/chacha20.o: kernel/crypto/chacha20.cc kernel/crypto/chacha20.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/chacha20.cc --output kernel/crypto/chacha20.o
+kernel/crypto/chacha20.o: kernel/crypto/chacha20.cc kernel/crypto/chacha20.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/chacha20.cc --output kernel/crypto/chacha20.o
 
-kernel/crypto/csprng.o: kernel/crypto/csprng.cc kernel/crypto/csprng.h kernel/crypto/chacha20.h kernel/core/types.h drivers/serial.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/csprng.cc --output kernel/crypto/csprng.o
+kernel/crypto/csprng.o: kernel/crypto/csprng.cc kernel/crypto/csprng.h kernel/crypto/chacha20.h kernel/core/types.h drivers/serial.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/csprng.cc --output kernel/crypto/csprng.o
 
-kernel/crypto/sha256.o: kernel/crypto/sha256.cc kernel/crypto/sha256.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/sha256.cc --output kernel/crypto/sha256.o
+kernel/crypto/sha256.o: kernel/crypto/sha256.cc kernel/crypto/sha256.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/sha256.cc --output kernel/crypto/sha256.o
 
-kernel/crypto/sha512.o: kernel/crypto/sha512.cc kernel/crypto/sha512.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/sha512.cc --output kernel/crypto/sha512.o
+kernel/crypto/sha512.o: kernel/crypto/sha512.cc kernel/crypto/sha512.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/sha512.cc --output kernel/crypto/sha512.o
 
-kernel/crypto/hmac.o: kernel/crypto/hmac.cc kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/hmac.cc --output kernel/crypto/hmac.o
+kernel/crypto/hmac.o: kernel/crypto/hmac.cc kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/hmac.cc --output kernel/crypto/hmac.o
 
-kernel/crypto/hkdf.o: kernel/crypto/hkdf.cc kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/hkdf.cc --output kernel/crypto/hkdf.o
+kernel/crypto/hkdf.o: kernel/crypto/hkdf.cc kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/hkdf.cc --output kernel/crypto/hkdf.o
 
-kernel/crypto/ct.o: kernel/crypto/ct.cc kernel/crypto/ct.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ct.cc --output kernel/crypto/ct.o
+kernel/crypto/ct.o: kernel/crypto/ct.cc kernel/crypto/ct.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/ct.cc --output kernel/crypto/ct.o
 
-kernel/crypto/poly1305.o: kernel/crypto/poly1305.cc kernel/crypto/poly1305.h kernel/crypto/ct.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/poly1305.cc --output kernel/crypto/poly1305.o
+kernel/crypto/poly1305.o: kernel/crypto/poly1305.cc kernel/crypto/poly1305.h kernel/crypto/ct.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/poly1305.cc --output kernel/crypto/poly1305.o
 
-kernel/crypto/chacha20poly1305.o: kernel/crypto/chacha20poly1305.cc kernel/crypto/chacha20poly1305.h kernel/crypto/chacha20.h kernel/crypto/poly1305.h kernel/crypto/ct.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/chacha20poly1305.cc --output kernel/crypto/chacha20poly1305.o
+kernel/crypto/chacha20poly1305.o: kernel/crypto/chacha20poly1305.cc kernel/crypto/chacha20poly1305.h kernel/crypto/chacha20.h kernel/crypto/poly1305.h kernel/crypto/ct.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/chacha20poly1305.cc --output kernel/crypto/chacha20poly1305.o
 
-kernel/crypto/aes.o: kernel/crypto/aes.cc kernel/crypto/aes.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/aes.cc --output kernel/crypto/aes.o
+kernel/crypto/aes.o: kernel/crypto/aes.cc kernel/crypto/aes.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/aes.cc --output kernel/crypto/aes.o
 
-kernel/crypto/aes_gcm.o: kernel/crypto/aes_gcm.cc kernel/crypto/aes_gcm.h kernel/crypto/aes.h kernel/crypto/ct.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/aes_gcm.cc --output kernel/crypto/aes_gcm.o
+kernel/crypto/aes_gcm.o: kernel/crypto/aes_gcm.cc kernel/crypto/aes_gcm.h kernel/crypto/aes.h kernel/crypto/ct.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/aes_gcm.cc --output kernel/crypto/aes_gcm.o
 
-kernel/crypto/bigint.o: kernel/crypto/bigint.cc kernel/crypto/bigint.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/bigint.cc --output kernel/crypto/bigint.o
+kernel/crypto/bigint.o: kernel/crypto/bigint.cc kernel/crypto/bigint.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/bigint.cc --output kernel/crypto/bigint.o
 
-kernel/crypto/rsa.o: kernel/crypto/rsa.cc kernel/crypto/rsa.h kernel/crypto/bigint.h kernel/crypto/sha256.h kernel/crypto/ct.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/rsa.cc --output kernel/crypto/rsa.o
+kernel/crypto/rsa.o: kernel/crypto/rsa.cc kernel/crypto/rsa.h kernel/crypto/bigint.h kernel/crypto/sha256.h kernel/crypto/ct.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/rsa.cc --output kernel/crypto/rsa.o
 
-kernel/crypto/x25519.o: kernel/crypto/x25519.cc kernel/crypto/x25519.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x25519.cc --output kernel/crypto/x25519.o
+kernel/crypto/x25519.o: kernel/crypto/x25519.cc kernel/crypto/x25519.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/x25519.cc --output kernel/crypto/x25519.o
 
-kernel/crypto/p256.o: kernel/crypto/p256.cc kernel/crypto/p256.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/p256.cc --output kernel/crypto/p256.o
+kernel/crypto/p256.o: kernel/crypto/p256.cc kernel/crypto/p256.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/p256.cc --output kernel/crypto/p256.o
 
-kernel/crypto/ecdsa.o: kernel/crypto/ecdsa.cc kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/string.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ecdsa.cc --output kernel/crypto/ecdsa.o
+kernel/crypto/ecdsa.o: kernel/crypto/ecdsa.cc kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/core/string.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/ecdsa.cc --output kernel/crypto/ecdsa.o
 
-kernel/crypto/ed25519.o: kernel/crypto/ed25519.cc kernel/crypto/ed25519.h kernel/crypto/sha512.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ed25519.cc --output kernel/crypto/ed25519.o
+kernel/crypto/ed25519.o: kernel/crypto/ed25519.cc kernel/crypto/ed25519.h kernel/crypto/sha512.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/ed25519.cc --output kernel/crypto/ed25519.o
 
-kernel/crypto/asn1.o: kernel/crypto/asn1.cc kernel/crypto/asn1.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/asn1.cc --output kernel/crypto/asn1.o
+kernel/crypto/asn1.o: kernel/crypto/asn1.cc kernel/crypto/asn1.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/asn1.cc --output kernel/crypto/asn1.o
 
-kernel/crypto/x509.o: kernel/crypto/x509.cc kernel/crypto/x509.h kernel/crypto/asn1.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509.cc --output kernel/crypto/x509.o
+kernel/crypto/x509.o: kernel/crypto/x509.cc kernel/crypto/x509.h kernel/crypto/asn1.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/x509.cc --output kernel/crypto/x509.o
 
-kernel/crypto/x509_chain.o: kernel/crypto/x509_chain.cc kernel/crypto/x509_chain.h kernel/crypto/x509.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/rsa.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/asn1.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509_chain.cc --output kernel/crypto/x509_chain.o
+kernel/crypto/x509_chain.o: kernel/crypto/x509_chain.cc kernel/crypto/x509_chain.h kernel/crypto/x509.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/rsa.h kernel/crypto/p256.h kernel/crypto/ecdsa.h kernel/crypto/asn1.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/crypto/x509_chain.cc --output kernel/crypto/x509_chain.o
 
-kernel/tls/tls_ca_bundle.o: kernel/tls/tls_ca_bundle.cc kernel/core/types.h kernel/crypto/x509.h kernel/crypto/x509_chain.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ca_bundle.cc --output kernel/tls/tls_ca_bundle.o
+kernel/tls/tls_ca_bundle.o: kernel/tls/tls_ca_bundle.cc kernel/core/types.h kernel/crypto/x509.h kernel/crypto/x509_chain.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/tls/tls_ca_bundle.cc --output kernel/tls/tls_ca_bundle.o
 
-kernel/tls/tls_record.o: kernel/tls/tls_record.cc kernel/core/types.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/chacha20poly1305.h kernel/crypto/ct.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_record.cc --output kernel/tls/tls_record.o
+kernel/tls/tls_record.o: kernel/tls/tls_record.cc kernel/core/types.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/chacha20poly1305.h kernel/crypto/ct.h kernel/tls/tls_record.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/tls/tls_record.cc --output kernel/tls/tls_record.o
 
-kernel/tls/tls_kdf.o: kernel/tls/tls_kdf.cc kernel/core/types.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/tls/tls_kdf.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_kdf.cc --output kernel/tls/tls_kdf.o
+kernel/tls/tls_kdf.o: kernel/tls/tls_kdf.cc kernel/core/types.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/sha256.h kernel/tls/tls_kdf.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/tls/tls_kdf.cc --output kernel/tls/tls_kdf.o
 
-kernel/tls/tls_ctx.o: kernel/tls/tls_ctx.cc kernel/core/types.h kernel/crypto/csprng.h kernel/crypto/ct.h kernel/crypto/p256.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls_ctx.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ctx.cc --output kernel/tls/tls_ctx.o
+kernel/tls/tls_ctx.o: kernel/tls/tls_ctx.cc kernel/core/types.h kernel/crypto/csprng.h kernel/crypto/ct.h kernel/crypto/p256.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls_ctx.h kernel/tls/tls_record.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/tls/tls_ctx.cc --output kernel/tls/tls_ctx.o
 
-kernel/tls/tls_handshake.o: kernel/tls/tls_handshake.cc drivers/serial.h kernel/core/types.h kernel/crypto/asn1.h kernel/crypto/csprng.h kernel/crypto/ct.h kernel/crypto/ecdsa.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/p256.h kernel/crypto/rsa.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls12_handshake.h kernel/tls/tls_ctx.h kernel/tls/tls_kdf.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_handshake.cc --output kernel/tls/tls_handshake.o
+kernel/tls/tls_handshake.o: kernel/tls/tls_handshake.cc drivers/serial.h kernel/core/types.h kernel/crypto/asn1.h kernel/crypto/csprng.h kernel/crypto/ct.h kernel/crypto/ecdsa.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/p256.h kernel/crypto/rsa.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls12_handshake.h kernel/tls/tls_ctx.h kernel/tls/tls_kdf.h kernel/tls/tls_record.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/tls/tls_handshake.cc --output kernel/tls/tls_handshake.o
 
-kernel/tls/tls12_handshake.o: kernel/tls/tls12_handshake.cc drivers/serial.h kernel/core/types.h kernel/crypto/asn1.h kernel/crypto/ct.h kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/crypto/rsa.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls12_handshake.h kernel/tls/tls_ctx.h kernel/tls/tls_kdf.h kernel/tls/tls_record.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls12_handshake.cc --output kernel/tls/tls12_handshake.o
+kernel/tls/tls12_handshake.o: kernel/tls/tls12_handshake.cc drivers/serial.h kernel/core/types.h kernel/crypto/asn1.h kernel/crypto/ct.h kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/crypto/rsa.h kernel/crypto/sha256.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls12_handshake.h kernel/tls/tls_ctx.h kernel/tls/tls_kdf.h kernel/tls/tls_record.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/tls/tls12_handshake.cc --output kernel/tls/tls12_handshake.o
 
 # Optional auto-generated bundle blob; only built if the file exists
 # (run tools/fetch_ca_bundle.sh to populate it).
 ifneq (,$(wildcard kernel/tls/tls_ca_bundle_data.cc))
 KERNEL_OBJS += kernel/tls/tls_ca_bundle_data.o
-kernel/tls/tls_ca_bundle_data.o: kernel/tls/tls_ca_bundle_data.cc kernel/core/types.h kernel/crypto/x509.h kernel/crypto/x509_chain.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ca_bundle_data.cc --output kernel/tls/tls_ca_bundle_data.o
+kernel/tls/tls_ca_bundle_data.o: kernel/tls/tls_ca_bundle_data.cc kernel/core/types.h kernel/crypto/x509.h kernel/crypto/x509_chain.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/tls/tls_ca_bundle_data.cc --output kernel/tls/tls_ca_bundle_data.o
 endif
 
-kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.cc drivers/serial.h kernel/core/panic.h kernel/core/types.h kernel/cpu/isr.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/asn1.h kernel/crypto/bigint.h kernel/crypto/chacha20poly1305.h kernel/crypto/ecdsa.h kernel/crypto/ed25519.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/p256.h kernel/crypto/rsa.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls_selftest.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_selftest.cc --output kernel/tls/tls_selftest.o
+kernel/tls/tls_selftest.o: kernel/tls/tls_selftest.cc drivers/serial.h kernel/core/panic.h kernel/core/types.h kernel/cpu/isr.h kernel/crypto/aes.h kernel/crypto/aes_gcm.h kernel/crypto/asn1.h kernel/crypto/bigint.h kernel/crypto/chacha20poly1305.h kernel/crypto/ecdsa.h kernel/crypto/ed25519.h kernel/crypto/hkdf.h kernel/crypto/hmac.h kernel/crypto/p256.h kernel/crypto/rsa.h kernel/crypto/sha256.h kernel/crypto/sha512.h kernel/crypto/x25519.h kernel/crypto/x509.h kernel/crypto/x509_chain.h kernel/tls/tls_selftest.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/tls/tls_selftest.cc --output kernel/tls/tls_selftest.o
 
 # USB core scaffold
-kernel/usb/usb.o: kernel/usb/usb.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb.cc --output kernel/usb/usb.o
+kernel/usb/usb.o: kernel/usb/usb.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/usb/usb.cc --output kernel/usb/usb.o
 
 # UHCI host controller init + port ops
 kernel/usb/uhci.o: kernel/usb/uhci.cc drivers/pci.h drivers/serial.h \
 	drivers/timer.h kernel/core/kernel.h kernel/core/panic.h \
 	kernel/core/ports.h kernel/core/types.h kernel/cpu/irq.h \
 	kernel/cpu/isr.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/uhci.cc --output kernel/usb/uhci.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/usb/uhci.cc --output kernel/usb/uhci.o
 
 # EHCI host controller init + BIOS handoff + port ops
 kernel/usb/ehci.o: kernel/usb/ehci.cc drivers/pci.h drivers/serial.h \
 	drivers/timer.h kernel/core/kernel.h kernel/core/panic.h \
 	kernel/core/ports.h kernel/core/types.h kernel/cpu/irq.h \
 	kernel/cpu/isr.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/ehci.cc --output kernel/usb/ehci.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/usb/ehci.cc --output kernel/usb/ehci.o
 
 # USB HID boot-protocol keyboard driver
-kernel/usb/usb_hid.o: kernel/usb/usb_hid.cc drivers/keyboard.h drivers/mouse.h drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_hid.cc --output kernel/usb/usb_hid.o
+kernel/usb/usb_hid.o: kernel/usb/usb_hid.cc drivers/keyboard.h drivers/mouse.h drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/usb/usb_hid.cc --output kernel/usb/usb_hid.o
 
 # USB hub class driver (recursive enumeration + TT routing)
-kernel/usb/usb_hub.o: kernel/usb/usb_hub.cc drivers/serial.h kernel/core/types.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_hub.cc --output kernel/usb/usb_hub.o
+kernel/usb/usb_hub.o: kernel/usb/usb_hub.cc drivers/serial.h kernel/core/types.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/usb/usb_hub.cc --output kernel/usb/usb_hub.o
 
 # USB mass storage class driver (BBB + SCSI)
-kernel/usb/usb_msc.o: kernel/usb/usb_msc.cc drivers/serial.h kernel/core/types.h kernel/fs/blockdev.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_msc.cc --output kernel/usb/usb_msc.o
+kernel/usb/usb_msc.o: kernel/usb/usb_msc.cc drivers/serial.h kernel/core/types.h kernel/fs/blockdev.h kernel/mm/memory.h kernel/usb/usb.h kernel/usb/usb_hc.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/usb/usb_msc.cc --output kernel/usb/usb_msc.o
 
 # AC97 audio: BDL DMA, IRQ, and smoke helper
 kernel/audio/ac97.o: kernel/audio/ac97.cc drivers/pci.h drivers/serial.h \
 	kernel/audio/ac97.h kernel/core/kernel.h kernel/core/ports.h \
 	kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/mm/memory.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/ac97.cc --output kernel/audio/ac97.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/audio/ac97.cc --output kernel/audio/ac97.o
 
 # Mixer — 16-slot s16 stereo software mixer
-kernel/audio/mixer.o: kernel/audio/mixer.cc kernel/audio/mixer.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mixer.cc --output kernel/audio/mixer.o
+kernel/audio/mixer.o: kernel/audio/mixer.cc kernel/audio/mixer.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/audio/mixer.cc --output kernel/audio/mixer.o
 
 # Nuked OPL3 emulator, vendored LGPL-2.1 and compiled by checked CupidC
 kernel/audio/nuked_opl3.o: kernel/audio/nuked_opl3.cc \
 	kernel/audio/nuked_opl3.h kernel/core/string.h kernel/core/types.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/nuked_opl3.cc --output kernel/audio/nuked_opl3.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/audio/nuked_opl3.cc --output kernel/audio/nuked_opl3.o
 
 # Vendored GPL-2 mus2midi and memio sources compiled by checked CupidC
-kernel/audio/memio.o: kernel/audio/memio.cc kernel/audio/memio.h kernel/core/string.h kernel/core/types.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/memio.cc --output kernel/audio/memio.o
+kernel/audio/memio.o: kernel/audio/memio.cc kernel/audio/memio.h kernel/core/string.h kernel/core/types.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/audio/memio.cc --output kernel/audio/memio.o
 
-kernel/audio/mus2midi.o: kernel/audio/mus2midi.cc kernel/audio/memio.h kernel/audio/mus2midi.h kernel/core/string.h kernel/core/types.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mus2midi.cc --output kernel/audio/mus2midi.o
+kernel/audio/mus2midi.o: kernel/audio/mus2midi.cc kernel/audio/memio.h kernel/audio/mus2midi.h kernel/core/string.h kernel/core/types.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/audio/mus2midi.cc --output kernel/audio/mus2midi.o
 
 # midiopl — MIDI → OPL3 synth (our code; built with strict CFLAGS)
-kernel/audio/midiopl.o: kernel/audio/midiopl.cc drivers/serial.h kernel/audio/midiopl.h kernel/audio/nuked_opl3.h kernel/core/string.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/midiopl.cc --output kernel/audio/midiopl.o
+kernel/audio/midiopl.o: kernel/audio/midiopl.cc drivers/serial.h kernel/audio/midiopl.h kernel/audio/nuked_opl3.h kernel/core/string.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/audio/midiopl.cc --output kernel/audio/midiopl.o
 
 # OPL smoke test — Nuked-OPL3 → mixer → AC97 path verification
-kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.cc drivers/serial.h kernel/audio/ac97.h kernel/audio/mixer.h kernel/audio/nuked_opl3.h kernel/audio/opl_smoke.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/opl_smoke.cc --output kernel/audio/opl_smoke.o
+kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.cc drivers/serial.h kernel/audio/ac97.h kernel/audio/mixer.h kernel/audio/nuked_opl3.h kernel/audio/opl_smoke.h kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/audio/opl_smoke.cc --output kernel/audio/opl_smoke.o
 
 # The wrapper freezes every configured include root. Make tracks that same
 # complete header search space, including headers not selected by this source.
@@ -853,88 +1005,126 @@ $(KERNEL_OBJS) $(BOOTLOADER) $(KERNEL): FORCE
 
 # Add new rule for paging.o
 kernel/mm/paging.o: kernel/mm/paging.cc kernel/core/types.h kernel/mm/memory.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/paging.cc --output kernel/mm/paging.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/mm/paging.cc --output kernel/mm/paging.o
 
 # Add new rule for blockdev.o
-kernel/fs/blockdev.o: kernel/fs/blockdev.cc kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockdev.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockdev.cc --output kernel/fs/blockdev.o
+kernel/fs/blockdev.o: kernel/fs/blockdev.cc kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockdev.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/blockdev.cc --output kernel/fs/blockdev.o
 
 # Add new rule for blockcache.o
-kernel/fs/blockcache.o: kernel/fs/blockcache.cc kernel/core/debug.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/homefs.h kernel/fs/vfs.h kernel/mm/memory.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockcache.cc --output kernel/fs/blockcache.o
+kernel/fs/blockcache.o: kernel/fs/blockcache.cc kernel/core/debug.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/homefs.h kernel/fs/vfs.h kernel/mm/memory.h kernel/smp/bkl.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/blockcache.cc --output kernel/fs/blockcache.o
 
 # Add new rule for fat16.o
-kernel/fs/fat16.o: kernel/fs/fat16.cc drivers/serial.h kernel/core/debug.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_control.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16.cc --output kernel/fs/fat16.o
+kernel/fs/fat16.o: kernel/fs/fat16.cc drivers/serial.h kernel/core/debug.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_control.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/fat16.cc --output kernel/fs/fat16.o
 
 # RTC (Real-Time Clock) driver
 drivers/rtc.o: drivers/rtc.cc drivers/rtc.h drivers/serial.h \
 	kernel/core/kernel.h kernel/core/ports.h kernel/core/types.h \
-	kernel/cpu/isr.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/rtc.cc --output drivers/rtc.o
+	kernel/cpu/isr.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/rtc.cc --output drivers/rtc.o
 
 # Serial port driver
-drivers/serial.o: drivers/serial.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/ports.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/smp/bkl.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/serial.cc --output drivers/serial.o
+drivers/serial.o: drivers/serial.cc drivers/serial.h drivers/timer.h kernel/core/kernel.h kernel/core/ports.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/smp/bkl.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/serial.cc --output drivers/serial.o
 
 # Panic handler
 kernel/core/panic.o: kernel/core/panic.cc drivers/serial.h drivers/timer.h \
 	kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h \
 	kernel/core/types.h kernel/cpu/fpu.h kernel/cpu/isr.h kernel/cpu/ksyms.h \
-	kernel/cpu/math.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/panic.cc --output kernel/core/panic.o
+	kernel/cpu/math.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/core/panic.cc --output kernel/core/panic.o
 
 # Ed line editor
-kernel/gui/ed.o: kernel/gui/ed.cc drivers/keyboard.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fs.h kernel/gui/ed.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ed.cc --output kernel/gui/ed.o
+kernel/gui/ed.o: kernel/gui/ed.cc drivers/keyboard.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/math.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fs.h kernel/gui/ed.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/ed.cc --output kernel/gui/ed.o
 
 # VGA graphics mode driver (no -O2: physical address reads trigger array-bounds)
 drivers/vga.o: drivers/vga.cc drivers/timer.h drivers/vga.h \
 	kernel/core/kernel.h kernel/core/ports.h kernel/core/string.h \
 	kernel/core/types.h kernel/cpu/isr.h kernel/cpu/simd.h \
-	kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/vga.cc --output drivers/vga.o
+	kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/vga.cc --output drivers/vga.o
 
 # PS/2 mouse driver
 drivers/mouse.o: drivers/mouse.cc drivers/mouse.h drivers/serial.h \
 	drivers/vga.h kernel/core/ports.h kernel/core/string.h \
 	kernel/core/types.h kernel/cpu/isr.h kernel/cpu/pic.h \
-	kernel/gfx/graphics.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source drivers/mouse.cc --output drivers/mouse.o
+	kernel/gfx/graphics.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source drivers/mouse.cc --output drivers/mouse.o
 
 # 8x8 bitmap font
-kernel/gfx/font_8x8.o: kernel/gfx/font_8x8.cc kernel/core/types.h kernel/gfx/font_8x8.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/font_8x8.cc --output kernel/gfx/font_8x8.o
+kernel/gfx/font_8x8.o: kernel/gfx/font_8x8.cc kernel/core/types.h kernel/gfx/font_8x8.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/font_8x8.cc --output kernel/gfx/font_8x8.o
 
 # Graphics primitives
-kernel/gfx/graphics.o: kernel/gfx/graphics.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/cpu/simd.h kernel/gfx/font_8x8.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/graphics.cc --output kernel/gfx/graphics.o
+kernel/gfx/graphics.o: kernel/gfx/graphics.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/cpu/simd.h kernel/gfx/font_8x8.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/graphics.cc --output kernel/gfx/graphics.o
 
 # GUI / window manager
-kernel/gui/gui.o: kernel/gui/gui.cc drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/vga.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/mm/memory.h kernel/smp/bkl.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui.cc --output kernel/gui/gui.o
+kernel/gui/gui.o: kernel/gui/gui.cc drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/vga.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/mm/memory.h kernel/smp/bkl.h kernel/util/calendar.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/gui.cc --output kernel/gui/gui.o
 
 # Calendar math and formatting
-kernel/util/calendar.o: kernel/util/calendar.cc drivers/rtc.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/util/calendar.cc --output kernel/util/calendar.o
+kernel/util/calendar.o: kernel/util/calendar.cc drivers/rtc.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/util/calendar.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/util/calendar.cc --output kernel/util/calendar.o
 
 # Desktop shell
-kernel/gui/desktop.o: kernel/gui/desktop.cc drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/app_launch.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/terminal_app.h kernel/gui/ui.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h toolchain/pe32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/desktop.cc --output kernel/gui/desktop.o
+kernel/gui/desktop.o: kernel/gui/desktop.cc drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/app_launch.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/terminal_app.h kernel/gui/ui.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h toolchain/pe32.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/desktop.cc --output kernel/gui/desktop.o
 
-kernel/core/app_launch.o: kernel/core/app_launch.cc kernel/core/app_launch.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/gui/ctxt_image_worker.h kernel/gui/gui.h kernel/gui/terminal_app.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/app_launch.cc --output kernel/core/app_launch.o
+kernel/core/app_launch.o: kernel/core/app_launch.cc kernel/core/app_launch.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/gui/ctxt_image_worker.h kernel/gui/gui.h kernel/gui/terminal_app.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/shell.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/core/app_launch.cc --output kernel/core/app_launch.o
 
 # Terminal application
-kernel/gui/ansi.o: kernel/gui/ansi.cc kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ansi.cc --output kernel/gui/ansi.o
+kernel/gui/ansi.o: kernel/gui/ansi.cc kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/ansi.cc --output kernel/gui/ansi.o
 
-kernel/gui/terminal_app.o: kernel/gui/terminal_app.cc drivers/keyboard.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/gfx/font_8x8.h kernel/gfx/graphics.h kernel/gui/gui.h kernel/gui/terminal_ansi.h kernel/gui/terminal_app.h kernel/lang/shell.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/terminal_app.cc --output kernel/gui/terminal_app.o
+kernel/gui/terminal_app.o: kernel/gui/terminal_app.cc drivers/keyboard.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/gfx/font_8x8.h kernel/gfx/graphics.h kernel/gui/gui.h kernel/gui/terminal_ansi.h kernel/gui/terminal_app.h kernel/lang/shell.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/terminal_app.cc --output kernel/gui/terminal_app.o
 
-kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.cc drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gui/ctxt_image_worker.h kernel/mm/memory.h kernel/network/dns.h kernel/network/socket.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ctxt_image_worker.cc --output kernel/gui/ctxt_image_worker.o
+kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.cc drivers/timer.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gui/ctxt_image_worker.h kernel/mm/memory.h kernel/network/dns.h kernel/network/socket.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/ctxt_image_worker.cc --output kernel/gui/ctxt_image_worker.o
 
 # Process management and round-robin scheduler.
 kernel/core/process.o: kernel/core/process.cc drivers/serial.h drivers/timer.h \
@@ -943,8 +1133,10 @@ kernel/core/process.o: kernel/core/process.cc drivers/serial.h drivers/timer.h \
 	kernel/cpu/simd.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h \
 	kernel/gui/gui.h kernel/lang/shell.h \
 	kernel/mm/memory.h kernel/smp/bkl.h kernel/smp/percpu.h kernel/smp/smp.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/process.cc --output kernel/core/process.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/core/process.cc --output kernel/core/process.o
 
 # Context switch (assembly)
 kernel/core/context_switch.o: kernel/core/context_switch.asm \
@@ -954,89 +1146,137 @@ kernel/core/context_switch.o: kernel/core/context_switch.asm \
 		--source $< --output $@
 
 # Clipboard
-kernel/gui/clipboard.o: kernel/gui/clipboard.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/clipboard.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/clipboard.cc --output kernel/gui/clipboard.o
+kernel/gui/clipboard.o: kernel/gui/clipboard.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/clipboard.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/clipboard.cc --output kernel/gui/clipboard.o
 
 # UI widget toolkit
-kernel/gui/ui.o: kernel/gui/ui.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_themes.h kernel/gui/ui.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ui.cc --output kernel/gui/ui.o
+kernel/gui/ui.o: kernel/gui/ui.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_themes.h kernel/gui/ui.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/ui.cc --output kernel/gui/ui.o
 
 # GodSpeak helper
-kernel/lang/godspeak.o: kernel/lang/godspeak.cc drivers/timer.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/lang/godspeak.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/godspeak.cc --output kernel/lang/godspeak.o
+kernel/lang/godspeak.o: kernel/lang/godspeak.cc drivers/timer.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/lang/godspeak.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/godspeak.cc --output kernel/lang/godspeak.o
 
 kernel/cpu/fpu.o: kernel/cpu/fpu.cc drivers/serial.h kernel/core/panic.h \
 	kernel/core/process.h kernel/core/types.h kernel/cpu/fpu.h kernel/cpu/isr.h \
-	kernel/cpu/libm.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/fpu.cc --output kernel/cpu/fpu.o
+	kernel/cpu/libm.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/cpu/fpu.cc --output kernel/cpu/fpu.o
 
 kernel/cpu/libm.o: kernel/cpu/libm.cc kernel/core/types.h kernel/cpu/libm.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/libm.cc --output kernel/cpu/libm.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/cpu/libm.cc --output kernel/cpu/libm.o
 
-kernel/lang/cupidscript_lex.o: kernel/lang/cupidscript_lex.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_lex.cc --output kernel/lang/cupidscript_lex.o
+kernel/lang/cupidscript_lex.o: kernel/lang/cupidscript_lex.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidscript_lex.cc --output kernel/lang/cupidscript_lex.o
 
-kernel/lang/cupidscript_parse.o: kernel/lang/cupidscript_parse.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_parse.cc --output kernel/lang/cupidscript_parse.o
+kernel/lang/cupidscript_parse.o: kernel/lang/cupidscript_parse.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidscript_parse.cc --output kernel/lang/cupidscript_parse.o
 
-kernel/lang/cupidscript_exec.o: kernel/lang/cupidscript_exec.cc drivers/rtc.h drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fs.h kernel/fs/vfs.h kernel/gui/ansi.h kernel/lang/cupidc.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/lang/dis.h kernel/lang/exec.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_exec.cc --output kernel/lang/cupidscript_exec.o
+kernel/lang/cupidscript_exec.o: kernel/lang/cupidscript_exec.cc drivers/rtc.h drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fs.h kernel/fs/vfs.h kernel/gui/ansi.h kernel/lang/cupidc.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/lang/dis.h kernel/lang/exec.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidscript_exec.cc --output kernel/lang/cupidscript_exec.o
 
-kernel/lang/cupidscript_runtime.o: kernel/lang/cupidscript_runtime.cc drivers/rtc.h drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_runtime.cc --output kernel/lang/cupidscript_runtime.o
+kernel/lang/cupidscript_runtime.o: kernel/lang/cupidscript_runtime.cc drivers/rtc.h drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidscript_runtime.cc --output kernel/lang/cupidscript_runtime.o
 
-kernel/lang/cupidscript_streams.o: kernel/lang/cupidscript_streams.cc drivers/keyboard.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_streams.cc --output kernel/lang/cupidscript_streams.o
+kernel/lang/cupidscript_streams.o: kernel/lang/cupidscript_streams.cc drivers/keyboard.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidscript_streams.cc --output kernel/lang/cupidscript_streams.o
 
-kernel/lang/cupidscript_strings.o: kernel/lang/cupidscript_strings.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_strings.cc --output kernel/lang/cupidscript_strings.o
+kernel/lang/cupidscript_strings.o: kernel/lang/cupidscript_strings.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidscript_strings.cc --output kernel/lang/cupidscript_strings.o
 
-kernel/lang/cupidscript_arrays.o: kernel/lang/cupidscript_arrays.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/lang/cupidscript_arrays.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_arrays.cc --output kernel/lang/cupidscript_arrays.o
+kernel/lang/cupidscript_arrays.o: kernel/lang/cupidscript_arrays.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/lang/cupidscript_arrays.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidscript_arrays.cc --output kernel/lang/cupidscript_arrays.o
 
-kernel/lang/cupidscript_jobs.o: kernel/lang/cupidscript_jobs.cc drivers/serial.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/math.h kernel/lang/cupidscript_jobs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_jobs.cc --output kernel/lang/cupidscript_jobs.o
+kernel/lang/cupidscript_jobs.o: kernel/lang/cupidscript_jobs.cc drivers/serial.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/math.h kernel/lang/cupidscript_jobs.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidscript_jobs.cc --output kernel/lang/cupidscript_jobs.o
 
 # VFS core
-kernel/fs/vfs.o: kernel/fs/vfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs.cc --output kernel/fs/vfs.o
+kernel/fs/vfs.o: kernel/fs/vfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/vfs.cc --output kernel/fs/vfs.o
 
 # RamFS
-kernel/fs/ramfs.o: kernel/fs/ramfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/ramfs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/ramfs.cc --output kernel/fs/ramfs.o
+kernel/fs/ramfs.o: kernel/fs/ramfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/ramfs.h kernel/fs/vfs.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/ramfs.cc --output kernel/fs/ramfs.o
 
 # DevFS
-kernel/fs/devfs.o: kernel/fs/devfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/crypto/csprng.h kernel/fs/devfs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/devfs.cc --output kernel/fs/devfs.o
+kernel/fs/devfs.o: kernel/fs/devfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/crypto/csprng.h kernel/fs/devfs.h kernel/fs/vfs.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/devfs.cc --output kernel/fs/devfs.o
 
 # FAT16 VFS wrapper
-kernel/fs/fat16_vfs.o: kernel/fs/fat16_vfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_control.h kernel/fs/fat16_vfs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16_vfs.cc --output kernel/fs/fat16_vfs.o
+kernel/fs/fat16_vfs.o: kernel/fs/fat16_vfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_control.h kernel/fs/fat16_vfs.h kernel/fs/vfs.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/fat16_vfs.cc --output kernel/fs/fat16_vfs.o
 
-kernel/fs/homefs.o: kernel/fs/homefs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_control.h kernel/fs/homefs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/homefs.cc --output kernel/fs/homefs.o
+kernel/fs/homefs.o: kernel/fs/homefs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_control.h kernel/fs/homefs.h kernel/fs/vfs.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/homefs.cc --output kernel/fs/homefs.o
 
 # File-backed loop block device (for ISO9660 mounting)
-kernel/fs/loopdev.o: kernel/fs/loopdev.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/loopdev.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/loopdev.cc --output kernel/fs/loopdev.o
+kernel/fs/loopdev.o: kernel/fs/loopdev.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/loopdev.h kernel/fs/vfs.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/loopdev.cc --output kernel/fs/loopdev.o
 
 # ISO9660 / ECMA-119 + Rock Ridge parser
-kernel/fs/iso9660.o: kernel/fs/iso9660.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/iso9660.h kernel/fs/vfs.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/iso9660.cc --output kernel/fs/iso9660.o
+kernel/fs/iso9660.o: kernel/fs/iso9660.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/iso9660.h kernel/fs/vfs.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/iso9660.cc --output kernel/fs/iso9660.o
 
-kernel/fs/iso9660_vfs.o: kernel/fs/iso9660_vfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/iso9660.h kernel/fs/iso9660_vfs.h kernel/fs/loopdev.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/iso9660_vfs.cc --output kernel/fs/iso9660_vfs.o
+kernel/fs/iso9660_vfs.o: kernel/fs/iso9660_vfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/iso9660.h kernel/fs/iso9660_vfs.h kernel/fs/loopdev.h kernel/fs/vfs.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/iso9660_vfs.cc --output kernel/fs/iso9660_vfs.o
 
-kernel/mm/swap_disk.o: kernel/mm/swap_disk.cc drivers/serial.h kernel/core/types.h kernel/fs/vfs.h kernel/mm/swap_disk.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/swap_disk.cc --output kernel/mm/swap_disk.o
+kernel/mm/swap_disk.o: kernel/mm/swap_disk.cc drivers/serial.h kernel/core/types.h kernel/fs/vfs.h kernel/mm/swap_disk.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/mm/swap_disk.cc --output kernel/mm/swap_disk.o
 
-kernel/mm/swap.o: kernel/mm/swap.cc drivers/serial.h kernel/core/panic.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/mm/memory.h kernel/mm/swap.h kernel/mm/swap_disk.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/swap.cc --output kernel/mm/swap.o
+kernel/mm/swap.o: kernel/mm/swap.cc drivers/serial.h kernel/core/panic.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/mm/memory.h kernel/mm/swap.h kernel/mm/swap_disk.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/mm/swap.cc --output kernel/mm/swap.o
 
 # Program loader (ELF + CUPD)
-kernel/lang/exec.o: kernel/lang/exec.cc drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/syscall.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/exec.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/exec.cc --output kernel/lang/exec.o
+kernel/lang/exec.o: kernel/lang/exec.cc drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/syscall.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/exec.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/exec.cc --output kernel/lang/exec.o
 
 # Syscall table for ELF programs
 kernel/core/syscall.o: kernel/core/syscall.cc drivers/ata.h drivers/pci.h \
@@ -1048,99 +1288,151 @@ kernel/core/syscall.o: kernel/core/syscall.cc drivers/ata.h drivers/pci.h \
 	kernel/mm/memory.h kernel/network/arp.h kernel/network/dns.h \
 	kernel/network/icmp.h kernel/network/ip.h kernel/network/net_if.h \
 	kernel/network/socket.h kernel/network/udp.h kernel/smp/bkl.h \
-	kernel/smp/lapic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/syscall.cc --output kernel/core/syscall.o
+	kernel/smp/lapic.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/core/syscall.cc --output kernel/core/syscall.o
 
 # BMP image encoding/decoding
-kernel/gfx/bmp.o: kernel/gfx/bmp.cc drivers/serial.h drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/bmp.cc --output kernel/gfx/bmp.o
+kernel/gfx/bmp.o: kernel/gfx/bmp.cc drivers/serial.h drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gfx/bmp.h kernel/gfx/gfx2d.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/bmp.cc --output kernel/gfx/bmp.o
 
-kernel/gfx/png.o: kernel/gfx/png.cc kernel/core/types.h kernel/gfx/png.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/png.cc --output kernel/gfx/png.o
+kernel/gfx/png.o: kernel/gfx/png.cc kernel/core/types.h kernel/gfx/png.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/png.cc --output kernel/gfx/png.o
 
-kernel/gfx/deflate.o: kernel/gfx/deflate.cc kernel/core/types.h kernel/gfx/deflate.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/deflate.cc --output kernel/gfx/deflate.o
+kernel/gfx/deflate.o: kernel/gfx/deflate.cc kernel/core/types.h kernel/gfx/deflate.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/deflate.cc --output kernel/gfx/deflate.o
 
 kernel/gfx/jpeg.o: kernel/gfx/jpeg.cc kernel/core/types.h \
 	kernel/cpu/libm.h kernel/gfx/jpeg.h kernel/mm/memory.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/jpeg.cc --output kernel/gfx/jpeg.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/jpeg.cc --output kernel/gfx/jpeg.o
 
 # TrueType font system: parser, rasterizer, registry/cache.
-kernel/gfx/ttf.o: kernel/gfx/ttf.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gfx/ttf.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/ttf.cc --output kernel/gfx/ttf.o
+kernel/gfx/ttf.o: kernel/gfx/ttf.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gfx/ttf.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/ttf.cc --output kernel/gfx/ttf.o
 
 kernel/gfx/glyph_raster.o: kernel/gfx/glyph_raster.cc \
 	kernel/core/string.h kernel/core/types.h \
 	kernel/gfx/glyph_raster.h kernel/mm/memory.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/glyph_raster.cc --output kernel/gfx/glyph_raster.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/glyph_raster.cc --output kernel/gfx/glyph_raster.o
 
-kernel/gfx/fontsys.o: kernel/gfx/fontsys.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/glyph_raster.h kernel/gfx/ttf.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/fontsys.cc --output kernel/gfx/fontsys.o
+kernel/gfx/fontsys.o: kernel/gfx/fontsys.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/glyph_raster.h kernel/gfx/ttf.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/fontsys.cc --output kernel/gfx/fontsys.o
 
 # VFS helpers (read_all, write_all, read_text, write_text)
-kernel/fs/vfs_helpers.o: kernel/fs/vfs_helpers.cc kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs_helpers.cc --output kernel/fs/vfs_helpers.o
+kernel/fs/vfs_helpers.o: kernel/fs/vfs_helpers.cc kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/fs/vfs_helpers.cc --output kernel/fs/vfs_helpers.o
 
 # 2D graphics library (includes file dialog)
-kernel/gfx/gfx2d.o: kernel/gfx/gfx2d.cc drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/font_8x8.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_handoff.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/ui.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d.cc --output kernel/gfx/gfx2d.o
+kernel/gfx/gfx2d.o: kernel/gfx/gfx2d.cc drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/font_8x8.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_handoff.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/ui.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/gfx2d.cc --output kernel/gfx/gfx2d.o
 
 # gfx2d subsystems
-kernel/gfx/gfx2d_assets.o: kernel/gfx/gfx2d_assets.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gfx/bmp.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h kernel/gfx/jpeg.h kernel/gfx/png.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_assets.cc --output kernel/gfx/gfx2d_assets.o
+kernel/gfx/gfx2d_assets.o: kernel/gfx/gfx2d_assets.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/gfx/bmp.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h kernel/gfx/jpeg.h kernel/gfx/png.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/gfx2d_assets.cc --output kernel/gfx/gfx2d_assets.o
 
-kernel/gfx/gfx2d_transform.o: kernel/gfx/gfx2d_transform.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/math.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h kernel/gfx/gfx2d_transform.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_transform.cc --output kernel/gfx/gfx2d_transform.o
+kernel/gfx/gfx2d_transform.o: kernel/gfx/gfx2d_transform.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/math.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h kernel/gfx/gfx2d_transform.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/gfx2d_transform.cc --output kernel/gfx/gfx2d_transform.o
 
-kernel/gfx/gfx2d_effects.o: kernel/gfx/gfx2d_effects.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/simd.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_effects.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_effects.cc --output kernel/gfx/gfx2d_effects.o
+kernel/gfx/gfx2d_effects.o: kernel/gfx/gfx2d_effects.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/simd.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_effects.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/gfx2d_effects.cc --output kernel/gfx/gfx2d_effects.o
 
 # Desktop icon system
-kernel/gfx/gfx2d_icons.o: kernel/gfx/gfx2d_icons.cc drivers/serial.h kernel/core/app_launch.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_icons.cc --output kernel/gfx/gfx2d_icons.o
+kernel/gfx/gfx2d_icons.o: kernel/gfx/gfx2d_icons.cc drivers/serial.h kernel/core/app_launch.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gfx/gfx2d_icons.cc --output kernel/gfx/gfx2d_icons.o
 
 # GUI subsystems
-kernel/gui/gui_widgets.o: kernel/gui/gui_widgets.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/cpu/math.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/ui.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_widgets.cc --output kernel/gui/gui_widgets.o
+kernel/gui/gui_widgets.o: kernel/gui/gui_widgets.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/cpu/math.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h kernel/gui/ui.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/gui_widgets.cc --output kernel/gui/gui_widgets.o
 
-kernel/gui/gui_containers.o: kernel/gui/gui_containers.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_containers.h kernel/gui/gui_themes.h kernel/gui/ui.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_containers.cc --output kernel/gui/gui_containers.o
+kernel/gui/gui_containers.o: kernel/gui/gui_containers.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_containers.h kernel/gui/gui_themes.h kernel/gui/ui.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/gui_containers.cc --output kernel/gui/gui_containers.o
 
-kernel/gui/gui_menus.o: kernel/gui/gui_menus.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_menus.h kernel/gui/gui_themes.h kernel/gui/ui.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_menus.cc --output kernel/gui/gui_menus.o
+kernel/gui/gui_menus.o: kernel/gui/gui_menus.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui_menus.h kernel/gui/gui_themes.h kernel/gui/ui.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/gui_menus.cc --output kernel/gui/gui_menus.o
 
-kernel/gui/gui_events.o: kernel/gui/gui_events.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui.h kernel/gui/gui_events.h kernel/gui/ui.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_events.cc --output kernel/gui/gui_events.o
+kernel/gui/gui_events.o: kernel/gui/gui_events.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui.h kernel/gui/gui_events.h kernel/gui/ui.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/gui_events.cc --output kernel/gui/gui_events.o
 
 kernel/gui/gui_themes.o: kernel/gui/gui_themes.cc drivers/rtc.h drivers/vga.h \
 	kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h \
 	kernel/gfx/gfx2d.h kernel/gui/desktop.h kernel/gui/gui_themes.h \
-	kernel/mm/memory.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_themes.cc --output kernel/gui/gui_themes.o
+	kernel/mm/memory.h kernel/util/calendar.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/gui/gui_themes.cc --output kernel/gui/gui_themes.o
 
 # CupidC compiler
-toolchain/ctool.o: toolchain/ctool.cc toolchain/ctool.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/ctool.cc --output toolchain/ctool.o
+toolchain/ctool.o: toolchain/ctool.cc toolchain/ctool.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source toolchain/ctool.cc --output toolchain/ctool.o
 
-toolchain/elf32.o: toolchain/elf32.cc toolchain/ctool.h toolchain/elf32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/elf32.cc --output toolchain/elf32.o
+toolchain/elf32.o: toolchain/elf32.cc toolchain/ctool.h toolchain/elf32.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source toolchain/elf32.cc --output toolchain/elf32.o
 
-toolchain/x86.o: toolchain/x86.cc toolchain/ctool.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/x86.cc --output toolchain/x86.o
+toolchain/x86.o: toolchain/x86.cc toolchain/ctool.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source toolchain/x86.cc --output toolchain/x86.o
 
-toolchain/cupiddis.o: toolchain/cupiddis.cc toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/pe32_impl.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupiddis.cc --output toolchain/cupiddis.o
+toolchain/cupiddis.o: toolchain/cupiddis.cc toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/pe32_impl.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source toolchain/cupiddis.cc --output toolchain/cupiddis.o
 
-toolchain/cupidasm.o: toolchain/cupidasm.cc toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidasm.cc --output toolchain/cupidasm.o
+toolchain/cupidasm.o: toolchain/cupidasm.cc toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source toolchain/cupidasm.cc --output toolchain/cupidasm.o
 
-toolchain/cupidld.o: toolchain/cupidld.cc toolchain/ctool.h toolchain/cupidld.h toolchain/elf32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidld.cc --output toolchain/cupidld.o
+toolchain/cupidld.o: toolchain/cupidld.cc toolchain/ctool.h toolchain/cupidld.h toolchain/elf32.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source toolchain/cupidld.cc --output toolchain/cupidld.o
 
-kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.cc drivers/serial.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/lang/ctool_kernel.h kernel/lang/dis.h kernel/mm/memory.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ctool_kernel.cc --output kernel/lang/ctool_kernel.o
+kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.cc drivers/serial.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/lang/ctool_kernel.h kernel/lang/dis.h kernel/mm/memory.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/ctool_kernel.cc --output kernel/lang/ctool_kernel.o
 
 kernel/lang/cupidc.o: kernel/lang/cupidc.cc drivers/ata.h drivers/keyboard.h \
 	drivers/mouse.h drivers/pci.h drivers/pit.h drivers/rtc.h \
@@ -1173,23 +1465,35 @@ kernel/lang/cupidc.o: kernel/lang/cupidc.cc drivers/ata.h drivers/keyboard.h \
 	kernel/usb/usb.h kernel/usb/usb_hc.h kernel/util/calendar.h \
 	toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h \
 	toolchain/x86.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc.cc --output kernel/lang/cupidc.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidc.cc --output kernel/lang/cupidc.o
 
-kernel/lang/cupidc_string.o: kernel/lang/cupidc_string.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc_string.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_string.cc --output kernel/lang/cupidc_string.o
+kernel/lang/cupidc_string.o: kernel/lang/cupidc_string.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc_string.h kernel/mm/memory.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidc_string.cc --output kernel/lang/cupidc_string.o
 
-kernel/lang/cupidc_lex.o: kernel/lang/cupidc_lex.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_lex.cc --output kernel/lang/cupidc_lex.o
+kernel/lang/cupidc_lex.o: kernel/lang/cupidc_lex.cc kernel/core/string.h kernel/core/types.h kernel/lang/cupidc.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidc_lex.cc --output kernel/lang/cupidc_lex.o
 
-kernel/lang/cupidc_parse.o: kernel/lang/cupidc_parse.cc drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/lang/cupidc.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_parse.cc --output kernel/lang/cupidc_parse.o
+kernel/lang/cupidc_parse.o: kernel/lang/cupidc_parse.cc drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/lang/cupidc.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidc_parse.cc --output kernel/lang/cupidc_parse.o
 
-kernel/lang/cupidc_elf.o: kernel/lang/cupidc_elf.cc drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/exec.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_elf.cc --output kernel/lang/cupidc_elf.o
+kernel/lang/cupidc_elf.o: kernel/lang/cupidc_elf.cc drivers/serial.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/exec.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/cupidc_elf.cc --output kernel/lang/cupidc_elf.o
 
-kernel/lang/ssh_io.o: kernel/lang/ssh_io.cc drivers/keyboard.h drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/gui/gui.h kernel/gui/terminal_app.h kernel/lang/shell.h kernel/lang/ssh_io.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ssh_io.cc --output kernel/lang/ssh_io.o
+kernel/lang/ssh_io.o: kernel/lang/ssh_io.cc drivers/keyboard.h drivers/serial.h kernel/core/kernel.h kernel/core/process.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/crypto/ecdsa.h kernel/crypto/p256.h kernel/gui/gui.h kernel/gui/terminal_app.h kernel/lang/shell.h kernel/lang/ssh_io.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/ssh_io.cc --output kernel/lang/ssh_io.o
 
 # CupidASM assembler
 kernel/lang/as.o: kernel/lang/as.cc drivers/ata.h drivers/keyboard.h \
@@ -1217,14 +1521,20 @@ kernel/lang/as.o: kernel/lang/as.cc drivers/ata.h drivers/keyboard.h \
 	kernel/usb/usb.h kernel/usb/usb_hc.h kernel/util/calendar.h \
 	toolchain/ctool.h toolchain/cupidasm.h toolchain/cupiddis.h \
 	toolchain/cupidld.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h \
-	$(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as.cc --output kernel/lang/as.o
+	Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/as.cc --output kernel/lang/as.o
 
-kernel/lang/as_elf.o: kernel/lang/as_elf.cc kernel/lang/as_elf.h toolchain/ctool.h toolchain/cupidasm.h toolchain/cupidld.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as_elf.cc --output kernel/lang/as_elf.o
+kernel/lang/as_elf.o: kernel/lang/as_elf.cc kernel/lang/as_elf.h toolchain/ctool.h toolchain/cupidasm.h toolchain/cupidld.h toolchain/elf32.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/as_elf.cc --output kernel/lang/as_elf.o
 
-kernel/lang/dis.o: kernel/lang/dis.cc kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/ctool_kernel.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/dis.cc --output kernel/lang/dis.o
+kernel/lang/dis.o: kernel/lang/dis.cc kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/ctool_kernel.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/pe32.h toolchain/x86.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/lang/dis.cc --output kernel/lang/dis.o
 
 # Auto-generate browser CSS data tables from Blink .in files.
 # Produces gen_css_properties.h, gen_css_keywords.h, gen_media_features.h
@@ -1463,8 +1773,10 @@ kernel/cpu/ksyms_data.cc: kernel/kernel.elf.pass1 Makefile \
 		--source $< --output $@
 
 kernel/cpu/ksyms_data.o: kernel/cpu/ksyms_data.cc kernel/cpu/ksyms.h \
-	kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/ksyms_data.cc --output kernel/cpu/ksyms_data.o
+	kernel/core/types.h Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-kernel \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/cpu/ksyms_data.cc --output kernel/cpu/ksyms_data.o
 
 kernel/kernel.elf: $(KERNEL_OBJS) kernel/cpu/ksyms_data.o link.ld \
 	$(CUPIDLD_INPUTS)

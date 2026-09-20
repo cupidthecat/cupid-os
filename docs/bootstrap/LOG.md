@@ -36677,3 +36677,345 @@ helper encountered `OutOfMemoryException`. The user had authorized stopping
 the affected RuntimeBroker. After verifying its name and memory, only that
 process was stopped. WSL and the identity check then succeeded. No repository
 or test contract changed to accommodate the host failure.
+
+## 2026-09-20: promote closed compilation and adopt the kernel recipes
+
+Source checkpoint `9d2529a718672edcd970f24960535db6ddbde5e4` was committed and pushed
+with the complete 157-source captures. The clean native Windows proof ran in
+`.worktrees/p157-9d2529a7`; Linux used a Git archive on native storage at
+`/home/frank/cupid-proof-9d2529a7`. Both public bootstrap commands passed.
+Stage three and four match all 32 Windows and 29 Linux artifact pairs. The
+behavior matrices pass 24/7/29 and 36/7/42 failure/help/success groups,
+respectively, including closed compilation through each generation's own
+complete six-tool seed.
+
+Both reports bind all 59 source inputs to snapshot
+`bb4f598b2f72140d82d01fbfdedc14e4c774965d08c155ca848596daf3aa054f`. Independent checking compares
+every source size, hash, and byte stream with the commit and live source,
+recomputes the snapshot, verifies the exact native build plans and parent
+roles, checks complete stage-two/three/four file membership and metadata,
+validates ELF32 and PE32 images, and compares stage-three/four bytes. It also
+checks each reported initial-seed comparison. CupidC and CupidBuild change;
+the other four tools remain byte-equal to the previous cohort on each host.
+
+Review tightened the local promotion script before use: it previously trusted
+reported membership/counts and snapshot digests, omitted some stage metadata
+and executable checks, and copied the Windows plan parent's revision from
+the execution role. Fourteen synthetic checks cover two valid report shapes
+and twelve mutations. A private proposed seed pair passes the proposed
+verifier before any tracked writes; live sources and destinations are checked
+again before application. Both the real dry run and application passed.
+
+The new manifests have SHA-256 `30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e`
+for Linux and `6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a` for Windows.
+Their parent pair remains `16a86f5b`. The twelve exact seed-size rows were
+checked; only CupidC and CupidBuild sizes change on each host. Native parent
+readers retain the adjacent `0232cb57` and `16a86f5b` identities from ADR 0391.
+No compatibility window was broadened during promotion.
+
+All 157 Make rules now call the typed checked transaction with complete input,
+Makefile, and seed dependencies. The regenerated audit reports 354 CupidBuild
+and 98 Python participations across the same 452 transforms. Source approval,
+compiler flags, output binding, profile ordering, and generated-symbol timeout
+remain unchanged. Every kernel root already uses `.cc`.
+
+The prepared handoff review found four comment encoding changes and two
+validation gaps: object timestamps were recorded without being enforced, and
+an alternate-Makefile option could describe a different configuration from the
+one executed. The comments were restored exactly, timestamp checks gained
+independent byte and timestamp negative tests, and the alternate option was
+removed. Linux timeout cleanup now kills the owned group after its grace
+period while retaining the unreaped leader; a regression covers a child that
+ignores termination after its leader exits. Focused validator tests pass nine
+on Linux and eight on Windows with one Linux-only skip. Both reviewers cleared
+the repaired delta. The prospective ADR is 0393.
+
+The applied handoff, wrapper, and validator suite passes 48 tests in 112.731
+seconds, with one Linux-only skip on Windows. The new promoted-compiler test
+passes in 42.945 seconds: both native and promoted coordinators compile a
+closed fixture, preserve unchanged timestamps, and reject a missing header
+without changing the old object. It replaces the obsolete assumption that
+the checked compiler lacks bundle support. The first production build was
+incorrectly overlapped with wrapper tests in the same checkout. Their temporary
+directory changes triggered the strict profile-discovery check, which stopped
+publication. After the tests and audit finished, the build was restarted
+separately. The directory policy was not weakened.
+
+The first 182-test promotion regression run completed in 406.963 seconds with
+one failure: the frozen-seed preservation test hard-coded the preceding
+compiler hash. The test now retains the original compiler bytes before capture
+and requires exact equality after the live compiler and manifest are changed.
+Seed verification still authenticates the initial cohort against the promoted
+identities. The focused retry passes in 0.150 seconds. The complete Windows retry
+passes all 182 tests in 455.983 seconds. The two full fixed-point methods were
+excluded from this regression invocation because their clean public-command
+proofs had already passed independently on both hosts.
+
+The Linux handoff tests initially stopped while GCC built the optional host
+oracle with `-Werror=maybe-uninitialized` in the existing floating-update IR
+code. The earlier Linux source checks used `CC=clang`. Repeating that same
+oracle configuration without changing source or warning policy passes all 13
+promoted-compiler, production-rule, and validator tests in 63.567 seconds.
+The Cupid-built fixed point and production compiler paths do not use that
+host oracle. The failed and passing logs remain in the separate Linux
+regression checkout.
+
+A documentation review found additional current-status blocks in the long
+manual that still named the preceding pair and counts. They were corrected
+before Windows wrapped that asset. Linux had already wrapped its earlier
+text, so its single manual object was refreshed before the kernel link. Both
+build trees now use the same 49,045-byte manual, 315 bytes larger than the
+committed source checkpoint. Final ELF-section and raw-size measurements
+remain required; no kernel-size allowance was widened in advance.
+
+Replacement RuntimeBroker processes also grew during production validation.
+Only the affected processes were stopped under the existing authorization:
+PID 1072 held 6,864,084,992 private bytes, and PID 9800 later held
+5,919,830,016. Other RuntimeBroker processes were left running. The Linux and
+Windows jobs continued without another WSL launch failure.
+
+RuntimeBroker PID 20620 later reached 7,740,882,944 private bytes. Its name
+and allocation were verified before stopping that affected replacement under
+the same authorization. The production jobs continued.
+
+The final documentation sweep corrected older current-status tables in the
+capability matrix and host inventory, including manifest hashes, behavior
+counts, and compiler coordination totals. Historical proof records retain
+their original results and are labelled as earlier checkpoints.
+
+The full Linux build-graph suite ran 121 tests in 1,018.062 seconds; 120
+passed. One source-inventory expectation still required 6,884 `sizeof`
+occurrences in 179 files, while the checked source audit already recorded
+6,895 in the same 179 files. The test now agrees with the audited source
+checkpoint; the inventory calculation and drift rejection remain unchanged.
+The affected test is rerun below.
+
+The native Linux kernel build passes. Relative to the retained source
+checkpoint, `.data` grows from 4,806,880 to 4,807,192 bytes; every other ELF
+section size stays unchanged. The 315-byte manual text growth becomes a
+312-byte linked-data increase after layout alignment. Pass one remains
+9,650,508 bytes; the final ELF grows by one 4,096-byte alignment block to
+9,781,580 bytes; the raw kernel is 9,552,000 bytes. The exact size policy
+changes only the final ELF and raw-kernel rows, using these measured values.
+The Windows and Linux pass-one and final ELFs are independently byte-equal.
+The Windows raw publication and full image/replay checks are still recorded
+separately below.
+
+The first focused inventory retry reached a second stale assertion after
+71.444 seconds: it counted only Python-coordinated roots but expected all 243.
+The test now requires all 243 checked roots, exactly 157 native roots matching
+the closure inventory, 86 Python roots, and disjoint ownership. Its shell
+closure also gains the five headers added at the source checkpoint, in the
+original Make prerequisite order. The next retry ran the complete method in
+215.744 seconds and isolated that ordering correction. No graph or production
+rule changed during these test repairs. All 14 exact size-policy tests pass
+against the measured policy in 2.269 seconds.
+
+Two further affected RuntimeBroker replacements were stopped after individual
+name and allocation checks: PID 21260 held 5,115,387,904 private bytes and
+PID 24092 held 4,978,417,664. The same authorization applied; other processes
+were untouched.
+
+The corrected inventory method passes in 255.896 seconds, including its
+manifest-drift rejection cases. Combined with the other 120 passing methods
+in the full run, this resolves that suite's failures. The full invocation
+itself remains recorded as failed; the log does not relabel it as a clean
+121-test pass. The final test additionally checks the exact native-root set
+and the 157/86 coordination split.
+
+The Windows kernel build also passes. Independent comparison finds identical
+bytes for both linked ELFs and the raw kernel on the two hosts:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,650,508 | `b6f3795752bd296bb47992922a750073277c025dfa8e5959d66209c3e0f8d5f6` |
+| `kernel/kernel.elf` | 9,781,580 | `0a9a168aefbf35221bf4d435ea30e078ddaa4d46940406cad49b18d9dcfaa183` |
+| `kernel/kernel.bin` | 9,552,000 | `5bcbc558ffb438227c96b89522a875daffdeaf1c92be93fd67f0eb62205fb418` |
+
+The final audit is regenerated after the measured size-policy update. The
+active source and feature totals remain 748 and 255; native compiler
+coordination changes participation to 354 CupidBuild and 98 Python across
+452 transforms. The in-tree manual stays frozen at 49,045 bytes for the
+image and runtime checks.
+
+Final audit regeneration and `--check` both pass after the policy update.
+The final spec review finds no new implementation blocker: all twelve seed
+images match their manifests, the source inventory count is checked against
+both audits, the 243-root split is complete, and the shell dependencies keep
+Make order. The standards review finds no hard implementation violation. Its
+remaining documentation findings were old passages labelled active/current;
+their proof counts, ADR references, and historical labels are corrected.
+Production replay and private runtime acceptance remain separate commit checks.
+
+The neighboring Doom and ISO production suites pass 48 tests per host. Linux
+finishes in 94.027 seconds with one NTFS-junction skip; Windows covers that
+case and skips two POSIX-only cases. Its first run reports success in
+170.575 seconds, but PowerShell returns an inconsistent wrapper status for
+unittest stderr output. A stdout-logging retry exits zero and passes all 48
+tests in 167.473 seconds, with the same two skips. Both suites run in separate
+regression checkouts, away from the production directory captures.
+
+Affected RuntimeBroker PID 31120 later held 5,314,736,128 private bytes and
+was stopped after the same name/allocation verification. Production work
+continued under the existing authorization.
+
+The Linux normal `make -j4 all` preparation passes all 16 exact artifact
+checks and publishes a 209,715,200-byte image with SHA-256
+`c001b4282d122a0819b05d1bde628e8c3f60854478b35794b06b5a48cf934eb1`.
+The validator then fails before executing its poisoned replay: the overlay
+forces the original profile target, and Make's dry run predicts all 83 Doom
+wrapper recipes as downstream rebuilds. The validator correctly refuses
+that plan. This is a validation-ordering defect; it does not invalidate the
+completed normal build or authorize ignoring a real prerequisite. The repair
+checks the original profile transaction in a separate phase before planning
+and running the 157 kernel compiles. Its regression and final evidence follow.
+
+The Linux image's private four-CPU smoke passes with `--private-image
+--smp 4 --cpu max --verify-smp-runtime --command ls --timeout 180`. It checks
+SMP startup, CupidC JIT execution, and post-command survival. The published
+Linux image and its retained local copy both keep SHA-256
+`c001b4282d122a0819b05d1bde628e8c3f60854478b35794b06b5a48cf934eb1` before and after the smoke.
+The serial log is 34900 bytes with SHA-256
+`28a461ae72f527c981f3adb67413aebb4b2e15bc337c620c7db93b1cb0d33648`. This remains a boot/compiler smoke,
+not full Doom gameplay acceptance.
+
+The split-phase validator repair passes 11 tests on Windows with one Linux-only
+skip, and all 12 on Linux. The real Make regression reproduces the original
+phantom dependency rebuild, passes the split phases, and still rejects a
+changed Doom input. The validator now records control hashes and timestamps
+immediately after preparation, includes all 304 Doom headers, and compares
+control and artifact bytes and timestamps after both phases. Independent spec
+review finds no blocker. No resume mode or ignored real target was added;
+fresh full preparation is required for the corrected validation runs.
+
+The Windows normal image preparation also passes all 16 exact artifact checks
+and publishes the image while preserving FAT contents. The old validator
+then reproduces the same profile-overlay dry-run refusal. A separate private
+four-CPU `max`/SMP/`ls` smoke passes. The published Windows image and its
+retained copy both remain 209,715,200 bytes with SHA-256
+`f289bbb01e4be8dafde0215a8939bfa2bc3252fbddf22510cf918949d58eed3a` before and after that smoke.
+The serial log is 21792 bytes with SHA-256
+`bf58da36ba909a039ae1b294f1ae60c3032cff2310a6fbdd364b7d9d1e68308d`. The corrected validator uses
+a new report directory and repeats full preparation.
+
+A further temporary Make fixture checks the link chain on Windows and Linux:
+a no-op first object, a pass-one link that would rewrite equal bytes, generated
+symbol source, and a forced symbol-object compilation. The dry run predicts
+linking, but actual replay skips both linking and symbol generation when
+object timestamps stay unchanged. Both requested compiles run and all six
+fixture inputs/artifacts retain their bytes and timestamps. The first probe
+incorrectly expected dry-run symbol generation despite `-W` on that source;
+that expectation was corrected. No production file changed in this probe.
+
+RuntimeBroker PID 25580 later grew to 6,529,933,312 private bytes. Its name and
+allocation were verified before stopping that affected replacement under the
+existing authorization. The corrected validation runs continued.
+
+Two later affected replacements, PID 31544 at 4,510,511,104 private bytes and
+PID 29496 at 5,650,755,584 bytes, were individually verified and stopped under
+the same authorization. No unrelated process or service was stopped.
+
+Inspection of the Windows timestamps found a second validator defect before
+its replay: the unchanged profile manifest remains older than Makefile and
+the promoted seed. A separate profile check preserves that timestamp, so
+Make's later dry run still predicts downstream Doom wrappers. The real
+transaction can retain the profile and leave those objects current. The
+validator must distinguish that prediction from actual execution while
+retaining every real dependency and all poisoned commands. The first split
+repair did not cover this existing-checkout case; its earlier test result
+does not establish production replay acceptance.
+
+The final validator repair passes 12 Windows tests with one Linux-only skip
+in 0.988 seconds, and all 13 Linux tests in 1.578 seconds. Dry-run evidence
+still requires all 157 exact compiler pairs and at most one fully bound
+profile command. Execution must match that census and contain no poisoned
+command. The regression makes a real profile prerequisite newer than the
+unchanged manifest, confirms that its native transaction runs without a Doom
+wrapper, then changes a Doom source and requires poisoned execution to fail.
+A subsecond fixture timestamp did not reliably trigger Windows Make; the
+test uses a three-second difference. Production timestamps are never changed
+to influence scheduling.
+
+Review accepts separate reuse of a completed normal preparation only after
+verifying its saved control hashes and timestamps, every artifact and retained
+baseline, and the exact original commands. A separate snapshot covers 816
+build inputs and both fixture-directory inventories on each host while the
+full preparations are still running. These include boot and image inputs
+beyond the kernel compiler controls. Any later replay using this evidence is
+reported as completed preparation plus corrected replay, with the original
+failure retained. The public validation command still requires a fresh normal
+preparation and has no resume mode.
+
+RuntimeBroker PID 17192 later reached 5,516,214,272 private bytes. Its process
+name and allocation were checked before stopping that affected replacement
+under the same authorization. WSL remained available.
+
+The Linux split-phase production validation passes from normal `make -j4 all`
+through the poisoned replay. Preparation again passes all 16 exact artifact
+checks and publishes the same previously smoked image. The forced native
+profile transaction passes, then all 157 native compiler calls complete in
+760.783 seconds without a forbidden command. All 157 objects, all 448 retained
+artifacts, and all 471 compiler controls preserve their bytes and timestamps.
+The separate 816-input and two-directory snapshot also verifies unchanged.
+This run used the stricter split validator already loaded before the final
+advisory dry-run repair; its Linux profile was newer than its prerequisites,
+so the additional stale-profile allowance was not needed.
+
+The Linux result is retained at
+`build/bootstrap/kernel-handoff-split-validation/result.json` in the native
+Linux checkout, with SHA-256
+`92cd5e98b9191440d915605217b42a2bb461ddede440b626ebb079d4539320b7`.
+The final image still has SHA-256
+`c001b4282d122a0819b05d1bde628e8c3f60854478b35794b06b5a48cf934eb1`,
+so the earlier private four-CPU smoke applies to exactly these bytes. Windows
+UNC access briefly failed while collecting the report; a direct WSL copy
+retrieved the durable report, and input verification remained successful.
+
+The Windows split run also completes the normal image preparation and all 16
+exact artifact checks. Its profile transaction passes, then the older loaded
+validator stops at the expected stale-profile dry-run prediction. The original
+report remains failed at `dry-run`; no poisoned compile ran in that invocation.
+The published image still has SHA-256
+`f289bbb01e4be8dafde0215a8939bfa2bc3252fbddf22510cf918949d58eed3a`,
+and the raw kernel still matches the Linux hash above.
+
+A separate corrected replay starts only after checking the original full-build
+command, exact control and artifact inventories, saved hashes and timestamps,
+retained artifact copies, and the unchanged 816-input/two-directory snapshot.
+Its new report binds the original preparation log, plan, result, baseline,
+and input snapshot by SHA-256. The report is stored under
+`build/bootstrap/kernel-handoff-final-replay`; it does not overwrite or relabel
+the original validator failure. The checked public utility retains its fresh
+preparation requirement.
+
+During the Windows replay, affected RuntimeBroker PID 3572 reached
+5,589,729,280 private bytes. Its identity and allocation were verified before
+stopping that replacement under the existing authorization. The replay
+continued without a build error.
+
+RuntimeBroker PID 1604 subsequently reached 5,653,577,728 private bytes and
+was stopped after the same identity and allocation checks. The native replay
+continued under the existing authorization.
+
+RuntimeBroker PID 5072 later reached 5,112,721,408 private bytes. It was
+individually verified and stopped under the same authorization while the
+Windows replay continued.
+
+The corrected Windows replay passes in 904.388 seconds. It executes all 157
+native compiler transactions and one fully bound native profile transaction,
+with no forbidden command. Make's dry run predicts 83 forbidden Doom-wrapper
+lines; actual execution runs none. All 157 objects, all 448 retained artifacts,
+and all 471 controls preserve their bytes and timestamps. The separate 816
+build inputs and both directory inventories also verify unchanged afterward.
+The final report has SHA-256
+`8ca06237d19b7530a2260340fe44aecebbc51417870ff332cc792ac1be08aa0b`.
+
+Final Windows measurements match the three Linux kernel hashes recorded above.
+The published Windows image retains the hash of the image already tested by
+the private four-CPU SMP and CupidC `ls` smoke. Both host builds, production
+replays, and private runtime checks therefore pass for this handoff. The
+Windows evidence consists of completed preparation plus a separately verified
+corrected replay, not one uninterrupted successful validator invocation.
+No kernel input, embedded manual, or size-policy value changed during the
+validator repairs. Full Doom gameplay acceptance and the remaining 98 Python
+participations remain open.

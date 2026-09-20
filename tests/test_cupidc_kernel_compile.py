@@ -1195,13 +1195,12 @@ class KernelCompileMakefileTests(unittest.TestCase):
                     {
                         source,
                         *headers,
-                        "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+                        "Makefile",
+                        "$(PRODUCTION_SEED_INPUTS)",
                     },
                 )
                 self.assertIn(
-                    f"\t$(CUPIDC_KERNEL_COMPILE) --source {source} "
-                    f"--output {output}\n",
-                    makefile,
+                    f"--source {source} --output {output}\n", makefile
                 )
 
     def test_exact_approved_cohort_uses_the_checked_cupidc_wrapper(self):
@@ -1263,6 +1262,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
         expected = {
             (source, str(Path(source).with_suffix(".o")).replace("\\", "/"))
             for source in KERNEL_SOURCES + GENERATED_KERNEL_SOURCES
+            if source not in kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES
         }
         self.assertEqual(actual, expected)
 
@@ -1283,7 +1283,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             "kernel/crypto/ecdsa.h kernel/crypto/p256.h "
             "kernel/crypto/hmac.h kernel/crypto/sha256.h "
             "kernel/core/string.h kernel/core/types.h "
-            "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+            "Makefile $(PRODUCTION_SEED_INPUTS)",
             makefile,
         )
         self.assertIn(
@@ -1291,7 +1291,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             "kernel/smp/mp_tables.h kernel/smp/ioapic.h "
             "kernel/smp/percpu.h kernel/core/process.h "
             "kernel/core/types.h drivers/serial.h "
-            "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+            "Makefile $(PRODUCTION_SEED_INPUTS)",
             makefile,
         )
         self.assertIn(
@@ -1299,7 +1299,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             "kernel/smp/mp_tables.h kernel/smp/ioapic.h "
             "kernel/smp/percpu.h kernel/core/process.h "
             "kernel/core/types.h drivers/serial.h "
-            "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+            "Makefile $(PRODUCTION_SEED_INPUTS)",
             makefile,
         )
         self.assertRegex(
@@ -1322,8 +1322,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 set(match.group(1).split()),
                 {
                     source,
-                    *headers,
-                    "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+                    *kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES[source],
+                    "Makefile", "$(PRODUCTION_SEED_INPUTS)",
                 },
             )
 
@@ -1339,8 +1339,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 set(match.group(1).split()),
                 {
                     source,
-                    *headers,
-                    "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+                    *kernel_compile.FROZEN_KERNEL_INPUT_CLOSURES[source],
+                    "Makefile", "$(PRODUCTION_SEED_INPUTS)",
                 },
             )
 
@@ -1397,7 +1397,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
                     {
                         source,
                         *expected_headers,
-                        "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
+                        "Makefile", "$(PRODUCTION_SEED_INPUTS)",
                     },
                     source,
                 )
@@ -1436,8 +1436,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         commands = [
             line
-            for line in result.stdout.splitlines()
-            if "tools/cupidc_kernel_compile.py" in line
+            for line in result.stdout.replace("\\\n", " ").splitlines()
+            if "tools/cupidc_kernel_compile.py" in line or "compile-kernel " in line
         ]
         self.assertEqual(len(commands), len(NEW_PRODUCTION_SOURCES))
         for source in NEW_PRODUCTION_SOURCES:
@@ -1487,8 +1487,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         commands = [
             line
-            for line in result.stdout.splitlines()
-            if "tools/cupidc_kernel_compile.py" in line
+            for line in result.stdout.replace("\\\n", " ").splitlines()
+            if "tools/cupidc_kernel_compile.py" in line or "compile-kernel " in line
         ]
         self.assertEqual(len(commands), len(SOURCE_DRIVEN_SOURCES))
         for source in SOURCE_DRIVEN_SOURCES:
@@ -1536,8 +1536,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         commands = [
             line
-            for line in result.stdout.splitlines()
-            if "tools/cupidc_kernel_compile.py" in line
+            for line in result.stdout.replace("\\\n", " ").splitlines()
+            if "tools/cupidc_kernel_compile.py" in line or "compile-kernel " in line
         ]
         self.assertEqual(len(commands), len(SMP_SOURCES))
         for source in SMP_SOURCES:
@@ -1569,8 +1569,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         commands = [
             line
-            for line in result.stdout.splitlines()
-            if "tools/cupidc_kernel_compile.py" in line
+            for line in result.stdout.replace("\\\n", " ").splitlines()
+            if "tools/cupidc_kernel_compile.py" in line or "compile-kernel " in line
         ]
         self.assertEqual(len(commands), len(OPERAND_FREE_SOURCES))
         for source in OPERAND_FREE_SOURCES:
@@ -1604,8 +1604,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         commands = [
             line
-            for line in result.stdout.splitlines()
-            if "tools/cupidc_kernel_compile.py" in line
+            for line in result.stdout.replace("\\\n", " ").splitlines()
+            if "tools/cupidc_kernel_compile.py" in line or "compile-kernel " in line
         ]
         self.assertEqual(len(commands), len(PORT_IO_SOURCES))
         for source in PORT_IO_SOURCES:

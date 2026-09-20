@@ -1,57 +1,30 @@
-# Next compiler coordinator
+# Compiler coordinator migration
 
-The first source-capability step is implemented as `cupidbuild compile-kernel`.
-It transfers no production ownership. Python still coordinates all 240
-compilations described below. The shared terms follow [CONTEXT.md](../../CONTEXT.md).
+The kernel-profile handoff is implemented: Make invokes checked CupidBuild
+for all 157 roots, including generated symbols. Each rule binds the complete
+source/header closure, Makefile, checked six-tool seed, and fixed source/output
+pair. CupidC reads the frozen `CUPSRC1` bundle under the original logical paths.
+An absent entry cannot fall back to live files. Equal validated output retains
+its timestamp after the same input and publication checks.
 
-[ADR 0390](../adr/0390-compile-closed-kernel-inputs-with-cupidbuild.md) replaces
-the proposed nested private directory with a closed `CUPSRC1` file store in
-CupidC. The native coordinator captures all 157 kernel-profile closures and preserves the
-fixed kernel profile, logical paths, object validation, and publication rules.
-The promoted compiler lacks the bundle option and fails without replacing the
-previous object. Paired fixed-point coverage, seed promotion, and Make adoption
-remain the next production steps. [ADR 0392](../adr/0392-capture-every-kernel-profile-closure.md)
-extends capture to the complete kernel profile and repairs six omitted Make
-header dependencies. The investigation below records the original
-requirements and why a plain checked runner was insufficient.
+ADRs 0390, 0391, 0392, and 0393 record the format, generation checks, full
+capture table, and adoption. Both promoted cohorts come from `9d2529a7` and
+one independently verified 59-input source snapshot. The staged behavior
+inventories are 36/7/42 on Linux and 24/7/29 on Windows. The largest kernel
+closure has 90 files; the in-kernel assembler closure has 79.
 
-## Current boundary
+Python remains the kernel profile's optional reference coordinator. It still
+owns three Doom compatibility and 80 Doom-tree compiler recipes. Generated
+installation tables and user programs use their separate wrapper. The next
+native compiler step is documented in [the Doom coordinator audit](NEXT-DOOM-COORDINATOR.md).
+It needs a distinct discovery policy because object publication occurs inside
+scanned directories; the strict profile-manifest checks must stay intact.
 
-The root [Makefile](../../Makefile#L43) defines `CUPIDC_KERNEL_COMPILE` through
-[`tools/cupidc_kernel_compile.py`](../../tools/cupidc_kernel_compile.py#L3703).
-Its `compile_kernel_source` operation owns 157 kernel and generated-symbol
-objects, three Doom compatibility objects, and 80 Doom-tree objects. The three
-generated installation tables and three separate user objects use another
-wrapper and are outside this 240-transform count.
+The investigation below is a historical design record. Its future-tense steps
+describe the original proposal, not pending kernel compiler work.
+The shared terms follow [CONTEXT.md](../../CONTEXT.md).
 
-Every kernel-profile source has an explicit
-[`FROZEN_KERNEL_INPUT_CLOSURES`](../../tools/cupidc_kernel_compile.py#L303)
-entry. Both coordinators reject a missing closure. The largest entry contains
-90 files, including its source. Doom
-compilation freezes its selected source and complete profile header space,
-then checks header membership, the approved 83-source membership, and captured
-bytes before publication. Its profile-wide capture remains separate from the
-kernel's per-source closure tables.
-
-[`build_compile_arguments`](../../tools/cupidc_kernel_compile.py#L2304) fixes
-the language mode, freestanding definitions, include order, and logical paths.
-Doom adds its compatibility mode and profile definitions; the tree profile
-also forces `kernel/doom/dglibc_compat.h`. Source approval and output validation
-require the selected cohort, an output inside the repository, an existing
-parent, and the `.o` suffix.
-
-The wrapper freezes the complete checked seed before launching CupidC. For
-the frozen cohorts, [`_kernel_input_paths`](../../tools/cupidc_kernel_compile.py#L2832),
-`_capture_kernel_inputs`, and
-[`_write_kernel_inputs`](../../tools/cupidc_kernel_compile.py#L3692) construct a
-private compiler root with the original logical directory layout. Compilation
-must produce a regular, non-symlink candidate. After object validation and live
-input checks, `_replace_with_retry` atomically replaces the destination. A
-compiler, seed, validation, or input-drift failure preserves the previous
-object. Ordinary compilation currently has no explicit output owner lock or
-post-install rollback.
-
-## Initial eleven-source scope
+## Historical initial eleven-source scope
 
 The first source checkpoint used the following eleven closures. ADR 0392
 extends it to all 157 roots; the fixed profile and transaction requirements
@@ -96,7 +69,7 @@ Source capability, paired seed carriage, and normal Make adoption need their
 own evidence. The first production handoff would move eleven participations;
 240 is the potential total for the complete wrapper replacement.
 
-## Object and test contract
+## Historical object and test requirements
 
 Preserve the checks in
 [`validate_i386_relocatable_bytes`](../../tools/cupidc_kernel_compile.py#L688):
@@ -129,7 +102,7 @@ bindings, and linked inputs. After production adoption, repeat the OS build,
 exact artifact checks, and boot/runtime smoke because these objects include
 kernel entry, floating-point state, and SMP initialization.
 
-## Remaining boundaries
+## Boundaries identified in the original investigation
 
 CupidBuild's current ordinary frozen-file and candidate reader has a 64 MiB
 limit. A compiler-root implementation must retain bounded input ownership and

@@ -464,16 +464,16 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "native_build_plan_sha256": PROMOTED_WINDOWS_PLAN_SHA256,
                 "plan_seed_manifest_sha256": "3" * 64,
                 "parent_execution_seed_manifest_sha256": (
-                    "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+                    "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
                 ),
                 "parent_execution_seed_source_revision": (
-                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+                    "16a86f5b1693e017c36c6d902df9946c5d674b17"
                 ),
                 "parent_plan_seed_manifest_sha256": (
-                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
                 ),
                 "parent_plan_seed_source_revision": (
-                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+                    "16a86f5b1693e017c36c6d902df9946c5d674b17"
                 ),
                 "producer_lineage": lineage,
                 "source_input_count": PROMOTED_SOURCE_INPUT_COUNT,
@@ -490,10 +490,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "fixed_point_command": "make bootstrap-from-seed",
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
                 ),
                 "parent_seed_source_revision": (
-                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+                    "16a86f5b1693e017c36c6d902df9946c5d674b17"
                 ),
                 "producer_lineage": lineage,
                 "seed_generation": "stage-four",
@@ -5584,6 +5584,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             frozen_directory = root / "frozen"
             shutil.copytree(SEED_MANIFEST.parent, copied_seed)
             original_manifest = (copied_seed / "manifest.json").read_bytes()
+            original_compiler = (copied_seed / "cupidc.elf").read_bytes()
             frozen = freeze_seed_inputs(
                 copied_seed / "manifest.json", frozen_directory
             )
@@ -5605,10 +5606,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 compiler.read_bytes(),
             )
             self.assertEqual(
-                hashlib.sha256(
-                    frozen.tools["cupidc"].read_bytes()
-                ).hexdigest(),
-                "b17b2c5588fad1735d8dd1226bbeba7ae6f92fa2e70e5d70c1f0b4b979e34e17",
+                frozen.tools["cupidc"].read_bytes(), original_compiler
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
