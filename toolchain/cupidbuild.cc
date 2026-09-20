@@ -1027,17 +1027,17 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
   static const char legacy_linux_manifest[] =
       "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b";
   static const char preceding_parent_revision[] =
-      "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6";
-  static const char preceding_parent_linux_manifest[] =
-      "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae";
-  static const char preceding_parent_windows_manifest[] =
-      "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db";
-  static const char active_parent_revision[] =
       "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd";
-  static const char active_parent_linux_manifest[] =
+  static const char preceding_parent_linux_manifest[] =
       "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781";
-  static const char active_parent_windows_manifest[] =
+  static const char preceding_parent_windows_manifest[] =
       "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4";
+  static const char active_parent_revision[] =
+      "16a86f5b1693e017c36c6d902df9946c5d674b17";
+  static const char active_parent_linux_manifest[] =
+      "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d";
+  static const char active_parent_windows_manifest[] =
+      "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc";
   static const char *const linux_v1_names[] = {
       "fixed_point_command",   "fixed_point_result", "producer_lineage",
       "seed_generation",       "source_input_count", "source_revision",
@@ -4766,6 +4766,7 @@ int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request) {
   size_t count = 0u;
   size_t source_size;
   int status;
+  int changed = 0;
   int result = 1;
   (void)memset(&seed, 0, sizeof(seed));
   if (request == (const cupidbuild_compile_request_t *)0 ||
@@ -4859,7 +4860,7 @@ int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request) {
   }
   if (!cupidbuild_host_require_candidate(transaction, &candidate_snapshot) ||
       !cupidbuild_host_require_publication_boundary(transaction) ||
-      !cupidbuild_host_publish(transaction)) {
+      !cupidbuild_host_publish_if_changed(transaction, &changed)) {
     goto host_failure;
   }
   result = 0;

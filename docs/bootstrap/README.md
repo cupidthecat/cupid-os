@@ -1,5 +1,13 @@
 # Cupid Toolchain bootstrap
 
+The next paired proof includes closed kernel compilation through both compared
+CupidBuild generations. Its source-level checks cover object parity, failed
+compilation, missing captured inputs, unchanged output timestamps, recovery,
+and cleanup. The promoted-v2 parent window advances to the `0232cb57` and
+`16a86f5b` pairs so successor seeds can retain exact lineage. These prerequisites
+do not replace the checked seeds or move production recipes. [ADR 0391](../adr/0391-prove-closed-compilation-across-bootstrap-generations.md)
+records the proof boundary.
+
 Source-head CupidC accepts closed `CUPSRC1` source bundles, and source-head
 CupidBuild provides `compile-kernel` for the eleven established frozen kernel
 closures. Logical include paths and `__FILE__` survive capture; missing entries

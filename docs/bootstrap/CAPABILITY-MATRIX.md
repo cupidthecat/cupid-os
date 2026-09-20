@@ -7,6 +7,12 @@ validation. The checked seeds still lack the compiler bundle option, so this
 is a source capability with no production handoff. ADR 0390 defines the
 format, limits, and publication contract.
 
+The source transaction also preserves the timestamp when the validated object
+matches the previous output. Input capture and publication checks still run.
+Both staged drivers now check that replay, code and data-only output, failure
+preservation, and recovery with generation-specific seeds. ADR 0391 records
+this source proof boundary; checked-seed carriage remains separate.
+
 Both clean `16a86f5b` fixed-point proofs passed, and both checked seeds
 carry the Windows full-cohort launch and POSIX working-directory repairs.
 The earlier five-manual parallel replays passed on Windows and native Linux,

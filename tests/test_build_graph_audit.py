@@ -6383,15 +6383,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 7)
-        self.assertEqual(contract["success_behavior_cases"], 38)
-        self.assertEqual(contract["failure_behavior_cases"], 33)
+        self.assertEqual(contract["success_behavior_cases"], 42)
+        self.assertEqual(contract["failure_behavior_cases"], 36)
         self.assertEqual(contract["tool_c_sources"], 22)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 22)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 7)
-        self.assertEqual(contract["windows_success_behavior_cases"], 25)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 21)
+        self.assertEqual(contract["windows_success_behavior_cases"], 29)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 24)
         self.assertEqual(contract["contract_manifest_inputs"], 76)
         self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 76)
         self.assertIn(
@@ -6879,9 +6879,21 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
-                '        "success_cases": 38,\n',
+                '        "success_cases": 42,\n',
                 '        "success_cases": 36,\n',
                 r"fixed-point behavior matrix differs",
+            ),
+            "kernel compile loses failure timestamp preservation": (
+                "bootstrap",
+                "tuple(output.stat().st_mtime_ns for output in outputs) != before",
+                "False",
+                r"fixed-point kernel compile behavior differs",
+            ),
+            "kernel compile stops checking recovery bytes": (
+                "bootstrap",
+                "success(code_source, expected=expected_code)",
+                "success(code_source)",
+                r"fixed-point kernel compile behavior differs",
             ),
             "ISO pattern fixture leaves the raw operation matrix": (
                 "bootstrap",
@@ -6903,13 +6915,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
-                '        "failure_cases": 33,\n',
+                '        "failure_cases": 36,\n',
                 '        "failure_cases": 30,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
-                '        "failure_cases": len(tool_names) + 15,\n',
+                '        "failure_cases": len(tool_names) + 18,\n',
                 '        "failure_cases": len(tool_names) + 12,\n',
                 r"native Windows fixed-point behavior differs",
             ),

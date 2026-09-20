@@ -3782,16 +3782,16 @@ int main(int argc, char **argv) {
                 ),
                 "plan_seed_manifest_sha256": "3" * 64,
                 "parent_execution_seed_manifest_sha256": (
-                    "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db"
+                    "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
                 ),
                 "parent_execution_seed_source_revision": (
-                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
                 ),
                 "parent_plan_seed_manifest_sha256": (
-                    "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
                 ),
                 "parent_plan_seed_source_revision": (
-                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
                 ),
                 "producer_lineage": document["provenance"][
                     "producer_lineage"
@@ -3847,10 +3847,10 @@ int main(int argc, char **argv) {
                 "fixed_point_command": "make bootstrap-from-seed",
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
                 ),
                 "parent_seed_source_revision": (
-                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
                 ),
                 "producer_lineage": document["provenance"][
                     "producer_lineage"
@@ -4718,16 +4718,16 @@ int main(int argc, char **argv) {
             root = Path(temporary)
             manifest = self._copy_checked_assembly_seed(root / "seed")
             document = self._promote_seed_contract(manifest)
-            revision = "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+            revision = "16a86f5b1693e017c36c6d902df9946c5d674b17"
             if os.name == "nt":
                 document["provenance"].update(
                     {
                         "parent_execution_seed_manifest_sha256": (
-                            "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+                            "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
                         ),
                         "parent_execution_seed_source_revision": revision,
                         "parent_plan_seed_manifest_sha256": (
-                            "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                            "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
                         ),
                         "parent_plan_seed_source_revision": revision,
                     }
@@ -4736,7 +4736,7 @@ int main(int argc, char **argv) {
                 document["provenance"].update(
                     {
                         "parent_seed_manifest_sha256": (
-                            "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                            "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
                         ),
                         "parent_seed_source_revision": revision,
                     }
@@ -4804,11 +4804,11 @@ int main(int argc, char **argv) {
                 document["provenance"][
                     "parent_execution_seed_manifest_sha256"
                 ] = (
-                    "751e1d7787a4be08e4e86814bbb7473979fe2eb8a3292baed0241967f772eaef"
+                    "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
                 )
             else:
                 document["provenance"]["parent_seed_manifest_sha256"] = (
-                    "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b"
+                    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
                 )
 
         def use_retired_v1_execution_parent(document):
@@ -4835,11 +4835,51 @@ int main(int argc, char **argv) {
                     }
                 )
 
+        def use_retired_v2_execution_parent(document):
+            if os.name == "nt":
+                document["provenance"].update(
+                    {
+                        "parent_execution_seed_manifest_sha256": (
+                            "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db"
+                        ),
+                        "parent_execution_seed_source_revision": (
+                            "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                        ),
+                    }
+                )
+            else:
+                document["provenance"].update(
+                    {
+                        "parent_seed_manifest_sha256": (
+                            "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+                        ),
+                        "parent_seed_source_revision": (
+                            "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                        ),
+                    }
+                )
+
+        def use_retired_v2_parent_generation(document):
+            use_retired_v2_execution_parent(document)
+            if os.name == "nt":
+                document["provenance"].update(
+                    {
+                        "parent_plan_seed_manifest_sha256": (
+                            "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+                        ),
+                        "parent_plan_seed_source_revision": (
+                            "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                        ),
+                    }
+                )
+
         cases = (
             ("uppercase source revision", uppercase_revision),
             ("wrong parent manifest", change_parent),
             ("mixed parent generations", mix_parent_generations),
             ("retired v1 parent generation", use_retired_v1_execution_parent),
+            ("retired v2 execution parent", use_retired_v2_execution_parent),
+            ("retired v2 parent generation", use_retired_v2_parent_generation),
             (
                 "preceding source input count",
                 lambda document: document["provenance"].update(
@@ -4888,10 +4928,10 @@ int main(int argc, char **argv) {
                     lambda document: document["provenance"].update(
                         {
                             "parent_execution_seed_manifest_sha256": (
-                                "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+                                "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
                             ),
                             "parent_execution_seed_source_revision": (
-                                "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+                                "16a86f5b1693e017c36c6d902df9946c5d674b17"
                             ),
                         }
                     ),
@@ -4905,6 +4945,19 @@ int main(int argc, char **argv) {
                             ),
                             "parent_plan_seed_source_revision": (
                                 "a17c9465911da41d59b7ada71733d36c39faa5ea"
+                            ),
+                        }
+                    ),
+                ),
+                (
+                    "retired v2 plan parent generation",
+                    lambda document: document["provenance"].update(
+                        {
+                            "parent_plan_seed_manifest_sha256": (
+                                "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+                            ),
+                            "parent_plan_seed_source_revision": (
+                                "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
                             ),
                         }
                     ),

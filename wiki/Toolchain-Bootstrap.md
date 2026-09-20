@@ -1,5 +1,17 @@
 # Toolchain Bootstrap
 
+The staged bootstrap checks closed kernel compilation with each compared
+generation's own CupidC and CupidBuild. It compares emitted objects and checks
+that compiler and closure failures preserve the previous output. Promoted v2
+provenance accepts the adjacent `0232cb57` and `16a86f5b` parent pairs; digest
+and revision fields must match, and Windows parent roles cannot mix
+generations. Source-level checks are separate from paired seed promotion and
+normal Make ownership. ADR 0391 records the boundary.
+
+The source compiler transaction keeps the timestamp of an unchanged validated
+object. It still captures and validates the source closure, so a missing
+required header fails even when the previous object is present.
+
 Source-head CupidC can compile a closed `CUPSRC1` source bundle. It preserves
 logical include paths and reads no live source file when an entry is absent.
 Source-head CupidBuild uses it in `compile-kernel` for the eleven established

@@ -3958,21 +3958,30 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     return subprocess.CompletedProcess([], 0, "", "")
                 raise BehaviorBoundaryReached
 
+            linux_behavior_runner = ToolRunner(root)
             with mock.patch(
                 "tools.bootstrap_toolchain._run_stage_pair",
                 side_effect=linux_pair,
             ), mock.patch(
                 "tools.bootstrap_toolchain."
                 "_check_candidate_image_certification_behavior",
-            ), self.assertRaises(BehaviorBoundaryReached):
+            ), mock.patch(
+                "tools.bootstrap_toolchain."
+                "_check_cupidbuild_compile_kernel_behavior",
+            ) as linux_compile, self.assertRaises(BehaviorBoundaryReached):
                 _run_behavior_checks(
-                    ToolRunner(root),
+                    linux_behavior_runner,
                     root,
                     linux_output,
                     stage,
                     stage,
                     seed_inputs,
                 )
+
+            linux_compile.assert_called_once_with(
+                linux_behavior_runner, linux_output / "behavior",
+                stage, stage, seed_inputs, "",
+            )
 
             self.assertEqual(
                 linux_calls[: len(CANDIDATE_TOOL_NAMES)],
@@ -4226,15 +4235,19 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     return subprocess.CompletedProcess([], 0, "", "")
                 raise BehaviorBoundaryReached
 
+            windows_behavior_runner = ToolRunner(root)
             with mock.patch(
                 "tools.bootstrap_toolchain._run_stage_pair",
                 side_effect=windows_pair,
             ), mock.patch(
                 "tools.bootstrap_toolchain."
                 "_check_candidate_image_certification_behavior",
-            ), self.assertRaises(BehaviorBoundaryReached):
+            ), mock.patch(
+                "tools.bootstrap_toolchain."
+                "_check_cupidbuild_compile_kernel_behavior",
+            ) as windows_compile, self.assertRaises(BehaviorBoundaryReached):
                 _run_native_windows_behavior_checks(
-                    ToolRunner(root),
+                    windows_behavior_runner,
                     windows_output,
                     stage,
                     stage,
@@ -4242,6 +4255,15 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     windows_seed_inputs,
                     seed_inputs,
                 )
+
+            windows_compile.assert_called_once_with(
+                windows_behavior_runner, windows_output / "behavior",
+                stage, stage,
+                _retarget_native_windows_behavior_seed(
+                    windows_seed_inputs, _build_plan_sha256(native_plan)
+                ),
+                "native Windows ",
+            )
 
             expected_windows_calls = []
             for name in CANDIDATE_TOOL_NAMES:
@@ -6708,9 +6730,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 21,
+                    "failure_cases": 24,
                     "help_cases": 7,
-                    "success_cases": 25,
+                    "success_cases": 29,
                 },
             )
             candidate_linux_plan = _candidate_build_plan(
@@ -7288,9 +7310,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            33,
+            36,
         )
-        self.assertEqual(returned["success_cases"].value, 38)
+        self.assertEqual(returned["success_cases"].value, 42)
         self.assertIsInstance(returned["help_cases"], ast.BinOp)
         self.assertIsInstance(returned["help_cases"].op, ast.Add)
         self.assertEqual(returned["help_cases"].right.value, 1)
@@ -11133,9 +11155,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 33,
+                    "failure_cases": 36,
                     "help_cases": 7,
-                    "success_cases": 38,
+                    "success_cases": 42,
                 },
             )
             self.assertEqual(

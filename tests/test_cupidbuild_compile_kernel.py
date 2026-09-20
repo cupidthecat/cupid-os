@@ -11,7 +11,10 @@ import time
 import unittest
 from pathlib import Path
 
-from tools.bootstrap_toolchain import _windows_build_plan, _windows_link_arguments
+from tools.bootstrap_toolchain import (
+    SeedInputs, Stage, _check_cupidbuild_compile_kernel_behavior,
+    _windows_build_plan, _windows_link_arguments,
+)
 from tests.test_cupidc_source_bundle import active_input_bytes
 from tools.cupidc_kernel_compile import (
     FROZEN_KERNEL_INPUT_CLOSURES,
@@ -225,6 +228,28 @@ int main(int argc, char **argv) {
         self.assertEqual(output.stat().st_mtime_ns, previous_mtime)
         self.assert_clean()
 
+        class NativeRunner:
+            def run(self, executable, arguments, timeout):
+                return subprocess.run(
+                    [str(executable), *map(str, arguments)],
+                    capture_output=True, text=True, timeout=timeout,
+                )
+
+        document = json.loads(self.manifest.read_text())
+        tools = {entry["name"]: self.seed / entry["file"]
+                 for entry in document["artifacts"]}
+        inputs = SeedInputs(
+            document, self.manifest.read_bytes(),
+            hashlib.sha256(self.manifest.read_bytes()).hexdigest(), self.manifest,
+            tuple((name, path.read_bytes()) for name, path in tools.items()), tools,
+        )
+        stage = Stage({}, {**tools, "cupidbuild": coordinator})
+        behavior = self.root / "paired-behavior"
+        behavior.mkdir()
+        _check_cupidbuild_compile_kernel_behavior(
+            NativeRunner(), behavior, stage, stage, inputs, "contract ",
+        )
+
     def test_compiler_error_and_missing_header_preserve_output(self):
         for missing_header in (False, True):
             with self.subTest(missing_header=missing_header):
@@ -240,6 +265,27 @@ int main(int argc, char **argv) {
                 self.assertEqual(output.read_bytes(), b"previous object")
                 self.assertEqual(output.stat().st_mtime_ns, before)
                 self.assert_clean()
+
+    def test_unchanged_object_keeps_timestamp_and_still_checks_inputs(self):
+        output = self.closure(contents=b'#include "ksyms.h"\nint x;\n')
+        result = self.run_compile()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        previous = output.read_bytes()
+        os.utime(output, ns=(1_600_000_000_000_000_000,) * 2)
+        before = output.stat().st_mtime_ns
+        result = self.run_compile()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(output.read_bytes(), previous)
+        self.assertEqual(output.stat().st_mtime_ns, before)
+        self.assert_clean()
+
+        (self.root / "kernel/cpu/ksyms.h").unlink()
+        result = self.run_compile()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("closure cannot be captured", result.stderr)
+        self.assertEqual(output.read_bytes(), previous)
+        self.assertEqual(output.stat().st_mtime_ns, before)
+        self.assert_clean()
 
     def test_unsupported_seed_preserves_output(self):
         output = self.closure(contents=b"int x;\n")

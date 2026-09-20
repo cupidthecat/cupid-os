@@ -3587,6 +3587,171 @@ def _check_cupidbuild_cupidc_runner_behavior(
         )
 
 
+def _check_cupidbuild_compile_kernel_behavior(
+    runner: ToolRunner,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    label_prefix: str,
+) -> None:
+    compile_root = behavior_root / "cupidbuild-compile-kernel"
+    compile_root.mkdir()
+    roots = (
+        compile_root / "stage-three-root",
+        compile_root / "stage-four-root",
+    )
+    for root in roots:
+        root.mkdir()
+    manifests = (
+        _materialize_behavior_seed(seed_inputs, roots[0], "seed", stage_two),
+        _materialize_behavior_seed(seed_inputs, roots[1], "seed", stage_three),
+    )
+    code_source = "kernel/core/string.cc"
+    data_source = "kernel/cpu/ksyms_data.cc"
+    code = (
+        '#include "string.h"\n'
+        'const char *closed_source_file = __FILE__;\n'
+        'unsigned int closed_kernel_value(unsigned int value) {\n'
+        '    return value + CLOSED_KERNEL_VALUE;\n'
+        '}\n'
+    )
+    fixtures = {
+        code_source: code,
+        "kernel/core/string.h": '#include "types.h"\n',
+        "kernel/core/types.h": "#define CLOSED_KERNEL_VALUE 42u\n",
+        data_source: (
+            '#include "ksyms.h"\n'
+            'const unsigned int closed_kernel_data[] = {\n'
+            '    CLOSED_KERNEL_VALUE, sizeof(unsigned int)\n'
+            '};\n'
+        ),
+        "kernel/cpu/ksyms.h": '#include "../core/types.h"\n',
+    }
+    for root in roots:
+        for logical, contents in fixtures.items():
+            path = root / logical
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(contents, encoding="ascii", newline="\n")
+
+    def output_paths(source: str) -> tuple[Path, Path]:
+        return tuple(root / Path(source).with_suffix(".o") for root in roots)
+
+    def arguments(index: int, source: str) -> list[str | Path]:
+        return [
+            "compile-kernel", "--seed-manifest", manifests[index],
+            "--root", roots[index], "--source", source,
+            "--output", Path(source).with_suffix(".o").as_posix(),
+        ]
+
+    def check_cleanup() -> None:
+        for root in roots:
+            if any(
+                path.name.startswith(".cupidbuild-")
+                or path.name.endswith(".cupidbuild.lock")
+                for path in root.rglob("*")
+            ):
+                raise BootstrapError(
+                    f"{label_prefix}CupidBuild kernel compile left transaction files"
+                )
+
+    def compile_pair(source: str) -> subprocess.CompletedProcess[str]:
+        result = _run_stage_pair(
+            runner, stage_two, stage_three, "cupidbuild",
+            arguments(0, source), arguments(1, source),
+            610 if source == data_source else 190,
+        )
+        check_cleanup()
+        return result
+
+    def success(source: str, expected: bytes | None = None) -> bytes:
+        result = compile_pair(source)
+        _expect_status(result, 0, f"{label_prefix}CupidBuild kernel compile")
+        outputs = output_paths(source)
+        contents = outputs[0].read_bytes()
+        if (
+            result.stdout or result.stderr
+            or contents != outputs[1].read_bytes()
+            or (expected is not None and contents != expected)
+        ):
+            raise BootstrapError(
+                f"{label_prefix}CupidBuild kernel compile output differs"
+            )
+        _validate_i386_relocatable(outputs[0])
+        # Inspect the section table so the data fixture must remain data-only.
+        section_offset = struct.unpack_from("<I", contents, 32)[0]
+        section_size, section_count = struct.unpack_from("<HH", contents, 46)
+        if section_size != 40 or section_offset + section_count * 40 > len(contents):
+            raise BootstrapError(
+                f"{label_prefix}CupidBuild kernel compile section table differs"
+            )
+        has_code = any(
+            struct.unpack_from("<I", contents, section_offset + index * 40 + 8)[0] & 4
+            and struct.unpack_from("<I", contents, section_offset + index * 40 + 20)[0]
+            for index in range(section_count)
+        )
+        if has_code != (source == code_source):
+            raise BootstrapError(
+                f"{label_prefix}CupidBuild kernel compile code/data policy differs"
+            )
+        return contents
+
+    expected_code = success(code_source)
+    success(data_source)
+    code_outputs = output_paths(code_source)
+    for output in code_outputs:
+        os.utime(output, ns=(1_600_000_000_000_000_000,) * 2)
+    replay_times = tuple(output.stat().st_mtime_ns for output in code_outputs)
+    success(code_source, expected_code)
+    if tuple(output.stat().st_mtime_ns for output in code_outputs) != replay_times:
+        raise BootstrapError(
+            f"{label_prefix}CupidBuild kernel compile rewrote an unchanged object"
+        )
+    sentinel = b"preserved CupidBuild kernel object\n"
+
+    def failure(diagnostic: str) -> None:
+        outputs = output_paths(code_source)
+        for output in outputs:
+            output.write_bytes(sentinel)
+        before = tuple(output.stat().st_mtime_ns for output in outputs)
+        result = compile_pair(code_source)
+        _expect_status(result, 1, f"{label_prefix}CupidBuild kernel compile failure")
+        if (
+            result.stdout or diagnostic not in result.stderr
+            or any(output.read_bytes() != sentinel for output in outputs)
+            or tuple(output.stat().st_mtime_ns for output in outputs) != before
+        ):
+            raise BootstrapError(
+                f"{label_prefix}CupidBuild kernel compile failure preservation differs"
+            )
+
+    for root in roots:
+        (root / code_source).write_text("int broken( {\n", encoding="ascii")
+    failure("checked CupidC failed")
+
+    for root in roots:
+        (root / code_source).write_text(code, encoding="ascii", newline="\n")
+        (root / "kernel/core/types.h").unlink()
+    failure("closure cannot be captured")
+
+    for root in roots:
+        (root / "kernel/core/types.h").write_text(
+            fixtures["kernel/core/types.h"], encoding="ascii", newline="\n"
+        )
+        (root / "kernel/core/live-only.h").write_text(
+            "#define LIVE_ONLY_VALUE 7\n", encoding="ascii", newline="\n"
+        )
+        (root / code_source).write_text(
+            '#include "live-only.h"\nint live_value = LIVE_ONLY_VALUE;\n',
+            encoding="ascii", newline="\n",
+        )
+    failure("checked CupidC failed")
+
+    for root in roots:
+        (root / code_source).write_text(code, encoding="ascii", newline="\n")
+    success(code_source, expected=expected_code)
+
+
 def _check_cupidbuild_embed_jpeg_behavior(
     runner: ToolRunner,
     source_root: Path,
@@ -4646,6 +4811,15 @@ def _run_native_windows_behavior_checks(
         "native Windows ",
     )
 
+    _check_cupidbuild_compile_kernel_behavior(
+        runner,
+        behavior_root,
+        stage_two,
+        stage_three,
+        behavior_seed_inputs,
+        "native Windows ",
+    )
+
     _check_cupidbuild_embed_jpeg_behavior(
         runner,
         output_root,
@@ -4919,9 +5093,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 15,
+        "failure_cases": len(tool_names) + 18,
         "help_cases": len(tool_names) + 1,
-        "success_cases": len(tool_names) + 19,
+        "success_cases": len(tool_names) + 23,
     }
 
 
@@ -5658,6 +5832,15 @@ def _run_behavior_checks(
     )
 
     _check_cupidbuild_cupidc_runner_behavior(
+        runner,
+        behavior_root,
+        stage_two,
+        stage_three,
+        seed_inputs,
+        "",
+    )
+
+    _check_cupidbuild_compile_kernel_behavior(
         runner,
         behavior_root,
         stage_two,
@@ -8448,9 +8631,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 33,
+        "failure_cases": 36,
         "help_cases": len(tool_names) + 1,
-        "success_cases": 38,
+        "success_cases": 42,
     }
 
 

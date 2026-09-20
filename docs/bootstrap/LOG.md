@@ -36484,3 +36484,87 @@ TLS, E1000, desktop, and command-completion contract. The serial log is
 `GUI terminal smoke passed`. The published image hash is unchanged after the
 boot. This is an SMP and terminal smoke, not a new Doom gameplay or full
 graphics/audio/USB frontier proof.
+
+## 2026-09-20: check closed compilation across bootstrap generations
+
+Both staged drivers now run the closed kernel compiler transaction through
+each compared generation's complete six-tool cohort. The fixtures cover
+nested logical includes, `__FILE__`, code and data-only ELF32 objects, an
+unchanged-output replay with an old timestamp, syntax failure, a missing
+captured header, and an include present only in the live tree. Each failure
+must preserve the output's bytes and timestamp. Restoring the source must
+reproduce the original object, and every operation must remove its owned
+transaction files. The source behavior inventories are 36 failure, seven
+help, and 42 success groups on Linux, and 24/7/29 on native Windows.
+
+CupidBuild and the independent artifact-size verifier advance their promoted
+v2 parent window to `0232cb57` and `16a86f5b`. The current checked manifests
+retain their accepted parent. Their successors can name the current checked
+pair. Retired parents, mismatched digest/revision pairs, and Windows execution
+and plan parents from different generations fail. The v1 reader is unchanged.
+
+The first positive parent-window probe failed with the expected provenance
+diagnostic before the reader constants changed. Focused Windows and Linux
+parent checks then passed. Review caught a missing no-change replay in the
+first behavior-helper draft: recovery after a sentinel overwrite did not
+prove timestamp preservation for equal output. The helper now tests both.
+
+The first real Windows helper preflight rejected sibling seed directories:
+`checked seed manifest is outside the working directory`. Each private
+compile root must contain its own generation's seed. A mocked launcher had
+not exposed that containment requirement. The fixture now places each seed
+inside its matching root without changing the production path policy. Its
+unit test also rejects a manifest outside the root and checks the generation
+passed to each seed materializer.
+
+The corrected native preflight then exposed unconditional replacement of an
+unchanged compiler object. The compiler transaction now uses CupidBuild's
+existing checked `publish_if_changed` operation. A direct data-only test and
+the paired code-object replay check byte and timestamp preservation; the
+direct test also removes a required header afterward to prove that an existing
+object cannot bypass input validation.
+
+Overlapping full compiler, coordinator, and graph suites encountered exhausted
+Windows commit memory. PowerShell reported HRESULT `0x800705AF`, a compiler setup
+reported a linker launch failure, and a graph scan raised `MemoryError`.
+Those incomplete runs are not passing evidence. Inspection then found an
+unrelated RuntimeBroker process holding about 38 GiB of private memory, so
+test concurrency alone was not established as the cause. WSL subsequently
+reported `Wsl/Service/E_UNEXPECTED`. The owned test sessions were stopped,
+and tests resumed after host memory recovered. No timeout, memory limit,
+cleanup assertion, or publication check was relaxed.
+
+The user authorized stopping the affected RuntimeBroker process. After its
+identity was rechecked and it was stopped, available Windows commit memory
+rose to about 40 GiB and WSL launched successfully. The interrupted tests
+still require their own passing reruns.
+
+The existing Linux and Windows checked manifests pass verification. The seven
+source-bundle tests pass in 15.826 seconds. A fresh serial run of the complete
+artifact-size contract module and the new behavior-helper unit tests passes
+39 tests in 2.018 seconds. The separate parent-window checks passed on both
+hosts. Before interruption, the real transaction suite passed all-eleven
+ordinary-compiler parity, compiler/missing-header failure preservation, and
+coordinator object parity; that partial run is not a complete suite result.
+
+The resumed Linux transaction suite passes all 12 tests in 279.139 seconds,
+including the real Cupid-built compiler/coordinator pair, all eleven ordinary
+compiler comparisons, unchanged data-only output, the staged code-object
+replay, malformed compiler output, input drift, locks, and cleanup. Its
+isolated source copy lives on native Linux storage. The first interrupted
+copy under `/tmp` did not survive the WSL restart; the resumed copy uses a
+persistent directory beneath the Linux home directory.
+
+The resumed native Windows transaction suite passes the same 12 tests in
+520.731 seconds. The broader bootstrap regression passes 145 tests in 348.570
+seconds, with only its two full staged proofs deferred to the clean-checkout
+promotion runs. It includes native Windows partial producer builds, PE and
+runtime contracts, and kernel, libm, SIMD, and Doom compiler checks.
+
+ADR 0391 records the proof and parent boundary. This source step does not
+promote a seed or transfer a Make recipe. Production remains at 197 CupidBuild
+and 255 Python participations, including 240 Python-coordinated kernel/Doom
+compilations. All eleven eligible sources already use `.cc`. The recorded
+compiler-coordinator plan supplied the migration order; the question above
+concerned the host resource failure. TempleOS remains untouched and excluded
+from all counts.

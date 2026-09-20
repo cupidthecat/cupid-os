@@ -57,7 +57,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
 | `toolchain_contract` | 25 | 171432 |
-| `toolchain_core` | 48 | 108929 |
+| `toolchain_core` | 48 | 108930 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 577 |
 | `user_program` | 3 | 139 |
@@ -109,7 +109,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.preprocessor` | 18 | 8128 |
 | `c.qualifier` | 2 | 18084 |
 | `c.storage` | 4 | 11383 |
-| `c.type` | 15 | 60940 |
+| `c.type` | 15 | 60941 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -222,7 +222,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 403 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=38, HOSTED_I386_WINDOWS=9, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
 | `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 416 tracked .cc sources; 410 active with independent CupidC evidence; 6 unreachable |
-| `cupid_toolchain_fixed_point` | `pass` | 22 tool C sources (21 strict, 1 GNU); 6 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12, cupidbuild=8); 22 C objects and 1 startup object compared across stages; 6 tool images; 38 success and 33 failure cases; i386-linux |
+| `cupid_toolchain_fixed_point` | `pass` | 22 tool C sources (21 strict, 1 GNU); 6 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12, cupidbuild=8); 22 C objects and 1 startup object compared across stages; 6 tool images; 42 success and 36 failure cases; i386-linux |
 
 ## Interpretation limits
 

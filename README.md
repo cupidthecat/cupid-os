@@ -20,6 +20,11 @@ bundles to preserve include paths without live-file fallback. The promoted
 seeds and normal compiler recipes retain their current ownership; see
 [the compiler coordinator record](docs/bootstrap/NEXT-COMPILER-COORDINATOR.md).
 
+The next staged proof checks that transaction through each compared tool
+generation, including output parity and failure preservation. The provenance
+readers retain exactly two adjacent parent generations. [ADR 0391](docs/adr/0391-prove-closed-compilation-across-bootstrap-generations.md)
+describes these prerequisites for the next seed refresh.
+
 - VBE 640x480 32bpp graphics with a window manager, taskbar, and desktop icons
 - CupidC, a HolyC-inspired C compiler with JIT and ELF32 AOT output
 - Hardware FPU (x87) and SSE/SSE2 with eager FXSAVE context switch

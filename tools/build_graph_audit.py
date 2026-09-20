@@ -9493,9 +9493,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 33,
+        "failure_cases": 36,
         "help_cases": 7,
-        "success_cases": 38,
+        "success_cases": 42,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -9508,6 +9508,51 @@ def _cupid_toolchain_fixed_point_contract(
             "_run_behavior_checks is not unique"
         )
     behavior_function = behavior_functions[0]
+    compile_helpers = [
+        node for node in bootstrap_tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_check_cupidbuild_compile_kernel_behavior"
+    ]
+    compile_fragments = (
+        '_materialize_behavior_seed(seed_inputs, roots[0], "seed", stage_two)',
+        '_materialize_behavior_seed(seed_inputs, roots[1], "seed", stage_three)',
+        '"compile-kernel", "--seed-manifest", manifests[index]',
+        '"--root", roots[index], "--source", source',
+        '"--output", Path(source).with_suffix(".o").as_posix()',
+        '610 if source == data_source else 190',
+        'expected_code = success(code_source)',
+        'success(data_source)',
+        'has_code != (source == code_source)',
+        'failure("closure cannot be captured")',
+        '"kernel/core/live-only.h"',
+        'any(output.read_bytes() != sentinel for output in outputs)',
+        'tuple(output.stat().st_mtime_ns for output in outputs) != before',
+        'success(code_source, expected=expected_code)',
+        'tuple(output.stat().st_mtime_ns for output in code_outputs) != replay_times',
+        'path.name.endswith(".cupidbuild.lock")',
+        'path.name.startswith(".cupidbuild-")',
+        'check_cleanup()',
+    )
+    compile_helper_source = (
+        ast.get_source_segment(bootstrap_source, compile_helpers[0]) or ""
+        if len(compile_helpers) == 1 else ""
+    )
+    if any(fragment not in compile_helper_source for fragment in compile_fragments):
+        raise AuditError(
+            "Cupid Toolchain fixed-point kernel compile behavior differs"
+        )
+    for matrix_name in ("_run_behavior_checks", "_run_native_windows_behavior_checks"):
+        matrices = [node for node in bootstrap_tree.body
+                    if isinstance(node, ast.FunctionDef) and node.name == matrix_name]
+        if len(matrices) != 1 or sum(
+            isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id == "_check_cupidbuild_compile_kernel_behavior"
+            for node in ast.walk(matrices[0])
+        ) != 1:
+            raise AuditError(
+                "Cupid Toolchain fixed-point kernel compile behavior differs: "
+                f"{matrix_name} must call the shared gate once"
+            )
     candidate_image_helper_names = (
         "_file_backed_entry_offset",
         "_corrupt_candidate_entry_instruction",
@@ -13432,10 +13477,10 @@ def _cupid_toolchain_fixed_point_contract(
         native_windows_sources["_run_native_windows_behavior_checks"].count(
             "behavior_seed_inputs,"
         )
-        != 7
+        != 8
     ):
         missing_native_windows_fragments.append(
-            "_run_native_windows_behavior_checks: seven checked CupidBuild "
+            "_run_native_windows_behavior_checks: eight checked CupidBuild "
             "operations use the plan-matched behavior seed"
         )
 
@@ -13456,9 +13501,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 15, "
+            "'failure_cases': len(tool_names) + 18, "
             "'help_cases': len(tool_names) + 1, "
-            "'success_cases': len(tool_names) + 19"
+            "'success_cases': len(tool_names) + 23"
             "}",
             mode="eval",
         ).body
@@ -13474,8 +13519,8 @@ def _cupid_toolchain_fixed_point_contract(
             expected_native_windows_behavior, include_attributes=False
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return twenty-one failure, "
-                "seven help, and twenty-five success cases"
+                "_run_native_windows_behavior_checks: return twenty-four failure, "
+                "seven help, and twenty-nine success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -14158,8 +14203,8 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 7,
-        "windows_success_behavior_cases": 25,
-        "windows_failure_behavior_cases": 21,
+        "windows_success_behavior_cases": 29,
+        "windows_failure_behavior_cases": 24,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_checked_cupidc_runner",
