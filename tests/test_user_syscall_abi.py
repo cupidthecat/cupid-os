@@ -304,17 +304,27 @@ class UserSyscallAbiTests(unittest.TestCase):
         )
 
     def test_toolchain_contract_cohort_tracks_every_abi_input(self):
-        makefile = (
-            REPO_ROOT / "toolchain/Makefile"
-        ).read_text(encoding="utf-8")
-        logical = makefile.replace("\\\n", " ")
-
-        self.assertIn(
-            "$(USER_SYSCALL_ABI_INPUTS) Makefile", logical
+        result = subprocess.run(
+            [
+                "make", "--no-builtin-rules", "--just-print",
+                "--print-data-base", "-C", str(REPO_ROOT / "toolchain"),
+                "all",
+            ],
+            text=True, capture_output=True,
         )
-        self.assertIn("../tools/user_syscall_abi.py", logical)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        prefix = "build/cupidc-contracts/manifest.json:"
+        rules = [
+            line[len(prefix):].split()
+            for line in result.stdout.splitlines()
+            if line.startswith(prefix)
+        ]
+        self.assertEqual(len(rules), 1)
+        prerequisites = set(rules[0])
+        self.assertIn("Makefile", prerequisites)
+        self.assertIn("../tools/user_syscall_abi.py", prerequisites)
         for relative in user_syscall_abi.ABI_INPUTS:
-            self.assertIn(f"../{relative}", logical)
+            self.assertIn(f"../{relative}", prerequisites)
 
 
 class CupidBuiltUserSyscallAbiContractTests(unittest.TestCase):

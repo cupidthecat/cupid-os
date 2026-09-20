@@ -2331,11 +2331,12 @@ def _freeze_user_syscall_abi_inputs(
         raise ContractError("published contract input inventory differs")
     destination.mkdir(mode=0o700)
     for logical_path in USER_SYSCALL_ABI_INPUTS:
-        digest = expected.get(logical_path)
-        if not isinstance(digest, str):
+        record = expected.get(logical_path)
+        if not _valid_digest_size_record(record):
             raise ContractError(
-                f"published cohort omits ABI input: {logical_path}"
+                f"published ABI input record differs: {logical_path}"
             )
+        digest = record["sha256"]
         source = root.joinpath(*PurePosixPath(logical_path).parts)
         if source.is_symlink():
             raise ContractError(
@@ -2349,7 +2350,11 @@ def _freeze_user_syscall_abi_inputs(
             raise ContractError(
                 f"ABI input is unavailable: {logical_path}"
             ) from error
-        if not resolved.is_file() or hashlib.sha256(data).hexdigest() != digest:
+        if (
+            not resolved.is_file()
+            or len(data) != record["size"]
+            or hashlib.sha256(data).hexdigest() != digest
+        ):
             raise ContractError(
                 f"ABI input differs from the publication: {logical_path}"
             )
@@ -2357,14 +2362,15 @@ def _freeze_user_syscall_abi_inputs(
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
     for logical_path in USER_SYSCALL_ABI_INPUTS:
-        digest = expected[logical_path]
+        record = expected[logical_path]
+        digest = record["sha256"]
+        source = root.joinpath(*PurePosixPath(logical_path).parts)
+        target = destination.joinpath(*PurePosixPath(logical_path).parts)
         if (
-            _sha256(root.joinpath(*PurePosixPath(logical_path).parts))
-            != digest
-            or _sha256(
-                destination.joinpath(*PurePosixPath(logical_path).parts)
-            )
-            != digest
+            source.stat().st_size != record["size"]
+            or target.stat().st_size != record["size"]
+            or _sha256(source) != digest
+            or _sha256(target) != digest
         ):
             raise ContractError(
                 "ABI inputs changed while the shared snapshot was frozen"

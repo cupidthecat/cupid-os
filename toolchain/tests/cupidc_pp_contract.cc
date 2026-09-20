@@ -3169,7 +3169,7 @@ static int run_conditional_active_cases(void) {
     }
   }
   if ((ctool_u32)(sizeof(cases) / sizeof(cases[0])) != 55u ||
-      if_occurrences != 398u || elif_occurrences != 12u ||
+      if_occurrences != 403u || elif_occurrences != 12u ||
       probe_count != 57u) {
     (void)fprintf(stderr,
                   "conditional-active: checked manifest totals differ\n");

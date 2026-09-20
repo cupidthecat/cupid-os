@@ -34899,3 +34899,35 @@ graph still has 195 CupidBuild and 257 Python participations; the production
 handoffs are separate work. Independent review matched every expression
 count. The source-only test log has SHA-256
 `a424869624de0bff6a39bae3953bfb39004954b98f5ad625f1e28f9095ee8caf`.
+
+## 2026-09-19 current Toolchain contract consumers
+
+The Linux user ABI gate could publish a complete Toolchain cohort and then
+reject a present input as missing. Its snapshot reader still expected a digest
+string, but the v3 publication stores a `{size, sha256}` record for each input.
+The reader now validates the record and checks both fields before copying,
+then rechecks the live and private copies before execution. The existing
+publication verifier and independent ABI oracle remain in force.
+
+The full contract suite also exposed a stale executable preprocessor total.
+The conditional fixture contains 403 `#if` occurrences, not 398. Its 55
+expressions, 12 `#elif` occurrences, and 57 probes are unchanged. The user ABI
+Make test now checks the expanded publication prerequisites instead of an old
+adjacent-variable spelling; all six ABI inputs, the oracle, and Makefile must
+remain prerequisites.
+
+The new public ABI tests failed before the repair and pass afterward. They
+exercise real source and seed verification, with only process execution and
+filesystem race injection replaced at their boundaries. Equal-size source
+edits, size changes, post-copy live edits, and equal-size private-copy damage
+all stop before execution and leave the publication unchanged.
+
+All 127 preprocessor, Toolchain, and user ABI tests passed in 70.560 seconds
+in a source-only checkout using the unchanged `0232cb57` seeds. The test log
+has SHA-256
+`3713c47aa354a9552e691c8a575b5a7addaa7f8437a747580932c8d5707d3bab`.
+Audit generation and check mode passed for the source-only graph. Only the
+preprocessor contract's source hash and the aggregate source digest changed.
+This repair changes no checked tool image, bootstrap source identity, OS
+source, or ABI layout. Full publication with the corrected consumer is a
+separate integration check.

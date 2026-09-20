@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import struct
 import subprocess
 import tempfile
@@ -2759,6 +2760,135 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         )
         oracle.assert_called_once_with(snapshot)
         verify_inputs.assert_called_once_with(root, publication_report)
+
+    def _write_current_user_abi_publication(self, root):
+        repository = Path(__file__).resolve().parents[1]
+        logical_manifest = "bootstrap/seeds/i386-linux/manifest.json"
+        seed = cupidc_toolchain_contracts.verify_seed_inputs(
+            repository / logical_manifest
+        )
+        sources = cupidc_toolchain_contracts.capture_source_snapshot(
+            repository, _candidate_build_plan(seed.manifest["build_plan"])
+        )
+        inputs = cupidc_toolchain_contracts._snapshot_contract_inputs(
+            repository,
+            cupidc_toolchain_contracts._contract_input_paths(repository),
+        )
+        paths = set(inputs) | set(sources) | {logical_manifest}
+        paths.update(
+            "bootstrap/seeds/i386-linux/" + artifact["file"]
+            for artifact in seed.manifest["artifacts"]
+        )
+        for logical_path in sorted(paths):
+            destination = root / logical_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(repository / logical_path, destination)
+        output = root / "toolchain/build/cupidc-contracts"
+        self._write_publication(output)
+        self._bind_publication_inputs(output, inputs)
+        self._bind_publication_bootstrap(output, {
+            "build_plan_sha256": seed.manifest["build_plan_sha256"],
+            "seed_manifest": {
+                "path": logical_manifest,
+                "sha256": seed.manifest_sha256,
+            },
+            "source_inputs": {
+                "count": len(sources),
+                "files": sources,
+                "sha256": cupidc_toolchain_contracts._snapshot_sha256(sources),
+            },
+        })
+        return root / logical_manifest, output
+
+    def test_linux_user_abi_consumes_size_and_digest_publication_records(self):
+        with tempfile.TemporaryDirectory(prefix="cupid-user-abi-v3-") as td:
+            root = Path(td).resolve()
+            manifest, output = self._write_current_user_abi_publication(root)
+            expected = cupidc_toolchain_contracts.check_syscall_abi(root)
+
+            def run_contract(executable, arguments, timeout):
+                self.assertEqual(arguments[0], "check-snapshot")
+                snapshot = arguments[1]
+                self.assertNotEqual(snapshot, root)
+                for logical_path in cupidc_toolchain_contracts.USER_SYSCALL_ABI_INPUTS:
+                    self.assertEqual(
+                        (snapshot / logical_path).read_bytes(),
+                        (root / logical_path).read_bytes(),
+                    )
+                return subprocess.CompletedProcess(
+                    [str(executable)], 0, json.dumps(expected) + "\n", ""
+                )
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts.ToolRunner, "run",
+                side_effect=run_contract,
+            ):
+                actual = cupidc_toolchain_contracts.run_user_syscall_abi(
+                    root, manifest, output
+                )
+            self.assertEqual(actual, expected)
+            self.assertEqual(actual["field_count"], 103)
+            self.assertEqual(actual["table_size"], 412)
+
+    def test_linux_user_abi_rejects_input_drift_during_snapshot_capture(self):
+        for change in ("same-size", "size", "after-copy", "private-copy"):
+            with self.subTest(change=change), tempfile.TemporaryDirectory(
+                prefix="cupid-user-abi-v3-drift-"
+            ) as td:
+                root = Path(td).resolve()
+                manifest, output = self._write_current_user_abi_publication(root)
+                original_manifest = (output / "manifest.json").read_bytes()
+                first = root / cupidc_toolchain_contracts.USER_SYSCALL_ABI_INPUTS[0]
+                last = root / cupidc_toolchain_contracts.USER_SYSCALL_ABI_INPUTS[-1]
+                read_bytes = Path.read_bytes
+                temporary_directory = tempfile.TemporaryDirectory
+                capture_started = False
+                snapshot = None
+
+                def create_temporary(*arguments, **keywords):
+                    nonlocal capture_started, snapshot
+                    directory = temporary_directory(*arguments, **keywords)
+                    if keywords.get("prefix") == "cupid-user-syscall-abi-snapshot-":
+                        capture_started = True
+                        snapshot = Path(directory.name) / "source"
+                    return directory
+
+                def read_with_drift(path):
+                    data = read_bytes(path)
+                    if not capture_started:
+                        return data
+                    if path == first and change == "same-size":
+                        return data[:-1] + b"!"
+                    if path == first and change == "size":
+                        return data + b"changed"
+                    if path == last and change == "after-copy":
+                        first.write_bytes(read_bytes(first) + b"changed")
+                    if path == last and change == "private-copy":
+                        target = snapshot / first.relative_to(root)
+                        target.write_bytes(read_bytes(target)[:-1] + b"!")
+                    return data
+
+                diagnostic = (
+                    "ABI inputs changed while the shared snapshot was frozen"
+                    if change in ("after-copy", "private-copy")
+                    else "ABI input differs from the publication: kernel/core/types.h"
+                )
+                with mock.patch.object(
+                    Path, "read_bytes", read_with_drift,
+                ), mock.patch.object(
+                    tempfile, "TemporaryDirectory", create_temporary,
+                ), mock.patch.object(
+                    cupidc_toolchain_contracts.ToolRunner, "run",
+                ) as runner, self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError, diagnostic,
+                ):
+                    cupidc_toolchain_contracts.run_user_syscall_abi(
+                        root, manifest, output
+                    )
+                runner.assert_not_called()
+                self.assertEqual(
+                    (output / "manifest.json").read_bytes(), original_manifest
+                )
 
     def test_windows_user_abi_uses_the_native_seed_without_a_publication(self):
         with tempfile.TemporaryDirectory(
