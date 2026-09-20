@@ -105,15 +105,10 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 WINDOWS_SOURCE_HEAD_INITIAL_MATCHES = {
-    name: False for name in CANDIDATE_TOOL_NAMES
+    name: True for name in CANDIDATE_TOOL_NAMES
 }
 LINUX_SOURCE_HEAD_INITIAL_MATCHES = {
-    "cupidasm": False,
-    "cupidbuild": False,
-    "cupidc": True,
-    "cupiddis": True,
-    "cupidld": True,
-    "cupidobj": False,
+    name: True for name in CANDIDATE_TOOL_NAMES
 }
 
 
@@ -469,16 +464,16 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "native_build_plan_sha256": PROMOTED_WINDOWS_PLAN_SHA256,
                 "plan_seed_manifest_sha256": "3" * 64,
                 "parent_execution_seed_manifest_sha256": (
-                    "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db"
+                    "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
                 ),
                 "parent_execution_seed_source_revision": (
-                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
                 ),
                 "parent_plan_seed_manifest_sha256": (
-                    "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
                 ),
                 "parent_plan_seed_source_revision": (
-                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
                 ),
                 "producer_lineage": lineage,
                 "source_input_count": PROMOTED_SOURCE_INPUT_COUNT,
@@ -495,10 +490,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "fixed_point_command": "make bootstrap-from-seed",
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
                 ),
                 "parent_seed_source_revision": (
-                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
                 ),
                 "producer_lineage": lineage,
                 "seed_generation": "stage-four",
@@ -679,12 +674,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(
             profiles,
             {
-                "cupidasm.exe": WINDOWS_LINKER_SEED_IMPORTS,
-                "cupidc.exe": WINDOWS_TOOL_SEED_IMPORTS,
-                "cupiddis.exe": WINDOWS_TOOL_SEED_IMPORTS,
-                "cupidld.exe": WINDOWS_LINKER_SEED_IMPORTS,
-                "cupidobj.exe": WINDOWS_TOOL_SEED_IMPORTS,
-                "cupidbuild.exe": WINDOWS_CUPIDBUILD_SEED_IMPORTS,
+                "cupidasm.exe": WINDOWS_LINKER_IMPORTS,
+                "cupidc.exe": WINDOWS_TOOL_IMPORTS,
+                "cupiddis.exe": WINDOWS_TOOL_IMPORTS,
+                "cupidld.exe": WINDOWS_LINKER_IMPORTS,
+                "cupidobj.exe": WINDOWS_TOOL_IMPORTS,
+                "cupidbuild.exe": WINDOWS_CUPIDBUILD_IMPORTS,
             },
         )
 
@@ -768,6 +763,26 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         for profile in rejected_profiles:
             self.assertNotIn(profile, WINDOWS_CUPIDBUILD_IMPORT_PROFILES)
+
+    def test_promoted_windows_images_reject_legacy_import_profiles(self):
+        for name in CANDIDATE_TOOL_NAMES:
+            legacy_profile = (
+                WINDOWS_CUPIDBUILD_SEED_IMPORTS
+                if name == "cupidbuild"
+                else (
+                    WINDOWS_LINKER_SEED_IMPORTS
+                    if name in ("cupidasm", "cupidld")
+                    else WINDOWS_TOOL_SEED_IMPORTS
+                )
+            )
+            with self.subTest(tool=name), self.assertRaisesRegex(
+                BootstrapError, "PE32 import"
+            ):
+                _validate_static_i386_pe32(
+                    WINDOWS_SEED_MANIFEST.parent / f"{name}.exe",
+                    0x00401000,
+                    legacy_profile,
+                )
 
     def test_windows_tool_import_profiles_lock_the_runtime_transition(self):
         self.assertNotIn(
@@ -1042,6 +1057,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         current_plan = (
             "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669"
         )
+        legacy_plan = (
+            "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
+        )
 
         def with_profile(profiles, tool, profile):
             changed = dict(profiles)
@@ -1049,7 +1067,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             return changed
 
         cases = (
-            ("seed", PROMOTED_WINDOWS_PLAN_SHA256, seed_profiles, True),
+            ("seed", legacy_plan, seed_profiles, True),
             ("current", current_plan, current_profiles, True),
             (
                 "current-plan-seed-ordinary",
@@ -1069,13 +1087,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ),
             (
                 "seed-plan-current-ordinary",
-                PROMOTED_WINDOWS_PLAN_SHA256,
+                legacy_plan,
                 with_profile(seed_profiles, "cupiddis", WINDOWS_TOOL_IMPORTS),
                 False,
             ),
             (
                 "seed-plan-current-linker",
-                PROMOTED_WINDOWS_PLAN_SHA256,
+                legacy_plan,
                 with_profile(seed_profiles, "cupidld", WINDOWS_LINKER_IMPORTS),
                 False,
             ),
@@ -1091,7 +1109,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ),
             (
                 "seed-plan-current-cupidbuild",
-                PROMOTED_WINDOWS_PLAN_SHA256,
+                legacy_plan,
                 with_profile(
                     seed_profiles, "cupidbuild", WINDOWS_CUPIDBUILD_IMPORTS
                 ),
@@ -1119,7 +1137,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ),
             (
                 "seed-mixed-cupidbuild",
-                PROMOTED_WINDOWS_PLAN_SHA256,
+                legacy_plan,
                 with_profile(
                     seed_profiles,
                     "cupidbuild",
@@ -5319,7 +5337,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 report["build_plan_sha256"],
                 source_head_windows_plan_sha256,
             )
-            self.assertNotEqual(
+            self.assertEqual(
                 source_head_windows_plan_sha256,
                 PROMOTED_WINDOWS_PLAN_SHA256,
             )
@@ -5936,6 +5954,24 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "source snapshot differs",
             ),
             (
+                "previous native build plan",
+                lambda manifest: manifest["provenance"].update(
+                    {
+                        "native_build_plan_sha256": (
+                            "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
+                        )
+                    }
+                ),
+                "native build plan differs",
+            ),
+            (
+                "unknown native build plan",
+                lambda manifest: manifest["provenance"].update(
+                    {"native_build_plan_sha256": "0" * 64}
+                ),
+                "native build plan differs",
+            ),
+            (
                 "wrong source revision",
                 lambda manifest: manifest["provenance"].update(
                     {"source_revision": "0" * 40}
@@ -6029,17 +6065,16 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 if artifact["name"] != "cupidbuild"
             ]
             (copied_seed / "cupidbuild.exe").unlink()
-            legacy_assembler = (copied_seed / "cupiddis.exe").read_bytes()
-            (copied_seed / "cupidasm.exe").write_bytes(legacy_assembler)
-            assembler_artifact = next(
-                artifact
-                for artifact in manifest["artifacts"]
-                if artifact["name"] == "cupidasm"
-            )
-            assembler_artifact["size"] = len(legacy_assembler)
-            assembler_artifact["sha256"] = hashlib.sha256(
-                legacy_assembler
-            ).hexdigest()
+            for artifact in manifest["artifacts"]:
+                profile = (
+                    WINDOWS_LINKER_SEED_IMPORTS
+                    if artifact["name"] == "cupidld"
+                    else WINDOWS_TOOL_SEED_IMPORTS
+                )
+                payload = self._minimal_cupidbuild_profile_pe32(profile)
+                (copied_seed / artifact["file"]).write_bytes(payload)
+                artifact["size"] = len(payload)
+                artifact["sha256"] = hashlib.sha256(payload).hexdigest()
             manifest["provenance"] = {
                 "artifact_generation": (
                     "paired-stage-four-native-windows"

@@ -34673,6 +34673,260 @@ The Windows run completed in 0.694 seconds and Linux in 0.576 seconds.
 OS sources, installed CTXT, the
 toolchain source closure, and production artifacts remain unchanged.
 
+## 2026-09-19: promote the profile publisher and transfer its Make recipe
+
+The root checkout is on the older `workspace/hold-user-changes-20260726`
+branch with unrelated edits. Implementation continues in the existing
+`bootstrap-20260824` worktree on `bootstrap/cupid-self-hosting`. Those root
+changes and the untracked artifacts in both worktrees are preserved.
+
+The active tree already contains the compiler, assembler, linker, object,
+disassembler, and runtime features needed for the closed Doom profile
+transaction. The remaining step is paired seed carriage and normal Make
+ownership. The `.c` audit accounts for 17 historical, dormant, host-fixture,
+or host-oracle files. No active CupidC-owned source needs a suffix change in
+this step, and `TempleOS/` stays outside the build and migration totals.
+
+The detached `proof-34b597aa` checkout contains completed Linux and native
+Windows proofs for the current source closure. Both reports bind the same 59
+inputs and snapshot
+`50398b66e617a61e34b8c6ae1c0f3bb856de2ca114640a3722851ef337c2b684`.
+Before copying any seed, every source size and hash was checked against both
+the clean proof checkout and the active tree. Every stage-three/stage-four
+object and tool was compared independently. These checks passed. Linux's
+31/7/37 and Windows's 19/7/24 failure/help/success groups passed in those
+reports. ADR 0382 records their exact identities.
+
+The first `make -j2 all` baseline attempt was interrupted with the conversation
+while it was compiling the shared toolchain objects. It did not finish and is
+not counted as a passing baseline. Its partial log is
+`build/bootstrap/profile-promotion-baseline.log`.
+
+The new manifests name revision
+`34b597aa52486eb963c6568dc31f01ea9bd572cb`, retain the preceding `0232cb57`
+pair as parents, and pin the exact stage-four bytes. Windows binds native plan
+`98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669`
+and the new Linux plan manifest. The host verifier now selects the current
+Windows import profiles for promoted images while preserving historical v1
+profiles. Both six-tool seed verifiers pass.
+
+The Doom profile rule now invokes the fixed host-selected CupidBuild image
+with the complete production seed closure. POSIX Make prepares
+`build/bootstrap` explicitly. CupidBuild freezes the exact 83-source and
+304-header/include cohort, runs CupidObj first, compares a native rendering,
+and owns final rechecks and publication. The audit pins the recipe and
+preparation order. Python stays available as the independent parity oracle.
+The graph moves from 195 CupidBuild and 257 Python participations to 196 and
+256, respectively. ADR 0383 records that ownership boundary.
+
+The real native Windows Make fixture passed canonical byte parity, unchanged
+timestamp preservation, and renamed-source rollback. The production fixture,
+both-host poisoned-command dry run, and exact trust-unit rule completed three
+tests in 32.408 seconds. The earlier focused audit checks also passed five
+cases in 7.43 seconds and three root/trust checks in 58.756 seconds.
+
+Promoted self-consumption runs on Linux and native Windows write their reports
+under `build/bootstrap/profile-promoted-linux` and
+`build/bootstrap/profile-promoted-windows`. Final results are recorded below
+when those runs finish.
+
+## 2026-09-19: direct ISO pattern recipe and audit boundary
+
+Make now selects `cupidbuild assemble-iso-pattern` for
+`test_iso/fixtures/big.bin`. The source remains `test_iso/big_pattern.asm`;
+the rule binds Makefile and the complete selected six-tool seed. Python,
+Hostbuild, and the bootstrap runner are absent from that output's command
+and prerequisite closure. The enclosing ISO image retains Hostbuild's
+independent render and guarded publisher. ADR 0386 records this handoff.
+
+The existing profile barrier remains intact. The ISO output stays parallel
+because `test_iso/` is outside the profile's retained source directories.
+The barrier's comment now distinguishes scheduling from content dependencies:
+171 outputs use the added order-only edges, while 83 Doom compilations retain
+ordinary profile inputs.
+
+The first production dry-run test failed on both host branches because
+`PYTHON=ISO_HOST_TOOL_MUST_NOT_RUN` still appeared in the Hostbuild recipe.
+After the recipe transfer, both branches passed in 0.126 seconds. A private
+real-Make fixture also exposed the old `tools/hostbuild.py` prerequisite. It
+copies the complete seed and actual Makefile and has no publisher bypass.
+
+The audit's synthetic ISO case initially attributed the typed command only
+to CupidBuild. Adding explicit CupidASM and CupidDis markers and flat-output
+classification made the test pass. The exact production transform guard then
+rejected all 20 mutations covering changed output, operation, owner, recipe,
+root, output option, host inputs, duplicate inputs, every missing trust-unit
+member, an accidental profile scheduling edge, and missing/duplicate delivery.
+
+The final focused Windows command passed five tests in 1.776 seconds:
+
+```text
+python -m unittest tests.test_build_graph_audit.BuildGraphAuditCliTests.test_iso_pattern_audit_contract_rejects_mutations tests.test_build_graph_audit.BuildGraphAuditCliTests.test_inventory_attributes_nested_checked_seed_tools_once tests.test_build_graph_audit.BuildGraphAuditCliTests.test_guarded_iso_lane_ignores_standalone_assembler_overrides tests.test_build_graph_audit.BuildGraphAuditCliTests.test_raw_assembly_keeps_seed_closure_under_tool_overrides tests.test_iso_cupidbuild_production.IsoCupidBuildProductionTests.test_make_uses_typed_iso_publisher_on_both_hosts -v
+```
+
+The expected graph remains 452 transforms, with 197 CupidBuild, 255 Python,
+ten CupidDis, and nine CupidASM participations. Checked production replay is
+pending the repaired paired seeds built from source revision `962e476b`.
+The provisional native Windows `34b597aa` image rejects
+`assemble-iso-pattern` with exit 1 and its earlier usage text. That limitation
+is recorded explicitly; no candidate executable is substituted into a
+manufactured production manifest.
+
+The committed-source baseline Feature 17 smoke passed on four CPUs with
+`max` and E1000. It required the six directory names, Rock Ridge long name,
+JPEG decode, matching glyph raster/cache width, `PASS feature17_iso`, JIT
+completion, SMP checks, and the survival window. Its logs are
+`build/bootstrap/iso-feature17-source-smoke.log` and
+`build/bootstrap/iso-feature17-source-smoke-result.log`. Final handoff-image
+build and runtime evidence will be recorded after promotion.
+
+Audit generation and deterministic `--check` passed with 452 transforms,
+197 CupidBuild, 255 Python, ten CupidDis, and nine CupidASM participations.
+The emitted ISO transform has the active assembly source, Makefile, and all
+seven seed files as its exact content inputs, with no profile scheduling
+edge. No source or toolchain capability count changes.
+
+Review then found that the input-set check did not bind `$<`: moving Makefile
+or a seed image before the assembly source still passed the audit. A separate
+Make dry run showed `ISO_BIG_FIXTURE_SOURCE=Makefile` changing the source on
+both host branches. Both regressions were reproduced. Make now fixes the
+source variable with `override`, and the audit requires the assembly source
+at input index zero. The expanded 22-mutation audit and four other focused
+native cases pass in 1.723 seconds. WSL passes the four audit cases in 2.274
+seconds and the both-host Make poison case in 0.271 seconds. The source-order
+fix requires another final audit regeneration after promotion.
+
+The first WSL dotted-module invocation failed to import the checkout tests.
+Discovery loaded the local test files and passed. The working command is:
+
+```text
+python3 -m unittest discover -s tests -p test_build_graph_audit.py -k iso_pattern_audit_contract -k nested_checked_seed_tools -k guarded_iso_lane -k raw_assembly_keeps -v
+python3 -m unittest discover -s tests -p test_iso_cupidbuild_production.py -k both_hosts -v
+```
+
+The later namespace diagnosis confirmed that a checkout without an explicit
+`tests` package resolved an installed `site-packages/tests/__init__.py`.
+Commit `70bcfb21` adds the local package marker; its 137-test Windows and WSL
+checks pass with dotted imports. The discovery commands above remain valid.
+
+Python compilation checks and `git diff --check` also pass. Real publication
+tests remain enabled and await the complete repaired checked pair, without
+an unconditional skip or a substituted publisher.
+
+The repaired Linux and native Windows pairs are now installed and pass both
+seed verifiers. They bind source revision
+`962e476b4f6bfef4e9776f913d4d3a7cb9856246` and the same 59-input snapshot,
+`7d6f6ad2566d2fd9eb21473335485f4394ab96f8136ebeb8619ee627383a6c9e`.
+The Linux manifest hash is
+`1695d4bfa68701fb5e087e45942578445e97eb44dbc73b029c7533f07e4f4b58`;
+the Windows manifest hash is
+`c537034852bf8273dad21e3f908215638cec18cf7048c277133e22ad8be3cec8`.
+Their clean fixed-point reports pass 32/7/38 Linux and 20/7/25 Windows
+failure/help/success groups, including ISO publication and wrong-pattern
+rollback. ADR 0382 records the paired reconstruction and promotion.
+
+The real-Make suite now passes all four cases against the default checked
+cohorts: Windows in 62.322 seconds and Linux in 31.938 seconds, without skips.
+It covers both-host poisoned overrides, initial and replacement publication,
+unchanged-file timestamp reuse, wrong-pattern rollback, and a drifted CupidC
+image that the ISO transaction does not launch. The first runs found a test
+assertion spelling error: the correct diagnostic is `checked CupidC digest
+mismatch`, not lowercase `cupidc`. Both tools had already rejected the damaged
+cohort and preserved the output. Correcting that assertion made the complete
+reruns pass; no publisher behavior changed.
+
+The exact-old-seed ISO skips from ADR 0384 are removed. All three default
+checked CLI ISO cases pass on Windows in 10.579 seconds and Linux in 12.469
+seconds, without skips. The active source still produces exactly 4,096 bytes
+with SHA-256
+`c8f5d0341d54d951a71b136e6e2afcb14d11ed8489a7ae126a8fee0df6ecf193`.
+These tests used no `CUPIDBUILD_TEST_SEED_MANIFEST` override:
+
+```text
+python -m unittest discover -s tests -p test_iso_cupidbuild_production.py -v
+python -m unittest discover -s tests -p test_toolchain_cupidbuild.py -k iso_pattern -v
+```
+
+Linux uses `python3` with the same arguments. Final OS build, exact artifact
+policy, and runtime smoke evidence for the complete handoff remain separate
+from these focused publication checks.
+
+## 2026-09-19 repaired-pair production validation
+
+The installed pair passed 181 distinct promotion regressions without skips:
+140 bootstrap tests in 285.632 seconds, the paired-import-profile test in
+2.810 seconds, and all 40 manifest-contract tests in 51.307 seconds. Only the
+two full fixed-point methods were excluded from that selection; the fresh
+clean Linux and Windows proofs recorded above cover them. The remaining
+tests include native PE execution, active OS source compilation, repeated
+Doom compatibility compilation, checked contract-author reconstruction, and
+canonical manifest bytes. No fixture repair was needed.
+
+The full native Windows CupidBuild CLI and process suites passed 151 tests
+in 303.033 seconds, with ten platform-only skips. The former checked-seed
+candidate-replacement skip is removed. Its eight-test native process module
+also passed independently without skips. The full CLI run used an isolated
+validation checkout with the verified repaired cohorts and current test
+files. This keeps its global private-name assertions separate from the
+normal build's publication transactions. Windows and Linux CLI runs use that
+checkout sequentially.
+
+The smoke harness and test-package suites passed all 137 Windows tests in
+0.920 seconds. This is harness regression evidence, not an OS boot result.
+Audit generation and deterministic check mode passed after the final source
+binding and seed promotion. The graph retains 748 active inputs, 452
+transforms, 255 feature requirements, and 28 unreachable source-like files.
+CupidBuild participates in 197 transforms and Python in 255.
+
+Final review found stale current provenance in the documentation, but no
+new code defect. The current entries now bind the repaired source, manifests,
+and images. Two old behavior-count paragraphs in the embedded CTXT were
+corrected before the running build reached any documentation-wrapping recipe.
+The documentation objects therefore consume the corrected 32/7/38 and
+20/7/25 totals. Historical candidate proofs retain their original evidence.
+
+## 2026-09-19: full replay exposes a launch limit and recovery boundary
+
+The combined build-graph, Doom-production, and ISO-production modules passed
+167 tests in 1,582.925 seconds, with two POSIX-only skips on Windows. The
+separate checked user-program build passed for `hello`, `ls`, and `cat`.
+Its ABI check retained 103 fields, 101 providers, and a 412-byte table.
+
+The full Windows OS build compiled every object and linked both kernels,
+then failed to launch the broad CupidDis check in the flatten transaction.
+Its 431 quoted absolute input paths occupied 45,255 characters before the
+executable and options. The Windows command-line limit is 32,767 characters.
+The old raw kernel stayed in place and the disk-image publisher did not run.
+An independent checked CupidObj probe produced a 9,543,692-byte flat image;
+that diagnostic file is not a normal-build publication or boot result.
+The repaired `962e476b` pair therefore remains provisional despite its
+successful clean fixed-point proofs.
+
+The full Linux CLI/process run completed 151 tests in 1,535.112 seconds, with
+five failures and sixteen platform-only skips. Two failures were fixture
+defects: the POSIX profile parent was missing, and a binary mutation counted
+every `profiles` substring instead of the exact JSON key. The other failures
+exposed a Windows-only launch test hook, an anonymous-child working-directory
+wiring gap hidden behind an oversized assembly fixture, and DrvFS's retained
+directory lookup behavior. These failures are tracked separately from the
+passing Windows suite.
+
+A minimal publication fixture and an independent directory-descriptor probe
+showed that DrvFS can resolve a foreign replacement's file through the old
+directory descriptor after a rename. The descriptor can still report its old
+inode, so reopening or comparing that identity does not restore the native
+Linux guarantee. Native Linux storage retained the original binding in the
+same probes. CupidBuild left the foreign successor untouched and retained
+the old output in a recovery backup.
+
+Question: should WSL publication require Linux-native storage for the full
+rollback guarantee, or keep `/mnt/c` support with explicit recovery limits?
+Answer: keep `/mnt/c` support with explicit recovery limits. Native Linux
+rollback must still restore the old output when its retained namespace is
+usable. DrvFS must preserve recovery evidence rather than guess at a changed
+binding. The OS reference documentation records that filesystem contract,
+not the conversation that selected it.
+
 ## 2026-09-19: retain the complete Windows kernel inspection cohort
 
 The pending `962e476b` seed replay compiled the OS and linked both kernels,
@@ -34751,10 +35005,6 @@ a foreign replacement child while reporting the original directory identity.
 Native `/tmp` controls kept the original child binding and restored the old
 output. `O_PATH`, reopening the proc-fd path, and reopening its reported path
 did not repair the tested DrvFS behavior. No production source was instrumented.
-
-Question: should CupidBuild reject `/mnt/c`, or keep it with an explicit
-recovery limit? The user chose: "Keep /mnt/c support with explicit recovery
-limits."
 
 ADR 0388 records that boundary. Regression coverage probes actual filesystem
 semantics using an independently owned fixture. Stable retained-parent lookup
@@ -34931,3 +35181,1169 @@ preprocessor contract's source hash and the aggregate source digest changed.
 This repair changes no checked tool image, bootstrap source identity, OS
 source, or ABI layout. Full publication with the corrected consumer is a
 separate integration check.
+
+## 2026-09-19 full repaired-source preflight with the 962 cohort
+
+The complete CupidBuild CLI suite passed against source
+`16a86f5b1693e017c36c6d902df9946c5d674b17` in the isolated
+`iso-pattern-cupidbuild` checkout. Both runs used complete, locally copied
+`962e476b` cohorts. They test the repaired source and its host adapter; they
+are not acceptance runs for the later `16a86f5b` seed pair.
+
+Native Windows ran 155 tests in 352.900 seconds with 12 expected platform
+skips and exit status zero. Its 59,634-byte log has SHA-256
+`0631872b1c21715b62fb97180263b7bcb9de48e553bf7a99395c170843833e6c`.
+Linux ran 155 tests in 1,584.204 seconds with 16 expected Windows-only skips
+and exit status zero. Its 59,734-byte log has SHA-256
+`3d5a01e686da84a9f948a59fae642faa513149915dd489e5974379c1b14125ee`.
+Both 500-input cases and all applicable repaired watcher and recovery cases
+passed. These runs include the exact-restore and verified-recovery contracts
+recorded by ADR 0388, without weakening native Linux restoration assertions.
+
+## 2026-09-19 clean 16a paired proofs and checked-seed identities
+
+Both clean fixed-point proofs passed from source
+`16a86f5b1693e017c36c6d902df9946c5d674b17`. The canonical 59-input snapshot is
+`54b411b6ed05725101f5859106facb43639f2d02cb2b0ea2f6334e21375bda55`.
+The Linux proof used a clean Git archive on WSL's native filesystem; native
+Windows used the clean detached `proof-16a86f5b` worktree. Independent checks
+rehashed all 59 inputs, verified the canonical manifests, and byte-compared
+every final-stage object and image. The proof worktree had no tracked changes.
+
+Linux matched 22 C objects, one startup object, and six tools: 29 stage-three
+and stage-four artifact pairs. Its behavior inventory passed 33 failure,
+seven help, and 38 success groups. The 49,189-byte report has SHA-256
+`f1640d5a58399969a004a6e8732b9aaf5da9b5c2cbf69ceb734713c046233512`.
+Native Windows matched 23 C objects, three assembly objects, and six tools:
+32 artifact pairs. Its behavior inventory passed 21 failure, seven help,
+and 25 success groups. The 68,212-byte report has SHA-256
+`3baa028b0d976a0823329d825ffa8263837b7e1b9e12abb37901067864804447`.
+
+The Linux manifest is 6,602 bytes with SHA-256
+`d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d`.
+The Windows manifest is 2,852 bytes with SHA-256
+`bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc`.
+The Linux and native Windows plans are unchanged, as are the original
+`0232cb57` parent manifest identities. ADR 0382 records the complete tuple.
+
+The Linux CupidBuild image is 511,572 bytes with SHA-256
+`6f5de7a82c66fbc8a1c47ca0d63539271762511330c2f31ade144cfadb06ad62`.
+The Windows image is 525,824 bytes with SHA-256
+`595b2700ceacad6dc6ebc4958a91d6d5f79f527514ed7b9c72c66d0321b435b3`.
+The other five tools on each host match the `962e476b` candidates byte for
+byte. Both repaired images carry the Windows 500-input launch fix and the
+anonymous POSIX working-directory fix, alongside profile and ISO-pattern
+publication. The five CTXT manuals now describe this verified source and seed
+boundary. No source suffix or production owner changes follow from these
+repairs: the pending recipe handoffs still account for 197 CupidBuild and
+255 Python participations across 452 transforms.
+
+These proofs do not establish final production acceptance. The new pair's
+production tests, normal OS replay, artifact measurements, and runtime smoke
+remain pending. Earlier proof results and the failed `962e476b` full-kernel
+launch remain historical evidence above.
+
+## 2026-09-19 supplemental 962 Toolchain contract publication
+
+The separate `make -C toolchain -j2 all` run with the `962e476b` cohort
+completed with exit status zero. It published all 22 artifacts and passed
+native Toolchain manifest verification. Its 12,976-byte log has SHA-256
+`bccc32cb21693a6cfc51825e093981b967840a5e26cc7316e013d5709145d2f0`.
+This is supplemental acceptance of that earlier cohort's Toolchain contract
+path, not final `16a86f5b` publication or normal OS-image acceptance.
+
+## 2026-09-19 final-cohort regression checks and host memory pressure
+
+The promoted pair passed 182 bootstrap, seed-manifest, and test-import checks
+in 327.009 seconds without skips. This run excludes the two full fixed-point
+reconstruction tests, which have separate proof runs. Its log is
+`build/bootstrap/final-16a-bootstrap-regressions.log`, with SHA-256
+`8a2441628abfd0584a4e4adefe3ffd7895b309c0219cd259b6aa4e9f95803cdd`.
+The user-program build, `make -C user -j2 all`, also passed. Its log has
+SHA-256 `f8a32dddd3d6d5878296efee8e47cbe14b0d10536a5d43d38c3955f84bdf1e76`.
+
+The first production regression run found stale conditional-expression
+counts. The source checkpoint adds three real guards: two `_WIN32` guards
+and one `CUPIDBUILD_PUBLICATION_RACE_TEST` guard. The checked inventory now
+records 403 `#if` and 12 `#elif` occurrences, 415 in total. It still covers
+55 distinct expressions and 57 directive/expression pairs. All evaluated
+expectations are unchanged. `_WIN32` occurs 179 times and the publication
+race macro occurs six times. Independent source recounting matched every
+manifest entry; the focused inventory test passed in 94.480 seconds. A new
+full production run checks the corrected inventory separately from the
+earlier failed attempt.
+
+Review also found that the positive parallel-Make fixture could reuse its
+`profile.done` marker. The test now removes only its own named markers,
+outputs, and generated sources before that run. The normal test passed;
+a diagnostic mutation that removes only the `drivers/serial.o` ordering
+dependency failed with `source-directory writer ran before profile`.
+Together these checks took 1.45 seconds. The mutation changed only a
+temporary fixture, not the repository Makefile.
+
+Host allocation failures interrupted audit generation and check mode while
+Windows commit headroom was low. An OS build with six jobs also stopped at
+`bin/ctxt.o` with `checked seed inputs changed while checked tools ran`.
+Subsequent verification found no seed-byte drift. That diagnostic happened
+during the allocation failures; its cause has not been established. The
+input guard uses this same diagnostic for a failed reread and a changed
+snapshot, so the message alone does not establish byte drift. Its Windows
+reader can fail while allocating the snapshot buffer. The build was
+restarted with one job. The memory question asked whether the
+user could close or restart unneeded applications; the answer was "I'll
+free some memory." Available commit headroom later rose from about 3 GiB
+to about 30 GiB. No unrelated process or host setting was changed by the
+build work.
+
+Audit regeneration and check mode then passed. The inventory still has
+748 active inputs, 452 transforms, 255 feature requirements, and 28
+accounted unreachable inputs. Recipe ownership is 197 CupidBuild and
+255 Python participations. The audit JSON has SHA-256
+`382b96b452c87fee8db78c36e54ea3f3e123a7d2e5d20ba3b0b809ff37ea6b45`;
+the summary has SHA-256
+`05450dd750f52d675979f9550e6d92f6e5102478aa82b23125bb52ed2c725a0a`.
+
+## 2026-09-19 final 16a CupidBuild CLI acceptance
+
+The complete CLI suite passed with the final `16a86f5b` source and checked
+pair. Native Windows ran 155 tests in 267.792 seconds with 12 expected
+platform skips. Its 59,614-byte log has SHA-256
+`02d8b466424e638665191796a3d82d5539f9f3a55837fee4660465b509c9cb3b`.
+Linux on `/mnt/c` ran 155 tests in 1,528.642 seconds with 16 expected
+Windows-only skips. Its 59,734-byte log has SHA-256
+`d3bcb2db5473040dc9e9a3d5480467698efc4491ad8bc7d13bdc77c5edd4f13c`.
+
+Both runs passed the 500-input positive case and invalid-final-input rollback
+case. No old-capability skip applied. The source revision and the `d16626ec`
+Linux and `bd4d5435` Windows manifests remained the exact identities recorded
+in ADR 0382. These are final-cohort CLI results, distinct from the earlier
+source preflight that used the `962e476b` tools.
+
+At this CLI checkpoint, the full production suite and build acceptance were
+still pending. The corrected production-suite results follow below. The five
+CTXT manuals remain frozen.
+
+The first 167-case production run finished in 1,534.678 seconds with two
+platform skips and only the stale conditional-count failure described above.
+The corrected full run remains separate.
+
+A second OS replay runs on WSL's native filesystem, isolated from the Windows
+output tree. Its source archive contains the current tracked files and the
+five new implementation documents/tests, excluding `TempleOS/`. The
+105,387,008-byte archive has SHA-256
+`27dd9f66e19857bf59eb34fd39defec5854f6b2dd607cc4321c49c56a929fec8`.
+After extraction to `/var/tmp/cupid-production-16a.0giERm`, all six Linux
+seed images passed manifest verification. `make -j2 all` writes only that
+isolated tree; its host log is `build/bootstrap/final-16a-linux-os-build.log`.
+This run starts without compiled OS outputs. It does not yet establish a
+successful Linux image or runtime result.
+
+Independent native `sha256sum` and size checks matched all 59 extracted
+Toolchain source files against the clean `16a86f5b` proof inventory. The
+archive contains no compiled OS objects or images; its only `.bin` input is
+the tracked ISO fixture. The isolated build also retains the same five CTXT
+manual inputs as the Windows replay.
+
+## 2026-09-19 corrected final-cohort production regressions
+
+The corrected full production suite passed 167 tests in 1,827.789 seconds,
+with two platform skips and exit status zero. The 61,386-byte log,
+`build/bootstrap/final-16a-production-regressions-corrected.log`, has SHA-256
+`2b187dde0ec72148fe99055af86dbcb1a3ba0b1a15e95913105c7ca554d2d362`.
+This completes the rerun after the stale conditional-count failure recorded
+above; the earlier failed result is retained.
+
+The isolated native-filesystem Linux archive also passed its 48-test handoff
+suite in 114.080 seconds, with one Windows-junction skip and exit status zero.
+Its 19,190-byte log, `build/bootstrap/final-16a-linux-production-handoffs.log`,
+has SHA-256
+`95f4aef5ae6f5648729e92878702b1476d86c6a0c3472f47bf5eadf51021d342`.
+Linux executes both cases skipped by the Windows suite: profile-parent
+symlink rejection and replaced-output-directory handling. It also covers
+positive parallel ordering and the ISO publication cases.
+
+These runs complete the production regression suites, not the OS replay.
+At this checkpoint, the serial Windows OS build, two-job Linux OS build,
+22-artifact Toolchain publication, full Windows post-promotion proof, and
+native Linux user build were still running. The Windows proof's stage-two
+images independently matched all six checked seeds; its later stages had not
+finished. The completed Windows proof is recorded below.
+
+## 2026-09-19 Windows post-promotion self-consumption
+
+The full native Windows reproof passed with exit status zero. Its published
+68,206-byte report,
+`build/bootstrap/post-promotion-windows-16a/bootstrap-report.json`, has SHA-256
+`c099012813d313f3b6694f5874e9f5642f342e5218dffb5271d1dbc83eb1a2e1`.
+The log, `build/bootstrap/post-promotion-windows-16a.log`, has SHA-256
+`b38d0f44d741a8157f9e185d70d6d186810781ab6d63169c90d71dd50cda3651`.
+
+Independent checks verified the report's pass status, unchanged 59-input
+snapshot `54b411b6ed05725101f5859106facb43639f2d02cb2b0ea2f6334e21375bda55`,
+and current execution and plan parents: the `bd4d5435` Windows and `d16626ec`
+Linux manifests recorded in ADR 0382. All 32 final artifact pairs matched
+actual sizes and hashes: 23 C objects, three assembly objects, and six tools.
+Each of the six checked seed tools matched its actual stage-two, stage-three,
+and stage-four image. All six `initial_seed_matches_stage_two` fields were
+true, and the 21/7/25 failure/help/success inventory passed.
+
+This proves self-consumption of the promoted pair. It is distinct from the
+clean promotion proof that used the original `0232cb57` parents. The source
+remains `16a86f5b`; metadata-only commit `a5034676` changes no file in that
+59-input closure, seed, or CTXT input.
+
+The Linux Toolchain bootstrap step has finished, but its complete 22-artifact
+publication and verified post-promotion self-consumption report remain
+pending. At this checkpoint, the OS builds and runtime smoke were unfinished;
+the linked-image measurements were still preliminary. The following section
+records the completed Linux raw-kernel publication and measured policy check.
+
+## 2026-09-19 clean Linux kernel publication and measured policy
+
+The first clean native-filesystem `make -j2 all` in
+`/var/tmp/cupid-production-16a.0giERm` compiled all 240 kernel and Doom
+translation units, including all 83 Doom roots. Both CupidLD links and the
+guarded CupidBuild raw-kernel transaction completed. Make then exited with
+status 2 solely because the old exact-size policy did not match the new
+outputs. The pre-correction checkpoint artifacts were:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,646,412 | `6ba0ade8c565df75b7fe310d10513ea8109dd51b372b30eca9fa7976c7fcfe77` |
+| `kernel/kernel.elf` | 9,777,484 | `204a56092dffa1e5d429cf6995f35935bc021c4104d57a1aae1a0bdc7eb5872e` |
+| `kernel/kernel.bin` | 9,550,776 | `c33d343e7628e1ed78527eb894ec0199b8cc17585cd8824dcad3fc99d9854265` |
+
+The main and isolated Linux policies now use these measured sizes. The policy
+has SHA-256
+`475e4f7bbbef604ed2caa529013beb02140dbc9f66a9c6555e493c1c475d6820`.
+A separate native `artifact_size_contract verify` passed all 16 exact artifacts with
+exit status zero. Its log,
+`build/bootstrap/final-16a-linux-published-artifact-check.log`, has SHA-256
+`aa0266de00008351ab73891033d996777d3edcc982494dec7b0bbaba3c8cc578`.
+Post-measurement audit generation and check mode also passed; their log is
+`build/bootstrap/final-16a-measured-audit.log`. The audit JSON and summary
+retain the `382b96b4` and `05450dd7` digests recorded above; policy measurement
+changed neither the source inventory nor graph ownership.
+
+The complete `make -j2 all` retry is still running. It retains the normal
+`FORCE` dependency and rebuilds the kernel rather than suppressing that
+prerequisite. The separate 16-artifact check does not count as a successful
+top-level replay.
+
+A separately named Linux validation image was built from the first published
+artifacts through the ordinary Hostbuild image command. It is 209,715,200
+bytes with SHA-256
+`b7a02380a6aa902a807c58f65720f0637f7eb0d0ab07c4d1d53ec63d733c2253`.
+Its runtime smoke was still running at this checkpoint; the completed result
+is recorded below. It does not establish completion of the normal Make replay,
+and no IWAD is installed.
+
+The Windows serial OS build, Linux top-level retry, 22-artifact Toolchain
+publication, and native Linux user build and proof verification remain in
+progress. Final normal-image and runtime acceptance remain pending. The
+source closure, paired seeds, and five CTXT manuals are unchanged.
+
+Windows then published both kernel ELFs. Independent size and SHA-256 checks
+matched the Linux pass-one and final ELF rows above exactly. At that point,
+the Windows raw-kernel transaction was still running and retained the previous
+raw file; that file was locked when probed. The transaction's final result
+follows below.
+
+## 2026-09-19 Windows broad-inspection timeout
+
+The main serial `make -j1 all` replay exited with status 2 during guarded
+kernel flattening. `build/bootstrap/final-16a-os-build-serial.log` records:
+
+```text
+cupidbuild: checked CupidDis failed: checked tool timed out
+```
+
+The 256,288-byte log has SHA-256
+`fbd7f3751dc31764cac4698bcf2787a88be1820899c76b2422ea38cbd79e477d`.
+
+The diagnostic identifies the broad inspection request, whose timeout is
+300,000 milliseconds. The later linked-image inspection request has a
+separate 600,000-millisecond limit. Both newly published Windows ELFs still
+match the measured Linux outputs exactly. The failed transaction preserved
+the previous 9,536,524-byte raw kernel; an independent post-failure rehash
+matched SHA-256
+`44f92bb161d55f49b4781ee0a976478f9679f2ab2f2e834c0dca2c03f4d03f0e`.
+
+A read-only native Windows timing probe is inspecting individual kernel and
+object inputs. The timeout's cause has not been established, and no fix is
+claimed. No source, seed, policy, or CTXT change follows from this diagnosis
+checkpoint. The normal Windows image and runtime acceptance remain blocked
+on investigation and a successful replay.
+
+Documentation review also found an older five-tool Hostbuild paragraph in
+`04CUPIDC.CTXT` mislabeled as current, with a nearby ADR 0370 active-pair label.
+Those historical labels had not changed at this diagnosis checkpoint. Their
+subsequent correction and required image rebuild are recorded below. The
+production handoff remains uncommitted pending resolution.
+
+## 2026-09-19 Linux validation-image runtime checkpoint
+
+The private four-CPU Linux validation-image smoke completed with exit status
+zero. It used the pre-correction manual payload and the separately named
+image, not a completed normal Make replay:
+
+```powershell
+python tools/gui_terminal_smoke.py --qemu "C:/Program Files/qemu/qemu-system-i386.exe" --image build/bootstrap/final-16a-linux-validation.img --log build/bootstrap/final-16a-linux-frontier.log --private-image --smp 4 --cpu max --nic e1000 --verify-smp-runtime --verify-frontier-runtime --command ls --repeat 1 --timeout 180
+```
+
+The runner reported a 640x480 framebuffer pass with 96,817 changed pixels.
+AC97 stereo output at 44,100 Hz contained 41,299,041 frames with peak 25,600;
+PC-speaker stereo output at 44,100 Hz contained 76,338 frames with peak 30,603.
+The guest passed the Feature 17 six-name, JPEG, and glyph checks, along with
+the SIMD, graphics, audio, SMP, and USB runtime contracts. No IWAD was
+installed, so this is not a Doom gameplay result.
+
+The 179,931-byte guest log,
+`build/bootstrap/final-16a-linux-frontier.log`, has SHA-256
+`6abe35942e91296694bbd9f8eb7bf8f4ff3716d48b71e7cf6305a025c16b3717`.
+The runner output has SHA-256
+`b42c78aee1c473290eea1892aa967694e1f16f5471aa8deb1fa24f25910651a7`.
+The 209,715,200-byte source validation image remained unchanged after the run
+at SHA-256
+`b7a02380a6aa902a807c58f65720f0637f7eb0d0ab07c4d1d53ec63d733c2253`.
+The main copy was first hash-verified after launch, not before it.
+
+Main `04CUPIDC.CTXT` now labels the old five-tool Hostbuild passage and its
+deferred work as historical. The nearby ADR 0370 pair label now points to
+ADR 0382 for the current pair. The other four manuals are unchanged. The
+native Linux tree retained its original manual until the build checkpoint
+finished. The 59-input Toolchain source closure, paired seeds, and contract
+inputs are unchanged.
+
+The paired ELF measurements, validation-image hash, and runtime result above
+therefore belong to the pre-correction manual checkpoint. The final
+documentation-bearing build, measurements, and normal-image smoke must all
+run again. This completed validation smoke does not close normal OS acceptance.
+
+Read-only Windows `--require-known` probes passed for the final ELF in 80.150
+seconds and pass-one ELF in 80.608 seconds. The object group was still running
+at this checkpoint. Its result and the complete replay follow below.
+
+## 2026-09-19 completed pre-correction Linux normal build
+
+The native Linux `make -j2 all` retry completed with exit status zero. It
+accepted all 16 exact artifacts and published the normal image. Its
+237,592-byte log, `build/bootstrap/final-16a-linux-os-build-measured.log`,
+has SHA-256
+`8dbdf822f7fcdad4124ab41209df05bb8917ab77f227dff50b3af46df2dc4c5a`.
+Independent rehashing reproduced the pre-correction pass-one, final ELF, and
+raw-kernel rows above: 9,646,412, 9,777,484, and 9,550,776 bytes respectively,
+with all three hashes unchanged.
+
+The normal `cupidos.img` is 209,715,200 bytes with SHA-256
+`b7a02380a6aa902a807c58f65720f0637f7eb0d0ab07c4d1d53ec63d733c2253`.
+It exactly matches the separately named validation image whose private
+four-CPU runtime frontier passed. This completes the pre-correction Linux
+normal-build checkpoint; it does not accept the corrected manual payload.
+
+## 2026-09-19 isolated Windows inspection and guarded publication
+
+The read-only Windows groups all passed: final ELF in 80.150 seconds,
+pass-one ELF in 80.608 seconds, and 429 objects in 88.191 seconds. All
+431 inputs remained unchanged. Their timing log has SHA-256
+`9d446f64e7b5c986eb8be6ca3dc48f8b74d9dfc1eb8e112e7a1d5e21061507db`.
+A single-process inspection of all 431 inputs also passed in 225.053 seconds
+with every input unchanged; its log has SHA-256
+`6e3d59ef3c5b99d6e4b5f35de1a6d47aa86d85dbc8329fa1a34f3871fd26b6d4`.
+The same final ELF passed direct Linux inspection in 87.2668382 seconds.
+
+A verified 447-file copy under
+`build/bootstrap/inspection-cohort-16a-20260919` contains the 431 inputs,
+their manifest, the previous raw kernel, and 14 paired-seed files. The complete
+guarded Windows replay in that diagnostic root passed in 699.9794829 seconds
+with exit status zero. It retained the existing 300-second broad-inspection,
+600-second linked-inspection, and 300-second CupidObj deadlines. Its
+published 9,550,776-byte raw kernel has SHA-256
+`c33d343e7628e1ed78527eb894ec0199b8cc17585cd8824dcad3fc99d9854265`,
+matching Linux exactly.
+
+This is successful diagnostic-root publication, not a successful main Windows
+Make replay. The original timeout's cause remains unknown. No timeout or
+capability setting changed, and no source was modified for these probes or
+the guarded replay.
+
+## 2026-09-19 corrected-manual build checkpoint
+
+After the pre-correction Linux Make run completed, its `04CUPIDC.CTXT` was
+updated to match main. The corrected manual is 149,324 bytes with SHA-256
+`865cf6ba5213a127c9ebd0172d37b739c27f4b55c9854bbff5fddcca9c41a487`,
+29 bytes larger than the previous 149,295-byte manual. The other four manuals,
+59-input Toolchain source closure, and checked seeds remain unchanged.
+
+Both corrected-manual full builds are now running. Their logs are
+`build/bootstrap/final-16a-os-build-doc-corrected.log` and
+`build/bootstrap/final-16a-linux-os-build-doc-corrected.log`. The completed
+Linux Make, kernel hashes, image, and runtime evidence above remain explicitly
+pre-correction checkpoints. New measurements, policy verification, and final
+normal-image smoke are still required for the corrected payload.
+
+## 2026-09-19 private Freedoom startup investigation
+
+The pinned Freedoom fixture passed all four tests with
+`python -m unittest tests.test_freedoom_fixture -v` in 0.333 seconds.
+The [runtime guide](FREEDOOM-RUNTIME.md) now records the FAT16 staging name:
+Make and Hostbuild install Phase 1 as `/disk/wads/freedo~1.wad`, which automatic
+`doom` discovery accepts.
+
+A separate copy of the verified `b7a02380` asset-free image received the pinned
+IWAD through `hostbuild stage-wads`. Its initial private-image SHA-256 was
+`552e19d0df995b22d83956b3c35ea451016d38c5a3a5f3951f8670d5744794a3`.
+Normal images were unchanged. The ignored
+`build/bootstrap/probe_freedoom_runtime.py` launched a four-vCPU `max`/E1000
+guest, ran `doom -warp 1 1`, and waited 180 seconds for `I_InitGraphics`.
+It exited with status 1 because that observation deadline expired, not because
+of a panic or missing-IWAD error.
+
+`build/bootstrap/freedoom-probe-16a/serial.log` confirms
+`doom: using IWAD /disk/wads/freedo~1.wad` and fullscreen entry. HomeFS then
+started a 1,295,697-byte, 317-cluster rewrite of `HOMEFS.SYS`, with allocations
+starting at cluster 7049. Neither durable publication nor `DG_Init` completion
+was observed. This narrows the
+unfinished setup to HomeFS save-directory creation; it does not establish the
+root cause. The probe did not prove graphics initialization or gameplay.
+
+The serial log and screenshot were retained, and the controlled QEMU process
+exited. Further diagnosis remains pending. No OS source, checked seed, or
+normal image changed, and the running builds' source closure stayed frozen.
+
+## 2026-09-19 Toolchain publication and stable final verification
+
+The main `16a86f5b` Toolchain run published all 22 artifacts. The Cupid author
+and independent Python oracle agreed on all 62 stage pairs. Its final native
+Windows manifest verifier then rejected repository-root directory drift
+during the concurrent OS build. This was a final verification failure, not
+a stage mismatch or a failure to publish the cohort.
+
+The separate `build/bootstrap/contract-verification-16a` root contains 1,443
+byte-verified tracked source copies, excluding `TempleOS/`, plus the 22 actual
+publication artifacts verified by size and hash. It contains all 76 contract
+inputs and all 59 bootstrap inputs. Each of the six final published Linux
+tools exactly matches its current checked Linux seed image, proving
+promoted-seed self-consumption. The published manifest has SHA-256
+`ba5e531172f4861237238d403f8119f229c3e6d1267a483277efc3f19e615c92`.
+
+The unchanged native Windows Cupid-built `CUPMAN2` verifier passed in that
+stable root with `Cupid Toolchain manifest: ok (22 artifacts)` and exit status
+zero. Its log, `build/bootstrap/final-16a-toolchain-stable-verification.log`,
+has SHA-256
+`241eaeb0ab86c247fdae3eaf829c57b665b4c4a63af988de5286454b8595c10c`.
+The stable verification preserves the original directory-drift guard; it
+does not erase the failed concurrent check.
+
+The full `make -C toolchain -j2 test` run started in the stable copy after
+verification. Its failure and subsequent test-source correction are recorded
+below. No CTXT, source, seed, or policy change preceded the verification above.
+
+## 2026-09-19 preprocessor contract inventory correction
+
+The stable-copy `make -C toolchain -j2 test` run exited with status 2 at
+`cupidc-pp-contract conditional-active`. The manifest and checked audit already
+recorded 403 `#if` occurrences, 12 `#elif` occurrences, 55 expressions, and
+57 probes. The executable contract still expected 398 `#if` occurrences at
+`toolchain/tests/cupidc_pp_contract.cc:3171`.
+
+That single test literal is now `403u` in main and the stable copy. This is
+inventory maintenance, not a compiler implementation or checked-seed change.
+The 59-input bootstrap source closure and both seeds remain frozen.
+
+The successful stable `CUPMAN2` verification above remains evidence for the
+previous exact contract cohort. It does not accept the changed test source.
+Current contract publication must be rebuilt after this correction, and the
+full test suite remains pending. The earlier 22-artifact publication and
+Linux seed-image equality are preserved as separate completed results.
+
+## 2026-09-19 preprocessor checks and ABI manifest record repair
+
+After the `398u` to `403u` inventory correction, all 39 preprocessor tests
+passed in 6.522 seconds. The log,
+`build/bootstrap/final-16a-preprocessor-regressions.log`, has SHA-256
+`8fbff64621a264350038e14d16567f99af3bcd96a32c2e412009d8fd7bf180ec`.
+This focused pass does not complete the full Toolchain contract test.
+
+The native Linux user build completed the 22-artifact publication and all
+62 stage pairs, then failed during ABI snapshot capture with
+`published cohort omits ABI input: kernel/core/types.h`. The header was
+present. `_freeze_user_syscall_abi_inputs` still expected digest strings,
+while the current v3 manifest supplies records containing size and SHA-256.
+The failed user-build log has SHA-256
+`0050359260a3fed86f0a80299b09117a9bcfbc0833c666e90825335db232482f`.
+
+The host driver now validates each record's shape, size, and SHA-256 during
+capture and when checking both final copies. New public
+`run_user_syscall_abi` regressions failed before the repair and pass after it.
+They keep real source and checked-seed verification, mocking only process
+and filesystem boundaries. This corrects consumption of the existing schema;
+it does not change the manifest format, compiler, or seed contract.
+
+The separate rebuild containing only the preprocessor correction was stopped
+in its own process group before publication once the driver bug was found.
+Its temporary roots remain available for inspection. A fresh root at
+`/var/tmp/cupid-contract-final-16a.QV6zOi` now runs the corrected driver and
+preprocessor test. Broader regressions and native Linux `all`, `test`, and
+user `all` reruns are in progress; their acceptance remains pending.
+
+The 59-input OS Toolchain source closure, paired seeds, and CTXT manuals are
+unchanged. Earlier publication and stable-verification results remain tied
+to their exact cohorts, not the current repaired driver and test-source run.
+
+## 2026-09-19 corrected-manual Linux measurements
+
+The corrected-manual native Linux default build completed both kernel links
+and guarded raw publication, then failed only the exact-size check. The raw
+kernel was 9,550,804 bytes against the previous 9,550,776-byte policy row.
+The log, `build/bootstrap/final-16a-linux-os-build-doc-corrected.log`, has
+SHA-256 `f5c06af2e1c5b1aecf2e96a8b40435cd9018a8f0acf7365ac1e840f88075c92e`.
+The corrected-manual outputs are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,646,412 | `8ded7f08fc2d6c3129bca5935665c05e500ef2b7bf82331d530994d9d737638c` |
+| `kernel/kernel.elf` | 9,777,484 | `9297498129304ac9a13afeb834b12555c693570e2e71a865adb324fc53e295cd` |
+| `kernel/kernel.bin` | 9,550,804 | `3f2b5d85a9d6925c0151e5c5334c04a94332a4505bb0b8d86d96d1216816db99` |
+
+Only the raw-kernel policy row changed in main and native Linux. The policy
+now has SHA-256
+`a7fe17257f05f02393be6b9bcaab19e8308565702a1582a845a0747b2b5b934b`.
+The final default Linux `all` retry is running. These measurements do not yet
+establish a passing updated-policy replay or corrected normal-image smoke.
+
+## 2026-09-19 corrected Toolchain and ABI host regressions
+
+All 88 Toolchain and user ABI host tests passed in 30.147 seconds. The log,
+`build/bootstrap/final-16a-user-abi-contract-regressions-corrected.log`,
+has SHA-256
+`ac28548660495d60cc51ca16914ea8f5d3566f5d65d4249ab5f3927ece803973`.
+The new ABI cases include private-copy equal-size corruption, live same-size
+drift, size drift, and post-copy drift.
+
+One older Make test depended on adjacent variable spelling. It now checks the
+expanded publication prerequisites for all six ABI inputs, Makefile, and the
+oracle. This preserves the input-closure requirement while testing the graph
+Make actually uses. Source-only validation with the original `0232cb57` seeds
+is recorded separately. Fresh publication, the complete native contract test,
+user `all`, updated-policy OS replay, and final runtime acceptance remain
+pending.
+
+## 2026-09-19 repaired Windows user-build replay
+
+Main Windows `make -C user -j2 all` passed with the repaired ABI driver.
+Its log, `build/bootstrap/final-16a-windows-user-abi-corrected.log`, has SHA-256
+`28af852720688080c62c7a6b79ee1ba037eac7cb758d04236e89529ecde86c61`.
+Commit `b25a3374d5619f950c42ccad3fbd8d9786e3a898`, "Fix current Toolchain
+contract consumers", records the source-only repair; its separate checkpoint
+evidence is retained earlier in this log.
+
+This completes the Windows user-build replay only. The Windows default build,
+Linux final-policy default build, and corrected native Linux contract
+`all`/`test`/user `all` run remain pending. No new CTXT or source changes were
+made for this replay.
+
+## 2026-09-19 HomeFS directory-creation reproducer
+
+A fresh private `freedoom-mkdir-16a.img` was copied and hash-verified from the
+`b7a02380` asset-free checkpoint, then staged with the pinned IWAD through
+Hostbuild. Its verified prelaunch SHA-256 was
+`552e19d0df995b22d83956b3c35ea451016d38c5a3a5f3951f8670d5744794a3`,
+matching the earlier Doom probe's initial image.
+
+The existing `gui_terminal_smoke.py` ran a four-vCPU `max`/E1000 guest with
+command `mkdir /home/doom` and `--timeout 180`. It exited with status 1 and
+`command did not complete (1/1)`. The desktop appeared at guest time 100.700
+seconds and the terminal at 107.050 seconds. The log then showed JIT
+compilation of `/bin/mkdir.cc`. HomeFS started a 1,295,697-byte, 317-cluster
+rewrite of `HOMEFS.SYS`; neither durable publication nor JIT completion was
+observed. No panic or early-QEMU-exit diagnostic was reported.
+
+The runner log has SHA-256
+`fc1b7666750888acaea7b46397138e44f2a8b019ebf37b6a241ba0e7c8f498a3`;
+the serial log has SHA-256
+`f0d2857848a4e84369775e98466700f759f342035938608ff1dbbaa1d42e920b`.
+The helper stopped QEMU through its normal cleanup, and the private image
+and logs were retained. This reproduces the observed setup delay without
+entering Doom. It does not establish the cause or any gameplay acceptance.
+No source, seed, CTXT, or normal image changed.
+
+The corrected-manual Windows pass-one ELF is now independently verified at
+9,646,412 bytes with SHA-256
+`8ded7f08fc2d6c3129bca5935665c05e500ef2b7bf82331d530994d9d737638c`,
+matching corrected Linux. The corrected Windows final ELF is also verified at
+9,777,484 bytes with SHA-256
+`9297498129304ac9a13afeb834b12555c693570e2e71a865adb324fc53e295cd`,
+matching Linux. Guarded flattening was still running at that checkpoint; its
+completed result follows below.
+
+## 2026-09-19 Windows default build at the corrected-manual checkpoint
+
+Main Windows `make -j1 all` passed with exit status zero. All 16 exact-size
+checks, ISO pattern publication, and normal image publication passed. Its log,
+`build/bootstrap/final-16a-os-build-doc-corrected.log`, has SHA-256
+`98df0d4293d2cf442808fc932f082713be5cfc5a53d10d7420d2d146ac080228`.
+The pass-one ELF, final ELF, and raw kernel match the corrected Linux rows
+above in size and hash: 9,646,412, 9,777,484, and 9,550,804 bytes respectively.
+
+The Windows 209,715,200-byte image has SHA-256
+`6a05ec0ccce3c9af0c70e95699f50694e4c39724d8f32dec1f2cd369db7a1830`.
+It preserves the existing FAT contents. Kernel parity does not imply that
+this image matches a freshly created Linux image.
+
+This is a completed manual checkpoint, not final handoff acceptance. Review
+found more historical-count contradictions in the five CTXT manuals; their
+prose-only consolidation is in progress. After those corrections, the planned
+`make -o FORCE all` replay will rebuild content-dependent outputs without
+forcing the unchanged C roots through compilation again. The raw-size policy
+must be remeasured, and the final normal image still needs runtime testing.
+At this Windows checkpoint, the Linux default retry and corrected native
+Toolchain contract build were still in progress.
+
+## 2026-09-19 Linux default build at the same manual checkpoint
+
+Native Linux `make -j2 all` passed with exit status zero and all 16 exact-size
+checks. This run used the same 149,324-byte `04CUPIDC.CTXT` checkpoint as the
+completed Windows default build. Its 237,580-byte log,
+`build/bootstrap/final-16a-linux-os-build-final-policy.log`, has SHA-256
+`a3f4e8cd293bac53a9022a8e6193b3da782eaa5f4461530d1fc5365831a4be74`.
+
+The normal Linux image is 209,715,200 bytes with SHA-256
+`b04bc14e034c983604bd5dd2881e9c8a4edfb136e9db83006282109d9c337d70`.
+It preserves FAT contents from the earlier clean native-tree image. The
+Windows and Linux disk images have different preserved filesystem histories;
+their recorded kernel parity is not a claim of disk-image parity.
+
+Both default OS builds are complete at this manual checkpoint. Consolidated
+manuals, the content-only replay, renewed size checks, and final normal-image
+runtime acceptance remain pending. The native Toolchain bootstrap has also
+finished, and stage-three contract compilation is running; the full contract
+test is not yet accepted.
+
+## 2026-09-19 executable conditional-inventory guard
+
+The existing
+`test_checked_conditional_manifest_matches_active_source_contract` test now
+compares all four numeric guards in `run_conditional_active_cases` with a
+fresh audit: 55 unique expressions, 403 `#if` occurrences, 12 `#elif`
+occurrences, and 57 directive/expression pairs. This catches a stale
+executable expectation even when the checked manifest itself is current.
+It changes no compiler or production behavior.
+
+The first assertion-parser pattern had an extra closing-parenthesis match
+and failed. After that parser correction, the positive focused test passed
+in 87.849 seconds. Its log,
+`build/bootstrap/final-16a-conditional-guard-corrected.log`, has SHA-256
+`2d6d2ec7081948a9c511355e4ce99e4a3f295cf9909960710ada5db908272504`.
+
+An independent source-read fixture changed only the returned 403 guard to
+398, leaving the actual files unchanged and running the full real audit.
+It failed at the expected assertion:
+`(55, 398, 12, 57) != (55, 403, 12, 57)`. The probe finished in 83.289 seconds
+with exit status zero because that rejection was the required result. Its
+log, `build/bootstrap/final-16a-conditional-guard-negative.log`, has SHA-256
+`a5c07829bc2409e13ad1f48b94e4b256837eb52f1609681c45b8c478fe5a1c13`.
+
+The production regression suite remains at 167 tests; this extends an
+existing case rather than adding one. No CTXT or production source changed.
+
+## 2026-09-19 final manual freeze and content replay
+
+Review completed the five changed CTXT manuals and corrected every identified
+contradiction. Current figures are 50 strict C11 roots, three GNU roots, and
+22 C inputs in the Linux union. CupidDis owns ten evaluated transformations,
+seven in the root build. The manuals now assign JPEG, kernel-symbol, and ISO
+work to the correct CupidBuild operations. Earlier five-tool counts of 75/58
+and their test/proof results are explicitly historical. These are prose
+changes; no OS code or input in the 59-file bootstrap source set changed.
+
+The final manuals were copied to the native Linux production tree and
+hash-verified against the main worktree before replay. The frozen files are:
+
+| Manual | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `04CUPIDC.CTXT` | 149,334 | `3b3313aefd596158aa079354fa60c289d3d7b3c83883dc38d6bc24ad573e4038` |
+| `05ELFPROG.CTXT` | 32,382 | `eebb48a27d7529dfd262f78836a2be5458134349ec3196c1debe0fcc2fcccb35` |
+| `10ASM.CTXT` | 61,801 | `3324963b3d9df07c709c439ac30ab90b45a7f56950fd1eba7cbf2db596dfc4fe` |
+| `12HOLYC-CUPIDC.CTXT` | 47,887 | `0d94b1fdab7350708baef40e34db9b2651d07664de4423136d6fea0db00867a1` |
+| `15ISO9660.CTXT` | 6,776 | `a18741b6f3616878d2d8c097da7ded17122d98eab9853905c7da332963fb21f0` |
+
+Windows and native Linux `make -j2 -o FORCE all` content replays are running,
+with logs at `build/bootstrap/final-16a-windows-manual-freeze-build.log` and
+`build/bootstrap/final-16a-linux-manual-freeze-build.log`. They still use the
+previously measured 9,550,804-byte raw-kernel policy until the new output can
+be measured. The direct profile check ran and preserved the manifest's
+timestamp. A dry run predicted 83 Doom dependencies, but the actual logs so
+far show only changed text-install work and kernel-symbol compilation. The
+final compilation count is not yet known.
+
+Audit regeneration and verification are also running. The manuals remain
+frozen while these checks finish; new artifact measurements, completed
+content replays, and final runtime acceptance are still pending.
+
+## 2026-09-19 final manual audit and paired ELF checkpoint
+
+Audit regeneration and verification both passed. The 2,845,639-byte audit
+JSON has SHA-256
+`c101290e58bb61d703af07021a550245c14778e4bf8b48173fd9bd8f380cea90`.
+The 13,194-byte summary has SHA-256
+`05450dd750f52d675979f9550e6d92f6e5102478aa82b23125bb52ed2c725a0a`.
+Counts remain 748 active source inputs, 452 transformations, 255 distinct
+feature requirements, and 28 unreachable source-like files; CupidBuild owns
+197 transformations and Python
+owns 255.
+
+Independent hashes confirm that Windows and native Linux produced identical
+ELFs with the final five-manual freeze. The pass-one ELF is 9,646,412 bytes
+with SHA-256
+`6dee8a7df3cabec7741f945a49c22b3e8d2dabace2f6a2679cb2b89002ae3100`.
+The final ELF is 9,777,484 bytes with SHA-256
+`2c22a2bf0d4e7c768c019dca727befbd5d0de512792491192cf4a8afe813a475`.
+
+Each content replay compiled only two generated sources:
+`docs_programs_gen.cc` and `ksyms_data.cc`. Neither recompiled the 83 Doom
+roots or the 156 checked-in C roots. Both builds are now in guarded
+flattening. Raw-kernel measurement, the resulting size-policy check, and
+final normal-image runtime acceptance remain pending.
+
+## 2026-09-19 final manual raw measurement and Windows replay
+
+Native Linux guarded flattening published the final-manual raw kernel at
+9,550,844 bytes with SHA-256
+`9db47c925e44352530ccddc20955a80fecca025eb789395152427f60663d703c`.
+The first content replay then exited with status 2 solely because the policy
+still expected 9,550,804 bytes. Its 52,902-byte log,
+`build/bootstrap/final-16a-linux-manual-freeze-build.log`, has SHA-256
+`90d9cd0020286ee38b20015837401be7cf053d23fba2801ed9e959ccdfb894bd`.
+Only the raw-kernel policy row changed in the main and native trees, increasing
+by 40 bytes to the measured size. The resulting policy has SHA-256
+`80ef190022042d3f9fc1c6a9b4dbe0ced0d3b00f7b43bf5389e4a6ed5ff87bc7`.
+
+Windows completed `make -j2 -o FORCE all` with exit status zero. All 16 size
+checks, the ISO fixture, and image publication passed. Its raw kernel matches
+the Linux size and hash above. The 53,970-byte log,
+`build/bootstrap/final-16a-windows-manual-freeze-build.log`, has SHA-256
+`4aa2661e955a5552f070de0e046d1a34b8e7de62d5376b279147e0dc4db61194`.
+The 209,715,200-byte Windows image has SHA-256
+`2eeb2c273f5126b7fcaa69408400ea7319087908dac5fb4da307a52c68176b4e`.
+It preserves the existing FAT contents.
+
+The fast parallel Linux policy replay failed the repository-root namespace
+guard while ISO publication overlapped artifact verification. Its 10,108-byte
+log, `build/bootstrap/final-16a-linux-manual-freeze-policy-replay.log`, has
+SHA-256
+`272da0bd8b701a2e2fde4735e2eee5d82ee0fa773a768d2ab3ce492d3777c63a`.
+The serial replay is running, and Make ordering remains under investigation;
+the guard has not been weakened. The corrected native Toolchain build has
+finished stage-three contracts and is compiling stage four. Linux replay,
+the full current contract suite, and final runtime acceptance remain pending.
+
+## 2026-09-19 ISO publication ordering and serial replay
+
+The parallel replay's namespace failure is reproduced. CupidBuild's
+`assemble-iso-pattern` transaction creates reservation, candidate, and capture
+entries beneath the repository root. These writes change directory mtime even
+when the output is reused, the root inode is unchanged, and final directory
+membership matches. Artifact verification had pinned the root while that
+transaction was still running.
+
+Make now gives `verify-artifact-sizes` the order-only prerequisite
+`test_iso/hello.iso`, so the whole ISO transaction finishes before the verifier
+captures the root. The audit requires that exact `order_only_inputs` list.
+This changes scheduling only: size-policy content inputs, namespace checks,
+and the 197 CupidBuild / 255 Python ownership counts stay unchanged.
+ADR 0386 records the decision. Both review axes found no issues in the
+Make, audit, and test changes.
+
+The two audit cases first reported five expected failures in 1.947 seconds.
+After the repair, four audit guards passed in 2.564 seconds. Four Make
+ordering regressions were added; their 20-case module passed in 2.221 seconds
+on Windows with four platform skips, and in 2.820 seconds on Linux without
+skips. The combined artifact-runner and size-policy suites passed all 67
+cases in 6.425 seconds with four platform skips.
+
+The first frozen 63-case suite failed during Windows cleanup with
+`WinError 5` at its owned `.artifact-size-contract-96f_89kb` executable. The
+fixture was retained, and the cause is not established. An unchanged rerun
+passed all 63 cases in 3.551 seconds with four platform skips. Completed logs:
+
+| Log under `build/bootstrap/` | SHA-256 |
+| --- | --- |
+| `final-16a-artifact-iso-order-red.log` | `b874dad95059e24e8d091ede9e740cd4237e8d98b9129b6b86b3a2de465284f6` |
+| `final-16a-artifact-iso-order-green.log` | `b6e55a6c26af20c6ea1225436bed145c94fa534b7870acdc74894011fc713a0a` |
+| `final-16a-iso-order-size-policy-tests.log` | `b5c32d8ed1dde09084c88aaed869a66b20af77f1ed350ab8d2a83d5ef6b4d818` |
+| `final-16a-frozen-size-policy-tests-rerun.log` | `1e79ac2ea95786df4fef8db0643d4ba81b55067dcf2fffa4b67ff6252322f690` |
+
+The final-freeze Linux serial content replay passed. Its 9,898-byte log,
+`build/bootstrap/final-16a-linux-manual-freeze-policy-serial.log`, has SHA-256
+`ea5c4ded29104073ce2adea6bb86c5f73d8d834967c1945cdc29ba24a4a8b3e7`.
+Its raw kernel matches Windows at 9,550,844 bytes with SHA-256
+`9db47c925e44352530ccddc20955a80fecca025eb789395152427f60663d703c`.
+The Linux image has SHA-256
+`731d2c3d4ad55e8d73a9a8077481342f94b5ec6fdf1d8bd03d79f05781f737c7`.
+The repaired parallel `all` replays on both hosts are running separately.
+
+The regenerated audit JSON has SHA-256
+`c82c9f0a001b202a49b25b5af64fb163d8925ce161811ccffd09de3e1cd2587c`;
+the summary remains
+`05450dd750f52d675979f9550e6d92f6e5102478aa82b23125bb52ed2c725a0a`.
+The current native Toolchain contract run is still pending. No CTXT,
+bootstrap-source, or seed change was needed for this scheduling repair.
+
+## 2026-09-19 final-freeze runtime interruption
+
+The private runtime frontier exited with status 1 after QEMU exited with
+status 3221225477 (`0xC0000005`) during `dglibc_test`. Feature 17 and its JIT
+completion had passed earlier in the same run. The runner reports the missing
+`dglibc_test` sequence; the guest log ends in the FAT `BUSY.TXT` directory-write
+flow. The incomplete sequence does not establish an OS fault or a cause for
+the QEMU access violation, and the final runtime frontier has not passed.
+
+The source and copied image were hash-verified before launch against
+`731d2c3d4ad55e8d73a9a8077481342f94b5ec6fdf1d8bd03d79f05781f737c7`.
+The source image and validation copy retained that hash after the run. The
+13,420-byte runner log,
+`build/bootstrap/final-16a-frozen-frontier-runner.log`, has SHA-256
+`d428076fe1f5210c98bce87cac060d2f44ce751f91e96daa46da43ab392cf8b4`.
+The 87,924-byte guest log, `build/bootstrap/final-16a-frozen-frontier.log`,
+has SHA-256
+`c014208d55441816453381b37969dd2ced7dac35a228a62c19066797dcab4a3b`.
+
+The host observation showed RuntimeBroker using 34,508,394,496 private bytes
+and 1,542,504 KiB of free virtual memory. Those measurements do not prove that
+memory pressure caused the crash. Further QEMU runs are on hold while the
+builds finish and host allocation headroom recovers; the completed build and
+toolchain evidence remains separate from runtime acceptance.
+
+## 2026-09-19 parallel Windows replay interruption
+
+The repaired-order Windows `make -j2 -o FORCE all` exited with status 2 while
+wrapping `bin/browser/image.cc`. CupidBuild reported
+`private checked-tool cleanup failed`; image publication was not reached.
+The cause of this cleanup failure has not been established. The retained log,
+`build/bootstrap/final-16a-windows-iso-order-replay.log`, has SHA-256
+`1cfa160de6d78e59d325e20f686fcae039dbc09deb471f8bc66547bc72a3d6c9`.
+
+The host also failed to start the PowerShell CLR and briefly failed to load
+its management module during separate read-only checks. A later identity
+check and `git diff --check` passed without changes. Allocation headroom fell
+below 20 MiB while RuntimeBroker PID 11668 continued growing. These are host
+observations, not proof of the cleanup failure's cause. New validation jobs
+are held until headroom recovers. The two existing native-Linux jobs continue;
+no unrelated application was stopped.
+
+## 2026-09-19 corrected native contract publication
+
+The native-Linux build with the corrected ABI consumer and 403-`#if` guard
+completed both contract stages, passed the hosted runtime contract,
+matched Cupid's manifest author with the Python oracle on all 62 stage pairs,
+and published all 22 artifacts. The native CUPMAN2 verifier accepted the
+published cohort. Its manifest has SHA-256
+`a14a7903f9d8e83f1e92fe677a9242ce36720101e730e1fd85562dac12204e07`.
+This replaces the earlier `ba5e5311` publication as source-current evidence;
+the older copied-cohort Windows check remains a separate result.
+
+Independent streamed size and SHA-256 checks matched all 22 published
+artifacts, all 76 publication inputs against the active worktree, and all 59
+bootstrap inputs against that worktree. Every rebuilt Linux tool matches its
+checked seed image. The unchanged bootstrap snapshot is
+`54b411b6ed05725101f5859106facb43639f2d02cb2b0ea2f6334e21375bda55`.
+The full executable suite has passed `conditional-active` and is still running;
+the subsequent user build and native-Windows check of this new cohort remain
+pending.
+
+The repaired-order Linux OS replay also reproduced both final-manual ELFs
+byte for byte before guarded flattening. The pass-one SHA-256 remains
+`6dee8a7df3cabec7741f945a49c22b3e8d2dabace2f6a2679cb2b89002ae3100`;
+the final SHA-256 remains
+`2c22a2bf0d4e7c768c019dca727befbd5d0de512792491192cf4a8afe813a475`.
+
+At the 23:41 local checkpoint, the parallel Linux OS replay remained in
+guarded flattening, and the contract suite was running `wide-returns`.
+The host reported 217,944 KiB of allocation headroom. The latest promotion
+and recipe handoffs remain uncommitted while the final Windows and runtime
+checks are incomplete. Existing Linux jobs and all recovery evidence remain
+in place; no new heavy validation was started under this memory pressure.
+
+## 2026-09-20: refresh source-current object contracts
+
+The repaired-order Linux production replay completed both kernel links,
+guarded flattening, all 16 exact artifact checks, and image publication.
+The Toolchain suite subsequently stopped at stale self-host object locks.
+The source changes were already committed: `99f29b28` removed the GNU-only
+restriction on the implementation of `offsetof`, and `5c97cfd6` added linked
+recovery to the kernel assembler publisher. Neither commit refreshed these
+object expectations.
+
+A fresh strict Clang contract reproduced the same two failures. Review also
+found the next selector's hosted assembler expectations predated descriptor
+output and caller-owned publication. That selector failed independently with
+the current source. The corrected records are:
+
+| Source | Functions | Text bytes | Object bytes | Text FNV-1a |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 463 | 916,190 | 1,084,632 | `f550ff5f` |
+| `kernel/lang/as_elf.cc` | 46 | 73,546 | 80,856 | `9a880083` |
+| `toolchain/cupidasm_main.cc` | 47 | 50,943 | 59,200 | `26b019d6` |
+
+The hosted assembler now has 41 named undefined symbols, including
+`cupid_linux_syscall3` and `fflush`, 127 symbols overall, and 368 relocations:
+319 PC-relative calls with addend -4 and 49 absolute references with addend
+zero. The tests continue to require the exact symbol names, relocation
+targets and forms, immutable input units, and byte-identical repeated output.
+No compiler, assembler, ABI, or checked-seed bytes changed for this repair.
+
+The corrected native `self-host-frontier`, `self-host-hosted-adapters`, and
+`self-host-hosted-profile-errors` selectors pass. A fresh checked-tool
+publication, full executable suite, and user build are running from the
+isolated Linux source tree with the corrected contract file. This native
+result alone does not accept the new checked contract publication.
+
+The Windows host still had about one GiB of allocation headroom at the start
+of this session. RuntimeBroker PID 11668 held roughly 35 GiB of private
+committed memory. The user authorized restarting that process; stopping the
+verified Windows RuntimeBroker restored about 28 GiB of headroom. This
+observation does not establish the cause of the earlier cleanup failure or
+QEMU access violation. A parallel Windows production replay and the private
+four-CPU runtime frontier resumed afterward.
+
+Independent Standards and Spec reviews found no defects in the pending paired
+seed promotion, Doom profile handoff, ISO pattern handoff, or their scheduling
+guards. The Spec review independently matched both manifests and all twelve
+tool files to ADR 0382. The checks still pending above remain separate from
+that source review.
+
+The final-manual HomeFS retry passed with the unchanged 180-second timeout,
+four `max` vCPUs, E1000, and `--verify-smp-runtime`. The private guest executed
+`mkdir /home/doom`, flushed all 1,295,697 bytes to `HOMEFS.SYS`, returned from
+JIT execution, and stayed alive through the post-command check. The source
+image remains at SHA-256
+`731d2c3d4ad55e8d73a9a8077481342f94b5ec6fdf1d8bd03d79f05781f737c7`.
+The serial log `build/bootstrap/20260920-mkdir-runtime.log` has SHA-256
+`4d0a2a397cae817a9618ad7952b40c9011f2e5cf20a41aba3b7c531a275e744a`;
+the runner log has SHA-256
+`108f15d1c4e276289159547e82cecef554449400df708f1157a7f2d48b8a5e04`.
+This clears the immediate directory-creation reproduction under the recorded
+conditions. It does not prove a cause for the earlier timeout or establish
+Doom gameplay, input, audio, or save/load behavior.
+
+The complete private-image runtime frontier then passed with four `max`
+vCPUs, E1000, the required UHCI/EHCI devices, and the unchanged 180-second
+per-command deadline. It completed the compiler, ISO, swap, graphics-owner,
+audio, USB detach/replug, and SMP checks. The framebuffer comparison measured
+79,938 changed pixels at 640 by 480. AC97 capture contained 38,988,540 stereo
+frames at 44,100 Hz with peak 25,600; PC-speaker capture contained 78,962
+stereo frames at 44,100 Hz with peak 30,579. These are the established
+frontier's audio checks, not IWAD-backed Doom audio acceptance.
+
+The 179,725-byte guest log `build/bootstrap/20260920-frontier-runtime.log`
+has SHA-256
+`d66ef00071013dbcf4b141ee4126896e5c358df03236b1353550c88a1e8ac412`.
+Its successful runner log has SHA-256
+`fb08a902099338e460a534ad92f2273151634c1bf44b8d20a1b14649b49b0ee3`.
+The unchanged source image retains the final-manual Linux hash above.
+
+## 2026-09-20: type FAT short names in the GUI harness
+
+The first pinned-IWAD timedemo attempt stopped in the host helper before it
+sent Enter. `key_name` rejected the tilde in the documented
+`/disk/wads/freedo~1.wad` path after typing the preceding characters. Two
+regressions reproduced the missing mapping and partial typing. The helper
+now maps tilde to `shift-grave_accent` and resolves every command key before
+sending any input. Existing completion and panic checks are unchanged.
+
+The installed QEMU accepted that key through its TCP monitor. Its Windows
+stdio monitor did not finish the small capability probe within ten seconds;
+the subprocess timeout cleaned up that probe. All 138 GUI-helper tests pass
+in 0.946 seconds. Their log `build/bootstrap/20260920-gui-helper-tests.log`
+has SHA-256
+`43c26689bb550855fef9a309b3033bb7d0cc80a925386ef223fc0e48518ec247`.
+Read-only review found no defect in the two tests or the helper change.
+
+A private final-manual image staged the pinned Freedoom Phase 1 IWAD at its
+documented FAT short name. Its prelaunch source SHA-256 is
+`fbc3d3e98160e252b44d42e6e061ac65ca127b4eef0ae74374e1f7ae6fd9f686`.
+The repaired helper typed
+`doom -iwad /disk/wads/freedo~1.wad -timedemo demo1` with four `max` vCPUs,
+E1000, and a 300-second observation deadline. HomeFS started its
+1,295,697-byte rewrite, then the guest panicked at reported uptime 509.410
+seconds with `ehci: DMA ownership could not be revoked after transfer`.
+The stack report names `kernel_panic+0x12c`. No `DG_Init` or completed
+timedemo marker appeared. The source image remained unchanged.
+
+The guest log `build/bootstrap/20260920-freedoom-timedemo-keyfix.log` has
+SHA-256
+`c4ee026036f8126ee92de9c355d527cd00bac3b08d43c233016f09f2b9d5f9c7`.
+Its failing runner log has SHA-256
+`02f2d1e79ad16475adfc04d62a4b4a07b2a4d1d5cf9716d836e350590f82c301`.
+This remains separate from the passing asset-free directory-creation and
+full runtime frontiers. It does not establish an EHCI root cause or satisfy
+issue #29's gameplay, input, audio, save/load, or persistence requirements.
+
+The exact key also passed a real guest check independent of Doom. The helper
+typed `cupidc /home/key~1.cc`; the serial log retained that exact path before
+the expected `preprocess failed` result for the absent file. The guest stayed
+alive through the survival check. An earlier `echo` probe was inconclusive:
+the program completed, but its terminal text was not present in the serial
+log, so the requested path expression timed out. The missing-file diagnostic
+provides the required exact-text observation without changing the OS.
+`build/bootstrap/20260920-fat-key-diagnostic.log` has SHA-256
+`86ce4ae9425fe5aeea7afda1f60fd0a3064c234bea7507f0e0c46e53d635c0da`.
+
+The renewed native Linux `make -j2 -o FORCE all` exited successfully with
+all 16 artifact checks and image publication. Its log,
+`build/bootstrap/20260920-linux-production.log`, has SHA-256
+`d7fa77a94e8c240bf39612b6f4dbad8eb3b9b71e24f3761ee4dc1648095c4c2e`.
+An independent comparison matched 725 active OS source and build-control
+files between this isolated tree and the Windows worktree, including both
+complete seed directories. Text comparison normalized CRLF to LF; tool
+images were compared as raw bytes. No source difference was found.
+
+The parallel Windows `make -j2 -o FORCE all` also exited successfully after
+all 240 kernel and Doom compilations, both links, guarded flattening, all
+16 artifact checks, and image publication. Its raw kernel matches Linux at
+9,550,844 bytes with SHA-256
+`9db47c925e44352530ccddc20955a80fecca025eb789395152427f60663d703c`.
+The log `build/bootstrap/20260920-windows-production.log` has SHA-256
+`1040450d78dda03e17a2952c647334af474f25ca0a3e6c476eb4191a13fa5cd5`.
+The 209,715,200-byte Windows image has SHA-256
+`2eeb2c273f5126b7fcaa69408400ea7319087908dac5fb4da307a52c68176b4e`.
+It preserves that checkout's FAT data; disk-image equality across hosts is
+not required or claimed.
+
+The combined build-graph audit, artifact-size runner, and size-policy suite
+passed 155 tests in 1,610.988 seconds with four platform skips. Its log,
+`build/bootstrap/20260920-audit-policy-tests.log`, has SHA-256
+`76665ee1ca700573dafb9fc06dd29be8af92c2355acb401677b5ddacff5c2da9`.
+
+The final `make check-bootstrap-audit` passed after the object-contract and
+GUI-helper repairs. Its log has SHA-256
+`ae8b7d3fde7b827d77cb775fa588b072e3a6d2a8638f16c2b744106bdea6008f`.
+A separate read-only comparison matched all 99 distinct files in the current
+76-input contract and 59-input bootstrap inventories between the isolated
+Linux build and active worktree, with CRLF normalized for source text.
+
+Read-only inspection locates the IWAD probe's panic at the post-transfer
+`ehci_quiesce_async` failure in `ehci_submit_sync`. The helper can attempt
+asynchronous-schedule quiescence before controller halt. The serial log lacks
+the command/status values needed to identify the failing handshake. No USB
+source changed, and the DMA ownership guard remains intact.
+
+The same final-manual image also passed the complete private four-CPU
+RTL8139 runtime frontier with the unchanged 180-second per-command deadline.
+This covers compiler, ISO, swap, graphics ownership, asset-free Doom
+recovery, Browser, audio, USB detach/replug, and SMP on the second supported
+NIC. The framebuffer comparison measured 99,724 changed pixels at 640 by
+480. AC97 capture contained 37,605,545 stereo frames at 44,100 Hz with peak
+25,600; PC-speaker capture contained 72,237 stereo frames at 44,100 Hz with
+peak 8,415.
+
+The 151,242-byte log `build/bootstrap/20260920-rtl8139-frontier-runtime.log`
+has SHA-256
+`cecdf7341f14db75419649068fdcdd4d5ecfec6956fb82a0ec04065a02a5d0ca`.
+Its successful runner log has SHA-256
+`cb604e526850a04ec42b47e366bace44937831d4d013dfef4d76a040b04e4491`.
+The source image remains at SHA-256
+`731d2c3d4ad55e8d73a9a8077481342f94b5ec6fdf1d8bd03d79f05781f737c7`.
+Both final-image NIC frontiers now pass; IWAD-backed gameplay remains open.
+
+All 60 direct Make object-contract selectors also passed through the fresh
+strict Clang diagnostic executable in 14.021 seconds. This includes the
+self-host frontier, hosted adapters, profile rejection, `ctool_host` link,
+and all six self-hosted tool links. The selector list came from the actual
+Toolchain Makefile, with linked outputs placed in a new private directory.
+The log `build/bootstrap/20260920-native-object-suite.log` has SHA-256
+`39f31394fa1e11c282c8d80322d122834bc6c2b8dca3da0d7f14f57976eb180a`.
+This is native diagnostic evidence, separate from the Cupid-built suite.
+The fresh checked publication has completed stage three and begun stage four.
+
+The separately published Windows `cupidos.img` also passed a private-image
+boot-and-command smoke with four `max` vCPUs, E1000, SMP verification, and
+the unchanged 180-second timeout. It compiled and ran `/bin/ls.cc`, completed
+the JIT call, and stayed alive through the survival interval. Its source
+image remains at SHA-256
+`2eeb2c273f5126b7fcaa69408400ea7319087908dac5fb4da307a52c68176b4e`.
+This checks the actual Windows image with its preserved FAT contents,
+separately from the two full frontiers on the Linux image.
+
+The 21,792-byte guest log `build/bootstrap/20260920-windows-image-smoke.log`
+has SHA-256
+`f21f1b43c30cf3dae26a4d5cb02bd76056c57b16a0c05659f18470c587533ba9`;
+its runner log has SHA-256
+`108f15d1c4e276289159547e82cecef554449400df708f1157a7f2d48b8a5e04`.
+
+## 2026-09-20: publish the corrected full Toolchain cohort
+
+The fresh `make -C toolchain all` completed with the repaired preprocessor
+inventory, ABI consumers, and self-host object expectations. Cupid's
+`CUPMAN4` author and the independent Python oracle agree on all 62 stage
+pairs: 17 contract objects, 16 contract executables, 23 bootstrap objects,
+and six tool images. The hosted runtime contract passed. All 22 artifacts
+published, and final native Linux `CUPMAN2` verification passed.
+
+The 29,619-byte manifest has SHA-256
+`419d1e6f3b4a90b1cbfae04f5aa397c900449efe7d4197b7116f0cadb5070afd`.
+It binds the current 76 publication inputs and 59 bootstrap inputs. The
+completed publication log `build/bootstrap/20260920-toolchain-publication.log`
+has SHA-256
+`2b6714be6ba422e4d506a4ade4ab822237e3c8b3d34607a2c4b35067cddb6bd4`.
+An independent comparison matches all six published tool images to the
+checked Linux seed exactly. The 59-input bootstrap closure is unchanged.
+
+Native Windows verification used a new stable copy. Preparation first
+rejected a header comparison because the diagnostic script normalized CRLF
+only on the active-worktree side. Normalizing both sides fixed that source
+comparison; the manifest's raw size and SHA-256 checks remained exact. The
+first verifier launch then rejected the copy because it lacked a separate
+build input, `tools/artifact_size_policy.py`. The complete 21-file verifier
+build closure also required `tools/toolchain_manifest_contract.py`. Both
+were compared with the isolated source and added before verification. No
+publication artifact or manifest changed to make these checks pass.
+
+The stable copy contains all 99 distinct publication/bootstrap source files,
+all 21 verifier build inputs, both complete seeds, and the actual 22-artifact
+publication. Final native Windows `CUPMAN2` verification passed. Its log,
+`build/bootstrap/20260920-windows-contract-verification.log`, has SHA-256
+`241eaeb0ab86c247fdae3eaf829c57b665b4c4a63af988de5286454b8595c10c`.
+The independent copy report has SHA-256
+`7c70eed98196a24dfc6c42c43a913aefbe417bdb13a047993d6495f132261395`.
+The earlier `ba5e5311` and `a14a790` publications remain historical evidence
+for their exact source cohorts. The full executable suite and user build
+follow this fresh publication.
+
+
+## 2026-09-20: complete Toolchain and user acceptance
+
+The sequential native-Linux `make -C toolchain all`, `make -C toolchain test`,
+and `make -C user all` run exited with status zero. It used the isolated
+source root `/var/tmp/cupid-contract-final-16a.QV6zOi` and the fresh
+`419d1e6f` publication recorded above.
+
+The full Cupid-built executable suite passed, including the corrected
+self-host frontier, hosted adapters, rejected hosted profiles, `ctool_host`
+link, and all six tool links. The two long object-contract selectors passed
+under their unchanged 1,800-second deadlines. Each source in the tool-link
+case was compiled twice and compared before linking. ELF, x86, assembler,
+disassembler, object, and linker contracts passed, followed by the native
+JPEG and host-runner contracts.
+
+The final test log `build/bootstrap/20260920-toolchain-tests.log` has SHA-256
+`590101c7d76565503aa3f1a8203abbd62bded84b03161acc18f07f94fce0861e`.
+
+The user build accepted the current contract publication, passed the syscall
+ABI check, and compiled and linked `hello`, `ls`, and `cat` with the checked
+Cupid tools. Its log `build/bootstrap/20260920-user-build.log` has SHA-256
+`dac467300daf9e6773760391061dcb2c2a2c74af6310b32ecbb1fa3c55abe406`. This completes the executable-suite
+and user-build checks left pending in the preceding publication entry.
+
+The Standards and Spec reviews found no remaining issues after the current
+proof counts and runtime descriptions were corrected. The records distinguish
+the two full Linux-image NIC frontiers from the Windows-image SMP and `ls`
+smoke. The audit and whitespace checks pass. No source or in-OS manual changed
+after the validated builds; these final edits record their results.
+
+Issues #25, #29, #31, #32, and #34 retain unmet acceptance items. In particular,
+Python still coordinates 255 audited participations, and the separate
+IWAD-backed Doom probe has not passed gameplay or persistence acceptance.
+The next compiler-coordinator record describes a proposed eleven-source
+handoff and claims no additional production ownership.

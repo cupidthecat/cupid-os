@@ -1,5 +1,3 @@
-import hashlib
-import json
 import os
 import shutil
 import subprocess
@@ -84,20 +82,6 @@ class CupidBuildLargeFlattenTests(unittest.TestCase):
         return root, manifest, kernel / "kernel.bin", seed_manifest, inputs
 
     def test_full_500_input_cohort_publishes_and_repeats_exact_kernel_bytes(self):
-        if os.name == "nt":
-            seed_bytes = self.helper._production_manifest().read_bytes()
-            seed = json.loads(seed_bytes)
-            if (
-                seed.get("provenance", {}).get("source_revision")
-                == "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
-                and hashlib.sha256(seed_bytes).hexdigest()
-                == "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
-            ):
-                self.skipTest(
-                    "the exact 0232cb57 Windows cohort predates shared CupidObj "
-                    "outputs; set CUPIDBUILD_TEST_SEED_MANIFEST to a complete "
-                    "source-current candidate cohort"
-                )
         root, manifest, output, seed_manifest, _inputs = self._fixture()
         expected = root / "expected.bin"
         result = subprocess.run(

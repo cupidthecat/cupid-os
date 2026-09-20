@@ -938,6 +938,42 @@ class GuiTerminalInputTests(unittest.TestCase):
         self.assertEqual(gui_terminal_smoke.key_name("."), "dot")
         self.assertEqual(gui_terminal_smoke.key_name(" "), "spc")
 
+    def test_terminal_command_types_a_fat_short_name(self):
+        command = "doom -iwad /disk/wads/freedo~1.wad"
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("boot complete\n", encoding="utf-8")
+            monitor = SequencedMonitorSocket(log, ["doom ready\n"])
+            process = mock.Mock()
+            process.poll.return_value = None
+            with mock.patch("tools.gui_terminal_smoke.time.sleep"):
+                ok, data = gui_terminal_smoke.run_terminal_command(
+                    process, monitor, log, command, "doom ready", 1.0, 0.35
+                )
+        self.assertTrue(ok)
+        self.assertIn("doom ready", data)
+        self.assertEqual(
+            monitor.sent[command.index("~")],
+            b"sendkey shift-grave_accent 300\n",
+        )
+        self.assertEqual(monitor.sent[-1], b"sendkey ret 300\n")
+        self.assertEqual(len(monitor.sent), len(command) + 1)
+
+    def test_terminal_command_rejects_unsupported_text_before_typing(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("boot complete\n", encoding="utf-8")
+            monitor = FakeMonitorSocket()
+            with mock.patch("tools.gui_terminal_smoke.time.sleep"):
+                with self.assertRaisesRegex(
+                    ValueError, "unsupported smoke-test character"
+                ):
+                    gui_terminal_smoke.run_terminal_command(
+                        mock.Mock(), monitor, log, "echo ?", "ready", 1.0, 0.35
+                    )
+            self.assertEqual(monitor.sent, [])
+            self.assertEqual(log.read_text(encoding="utf-8"), "boot complete\n")
+
     def test_completion_pattern_accepts_a_caller_success_regex_and_panics(self):
         pattern = gui_terminal_smoke.completion_pattern(
             r"\[elf\] Loaded /home/hello as PID [0-9]+"

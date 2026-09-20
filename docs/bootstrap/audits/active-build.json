@@ -3302,26 +3302,24 @@
           "toolchain/tests/x86_inline_cases.inc",
           "toolchain/x86.h",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
           "bootstrap/seeds/i386-windows/cupiddis.exe",
           "bootstrap/seeds/i386-windows/cupidld.exe",
           "bootstrap/seeds/i386-windows/cupidobj.exe",
-          "bootstrap/seeds/i386-windows/cupidbuild.exe",
-          "tools/cupidc_kernel_compile.py"
+          "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "generate_profile_manifest",
         "output": "build/bootstrap/doom-cupidc-inputs.json",
         "recipe": [
-          "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\",
-          "--manifest $(PRODUCTION_SEED_MANIFEST) \\",
-          "--write-profile-input-manifest $@"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) generate-profile-manifest \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--output $@"
         ],
         "tools": [
-          "cupid_object",
-          "host_python"
+          "cupid_builder",
+          "cupid_object"
         ]
       },
       {
@@ -4280,6 +4278,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/ata.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/ata.cc --output drivers/ata.o"
@@ -4312,6 +4313,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/e1000.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/e1000.cc --output drivers/e1000.o"
@@ -4351,6 +4355,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/keyboard.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/keyboard.cc --output drivers/keyboard.o"
@@ -4385,6 +4392,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/mouse.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/mouse.cc --output drivers/mouse.o"
@@ -4414,6 +4424,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/pci.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/pci.cc --output drivers/pci.o"
@@ -4442,6 +4455,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/pit.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/pit.cc --output drivers/pit.o"
@@ -4473,6 +4489,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/rtc.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/rtc.cc --output drivers/rtc.o"
@@ -4506,6 +4525,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/rtl8139.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/rtl8139.cc --output drivers/rtl8139.o"
@@ -4539,6 +4561,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/serial.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/serial.cc --output drivers/serial.o"
@@ -4571,6 +4596,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/speaker.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/speaker.cc --output drivers/speaker.o"
@@ -4604,6 +4632,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/timer.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/timer.cc --output drivers/timer.o"
@@ -4638,6 +4669,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "drivers/vga.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source drivers/vga.cc --output drivers/vga.o"
@@ -4762,6 +4796,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/audio/ac97.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/ac97.cc --output kernel/audio/ac97.o"
@@ -4791,6 +4828,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/audio/memio.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/memio.cc --output kernel/audio/memio.o"
@@ -4821,6 +4861,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/audio/midiopl.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/midiopl.cc --output kernel/audio/midiopl.o"
@@ -4848,6 +4891,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/audio/mixer.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mixer.cc --output kernel/audio/mixer.o"
@@ -4878,6 +4924,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/audio/mus2midi.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/mus2midi.cc --output kernel/audio/mus2midi.o"
@@ -4906,6 +4955,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/audio/nuked_opl3.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/nuked_opl3.cc --output kernel/audio/nuked_opl3.o"
@@ -4937,6 +4989,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/audio/opl_smoke.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/opl_smoke.cc --output kernel/audio/opl_smoke.o"
@@ -4977,6 +5032,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/core/app_launch.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/app_launch.cc --output kernel/core/app_launch.o"
@@ -4999,6 +5057,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "assemble_elf32_relocatable",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/core/context_switch.o",
         "recipe": [
           "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-cupidasm-object \\",
@@ -5091,6 +5152,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/core/kernel.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/kernel.cc --output kernel/core/kernel.o"
@@ -5127,6 +5191,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/core/panic.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/panic.cc --output kernel/core/panic.o"
@@ -5169,6 +5236,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/core/process.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/process.cc --output kernel/core/process.o"
@@ -5196,6 +5266,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/core/string.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/string.cc --output kernel/core/string.o"
@@ -5249,6 +5322,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/core/syscall.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/syscall.cc --output kernel/core/syscall.o"
@@ -5281,6 +5357,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/fpu.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/fpu.cc --output kernel/cpu/fpu.o"
@@ -5312,6 +5391,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/idt.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/idt.cc --output kernel/cpu/idt.o"
@@ -5345,6 +5427,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/irq.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/irq.cc --output kernel/cpu/irq.o"
@@ -5367,6 +5452,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "assemble_elf32_relocatable",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/isr.o",
         "recipe": [
           "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-cupidasm-object \\",
@@ -5397,6 +5485,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/ksyms.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/ksyms.cc --output kernel/cpu/ksyms.o"
@@ -5419,6 +5510,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "generate_ksyms_source",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/ksyms_data.cc",
         "recipe": [
           "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) generate-ksyms \\",
@@ -5449,6 +5543,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/ksyms_data.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/ksyms_data.cc --output kernel/cpu/ksyms_data.o"
@@ -5476,6 +5573,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/libm.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/libm.cc --output kernel/cpu/libm.o"
@@ -5505,6 +5605,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/math.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/math.cc --output kernel/cpu/math.o"
@@ -5534,6 +5637,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/pic.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/pic.cc --output kernel/cpu/pic.o"
@@ -5566,6 +5672,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/cpu/simd.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/simd.cc --output kernel/cpu/simd.o"
@@ -5593,6 +5702,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/aes.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/aes.cc --output kernel/crypto/aes.o"
@@ -5622,6 +5734,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/aes_gcm.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/aes_gcm.cc --output kernel/crypto/aes_gcm.o"
@@ -5649,6 +5764,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/asn1.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/asn1.cc --output kernel/crypto/asn1.o"
@@ -5676,6 +5794,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/bigint.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/bigint.cc --output kernel/crypto/bigint.o"
@@ -5703,6 +5824,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/chacha20.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/chacha20.cc --output kernel/crypto/chacha20.o"
@@ -5733,6 +5857,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/chacha20poly1305.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/chacha20poly1305.cc --output kernel/crypto/chacha20poly1305.o"
@@ -5762,6 +5889,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/csprng.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/csprng.cc --output kernel/crypto/csprng.o"
@@ -5789,6 +5919,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/ct.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ct.cc --output kernel/crypto/ct.o"
@@ -5820,6 +5953,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/ecdsa.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ecdsa.cc --output kernel/crypto/ecdsa.o"
@@ -5848,6 +5984,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/ed25519.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/ed25519.cc --output kernel/crypto/ed25519.o"
@@ -5877,6 +6016,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/hkdf.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/hkdf.cc --output kernel/crypto/hkdf.o"
@@ -5905,6 +6047,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/hmac.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/hmac.cc --output kernel/crypto/hmac.o"
@@ -5932,6 +6077,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/p256.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/p256.cc --output kernel/crypto/p256.o"
@@ -5960,6 +6108,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/poly1305.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/poly1305.cc --output kernel/crypto/poly1305.o"
@@ -5990,6 +6141,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/rsa.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/rsa.cc --output kernel/crypto/rsa.o"
@@ -6017,6 +6171,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/sha256.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/sha256.cc --output kernel/crypto/sha256.o"
@@ -6044,6 +6201,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/sha512.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/sha512.cc --output kernel/crypto/sha512.o"
@@ -6071,6 +6231,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/x25519.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x25519.cc --output kernel/crypto/x25519.o"
@@ -6099,6 +6262,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/x509.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509.cc --output kernel/crypto/x509.o"
@@ -6133,6 +6299,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/crypto/x509_chain.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/crypto/x509_chain.cc --output kernel/crypto/x509_chain.o"
@@ -33559,6 +33728,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/blockcache.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockcache.cc --output kernel/fs/blockcache.o"
@@ -33588,6 +33760,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/blockdev.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockdev.cc --output kernel/fs/blockdev.o"
@@ -33620,6 +33795,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/devfs.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/devfs.cc --output kernel/fs/devfs.o"
@@ -33655,6 +33833,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/fat16.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16.cc --output kernel/fs/fat16.o"
@@ -33689,6 +33870,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/fat16_vfs.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16_vfs.cc --output kernel/fs/fat16_vfs.o"
@@ -33717,6 +33901,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/fs.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fs.cc --output kernel/fs/fs.o"
@@ -33753,6 +33940,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/homefs.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/homefs.cc --output kernel/fs/homefs.o"
@@ -33784,6 +33974,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/iso9660.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/iso9660.cc --output kernel/fs/iso9660.o"
@@ -33818,6 +34011,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/iso9660_vfs.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/iso9660_vfs.cc --output kernel/fs/iso9660_vfs.o"
@@ -33850,6 +34046,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/loopdev.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/loopdev.cc --output kernel/fs/loopdev.o"
@@ -33881,6 +34080,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/ramfs.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/ramfs.cc --output kernel/fs/ramfs.o"
@@ -33911,6 +34113,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/vfs.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs.cc --output kernel/fs/vfs.o"
@@ -33940,6 +34145,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/fs/vfs_helpers.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs_helpers.cc --output kernel/fs/vfs_helpers.o"
@@ -33973,6 +34181,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/bmp.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/bmp.cc --output kernel/gfx/bmp.o"
@@ -34000,6 +34211,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/deflate.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/deflate.cc --output kernel/gfx/deflate.o"
@@ -34027,6 +34241,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/font_8x8.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/font_8x8.cc --output kernel/gfx/font_8x8.o"
@@ -34062,6 +34279,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/fontsys.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/fontsys.cc --output kernel/gfx/fontsys.o"
@@ -34112,6 +34332,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/gfx2d.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d.cc --output kernel/gfx/gfx2d.o"
@@ -34149,6 +34372,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/gfx2d_assets.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_assets.cc --output kernel/gfx/gfx2d_assets.o"
@@ -34181,6 +34407,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/gfx2d_effects.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_effects.cc --output kernel/gfx/gfx2d_effects.o"
@@ -34215,6 +34444,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/gfx2d_icons.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_icons.cc --output kernel/gfx/gfx2d_icons.o"
@@ -34247,6 +34479,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/gfx2d_transform.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d_transform.cc --output kernel/gfx/gfx2d_transform.o"
@@ -34276,6 +34511,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/glyph_raster.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/glyph_raster.cc --output kernel/gfx/glyph_raster.o"
@@ -34309,6 +34547,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/graphics.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/graphics.cc --output kernel/gfx/graphics.o"
@@ -34338,6 +34579,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/jpeg.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/jpeg.cc --output kernel/gfx/jpeg.o"
@@ -34366,6 +34610,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/png.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/png.cc --output kernel/gfx/png.o"
@@ -34395,6 +34642,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gfx/ttf.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/ttf.cc --output kernel/gfx/ttf.o"
@@ -34423,6 +34673,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/ansi.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ansi.cc --output kernel/gui/ansi.o"
@@ -34452,6 +34705,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/clipboard.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/clipboard.cc --output kernel/gui/clipboard.o"
@@ -34489,6 +34745,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/ctxt_image_worker.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ctxt_image_worker.cc --output kernel/gui/ctxt_image_worker.o"
@@ -34548,6 +34807,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/desktop.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/desktop.cc --output kernel/gui/desktop.o"
@@ -34585,6 +34847,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/ed.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ed.cc --output kernel/gui/ed.o"
@@ -34627,6 +34892,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/gui.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui.cc --output kernel/gui/gui.o"
@@ -34661,6 +34929,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/gui_containers.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_containers.cc --output kernel/gui/gui_containers.o"
@@ -34696,6 +34967,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/gui_events.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_events.cc --output kernel/gui/gui_events.o"
@@ -34730,6 +35004,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/gui_menus.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_menus.cc --output kernel/gui/gui_menus.o"
@@ -34765,6 +35042,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/gui_themes.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_themes.cc --output kernel/gui/gui_themes.o"
@@ -34800,6 +35080,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/gui_widgets.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_widgets.cc --output kernel/gui/gui_widgets.o"
@@ -34841,6 +35124,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/terminal_app.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/terminal_app.cc --output kernel/gui/terminal_app.o"
@@ -34874,6 +35160,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/gui/ui.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ui.cc --output kernel/gui/ui.o"
@@ -35327,6 +35616,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "extract_raw_binary",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/kernel.bin",
         "recipe": [
           "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
@@ -35782,6 +36074,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "link_elf32_executable",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/kernel.elf",
         "recipe": [
           "$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS) kernel/cpu/ksyms_data.o"
@@ -36232,6 +36527,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "link_elf32_executable",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/kernel.elf.pass1",
         "recipe": [
           "$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS)"
@@ -36335,6 +36633,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/as.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as.cc --output kernel/lang/as.o"
@@ -36366,6 +36667,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/as_elf.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as_elf.cc --output kernel/lang/as_elf.o"
@@ -36407,6 +36711,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/ctool_kernel.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ctool_kernel.cc --output kernel/lang/ctool_kernel.o"
@@ -36521,6 +36828,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidc.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc.cc --output kernel/lang/cupidc.o"
@@ -36560,6 +36870,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidc_elf.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_elf.cc --output kernel/lang/cupidc_elf.o"
@@ -36594,6 +36907,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidc_lex.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_lex.cc --output kernel/lang/cupidc_lex.o"
@@ -36631,6 +36947,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidc_parse.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_parse.cc --output kernel/lang/cupidc_parse.o"
@@ -36660,6 +36979,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidc_string.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidc_string.cc --output kernel/lang/cupidc_string.o"
@@ -36690,6 +37012,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidscript_arrays.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_arrays.cc --output kernel/lang/cupidscript_arrays.o"
@@ -36742,6 +37067,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidscript_exec.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_exec.cc --output kernel/lang/cupidscript_exec.o"
@@ -36774,6 +37102,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidscript_jobs.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_jobs.cc --output kernel/lang/cupidscript_jobs.o"
@@ -36807,6 +37138,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidscript_lex.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_lex.cc --output kernel/lang/cupidscript_lex.o"
@@ -36841,6 +37175,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidscript_parse.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_parse.cc --output kernel/lang/cupidscript_parse.o"
@@ -36878,6 +37215,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidscript_runtime.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_runtime.cc --output kernel/lang/cupidscript_runtime.o"
@@ -36915,6 +37255,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidscript_streams.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_streams.cc --output kernel/lang/cupidscript_streams.o"
@@ -36949,6 +37292,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/cupidscript_strings.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_strings.cc --output kernel/lang/cupidscript_strings.o"
@@ -36985,6 +37331,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/dis.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/dis.cc --output kernel/lang/dis.o"
@@ -37020,6 +37369,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/exec.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/exec.cc --output kernel/lang/exec.o"
@@ -37051,6 +37403,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/godspeak.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/godspeak.cc --output kernel/lang/godspeak.o"
@@ -37132,6 +37487,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/shell.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/shell.cc --output kernel/lang/shell.o"
@@ -37170,6 +37528,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/lang/ssh_io.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ssh_io.cc --output kernel/lang/ssh_io.o"
@@ -37204,6 +37565,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/mm/memory.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/memory.cc --output kernel/mm/memory.o"
@@ -37231,6 +37595,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/mm/paging.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/paging.cc --output kernel/mm/paging.o"
@@ -37264,6 +37631,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/mm/swap.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/swap.cc --output kernel/mm/swap.o"
@@ -37293,6 +37663,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/mm/swap_disk.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/mm/swap_disk.cc --output kernel/mm/swap_disk.o"
@@ -37325,6 +37698,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/network/arp.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/arp.cc --output kernel/network/arp.o"
@@ -37358,6 +37734,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/network/dhcp.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dhcp.cc --output kernel/network/dhcp.o"
@@ -37392,6 +37771,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/network/dns.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/dns.cc --output kernel/network/dns.o"
@@ -37424,6 +37806,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/network/icmp.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/icmp.cc --output kernel/network/icmp.o"
@@ -37460,6 +37845,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/network/ip.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/ip.cc --output kernel/network/ip.o"
@@ -37492,6 +37880,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/network/net_if.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/net_if.cc --output kernel/network/net_if.o"
@@ -37534,6 +37925,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/network/socket.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/socket.cc --output kernel/network/socket.o"
@@ -37580,6 +37974,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/network/sshd.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/sshd.cc --output kernel/network/sshd.o"
@@ -37616,6 +38013,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/network/tcp.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/tcp.cc --output kernel/network/tcp.o"
@@ -37647,6 +38047,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/network/udp.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/network/udp.cc --output kernel/network/udp.o"
@@ -37679,6 +38082,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/smp/acpi.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/acpi.cc --output kernel/smp/acpi.o"
@@ -37708,6 +38114,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/smp/bkl.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/bkl.cc --output kernel/smp/bkl.o"
@@ -37737,6 +38146,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/smp/ioapic.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/ioapic.cc --output kernel/smp/ioapic.o"
@@ -37767,6 +38179,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/smp/lapic.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/lapic.cc --output kernel/smp/lapic.o"
@@ -37798,6 +38213,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/smp/mp_tables.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/mp_tables.cc --output kernel/smp/mp_tables.o"
@@ -37827,6 +38245,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/smp/percpu.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/percpu.cc --output kernel/smp/percpu.o"
@@ -37866,6 +38287,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/smp/smp.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/smp.cc --output kernel/smp/smp.o"
@@ -37888,6 +38312,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "wrap_binary_as_elf32_relocatable",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/smp/smp_trampoline.o",
         "recipe": [
           "$(CUPIDOBJ) wrap $< --stem smp_trampoline --section .rodata --readonly -o $@"
@@ -37910,6 +38337,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "assemble_flat_binary",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/smp_trampoline.bin",
         "recipe": [
           "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-smp-trampoline \\",
@@ -37953,6 +38383,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/tls/tls12_handshake.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls12_handshake.cc --output kernel/tls/tls12_handshake.o"
@@ -37981,6 +38414,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/tls/tls_ca_bundle.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ca_bundle.cc --output kernel/tls/tls_ca_bundle.o"
@@ -38009,6 +38445,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/tls/tls_ca_bundle_data.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ca_bundle_data.cc --output kernel/tls/tls_ca_bundle_data.o"
@@ -38044,6 +38483,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/tls/tls_ctx.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_ctx.cc --output kernel/tls/tls_ctx.o"
@@ -38087,6 +38529,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/tls/tls_handshake.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_handshake.cc --output kernel/tls/tls_handshake.o"
@@ -38117,6 +38562,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/tls/tls_kdf.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_kdf.cc --output kernel/tls/tls_kdf.o"
@@ -38148,6 +38596,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/tls/tls_record.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_record.cc --output kernel/tls/tls_record.o"
@@ -38194,6 +38645,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/tls/tls_selftest.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/tls/tls_selftest.cc --output kernel/tls/tls_selftest.o"
@@ -38231,6 +38685,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/usb/ehci.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/ehci.cc --output kernel/usb/ehci.o"
@@ -38268,6 +38725,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/usb/uhci.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/uhci.cc --output kernel/usb/uhci.o"
@@ -38302,6 +38762,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/usb/usb.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb.cc --output kernel/usb/usb.o"
@@ -38338,6 +38801,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/usb/usb_hid.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_hid.cc --output kernel/usb/usb_hid.o"
@@ -38368,6 +38834,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/usb/usb_hub.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_hub.cc --output kernel/usb/usb_hub.o"
@@ -38399,6 +38868,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/usb/usb_msc.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/usb/usb_msc.cc --output kernel/usb/usb_msc.o"
@@ -38552,6 +39024,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "generate_install_source",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/util/bin_programs_gen.cc",
         "recipe": [
           "$(CUPIDOBJ) install-source bin --bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) --browser $(BROWSER_SUB_SRCS) -o $@"
@@ -38582,6 +39057,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/util/bin_programs_gen.o",
         "recipe": [
           "$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@"
@@ -38612,6 +39090,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/util/calendar.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source kernel/util/calendar.cc --output kernel/util/calendar.o"
@@ -38655,6 +39136,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "generate_install_source",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/util/demos_programs_gen.cc",
         "recipe": [
           "$(CUPIDOBJ) install-source demos --demos $(DEMO_ASM_SRCS) -o $@"
@@ -38685,6 +39169,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/util/demos_programs_gen.o",
         "recipe": [
           "$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@"
@@ -38729,6 +39216,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "generate_install_source",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/util/docs_programs_gen.cc",
         "recipe": [
           "$(CUPIDOBJ) install-source docs --ctxt $(DOC_CTXT_SRCS) --doc-assets $(DOC_ASSET_SRCS) --home-assets $(HOME_ASSET_SRCS) -o $@"
@@ -38760,6 +39250,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "kernel/util/docs_programs_gen.o",
         "recipe": [
           "$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@"
@@ -38904,9 +39397,7 @@
       {
         "inputs": [
           "test_iso/big_pattern.asm",
-          "tools/hostbuild.py",
           "Makefile",
-          "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
           "bootstrap/seeds/i386-windows/cupidasm.exe",
           "bootstrap/seeds/i386-windows/cupidc.exe",
@@ -38918,13 +39409,14 @@
         "operation": "assemble_flat_binary",
         "output": "test_iso/fixtures/big.bin",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py gen-big \\",
-          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) \\",
-          "--source $(ISO_BIG_FIXTURE_SOURCE) $@"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-iso-pattern \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source $< --output $@"
         ],
         "tools": [
           "cupid_assembler",
-          "host_python"
+          "cupid_disassembler",
+          "cupid_builder"
         ]
       },
       {
@@ -38979,6 +39471,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "toolchain/ctool.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source toolchain/ctool.cc --output toolchain/ctool.o"
@@ -39008,6 +39503,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "toolchain/cupidasm.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidasm.cc --output toolchain/cupidasm.o"
@@ -39039,6 +39537,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "toolchain/cupiddis.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupiddis.cc --output toolchain/cupiddis.o"
@@ -39067,6 +39568,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "toolchain/cupidld.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidld.cc --output toolchain/cupidld.o"
@@ -39094,6 +39598,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "toolchain/elf32.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source toolchain/elf32.cc --output toolchain/elf32.o"
@@ -39121,6 +39628,9 @@
           "bootstrap/seeds/i386-windows/cupidbuild.exe"
         ],
         "operation": "compile_c_to_elf32_object",
+        "order_only_inputs": [
+          "build/bootstrap/doom-cupidc-inputs.json"
+        ],
         "output": "toolchain/x86.o",
         "recipe": [
           "$(CUPIDC_KERNEL_COMPILE) --source toolchain/x86.cc --output toolchain/x86.o"
@@ -39172,6 +39682,9 @@
           "bootstrap/seeds/i386-windows/manifest.json"
         ],
         "operation": "verify_artifact_size_policy",
+        "order_only_inputs": [
+          "test_iso/hello.iso"
+        ],
         "output": "verify-artifact-sizes",
         "recipe": [
           "$(ARTIFACT_SIZE_CONTRACT)"
@@ -42146,7 +42659,7 @@
             },
             {
               "directive": "if",
-              "line": 33735,
+              "line": 33737,
               "path": "toolchain/tests/cupidc_object_contract.cc",
               "text": "#if defined(_WIN32)"
             }
@@ -57565,11 +58078,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "156d50d7a1886b16380d03d481bae8d446da6e49a728a0e2ceaad05cca18ed20",
+    "active_source_digest": "eb1d61f4dcda87bf15b5a5538f52127692fbed358a16b3482d7d2dd5ea5a288a",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "34f5578cc7fcbff1e78d1859d0f96b7ac77e242d213c10ffda74ff5e96ae9762"
+        "sha256": "08ba23cd8def249388a362e6851c99d0ba7593c3958399e30920b616d87a56e5"
       },
       {
         "path": "user/Makefile",
@@ -57593,11 +58106,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "dd1dd268e3dd6d08c2efb31cf3f74aa134af070e71a3cf0f4547fbefd4f03a25"
+        "sha256": "12c4a66e2b51055a0d9c04f7c3a16f9a0754730ad7d4ca1b63979bb901bf1fcc"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+        "sha256": "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
       },
       {
         "path": "tools/cupidc_production_compile.py",
@@ -57618,7 +58131,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "4784cb75fbee4f802945059b88e4c4675333f8d829e75938f8a530deabadaa54"
+      "sha256": "53db9a9356c5a5564623c9821a0297c91459259ffd9069c1b19cc5b62b35722e"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -63050,6 +63563,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63179,6 +63693,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63257,6 +63772,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63324,6 +63840,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63386,6 +63903,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63455,6 +63973,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63588,6 +64107,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63657,6 +64177,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63728,6 +64249,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63800,6 +64322,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63883,6 +64406,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -63959,6 +64483,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64042,6 +64567,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64108,6 +64634,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64191,6 +64718,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64279,6 +64807,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64347,6 +64876,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64415,6 +64945,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64450,6 +64981,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64546,6 +65078,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64683,6 +65216,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64767,6 +65301,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64810,6 +65345,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64907,6 +65443,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -64943,6 +65480,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65015,6 +65553,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65117,6 +65656,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -65157,6 +65697,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -65197,6 +65738,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65276,6 +65818,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65345,6 +65888,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65417,6 +65961,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65497,6 +66042,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65578,6 +66124,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65669,6 +66216,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65734,6 +66282,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65797,6 +66346,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65865,6 +66415,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65896,6 +66447,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -65953,6 +66505,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66018,6 +66571,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66081,6 +66635,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66147,6 +66702,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66214,6 +66770,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66279,6 +66836,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66350,6 +66908,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66409,6 +66968,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66476,6 +67036,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66540,6 +67101,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66604,6 +67166,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66664,6 +67227,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66727,6 +67291,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66794,6 +67359,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66863,6 +67429,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66926,6 +67493,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -66992,6 +67560,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67054,6 +67623,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67121,6 +67691,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67194,6 +67765,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67297,6 +67869,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67335,6 +67908,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67485,6 +68059,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67626,6 +68201,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67656,6 +68232,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67679,6 +68256,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67734,6 +68312,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67791,6 +68370,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67880,6 +68460,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -67971,6 +68552,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68092,6 +68674,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68159,6 +68742,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68241,6 +68825,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68277,6 +68862,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68306,6 +68892,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68335,6 +68922,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68368,6 +68956,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68402,6 +68991,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68434,6 +69024,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68469,6 +69060,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68494,6 +69086,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68552,6 +69145,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68585,6 +69179,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68639,6 +69234,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68677,6 +69273,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68727,6 +69324,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68761,6 +69359,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68832,6 +69431,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -68950,6 +69550,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69019,6 +69620,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69130,6 +69732,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69208,6 +69811,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69282,6 +69886,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69373,6 +69978,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69403,6 +70009,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69470,6 +70077,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69598,6 +70206,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69665,6 +70274,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69695,6 +70305,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69731,6 +70342,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69837,6 +70449,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69905,6 +70518,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -69993,6 +70607,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70056,6 +70671,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70076,6 +70692,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70096,6 +70713,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70116,6 +70734,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70136,6 +70755,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70156,6 +70776,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70176,6 +70797,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70196,6 +70818,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70216,6 +70839,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70236,6 +70860,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70256,6 +70881,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70280,6 +70906,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70300,6 +70927,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70320,6 +70948,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70340,6 +70969,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70360,6 +70990,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70380,6 +71011,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70400,6 +71032,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70420,6 +71053,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70440,6 +71074,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70460,6 +71095,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70512,6 +71148,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70591,6 +71228,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70649,6 +71287,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70711,6 +71350,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70811,6 +71451,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70878,6 +71519,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -70936,6 +71578,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71037,6 +71680,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71125,6 +71769,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71188,6 +71833,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71217,6 +71863,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71249,6 +71896,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71277,6 +71925,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71312,6 +71961,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71337,6 +71987,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71376,6 +72027,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71405,6 +72057,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71435,6 +72088,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71463,6 +72117,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71495,6 +72150,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71529,6 +72185,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71557,6 +72214,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71818,6 +72476,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -71883,6 +72542,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72071,6 +72731,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72199,6 +72860,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72288,6 +72950,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72370,6 +73033,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72491,6 +73155,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72640,6 +73305,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72742,6 +73408,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72822,6 +73489,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72853,6 +73521,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72938,6 +73607,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -72966,6 +73636,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73047,6 +73718,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73126,6 +73798,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73201,6 +73874,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73255,6 +73929,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73282,6 +73957,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73366,6 +74042,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73449,6 +74126,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73528,6 +74206,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73590,6 +74269,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73663,6 +74343,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73757,6 +74438,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73840,6 +74522,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73895,6 +74578,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -73928,6 +74612,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74013,6 +74698,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74086,6 +74772,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74156,6 +74843,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74268,6 +74956,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74293,6 +74982,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74374,6 +75064,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74474,6 +75165,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74546,6 +75238,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74623,6 +75316,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74696,6 +75390,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74775,6 +75470,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74853,6 +75549,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74890,6 +75587,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -74970,6 +75668,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75033,6 +75732,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75116,6 +75816,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75192,6 +75893,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75276,6 +75978,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75344,6 +76047,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75420,6 +76124,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75493,6 +76198,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -75566,6 +76272,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75640,6 +76347,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75708,6 +76416,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75762,6 +76471,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75840,6 +76550,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -75936,6 +76647,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76016,6 +76728,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76092,6 +76805,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76121,6 +76835,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76209,6 +76924,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76284,6 +77000,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76356,6 +77073,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76427,6 +77145,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76498,6 +77217,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76568,6 +77288,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76636,6 +77357,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76703,6 +77425,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76771,6 +77494,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76852,6 +77576,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -76947,6 +77672,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77036,6 +77762,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77120,6 +77847,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77194,6 +77922,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77276,6 +78005,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77356,6 +78086,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77442,6 +78173,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77519,6 +78251,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77553,6 +78286,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77584,6 +78318,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77667,6 +78402,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77741,6 +78477,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77897,6 +78634,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -77971,6 +78709,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -78056,6 +78795,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -78220,6 +78960,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -78399,6 +79140,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -78470,6 +79212,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -78502,6 +79245,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -78577,6 +79321,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -78710,6 +79455,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -78918,6 +79664,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79039,6 +79786,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79125,6 +79873,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79197,6 +79946,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79319,6 +80069,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79401,6 +80152,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79479,6 +80231,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79591,6 +80344,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79660,6 +80414,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79732,6 +80487,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79809,6 +80565,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79884,6 +80641,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -79950,6 +80708,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80030,6 +80789,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80104,6 +80864,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80185,6 +80946,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -80284,6 +81046,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80364,6 +81127,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80434,6 +81198,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80507,6 +81272,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80570,6 +81336,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80633,6 +81400,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80699,6 +81467,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80767,6 +81536,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80840,6 +81610,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -80936,6 +81707,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -81078,6 +81850,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -81202,6 +81975,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -81327,6 +82101,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -81394,6 +82169,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -81479,6 +82255,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -81660,6 +82437,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -81696,6 +82474,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -81928,6 +82707,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -82005,7 +82785,8 @@
     {
       "build_owners": [
         "cupid_assembler",
-        "host_python"
+        "cupid_builder",
+        "cupid_disassembler"
       ],
       "builds": [
         "."
@@ -82087,6 +82868,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -82170,6 +82952,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -82252,6 +83035,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -82390,6 +83174,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -82475,6 +83260,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -82597,6 +83383,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -82674,6 +83461,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -82755,6 +83543,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -82871,6 +83660,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -82944,6 +83734,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -83025,6 +83816,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -83156,6 +83948,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -83282,6 +84075,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -83405,6 +84199,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -83438,6 +84233,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -83474,6 +84270,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -83507,6 +84304,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -83539,6 +84337,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -83580,6 +84379,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -83620,6 +84420,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -83659,6 +84460,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -83690,6 +84492,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -83724,6 +84527,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -83755,6 +84559,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_c_contract",
         "cupid_linker",
@@ -84118,6 +84923,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -84150,6 +84956,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -84396,6 +85203,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -84547,6 +85355,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -84637,12 +85446,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 52728,
+      "lines": 52730,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5ddfdc0325f78bf2bfa558ce0362ca68f8472f972e39f17b4eaa90d912cb53ef"
+      "sha256": "c36ff171ef39002590dbbc1d27913abf95ad9d75bdc78e97cf048a4f85d84e13"
     },
     {
       "build_owners": [
@@ -84693,6 +85502,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -84727,6 +85537,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -84761,6 +85572,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -85149,7 +85961,7 @@
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f24c06d72093ec019b3d9a578f1de590754c9205a7ef9e9345384f4b9866bd7a"
+      "sha256": "b3efc735e156aac570be9b02c05c1103c10a626961a4372fa9e3383c77959079"
     },
     {
       "build_owners": [
@@ -85299,6 +86111,7 @@
     },
     {
       "build_owners": [
+        "cupid_builder",
         "cupid_c_compiler",
         "cupid_object",
         "host_python"
@@ -85517,10 +86330,12 @@
             "bootstrap/seeds/i386-windows/cupidld.exe",
             "bootstrap/seeds/i386-windows/cupidobj.exe",
             "bootstrap/seeds/i386-windows/cupidbuild.exe",
-            "user/Makefile",
-            "user/test-syscall-abi"
+            "user/Makefile"
           ],
           "operation": "compile_c_to_elf32_object",
+          "order_only_inputs": [
+            "user/test-syscall-abi"
+          ],
           "output": "user/build/cat.o",
           "recipe": [
             "$(CUPIDC_PRODUCTION_COMPILE) --source user/$< --output user/$@"
@@ -85573,10 +86388,12 @@
             "bootstrap/seeds/i386-windows/cupidld.exe",
             "bootstrap/seeds/i386-windows/cupidobj.exe",
             "bootstrap/seeds/i386-windows/cupidbuild.exe",
-            "user/Makefile",
-            "user/test-syscall-abi"
+            "user/Makefile"
           ],
           "operation": "compile_c_to_elf32_object",
+          "order_only_inputs": [
+            "user/test-syscall-abi"
+          ],
           "output": "user/build/hello.o",
           "recipe": [
             "$(CUPIDC_PRODUCTION_COMPILE) --source user/$< --output user/$@"
@@ -85629,10 +86446,12 @@
             "bootstrap/seeds/i386-windows/cupidld.exe",
             "bootstrap/seeds/i386-windows/cupidobj.exe",
             "bootstrap/seeds/i386-windows/cupidbuild.exe",
-            "user/Makefile",
-            "user/test-syscall-abi"
+            "user/Makefile"
           ],
           "operation": "compile_c_to_elf32_object",
+          "order_only_inputs": [
+            "user/test-syscall-abi"
+          ],
           "output": "user/build/ls.o",
           "recipe": [
             "$(CUPIDC_PRODUCTION_COMPILE) --source user/$< --output user/$@"

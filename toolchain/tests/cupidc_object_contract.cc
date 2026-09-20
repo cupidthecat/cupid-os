@@ -33103,20 +33103,20 @@ static int validate_active_self_host_frontier_objects(
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
       65u, 131u, 82u, 140u, 31u, 143u, 270u, 368u, 463u, 88u, 37u, 65u,
-      40u};
+      46u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 188766u, 118477u, 183181u, 42212u,
-      190304u, 505711u, 579035u, 916371u, 153631u, 70368u, 85466u,
-      57363u};
+      190304u, 505711u, 579035u, 916190u, 153631u, 70368u, 85466u,
+      73546u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 214448u, 137444u, 220508u, 49484u,
-      226668u, 544716u, 649488u, 1084896u, 174068u, 79348u, 141560u,
-      63092u};
+      226668u, 544716u, 649488u, 1084632u, 174068u, 79348u, 141560u,
+      80856u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x08d1d4d1u, 0x3e007f3eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0xefb1c487u, 0x788cef1du, 0xa080417fu, 0x6b129b78u,
-      0x34558a49u, 0x4285e204u, 0xd7c5b73eu};
+      0xefb1c487u, 0x788cef1du, 0xf550ff5fu, 0x6b129b78u,
+      0x34558a49u, 0x4285e204u, 0x9a880083u};
   ctool_u32 index;
   int all_matched = 1;
   if (first_index > past_last_index ||
@@ -33410,10 +33410,12 @@ static int run_self_host_hosted_adapters(const char *host_root) {
       "ctool_asm_assemble",
       "cupid_linux_syscall1",
       "cupid_linux_syscall2",
+      "cupid_linux_syscall3",
       "stdout",
       "stderr",
       "fopen",
       "fclose",
+      "fflush",
       "ferror",
       "fprintf",
       "fseek",
@@ -33473,8 +33475,8 @@ static int run_self_host_hosted_adapters(const char *host_root) {
   static const hosted_adapter_case_t cases[] = {
       {"/toolchain/ctool_host.cc", 11u, 5522u, 6944u, 0x28739c3fu,
        ctool_host_undefined, 10u, 25u, 38u, 28u, 10u},
-      {"/toolchain/cupidasm_main.cc", 41u, 45916u, 53300u, 0xb5d9be67u,
-       cupidasm_undefined, 39u, 116u, 324u, 279u, 45u},
+      {"/toolchain/cupidasm_main.cc", 47u, 50943u, 59200u, 0x26b019d6u,
+       cupidasm_undefined, 41u, 127u, 368u, 319u, 49u},
       {"/toolchain/cupiddis_main.cc", 28u, 46249u, 58720u, 0x81c4a4c0u,
        cupiddis_undefined, 39u, 186u, 358u, 216u, 142u}};
   ctool_u32 index;

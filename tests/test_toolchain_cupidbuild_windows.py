@@ -326,9 +326,6 @@ failed:
             )
             self.assertEqual(list(root.glob(".cupidbuild-*")), [])
 
-    @unittest.skip(
-        "the promoted Windows CupidObj predates shared runtime output handles"
-    )
     def test_checked_tool_can_replace_its_retained_private_candidate(self):
         compiler = _host_compiler()
         with tempfile.TemporaryDirectory(

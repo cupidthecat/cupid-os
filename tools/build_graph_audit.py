@@ -314,6 +314,8 @@ TOOL_MARKERS = (
     ("assemble-bootloader --seed-manifest", "cupid_disassembler"),
     ("assemble-smp-trampoline --seed-manifest", "cupid_assembler"),
     ("assemble-smp-trampoline --seed-manifest", "cupid_disassembler"),
+    ("assemble-iso-pattern --seed-manifest", "cupid_assembler"),
+    ("assemble-iso-pattern --seed-manifest", "cupid_disassembler"),
     ("assemble-cupidasm-object --seed-manifest", "cupid_assembler"),
     ("assemble-cupidasm-object --seed-manifest", "cupid_disassembler"),
     (
@@ -324,6 +326,7 @@ TOOL_MARKERS = (
     ("flatten-kernel --seed-manifest", "cupid_object"),
     ("generate-ksyms --seed-manifest", "cupid_disassembler"),
     ("generate-ksyms --seed-manifest", "cupid_object"),
+    ("generate-profile-manifest --seed-manifest", "cupid_object"),
     ("validate-code --seed-manifest", "cupid_disassembler"),
     ("validate-code --seed-manifest", "cupid_object"),
     ("mksyms --seed-manifest", "cupid_disassembler"),
@@ -571,16 +574,20 @@ CUPIDC_KERNEL_CONTROL_FILES = (
     "bootstrap/seeds/i386-windows/manifest.json",
 )
 _CUPIDOBJ_PROFILE_MANIFEST_OUTPUT = "build/bootstrap/doom-cupidc-inputs.json"
+_CUPIDOBJ_PROFILE_WRITER_BARRIER = (
+    "$(filter kernel/% drivers/% toolchain/%,$(BOOTSTRAP_ARTIFACTS)) "
+    "kernel/util/bin_programs_gen.cc kernel/util/docs_programs_gen.cc "
+    "kernel/util/demos_programs_gen.cc: | $(DOOM_CUPIDC_INPUT_MANIFEST)"
+)
 _CUPIDOBJ_PROFILE_MANIFEST_RECIPE = [
-    "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\",
-    "--manifest $(PRODUCTION_SEED_MANIFEST) \\",
-    "--write-profile-input-manifest $@",
+    "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+    "$(PRODUCTION_SEED_SUFFIX) generate-profile-manifest \\",
+    '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+    "--output $@",
 ]
 _CUPIDOBJ_PROFILE_MANIFEST_CONTROL_INPUTS = (
     "Makefile",
-    "tools/bootstrap_toolchain.py",
     *WINDOWS_PRODUCTION_SEED_INPUTS,
-    "tools/cupidc_kernel_compile.py",
 )
 _CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_FILES = (
     "tools/cupidc_kernel_compile.py",
@@ -684,6 +691,7 @@ class MakeRule:
 
     prerequisites: list[str] = field(default_factory=list)
     recipe: list[str] = field(default_factory=list)
+    order_only_prerequisites: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -1312,13 +1320,22 @@ def _parse_make_rules(database: str) -> dict[str, MakeRule]:
         if "=" in target_text:
             continue
         current_targets = target_text.split()
+        normal_text, _, order_only_text = prerequisite_text.partition("|")
         prerequisites = [
             item
-            for item in prerequisite_text.split()
-            if item not in {"|", "FORCE"}
+            for item in normal_text.split()
+            if item != "FORCE"
+        ]
+        order_only = [
+            item
+            for item in order_only_text.split()
+            if item != "FORCE" and item not in prerequisites
         ]
         for target in current_targets:
-            rules[target] = MakeRule(prerequisites=list(prerequisites))
+            rules[target] = MakeRule(
+                prerequisites=list(prerequisites),
+                order_only_prerequisites=list(order_only),
+            )
 
     return rules
 
@@ -1338,7 +1355,9 @@ def _reachable_rules(rules: dict[str, MakeRule], target: str) -> set[str]:
             continue
         pending.extend(
             prerequisite
-            for prerequisite in rule.prerequisites
+            for prerequisite in [
+                *rule.prerequisites, *rule.order_only_prerequisites
+            ]
             if prerequisite in rules and prerequisite not in reachable
         )
     return reachable
@@ -2019,6 +2038,12 @@ def _operation_for_recipe(
         token.lower() for token in _recipe_tokens(recipe)
     ):
         return "generate_profile_manifest"
+    if (
+        "generate-profile-manifest" in tokens
+        and "cupid_builder" in tools
+        and "cupid_object" in tools
+    ):
+        return "generate_profile_manifest"
     if "hostbuild.py build-iso " in joined:
         return "package_iso9660_image"
     if "hostbuild.py image " in joined:
@@ -2044,6 +2069,7 @@ def _operation_for_recipe(
             for operation in (
                 "assemble-bootloader",
                 "assemble-smp-trampoline",
+                "assemble-iso-pattern",
             )
         )
         and "cupid_assembler" in tools
@@ -2170,6 +2196,13 @@ def _build_transforms(
                     _prefix_repo_path(directory, item)
                     for item in dict.fromkeys(rule.prerequisites)
                 ],
+                **(
+                    {"order_only_inputs": [
+                        _prefix_repo_path(directory, item)
+                        for item in dict.fromkeys(rule.order_only_prerequisites)
+                    ]}
+                    if rule.order_only_prerequisites else {}
+                ),
                 "tools": tools,
                 "operation": _operation_for_recipe(
                     rule.recipe,
@@ -2209,7 +2242,11 @@ def _collect_build_model(
     graph_sources = {
         item
         for rule_target in reachable
-        for item in [rule_target, *rules[rule_target].prerequisites]
+        for item in [
+            rule_target,
+            *rules[rule_target].prerequisites,
+            *rules[rule_target].order_only_prerequisites,
+        ]
         if _language(item) is not None
     }
     generated_local = {
@@ -6355,6 +6392,12 @@ def build_audit(
             root,
             make,
             root_model.transforms,
+        )
+        _validate_iso_pattern_delivery(
+            root_model.transforms,
+            seed_inputs=_read_evaluated_make_variables(
+                root, make, ("PRODUCTION_SEED_INPUTS",)
+            )["PRODUCTION_SEED_INPUTS"].split(),
         )
     _validate_cupidobj_profile_manifest_delivery(
         root,
@@ -14730,6 +14773,41 @@ def _is_cupidobj_profile_manifest_production_root(root: Path) -> bool:
     )
 
 
+def _validate_iso_pattern_delivery(
+    transforms: list[dict[str, object]], *, seed_inputs: list[str]
+) -> None:
+    deliveries = [
+        transform for transform in transforms
+        if transform.get("output") == "test_iso/fixtures/big.bin"
+    ]
+    if len(deliveries) != 1:
+        raise AuditError("ISO pattern delivery must appear exactly once")
+    delivery = deliveries[0]
+    expected_inputs = {"Makefile", "test_iso/big_pattern.asm", *seed_inputs}
+    inputs = delivery.get("inputs")
+    expected_recipe = [
+        "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+        "$(PRODUCTION_SEED_SUFFIX) assemble-iso-pattern \\",
+        '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+        "--source $< --output $@",
+    ]
+    if (
+        delivery.get("operation") != "assemble_flat_binary"
+        or delivery.get("tools")
+        != ["cupid_assembler", "cupid_disassembler", "cupid_builder"]
+        or delivery.get("recipe") != expected_recipe
+        or not isinstance(inputs, list)
+        or len(inputs) != len(expected_inputs)
+        or set(inputs) != expected_inputs
+        or inputs[0] != "test_iso/big_pattern.asm"
+        or delivery.get("order_only_inputs")
+    ):
+        raise AuditError(
+            "ISO pattern delivery differs from its checked operation, tools, "
+            "recipe, content inputs, or independent scheduling contract"
+        )
+
+
 _KERNEL_FLATTEN_RECIPE = [
     "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
     "$(PRODUCTION_SEED_SUFFIX) flatten-kernel \\",
@@ -14883,14 +14961,34 @@ def _validate_kernel_flatten_delivery(
 def _validate_cupidobj_profile_manifest_make_source(source: str) -> None:
     lines = _normalized_make_lines(source)
     required_lines = (
-        "DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json",
+        "override DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json",
         "$(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) "
-        "$(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py",
-        "$(PYTHON) tools/cupidc_kernel_compile.py --root . "
-        "--manifest $(PRODUCTION_SEED_MANIFEST) "
-        "--write-profile-input-manifest $@",
+        "Makefile $(PRODUCTION_SEED_INPUTS)",
+        " ".join(_recipe_tokens(_CUPIDOBJ_PROFILE_MANIFEST_RECIPE)),
+        _CUPIDOBJ_PROFILE_WRITER_BARRIER,
     )
     changed = [line for line in required_lines if lines.count(line) != 1]
+    expected_rule = "\n".join(
+        (
+            required_lines[1],
+            "ifneq ($(OS),Windows_NT)",
+            "test ! -L build && test ! -L build/bootstrap && mkdir -p build/bootstrap",
+            "endif",
+            required_lines[2],
+        )
+    )
+    if "\n".join(lines).count(expected_rule) != 1:
+        changed.append("profile rule with explicit POSIX parent preparation")
+    artifact_definitions = [
+        index for index, line in enumerate(lines)
+        if line.startswith("BOOTSTRAP_ARTIFACTS := ")
+    ]
+    if (
+        len(artifact_definitions) != 1
+        or _CUPIDOBJ_PROFILE_WRITER_BARRIER not in lines
+        or lines.index(_CUPIDOBJ_PROFILE_WRITER_BARRIER) <= artifact_definitions[0]
+    ):
+        changed.append("profile writer barrier after the complete artifact cohort")
     if changed:
         raise AuditError(
             "CupidObj profile manifest Make contract changed; expected one "
@@ -15351,7 +15449,7 @@ def _validate_cupidobj_profile_manifest_delivery(
     delivery = deliveries[0]
     if (
         delivery.get("operation") != "generate_profile_manifest"
-        or delivery.get("tools") != ["cupid_object", "host_python"]
+        or delivery.get("tools") != ["cupid_builder", "cupid_object"]
         or delivery.get("recipe") != _CUPIDOBJ_PROFILE_MANIFEST_RECIPE
     ):
         raise AuditError(
@@ -15373,7 +15471,24 @@ def _validate_cupidobj_profile_manifest_delivery(
             f"missing={missing!r}, unexpected={unexpected!r}, "
             f"order_changed={not missing and not unexpected}"
         )
-    _validate_cupidobj_profile_manifest_wrapper(root)
+    _validate_cupidobj_profile_writer_dependencies(transforms)
+
+
+def _validate_cupidobj_profile_writer_dependencies(
+    transforms: list[dict[str, object]],
+) -> None:
+    for transform in transforms:
+        output = str(transform.get("output", ""))
+        if output.startswith(("kernel/", "drivers/", "toolchain/")):
+            dependencies = [
+                *(transform.get("inputs") or []),
+                *(transform.get("order_only_inputs") or []),
+            ]
+            if dependencies.count(_CUPIDOBJ_PROFILE_MANIFEST_OUTPUT) != 1:
+                raise AuditError(
+                    "profile publisher must finish before source-directory "
+                    f"writer: {output}"
+                )
 
 
 _CUPIDOBJ_INSTALL_SOURCE_DELIVERIES = {
@@ -15816,6 +15931,8 @@ def _c_preprocessor_active_cases_manifest(
                     or output != "verify-artifact-sizes"
                     or tools != expected_tools
                     or transform.get("recipe") != ARTIFACT_SIZE_CONTRACT_RECIPE
+                    or transform.get("order_only_inputs")
+                    != ["test_iso/hello.iso"]
                     or not isinstance(inputs, list)
                     or not all(isinstance(path, str) for path in inputs)
                     or len(inputs)

@@ -37,7 +37,12 @@ and the shared-publication group passes 13 cases with one older-seed skip.
 Checked CupidC compiles the repaired host adapter for both targets. The Linux
 object remains byte-identical because this repair is Windows-specific.
 
-The checked seeds predate this repair. Paired reconstruction and promotion
-must carry it before the normal profile-manifest recipe changes owner. No OS
-source is simplified, no C translation unit changes owner, and `TempleOS/`
-remains reference material.
+At this source checkpoint, the checked seeds predated the repair. Paired
+reconstruction and promotion had to carry it before the normal
+profile-manifest recipe changed owner. [ADR 0382](0382-promote-profile-publication-seeds.md)
+records the completed clean proofs and checked carriage from revision
+`16a86f5b`. The intermediate `962e476b` pair passed its proofs but exposed a
+separate full-cohort Windows launch failure, repaired under ADR 0387. Final
+OS replay with the current pair remains separate from this source checkpoint.
+No OS source is simplified, no C translation unit changes owner, and
+`TempleOS/` remains reference material.

@@ -735,15 +735,18 @@ DOOM_CUPIDC_HEADERS := $(sort $(wildcard drivers/*.h kernel/*.h kernel/*/*.h \
 	                         toolchain/*.h \
 	                         toolchain/hosted/i386-linux/include/*.h \
 	                         toolchain/tests/*.h toolchain/tests/*.inc))
-DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json
+override DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json
 
-# FORCE makes the profile scan run on every build. The writer retains the
-# manifest timestamp unless header membership or content has changed.
+# CupidBuild checks the profile on every build and preserves unchanged bytes
+# and timestamps. POSIX requires existing parents; Windows prepares its own.
 $(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) \
-	$(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py
-	$(PYTHON) tools/cupidc_kernel_compile.py --root . \
-		--manifest $(PRODUCTION_SEED_MANIFEST) \
-		--write-profile-input-manifest $@
+	Makefile $(PRODUCTION_SEED_INPUTS)
+ifneq ($(OS),Windows_NT)
+	test ! -L build && test ! -L build/bootstrap && mkdir -p build/bootstrap
+endif
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) generate-profile-manifest \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--output $@
 
 # dglibc: DOOM libc shim (heap/string/stdio/fmt/setjmp)
 kernel/doom/dglibc.o: kernel/doom/dglibc.cc kernel/doom/dglibc.h kernel/core/types.h \
@@ -831,6 +834,14 @@ BOOTSTRAP_ARTIFACTS := $(KERNEL_OBJS) \
 	$(BOOTLOADER) kernel/smp_trampoline.bin \
 	kernel/kernel.elf.pass1 kernel/cpu/ksyms_data.cc kernel/cpu/ksyms_data.o \
 	kernel/kernel.elf $(KERNEL) $(OS_IMAGE)
+
+# Profile discovery pins directories in these source roots. Complete it before
+# parallel recipes create or replace their outputs there. Other roots stay free
+# to build. The added scheduling edges do not make the profile timestamp a
+# content dependency.
+$(filter kernel/% drivers/% toolchain/%,$(BOOTSTRAP_ARTIFACTS)) \
+	kernel/util/bin_programs_gen.cc kernel/util/docs_programs_gen.cc \
+	kernel/util/demos_programs_gen.cc: | $(DOOM_CUPIDC_INPUT_MANIFEST)
 
 # A build tree may contain artifacts whose mtimes match source checkout mtimes
 # closely enough that make incorrectly reuses stale objects from an older
@@ -1267,10 +1278,12 @@ verify-windows-bootstrap-seed:
 	$(PYTHON) tools/bootstrap_toolchain.py verify \
 	  --manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)
 
+# The ISO transaction creates temporary root entries. Finish it before the
+# artifact verifier captures the repository's directory identity and contents.
 verify-artifact-sizes: $(ARTIFACT_SIZE_OUTPUTS) \
 	$(ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS) $(ARTIFACT_SIZE_POLICY) \
 	$(BOOTSTRAP_SEED_MANIFEST) $(BOOTSTRAP_WINDOWS_SEED_MANIFEST) \
-	$(CHECKED_SEED_INPUTS)
+	$(CHECKED_SEED_INPUTS) | test_iso/hello.iso
 	$(ARTIFACT_SIZE_CONTRACT)
 
 bootstrap-from-seed: verify-bootstrap-seed
@@ -1606,7 +1619,7 @@ test-user-cupidc-runtime: sync-user-runtime tools/gui_terminal_smoke.py
 # Test-only ISO - built from test_iso/fixtures/, mounted via
 # `mount /disk/hello.iso /iso` in the shell for feature17.
 ISO_FIXTURE_MANIFEST := test_iso/fixtures.manifest
-ISO_BIG_FIXTURE_SOURCE := test_iso/big_pattern.asm
+override ISO_BIG_FIXTURE_SOURCE := test_iso/big_pattern.asm
 ISO_FIXTURE_RELATIVE := \
 	big.bin \
 	gen_big.sh \
@@ -1618,11 +1631,11 @@ ISO_FIXTURE_RELATIVE := \
 TEST_ISO_FIXTURES := $(sort test_iso/fixtures $(ISO_FIXTURE_MANIFEST) \
 	$(addprefix test_iso/fixtures/,$(ISO_FIXTURE_RELATIVE)))
 
-test_iso/fixtures/big.bin: $(ISO_BIG_FIXTURE_SOURCE) tools/hostbuild.py \
-	$(CHECKED_SEED_INPUTS)
-	$(PYTHON) tools/hostbuild.py gen-big \
-	  --seed-manifest $(PRODUCTION_SEED_MANIFEST) \
-	  --source $(ISO_BIG_FIXTURE_SOURCE) $@
+test_iso/fixtures/big.bin: $(ISO_BIG_FIXTURE_SOURCE) Makefile \
+	$(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-iso-pattern \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source $< --output $@
 
 test_iso/hello.iso: $(TEST_ISO_FIXTURES) tools/hostbuild.py \
 	$(CHECKED_SEED_INPUTS)

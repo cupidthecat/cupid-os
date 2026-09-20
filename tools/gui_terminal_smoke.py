@@ -1284,6 +1284,8 @@ def key_name(ch: str) -> str:
         return "shift-minus"
     if ch == "+":
         return "shift-equal"
+    if ch == "~":
+        return "shift-grave_accent"
     raise ValueError(f"unsupported smoke-test character: {ch!r}")
 
 
@@ -1298,9 +1300,10 @@ def run_terminal_command(
 ) -> tuple[bool, str]:
     """Type one command and require one new matching serial event."""
     re.compile(success_pattern, re.S | re.M)
+    keys = [key_name(ch) for ch in command]
     completed = success_count(read_log(log), success_pattern)
-    for ch in command:
-        send_key(mon, key_name(ch), key_pause)
+    for key in keys:
+        send_key(mon, key, key_pause)
     send_key(mon, "ret", key_pause)
 
     ok, data = wait_log_success_count(

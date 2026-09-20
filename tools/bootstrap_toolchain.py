@@ -106,29 +106,29 @@ WINDOWS_SEED_PARENT_SOURCE_REVISION = (
     "a17c9465911da41d59b7ada71733d36c39faa5ea"
 )
 PROMOTION_PARENT_LINUX_MANIFEST_SHA256 = (
-    "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
-)
-PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = (
-    "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db"
-)
-PROMOTION_PARENT_SOURCE_REVISION = (
-    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
-)
-PROMOTED_SOURCE_INPUT_COUNT = 59
-PROMOTED_SOURCE_REVISION = "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
-PROMOTED_SOURCE_SNAPSHOT_SHA256 = (
-    "0b591a0bef928186641b3aa1fb98c1e145e6c4905c8b6cb87c34a1ace4bc87d2"
-)
-PROMOTED_LINUX_MANIFEST_SHA256 = (
     "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
 )
-PROMOTED_WINDOWS_MANIFEST_SHA256 = (
+PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = (
     "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+)
+PROMOTION_PARENT_SOURCE_REVISION = (
+    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+)
+PROMOTED_SOURCE_INPUT_COUNT = 59
+PROMOTED_SOURCE_REVISION = "16a86f5b1693e017c36c6d902df9946c5d674b17"
+PROMOTED_SOURCE_SNAPSHOT_SHA256 = (
+    "54b411b6ed05725101f5859106facb43639f2d02cb2b0ea2f6334e21375bda55"
+)
+PROMOTED_LINUX_MANIFEST_SHA256 = (
+    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
+)
+PROMOTED_WINDOWS_MANIFEST_SHA256 = (
+    "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
 )
 PROMOTED_LINUX_ARTIFACT_IDENTITIES = {
     "cupidasm": (
-        496688,
-        "d1a2eac04da01a7b656a4a6ffc58f91600da6b2651804f1b48f6ee92ee4407f2",
+        505148,
+        "a461fd72b32a8da326a1aed044d7b7617df1fd40d6c074fe4c0c7218434ff945",
     ),
     "cupiddis": (
         538580,
@@ -139,49 +139,49 @@ PROMOTED_LINUX_ARTIFACT_IDENTITIES = {
         "ec1981e97b0a11bf3538df34e85d071aa81ea01596913cfb1364013f35a507c0",
     ),
     "cupidobj": (
-        392844,
-        "2988a0d4e7a8416dcef0a5b178df5eaa51faf80d94881eb6e46a1c2a9d9475b6",
+        397068,
+        "00064758399b61ea6425d7a4e685ef4b41bb7e566d39b550e30abe9a5cf78de8",
     ),
     "cupidc": (
         2691780,
         "b17b2c5588fad1735d8dd1226bbeba7ae6f92fa2e70e5d70c1f0b4b979e34e17",
     ),
     "cupidbuild": (
-        361632,
-        "51b366d7ec6423b76b91e17720c1b77ea1387163c175c692779853dd8d2b8e71",
+        511572,
+        "6f5de7a82c66fbc8a1c47ca0d63539271762511330c2f31ade144cfadb06ad62",
     ),
 }
 PROMOTED_WINDOWS_ARTIFACT_IDENTITIES = {
     "cupidasm": (
-        480256,
-        "dc004aa0026d37dfdf623441a85b539c2c65497c9159c7c394be03a9bc16b7ad",
+        484352,
+        "17ab4874dab63bf614f9b0d94d9d64017ec5f70ddd87c59ade71646c0a1ab83c",
     ),
     "cupiddis": (
         517120,
-        "36af89b475fdc11f674b9ca7cc1cb61d9f756ca212332a3f7fa9076d863d29e5",
+        "87a6ba895bd52a1da6e287a7b5d585b5ca54a82dd9d43347aa441b7b9d8ed034",
     ),
     "cupidld": (
         296960,
-        "b89b42dd7df9fca44e59d93b97bbfd8f79da3352587da2dd50adfa72afee8f29",
+        "206b33ae6a044143a45300b175c9443559bbb748af5f6293a4505f860535196b",
     ),
     "cupidobj": (
-        376320,
-        "82e20c148756a1b1db7ed7b62b1077b88d45320fc01aea203111be34eea1e7b5",
+        377856,
+        "f2a56f4177af4b15c7dde23f6408876729c3a795b01d28ffb60d16d5d0fbd83b",
     ),
     "cupidc": (
         2620416,
-        "1a1bf6e016b5a61dfa61ff6f9c02672d338f2608341a26bf1a91b6376753f13b",
+        "ba7d387400d96faa7e4fc7e6b7534757f2c79347472212de05217dde7982e6ee",
     ),
     "cupidbuild": (
-        378880,
-        "ff47743b7963691142dd2ef818dac40d66dc81869828fe1efcbd91ac1e872c27",
+        525824,
+        "595b2700ceacad6dc6ebc4958a91d6d5f79f527514ed7b9c72c66d0321b435b3",
     ),
 }
 PROMOTED_LINUX_PLAN_SHA256 = (
     "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
 )
 PROMOTED_WINDOWS_PLAN_SHA256 = (
-    "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
+    "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669"
 )
 WINDOWS_TOOL_SEED_IMPORTS = (
     (
@@ -2227,12 +2227,12 @@ def _verify_seed_manifest_data(
         if is_windows_seed:
             imports = (
                 (
-                    WINDOWS_CUPIDBUILD_SEED_IMPORTS
+                    WINDOWS_CUPIDBUILD_IMPORTS
                     if name == "cupidbuild"
                     else (
-                        WINDOWS_LINKER_SEED_IMPORTS
+                        WINDOWS_LINKER_IMPORTS
                         if name in ("cupidasm", "cupidld")
-                        else WINDOWS_TOOL_SEED_IMPORTS
+                        else WINDOWS_TOOL_IMPORTS
                     )
                 )
                 if promoted

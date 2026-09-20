@@ -117,6 +117,97 @@ def _load_audit_module():
 
 
 class BuildGraphAuditCliTests(unittest.TestCase):
+    def test_order_only_edges_keep_reachability_without_becoming_content_inputs(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(root / "main.c", "int main(void) { return 0; }\n")
+            _write(
+                root / "Makefile",
+                """
+                CC = gcc
+                .PHONY: all ready
+                all: main.o
+                main.o: main.c | main.c ready
+                \t$(CC) -c $< -o $@
+                ready:
+                \tpython -c "pass"
+                """,
+            )
+            output = root / "audit.json"
+            result = subprocess.run(
+                [sys.executable, str(AUDIT_TOOL), "--root", str(root),
+                 "--output", str(output)],
+                text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            transforms = {
+                item["output"]: item for item in audit["build"]["transforms"]
+            }
+            self.assertEqual(transforms["main.o"]["inputs"], ["main.c"])
+            self.assertEqual(transforms["main.o"]["order_only_inputs"], ["ready"])
+            self.assertIn("ready", transforms)
+            self.assertNotIn("order_only_inputs", transforms["ready"])
+
+    def test_user_abi_order_only_gate_remains_reachable(self):
+        module = _load_audit_module()
+        rules = module._parse_make_rules(
+            module._run_make_database(REPO_ROOT / "user", "make", "all")
+        )
+        transforms = {
+            item["output"]: item
+            for item in module._build_transforms(
+                "user", module._reachable_rules(rules, "all"), rules
+            )
+        }
+        self.assertIn("user/test-syscall-abi", transforms)
+        for program in ("hello", "ls", "cat"):
+            transform = transforms[f"user/build/{program}.o"]
+            self.assertEqual(
+                transform["order_only_inputs"], ["user/test-syscall-abi"]
+            )
+            self.assertNotIn("user/test-syscall-abi", transform["inputs"])
+
+    def test_profile_writer_barrier_covers_every_source_root_output(self):
+        module = _load_audit_module()
+        rules = module._parse_make_rules(
+            module._run_make_database(REPO_ROOT, "make", "all")
+        )
+        transforms = module._build_transforms(
+            ".", module._reachable_rules(rules, "all"), rules,
+            cupidobj_runner_owner="cupid_builder",
+            cupidld_runner_owner="cupid_builder",
+        )
+        writers = [
+            item for item in transforms
+            if item["output"].startswith(("kernel/", "drivers/", "toolchain/"))
+        ]
+        self.assertEqual(len(writers), 254)
+        module._validate_cupidobj_profile_manifest_delivery(REPO_ROOT, transforms)
+        for writer in writers:
+            changed = {
+                **writer,
+                "inputs": [
+                    path for path in writer["inputs"]
+                    if path != module._CUPIDOBJ_PROFILE_MANIFEST_OUTPUT
+                ],
+                "order_only_inputs": [
+                    path for path in writer.get("order_only_inputs", [])
+                    if path != module._CUPIDOBJ_PROFILE_MANIFEST_OUTPUT
+                ],
+            }
+            with self.subTest(output=writer["output"]):
+                with self.assertRaisesRegex(
+                    module.AuditError,
+                    "source-directory writer: " + re.escape(writer["output"]),
+                ):
+                    module._validate_cupidobj_profile_writer_dependencies(
+                        [
+                            changed if item is writer else item
+                            for item in transforms
+                        ],
+                    )
+
     def test_tracked_audit_attributes_toolchain_startup_assembly_to_cupidasm(
         self,
     ):
@@ -1023,7 +1114,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     --tool cupiddis --
 
                 .PHONY: all
-                all: symbols.cc photo.o reader.txt big.bin cupidos.img
+                all: symbols.cc photo.o reader.txt big.bin native-big.bin cupidos.img
 
                 symbols.cc: kernel.elf
                 \t$(PYTHON) tools/hostbuild.py mksyms \
@@ -1040,6 +1131,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 \t$(PYTHON) tools/hostbuild.py gen-big \
                     --seed-manifest seed/manifest.json \
                     --source $< $@
+
+                native-big.bin: big_pattern.asm
+                \t$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) assemble-iso-pattern \
+                    --seed-manifest seed/manifest.json --root "$(CURDIR)" \
+                    --source $< --output $@
 
                 hello.iso: fixtures fixtures.manifest
                 \t$(PYTHON) tools/hostbuild.py build-iso \
@@ -1110,6 +1206,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 transforms["big.bin"]["operation"],
+                "assemble_flat_binary",
+            )
+            self.assertEqual(
+                transforms["native-big.bin"]["tools"],
+                ["cupid_assembler", "cupid_disassembler", "cupid_builder"],
+            )
+            self.assertEqual(
+                transforms["native-big.bin"]["operation"],
                 "assemble_flat_binary",
             )
             self.assertEqual(
@@ -2584,6 +2688,26 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(contract["expression_occurrences"], 415)
             self.assertEqual(contract["unique_expressions"], 55)
             self.assertEqual(contract["directive_expression_pairs"], 57)
+            executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
+            totals_guard = re.search(
+                r"sizeof\(cases\) / sizeof\(cases\[0\]\)\) != (\d+)u \|\|"
+                r"\s*if_occurrences != (\d+)u \|\| elif_occurrences != (\d+)u \|\|"
+                r"\s*probe_count != (\d+)u",
+                executable_contract,
+            )
+            self.assertIsNotNone(
+                totals_guard, "conditional-active must check all four totals"
+            )
+            self.assertEqual(
+                tuple(int(value) for value in totals_guard.groups()),
+                (
+                    contract["unique_expressions"],
+                    contract["if_occurrences"],
+                    contract["elif_occurrences"],
+                    contract["directive_expression_pairs"],
+                ),
+                "conditional-active executable totals differ from the audit",
+            )
             self.assertTrue(
                 all(
                     not item["path"].casefold().startswith("templeos/")
@@ -4802,7 +4926,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )[0]
 
         self.assertEqual(delivery["operation"], "generate_profile_manifest")
-        self.assertEqual(delivery["tools"], ["cupid_object", "host_python"])
+        self.assertEqual(delivery["tools"], ["cupid_builder", "cupid_object"])
         self.assertEqual(delivery["inputs"], expected_inputs)
         module._validate_cupidobj_profile_manifest_delivery(
             REPO_ROOT,
@@ -4811,7 +4935,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
         seed_inputs = {
             "Makefile",
-            "tools/bootstrap_toolchain.py",
             *WINDOWS_PRODUCTION_SEED_INPUTS,
         }
         self.assertTrue(seed_inputs.issubset(delivery["inputs"]))
@@ -4841,6 +4964,19 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         if path != "bootstrap/seeds/i386-windows/cupidobj.exe"
                     ],
                 }
+            ],
+            "missing builder": [
+                {
+                    **delivery,
+                    "inputs": [
+                        path
+                        for path in delivery["inputs"]
+                        if path != "bootstrap/seeds/i386-windows/cupidbuild.exe"
+                    ],
+                }
+            ],
+            "duplicate input": [
+                {**delivery, "inputs": [*delivery["inputs"], "Makefile"]}
             ],
             "missing profile input": [
                 {
@@ -4921,12 +5057,19 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 CUPIDC_KERNEL_COMPILE := $(PYTHON) tools/cupidc_kernel_compile.py --root .
                 KERNEL=kernel/kernel.bin
                 OS_IMAGE=cupidos.img
-                DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json
+                override DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json
                 $(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) \
-                    $(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py
-                \t$(PYTHON) tools/cupidc_kernel_compile.py --root . \
-                \t\t--manifest $(PRODUCTION_SEED_MANIFEST) \
-                \t\t--write-profile-input-manifest $@
+                    Makefile $(PRODUCTION_SEED_INPUTS)
+                ifneq ($(OS),Windows_NT)
+                \ttest ! -L build && test ! -L build/bootstrap && mkdir -p build/bootstrap
+                endif
+                \t$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) generate-profile-manifest \
+                \t\t--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+                \t\t--output $@
+                BOOTSTRAP_ARTIFACTS := kernel/doom/unit.o
+                $(filter kernel/% drivers/% toolchain/%,$(BOOTSTRAP_ARTIFACTS)) \
+                    kernel/util/bin_programs_gen.cc kernel/util/docs_programs_gen.cc \
+                    kernel/util/demos_programs_gen.cc: | $(DOOM_CUPIDC_INPUT_MANIFEST)
                 """,
             )
 
@@ -4937,7 +5080,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             delivery = {
                 "output": module._CUPIDOBJ_PROFILE_MANIFEST_OUTPUT,
                 "operation": "generate_profile_manifest",
-                "tools": ["cupid_object", "host_python"],
+                "tools": ["cupid_builder", "cupid_object"],
                 "recipe": list(module._CUPIDOBJ_PROFILE_MANIFEST_RECIPE),
                 "inputs": [
                     path for path in expected_inputs if path != nested_header
@@ -5001,21 +5144,67 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-inputs.json",
             ),
             "unchecked prerequisites": (
-                "$(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py",
-                "tools/cupidc_kernel_compile.py",
+                "$(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) \\\n"
+                "\tMakefile $(PRODUCTION_SEED_INPUTS)",
+                "$(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS)",
             ),
             "unpinned seed manifest": (
-                "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\\n"
-                "\t\t--manifest $(PRODUCTION_SEED_MANIFEST) \\",
-                "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\\n"
-                "\t\t--manifest bootstrap/unchecked.json \\",
+                "$(PRODUCTION_SEED_SUFFIX) generate-profile-manifest \\\n"
+                '\t\t--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)"',
+                "$(PRODUCTION_SEED_SUFFIX) generate-profile-manifest \\\n"
+                '\t\t--seed-manifest bootstrap/unchecked.json --root "$(CURDIR)"',
             ),
             "different publisher mode": (
-                "--write-profile-input-manifest $@",
-                "--write-input-manifest $@",
+                "$(PRODUCTION_SEED_SUFFIX) generate-profile-manifest \\",
+                "$(PRODUCTION_SEED_SUFFIX) run \\",
+            ),
+            "missing POSIX parents": (
+                "\ttest ! -L build && test ! -L build/bootstrap && mkdir -p build/bootstrap\n",
+                "",
+            ),
+            "unguarded POSIX parents": (
+                "test ! -L build && test ! -L build/bootstrap && mkdir -p build/bootstrap",
+                "mkdir -p build/bootstrap",
+            ),
+            "unprotected build symlink": (
+                "test ! -L build && test ! -L build/bootstrap",
+                "test ! -L build/bootstrap",
+            ),
+            "unprotected bootstrap symlink": (
+                "test ! -L build && test ! -L build/bootstrap",
+                "test ! -L build",
+            ),
+            "parent platform reversed": (
+                "ifneq ($(OS),Windows_NT)\n\ttest ! -L build",
+                "ifeq ($(OS),Windows_NT)\n\ttest ! -L build",
+            ),
+            "overridable output": (
+                "override DOOM_CUPIDC_INPUT_MANIFEST :=",
+                "DOOM_CUPIDC_INPUT_MANIFEST :=",
             ),
         }
         module._validate_cupidobj_profile_manifest_make_source(source)
+        normalized = "\n".join(module._normalized_make_lines(source))
+        barrier = module._CUPIDOBJ_PROFILE_WRITER_BARRIER
+        for member in (
+            "kernel/%", "drivers/%", "toolchain/%",
+            "kernel/util/bin_programs_gen.cc",
+            "kernel/util/docs_programs_gen.cc",
+            "kernel/util/demos_programs_gen.cc", "|",
+        ):
+            with self.subTest(missing_writer_barrier=member):
+                changed = normalized.replace(
+                    barrier, barrier.replace(member, "")
+                )
+                with self.assertRaisesRegex(
+                    module.AuditError, "Make contract changed"
+                ):
+                    module._validate_cupidobj_profile_manifest_make_source(changed)
+        early = normalized.replace(barrier, "").replace(
+            "BOOTSTRAP_ARTIFACTS :=", barrier + "\nBOOTSTRAP_ARTIFACTS :=", 1
+        )
+        with self.assertRaisesRegex(module.AuditError, "complete artifact cohort"):
+            module._validate_cupidobj_profile_manifest_make_source(early)
         for name, (old, new) in mutations.items():
             with self.subTest(name=name):
                 self.assertEqual(source.count(old), 1)
@@ -9454,7 +9643,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ]
             self.assertEqual(
                 big_fixture_transform["tools"],
-                ["cupid_assembler", "host_python"],
+                ["cupid_assembler", "cupid_disassembler", "cupid_builder"],
             )
             self.assertEqual(
                 big_fixture_transform["operation"],
@@ -9466,8 +9655,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "Makefile",
                     *WINDOWS_PRODUCTION_SEED_INPUTS,
                     "test_iso/big_pattern.asm",
-                    "tools/bootstrap_toolchain.py",
-                    "tools/hostbuild.py",
                 },
             )
             system_image_transform = root_transform_by_output["cupidos.img"]
@@ -9913,13 +10100,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
-                    "cupid_builder": 195,
+                    "cupid_builder": 197,
                     "cupid_object": 192,
                     "cupid_linker": 9,
-                    "cupid_disassembler": 9,
+                    "cupid_disassembler": 10,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 257,
+                    "host_python": 255,
                 },
             )
             self.assertFalse(
@@ -10847,14 +11034,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(
             profile_manifest_transform["tools"],
-            ["cupid_object", "host_python"],
+            ["cupid_builder", "cupid_object"],
         )
         expected_counts = {
             "cupid_assembler": 6,
-            "cupid_builder": 195,
+            "cupid_builder": 197,
             "cupid_object": 192,
             "cupid_linker": 3,
-            "cupid_disassembler": 6,
+            "cupid_disassembler": 7,
         }
         for tool, expected_count in expected_counts.items():
             transforms = [
@@ -11001,6 +11188,44 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             r"artifact-size contract transform differs",
         ):
             module._c_preprocessor_active_cases_manifest(audit)
+
+    def test_artifact_size_contract_waits_for_iso_publication(self):
+        audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
+        transform = next(
+            item
+            for item in audit["build"]["transforms"]
+            if item["output"] == "verify-artifact-sizes"
+        )
+        self.assertEqual(
+            transform.get("order_only_inputs"), ["test_iso/hello.iso"]
+        )
+        self.assertNotIn("test_iso/hello.iso", transform["inputs"])
+
+    def test_artifact_size_contract_iso_order_fails_closed(self):
+        module = _load_audit_module()
+        audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
+        for order_only_inputs in (
+            None,
+            [],
+            ["test_iso/fixtures/big.bin"],
+            ["test_iso/hello.iso", "test_iso/hello.iso"],
+        ):
+            with self.subTest(order_only_inputs=order_only_inputs):
+                changed = json.loads(json.dumps(audit))
+                transform = next(
+                    item
+                    for item in changed["build"]["transforms"]
+                    if item["output"] == "verify-artifact-sizes"
+                )
+                if order_only_inputs is None:
+                    transform.pop("order_only_inputs", None)
+                else:
+                    transform["order_only_inputs"] = order_only_inputs
+                with self.assertRaisesRegex(
+                    module.AuditError,
+                    r"artifact-size contract transform differs",
+                ):
+                    module._c_preprocessor_active_cases_manifest(changed)
 
     def test_toolchain_manifest_contract_input_closure_fails_closed(self):
         module = _load_audit_module()
@@ -11372,7 +11597,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 )
 
-            inputs = set(rules["boot/boot.bin"].prerequisites)
             expected = {
                 relative_manifest,
                 *{
@@ -11389,11 +11613,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
             }
-            self.assertTrue(expected.issubset(inputs))
-            self.assertNotIn(
-                "bootstrap/seeds/i386-windows/manifest.json",
-                inputs,
-            )
+            for target in (
+                "boot/boot.bin",
+                "build/bootstrap/doom-cupidc-inputs.json",
+            ):
+                with self.subTest(target=target):
+                    inputs = set(rules[target].prerequisites)
+                    self.assertTrue(expected.issubset(inputs))
+                    self.assertNotIn(
+                        "bootstrap/seeds/i386-windows/manifest.json",
+                        inputs,
+                    )
 
     def test_guarded_objects_ignore_standalone_tool_overrides(self):
         make = shutil.which("make")
@@ -11491,17 +11721,23 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             rule = rules["test_iso/fixtures/big.bin"]
             inputs = set(rule.prerequisites)
             self.assertNotIn(relative_driver, inputs)
-            self.assertTrue(
+            self.assertEqual(
+                inputs,
                 {
                     "Makefile",
-                    "tools/bootstrap_toolchain.py",
-                    "tools/hostbuild.py",
+                    "test_iso/big_pattern.asm",
                     *WINDOWS_PRODUCTION_SEED_INPUTS,
-                }.issubset(inputs)
+                },
             )
             recipe = "\n".join(rule.recipe)
-            self.assertIn("tools/hostbuild.py gen-big", recipe)
+            self.assertIn(
+                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                "$(PRODUCTION_SEED_SUFFIX) assemble-iso-pattern",
+                recipe,
+            )
+            self.assertIn('--root "$(CURDIR)"', recipe)
             self.assertNotIn("custom-cupidasm", recipe)
+            self.assertNotIn("tools/hostbuild.py", recipe)
 
     def test_raw_assembly_keeps_seed_closure_under_tool_overrides(self):
         make = shutil.which("make")
@@ -11542,6 +11778,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                             "kernel/smp_trampoline.bin",
                             "kernel/smp/smp_trampoline.S",
                             "assemble-smp-trampoline",
+                        ),
+                        (
+                            "test_iso/fixtures/big.bin",
+                            "test_iso/big_pattern.asm",
+                            "assemble-iso-pattern",
                         ),
                     ):
                         with self.subTest(host=host, target=target):
@@ -11752,6 +11993,59 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         "$(CUPIDOBJ)",
                     ):
                         self.assertNotIn(poison, serialized)
+
+    def test_iso_pattern_audit_contract_rejects_mutations(self):
+        module = _load_audit_module()
+        seed_inputs = list(WINDOWS_PRODUCTION_SEED_INPUTS)
+        transform = {
+            "output": "test_iso/fixtures/big.bin",
+            "inputs": ["test_iso/big_pattern.asm", "Makefile", *seed_inputs],
+            "tools": ["cupid_assembler", "cupid_disassembler", "cupid_builder"],
+            "operation": "assemble_flat_binary",
+            "recipe": [
+                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+                "$(PRODUCTION_SEED_SUFFIX) assemble-iso-pattern \\",
+                '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+                "--source $< --output $@",
+            ],
+        }
+        module._validate_iso_pattern_delivery([transform], seed_inputs=seed_inputs)
+        mutations = {
+            "output": {"output": "test_iso/fixtures/other.bin"},
+            "operation": {"operation": "assemble"},
+            "unchecked owner": {"tools": ["cupid_assembler", "host_python"]},
+            "unchecked recipe": {"recipe": ["$(PYTHON) tools/hostbuild.py gen-big"]},
+            "relative root": {"recipe": [
+                line.replace('"$(CURDIR)"', ".") for line in transform["recipe"]
+            ]},
+            "missing output option": {"recipe": [*transform["recipe"][:-1], "--source $<"]},
+            "host input": {"inputs": [*transform["inputs"], "tools/hostbuild.py"]},
+            "duplicate input": {"inputs": [*transform["inputs"], "Makefile"]},
+            "Makefile before assembly": {"inputs": [
+                "Makefile", "test_iso/big_pattern.asm", *seed_inputs
+            ]},
+            "seed before assembly": {"inputs": [
+                seed_inputs[1], "test_iso/big_pattern.asm", "Makefile",
+                *[path for path in seed_inputs if path != seed_inputs[1]],
+            ]},
+            "profile scheduling edge": {"order_only_inputs": [
+                "build/bootstrap/doom-cupidc-inputs.json"
+            ]},
+        }
+        for path in transform["inputs"]:
+            mutations[f"missing {path}"] = {
+                "inputs": [member for member in transform["inputs"] if member != path]
+            }
+        for name, replacement in mutations.items():
+            with self.subTest(name=name), self.assertRaisesRegex(module.AuditError, "ISO pattern"):
+                module._validate_iso_pattern_delivery(
+                    [{**transform, **replacement}], seed_inputs=seed_inputs
+                )
+        for deliveries in ([], [transform, transform]):
+            with self.subTest(deliveries=len(deliveries)), self.assertRaisesRegex(
+                module.AuditError, "ISO pattern"
+            ):
+                module._validate_iso_pattern_delivery(deliveries, seed_inputs=seed_inputs)
 
     def test_kernel_flatten_audit_contract_rejects_mutations(self):
         module = _load_audit_module()

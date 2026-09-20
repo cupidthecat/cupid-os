@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -9,7 +10,7 @@ import unittest
 from pathlib import Path, PurePosixPath
 from unittest import mock
 
-from tools import artifact_size_contract
+from tools import artifact_size_contract, build_graph_audit
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -961,6 +962,142 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
             "- first failure\n"
             "- second failure\n"
         )
+
+
+class ArtifactSizeMakeOrderTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.make = shutil.which("make")
+        if cls.make is None:
+            raise unittest.SkipTest("GNU Make is unavailable")
+        cls.rules = build_graph_audit._parse_make_rules(
+            build_graph_audit._run_make_database(REPO_ROOT, cls.make, "all")
+        )
+
+    def test_size_check_waits_for_every_normal_build_writer(self):
+        rule = self.rules["verify-artifact-sizes"]
+        self.assertEqual(rule.order_only_prerequisites, ["test_iso/hello.iso"])
+        self.assertNotIn("test_iso/hello.iso", rule.prerequisites)
+        all_targets = build_graph_audit._reachable_rules(self.rules, "all")
+        checked_targets = build_graph_audit._reachable_rules(
+            self.rules, "verify-artifact-sizes"
+        )
+        self.assertEqual(all_targets - checked_targets, {"all", "cupidos.img"})
+
+    def _parallel_fixture(self, *, fail_iso=False, remove_barrier=False):
+        temporary = tempfile.TemporaryDirectory(prefix="cupid-size-make-order-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        image = root / "cupidos.img"
+        image.write_bytes(b"last known good image")
+        previous_time = 1_700_000_000_000_000_000
+        os.utime(image, ns=(previous_time, previous_time))
+        image_inputs = [
+            item for item in self.rules["cupidos.img"].prerequisites
+            if item in {"verify-artifact-sizes", "test_iso/hello.iso"}
+        ]
+        iso_inputs = [
+            item for item in self.rules["test_iso/hello.iso"].prerequisites
+            if item == "test_iso/fixtures/big.bin"
+        ]
+        order = list(self.rules["verify-artifact-sizes"].order_only_prerequisites)
+        if remove_barrier:
+            order = [item for item in order if item != "test_iso/hello.iso"]
+        boot_inputs = [
+            item for item in self.rules["verify-artifact-sizes"].prerequisites
+            if item == "boot/boot.bin"
+        ]
+        (root / "step.py").write_text(
+            "import sys, time\n"
+            "from pathlib import Path\n"
+            "phase, fail_iso, control = sys.argv[1:]\n"
+            "Path(phase + '-called').touch()\n"
+            "if phase in ('boot', 'pattern'):\n"
+            "    peer = 'pattern' if phase == 'boot' else 'boot'\n"
+            "    deadline = time.monotonic() + 10\n"
+            "    while not Path(peer + '-called').exists():\n"
+            "        assert time.monotonic() < deadline, 'writers were serialized'\n"
+            "        time.sleep(0.01)\n"
+            "if phase == 'pattern':\n"
+            "    private = Path('.cupidbuild-object-fixture.reserve')\n"
+            "    private.touch()\n"
+            "    if control == '1':\n"
+            "        deadline = time.monotonic() + 10\n"
+            "        while not Path('verify-finished').exists():\n"
+            "            assert time.monotonic() < deadline, 'verifier did not finish'\n"
+            "            time.sleep(0.01)\n"
+            "    output = Path('test_iso/fixtures/big.bin')\n"
+            "    output.parent.mkdir(parents=True)\n"
+            "    output.write_bytes(b'pattern')\n"
+            "    private.unlink()\n"
+            "elif phase == 'boot':\n"
+            "    Path('boot').mkdir()\n"
+            "    Path('boot/boot.bin').write_bytes(b'boot')\n"
+            "elif phase == 'iso':\n"
+            "    if fail_iso == '1':\n"
+            "        sys.exit(7)\n"
+            "    Path('test_iso/hello.iso').write_bytes(b'ISO')\n"
+            "elif phase == 'verify':\n"
+            "    try:\n"
+            "        assert Path('boot/boot.bin').is_file()\n"
+            "        assert Path('test_iso/hello.iso').is_file(), 'verification preceded ISO'\n"
+            "        assert not list(Path('.').glob('.cupidbuild-object-*'))\n"
+            "        Path('verified').touch()\n"
+            "    finally:\n"
+            "        Path('verify-finished').touch()\n"
+            "else:\n"
+            "    assert Path('verified').is_file()\n"
+            "    Path('cupidos.img').write_bytes(b'new image')\n",
+            encoding="utf-8",
+        )
+        python = Path(sys.executable).resolve().as_posix()
+        command = f'"{python}" step.py'
+        arguments = f"{int(fail_iso)} {int(remove_barrier)}"
+        (root / "Makefile").write_text(
+            ".PHONY: all verify-artifact-sizes\n"
+            "all: cupidos.img\n"
+            f"verify-artifact-sizes: {' '.join(boot_inputs)} | {' '.join(order)}\n"
+            f"\t{command} verify {arguments}\n"
+            f"cupidos.img: {' '.join(image_inputs)}\n"
+            f"\t{command} publish {arguments}\n"
+            f"test_iso/hello.iso: {' '.join(iso_inputs)}\n"
+            f"\t{command} iso {arguments}\n"
+            "test_iso/fixtures/big.bin:\n"
+            f"\t{command} pattern {arguments}\n"
+            "boot/boot.bin:\n"
+            f"\t{command} boot {arguments}\n",
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [self.make, "--no-print-directory", "-j2", "all"],
+            cwd=root, text=True, capture_output=True, timeout=20,
+        )
+        return root, image, previous_time, result
+
+    def test_parallel_make_keeps_writers_parallel_then_verifies_and_publishes(self):
+        root, image, _, result = self._parallel_fixture()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue((root / "verified").is_file())
+        self.assertEqual(image.read_bytes(), b"new image")
+
+    def test_failed_iso_skips_verification_and_preserves_image(self):
+        root, image, previous_time, result = self._parallel_fixture(fail_iso=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((root / "verify-called").exists())
+        self.assertFalse((root / "publish-called").exists())
+        self.assertEqual(image.read_bytes(), b"last known good image")
+        self.assertEqual(image.stat().st_mtime_ns, previous_time)
+
+    def test_removed_ordering_edge_reproduces_parallel_overlap(self):
+        root, image, previous_time, result = self._parallel_fixture(
+            remove_barrier=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("verification preceded ISO", result.stderr)
+        self.assertTrue((root / "verify-called").is_file())
+        self.assertFalse((root / "publish-called").exists())
+        self.assertEqual(image.read_bytes(), b"last known good image")
+        self.assertEqual(image.stat().st_mtime_ns, previous_time)
 
 
 if __name__ == "__main__":

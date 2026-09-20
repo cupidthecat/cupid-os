@@ -2093,17 +2093,172 @@ class DoomCupidCProductionTests(unittest.TestCase):
         recipe_start = next(
             index
             for index, line in enumerate(lines)
-            if line.startswith("\t$(PYTHON)")
+            if line.startswith("ifneq")
         )
         prerequisites = "\n".join(lines[:recipe_start])
         recipe = "\n".join(lines[recipe_start:])
         with self.subTest(contract="checked seed prerequisites"):
-            self.assertIn("$(CHECKED_SEED_INPUTS)", prerequisites)
+            self.assertIn("Makefile $(PRODUCTION_SEED_INPUTS)", prerequisites)
+            self.assertNotIn("tools/", prerequisites)
         with self.subTest(contract="selected seed manifest"):
             self.assertIn(
-                "--manifest $(PRODUCTION_SEED_MANIFEST)",
+                "--seed-manifest $(PRODUCTION_SEED_MANIFEST)",
                 recipe,
             )
+            self.assertIn("generate-profile-manifest", recipe)
+            self.assertNotIn("$(PYTHON)", recipe)
+
+    def test_parallel_make_profiles_before_source_directory_writers(self):
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        barrier = re.search(
+            r"(?m)^\$\(filter kernel/% drivers/% toolchain/%,\$\(BOOTSTRAP_ARTIFACTS\)\).*?"
+            r"\| \$\(DOOM_CUPIDC_INPUT_MANIFEST\)$",
+            makefile.replace("\\\n", ""),
+        )
+        self.assertIsNotNone(barrier, "source-directory writers need the profile barrier")
+        generated = [
+            f"kernel/util/{name}_programs_gen.cc"
+            for name in ("bin", "docs", "demos")
+        ]
+        artifacts = [
+            "drivers/serial.o", "kernel/core/kernel.o", "toolchain/ctool.o",
+            "kernel/smp_trampoline.bin", "kernel/cpu/ksyms_data.cc",
+            "kernel/kernel.elf.pass1", "kernel/kernel.elf", "kernel/kernel.bin",
+            *(str(Path(path).with_suffix(".o")).replace("\\", "/") for path in generated),
+        ]
+        with tempfile.TemporaryDirectory(prefix="cupid-profile-order-") as td:
+            root = Path(td)
+            helper = root / "writer.py"
+            helper.write_text(
+                "import sys, time\n"
+                "from pathlib import Path\n"
+                "output = Path(sys.argv[1])\n"
+                "if str(output) == 'profile.done':\n"
+                "    deadline = time.monotonic() + 10\n"
+                "    while not Path('outside.bin').exists():\n"
+                "        if time.monotonic() >= deadline:\n"
+                "            raise SystemExit('unrelated work was serialized')\n"
+                "        time.sleep(0.01)\n"
+                "elif str(output) != 'outside.bin' and not Path('profile.done').exists():\n"
+                "    raise SystemExit('source-directory writer ran before profile')\n"
+                "output.parent.mkdir(parents=True, exist_ok=True)\n"
+                "output.write_bytes(b'complete')\n",
+                encoding="utf-8",
+            )
+            command = f'"{Path(sys.executable).as_posix()}" writer.py "$@"'
+            rules = (
+                ".SUFFIXES:\n.PHONY: all FORCE\n"
+                f"BOOTSTRAP_ARTIFACTS := {' '.join(artifacts)}\n"
+                "DOOM_CUPIDC_INPUT_MANIFEST := profile.done\n"
+                "all: $(BOOTSTRAP_ARTIFACTS) outside.bin\n"
+                f"{barrier.group(0)}\n"
+                f"profile.done: FORCE\n\t{command}\n"
+                f"outside.bin: \n\t{command}\n"
+                f"{' '.join([*artifacts, *generated])}:\n\t{command}\n"
+                + "".join(
+                    f"{Path(path).with_suffix('.o').as_posix()}: {path}\n"
+                    for path in generated
+                )
+            )
+            (root / "Makefile").write_text(
+                rules.replace(barrier.group(0), ""), encoding="utf-8"
+            )
+            unordered = subprocess.run(
+                ("make", "-j8", "all"), cwd=root, text=True,
+                capture_output=True, timeout=30, check=False,
+            )
+            self.assertNotEqual(unordered.returncode, 0)
+            self.assertIn(
+                "source-directory writer ran before profile",
+                unordered.stdout + unordered.stderr,
+            )
+            for path in ["profile.done", "outside.bin", *artifacts, *generated]:
+                (root / path).unlink(missing_ok=True)
+            (root / "Makefile").write_text(rules, encoding="utf-8")
+            fixed_time = 1_700_000_000_000_000_000
+            for attempt in range(2):
+                result = subprocess.run(
+                    ("make", "-j8", "all"), cwd=root, text=True,
+                    capture_output=True, timeout=30, check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                for path in [*artifacts, *generated]:
+                    output = root / path
+                    self.assertEqual(output.read_bytes(), b"complete")
+                    if attempt:
+                        self.assertEqual(output.stat().st_mtime_ns, fixed_time)
+                    else:
+                        os.utime(output, ns=(fixed_time, fixed_time))
+
+    def test_make_profile_manifest_uses_typed_publisher_on_both_hosts(self):
+        target = "build/bootstrap/doom-cupidc-inputs.json"
+        marker = "PROFILE_HOST_TOOL_MUST_NOT_RUN"
+        for platform, suffix in (("Windows_NT", "exe"), ("Linux", "elf")):
+            with self.subTest(platform=platform):
+                result = subprocess.run(
+                    (
+                        "make", "--dry-run", "--always-make", target,
+                        f"OS={platform}",
+                        f"PYTHON={marker}",
+                        f"CUPIDOBJ={marker}",
+                        f"CHECKED_SEED_RUN={marker}",
+                        f"PRODUCTION_SEED_DIRECTORY={marker}",
+                        f"PRODUCTION_SEED_SUFFIX={marker}",
+                        f"PRODUCTION_SEED_INPUTS={marker}",
+                        f"DOOM_CUPIDC_INPUT_MANIFEST={marker}",
+                    ),
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertNotIn(marker, result.stdout)
+                self.assertIn(
+                    f"cupidbuild.{suffix} generate-profile-manifest",
+                    result.stdout,
+                )
+                self.assertIn(f"--output {target}", result.stdout)
+                self.assertEqual(
+                    "test ! -L build && test ! -L build/bootstrap && mkdir -p build/bootstrap"
+                    in result.stdout,
+                    platform != "Windows_NT",
+                )
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX Make")
+    def test_make_profile_parent_preparation_rejects_existing_symlinks(self):
+        for relative in ("build", "build/bootstrap"):
+            with self.subTest(parent=relative):
+                root, *_ = self._profile_fixture()
+                shutil.copyfile(REPO_ROOT / "Makefile", root / "Makefile")
+                seed = Path("bootstrap/seeds/i386-linux")
+                shutil.copytree(REPO_ROOT / seed, root / seed)
+                external = tempfile.TemporaryDirectory(prefix="cupid-profile-outside-")
+                self.addCleanup(external.cleanup)
+                outside = Path(external.name)
+                sentinel = outside / "sentinel"
+                sentinel.write_bytes(b"unchanged")
+                original_time = outside.stat().st_mtime_ns
+                link = root / relative
+                link.parent.mkdir(parents=True, exist_ok=True)
+                link.symlink_to(outside, target_is_directory=True)
+
+                result = subprocess.run(
+                    ("make", "build/bootstrap/doom-cupidc-inputs.json", "OS=Linux"),
+                    cwd=root,
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                    check=False,
+                )
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(list(outside.iterdir()), [sentinel])
+                self.assertEqual(sentinel.read_bytes(), b"unchanged")
+                self.assertEqual(outside.stat().st_mtime_ns, original_time)
+                self.assertNotIn("generate-profile-manifest", result.stdout)
+                self.assertTrue(link.is_symlink())
 
     def test_normal_make_object_rejects_a_renamed_doom_source(self):
         root, _source, _header, _seed, _manifest, _output = (
@@ -2136,7 +2291,7 @@ class DoomCupidCProductionTests(unittest.TestCase):
             f"cupidobj{seed_suffix}",
             f"cupidbuild{seed_suffix}",
         ):
-            shutil.copyfile(checked_seed_root / name, seed_root / name)
+            shutil.copy2(checked_seed_root / name, seed_root / name)
 
         manifest_target = "build/bootstrap/doom-cupidc-inputs.json"
         first = subprocess.run(
@@ -2154,6 +2309,26 @@ class DoomCupidCProductionTests(unittest.TestCase):
         )
         manifest = root / manifest_target
         published = manifest.read_bytes()
+        oracle = (
+            json.dumps(
+                kernel_compile._profile_input_manifest(root),
+                indent=2,
+                sort_keys=True,
+            ) + "\n"
+        ).encode("ascii")
+        self.assertEqual(published, oracle)
+        stable_time = 1_700_000_000_000_000_000
+        os.utime(manifest, ns=(stable_time, stable_time))
+        unchanged = subprocess.run(
+            ("make", manifest_target, "PYTHON=PROFILE_PYTHON_MUST_NOT_RUN"),
+            cwd=root,
+            text=True,
+            capture_output=True,
+            timeout=60,
+            check=False,
+        )
+        self.assertEqual(unchanged.returncode, 0, unchanged.stderr)
+        self.assertEqual(manifest.stat().st_mtime_ns, stable_time)
 
         source = root / "kernel" / "doom" / "src" / "am_map.cc"
         source.rename(source.with_name("am_map-renamed.cc"))
@@ -2167,11 +2342,11 @@ class DoomCupidCProductionTests(unittest.TestCase):
         )
         self.assertNotEqual(second.returncode, 0)
         self.assertIn(
-            "CupidC profile source is unavailable: "
-            "kernel/doom/src/am_map.cc",
+            "approved source cohort",
             second.stderr + second.stdout,
         )
         self.assertEqual(manifest.read_bytes(), published)
+        self.assertEqual(manifest.stat().st_mtime_ns, stable_time)
 
     def test_doom_profile_rejects_an_incomplete_include_space(self):
         with tempfile.TemporaryDirectory(

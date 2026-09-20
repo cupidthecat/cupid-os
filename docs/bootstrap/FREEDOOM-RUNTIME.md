@@ -17,12 +17,70 @@ make WAD_SRCS=third_party/freedoom/0.13.0/freedoom1.wad run
 At the Cupid OS terminal, start Phase 1 explicitly:
 
 ```text
-doom -iwad /disk/wads/freedoom1.wad
+doom -iwad /disk/wads/freedo~1.wad
 ```
+
+The host image writer stages Phase 1 under that FAT16 short name. Running
+`doom` without an explicit path also discovers it.
 
 Record the image hash, kernel hash, QEMU version, CPU count, CPU model, NIC,
 and serial-log hash. Use a private image copy for tests that write saves or
 configuration.
+
+## Startup diagnostic checkpoint
+
+Private pre-correction `16a86f5b` images found the staged IWAD and entered
+fullscreen mode, but the `doom -warp 1 1` probe did not observe graphics
+initialization within its 180-second observation window. The last setup
+progress was HomeFS save-directory creation and the start of its file rewrite;
+no gameplay frame was proven.
+
+A fresh, prelaunch-hash-verified image reproduced the delay with only
+`mkdir /home/doom`, without entering Doom. The existing GUI smoke helper used
+four `max` vCPUs, E1000, and `--timeout 180`. The log showed JIT compilation
+of `/bin/mkdir.cc`. HomeFS then started a 1,295,697-byte, 317-cluster rewrite of
+`HOMEFS.SYS`; neither durable publication nor JIT completion was observed.
+The harness returned `command did not complete (1/1)`, with no
+panic or early-QEMU-exit diagnostic. It cleaned up QEMU normally and retained
+the private image and logs.
+
+The same `mkdir /home/doom` command passed on September 20 with a private copy
+of the asset-free final-manual image, four `max` vCPUs, E1000, and the unchanged
+180-second timeout. HomeFS flushed all 1,295,697 bytes and the JIT returned.
+The smoke also passed its SMP and post-command survival checks. This retry
+followed recovery of host allocation headroom; it does not prove why the
+earlier run timed out. Directory creation no longer reproduces the immediate
+startup blocker under these conditions. An IWAD-backed gameplay gate remains
+open. The [bootstrap log](LOG.md) preserves both failed observations and the
+successful retry. Normal images and OS source are unchanged.
+
+A separate final-manual image with the pinned IWAD still fails before proven
+gameplay. The command
+`doom -iwad /disk/wads/freedo~1.wad -timedemo demo1` reached the 1,295,697-byte
+HomeFS rewrite, then panicked with
+`ehci: DMA ownership could not be revoked after transfer`. No completed
+timedemo or `DG_Init` marker was observed. The root cause remains open; the
+asset-free directory-creation pass does not clear this IWAD-backed failure.
+
+The panic is in `ehci_submit_sync` after `ehci_quiesce_async` fails. That
+helper can try to stop the asynchronous schedule, then attempts to halt
+the controller before releasing DMA-owned storage. The current serial log
+does not record the command/status registers at either failure boundary, so
+it cannot distinguish a halt-acknowledgement timeout from a remaining
+asynchronous-schedule state. Capture those observations in the next focused
+diagnostic. Keep the ownership check: returning from this failure could let
+a caller release a buffer still owned by the controller.
+
+[ADR 0257](../adr/0257-descend-private-multidimensional-simd-arrays.md)
+records an earlier four-CPU failure in the unchanged EHCI cleanup path.
+That history predates this publication handoff; it does not establish a
+shared root cause with the current IWAD probe.
+
+The first attempt also exposed a host-test input gap: the GUI harness could
+not type `~`. It now sends QEMU's shifted grave-accent key and validates a
+complete command before sending any key. The full 138-case helper suite
+passes, including FAT short-name input and rejection without partial typing.
+This repairs the harness, not the guest's EHCI failure.
 
 ## Runtime work still open
 

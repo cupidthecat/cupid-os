@@ -56,7 +56,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3527 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 25 | 171430 |
+| `toolchain_contract` | 25 | 171432 |
 | `toolchain_core` | 48 | 108193 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 577 |
@@ -77,13 +77,13 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 9 |
-| `cupid_builder` | 195 |
+| `cupid_builder` | 197 |
 | `cupid_c_compiler` | 250 |
 | `cupid_c_contract` | 4 |
-| `cupid_disassembler` | 9 |
+| `cupid_disassembler` | 10 |
 | `cupid_linker` | 9 |
 | `cupid_object` | 192 |
-| `host_python` | 257 |
+| `host_python` | 255 |
 
 ## Feature inventory
 
