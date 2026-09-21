@@ -3701,6 +3701,162 @@ done:
   return valid;
 }
 
+static ctool_u32 cupidbuild_user_elf_u16(const unsigned char *bytes) {
+  return (ctool_u32)bytes[0] | ((ctool_u32)bytes[1] << 8u);
+}
+
+static ctool_u32 cupidbuild_user_elf_u32(const unsigned char *bytes) {
+  return cupidbuild_user_elf_u16(bytes) |
+         (cupidbuild_user_elf_u16(bytes + 2u) << 16u);
+}
+
+static int cupidbuild_user_elf_failure(char *reason, size_t capacity,
+                                      const char *format,
+                                      unsigned int index) {
+  (void)snprintf(reason, capacity, format, index);
+  return 0;
+}
+
+int cupidbuild_validate_user_executable_bytes(const unsigned char *bytes,
+                                             size_t size, char *reason,
+                                             size_t reason_capacity) {
+  ctool_u32 entry;
+  ctool_u32 program_offset;
+  ctool_u32 program_count;
+  ctool_u32 starts[16];
+  ctool_u32 ends[16];
+  unsigned int load_count = 0u;
+  unsigned int index = 0u;
+  int entry_is_executable = 0;
+  if (reason == (char *)0 || reason_capacity == 0u) {
+    return 0;
+  }
+  reason[0] = '\0';
+  if (bytes == (const unsigned char *)0 || size < 52u) {
+    return cupidbuild_user_elf_failure(reason, reason_capacity,
+        "ELF header is outside the linked executable", index);
+  }
+  if (memcmp(bytes, "\177ELF\001\001\001", 7u) != 0) {
+    return cupidbuild_user_elf_failure(reason, reason_capacity,
+        "linked executable is not little-endian ELF32 version 1", index);
+  }
+  if (cupidbuild_user_elf_u16(bytes + 16u) != 2u ||
+      cupidbuild_user_elf_u16(bytes + 18u) != 3u ||
+      cupidbuild_user_elf_u32(bytes + 20u) != 1u) {
+    return cupidbuild_user_elf_failure(reason, reason_capacity,
+        "linked executable is not an i386 ELF32 executable", index);
+  }
+  entry = cupidbuild_user_elf_u32(bytes + 24u);
+  program_offset = cupidbuild_user_elf_u32(bytes + 28u);
+  program_count = cupidbuild_user_elf_u16(bytes + 44u);
+  if (cupidbuild_user_elf_u16(bytes + 40u) != 52u ||
+      cupidbuild_user_elf_u16(bytes + 42u) != 32u || program_count == 0u) {
+    return cupidbuild_user_elf_failure(reason, reason_capacity,
+        "linked executable has an invalid program table", index);
+  }
+  if (program_count > 16u) {
+    return cupidbuild_user_elf_failure(reason, reason_capacity,
+        "linked executable has more than 16 program headers", index);
+  }
+  if (program_offset < 52u || program_offset > 0x7fffffffu) {
+    return cupidbuild_user_elf_failure(reason, reason_capacity,
+        "linked executable has an invalid program-header offset", index);
+  }
+  if ((size_t)program_offset > size ||
+      program_count * 32u > size - (size_t)program_offset) {
+    return cupidbuild_user_elf_failure(reason, reason_capacity,
+        "linked executable has a truncated program table", index);
+  }
+  for (index = 0u; index < program_count; index++) {
+    const unsigned char *header = bytes + program_offset + index * 32u;
+    ctool_u32 type = cupidbuild_user_elf_u32(header);
+    ctool_u32 offset = cupidbuild_user_elf_u32(header + 4u);
+    ctool_u32 address = cupidbuild_user_elf_u32(header + 8u);
+    ctool_u32 file_size = cupidbuild_user_elf_u32(header + 16u);
+    ctool_u32 memory_size = cupidbuild_user_elf_u32(header + 20u);
+    ctool_u32 flags = cupidbuild_user_elf_u32(header + 24u);
+    ctool_u32 alignment = cupidbuild_user_elf_u32(header + 28u);
+    ctool_u32 file_end;
+    ctool_u32 memory_end;
+    unsigned int previous;
+    if (type != 0u && type != 1u && type != 0x6474e551u) {
+      return cupidbuild_user_elf_failure(reason, reason_capacity,
+          "program header %u has an unsupported program type", index);
+    }
+    if ((flags & ~7u) != 0u) {
+      return cupidbuild_user_elf_failure(reason, reason_capacity,
+          "program header %u has unknown permission flags", index);
+    }
+    if (alignment != 0u && (alignment & (alignment - 1u)) != 0u) {
+      return cupidbuild_user_elf_failure(reason, reason_capacity,
+          "program header %u alignment is not a power of two", index);
+    }
+    if (type != 1u) {
+      if (file_size != 0u || memory_size != 0u) {
+        return cupidbuild_user_elf_failure(reason, reason_capacity,
+            "non-load program header has a payload at index %u", index);
+      }
+      continue;
+    }
+    if (alignment > 1u &&
+        (offset & (alignment - 1u)) != (address & (alignment - 1u))) {
+      return cupidbuild_user_elf_failure(reason, reason_capacity,
+          "load segment %u alignment is incongruent", index);
+    }
+    if (file_size > memory_size) {
+      return cupidbuild_user_elf_failure(reason, reason_capacity,
+          "load segment %u has more file bytes than memory bytes", index);
+    }
+    if (offset > 0xffffffffu - file_size) {
+      return cupidbuild_user_elf_failure(reason, reason_capacity,
+          "load file range overflows the i386 address space", index);
+    }
+    if (address > 0xffffffffu - memory_size) {
+      return cupidbuild_user_elf_failure(reason, reason_capacity,
+          "load memory range overflows the i386 address space", index);
+    }
+    file_end = offset + file_size;
+    memory_end = address + memory_size;
+    if ((size_t)file_end > size) {
+      return cupidbuild_user_elf_failure(reason, reason_capacity,
+          "load segment %u extends beyond the executable", index);
+    }
+    if (file_size > 0u && offset > 0x7fffffffu) {
+      return cupidbuild_user_elf_failure(reason, reason_capacity,
+          "load segment %u cannot be reached by the loader", index);
+    }
+    if (memory_size == 0u) {
+      continue;
+    }
+    if (address < 0x01c00000u || memory_end > 0x01e00000u) {
+      return cupidbuild_user_elf_failure(reason, reason_capacity,
+          "load segment %u is outside the external executable arena", index);
+    }
+    for (previous = 0u; previous < load_count; previous++) {
+      if (address < ends[previous] && starts[previous] < memory_end) {
+        return cupidbuild_user_elf_failure(reason, reason_capacity,
+            "linked executable load segments overlap", index);
+      }
+    }
+    starts[load_count] = address;
+    ends[load_count] = memory_end;
+    load_count++;
+    if ((flags & 1u) != 0u && address <= entry &&
+        entry - address < file_size) {
+      entry_is_executable = 1;
+    }
+  }
+  if (load_count == 0u) {
+    return cupidbuild_user_elf_failure(reason, reason_capacity,
+        "linked executable has no nonempty loadable segment", index);
+  }
+  if (!entry_is_executable) {
+    return cupidbuild_user_elf_failure(reason, reason_capacity,
+        "entry point is not in executable file-backed bytes", index);
+  }
+  return 1;
+}
+
 int cupidbuild_validate_jpeg_object_bytes(
     const unsigned char *object_bytes, size_t object_size,
     const unsigned char *jpeg_bytes, size_t jpeg_size,

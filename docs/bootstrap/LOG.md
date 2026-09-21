@@ -37797,3 +37797,155 @@ before and after the private runs.
 Evidence is retained under `build/bootstrap/20260921-decoder-source-preflight/`.
 The original generated-compilation trees remain intact. No paired committed-source
 proof or seed promotion is claimed, and Doom gameplay acceptance remains open.
+
+
+## Native user executable validation (2026-09-21)
+
+CupidBuild now exports `cupidbuild_validate_user_executable_bytes`. It checks
+an immutable in-memory candidate against the existing external user ELF
+policy. The implementation reads little-endian fields directly, bounds the
+program table before entry access, checks i386 range addition before computing
+ends, and retains at most sixteen nonempty load ranges. It allocates no
+memory and performs no filesystem, process, or publication operation.
+
+The validator preserves the Python wrapper's accepted ELF identification
+fields, program types, known permissions, alignment rules, empty-load behavior,
+external arena, overlap rules, and executable file-backed entry requirement.
+It also preserves diagnostic order and wording. Sections, physical addresses,
+and other fields ignored by the wrapper remain outside this boundary. The
+caller supplies separate input and diagnostic storage, keeps the input alive
+for the call, and receives a cleared diagnostic on success or a terminated
+message on failure. Missing or empty diagnostic storage fails immediately.
+
+The C batch contract is a test adapter, not a new production command. Its
+`.cc` source builds with checked Cupid tooling and remains explicitly outside
+the normal build roots in the source-suffix inventory. The audit still records
+748 active inputs, 452 transforms, 437 CupidBuild participations, and 15 Python
+participations. The extra fixture brings unreachable source-like files to 29.
+The three user compiler transactions and three links retain their existing
+Python coordinators and checked seeds. Their native pathname, capture,
+inspection, and publication work remains in NEXT-USER-COMPILATION.md.
+
+### Validation
+
+`python -m unittest -v tests.test_cupidbuild_user_elf` passes four methods on
+Windows in 94.367 seconds and native Linux in 86.141 seconds. Each host builds
+one native contract and one checked CupidC/CupidASM/CupidLD contract, validates
+the checked objects and executable format, and compares 1,367 candidates with
+the independent Python policy: 22 explicit valid layouts, 142 explicit invalid
+layouts, 1,200 deterministic mutations, and three freshly compiled and linked
+user executables. All acceptance results and diagnostics match. The mutation
+cohort includes 224 accepted cases, so it checks valid paths as well as early
+rejection. The batch adapter checks input preservation, repeatability, recovery
+after a null-input failure, absent error buffers, and one-byte output buffers
+with adjacent sentinels. The same boundary and mutation groups pass Linux
+AddressSanitizer and UndefinedBehaviorSanitizer builds.
+
+The Windows JPEG and host-runner contracts also pass. The loader, user-link,
+and suffix-policy selection passes 78 tests on Windows and native Linux.
+The active-source audit regenerates and checks successfully.
+
+The wider selection exposed two pre-existing context-switch source-test
+failures. Their unchanged test file had Git object identity
+`0a51f420a947c7796a02bbfa53b270d76dc93a11`. Splitting on `context_switch:`
+selected the prefix of `global context_switch:function` and then stopped at
+the next typed export. The test now selects complete body-label lines and
+requires one ordered pair. A regression checks typed exports, comment lookalikes,
+missing labels, and duplicate labels. The stack/FPU/BKL/interrupt ordering and
+saved-flags assertions now inspect the actual body. Assembly and runtime
+behavior are unchanged.
+
+The first Windows contract build needed the existing hosted convention for
+suppressing the CRT's `fopen` deprecation warning. Two harness attempts then
+passed incorrect entry/import arguments to the PE validator; the corrected
+harness checks the numeric entry and CupidBuild import tuple. No ELF-policy
+change was needed. The first audit rejected the new fixture until its explicit
+source-suffix ownership row was added. One sanitizer command lost its quoted
+Make flags at the Windows-to-WSL boundary and started the wrong target. That
+owned process group was stopped; a Python argument-vector launch ran the intended
+sanitizer target successfully. These failed attempts are not accepted evidence.
+
+Normal OS build and runtime evidence follows below. The retained working files
+and logs are under `build/bootstrap/20260921-user-elf/`. This source step does
+not claim paired fixed-point convergence, seed promotion, Python removal, or
+IWAD-backed Doom gameplay acceptance.
+
+Independent standards and spec reviews found no issues in the implementation,
+API, tests, or stated migration boundary. These were source reviews; executed
+verification is recorded separately.
+
+The complete production-wrapper module plus three real build-audit checks
+passes 64 tests on Windows in 151.064 seconds. The checks cover normal
+checked-seed ownership, exact active-source cohorts, and the classification
+of source files outside the normal roots.
+
+### OS artifact measurements
+
+Private Windows and native Linux copies began with the verified decoder
+preflight outputs and received the changed source and documentation bytes.
+Both ran `make -j2 -o FORCE all`. The initial Linux run took 1,574.050 seconds;
+Windows took 2,070.794 seconds. Each completed both links and raw-kernel
+validation, then stopped only at the same exact-size mismatch.
+
+The manual is 52,492 bytes with SHA-256
+`1ee398fa746884b513b6437e834857839048bb83c3d3bb9d7949ab1e345457ec`.
+Its 547-byte addition grows the raw kernel by 548 bytes after layout. Only the
+raw size-policy row changes, from 9,554,884 to 9,555,432 bytes. Both ELF size
+rows remain unchanged. The independently produced triples agree:
+
+- `kernel/kernel.elf.pass1`: 9,650,508 bytes, SHA-256
+  `573c962b52c1b8c590674bcd66f5d1bace151f572d8ebbb56a16ee59cd5c1894`.
+- `kernel/kernel.elf`: 9,781,580 bytes, SHA-256
+  `ee86b3a5947c8da04d252a239448e90dc6c2bcdc8e9b6d22326d9718f4f13db7`.
+- `kernel/kernel.bin`: 9,555,432 bytes, SHA-256
+  `dc008e7ab6c28574b87e4f11fe5c06daea40af6a12b785bdc9f8acadde3c94d9`.
+
+The resumed Make runs recheck Doom because its unchanged validated objects
+retain timestamps older than the updated profile manifest. The policy update
+does not justify changing those timestamps. Final image and runtime checks
+must retain the measured kernel bytes above.
+
+The resumed builds pass on Windows in 1,377.207 seconds and native Linux in
+943.552 seconds. Both retain the measured pass-one ELF, final ELF, and raw
+kernel hashes. Each direct artifact check passes all sixteen exact entries.
+The Windows user ABI/program build and private four-CPU SMP smoke also pass.
+The smoke runs `dis /bin/ls.cc`, requires decoded instructions through `ret`,
+and then completes `ls` without a compiler/disassembler error or kernel panic.
+Its 209,715,200-byte source image retains SHA-256
+`250bd25848b4b43878c36cbec7975bf1119a4e2a09815bbd669e8ffe1d6f5b05`.
+
+The first Linux `make -C user all` attempt exceeded the evidence harness's
+1,800-second limit while preparing the checked toolchain contracts. It had
+reached generated-source behavior checks but had not published a contract
+cohort or run the user ABI contract. The attempt is incomplete, not a pass.
+Its state and log remain under `linux-os/timed-out-state.json` and
+`linux-os/user-programs.log`. A separate retry gives contract preparation
+7,200 seconds and requests eight contract workers; the bootstrap retains its
+existing worker count. The original OS build and artifact checks had already
+passed before this timeout.
+
+The Linux retry passes in 4,682.684 seconds, including checked-seed tool
+preparation, both contract generations, the hosted runtime contract, frozen
+input verification, and the user syscall ABI check. `make -C user all` then
+passes in 3.879 seconds. This completes the previously timed-out prerequisite;
+no test or production recipe was removed. The published contract cohort stays
+in the private Linux verification tree and does not promote a checked seed.
+
+Both private four-CPU SMP smokes pass: Windows in 59.970 seconds and Linux
+in 68.793 seconds. Each executes `dis /bin/ls.cc` through a decoded `ret`,
+then completes `ls` without a compiler/disassembler error or kernel panic.
+The Linux source image matches the Windows image hash above and also remains
+unchanged after the smoke. All three measured kernel hashes remain exact.
+The user executables match across hosts:
+
+- `cat`: 13,992 bytes, SHA-256
+  `b66cba4c98221f5006ad4aeee70349a82db20410e027aa863bc33fa5818b5f4c`.
+- `hello`: 13,992 bytes, SHA-256
+  `4c5622969f39ffe7c2427d65abae2d293dfbd76db2aa80c96f9e6cf01613600c`.
+- `ls`: 18,112 bytes, SHA-256
+  `094b017eb6914bce6fbc1e99adeae845d5dc05280c1c1d897e68ab9d687c8d79`.
+
+The final source audit and staged whitespace checks pass. The original timeout
+and corrected retry remain in the evidence directory. These checks do not
+claim paired committed-source fixed-point convergence, seed promotion, or
+IWAD-backed Doom gameplay acceptance.

@@ -152,3 +152,43 @@ inspector output, changed private candidates, seed/input drift, replaced
 parents, and preservation of a previous executable. Existing wrapper tests
 cover much of the candidate and drift behavior; this source audit does not
 claim a fresh test run or a native link command.
+
+## Implemented user executable validation
+
+Source head exports `cupidbuild_validate_user_executable_bytes` from
+`cupidbuild.h`. The caller supplies immutable candidate bytes and a nonempty
+error buffer for one synchronous call. The validator allocates no memory,
+retains no pointers or mutable global state, opens no files, and writes only
+the error buffer. Success clears that buffer. Failure returns zero with a
+terminated diagnostic; a missing or zero-capacity buffer returns zero.
+The caller must keep input and output storage distinct.
+
+The parser reads little-endian fields without aligned structure casts. It
+bounds the program table before reading entries and checks unsigned i386
+range addition before computing ends. At most sixteen nonempty load ranges
+are retained on the stack. Non-load entries still need known flags,
+power-of-two alignment, and zero file and memory sizes. Empty loads,
+`PT_NULL`, and `PT_GNU_STACK` retain the existing wrapper rules. Sections,
+physical addresses, and unused ELF identification fields are not newly
+constrained. Known writable/executable permissions remain accepted, as they
+are by the external loader and wrapper.
+
+The independent Python validator remains the test oracle. The new contract
+builds both with a host compiler and with checked CupidC, CupidASM, and
+CupidLD. Its batch adapter tests byte preservation, repeated calls, failure
+recovery, absent error buffers, and one-byte diagnostic buffers with adjacent
+sentinels. The Python suite covers valid boundary layouts, explicit malformed
+cases, deterministic mutations, and freshly compiled and linked `cat`,
+`hello`, and `ls` executables.
+
+This API implements only candidate-format validation. The native user-link
+command must still capture the input object and complete seed, retain the
+resolved output parent chain, run and check CupidLD and CupidDis, recheck
+candidate and source identities, and publish through the guarded transaction.
+The existing user-link recipes, seed images, and ownership counts are unchanged.
+
+Run the native and checked-CupidC comparison suite with
+`make -C toolchain test-cupidbuild-user-elf`, or invoke
+`python -m unittest -v tests.test_cupidbuild_user_elf` from the repository root.
+The bootstrap log records executed host and OS checks separately from the
+remaining user-link transaction and future seed promotion.

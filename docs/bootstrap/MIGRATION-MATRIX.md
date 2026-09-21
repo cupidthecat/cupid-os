@@ -1,5 +1,10 @@
 # Toolchain ownership migration matrix
 
+The native user executable validator is implemented at source head. The
+three user links remain Python-coordinated until the path, capture, inspection,
+and publication transaction is implemented and proved. This validator changes
+no production owner or checked seed.
+
 The generated-install coordinator is implemented in source but has not
 transferred its three Make recipes. CupidObj still authors the bin, docs, and
 demo installation sources, and Python still coordinates their compilation

@@ -1,5 +1,13 @@
 # Toolchain bootstrap
 
+Source-head CupidBuild now has an in-memory validator for external user
+executables. It checks the i386 ELF32 header, up to sixteen program headers,
+load ranges inside `[0x01C00000, 0x01E00000)`, alignment, permissions, overlap,
+and an entry in executable file-backed bytes. It preserves the existing Python
+validator's acceptance rules and diagnostics. The three user links still use
+the Python transaction; native path handling, input capture, inspection, and
+publication remain required before that handoff.
+
 The shared x86 decoder initializes a candidate after its early opcode,
 prefix, and invalid-encoding checks, before writing decoded fields. This avoids
 clearing records for rows that cannot match. Catalogue order, alias selection,

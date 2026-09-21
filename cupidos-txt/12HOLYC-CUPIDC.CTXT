@@ -13,6 +13,15 @@ Verified against source on: 2026-09-20
 >style linkhover #0B3AA8
 >rule
 
+>h2 Native user executable validation
+Source-head CupidBuild validates external i386 ELF32 executables in memory.
+It checks at most sixteen program headers, bounded and nonoverlapping loads
+inside 0x01C00000 through 0x01DFFFFF, alignment, known permissions, and an
+entry in executable file-backed bytes. The check preserves the existing
+user-link validator's rules. It does not load or execute the candidate.
+The three user links still use Python for capture, tool execution, inspection,
+and publication until the native transaction is complete.
+
 >h2 Source and seed checkpoint
 >tree open Source and seed checkpoint
 Make invokes checked cupidbuild compile-doom for all 83 approved Doom

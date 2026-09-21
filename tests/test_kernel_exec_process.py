@@ -400,13 +400,37 @@ class KernelBlockCacheSourceContractTests(unittest.TestCase):
 
 
 class KernelContextSwitchSourceContractTests(unittest.TestCase):
+    @staticmethod
+    def bodies(source):
+        labels = list(re.finditer(
+            r"(?m)^[ \t]*(context_switch(?:_resume)?):[ \t]*(?:;[^\n]*)?$",
+            source,
+        ))
+        if [label.group(1) for label in labels] != [
+                "context_switch", "context_switch_resume"]:
+            raise AssertionError("expected one ordered pair of context-switch body labels")
+        return (source[labels[0].end():labels[1].start()],
+                source[labels[1].end():])
+
     @classmethod
     def setUpClass(cls):
         source = (REPO_ROOT / "kernel/core/context_switch.asm").read_text()
-        cls.handoff = source.split("context_switch:", 1)[1].split(
-            "context_switch_resume:", 1
-        )[0]
-        cls.resume = source.split("context_switch_resume:", 1)[1]
+        cls.handoff, cls.resume = cls.bodies(source)
+
+    def test_typed_exports_and_comments_cannot_replace_body_labels(self):
+        declarations = ("global context_switch:function\n"
+                        "global context_switch_resume:function\n"
+                        "; context_switch:\n; context_switch_resume:\n")
+        source = (declarations + "context_switch: ; handoff\n    mov esp, eax\n"
+                  "context_switch_resume:\n    popfd\n")
+        handoff, resume = self.bodies(source)
+        self.assertEqual(handoff, "\n    mov esp, eax\n")
+        self.assertEqual(resume, "\n    popfd\n")
+        for malformed in (declarations, source + "context_switch_resume:\n",
+                          source.replace("context_switch: ; handoff", "missing:")):
+            with self.subTest(source=malformed):
+                with self.assertRaisesRegex(AssertionError, "body labels"):
+                    self.bodies(malformed)
 
     def test_bkl_release_occurs_on_target_stack_after_fp_restore_before_entry(self):
         stack = self.handoff.find("mov esp, [edx + PCB_ESP_OFFSET]")

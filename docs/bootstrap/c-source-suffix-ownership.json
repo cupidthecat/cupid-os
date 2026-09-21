@@ -157,6 +157,7 @@
     "demos/paint.cc": "superseded",
     "toolchain/tests/cupidbuild_host_runner_contract.cc": "not_reached",
     "toolchain/tests/cupidbuild_jpeg_contract.cc": "not_reached",
+    "toolchain/tests/cupidbuild_user_elf_contract.cc": "not_reached",
     "toolchain/tests/cupiddis_kernel_adapter_contract.cc": "host_oracle"
   }
 }

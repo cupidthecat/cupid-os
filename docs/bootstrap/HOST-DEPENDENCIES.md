@@ -1,5 +1,10 @@
 # Host dependency inventory
 
+The native user executable validator is implemented at source head. The
+three user links remain Python-coordinated until the path, capture, inspection,
+and publication transaction is implemented and proved. This validator changes
+no production owner or checked seed.
+
 Source-head `compile-production` can compile the three generated installation
 tables through a closed bundle and checked native transaction. The normal
 recipes retain their Python coordinator until separate paired proofs, seed

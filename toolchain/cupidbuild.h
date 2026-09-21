@@ -52,6 +52,14 @@ int cupidbuild_compile_doom(const cupidbuild_compile_request_t *request);
 int cupidbuild_compile_production(const cupidbuild_compile_request_t *request);
 int cupidbuild_validate_compiler_object_bytes(const unsigned char *bytes,
                                               size_t size);
+/* Validate a borrowed, immutable candidate against the external user loader.
+ * No filesystem, allocation, publication, or instruction inspection occurs.
+ * The caller keeps bytes alive for this call and supplies a nonempty reason
+ * buffer distinct from the input. Success clears reason; failure terminates it.
+ */
+int cupidbuild_validate_user_executable_bytes(const unsigned char *bytes,
+                                             size_t size, char *reason,
+                                             size_t reason_capacity);
 int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request);
 int cupidbuild_generate_profile_manifest(
     const cupidbuild_profile_request_t *request);
