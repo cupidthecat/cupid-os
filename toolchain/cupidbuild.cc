@@ -2120,6 +2120,39 @@ static const char *const cupidbuild_compile_profile[] = {
     "/toolchain"
 };
 
+typedef enum {
+  CUPIDBUILD_COMPILE_KERNEL,
+  CUPIDBUILD_COMPILE_DOOM,
+  CUPIDBUILD_COMPILE_PRODUCTION
+} cupidbuild_compile_kind_t;
+
+static const cupidbuild_compile_closure_t cupidbuild_compile_production_closures[] = {
+    {"kernel/util/bin_programs_gen.cc", {
+        "drivers/serial.h",
+        "kernel/core/types.h",
+        "kernel/fs/homefs.h",
+        "kernel/fs/ramfs.h",
+        "kernel/fs/vfs.h",
+        "kernel/util/bin_programs_gen.cc"
+    }, 6u},
+    {"kernel/util/demos_programs_gen.cc", {
+        "drivers/serial.h",
+        "kernel/core/types.h",
+        "kernel/fs/homefs.h",
+        "kernel/fs/ramfs.h",
+        "kernel/fs/vfs.h",
+        "kernel/util/demos_programs_gen.cc"
+    }, 6u},
+    {"kernel/util/docs_programs_gen.cc", {
+        "drivers/serial.h",
+        "kernel/core/types.h",
+        "kernel/fs/homefs.h",
+        "kernel/fs/ramfs.h",
+        "kernel/fs/vfs.h",
+        "kernel/util/docs_programs_gen.cc"
+    }, 6u}
+};
+
 static const char *const cupidbuild_compile_doom_profile[] = {
     "--gnu",
     "--doom-compat",
@@ -2896,17 +2929,17 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
   static const char legacy_linux_manifest[] =
       "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b";
   static const char preceding_parent_revision[] =
-      "16a86f5b1693e017c36c6d902df9946c5d674b17";
-  static const char preceding_parent_linux_manifest[] =
-      "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d";
-  static const char preceding_parent_windows_manifest[] =
-      "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc";
-  static const char active_parent_revision[] =
       "9d2529a718672edcd970f24960535db6ddbde5e4";
-  static const char active_parent_linux_manifest[] =
+  static const char preceding_parent_linux_manifest[] =
       "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e";
-  static const char active_parent_windows_manifest[] =
+  static const char preceding_parent_windows_manifest[] =
       "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a";
+  static const char active_parent_revision[] =
+      "83d00ce70e5607dc5c011bb97c6478121f24a21c";
+  static const char active_parent_linux_manifest[] =
+      "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622";
+  static const char active_parent_windows_manifest[] =
+      "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590";
   static const char *const linux_v1_names[] = {
       "fixed_point_command",   "fixed_point_result", "producer_lineage",
       "seed_generation",       "source_input_count", "source_revision",
@@ -6728,7 +6761,7 @@ done:
 }
 
 static int cupidbuild_compile(
-    const cupidbuild_compile_request_t *request, int doom) {
+    const cupidbuild_compile_request_t *request, cupidbuild_compile_kind_t kind) {
   cupidbuild_host_transaction_t *transaction =
       (cupidbuild_host_transaction_t *)0;
   cupidbuild_seed_capture_t seed;
@@ -6747,6 +6780,15 @@ static int cupidbuild_compile(
   size_t index;
   size_t count = 0u;
   size_t source_size;
+  int doom = kind == CUPIDBUILD_COMPILE_DOOM;
+  int production = kind == CUPIDBUILD_COMPILE_PRODUCTION;
+  const char *cohort = doom ? "Doom" : (production ? "production" : "kernel");
+  const cupidbuild_compile_closure_t *closures = production
+      ? cupidbuild_compile_production_closures : cupidbuild_compile_closures;
+  size_t closure_count = production
+      ? sizeof(cupidbuild_compile_production_closures) /
+            sizeof(cupidbuild_compile_production_closures[0])
+      : sizeof(cupidbuild_compile_closures) / sizeof(cupidbuild_compile_closures[0]);
   int doom_tree = 0;
   const char *const *profile = cupidbuild_compile_profile;
   size_t profile_count = sizeof(cupidbuild_compile_profile) /
@@ -6761,7 +6803,7 @@ static int cupidbuild_compile(
       !cupidbuild_path_safe(request->output, 1) ||
       !cupidbuild_path_safe(request->seed_manifest, 0)) {
     (void)fprintf(stderr, "cupidbuild: invalid %s compile request\n",
-                  doom ? "Doom" : "kernel");
+                  cohort);
     return 1;
   }
   if (doom != 0) {
@@ -6781,15 +6823,14 @@ static int cupidbuild_compile(
     profile_count = sizeof(cupidbuild_compile_doom_profile) /
                     sizeof(cupidbuild_compile_doom_profile[0]);
   } else {
-    for (index = 0u; index < sizeof(cupidbuild_compile_closures) /
-                                sizeof(cupidbuild_compile_closures[0]); index++) {
-      if (strcmp(request->source, cupidbuild_compile_closures[index].source) == 0) {
-        closure = &cupidbuild_compile_closures[index];
+    for (index = 0u; index < closure_count; index++) {
+      if (strcmp(request->source, closures[index].source) == 0) {
+        closure = &closures[index];
         break;
       }
     }
     if (closure == (const cupidbuild_compile_closure_t *)0) {
-      (void)fprintf(stderr, "cupidbuild: source has no approved frozen kernel closure\n");
+      (void)fprintf(stderr, "cupidbuild: source has no approved frozen %s closure\n", cohort);
       return 1;
     }
   }
@@ -6799,7 +6840,7 @@ static int cupidbuild_compile(
   expected_output[source_size - 1u] = '\0';
   if (strcmp(request->output, expected_output) != 0) {
     (void)fprintf(stderr, "cupidbuild: %s source and output binding differ\n",
-                  doom ? "Doom" : "kernel");
+                  cohort);
     return 1;
   }
   logical_source[0] = '/';
@@ -6856,7 +6897,7 @@ static int cupidbuild_compile(
   arguments[count++] = "--source-bundle";
   arguments[count++] = cupidbuild_host_private_output(transaction);
   arguments[count] = (const char *)0;
-  if (doom != 0 &&
+  if (kind != CUPIDBUILD_COMPILE_KERNEL &&
       !cupidbuild_host_require_publication_boundary(transaction)) {
     goto host_failure;
   }
@@ -6896,15 +6937,20 @@ done:
   cupidbuild_seed_capture_close(&seed);
   return cupidbuild_finish_publication(transaction, result,
                                          doom ? "Doom compiler object"
-                                              : "kernel compiler object");
+                                              : (production ? "production compiler object"
+                                                            : "kernel compiler object"));
 }
 
 int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request) {
-  return cupidbuild_compile(request, 0);
+  return cupidbuild_compile(request, CUPIDBUILD_COMPILE_KERNEL);
 }
 
 int cupidbuild_compile_doom(const cupidbuild_compile_request_t *request) {
-  return cupidbuild_compile(request, 1);
+  return cupidbuild_compile(request, CUPIDBUILD_COMPILE_DOOM);
+}
+
+int cupidbuild_compile_production(const cupidbuild_compile_request_t *request) {
+  return cupidbuild_compile(request, CUPIDBUILD_COMPILE_PRODUCTION);
 }
 
 int cupidbuild_run_checked_tool(const cupidbuild_run_request_t *request) {

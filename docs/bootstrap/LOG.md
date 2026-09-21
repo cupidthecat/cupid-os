@@ -37674,3 +37674,82 @@ failure; final status is `pass`, with zero for every continuation phase.
 artifact identities and times, profile checks, three kernels, and image
 preservation. Together with the Windows evidence, this completes the
 production handoff validation. Full Doom gameplay acceptance remains open.
+
+## Generated installation compiler source preflight (2026-09-20)
+
+The isolated source step adds `compile-production` for the three generated
+installation tables and advances the native CupidBuild and artifact-contract
+v2 parent window to paired `9d2529a7`/`83d00ce7` identities. Retired `16a86f5b`
+v2 parents fail, while historical v1 parsing remains available. Role-specific,
+paired, and mixed-generation tests distinguish this prerequisite from the
+compiler command itself. The checked `83d00ce7` executables retain their older
+reader window until a new promotion. Production remains at 437 CupidBuild and
+15 Python participations; no generated Make recipe or seed has moved.
+
+Fresh focused tests passed 71 methods on Windows in 1,023.548 seconds and
+71 methods on native Linux in 720.502 seconds, with one Windows-only skip on
+Linux. Four matrix/audit regressions then passed on Windows in 411.023 seconds
+and Linux in 294.711 seconds. The tests use the promoted `83d00ce7` seeds and
+include actual Cupid-built coordinator execution. Same-generation helper runs
+are preflight evidence, not a new fixed point.
+
+The first Linux attempt failed before generated-source tests because a tar
+archive made from a Windows extraction had lost the six seed executable modes.
+Restoring only the modes recorded in the original Git archive corrected that
+packaging failure. The failed log remains beside the successful retry.
+
+The current-source Cupid-built coordinator also passed the existing kernel
+and Doom behavior helpers on both hosts: 14 kernel calls and 20 Doom calls
+per host. These cover success, negative diagnostics, output preservation,
+unchanged timestamps, cleanup, and recovery with complete six-tool fixture
+cohorts. This directly checks the changed shared dispatcher; the normal OS
+builds still execute the installed seed. Linux's retained candidate is
+631,176 bytes with SHA-256
+`e255f2a2793897aeb6aeaa318f461831d647be0774e1ec9466cb9aafd476c9ac`;
+Windows's is 646,656 bytes with SHA-256
+`7dc0a0c1d90645a47c4d3c9a38f55988698a7a3888abea8e14d7c86045c37cb6`.
+The paired fixture slots use the same candidate generation and do not prove
+convergence.
+
+Both complete source OS builds reached only the raw-kernel size check. Their
+manual is 51,286 bytes with SHA-256
+`1e0a30be22da63b92b66cc9c901c1c65c319bb316f083a7544b859e074d8f139`.
+The three kernel measurements match exactly across Windows and native Linux:
+
+- First ELF: 9,650,508 bytes, SHA-256
+  `41761409d0f93c6c9fdd11f5ee8d66477340f1323c590e713c2dd23c35060c22`.
+- Final ELF: 9,781,580 bytes, SHA-256
+  `6b426a11cc1cece858b06f86d61a1eee7b3f276b24f20ef0a7e33d6abf89d53d`.
+- Raw kernel: 9,554,244 bytes, SHA-256
+  `748bafb5f8ea141a10bbe28a9288ba87f6f08c55261055e0614f9e71815722ae`.
+
+Only the raw policy row changed, from 9,553,060 to 9,554,244 bytes. The 1,184-byte
+growth matches the embedded manual update; neither ELF size row changed.
+After both initial failures and matching triples were retained, each build
+resumed with `make -j2 -o FORCE all`. Ignoring the empty FORCE trigger avoids
+repeating the completed compilation while retaining every real dependency.
+Windows finished that incremental step in 24.690 seconds and Linux in 20.505
+seconds. Before-and-after checks confirmed that all three kernels stayed exact.
+
+Both standalone 16-artifact gates and private four-CPU `max`/`e1000` SMP/`ls`
+smokes passed. Each smoke left its source image unchanged. Initial logs,
+measurements, resumed commands, serial output, and image hashes are retained in
+`build/bootstrap/20260920-generated-source-preflight/`. The build trees remain
+available for later incremental validation. These checks do not establish Doom
+gameplay acceptance. Committed-source fixed-point proof has not run for this
+source step.
+
+Integration preserves the later Doom replay and diagnostic records rather
+than replacing the log with the earlier preflight copy. Every changed source,
+test, policy, and manual matches the tested package bytes. Two generated audit
+reports also needed refresh for the new source hashes and staged inventory:
+the conditional census is 416, and the Linux expected behavior groups are
+46 failures, seven help cases, and 54 successes. The active preprocessor
+fixture is unchanged. Independent checks pass on Windows and native Linux.
+
+An early check of a private build tree saw its empty Git index; another saw
+a transient assembler source during a decoder build. Those reports were
+discarded as audit evidence and retained for diagnosis. The accepted reports
+come from an immutable generated-only source extraction. Source ownership
+remains 748 active inputs, 452 transforms, and 437 CupidBuild/15 Python
+participations. The audit refresh changes no tested kernel or manual bytes.

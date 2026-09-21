@@ -131,6 +131,12 @@ owns all 83 Doom compilations through closed source/header bundles and filtered
 discovery that permits unrelated object writes while rejecting input membership
 or directory-identity changes. ADR 0396 records that separate profile handoff.
 
+Source-head `compile-production` adds the three generated installation tables
+with their fixed kernel profile and six-record closures. This capability has
+not changed the checked `83d00ce7` seeds or Make ownership: production remains
+437 CupidBuild and 15 Python participations. ADR 0397 records the source step;
+user compilation and configurable output parents remain separate work.
+
 **Hosted bootstrap runtime**:
 The static i386 C runtime linked into Cupid tool and contract images. It supplies the represented heap, file, memory, string, error, and working-directory interfaces without a host libc. Its string boundary includes binary `memchr`, which CupidBuild uses while validating frozen JSON. The active six-tool seeds contain CupidBuild beside CupidC, CupidASM, CupidDis, CupidLD, and CupidObj.
 

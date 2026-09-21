@@ -1,5 +1,23 @@
 # Cupid Toolchain bootstrap
 
+Source-head CupidBuild adds `compile-production` for
+`kernel/util/bin_programs_gen.cc`, `kernel/util/demos_programs_gen.cc`, and
+`kernel/util/docs_programs_gen.cc`. Every source captures `drivers/serial.h`,
+`kernel/core/types.h`, `kernel/fs/homefs.h`, `kernel/fs/ramfs.h`, and
+`kernel/fs/vfs.h`, producing a six-record closed bundle. The fixed kernel
+profile and 180-second timeout are unchanged. Output binding, complete seed
+capture, relocatable validation, input rechecks, locks, and publication use
+the existing compiler transaction. Missing headers fail even when the previous
+object is otherwise reusable.
+
+The new staged helper adds five failure and seven success groups. Expected
+inventories become 46/7/54 on Linux and 34/7/41 on Windows. Both compared
+coordinators receive their own complete seed. These source checks do not
+establish new checked seeds or a generated-install handoff. Production remains
+at the proven Doom checkpoint's 437 CupidBuild and 15 Python participations.
+ADRs 0396 and 0397 distinguish the production checkpoint from this next source
+capability.
+
 Make invokes checked `cupidbuild compile-doom` for all 83 approved Doom
 sources: three compatibility roots and 80 Doom-tree roots. It derives the
 profile from source membership, captures the exact source cohort and all

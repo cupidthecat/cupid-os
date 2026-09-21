@@ -1,5 +1,22 @@
 # Host dependency inventory
 
+Source-head `compile-production` can compile the three generated installation
+tables through a closed bundle and checked native transaction. The normal
+recipes retain their Python coordinator until separate paired proofs, seed
+promotion, and production validation complete. The current fifteen Python
+participations still include all six generated/user compilations, three user
+links, two image publications, three verification operations, and one
+Toolchain build/manifest publication.
+
+User compiler migration must preserve configurable `BUILD` directories and
+safe missing-parent creation. The existing wrapper also accepts lexical
+aliases that normalize inside the approved user subtree and absolute direct
+API outputs inside that subtree. Its accepted filename range must survive
+native migration. Reusing the profile helper's fixed directory names or short
+ASCII-only component conversion would narrow that behavior. The retained-chain
+model is preparation evidence; native integration and full Windows pathname
+support remain unfinished.
+
 Make invokes checked `cupidbuild compile-doom` for all 83 approved Doom
 sources: three compatibility roots and 80 Doom-tree roots. It derives the
 profile from source membership, captures the exact source cohort and all

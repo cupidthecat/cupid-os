@@ -123,8 +123,8 @@ class CompileDoomBehaviorTests(unittest.TestCase):
         original_read = Path.read_text
         original = original_read(path, encoding="utf-8")
         contract = build_graph_audit._cupid_toolchain_fixed_point_contract(root)
-        self.assertEqual(contract["success_behavior_cases"], 47)
-        self.assertEqual(contract["windows_success_behavior_cases"], 34)
+        self.assertEqual(contract["success_behavior_cases"], 54)
+        self.assertEqual(contract["windows_success_behavior_cases"], 41)
         for old, new in (
             ("tuple(output.stat().st_mtime_ns for output in outputs) != timestamps", "False"),
             ("success(tree_source, expected_tree)", "success(tree_source)"),

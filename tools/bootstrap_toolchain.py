@@ -3880,6 +3880,107 @@ def _check_cupidbuild_compile_doom_behavior(
     success(tree_source, expected_tree)
 
 
+def _check_cupidbuild_compile_production_behavior(
+    runner: ToolRunner,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    label_prefix: str,
+) -> None:
+    compile_root = behavior_root / "cupidbuild-compile-production"
+    compile_root.mkdir()
+    roots = tuple(compile_root / name for name in ("stage-three-root", "stage-four-root"))
+    manifests = []
+    for root, stage_entry in zip(roots, (stage_two, stage_three)):
+        root.mkdir()
+        manifests.append(_materialize_behavior_seed(seed_inputs, root, "seed", stage_entry))
+    sources = tuple("kernel/util/" + name + "_programs_gen.cc" for name in ("bin", "demos", "docs"))
+    headers = ("drivers/serial.h", "kernel/core/types.h", "kernel/fs/homefs.h",
+               "kernel/fs/ramfs.h", "kernel/fs/vfs.h")
+    fixture = (
+        '#include "../core/types.h"\n'
+        '#if DEBUG != 1\n#error generated compilation requires kernel profile\n#endif\n'
+        '#ifdef DOOM_PORT_CUPIDOS\n#error unexpected Doom profile\n#endif\n'
+        'const char *production_file = __FILE__;\n'
+        'unsigned int production_value = PRODUCTION_VALUE;\n'
+    )
+    for root in roots:
+        for logical in (*sources, *headers):
+            target = root / logical
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(fixture if logical in sources else
+                              '#define PRODUCTION_VALUE 42u\n', encoding="ascii")
+
+    def compile_pair(source: str, output_source: str | None = None) -> subprocess.CompletedProcess[str]:
+        output = Path(output_source or source).with_suffix(".o").as_posix()
+        arguments = [["compile-production", "--seed-manifest", manifests[index],
+                      "--root", root, "--source", source, "--output", output]
+                     for index, root in enumerate(roots)]
+        result = _run_stage_pair(runner, stage_two, stage_three, "cupidbuild",
+                                 arguments[0], arguments[1], 190)
+        if any(path.name.startswith(".cupidbuild-") or path.name.endswith(".cupidbuild.lock")
+               for root in roots for path in root.rglob("*")):
+            raise BootstrapError(f"{label_prefix}CupidBuild production compile left transaction files")
+        return result
+
+    def outputs(source: str) -> tuple[Path, ...]:
+        return tuple(root / Path(source).with_suffix(".o") for root in roots)
+
+    def success(source: str, expected: bytes | None = None) -> bytes:
+        result = compile_pair(source)
+        _expect_status(result, 0, f"{label_prefix}CupidBuild production compile")
+        paths = outputs(source)
+        payload = paths[0].read_bytes()
+        if (result.stdout or result.stderr or payload != paths[1].read_bytes()
+                or (expected is not None and payload != expected)):
+            raise BootstrapError(f"{label_prefix}CupidBuild production compile output differs")
+        for path in paths:
+            _validate_i386_relocatable(path)
+        return payload
+
+    expected = {source: success(source) for source in sources}
+    replay_outputs = outputs(sources[0])
+    for path in replay_outputs:
+        os.utime(path, ns=(1_600_000_000_000_000_000,) * 2)
+    replay_times = tuple(path.stat().st_mtime_ns for path in replay_outputs)
+    success(sources[0], expected[sources[0]])
+    if tuple(path.stat().st_mtime_ns for path in replay_outputs) != replay_times:
+        raise BootstrapError(f"{label_prefix}CupidBuild production compile rewrote an unchanged object")
+
+    def failure(source: str, diagnostic: str, output_source: str | None = None) -> None:
+        paths = outputs(output_source or source)
+        sentinel = b"preserved generated installation object\n"
+        for path in paths:
+            path.write_bytes(sentinel)
+        old_times = tuple(path.stat().st_mtime_ns for path in paths)
+        result = compile_pair(source, output_source)
+        _expect_status(result, 1, f"{label_prefix}CupidBuild production compile failure")
+        if (result.stdout or not result.stderr or diagnostic not in result.stderr
+                or any(path.read_bytes() != sentinel for path in paths)
+                or tuple(path.stat().st_mtime_ns for path in paths) != old_times):
+            raise BootstrapError(f"{label_prefix}CupidBuild production compile failure preservation differs")
+
+    for root in roots:
+        (root / sources[0]).write_text("int broken( {\n", encoding="ascii")
+    failure(sources[0], "checked CupidC failed")
+    for root in roots:
+        (root / sources[0]).write_text('#include "production-live-only.h"\n', encoding="ascii")
+        (root / "kernel/util/production-live-only.h").write_text("int forbidden;\n", encoding="ascii")
+    failure(sources[0], "checked CupidC failed")
+    for root in roots:
+        (root / sources[0]).write_text(fixture, encoding="ascii")
+        (root / headers[0]).unlink()
+    failure(sources[0], "closure cannot be captured")
+    for root in roots:
+        (root / headers[0]).write_text('#define PRODUCTION_VALUE 42u\n', encoding="ascii")
+        (root / "kernel/util/unapproved_gen.cc").write_text(fixture, encoding="ascii")
+    failure("kernel/util/unapproved_gen.cc", "")
+    failure(sources[0], "", sources[1])
+    for source in sources:
+        success(source, expected[source])
+
+
 def _check_cupidbuild_embed_jpeg_behavior(
     runner: ToolRunner,
     source_root: Path,
@@ -4987,6 +5088,9 @@ def _run_native_windows_behavior_checks(
         runner, profile_source_root, behavior_root, stage_two, stage_three,
         behavior_seed_inputs, "native Windows ",
     )
+    _check_cupidbuild_compile_production_behavior(
+        runner, behavior_root, stage_two, stage_three, behavior_seed_inputs, "native Windows ",
+    )
 
     _check_cupidbuild_generate_profile_behavior(
         runner,
@@ -5226,9 +5330,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 23,
+        "failure_cases": len(tool_names) + 28,
         "help_cases": len(tool_names) + 1,
-        "success_cases": len(tool_names) + 28,
+        "success_cases": len(tool_names) + 35,
     }
 
 
@@ -6018,6 +6122,9 @@ def _run_behavior_checks(
     _check_cupidbuild_compile_doom_behavior(
         runner, profile_source_root, behavior_root, stage_two, stage_three,
         seed_inputs, "",
+    )
+    _check_cupidbuild_compile_production_behavior(
+        runner, behavior_root, stage_two, stage_three, seed_inputs, "",
     )
 
     _check_cupidbuild_generate_profile_behavior(
@@ -8769,9 +8876,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 41,
+        "failure_cases": 46,
         "help_cases": len(tool_names) + 1,
-        "success_cases": 47,
+        "success_cases": 54,
     }
 
 

@@ -1,5 +1,14 @@
 # Toolchain ownership migration matrix
 
+The generated-install coordinator is implemented in source but has not
+transferred its three Make recipes. CupidObj still authors the bin, docs, and
+demo installation sources, and Python still coordinates their compilation
+through the checked compiler. Production remains at 437 CupidBuild and 15
+Python participations after the proved Doom handoff. A later verified
+three-recipe transfer would change those counts to 440 and 12; that is a
+projection, not current ownership. The three generated roots already use
+`.cc`, so no suffix change belongs to this step.
+
 Make invokes checked `cupidbuild compile-doom` for all 83 approved Doom
 sources: three compatibility roots and 80 Doom-tree roots. It derives the
 profile from source membership, captures the exact source cohort and all

@@ -1,5 +1,15 @@
 # Cupid Toolchain capability matrix
 
+Generated installation compilation has a **Source capability** through
+`cupidbuild compile-production`. Its three approved roots each capture the
+five-header installation closure in a six-record bundle. The command keeps
+the kernel profile, exact adjacent output binding, checked-seed launch,
+object validation, input checks, stable timestamps, and guarded recovery.
+Tests cover real object parity and useful failures; paired proofs and checked
+recipe adoption remain outstanding. The user compilation profile is not
+admitted by this first command. It needs compatible configurable-directory
+preparation and native pathname handling.
+
 Make invokes checked `cupidbuild compile-doom` for all 83 approved Doom
 sources: three compatibility roots and 80 Doom-tree roots. It derives the
 profile from source membership, captures the exact source cohort and all

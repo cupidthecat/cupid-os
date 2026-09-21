@@ -10908,6 +10908,11 @@ static int cupidbuild_host_run_at(
   int result;
   (void)memset(&stdout_snapshot, 0, sizeof(stdout_snapshot));
   (void)memset(&stderr_snapshot, 0, sizeof(stderr_snapshot));
+#if defined(CUPIDBUILD_PUBLICATION_RACE_TEST)
+  if (!cupidbuild_host_publication_test_pause("before-tool-launch")) {
+    return -1;
+  }
+#endif
   if (transaction == (cupidbuild_host_transaction_t *)0 ||
       tool == (const char *)0 || arguments == (const char *const *)0 ||
       transaction->runner_transaction != 0 || timeout_milliseconds == 0u ||

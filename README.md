@@ -1,5 +1,14 @@
 # cupid-os
 
+Source-head `cupidbuild compile-production` captures and compiles the three
+generated bin, docs, and demo installation tables with their existing kernel
+profile. Each bundle contains the source and five required headers. Checked
+publication preserves prior output on failure and retains timestamps for equal
+validated objects. The checked seeds and Make recipes still use the preceding
+proven Doom checkpoint; this command needs its own paired proofs and promotion
+before those three recipes move. Production ownership remains 437 CupidBuild
+and 15 Python participations. ADR 0397 records the source boundary.
+
 Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a graphical desktop, window manager, built-in C compiler, assembler, and scripting language. It runs on real hardware and in QEMU. The design draws from TempleOS, OsakaOS, and Unix.
 
 <img src="img/background.png" alt="Desktop" width="700">

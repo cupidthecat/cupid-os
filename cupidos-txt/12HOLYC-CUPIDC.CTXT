@@ -943,3 +943,25 @@ names intact. The old public name may not be restored on DrvFS.
 [03CUPIDSC.CTXT - CupidScript](open:03CUPIDSC.CTXT)
 [11CTXT.CTXT - DolDoc manual](open:11CTXT.CTXT)
 [14FPU-SSE.CTXT - FPU/SSE reference](open:14FPU-SSE.CTXT)
+
+>h2 Generated installation compiler coordinator
+>tree
+Source-head CupidBuild provides compile-production for the generated bin,
+docs, and demo installation tables. Each closed bundle contains its source
+and five required headers: serial, core types, homefs, ramfs, and vfs.
+The command retains the fixed kernel profile, 180-second compiler deadline,
+checked six-tool seed, object validation, and guarded publication. Equal
+validated objects keep their timestamps; failed checks preserve the previous
+output under the documented recovery policy.
+
+The checked seeds and Make recipes remain at the proven Doom checkpoint.
+Production ownership is still 437 CupidBuild and 15 Python participations.
+The new source command needs separate paired proofs, seed promotion, and
+production validation before its three compiler recipes move. It introduces
+no CupidC language change and does not reduce the OS source.
+
+User compilation remains separate. Its configurable BUILD paths, safe parent
+creation, and existing pathname support must survive migration. TempleOS is
+reference material only. IWAD-backed Doom gameplay acceptance remains open.
+ADR 0397 records the source capability.
+>endtree

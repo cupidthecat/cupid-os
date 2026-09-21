@@ -1,5 +1,19 @@
 # Toolchain bootstrap
 
+Source-head CupidBuild now has `compile-production` for the three generated
+installation tables. Each capture contains one source and the five installation
+headers, retains the fixed kernel profile, and publishes through the shared
+checked compiler transaction. Missing closure inputs, unknown sources,
+mismatched outputs, and failed compiler runs cannot replace the previous
+object. Equal validated output keeps its timestamp.
+
+This capability has not moved production recipes or changed the checked seed
+pair. The proven Doom checkpoint remains at 437 CupidBuild and 15 Python
+participations. The generated command still needs its own paired proofs and
+promotion. User compilation remains separate while configurable output-parent
+and pathname support is completed. TempleOS stays reference material;
+IWAD-backed Doom gameplay acceptance remains open.
+
 Make invokes checked `cupidbuild compile-doom` for all 83 approved Doom
 sources: three compatibility roots and 80 Doom-tree roots. It derives the
 profile from source membership, captures the exact source cohort and all

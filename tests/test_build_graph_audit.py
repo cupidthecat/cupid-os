@@ -6389,15 +6389,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 7)
-        self.assertEqual(contract["success_behavior_cases"], 47)
-        self.assertEqual(contract["failure_behavior_cases"], 41)
+        self.assertEqual(contract["success_behavior_cases"], 54)
+        self.assertEqual(contract["failure_behavior_cases"], 46)
         self.assertEqual(contract["tool_c_sources"], 22)
         self.assertEqual(contract["tool_images"], 6)
         self.assertEqual(contract["compared_c_objects"], 22)
         self.assertEqual(contract["compared_tool_images"], 6)
         self.assertEqual(contract["windows_help_cases"], 7)
-        self.assertEqual(contract["windows_success_behavior_cases"], 34)
-        self.assertEqual(contract["windows_failure_behavior_cases"], 29)
+        self.assertEqual(contract["windows_success_behavior_cases"], 41)
+        self.assertEqual(contract["windows_failure_behavior_cases"], 34)
         self.assertEqual(contract["contract_manifest_inputs"], 76)
         self.assertEqual(len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 76)
         self.assertIn(
@@ -6885,9 +6885,99 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
-                '        "success_cases": 47,\n',
+                '        "success_cases": 54,\n',
                 '        "success_cases": 36,\n',
                 r"fixed-point behavior matrix differs",
+            ),
+            "_run_behavior_checks kernel compiler gate moves under a dead block": (
+                "bootstrap",
+                '    _check_cupidbuild_compile_kernel_behavior(\n'
+                '        runner,\n'
+                '        behavior_root,\n'
+                '        stage_two,\n'
+                '        stage_three,\n'
+                '        seed_inputs,\n'
+                '        "",\n'
+                '    )\n',
+                '    if False:\n'
+                '        _check_cupidbuild_compile_kernel_behavior(\n'
+                '            runner,\n'
+                '            behavior_root,\n'
+                '            stage_two,\n'
+                '            stage_three,\n'
+                '            seed_inputs,\n'
+                '            "",\n'
+                '        )\n',
+                r"fixed-point kernel compile behavior differs:.*live code",
+            ),
+            "_run_behavior_checks doom compiler gate moves under a dead block": (
+                "bootstrap",
+                '    _check_cupidbuild_compile_doom_behavior(\n'
+                '        runner, profile_source_root, behavior_root, stage_two, stage_three,\n'
+                '        seed_inputs, "",\n'
+                '    )\n',
+                '    if False:\n'
+                '        _check_cupidbuild_compile_doom_behavior(\n'
+                '            runner, profile_source_root, behavior_root, stage_two, stage_three,\n'
+                '            seed_inputs, "",\n'
+                '        )\n',
+                r"fixed-point Doom compile behavior differs:.*live code",
+            ),
+            "_run_behavior_checks production compiler gate moves under a dead block": (
+                "bootstrap",
+                '    _check_cupidbuild_compile_production_behavior(\n'
+                '        runner, behavior_root, stage_two, stage_three, seed_inputs, "",\n'
+                '    )\n',
+                '    if False:\n'
+                '        _check_cupidbuild_compile_production_behavior(\n'
+                '            runner, behavior_root, stage_two, stage_three, seed_inputs, "",\n'
+                '        )\n',
+                r"fixed-point production compile behavior differs:.*live code",
+            ),
+            "_run_native_windows_behavior_checks kernel compiler gate moves under a dead block": (
+                "bootstrap",
+                '    _check_cupidbuild_compile_kernel_behavior(\n'
+                '        runner,\n'
+                '        behavior_root,\n'
+                '        stage_two,\n'
+                '        stage_three,\n'
+                '        behavior_seed_inputs,\n'
+                '        "native Windows ",\n'
+                '    )\n',
+                '    if False:\n'
+                '        _check_cupidbuild_compile_kernel_behavior(\n'
+                '            runner,\n'
+                '            behavior_root,\n'
+                '            stage_two,\n'
+                '            stage_three,\n'
+                '            behavior_seed_inputs,\n'
+                '            "native Windows ",\n'
+                '        )\n',
+                r"fixed-point kernel compile behavior differs:.*live code",
+            ),
+            "_run_native_windows_behavior_checks doom compiler gate moves under a dead block": (
+                "bootstrap",
+                '    _check_cupidbuild_compile_doom_behavior(\n'
+                '        runner, profile_source_root, behavior_root, stage_two, stage_three,\n'
+                '        behavior_seed_inputs, "native Windows ",\n'
+                '    )\n',
+                '    if False:\n'
+                '        _check_cupidbuild_compile_doom_behavior(\n'
+                '            runner, profile_source_root, behavior_root, stage_two, stage_three,\n'
+                '            behavior_seed_inputs, "native Windows ",\n'
+                '        )\n',
+                r"fixed-point Doom compile behavior differs:.*live code",
+            ),
+            "_run_native_windows_behavior_checks production compiler gate moves under a dead block": (
+                "bootstrap",
+                '    _check_cupidbuild_compile_production_behavior(\n'
+                '        runner, behavior_root, stage_two, stage_three, behavior_seed_inputs, "native Windows ",\n'
+                '    )\n',
+                '    if False:\n'
+                '        _check_cupidbuild_compile_production_behavior(\n'
+                '            runner, behavior_root, stage_two, stage_three, behavior_seed_inputs, "native Windows ",\n'
+                '        )\n',
+                r"fixed-point production compile behavior differs:.*live code",
             ),
             "kernel compile loses failure timestamp preservation": (
                 "bootstrap",
@@ -6921,13 +7011,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "local-target failure count becomes stale": (
                 "bootstrap",
-                '        "failure_cases": 41,\n',
+                '        "failure_cases": 46,\n',
                 '        "failure_cases": 30,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "native Windows linked-target count becomes stale": (
                 "bootstrap",
-                '        "failure_cases": len(tool_names) + 23,\n',
+                '        "failure_cases": len(tool_names) + 28,\n',
                 '        "failure_cases": len(tool_names) + 12,\n',
                 r"native Windows fixed-point behavior differs",
             ),

@@ -3782,16 +3782,16 @@ int main(int argc, char **argv) {
                 ),
                 "plan_seed_manifest_sha256": "3" * 64,
                 "parent_execution_seed_manifest_sha256": (
-                    "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
+                    "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
                 ),
                 "parent_execution_seed_source_revision": (
-                    "16a86f5b1693e017c36c6d902df9946c5d674b17"
+                    "9d2529a718672edcd970f24960535db6ddbde5e4"
                 ),
                 "parent_plan_seed_manifest_sha256": (
-                    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
+                    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
                 ),
                 "parent_plan_seed_source_revision": (
-                    "16a86f5b1693e017c36c6d902df9946c5d674b17"
+                    "9d2529a718672edcd970f24960535db6ddbde5e4"
                 ),
                 "producer_lineage": document["provenance"][
                     "producer_lineage"
@@ -3847,10 +3847,10 @@ int main(int argc, char **argv) {
                 "fixed_point_command": "make bootstrap-from-seed",
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
+                    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
                 ),
                 "parent_seed_source_revision": (
-                    "16a86f5b1693e017c36c6d902df9946c5d674b17"
+                    "9d2529a718672edcd970f24960535db6ddbde5e4"
                 ),
                 "producer_lineage": document["provenance"][
                     "producer_lineage"
@@ -4718,16 +4718,16 @@ int main(int argc, char **argv) {
             root = Path(temporary)
             manifest = self._copy_checked_assembly_seed(root / "seed")
             document = self._promote_seed_contract(manifest)
-            revision = "9d2529a718672edcd970f24960535db6ddbde5e4"
+            revision = "83d00ce70e5607dc5c011bb97c6478121f24a21c"
             if os.name == "nt":
                 document["provenance"].update(
                     {
                         "parent_execution_seed_manifest_sha256": (
-                            "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
+                            "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
                         ),
                         "parent_execution_seed_source_revision": revision,
                         "parent_plan_seed_manifest_sha256": (
-                            "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                            "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
                         ),
                         "parent_plan_seed_source_revision": revision,
                     }
@@ -4736,7 +4736,7 @@ int main(int argc, char **argv) {
                 document["provenance"].update(
                     {
                         "parent_seed_manifest_sha256": (
-                            "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                            "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
                         ),
                         "parent_seed_source_revision": revision,
                     }
@@ -4786,6 +4786,69 @@ int main(int argc, char **argv) {
             self.assertEqual((result.stdout, result.stderr), ("", ""))
             self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
 
+    def test_six_tool_v2_contract_rejects_retired_16a_parent(self):
+        modes = ("execution", "plan", "both") if os.name == "nt" else ("both",)
+        for mode in modes:
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory(
+                prefix=".cupidbuild-retired-16a-", dir=REPO_ROOT
+            ) as temporary:
+                root = Path(temporary)
+                manifest = self._copy_checked_assembly_seed(root / "seed")
+                document = self._promote_seed_contract(manifest)
+                provenance = document["provenance"]
+                retired = "16a86f5b1693e017c36c6d902df9946c5d674b17"
+                linux = "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
+                windows = "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
+                if os.name == "nt":
+                    if mode in ("execution", "both"):
+                        provenance.update(parent_execution_seed_source_revision=retired,
+                                          parent_execution_seed_manifest_sha256=windows)
+                    if mode in ("plan", "both"):
+                        provenance.update(parent_plan_seed_source_revision=retired,
+                                          parent_plan_seed_manifest_sha256=linux)
+                else:
+                    provenance.update(parent_seed_source_revision=retired,
+                                      parent_seed_manifest_sha256=linux)
+                manifest.write_text(json.dumps(document), encoding="utf-8")
+                source = root / "input.asm"
+                source.write_text("bits 32\nsection .text\nret\n", encoding="ascii")
+                output = root / "output.o"
+                output.write_bytes(b"retained object")
+                old_time = output.stat().st_mtime_ns
+                result = self._run_object(source, output, manifest)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn("fixed-point provenance differs", result.stderr)
+                self.assertEqual(output.read_bytes(), b"retained object")
+                self.assertEqual(output.stat().st_mtime_ns, old_time)
+
+    def test_historical_v1_contract_survives_v2_parent_rotation(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidbuild-historical-v1-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            manifest = self._copy_checked_assembly_seed(root / "seed")
+            document = json.loads(manifest.read_text(encoding="utf-8"))
+            legacy = self._legacy_seed_contract(document)
+            for artifact in document["artifacts"]:
+                if artifact["name"] == "cupidbuild":
+                    (manifest.parent / artifact["file"]).unlink()
+            manifest.write_text(json.dumps(legacy), encoding="utf-8")
+            source = root / "input.asm"
+            source.write_text("bits 32\nsection .text\nret\n", encoding="ascii")
+            output = root / "output.o"
+            output.write_bytes(b"retained historical object")
+            result = self._run_object(source, output, manifest)
+            # This synthetic manifest probes the historical parser, not an
+            # authentic v1 tool cohort. Windows also checks its old PE profile.
+            if os.name == "nt":
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(result.stderr,
+                                 "cupidbuild: checked seed execution profile mismatch\n")
+                self.assertEqual(output.read_bytes(), b"retained historical object")
+            else:
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
     def test_six_tool_v2_contract_rejects_parent_and_revision_drift(self):
         def uppercase_revision(document):
             revision = document["provenance"]["source_revision"]
@@ -4804,11 +4867,11 @@ int main(int argc, char **argv) {
                 document["provenance"][
                     "parent_execution_seed_manifest_sha256"
                 ] = (
-                    "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
+                    "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
                 )
             else:
                 document["provenance"]["parent_seed_manifest_sha256"] = (
-                    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                    "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
                 )
 
         def use_retired_v1_execution_parent(document):
@@ -4928,10 +4991,10 @@ int main(int argc, char **argv) {
                     lambda document: document["provenance"].update(
                         {
                             "parent_execution_seed_manifest_sha256": (
-                                "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
+                                "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
                             ),
                             "parent_execution_seed_source_revision": (
-                                "9d2529a718672edcd970f24960535db6ddbde5e4"
+                                "83d00ce70e5607dc5c011bb97c6478121f24a21c"
                             ),
                         }
                     ),

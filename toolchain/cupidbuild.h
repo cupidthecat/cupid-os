@@ -49,6 +49,7 @@ int cupidbuild_embed_jpeg(const cupidbuild_jpeg_request_t *request);
 int cupidbuild_generate_ksyms(const cupidbuild_ksyms_request_t *request);
 int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request);
 int cupidbuild_compile_doom(const cupidbuild_compile_request_t *request);
+int cupidbuild_compile_production(const cupidbuild_compile_request_t *request);
 int cupidbuild_validate_compiler_object_bytes(const unsigned char *bytes,
                                               size_t size);
 int cupidbuild_flatten_kernel(const cupidbuild_kernel_request_t *request);
