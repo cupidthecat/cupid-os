@@ -1,6 +1,5 @@
 import ast
 import os
-import struct
 import subprocess
 import tempfile
 import unittest
@@ -9,19 +8,10 @@ from unittest import mock
 
 from tools import bootstrap_toolchain as bootstrap
 from tools import build_graph_audit
+from tests.test_bootstrap_compile_kernel_behavior import object_bytes
 
 
-def object_bytes(has_code):
-    contents = bytearray(93)
-    contents[:7] = b"\x7fELF\x01\x01\x01"
-    struct.pack_into("<HHI", contents, 16, 1, 3, 1)
-    struct.pack_into("<I", contents, 32, 52)
-    struct.pack_into("<HH", contents, 46, 40, 1)
-    struct.pack_into("<IIIIII", contents, 52, 0, 1, 6 if has_code else 2, 0, 92, 1)
-    return bytes(contents)
-
-
-class CompileRunner:
+class DoomRunner:
     def __init__(self, defect=None):
         self.defect = defect
         self.calls = []
@@ -31,34 +21,33 @@ class CompileRunner:
         root = arguments[arguments.index("--root") + 1]
         manifest = arguments[arguments.index("--seed-manifest") + 1]
         if not manifest.is_relative_to(root):
-            raise AssertionError("manifest must be inside its compiler root")
+            raise AssertionError("manifest must belong to its stage root")
         source = arguments[arguments.index("--source") + 1]
         output = root / arguments[arguments.index("--output") + 1]
         text = (root / source).read_text()
         diagnostic = ""
-        if "broken" in text or "live-only.h" in text:
-            diagnostic = "cupidbuild: checked CupidC failed\n"
-        elif not (root / "kernel/core/types.h").exists():
-            diagnostic = "cupidbuild: closure cannot be captured\n"
+        if "broken" in text or "absent-stage-doom.h" in text:
+            diagnostic = "checked CupidC failed"
+        elif not (root / "kernel/doom/dglibc_compat.h").exists():
+            diagnostic = "checked CupidC failed"
+        elif (not (root / "kernel/doom/src/info.cc").exists()
+              or (root / "kernel/doom/legacy.c").exists()):
+            diagnostic = "approved source cohort differs"
         if diagnostic:
             if self.defect == "failure bytes":
                 output.write_bytes(b"overwritten")
             if self.defect == "failure timestamp":
                 stat = output.stat()
                 os.utime(output, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
-            if self.defect == "diagnostic":
-                diagnostic = "unexpected failure\n"
-            if self.defect == "live fallback" and "live-only.h" in text:
-                output.write_bytes(object_bytes(False))
+            if self.defect == "missing diagnostic":
+                diagnostic = ""
+            if self.defect == "accept missing include" and "absent-stage-doom.h" in text:
                 return subprocess.CompletedProcess([], 0, "", "")
             return subprocess.CompletedProcess([], 1, "", diagnostic)
-        has_code = source == "kernel/core/string.cc"
-        if self.defect == "data code" and not has_code:
-            has_code = True
-        payload = object_bytes(has_code)
+        payload = object_bytes(True) + (b"tree" if "/src/" in source else b"compat")
         if self.defect == "different stages" and executable.parent.name == "stage-four":
             payload += b"different"
-        if self.defect == "recovery" and len(self.calls) > 12:
+        if self.defect == "recovery" and len(self.calls) > 16:
             payload += b"different"
         if self.defect == "invalid object":
             payload = b"invalid ELF"
@@ -69,39 +58,34 @@ class CompileRunner:
         return subprocess.CompletedProcess([], 0, "", "")
 
 
-class CompileKernelBehaviorTests(unittest.TestCase):
+class CompileDoomBehaviorTests(unittest.TestCase):
     def run_behavior(self, runner):
-        with tempfile.TemporaryDirectory(prefix="cupid-compile-behavior-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="cupid-doom-behavior-") as temporary:
             root = Path(temporary)
-            stages = (
-                bootstrap.Stage({}, {name: Path("stage-three") / name
-                                     for name in bootstrap.CANDIDATE_TOOL_NAMES}),
-                bootstrap.Stage({}, {name: Path("stage-four") / name
-                                     for name in bootstrap.CANDIDATE_TOOL_NAMES}),
-            )
-            with mock.patch.object(
-                bootstrap, "_materialize_behavior_seed",
-                side_effect=lambda inputs, directory, name, stage:
-                    directory / name / "manifest.json",
-            ) as materialize:
-                bootstrap._check_cupidbuild_compile_kernel_behavior(
-                    runner, root, *stages,
-                    mock.sentinel.seed_inputs, "test ",
-                )
+            stages = tuple(bootstrap.Stage({}, {name: Path(stage) / name
+                           for name in bootstrap.CANDIDATE_TOOL_NAMES})
+                           for stage in ("stage-three", "stage-four"))
+            with mock.patch.object(bootstrap, "_materialize_behavior_seed",
+                    side_effect=lambda inputs, directory, name, stage:
+                    directory / name / "manifest.json") as materialize, mock.patch.object(
+                    bootstrap, "_materialize_cupidbuild_profile_behavior_root") as profiles:
+                bootstrap._check_cupidbuild_compile_doom_behavior(
+                    runner, mock.sentinel.source_root, root, *stages,
+                    mock.sentinel.seed_inputs, "test ")
                 self.assertEqual(materialize.call_count, 2)
+                self.assertEqual(profiles.call_count, 2)
                 for index, call in enumerate(materialize.call_args_list):
                     self.assertEqual(call.args[0], mock.sentinel.seed_inputs)
-                    self.assertEqual(call.args[1], root / "cupidbuild-compile-kernel" /
-                                     ("stage-three-root" if index == 0 else "stage-four-root"))
                     self.assertEqual(call.args[2], "seed")
                     self.assertIs(call.args[3], stages[index])
+                    self.assertEqual(profiles.call_args_list[index].args,
+                                     (mock.sentinel.source_root, call.args[1]))
 
-    def test_compares_both_generations_for_success_failures_and_recovery(self):
-        runner = CompileRunner()
+    def test_compares_profiles_replay_failures_and_recovery(self):
+        runner = DoomRunner()
         self.run_behavior(runner)
-        self.assertEqual(len(runner.calls), 14)
-        self.assertEqual([timeout for _, _, timeout in runner.calls],
-                         [190, 190, 610, 610, 190, 190, 190, 190, 190, 190, 190, 190, 190, 190])
+        self.assertEqual(len(runner.calls), 20)
+        self.assertTrue(all(timeout == 190 for _, _, timeout in runner.calls))
         for first, second in zip(runner.calls[::2], runner.calls[1::2]):
             self.assertEqual(first[0].parent.name, "stage-three")
             self.assertEqual(second[0].parent.name, "stage-four")
@@ -111,19 +95,16 @@ class CompileKernelBehaviorTests(unittest.TestCase):
         for defect, message in (
             ("failure bytes", "failure preservation differs"),
             ("failure timestamp", "failure preservation differs"),
-            ("diagnostic", "failure preservation differs"),
-            ("live fallback", "returned 0, expected 1"),
-            ("data code", "code/data policy differs"),
+            ("missing diagnostic", "failure preservation differs"),
+            ("accept missing include", "returned 0, expected 1"),
             ("different stages", "output differs"),
             ("recovery", "output differs"),
             ("replay timestamp", "rewrote an unchanged object"),
             ("invalid object", "not little-endian ELF32"),
             ("cleanup", "left transaction files"),
         ):
-            with self.subTest(defect=defect), self.assertRaisesRegex(
-                bootstrap.BootstrapError, message
-            ):
-                self.run_behavior(CompileRunner(defect))
+            with self.subTest(defect=defect), self.assertRaisesRegex(bootstrap.BootstrapError, message):
+                self.run_behavior(DoomRunner(defect))
 
     def test_linux_and_windows_matrices_call_the_same_gate_once(self):
         tree = ast.parse(Path(bootstrap.__file__).read_text(encoding="utf-8"))
@@ -132,33 +113,31 @@ class CompileKernelBehaviorTests(unittest.TestCase):
                             if isinstance(node, ast.FunctionDef) and node.name == name)
             calls = [node for node in ast.walk(function) if isinstance(node, ast.Call)
                      and isinstance(node.func, ast.Name)
-                     and node.func.id == "_check_cupidbuild_compile_kernel_behavior"]
+                     and node.func.id == "_check_cupidbuild_compile_doom_behavior"]
             self.assertEqual(len(calls), 1, name)
+            self.assertEqual(calls[0].args[1].id, "profile_source_root")
 
-    def test_audit_rejects_lost_preservation_recovery_and_seed_binding(self):
+    def test_audit_rejects_lost_preservation_recovery_and_stage_binding(self):
         root = Path(__file__).resolve().parents[1]
-        bootstrap_path = root / "tools/bootstrap_toolchain.py"
+        path = root / "tools/bootstrap_toolchain.py"
         original_read = Path.read_text
-        original = original_read(bootstrap_path, encoding="utf-8")
+        original = original_read(path, encoding="utf-8")
         contract = build_graph_audit._cupid_toolchain_fixed_point_contract(root)
         self.assertEqual(contract["success_behavior_cases"], 47)
         self.assertEqual(contract["windows_success_behavior_cases"], 34)
         for old, new in (
-            ("tuple(output.stat().st_mtime_ns for output in outputs) != before", "False"),
-            ("success(code_source, expected=expected_code)", "success(code_source)"),
-            ('_materialize_behavior_seed(seed_inputs, roots[1], "seed", stage_three)',
-             '_materialize_behavior_seed(seed_inputs, roots[1], "seed", stage_two)'),
+            ("tuple(output.stat().st_mtime_ns for output in outputs) != timestamps", "False"),
+            ("success(tree_source, expected_tree)", "success(tree_source)"),
+            ('_materialize_behavior_seed(seed_inputs, root, "seed", stage)',
+             '_materialize_behavior_seed(seed_inputs, root, "seed", stage_two)'),
         ):
             with self.subTest(fragment=old):
                 self.assertEqual(original.count(old), 1)
                 changed = original.replace(old, new, 1)
-
-                def read_text(path, *args, **kwargs):
-                    return changed if path == bootstrap_path else original_read(path, *args, **kwargs)
-
+                def read_text(candidate, *args, **kwargs):
+                    return changed if candidate == path else original_read(candidate, *args, **kwargs)
                 with mock.patch.object(Path, "read_text", read_text), self.assertRaisesRegex(
-                    build_graph_audit.AuditError, "fixed-point kernel compile behavior differs"
-                ):
+                        build_graph_audit.AuditError, "fixed-point Doom compile behavior differs"):
                     build_graph_audit._cupid_toolchain_fixed_point_contract(root)
 
 

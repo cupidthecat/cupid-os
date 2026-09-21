@@ -123,10 +123,10 @@ def _manifest():
             "fixed_point_command": "make bootstrap-from-seed",
             "fixed_point_result": "pass",
             "parent_seed_manifest_sha256": (
-                "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
             ),
             "parent_seed_source_revision": (
-                "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+                "16a86f5b1693e017c36c6d902df9946c5d674b17"
             ),
             "producer_lineage": {
                 "assembly": "stage-three CupidASM from the checked-seed bootstrap",
@@ -169,16 +169,16 @@ def _windows_manifest(parent_manifest_sha256):
                 "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
             ),
             "parent_execution_seed_manifest_sha256": (
-                "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+                "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
             ),
             "parent_execution_seed_source_revision": (
-                "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+                "16a86f5b1693e017c36c6d902df9946c5d674b17"
             ),
             "parent_plan_seed_manifest_sha256": (
-                "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+                "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
             ),
             "parent_plan_seed_source_revision": (
-                "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+                "16a86f5b1693e017c36c6d902df9946c5d674b17"
             ),
             "plan_seed_manifest_sha256": parent_manifest_sha256,
             "producer_lineage": {
@@ -374,10 +374,10 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         manifest = _manifest()
         manifest["provenance"]["source_input_count"] = 59
         manifest["provenance"]["parent_seed_manifest_sha256"] = (
-            "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+            "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
         )
         manifest["provenance"]["parent_seed_source_revision"] = (
-            "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+            "16a86f5b1693e017c36c6d902df9946c5d674b17"
         )
         manifest_bytes = _json_bytes(manifest)
         manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
@@ -386,19 +386,19 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         windows_manifest["provenance"][
             "parent_execution_seed_manifest_sha256"
         ] = (
-            "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
+            "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
         )
         windows_manifest["provenance"][
             "parent_execution_seed_source_revision"
-        ] = "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+        ] = "16a86f5b1693e017c36c6d902df9946c5d674b17"
         windows_manifest["provenance"][
             "parent_plan_seed_manifest_sha256"
         ] = (
-            "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
+            "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
         )
         windows_manifest["provenance"][
             "parent_plan_seed_source_revision"
-        ] = "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
+        ] = "16a86f5b1693e017c36c6d902df9946c5d674b17"
 
         result = self.run_request(
             _request(
@@ -413,12 +413,12 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(result.stderr, "")
 
     def test_active_seed_parent_pair_is_accepted_for_the_next_promotion(self):
-        revision = "16a86f5b1693e017c36c6d902df9946c5d674b17"
+        revision = "9d2529a718672edcd970f24960535db6ddbde5e4"
         manifest = _manifest()
         manifest["provenance"].update(
             {
                 "parent_seed_manifest_sha256": (
-                    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
+                    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
                 ),
                 "parent_seed_source_revision": revision,
             }
@@ -429,11 +429,11 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         windows_manifest["provenance"].update(
             {
                 "parent_execution_seed_manifest_sha256": (
-                    "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
+                    "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
                 ),
                 "parent_execution_seed_source_revision": revision,
                 "parent_plan_seed_manifest_sha256": (
-                    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
+                    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
                 ),
                 "parent_plan_seed_source_revision": revision,
             }
@@ -455,7 +455,7 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
     def test_promoted_linux_parent_digest_and_revision_cannot_be_mixed(self):
         manifest = _manifest()
         manifest["provenance"]["parent_seed_manifest_sha256"] = (
-            "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
+            "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
         )
         self.assert_contract_failure(_request(manifest=manifest))
 
@@ -463,11 +463,11 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         promoted_parents = (
             (
                 "parent_execution_seed_manifest_sha256",
-                "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc",
+                "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a",
             ),
             (
                 "parent_plan_seed_manifest_sha256",
-                "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d",
+                "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e",
             ),
         )
         for field, digest in promoted_parents:
@@ -487,17 +487,17 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                 )
 
     def test_windows_execution_and_plan_parents_must_share_a_generation(self):
-        active_revision = "16a86f5b1693e017c36c6d902df9946c5d674b17"
+        active_revision = "9d2529a718672edcd970f24960535db6ddbde5e4"
         active_parents = (
             {
                 "parent_execution_seed_manifest_sha256": (
-                    "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
+                    "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
                 ),
                 "parent_execution_seed_source_revision": active_revision,
             },
             {
                 "parent_plan_seed_manifest_sha256": (
-                    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
+                    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
                 ),
                 "parent_plan_seed_source_revision": active_revision,
             },
@@ -574,10 +574,10 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         manifest["provenance"].update(
             {
                 "parent_seed_manifest_sha256": (
-                    "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
                 ),
                 "parent_seed_source_revision": (
-                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
                 ),
             }
         )
@@ -589,12 +589,12 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
             (
                 "parent_execution_seed_manifest_sha256",
                 "parent_execution_seed_source_revision",
-                "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db",
+                "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4",
             ),
             (
                 "parent_plan_seed_manifest_sha256",
                 "parent_plan_seed_source_revision",
-                "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae",
+                "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781",
             ),
         )
         for digest_field, revision_field, digest in retired_parents:
@@ -607,7 +607,7 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                     {
                         digest_field: digest,
                         revision_field: (
-                            "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                            "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
                         ),
                     }
                 )
@@ -628,16 +628,16 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         windows_manifest["provenance"].update(
             {
                 "parent_execution_seed_manifest_sha256": (
-                    "bf6147cf2e8249372869a24e5b8477ffb785d9a48eef80209366cfbaff19c7db"
+                    "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4"
                 ),
                 "parent_execution_seed_source_revision": (
-                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
                 ),
                 "parent_plan_seed_manifest_sha256": (
-                    "770f979407f930deba0c9ba887bcd14f2350a785b1c0df6b31ddc2659c46eaae"
+                    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781"
                 ),
                 "parent_plan_seed_source_revision": (
-                    "9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6"
+                    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd"
                 ),
             }
         )

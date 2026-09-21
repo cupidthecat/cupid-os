@@ -11338,9 +11338,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 36,
+        "failure_cases": 41,
         "help_cases": 7,
-        "success_cases": 42,
+        "success_cases": 47,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -11398,6 +11398,46 @@ def _cupid_toolchain_fixed_point_contract(
                 "Cupid Toolchain fixed-point kernel compile behavior differs: "
                 f"{matrix_name} must call the shared gate once"
             )
+    doom_helpers = [node for node in bootstrap_tree.body
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name == "_check_cupidbuild_compile_doom_behavior"]
+    doom_source = (ast.get_source_segment(bootstrap_source, doom_helpers[0]) or ""
+                   if len(doom_helpers) == 1 else "")
+    doom_fragments = (
+        'stages = (stage_two, stage_three)',
+        'zip(roots, stages)',
+        '_materialize_behavior_seed(seed_inputs, root, "seed", stage)',
+        '_materialize_cupidbuild_profile_behavior_root(source_root, root)',
+        '"compile-doom", "--seed-manifest", manifests[index]',
+        'arguments(0, source), arguments(1, source), 190',
+        'expected_compat = success(compat_source)',
+        'expected_tree = success(tree_source)',
+        'success(compat_source, expected_compat)',
+        'success(tree_source, expected_tree)',
+        'contents != outputs[1].read_bytes()',
+        'contents != expected',
+        'tuple(output.stat().st_mtime_ns for output in compat_outputs) != replay_times',
+        'tuple(output.stat().st_mtime_ns for output in outputs) != timestamps',
+        'any(output.read_bytes() != sentinel for output in outputs)',
+        'not result.stderr',
+        'path.name.startswith(".cupidbuild-")',
+        'path.name.endswith(".cupidbuild.lock")',
+        'absent-stage-doom.h',
+        'kernel/doom/legacy.c',
+        '(root / forced_header).unlink()',
+        '(root / tree_source).rename(',
+        'failure(tree_source, "checked CupidC failed")',
+    )
+    if any(fragment not in doom_source for fragment in doom_fragments):
+        raise AuditError("Cupid Toolchain fixed-point Doom compile behavior differs")
+    for matrix_name in ("_run_behavior_checks", "_run_native_windows_behavior_checks"):
+        matrix = next(node for node in bootstrap_tree.body
+                      if isinstance(node, ast.FunctionDef) and node.name == matrix_name)
+        if sum(isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+               and node.func.id == "_check_cupidbuild_compile_doom_behavior"
+               for node in ast.walk(matrix)) != 1:
+            raise AuditError("Cupid Toolchain fixed-point Doom compile behavior differs: "
+                             f"{matrix_name} must call the shared gate once")
     candidate_image_helper_names = (
         "_file_backed_entry_offset",
         "_corrupt_candidate_entry_instruction",
@@ -15322,10 +15362,10 @@ def _cupid_toolchain_fixed_point_contract(
         native_windows_sources["_run_native_windows_behavior_checks"].count(
             "behavior_seed_inputs,"
         )
-        != 8
+        != 9
     ):
         missing_native_windows_fragments.append(
-            "_run_native_windows_behavior_checks: eight checked CupidBuild "
+            "_run_native_windows_behavior_checks: nine checked CupidBuild "
             "operations use the plan-matched behavior seed"
         )
 
@@ -15346,9 +15386,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 18, "
+            "'failure_cases': len(tool_names) + 23, "
             "'help_cases': len(tool_names) + 1, "
-            "'success_cases': len(tool_names) + 23"
+            "'success_cases': len(tool_names) + 28"
             "}",
             mode="eval",
         ).body
@@ -15364,8 +15404,8 @@ def _cupid_toolchain_fixed_point_contract(
             expected_native_windows_behavior, include_attributes=False
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return twenty-four failure, "
-                "seven help, and twenty-nine success cases"
+                "_run_native_windows_behavior_checks: return twenty-nine failure, "
+                "seven help, and thirty-four success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -16048,8 +16088,8 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 7,
-        "windows_success_behavior_cases": 29,
-        "windows_failure_behavior_cases": 24,
+        "windows_success_behavior_cases": 34,
+        "windows_failure_behavior_cases": 29,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_checked_cupidc_runner",

@@ -6728,9 +6728,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 24,
+                    "failure_cases": 29,
                     "help_cases": 7,
-                    "success_cases": 29,
+                    "success_cases": 34,
                 },
             )
             candidate_linux_plan = _candidate_build_plan(
@@ -7308,9 +7308,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            36,
+            41,
         )
-        self.assertEqual(returned["success_cases"].value, 42)
+        self.assertEqual(returned["success_cases"].value, 47)
         self.assertIsInstance(returned["help_cases"], ast.BinOp)
         self.assertIsInstance(returned["help_cases"].op, ast.Add)
         self.assertEqual(returned["help_cases"].right.value, 1)
@@ -11153,9 +11153,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 36,
+                    "failure_cases": 41,
                     "help_cases": 7,
-                    "success_cases": 42,
+                    "success_cases": 47,
                 },
             )
             self.assertEqual(

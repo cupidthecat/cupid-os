@@ -14,6 +14,12 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 
 ## Current features
 
+Source-head `cupidbuild compile-doom` captures and compiles all 83 approved
+Doom sources under their existing profiles. Its filtered directory checks
+allow parallel object publication and reject source/header drift. Paired
+bootstrap proofs and seed promotion remain necessary before the normal Doom
+recipes can adopt it. See [ADR 0394](docs/adr/0394-compile-doom-with-filtered-discovery.md).
+
 The bootstrap branch now runs all 157 kernel-profile compiler recipes through
 checked `cupidbuild compile-kernel`. CupidC compiles captured source bundles
 with the original logical paths and no live-file fallback. Both Linux and

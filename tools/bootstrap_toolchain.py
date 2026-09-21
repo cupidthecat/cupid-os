@@ -3752,6 +3752,134 @@ def _check_cupidbuild_compile_kernel_behavior(
     success(code_source, expected=expected_code)
 
 
+def _check_cupidbuild_compile_doom_behavior(
+    runner: ToolRunner,
+    source_root: Path,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+    seed_inputs: SeedInputs,
+    label_prefix: str,
+) -> None:
+    compile_root = behavior_root / "cupidbuild-compile-doom"
+    compile_root.mkdir()
+    roots = tuple(compile_root / name for name in ("stage-three-root", "stage-four-root"))
+    stages = (stage_two, stage_three)
+    manifests = []
+    for root, stage in zip(roots, stages):
+        root.mkdir()
+        _materialize_cupidbuild_profile_behavior_root(source_root, root)
+        manifests.append(_materialize_behavior_seed(seed_inputs, root, "seed", stage))
+    compat_source = "kernel/doom/dglibc.cc"
+    tree_source = "kernel/doom/src/info.cc"
+    forced_header = "kernel/doom/dglibc_compat.h"
+    shared = (
+        '#ifdef DEBUG\n#error DEBUG must be absent\n#endif\n'
+        '#include "stage-doom.inc"\n'
+        'const char *closed_doom_file = __FILE__;\n'
+    )
+    fixtures = {
+        compat_source: shared + (
+            '#ifdef DOOM_PORT_CUPIDOS\n#error tree flag in compatibility profile\n#endif\n'
+            '#ifdef CLOSED_DOOM_FORCED\n#error forced include in compatibility profile\n#endif\n'
+            'unsigned int closed_doom_compat(void) { return CLOSED_DOOM_VALUE; }\n'
+        ),
+        tree_source: shared + (
+            '#if DOOM_PORT_CUPIDOS != 1\n#error missing Doom port flag\n#endif\n'
+            '#ifndef CLOSED_DOOM_FORCED\n#error missing forced include\n#endif\n'
+            'const char *closed_doom_save_directory = DEFAULT_SAVEGAMEDIR;\n'
+            'unsigned int closed_doom_tree(void) {\n'
+            '    return CLOSED_DOOM_VALUE + CLOSED_DOOM_FORCED;\n' ' }\n'
+        ),
+        forced_header: '#define CLOSED_DOOM_FORCED 7u\n',
+        "kernel/doom/src/include_stubs/stage-doom.inc": '#define CLOSED_DOOM_VALUE 42u\n',
+    }
+    for root in roots:
+        for logical, contents in fixtures.items():
+            path = root / logical
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(contents, encoding="ascii", newline="\n")
+
+    def output_paths(source: str) -> tuple[Path, ...]:
+        return tuple(root / Path(source).with_suffix(".o") for root in roots)
+
+    def arguments(index: int, source: str) -> list[str | Path]:
+        return [
+            "compile-doom", "--seed-manifest", manifests[index],
+            "--root", roots[index], "--source", source,
+            "--output", Path(source).with_suffix(".o").as_posix(),
+        ]
+
+    def compile_pair(source: str) -> subprocess.CompletedProcess[str]:
+        result = _run_stage_pair(
+            runner, stage_two, stage_three, "cupidbuild",
+            arguments(0, source), arguments(1, source), 190,
+        )
+        for root in roots:
+            if any(path.name.startswith(".cupidbuild-")
+                   or path.name.endswith(".cupidbuild.lock") for path in root.rglob("*")):
+                raise BootstrapError(f"{label_prefix}CupidBuild Doom compile left transaction files")
+        return result
+
+    def success(source: str, expected: bytes | None = None) -> bytes:
+        result = compile_pair(source)
+        _expect_status(result, 0, f"{label_prefix}CupidBuild Doom compile")
+        outputs = output_paths(source)
+        contents = outputs[0].read_bytes()
+        if (result.stdout or result.stderr or contents != outputs[1].read_bytes()
+                or (expected is not None and contents != expected)):
+            raise BootstrapError(f"{label_prefix}CupidBuild Doom compile output differs")
+        for output in outputs:
+            _validate_i386_relocatable(output)
+        return contents
+
+    expected_compat = success(compat_source)
+    expected_tree = success(tree_source)
+    compat_outputs = output_paths(compat_source)
+    for output in compat_outputs:
+        os.utime(output, ns=(1_600_000_000_000_000_000,) * 2)
+    replay_times = tuple(output.stat().st_mtime_ns for output in compat_outputs)
+    success(compat_source, expected_compat)
+    if tuple(output.stat().st_mtime_ns for output in compat_outputs) != replay_times:
+        raise BootstrapError(f"{label_prefix}CupidBuild Doom compile rewrote an unchanged object")
+
+    def failure(source: str, diagnostic: str) -> None:
+        outputs = output_paths(source)
+        sentinel = b"preserved CupidBuild Doom object\n"
+        for output in outputs:
+            output.write_bytes(sentinel)
+        timestamps = tuple(output.stat().st_mtime_ns for output in outputs)
+        result = compile_pair(source)
+        _expect_status(result, 1, f"{label_prefix}CupidBuild Doom compile failure")
+        if (result.stdout or not result.stderr or diagnostic not in result.stderr
+                or any(output.read_bytes() != sentinel for output in outputs)
+                or tuple(output.stat().st_mtime_ns for output in outputs) != timestamps):
+            raise BootstrapError(f"{label_prefix}CupidBuild Doom compile failure preservation differs")
+
+    for root in roots:
+        (root / compat_source).write_text("int broken( {\n", encoding="ascii")
+    failure(compat_source, "checked CupidC failed")
+    for root in roots:
+        (root / compat_source).write_text('#include "absent-stage-doom.h"\n', encoding="ascii")
+    failure(compat_source, "checked CupidC failed")
+    for root in roots:
+        (root / compat_source).write_text(fixtures[compat_source], encoding="ascii")
+        (root / forced_header).unlink()
+    failure(tree_source, "checked CupidC failed")
+    for root in roots:
+        (root / forced_header).write_text(fixtures[forced_header], encoding="ascii")
+        (root / tree_source).rename(root / (tree_source + ".saved"))
+    failure(compat_source, "")
+    for root in roots:
+        (root / (tree_source + ".saved")).rename(root / tree_source)
+        (root / "kernel/doom/legacy.c").write_text("int legacy;\n", encoding="ascii")
+    failure(compat_source, "")
+    for root in roots:
+        (root / "kernel/doom/legacy.c").unlink()
+    success(compat_source, expected_compat)
+    success(tree_source, expected_tree)
+
+
 def _check_cupidbuild_embed_jpeg_behavior(
     runner: ToolRunner,
     source_root: Path,
@@ -4855,6 +4983,11 @@ def _run_native_windows_behavior_checks(
         raise BootstrapError(
             "native Windows profile behavior source root is unavailable"
         )
+    _check_cupidbuild_compile_doom_behavior(
+        runner, profile_source_root, behavior_root, stage_two, stage_three,
+        behavior_seed_inputs, "native Windows ",
+    )
+
     _check_cupidbuild_generate_profile_behavior(
         runner,
         profile_source_root,
@@ -5093,9 +5226,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 18,
+        "failure_cases": len(tool_names) + 23,
         "help_cases": len(tool_names) + 1,
-        "success_cases": len(tool_names) + 23,
+        "success_cases": len(tool_names) + 28,
     }
 
 
@@ -5882,6 +6015,11 @@ def _run_behavior_checks(
 
     if profile_source_root is None:
         raise BootstrapError("profile behavior source root is unavailable")
+    _check_cupidbuild_compile_doom_behavior(
+        runner, profile_source_root, behavior_root, stage_two, stage_three,
+        seed_inputs, "",
+    )
+
     _check_cupidbuild_generate_profile_behavior(
         runner,
         profile_source_root,
@@ -8631,9 +8769,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 36,
+        "failure_cases": 41,
         "help_cases": len(tool_names) + 1,
-        "success_cases": 42,
+        "success_cases": 47,
     }
 
 

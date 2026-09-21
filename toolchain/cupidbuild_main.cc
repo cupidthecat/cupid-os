@@ -23,6 +23,8 @@ static void cupidbuild_usage(FILE *stream) {
       "--output OUTPUT\n"
       "       cupidbuild compile-kernel "
       "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
+      "       cupidbuild compile-doom "
+      "--seed-manifest MANIFEST --root ROOT --source SOURCE --output OUTPUT\n"
       "       cupidbuild generate-profile-manifest "
       "--seed-manifest MANIFEST --root ROOT --output OUTPUT\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
@@ -112,6 +114,8 @@ int main(int argc, char **argv) {
       operation = 8;
     } else if (strcmp(argv[1], "compile-kernel") == 0) {
       operation = 9;
+    } else if (strcmp(argv[1], "compile-doom") == 0) {
+      operation = 10;
     }
   }
   if (operation != 0) {
@@ -182,6 +186,9 @@ int main(int argc, char **argv) {
     }
     if (operation == 9) {
       return cupidbuild_compile_kernel(&request);
+    }
+    if (operation == 10) {
+      return cupidbuild_compile_doom(&request);
     }
     return cupidbuild_generate_profile_manifest(&profile_request);
   }

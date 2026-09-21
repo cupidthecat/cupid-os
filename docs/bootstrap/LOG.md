@@ -37019,3 +37019,262 @@ corrected replay, not one uninterrupted successful validator invocation.
 No kernel input, embedded manual, or size-policy value changed during the
 validator repairs. Full Doom gameplay acceptance and the remaining 98 Python
 participations remain open.
+
+
+## 2026-09-20 native Doom compilation coordinator
+
+Issue #34's next compiler boundary is the 83 Doom sources already owned by
+CupidC. Source-head CupidBuild now selects their exact compatibility or tree
+profile, freezes the complete discovered cohort and headers, and sends the
+selected source plus headers through a closed CUPSRC1 bundle. Both profiles
+retain the 180-second deadline. The tree profile keeps its forced include and
+Doom definitions; neither profile enables DEBUG. No active source changed or
+needed renaming: all 83 roots already use `.cc`.
+
+The transaction shares kernel compilation's serializer, checked compiler
+launch, ELF32 validation, source/output binding, unchanged-output handling,
+locks, and rollback. Doom uses allocated capture records and the existing
+512-input and 64 MiB bounds. It rechecks the filtered source/header membership,
+all captured bytes, and retained directory identities before launch and at
+publication boundaries. Concurrent object and private-file writes may change
+directory times. Strict profile-manifest publication still requires its full
+directory snapshots.
+
+The initial normal-build attempt ran while this implementation was changing a
+captured header. The checked profile publisher rejected the drift with
+`checked seed inputs changed while checked tools ran`; the attempt did not
+publish a new image. Subsequent normal-build evidence is recorded below after
+the source and test fixtures settle.
+
+The host-boundary suite passed ten cases on Windows and ten on native Linux.
+It permits unrelated object/private files and rejects changed, added, or
+removed headers, changed sources, legacy `.c` files, matching non-files, and
+replaced directories. Four existing strict profile tests also passed,
+including unchanged-output reuse and directory/content publication races.
+Both native warning-profile builds passed.
+
+Review caught a test hook that labeled the second discovery boundary as
+prelaunch even though the first boundary now runs before compilation. Compiler
+tests now pause at boundary one; strict profile tests retain boundary two.
+The tests also check that the compiler-launch signal remains absent when a
+prelaunch mutation is rejected. Review requested an aggregate bundle-overflow
+case because one oversized header only exercised the per-file reader limit.
+
+The shared staged Doom gate adds five failure and five success groups. The
+source inventories become 41/7/47 failure/help/success groups on Linux and
+29/7/34 on Windows. Each compared stage supplies its own six-tool cohort.
+A native-host preflight passed all twenty paired command invocations with
+checked i386 compiler cohorts. It used the same checked generation in both
+slots, so this is a helper-execution check, not a fixed-point proof. An earlier
+attempt to place the native x64 coordinator in a checked cohort correctly
+failed the execution-profile check; the successful preflight redirected only
+the coordinator invocation.
+
+The production seeds and Make recipes remain unchanged at this source step.
+The build graph still has 354 CupidBuild and 98 Python participations. Paired
+proofs, seed promotion, and the 83-recipe handoff remain separate work. Full
+IWAD-backed gameplay acceptance remains open. ADR 0394 records the policy.
+
+## 2026-09-20: staged Doom behavior and the next parent window
+
+Both fixed-point drivers now call a shared Doom compiler check. Each compared
+stage supplies its own complete six-tool seed. The fixtures cover compatibility
+and tree arguments, include-stub lookup, forced headers, `DEBUG` absence,
+unchanged timestamps, five failures with output preservation, cleanup, and
+recovery of both objects. The resulting expected inventories are 41/7/47 on
+Linux and 29/7/34 on Windows for failure/help/success groups.
+
+The eight focused kernel/Doom behavior tests pass, including injected stage
+mismatches, timestamp rewrites, invalid ELF output, failed recovery, missing
+diagnostics, overwritten destinations, and leaked locks. Three existing
+bootstrap matrix regression tests also pass. A direct native host-coordinator
+preflight completes all twenty command invocations with the checked compiler
+and inspector in separate captured cohorts. It uses the same checked tool
+generation in both slots and is not a staged convergence proof.
+
+An initial preflight put the host x64 coordinator into the i386 seed manifest.
+The reader correctly rejected it with `checked seed execution profile
+mismatch`. The successful preflight redirects only coordinator execution to
+the native host build and retains the complete checked i386 seed in each
+transaction. The fixed-point driver itself has no such redirection.
+
+CupidBuild and the artifact-size reader now accept `16a86f5b` and `9d2529a7`
+as adjacent promoted-parent generations. Digest/revision pairing and the
+shared Windows execution/plan generation remain required. The retired
+`0232cb57` pair is covered by rejection tests. ADR 0395 records this prerequisite
+for the next seed refresh. No seed or production recipe changes in this step.
+
+The updated artifact-size contract suite and the two focused CupidBuild
+parent tests pass: 38 tests in 12.140 seconds. They exercise the next parent,
+retired parents, mismatched digests/revisions, and mixed Windows generations.
+The full fixed-point audit mutation test also passes in 380.607 seconds;
+it rejects changes that would remove required proof evidence.
+
+
+The first shared-publisher regression run completed 167 cases with 21 platform
+skips and one cleanup-inventory failure. A concurrent normal build removed
+one of its own root transaction directories between that test's before/after
+snapshots. The same build stopped when strict profile rediscovery observed
+concurrent test namespace changes. These checks must run separately when they
+inspect the real repository. The failure did not justify relaxing production
+checks; the affected test and normal build are rerun separately below.
+
+The artifact-policy modules passed 70 tests with four platform skips before
+the parent-window update. The parent-window follow-up passed the 38 relevant
+artifact-contract and seed-parent tests. Windows's refreshed five-method
+Doom run passed the explicit profile probes, junction rejection, eighteen
+input-change cases, unrelated object writes at three transaction boundaries,
+and concurrent distinct output compiles. A later two-method run proved
+prelaunch rejection without executing the compiler and rejected an aggregate
+66 MiB bundle made from individually valid headers. Full all-source and
+cross-platform results follow below.
+
+Native Linux's optional GCC oracle build reported the existing
+`maybe-uninitialized` warning in `cir_lower_floating_update` for `old.kind`
+and `old.type`. The isolated test checkout uses Clang for its host oracle.
+The production sources and checked CupidC path are unchanged by that choice.
+
+
+After the new coordinator declarations and canonical LF normalization, the
+live capture has 304 headers and includes totaling 926,732 content bytes.
+The largest compatibility bundle is 1,004,250 bytes (`dglibc.cc`);
+the largest tree bundle is 1,076,645 bytes
+(`src/info.cc`). Each contains 305 records. Capturing all 83 sources, those
+headers, and the seed uses 394 transaction inputs. The original audit table
+is labeled as its earlier snapshot rather than presenting its smaller byte
+counts as current measurements.
+
+Audit regeneration passes every contract. The generated active preprocessor
+manifest is byte-identical to the checked file, so it was not rewritten during
+the production build. The isolated retry of the profile-manifest parity test
+passes in 12.482 seconds after the competing build transaction has exited.
+
+The kernel compiler regression suite passes all 13 tests in 1,680.736 seconds,
+including byte parity for all 157 kernel-profile objects. The combined staged
+behavior and graph-audit run executes 129 tests; its only failure is the old
+active-source `sizeof` count. The new coordinator raises that inventory from
+6,895 to 6,909. After updating the expected count, the affected audit test
+passes in 275.084 seconds. `make check-bootstrap-audit` also passes.
+
+The final Doom test file has 21 methods. Windows passes all 21 across the
+initial suite and focused follow-ups. Native Linux passes 20 and skips the
+Windows junction case. Both hosts compare all 83 objects against the exact
+existing profiles and execute coordinators compiled by checked CupidC and
+linked by CupidASM/CupidLD. The follow-ups cover the final race hooks and
+new overflow and closed-include cases. The retained coverage notes identify
+the source revisions used by each run; these split runs do not replace the
+paired proofs of the eventual committed snapshot. Evidence is under
+`build/bootstrap/20260920-doom-test-evidence/`.
+
+An audit of the remaining recipes projects 15 Python participations after
+the 83 Doom handoffs: six compilations, three user links, disk and ISO
+publication, three verification operations, and Toolchain build/manifest
+publication. The six compilations are the generated bin/demo/document
+installation tables and the cat/hello/ls user examples. Their sources already
+use `.cc`. The generated profile needs five captured headers; the user
+profile needs `user/cupid.h` and retains its separate freestanding arguments.
+
+The next compiler transaction must preserve `user/Makefile`'s configurable
+`BUILD` directory, including safe creation of missing output parents. The
+current host helper only prepares profile directories beneath
+`build/bootstrap`, so narrowing user output to `user/build` would lose existing
+behavior. Generated installation compilation can move independently while
+that directory policy is implemented. Moving all six would leave nine Python
+participations; those counts remain projections until the recipes and audit
+agree. Whole disk and ISO publication each count once but require substantially
+more filesystem and publication work than those counts suggest.
+
+The settled Windows rebuild completed both ELF links and raw-kernel
+validation, then stopped at the exact-size gate: `kernel/kernel.bin` was
+9,552,604 bytes against the preceding 9,552,000-byte record. The initial
+concern that the manual's CRLF form caused a transient size increase was
+incorrect. `CTOOL_OBJ_WRAP_TEXT` in `toolchain/cupidobj.cc` normalizes CRLF
+to LF before wrapping text, so those forms produce the same embedded bytes.
+The canonical manual adds 603 content bytes; its content and alignment
+account for the 604-byte raw-kernel increase. Both hosts independently
+produced the same 9,552,604-byte raw kernel.
+
+For an independent image check, a native Linux build uses staged tree
+`07c7bbd9d22bd088832ba1ce74548004e3507a18`. Its retained archive has SHA-256
+`834d8099eb7f1fd6373ee25e9d8bb978317b3394753b11930650855a58268528`.
+The archive contains the full local Freedoom assets; no download or substitute
+was needed. This is OS-build evidence from an exact staged snapshot, separate
+from the later clean committed fixed-point proofs. The refreshed canonical
+audit and `make check-bootstrap-audit` pass, and the generated preprocessor
+manifest remains byte-identical to the checked file.
+
+The canonical Windows follow-up stopped during kernel compilation when the
+host exhausted its memory commit allowance. CupidC reported `no_memory`;
+some input rechecks also failed, and new PowerShell processes could not
+initialize. A direct Win32 memory query found about 103 MiB of commit
+capacity available out of 59.9 GiB, despite 27.1 GiB of free physical RAM.
+One Windows Runtime Broker process held 37.1 GiB of private committed memory.
+This run is failed environment evidence, not a successful image build.
+The independent Linux build continued in its existing session.
+
+## 2026-09-20: matching source-build kernels and artifact checks
+
+The native Linux build completed from the staged archive described above.
+Its initial exact-size check rejected the changed raw kernel. After changing
+only the isolated policy row from 9,552,000 to 9,552,604 bytes, the follow-up
+`make -j4 all -o FORCE PYTHON=python3` exited 0, passed all 16 exact artifact
+checks, and published `cupidos.img`. All three kernel hashes remained
+unchanged during the follow-up. The retained initial and final logs are
+`build/bootstrap/20260920-doom-linux-os/os-build-initial.log` and
+`os-build-final.log`; `policy-original.json` preserves the previous policy.
+
+The Windows worktree and isolated native Linux tree have identical kernels:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,650,508 | `2c8ac524488c0102e44fa264141628e8f997b28bf0cbcd36353df4b329f782ac` |
+| `kernel/kernel.elf` | 9,781,580 | `ae2801bf129c3150f2965d06f9f165dbc8353bfed7406ea903d429e1f4c286e2` |
+| `kernel/kernel.bin` | 9,552,604 | `d5058ceb24ae7b2be00088da1ea0785c78c648c858822b9a9d496bef4beb0041` |
+
+The main worktree's raw-kernel policy row now records 9,552,604 bytes. The
+standalone Windows artifact check passes all 16 rows in
+`build/bootstrap/20260920-doom-windows-artifact-check.log`. This establishes
+artifact-policy agreement; Windows image publication and runtime results
+must be recorded separately.
+
+The Linux image is 209,715,200 bytes with SHA-256
+`9e779924d9935913ef59b033cad1768b8c2d4297883071c654927603a95e9fd8`.
+It remains at `/home/frank/cupid-doom-source-os-cl3mfh3x/cupidos.img`.
+The attempted private four-CPU `max`/E1000 SMP and `ls` smoke is inconclusive:
+the outer command exited 1 after 4.4237 seconds without stdout or stderr.
+The guest-memory and console files are empty, no serial log or normal smoke
+record was produced, and QEMU launch was not confirmed. The image and all
+three kernels were rechecked afterward and remained unchanged.
+`smoke-attempt.json`, `kernel-artifacts.json`, and `final-notes.md` in the
+Linux evidence directory retain those results. Host commit pressure was
+observed separately, but these records do not establish the smoke failure's
+cause. No runtime pass is claimed.
+
+These are source-build and artifact results from an uncommitted staged
+snapshot. They are separate from the clean committed-source fixed-point
+proofs still required before seed promotion. The checked seeds and normal
+Doom recipes are unchanged, and full IWAD-backed gameplay remains open.
+
+The Windows retry then completed image publication and passed a private
+four-CPU `max`/E1000 smoke with `--verify-smp-runtime` and `ls`. The smoke
+returned 0; its console reports `GUI terminal smoke passed`. The guest
+compiled `ls` to 911 code bytes and 71 data bytes and reached normal JIT
+completion. The published image's SHA-256 remained
+`f75f4c97bf885d3a937f6b9325f32181c28c4eedde58de5bb6f2d183e9351849`
+before and after the private run. Evidence is retained in
+`build/bootstrap/20260920-doom-windows-smoke.json`,
+`20260920-doom-windows-smoke-console.log`, and
+`20260920-doom-source-smoke.log`.
+
+The source validation now has completed image publication on both hosts,
+matching kernel bytes, passing exact artifact checks, and a passing Windows
+private SMP/`ls` smoke. The Linux smoke remains inconclusive as recorded;
+the Windows pass does not change its result. This validates the source
+checkpoint without promoting seeds or transferring the 83 Doom recipes.
+
+The host recovery question asked whether the identified RuntimeBroker could
+be stopped to release its committed memory. The user explicitly approved.
+After its process name was verified, RuntimeBroker PID 30956 was stopped;
+it held 39,820,517,376 bytes of private committed memory. Host memory capacity
+recovered. This action followed the approval and did not change OS source,
+publication contracts, or the interpretation of the earlier failed runs.

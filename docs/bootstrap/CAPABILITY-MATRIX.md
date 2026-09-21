@@ -1,5 +1,16 @@
 # Cupid Toolchain capability matrix
 
+Source-head CupidBuild also provides `compile-doom` for the 83 approved Doom
+sources. It derives the compatibility or tree profile from the source path,
+captures all discovered headers and source files, and supplies the selected
+source plus headers through a closed `CUPSRC1` bundle. Directory checks permit
+unrelated object writes while rejecting changed source membership, headers,
+and directory identities. The strict profile-manifest publisher keeps its
+existing directory checks. The checked seeds and normal Doom recipes still
+use the preceding coordinator until paired proofs and promotion complete.
+[ADR 0394](../adr/0394-compile-doom-with-filtered-discovery.md) records this
+source boundary.
+
 Checked CupidC accepts closed `CUPSRC1` bundles, and checked CupidBuild owns
 all 157 normal kernel-profile compiler recipes. Logical paths survive capture,
 missing entries cannot read live files, and the transaction retains the fixed

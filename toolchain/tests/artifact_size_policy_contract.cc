@@ -83,17 +83,17 @@ static const char seed_schema[] = "cupid.bootstrap-seed.v2";
 static const char windows_seed_schema[] = "cupid.execution-seed.v2";
 static const char report_schema[] = "cupid.artifact-size-verification.v1";
 static const char preceding_parent_revision[] =
-    "0232cb57aad5d6bdfd7bd77499762514b2f0ebfd";
-static const char preceding_linux_parent_manifest[] =
-    "470fcd1b8b1a1506f26d3dd33d51f55d6896571aacb7329b792d4612f9434781";
-static const char preceding_windows_parent_manifest[] =
-    "e7e65908eb03eec43e44e2946b395723b164f5701d980aae8ffaaf1006c3d7e4";
-static const char active_parent_revision[] =
     "16a86f5b1693e017c36c6d902df9946c5d674b17";
-static const char active_linux_parent_manifest[] =
+static const char preceding_linux_parent_manifest[] =
     "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d";
-static const char active_windows_parent_manifest[] =
+static const char preceding_windows_parent_manifest[] =
     "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc";
+static const char active_parent_revision[] =
+    "9d2529a718672edcd970f24960535db6ddbde5e4";
+static const char active_linux_parent_manifest[] =
+    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e";
+static const char active_windows_parent_manifest[] =
+    "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a";
 static const char *const seed_names[SEED_ARTIFACT_COUNT] = {
     "cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild"};
 static const char *const seed_files[SEED_ARTIFACT_COUNT] = {

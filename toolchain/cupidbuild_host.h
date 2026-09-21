@@ -84,6 +84,10 @@ int cupidbuild_host_discover_files(
     cupidbuild_host_path_list_t *paths_out);
 int cupidbuild_host_seal_discovery(
     cupidbuild_host_transaction_t *transaction);
+int cupidbuild_host_begin_compile_discovery(
+    cupidbuild_host_transaction_t *transaction);
+int cupidbuild_host_seal_compile_discovery(
+    cupidbuild_host_transaction_t *transaction);
 void cupidbuild_host_path_list_close(cupidbuild_host_path_list_t *paths);
 int cupidbuild_host_input_matches_snapshot(
     cupidbuild_host_transaction_t *transaction, const char *live_path,

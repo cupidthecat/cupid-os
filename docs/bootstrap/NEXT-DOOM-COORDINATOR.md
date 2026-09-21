@@ -2,6 +2,12 @@
 
 Audit date: 2026-09-20.
 
+The source implementation now follows this plan through `compile-doom`.
+ADR 0394 records the transaction and its separate directory policy. The
+requirements below remain the review and promotion checklist. Production
+ownership stays with the existing Python wrapper until paired fixed-point
+proofs, seed promotion, and the Make handoff pass.
+
 The remaining Doom compiler work is 83 sources: three compatibility sources
 and 80 Doom-tree sources. CupidC already compiles them. Python owns their
 profile discovery, capture, checked execution, validation, and publication.
@@ -31,7 +37,7 @@ It should use the corresponding `.o` output binding already enforced by
 
 ## Measured capture size
 
-| Measure | Current tree |
+| Measure | Initial audit snapshot |
 | --- | ---: |
 | Shared header and include files | 304 |
 | Header content bytes | 926,471 |

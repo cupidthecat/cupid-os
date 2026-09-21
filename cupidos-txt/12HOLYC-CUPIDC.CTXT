@@ -15,6 +15,15 @@ Verified against source on: 2026-09-20
 
 >h2 Source and seed checkpoint
 >tree open Source and seed checkpoint
+Source-head CupidBuild provides compile-doom for the 83 approved Doom sources.
+It keeps the compatibility and tree profiles, including the forced Doom
+header, and sends captured source and headers to CupidC in a closed bundle.
+Filtered directory checks allow concurrent object writes while rejecting
+source/header changes and replaced directories. Failed publication preserves
+the old object; equal validated output keeps its timestamp. The checked seeds
+and production Doom recipes retain the preceding coordinator until paired
+bootstrap proofs and promotion complete. ADR 0394 records this boundary.
+
 Checked hosted CupidC accepts closed CUPSRC1 source bundles. The compiler
 keeps logical include paths and reads only captured source and header bytes.
 Checked CupidBuild uses this interface in compile-kernel for all 157

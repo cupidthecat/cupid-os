@@ -111,6 +111,14 @@ typedef struct {
   size_t capacity;
 } cupidbuild_host_discovery_worklist_t;
 
+typedef struct {
+  cupidbuild_host_path_list_t roots;
+  cupidbuild_host_path_list_t suffixes;
+  cupidbuild_host_path_list_t expected;
+  int skip_hidden_files;
+  int reject_matching_nonfiles;
+} cupidbuild_host_discovery_query_t;
+
 struct cupidbuild_host_transaction {
   char repository_root[CUPIDBUILD_HOST_PATH_BYTES];
   char source_path[CUPIDBUILD_HOST_PATH_BYTES];
@@ -167,6 +175,9 @@ struct cupidbuild_host_transaction {
   int runner_transaction;
   int captured;
   int discovery_sealed;
+  int compile_discovery;
+  cupidbuild_host_discovery_query_t discovery_queries[16];
+  size_t discovery_query_count;
 #if defined(CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST) && \
     !defined(CUPIDBUILD_CUSTOM_LINUX)
   unsigned int discovery_boundary_count;
@@ -685,6 +696,16 @@ static int cupidbuild_host_discovery_worklist_add(
   return 1;
 }
 
+static int cupidbuild_host_discovery_snapshot_equal(
+    cupidbuild_host_transaction_t *transaction,
+    const cupidbuild_host_snapshot_t *left,
+    const cupidbuild_host_snapshot_t *right) {
+  if (transaction->compile_discovery != 0) {
+    return cupidbuild_host_snapshot_identity_equal(left, right);
+  }
+  return cupidbuild_host_snapshot_equal(left, right);
+}
+
 static int cupidbuild_host_bind_discovery_directory(
     cupidbuild_host_transaction_t *transaction,
     cupidbuild_host_discovery_directory_t *directory,
@@ -697,8 +718,8 @@ static int cupidbuild_host_bind_discovery_directory(
     cupidbuild_host_discovery_directory_t *expected =
         &transaction->discovery_directories[index];
     if (strcmp(expected->logical, directory->logical) == 0) {
-      return cupidbuild_host_snapshot_equal(&expected->snapshot,
-                                            &directory->snapshot);
+      return cupidbuild_host_discovery_snapshot_equal(
+          transaction, &expected->snapshot, &directory->snapshot);
     }
     if (cupidbuild_host_snapshot_identity_equal(&expected->snapshot,
                                                 &directory->snapshot)) {
@@ -1281,8 +1302,8 @@ static int cupidbuild_host_discover_platform(
         (!cupidbuild_host_windows_named_directory_snapshot(
              transaction, current.logical, current.handle,
              &completed_snapshot, (int *)0) ||
-         !cupidbuild_host_snapshot_equal(&current.snapshot,
-                                         &completed_snapshot))) {
+         !cupidbuild_host_discovery_snapshot_equal(
+             transaction, &current.snapshot, &completed_snapshot))) {
       valid = 0;
     }
     if (valid != 0) {
@@ -2386,10 +2407,10 @@ static int cupidbuild_host_windows_named_directory_snapshot(
                                                                   name) &&
             cupidbuild_host_windows_directory_record_binding_equal(&before,
                                                                     &after);
-    if (valid != 0 &&
+    if (valid != 0 && transaction->compile_discovery == 0 &&
         !cupidbuild_host_windows_directory_record_equal(&before, &after)) {
       valid = 0;
-    } else if (valid != 0 &&
+    } else if (valid != 0 && transaction->compile_discovery == 0 &&
                (opened.modified[0] != before.last_write_high ||
                 opened.modified[1] != before.last_write_low)) {
       if (metadata_unsettled_out != (int *)0) {
@@ -3412,14 +3433,24 @@ static int cupidbuild_host_discover_platform(
           continue;
         }
         if (!cupidbuild_host_join(logical, sizeof(logical), current.logical,
-                                  name) ||
-            cupid_linux_syscall4(
-                CUPIDBUILD_LINUX_SYS_FSTATAT64,
-                (unsigned int)current.descriptor, (unsigned int)name,
-                (unsigned int)information,
-                CUPIDBUILD_LINUX_AT_SYMLINK_NOFOLLOW) < 0) {
+                                  name)) {
           valid = 0;
           break;
+        }
+        {
+          int stat_result = cupid_linux_syscall4(
+              CUPIDBUILD_LINUX_SYS_FSTATAT64,
+              (unsigned int)current.descriptor, (unsigned int)name,
+              (unsigned int)information, CUPIDBUILD_LINUX_AT_SYMLINK_NOFOLLOW);
+          if (stat_result < 0) {
+            if (transaction->compile_discovery != 0 &&
+                stat_result == -CUPIDBUILD_LINUX_ENOENT &&
+                !cupidbuild_host_discovery_suffix(name, suffixes, suffix_count)) {
+              continue;
+            }
+            valid = 0;
+            break;
+          }
         }
         mode = cupidbuild_linux_mode(information) & CUPIDBUILD_LINUX_S_IFMT;
         if (name[0] == '.' &&
@@ -3516,8 +3547,8 @@ static int cupidbuild_host_discover_platform(
     if (valid != 0 &&
         (!cupidbuild_linux_descriptor_snapshot(
              current.descriptor, &completed_snapshot) ||
-         !cupidbuild_host_snapshot_equal(&current.snapshot,
-                                         &completed_snapshot))) {
+         !cupidbuild_host_discovery_snapshot_equal(
+             transaction, &current.snapshot, &completed_snapshot))) {
       valid = 0;
     }
     if (valid != 0) {
@@ -4770,9 +4801,18 @@ static int cupidbuild_host_discover_platform(
         continue;
       }
       if (!cupidbuild_host_join(logical, sizeof(logical), current.logical,
-                                entry->d_name) ||
-          fstatat(dirfd(stream), entry->d_name, &information,
+                                entry->d_name)) {
+        valid = 0;
+        break;
+      }
+      if (fstatat(dirfd(stream), entry->d_name, &information,
                   AT_SYMLINK_NOFOLLOW) != 0) {
+        if (transaction->compile_discovery != 0 && errno == ENOENT &&
+            !cupidbuild_host_discovery_suffix(
+                entry->d_name, suffixes, suffix_count)) {
+          errno = 0;
+          continue;
+        }
         valid = 0;
         break;
       }
@@ -4866,8 +4906,8 @@ static int cupidbuild_host_discover_platform(
     if (valid != 0 &&
         (!cupidbuild_native_directory_descriptor_snapshot(
              current.descriptor, &completed_snapshot) ||
-         !cupidbuild_host_snapshot_equal(&current.snapshot,
-                                         &completed_snapshot))) {
+         !cupidbuild_host_discovery_snapshot_equal(
+             transaction, &current.snapshot, &completed_snapshot))) {
       valid = 0;
     }
     if (valid != 0) {
@@ -8106,6 +8146,57 @@ int cupidbuild_host_seed_members_exact(
              expected_count);
 }
 
+static void cupidbuild_host_discovery_query_close(
+    cupidbuild_host_discovery_query_t *query) {
+  cupidbuild_host_path_list_close(&query->roots);
+  cupidbuild_host_path_list_close(&query->suffixes);
+  cupidbuild_host_path_list_close(&query->expected);
+}
+
+static int cupidbuild_host_remember_discovery(
+    cupidbuild_host_transaction_t *transaction,
+    const char *const *roots, size_t root_count,
+    const char *const *suffixes, size_t suffix_count,
+    int skip_hidden_files, int reject_matching_nonfiles,
+    const cupidbuild_host_path_list_t *paths) {
+  cupidbuild_host_discovery_query_t *query;
+  cupidbuild_host_snapshot_t empty;
+  size_t index;
+  if (transaction->compile_discovery == 0) {
+    return 1;
+  }
+  if (transaction->discovery_query_count >= 16u) {
+    return 0;
+  }
+  query = &transaction->discovery_queries[transaction->discovery_query_count];
+  (void)memset(&empty, 0, sizeof(empty));
+  query->skip_hidden_files = skip_hidden_files;
+  query->reject_matching_nonfiles = reject_matching_nonfiles;
+  for (index = 0u; index < root_count; index++) {
+    if (!cupidbuild_host_path_list_add(&query->roots, roots[index], &empty,
+                                       CUPIDBUILD_HOST_DISCOVERY_DIRECTORIES)) {
+      goto failed;
+    }
+  }
+  for (index = 0u; index < suffix_count; index++) {
+    if (!cupidbuild_host_path_list_add(&query->suffixes, suffixes[index],
+                                       &empty, 16u)) {
+      goto failed;
+    }
+  }
+  for (index = 0u; index < paths->count; index++) {
+    if (!cupidbuild_host_discovery_add(&query->expected, paths->paths[index],
+                                       &paths->snapshots[index])) {
+      goto failed;
+    }
+  }
+  transaction->discovery_query_count++;
+  return 1;
+failed:
+  cupidbuild_host_discovery_query_close(query);
+  return 0;
+}
+
 int cupidbuild_host_discover_files(
     cupidbuild_host_transaction_t *transaction,
     const char *const *logical_roots,
@@ -8119,6 +8210,8 @@ int cupidbuild_host_discover_files(
   (void)memset(paths_out, 0, sizeof(*paths_out));
   if (transaction == (cupidbuild_host_transaction_t *)0 ||
       transaction->runner_transaction != 0 ||
+      (transaction->discovery_sealed != 0 &&
+       transaction->compile_discovery != 0) ||
       logical_roots == (const char *const *)0 || root_count == 0u ||
       suffixes == (const char *const *)0 || suffix_count == 0u) {
     return 0;
@@ -8132,7 +8225,10 @@ int cupidbuild_host_discover_files(
       return 0;
     }
   }
-  if (cupidbuild_host_discovery_sort(paths_out)) {
+  if (cupidbuild_host_discovery_sort(paths_out) &&
+      cupidbuild_host_remember_discovery(
+          transaction, logical_roots, root_count, suffixes, suffix_count,
+          skip_hidden_files, reject_matching_nonfiles, paths_out)) {
     return 1;
   }
   cupidbuild_host_path_list_close(paths_out);
@@ -8143,10 +8239,77 @@ int cupidbuild_host_seal_discovery(
     cupidbuild_host_transaction_t *transaction) {
   if (transaction == (cupidbuild_host_transaction_t *)0 ||
       transaction->runner_transaction != 0 ||
+      transaction->discovery_directory_count == 0u ||
+      transaction->compile_discovery != 0) {
+    return 0;
+  }
+  transaction->discovery_sealed = 1;
+  return 1;
+}
+
+int cupidbuild_host_begin_compile_discovery(
+    cupidbuild_host_transaction_t *transaction) {
+  if (transaction == (cupidbuild_host_transaction_t *)0 ||
+      transaction->runner_transaction != 0 ||
+      transaction->discovery_sealed != 0 ||
+      transaction->discovery_directory_count != 0u) {
+    return 0;
+  }
+  transaction->compile_discovery = 1;
+  return 1;
+}
+
+int cupidbuild_host_seal_compile_discovery(
+    cupidbuild_host_transaction_t *transaction) {
+  if (transaction == (cupidbuild_host_transaction_t *)0 ||
+      transaction->runner_transaction != 0 ||
+      transaction->compile_discovery == 0 ||
+      transaction->discovery_query_count == 0u ||
       transaction->discovery_directory_count == 0u) {
     return 0;
   }
   transaction->discovery_sealed = 1;
+  return 1;
+}
+
+static int cupidbuild_host_require_discovery_queries(
+    cupidbuild_host_transaction_t *transaction) {
+  size_t query_index;
+  for (query_index = 0u; query_index < transaction->discovery_query_count;
+       query_index++) {
+    cupidbuild_host_discovery_query_t *query =
+        &transaction->discovery_queries[query_index];
+    cupidbuild_host_path_list_t current;
+    size_t index;
+    int valid = 1;
+    (void)memset(&current, 0, sizeof(current));
+    for (index = 0u; index < query->roots.count; index++) {
+      if (!cupidbuild_host_discover_platform(
+              transaction, query->roots.paths[index],
+              (const char *const *)query->suffixes.paths, query->suffixes.count,
+              query->skip_hidden_files, query->reject_matching_nonfiles,
+              &current)) {
+        valid = 0;
+        break;
+      }
+    }
+    if (valid != 0 &&
+        (!cupidbuild_host_discovery_sort(&current) ||
+         current.count != query->expected.count)) {
+      valid = 0;
+    }
+    for (index = 0u; valid != 0 && index < current.count; index++) {
+      if (strcmp(current.paths[index], query->expected.paths[index]) != 0 ||
+          !cupidbuild_host_snapshot_equal(&current.snapshots[index],
+                                           &query->expected.snapshots[index])) {
+        valid = 0;
+      }
+    }
+    cupidbuild_host_path_list_close(&current);
+    if (valid == 0) {
+      return 0;
+    }
+  }
   return 1;
 }
 
@@ -8247,8 +8410,10 @@ static int cupidbuild_host_require_discovery_directory(
   }
 #endif
 #endif
-  if (!cupidbuild_host_snapshot_equal(&directory->snapshot, &retained) ||
-      !cupidbuild_host_snapshot_equal(&directory->snapshot, &named)) {
+  if (!cupidbuild_host_discovery_snapshot_equal(
+          transaction, &directory->snapshot, &retained) ||
+      !cupidbuild_host_discovery_snapshot_equal(
+          transaction, &directory->snapshot, &named)) {
     return 0;
   }
   return 1;
@@ -8271,7 +8436,8 @@ static int cupidbuild_host_require_discovery_directories(
 #if defined(CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST) && \
     !defined(CUPIDBUILD_CUSTOM_LINUX)
   transaction->discovery_boundary_count++;
-  if (transaction->discovery_boundary_count == 2u &&
+  if (transaction->discovery_boundary_count ==
+          (transaction->compile_discovery != 0 ? 1u : 2u) &&
       !cupidbuild_host_profile_directory_test_pause(
           "CUPIDBUILD_PROFILE_TEST_DIRECTORY_READY",
           "CUPIDBUILD_PROFILE_TEST_DIRECTORY_RESUME")) {
@@ -8287,14 +8453,16 @@ static int cupidbuild_host_require_discovery_directories(
   }
 #if defined(CUPIDBUILD_PROFILE_DIRECTORY_RACE_TEST) && \
     !defined(CUPIDBUILD_CUSTOM_LINUX)
-  if (transaction->discovery_boundary_count == 2u &&
+  if (transaction->discovery_boundary_count ==
+          (transaction->compile_discovery != 0 ? 1u : 2u) &&
       !cupidbuild_host_profile_directory_test_pause(
           "CUPIDBUILD_PROFILE_TEST_DIRECTORY_AFTER_FIRST_PASS_READY",
           "CUPIDBUILD_PROFILE_TEST_DIRECTORY_AFTER_FIRST_PASS_RESUME")) {
     return 0;
   }
 #endif
-  return cupidbuild_host_require_discovery_directory_pass(transaction);
+  return cupidbuild_host_require_discovery_queries(transaction) &&
+         cupidbuild_host_require_discovery_directory_pass(transaction);
 }
 
 static int cupidbuild_host_write_lock_exclusive(
@@ -10055,6 +10223,10 @@ static int cupidbuild_host_close_discovery_directories(
 #endif
     free(directory->logical);
   }
+  for (index = 0u; index < transaction->discovery_query_count; index++) {
+    cupidbuild_host_discovery_query_close(&transaction->discovery_queries[index]);
+  }
+  transaction->discovery_query_count = 0u;
   free(transaction->discovery_directories);
   transaction->discovery_directories =
       (cupidbuild_host_discovery_directory_t *)0;
