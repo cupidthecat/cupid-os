@@ -3733,6 +3733,14 @@ static x86_parse_result_t x86_decode_far_pointer(
   return X86_PARSE_OK;
 }
 
+static void x86_zero_decoded(ctool_x86_decoded_t *decoded) {
+  ctool_u8 *bytes = (ctool_u8 *)decoded;
+  ctool_u32 index;
+  for (index = 0u; index < (ctool_u32)sizeof(*decoded); index++) {
+    bytes[index] = 0u;
+  }
+}
+
 static x86_parse_result_t x86_decode_row(
     ctool_bytes_t bytes, ctool_u32 start, ctool_x86_mode_t mode,
     const x86_decoded_prefixes_t *prefixes, const x86_form_row_t *row,
@@ -3777,6 +3785,8 @@ static x86_parse_result_t x86_decode_row(
       row->modrm_rm_operand < 0) {
     return X86_PARSE_INVALID;
   }
+  /* Rejected opcodes and prefixes never expose a candidate. */
+  x86_zero_decoded(decoded);
   decoded->instruction.mnemonic = row->mnemonic;
   decoded->instruction.operand_bits =
       row->operand_bits == 0u ? (ctool_u16)mode : row->operand_bits;
@@ -3964,14 +3974,6 @@ static x86_parse_result_t x86_decode_row(
   return X86_PARSE_OK;
 }
 
-static void x86_zero_decoded(ctool_x86_decoded_t *decoded) {
-  ctool_u8 *bytes = (ctool_u8 *)decoded;
-  ctool_u32 index;
-  for (index = 0u; index < (ctool_u32)sizeof(*decoded); index++) {
-    bytes[index] = 0u;
-  }
-}
-
 static void x86_copy_available(ctool_bytes_t bytes, ctool_u32 start,
                                ctool_x86_encoding_t *encoding) {
   ctool_u32 available = bytes.size - start;
@@ -4122,7 +4124,6 @@ static ctool_status_t x86_decode_impl(
     if ((x86_forms[form_index].modes & x86_mode_mask(mode)) == 0u) {
       continue;
     }
-    x86_zero_decoded(&candidate);
     result = x86_decode_row(bytes, address, mode, &prefixes,
                             &x86_forms[form_index], form_index + 1u,
                             &candidate);

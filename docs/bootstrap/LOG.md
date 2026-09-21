@@ -37753,3 +37753,47 @@ discarded as audit evidence and retained for diagnosis. The accepted reports
 come from an immutable generated-only source extraction. Source ownership
 remains 748 active inputs, 452 transforms, and 437 CupidBuild/15 Python
 participations. The audit refresh changes no tested kernel or manual bytes.
+
+
+## Matching-row decoder initialization preflight (2026-09-21)
+
+The shared decoder now clears a candidate only after the row passes its early
+opcode, prefix, and invalid-encoding checks. Public-result initialization,
+matching order, aliases, recovery classifications, and the catalogue remain
+unchanged. ADR 0398 records the rejected-row cost and safety boundary.
+
+The added dirty-output/reused-decoder sequence passes fifteen ordered cases in
+each decode mode. All sixteen host contract modes match on Windows and Linux;
+pattern-initialized host builds reject the deliberately missing-clear mutant.
+The checked Cupid-built baseline/candidate contracts also pass all 64 mode
+executions across PE32 and ELF, with identical output and cross-host object
+bytes. The retained diagnostic relinks reproduce the old checked executable
+before changing the decoder object. These checks do not establish convergence.
+
+Separate OS copies inherit the verified generated-compilation outputs and run
+`make -j1 -o FORCE all`. Every real dependency remains active; only the empty
+FORCE trigger is ignored. No checked seed or inspection deadline changes. The
+first builds stop only at the measured raw-kernel size check. Their triples
+match exactly:
+
+- First ELF: 9,650,508 bytes, SHA-256
+  `8a2ec42db3218e125521ece9c16f72ab241936f1bc03bd46774c4309032f3a9c`.
+- Final ELF: 9,781,580 bytes, SHA-256
+  `12100250383e7e68080587895db3008efea90222cdd2dc969d8334201529c400`.
+- Raw kernel: 9,554,884 bytes, SHA-256
+  `a0e10e612421865c00b26c8485f54c862d3d2323266ab31f9d1c1773a9f95a85`.
+
+Only the raw policy row changes, from 9,554,244 to 9,554,884 bytes. The manual
+is 51,945 bytes with SHA-256
+`beb667fbcb56d7709cf13eae6ee571d58c54dafb3337e9894935b6c8f4c35a3f`.
+Both resumed builds and sixteen-artifact gates pass. Private four-CPU
+`max`/`e1000` smokes verify SMP, disassemble `/bin/ls.cc`, and complete `ls`.
+Both serial listings contain generated instructions and two `ret` instructions;
+no compiler/disassembler error or panic appears. All kernel bytes remain exact.
+The identical 209,715,200-byte source images keep SHA-256
+`2ceb15f58fbeec59eccb965251849f2cca60d064bc34976e0f1e6f55a9973e21`
+before and after the private runs.
+
+Evidence is retained under `build/bootstrap/20260921-decoder-source-preflight/`.
+The original generated-compilation trees remain intact. No paired committed-source
+proof or seed promotion is claimed, and Doom gameplay acceptance remains open.

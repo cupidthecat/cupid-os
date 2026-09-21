@@ -1,5 +1,13 @@
 # cupid-os
 
+The shared x86 decoder initializes a candidate after its early opcode,
+prefix, and invalid-encoding checks, before writing decoded fields. This avoids
+clearing records for rows that cannot match. Catalogue order, alias selection,
+recovery classifications, and public-result initialization stay unchanged.
+The source change still needs paired bootstrap proofs and promotion before
+checked production tools carry it. ADR 0398 records the implementation and
+its validation boundary; production ownership counts are unchanged.
+
 Source-head `cupidbuild compile-production` captures and compiles the three
 generated bin, docs, and demo installation tables with their existing kernel
 profile. Each bundle contains the source and five required headers. Checked

@@ -1,5 +1,13 @@
 # Cupid Toolchain capability matrix
 
+The shared x86 decoder initializes a candidate after its early opcode,
+prefix, and invalid-encoding checks, before writing decoded fields. This avoids
+clearing records for rows that cannot match. Catalogue order, alias selection,
+recovery classifications, and public-result initialization stay unchanged.
+The source change still needs paired bootstrap proofs and promotion before
+checked production tools carry it. ADR 0398 records the implementation and
+its validation boundary; production ownership counts are unchanged.
+
 Generated installation compilation has a **Source capability** through
 `cupidbuild compile-production`. Its three approved roots each capture the
 five-header installation closure in a six-record bundle. The command keeps

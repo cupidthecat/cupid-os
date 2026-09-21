@@ -412,6 +412,81 @@ static int run_decoder_index(void) {
     return 1;
   }
 
+  {
+    static const struct {
+      const char *name;
+      ctool_u8 bytes[4];
+      ctool_u8 size;
+      ctool_x86_decode_kind_t kind;
+      ctool_x86_mnemonic_t mnemonic;
+      ctool_u8 consumed;
+      ctool_u8 fields;
+    } sequence[] = {
+        {"relative branch before no-field instruction", {0xebu, 0xfeu}, 2u,
+         CTOOL_X86_DECODE_KNOWN, CTOOL_X86_MN_JMP, 2u, 1u},
+        {"nop clears preceding relative field", {0x90u}, 1u,
+         CTOOL_X86_DECODE_KNOWN, CTOOL_X86_MN_NOP, 1u, 0u},
+        {"unmatched escaped opcode", {0x0fu, 0x0cu}, 2u,
+         CTOOL_X86_DECODE_UNKNOWN, CTOOL_X86_MN_INVALID, 1u, 0u},
+        {"immediate after opcode rejection", {0xb0u, 0x07u}, 2u,
+         CTOOL_X86_DECODE_KNOWN, CTOOL_X86_MN_MOV, 2u, 1u},
+        {"lock prefix rejects nop", {0xf0u, 0x90u}, 2u,
+         CTOOL_X86_DECODE_INVALID, CTOOL_X86_MN_INVALID, 1u, 0u},
+        {"nop after prefix rejection", {0x90u}, 1u,
+         CTOOL_X86_DECODE_KNOWN, CTOOL_X86_MN_NOP, 1u, 0u},
+        {"truncated opcode escape", {0x0fu}, 1u,
+         CTOOL_X86_DECODE_TRUNCATED, CTOOL_X86_MN_INVALID, 0u, 0u},
+        {"nop after truncated escape", {0x90u}, 1u,
+         CTOOL_X86_DECODE_KNOWN, CTOOL_X86_MN_NOP, 1u, 0u},
+        {"displacement field after no-field instruction", {0x8bu, 0x40u, 0x7fu}, 3u,
+         CTOOL_X86_DECODE_KNOWN, CTOOL_X86_MN_MOV, 3u, 1u},
+        {"truncated ModRM after displacement", {0x8bu}, 1u,
+         CTOOL_X86_DECODE_TRUNCATED, CTOOL_X86_MN_INVALID, 0u, 0u},
+        {"nop after truncated ModRM", {0x90u}, 1u,
+         CTOOL_X86_DECODE_KNOWN, CTOOL_X86_MN_NOP, 1u, 0u},
+        {"truncated immediate", {0xb0u}, 1u,
+         CTOOL_X86_DECODE_TRUNCATED, CTOOL_X86_MN_INVALID, 0u, 0u},
+        {"mandatory rep prefix selects movdqu", {0xf3u, 0x0fu, 0x6fu, 0xc0u}, 4u,
+         CTOOL_X86_DECODE_KNOWN, CTOOL_X86_MN_MOVDQU, 4u, 0u},
+        {"mandatory operand prefix selects movdqa", {0x66u, 0x0fu, 0x6fu, 0xc0u}, 4u,
+         CTOOL_X86_DECODE_KNOWN, CTOOL_X86_MN_MOVDQA, 4u, 0u},
+        {"nop after mandatory-prefix alternatives", {0x90u}, 1u,
+         CTOOL_X86_DECODE_KNOWN, CTOOL_X86_MN_NOP, 1u, 0u}};
+    ctool_u32 sequence_index;
+    for (mode_index = 0u;
+         mode_index < (ctool_u32)(sizeof(modes) / sizeof(modes[0]));
+         mode_index++) {
+      for (sequence_index = 0u;
+           sequence_index < (ctool_u32)(sizeof(sequence) / sizeof(sequence[0]));
+           sequence_index++) {
+        ctool_u8 expected_size =
+            sequence[sequence_index].kind == CTOOL_X86_DECODE_TRUNCATED
+                ? sequence[sequence_index].size
+                : sequence[sequence_index].consumed;
+        (void)memset(&decoded, 0xa5, sizeof(decoded));
+        status = ctool_x86_decode_indexed(
+            caller_job, decoder, modes[mode_index],
+            ctool_bytes(sequence[sequence_index].bytes,
+                        sequence[sequence_index].size), 0u, &decoded);
+        if (!check_status(status, CTOOL_OK, sequence[sequence_index].name) ||
+            !check_true(decoded.kind == sequence[sequence_index].kind &&
+                            decoded.instruction.mnemonic ==
+                                sequence[sequence_index].mnemonic &&
+                            decoded.consumed == sequence[sequence_index].consumed &&
+                            decoded.encoding.size == expected_size &&
+                            decoded.encoding.field_count == sequence[sequence_index].fields &&
+                            memcmp(decoded.encoding.bytes,
+                                   sequence[sequence_index].bytes,
+                                   expected_size) == 0,
+                        sequence[sequence_index].name)) {
+          ctool_job_close(caller_job);
+          ctool_job_close(owner_job);
+          return 1;
+        }
+      }
+    }
+  }
+
   for (index = 0u; index < CTOOL_X86_MAX_INSTRUCTION_BYTES; index++) {
     bytes[index] = 0u;
   }

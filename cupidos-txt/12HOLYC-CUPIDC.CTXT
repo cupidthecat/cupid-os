@@ -965,3 +965,17 @@ creation, and existing pathname support must survive migration. TempleOS is
 reference material only. IWAD-backed Doom gameplay acceptance remains open.
 ADR 0397 records the source capability.
 >endtree
+
+>h2 Shared x86 decoder initialization
+>tree
+The decoder rejects nonmatching opcode and prefix rows before initializing a
+candidate. Matching rows receive a complete cleared record before their first
+field is written. The public result is initialized for every call, including
+unknown, invalid, and truncated instructions. Catalogue order, alias choice,
+and decoded bytes remain unchanged.
+
+The shared kernel and toolchain source contains this change. Checked hosted
+tools need paired bootstrap proofs and seed promotion before they carry it.
+No instruction support, compiler profile, or build ownership changes.
+ADR 0398 records the decoder change.
+>endtree
