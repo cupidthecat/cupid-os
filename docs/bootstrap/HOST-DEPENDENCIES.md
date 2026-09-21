@@ -1,28 +1,53 @@
 # Host dependency inventory
 
-Source-head CupidBuild also provides `compile-doom` for the 83 approved Doom
-sources. It derives the compatibility or tree profile from the source path,
-captures all discovered headers and source files, and supplies the selected
-source plus headers through a closed `CUPSRC1` bundle. Directory checks permit
-unrelated object writes while rejecting changed source membership, headers,
-and directory identities. The strict profile-manifest publisher keeps its
-existing directory checks. The checked seeds and normal Doom recipes still
-use the preceding coordinator until paired proofs and promotion complete.
-[ADR 0394](../adr/0394-compile-doom-with-filtered-discovery.md) records this
-source boundary.
+Make invokes checked `cupidbuild compile-doom` for all 83 approved Doom
+sources: three compatibility roots and 80 Doom-tree roots. It derives the
+profile from source membership, captures the exact source cohort and all
+profile headers, and sends the selected source and headers to CupidC in a
+closed `CUPSRC1` bundle. Missing entries cannot fall back to live files.
+Filtered directory checks allow parallel object publication while rejecting
+source/header changes and replaced directories. The strict profile-manifest
+publisher keeps its existing directory checks. Failed transactions preserve
+or retain verified recovery evidence under the documented filesystem policy;
+equal validated objects retain their timestamps after full input checks.
 
-The normal kernel compiler recipes now invoke checked CupidBuild directly for
-all 157 kernel-profile roots. Each transaction captures its complete closure
-in a `CUPSRC1` bundle and runs checked CupidC without Python. Both promoted
-cohorts carry the compiler option and native transaction from `9d2529a7`.
-The Python wrapper remains a reference implementation for this profile.
+The 157 kernel-profile recipes continue to use `compile-kernel`. All 240
+kernel/Doom compiler roots already use `.cc`; this handoff changes ownership
+without changing the source language, compiler arguments, or OS behavior.
 
-Python still coordinates 83 Doom compilations, the generated installation and
-user profiles, complete disk/ISO publication, and bootstrap verification.
-The audited graph has 354 CupidBuild and 98 Python participations. Make and
-host operating-system services remain required. The normal code-producing
-path does not require GCC, NASM, or a host linker. ADR 0393 records this
-handoff; `NEXT-DOOM-COORDINATOR.md` records the remaining compiler policy.
+Both checked six-tool cohorts come from source `83d00ce70e5607dc5c011bb97c6478121f24a21c`
+and the same 59-input snapshot `f2b3a1349b3cf5476fc2f141b307afe3babe0e673d6154fb98afee3511507718`. Clean proofs match
+all 29 Linux and 32 native Windows stage-three/stage-four artifact pairs.
+Linux passes 41 failure, seven help, and 47 success groups; Windows passes
+29 failure, seven help, and 34 success groups. Each compared coordinator uses
+its own generation's complete tool cohort. Independent promotion checks bind
+the source inventory to the commit and verify exact stage files and bytes,
+executable formats, build plans, parent lineage, and the proposed seed pair.
+
+The Linux manifest has SHA-256 `a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622`; the Windows
+manifest has SHA-256 `f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590`.
+
+The audit records 437 CupidBuild and 15 Python participations across 452
+transforms. Python still coordinates six compilations (three generated
+installation tables and three user programs), three user links, two image
+publications, three verification operations (artifact sizes, user syscall ABI,
+and the Toolchain manifest), and one Toolchain build/manifest publication.
+Make and host operating-system services remain required. GCC, NASM, and host
+linkers are not required by the normal code-producing path.
+
+The next compiler step is the six generated-install and user compilations.
+Their existing profiles and captured headers must remain intact. User builds
+must keep configurable `BUILD` directories, including safe creation of missing
+parents, rather than being restricted to `user/build`. The three user links
+remain a separate transaction. IWAD-backed Doom gameplay acceptance is still
+open; compiler parity and asset-free smoke tests do not establish gameplay.
+`TempleOS/` remains read-only reference material and is excluded from builds
+and progress counts.
+
+[ADR 0396](../adr/0396-adopt-checked-doom-compilation-in-make.md) records the promotion and recipe handoff.
+
+The bootstrap log records the production replay, artifact-size checks, and private SMP/ls smoke separately from these fixed-point results.
+Fixed-point convergence and OS runtime acceptance remain separate results.
 
 Committed source `16a86f5b` uses retained private filenames for Windows kernel
 inspection to keep all 500 inputs within the command-line limit. Anonymous
@@ -47,6 +72,8 @@ replay exceeded the command-line limit with 431 absolute input paths and
 preserved the previous raw kernel without publishing a normal image. The
 Windows image with preserved FAT contents separately passes an SMP and `ls`
 smoke.
+
+At the earlier kernel-compiler handoff (ADR 0393), the recorded state was:
 
 `verify-artifact-sizes` waits for `test_iso/hello.iso` through an order-only
 Make prerequisite. ISO pattern publication creates temporary repository-root
@@ -79,6 +106,8 @@ to exist. It refuses a missing `build` or `build/bootstrap` because a separate
 `mkdirat` and `openat` sequence cannot prove creation ownership against a
 same-user replacement.
 
+At the earlier kernel-compiler handoff (ADR 0393), the recorded state was:
+
 Normal Make recipes wait for the profile before writing beneath `kernel/`,
 `drivers/`, or `toolchain/`. The barrier covers all 254 current writers,
 including the three generated installation sources, through 171 order-only
@@ -106,6 +135,8 @@ still contain a formal same-user compare-then-unlink race. Source-only drift
 can roll back and clean normally after a no-discovery binding recheck.
 Ambiguous namespace state instead preserves readable public bytes and leaves
 private residue for recovery.
+
+At the earlier kernel-compiler handoff (ADR 0393), the recorded state was:
 
 The normal Make edge invokes the promoted platform CupidBuild directly with
 the selected manifest and all six seed images. POSIX Make prepares
@@ -216,6 +247,8 @@ privacy case passed after correction in 0.700 seconds. Complete reruns then
 passed the native Windows fixed point in 1,847.207 seconds and the Linux fixed
 point in 2,158.113 seconds. The complete module then passed all 129 cases in
 3,569.451 seconds.
+
+At the earlier kernel-compiler handoff (ADR 0393), the recorded state was:
 
 At the kernel-symbol handoff, CupidBuild belonged to both checked seed cohorts
 and directly owned six
@@ -1579,6 +1612,8 @@ all. Both checked compiler stages build the normal contracts; native copies
 are optional oracles. ADR 0081 records the source expansion, and ADR 0196
 records the ownership transfer.
 
+At the earlier kernel-compiler handoff (ADR 0393), the recorded state was:
+
 | Dependency | Current role | Current requirement | Fixed-point disposition |
 | --- | --- | --- | --- |
 | GCC with i386/multilib support | Builds optional native Toolchain contracts and commands on Linux | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native oracle and development targets | Retain only as an optional oracle or bootstrap escape hatch |
@@ -1726,6 +1761,8 @@ Hosted block-scope compound literals also change capability without moving a pro
 ## Resolved output ownership
 
 Counts are output transforms in the checked audit, not textual recipe occurrences. Composite Python transforms list the code-producing utility they invoke as a second owner.
+
+At the earlier kernel-compiler handoff (ADR 0393), the recorded state was:
 
 | Tool hand-off | Reachable outputs | Required external behavior |
 | --- | ---: | --- |
@@ -2293,6 +2330,8 @@ as one seed closure. The fixed-point coordinators, checked runner, artifact
 contract, manifest tools, and their tests use the same six-image inventory.
 This closed the filename and membership work needed for the v2 promotion.
 ADR 0356 records that seed-refresh boundary.
+
+At the earlier kernel-compiler handoff (ADR 0393), the recorded state was:
 
 Python still owns seed and source freezing for the composite paths, WSL
 staging, independent stage and report comparisons, artifact-policy parity,

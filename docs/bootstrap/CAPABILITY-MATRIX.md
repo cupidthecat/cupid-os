@@ -1,28 +1,53 @@
 # Cupid Toolchain capability matrix
 
-Source-head CupidBuild also provides `compile-doom` for the 83 approved Doom
-sources. It derives the compatibility or tree profile from the source path,
-captures all discovered headers and source files, and supplies the selected
-source plus headers through a closed `CUPSRC1` bundle. Directory checks permit
-unrelated object writes while rejecting changed source membership, headers,
-and directory identities. The strict profile-manifest publisher keeps its
-existing directory checks. The checked seeds and normal Doom recipes still
-use the preceding coordinator until paired proofs and promotion complete.
-[ADR 0394](../adr/0394-compile-doom-with-filtered-discovery.md) records this
-source boundary.
+Make invokes checked `cupidbuild compile-doom` for all 83 approved Doom
+sources: three compatibility roots and 80 Doom-tree roots. It derives the
+profile from source membership, captures the exact source cohort and all
+profile headers, and sends the selected source and headers to CupidC in a
+closed `CUPSRC1` bundle. Missing entries cannot fall back to live files.
+Filtered directory checks allow parallel object publication while rejecting
+source/header changes and replaced directories. The strict profile-manifest
+publisher keeps its existing directory checks. Failed transactions preserve
+or retain verified recovery evidence under the documented filesystem policy;
+equal validated objects retain their timestamps after full input checks.
 
-Checked CupidC accepts closed `CUPSRC1` bundles, and checked CupidBuild owns
-all 157 normal kernel-profile compiler recipes. Logical paths survive capture,
-missing entries cannot read live files, and the transaction retains the fixed
-profile, native compiler-object validation, publication lock, and rollback.
-Equal validated objects retain their timestamps after full input checks.
+The 157 kernel-profile recipes continue to use `compile-kernel`. All 240
+kernel/Doom compiler roots already use `.cc`; this handoff changes ownership
+without changing the source language, compiler arguments, or OS behavior.
 
-The clean Linux and native Windows proofs from `9d2529a7` exercise code and
-data-only compilation, missing captured inputs, failure preservation, recovery,
-and cleanup with each compared generation's own seed. All 29 Linux and 32
-Windows stage-three/stage-four artifact pairs match. Linux passes 36/7/42 and
-Windows 24/7/29 failure/help/success groups. ADRs 0390 through 0393 record the
-format, staged proof, complete 157-source capture, and production adoption.
+Both checked six-tool cohorts come from source `83d00ce70e5607dc5c011bb97c6478121f24a21c`
+and the same 59-input snapshot `f2b3a1349b3cf5476fc2f141b307afe3babe0e673d6154fb98afee3511507718`. Clean proofs match
+all 29 Linux and 32 native Windows stage-three/stage-four artifact pairs.
+Linux passes 41 failure, seven help, and 47 success groups; Windows passes
+29 failure, seven help, and 34 success groups. Each compared coordinator uses
+its own generation's complete tool cohort. Independent promotion checks bind
+the source inventory to the commit and verify exact stage files and bytes,
+executable formats, build plans, parent lineage, and the proposed seed pair.
+
+The Linux manifest has SHA-256 `a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622`; the Windows
+manifest has SHA-256 `f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590`.
+
+The audit records 437 CupidBuild and 15 Python participations across 452
+transforms. Python still coordinates six compilations (three generated
+installation tables and three user programs), three user links, two image
+publications, three verification operations (artifact sizes, user syscall ABI,
+and the Toolchain manifest), and one Toolchain build/manifest publication.
+Make and host operating-system services remain required. GCC, NASM, and host
+linkers are not required by the normal code-producing path.
+
+The next compiler step is the six generated-install and user compilations.
+Their existing profiles and captured headers must remain intact. User builds
+must keep configurable `BUILD` directories, including safe creation of missing
+parents, rather than being restricted to `user/build`. The three user links
+remain a separate transaction. IWAD-backed Doom gameplay acceptance is still
+open; compiler parity and asset-free smoke tests do not establish gameplay.
+`TempleOS/` remains read-only reference material and is excluded from builds
+and progress counts.
+
+[ADR 0396](../adr/0396-adopt-checked-doom-compilation-in-make.md) records the promotion and recipe handoff.
+
+The bootstrap log records the production replay, artifact-size checks, and private SMP/ls smoke separately from these fixed-point results.
+Fixed-point convergence and OS runtime acceptance remain separate results.
 
 Both earlier `16a86f5b` fixed-point proofs passed. The current checked seeds
 carry the Windows full-cohort launch and POSIX working-directory repairs.
@@ -30,8 +55,10 @@ The earlier five-manual parallel replays passed on Windows and native Linux,
 including all 16 artifact checks and image publication. Both produced the
 same 9,550,844-byte raw kernel. The private four-CPU runtime frontiers on
 the Linux image with E1000 and RTL8139 pass. A separate pinned-IWAD Doom
-probe still panics during HomeFS rewriting; the asset-free frontier does not
-establish gameplay acceptance. The earlier `962e476b` Windows command-line
+probe previously panicked during HomeFS rewriting. Later private probes did
+not reproduce the panic but timed out before timedemo completion, including
+a 1,200-second diagnostic that completed renderer initialization. Gameplay
+acceptance remains open. The earlier `962e476b` Windows command-line
 failure preserved the old raw kernel. The Windows image with preserved FAT
 contents separately passes an SMP and `ls` smoke.
 
@@ -66,6 +93,8 @@ recipe ignores standalone tool and Python overrides. Its audit rejects
 changed arguments, missing or duplicate inputs, and profile scheduling edges.
 Both repaired seeds carry the command, and ADR 0386 records the handoff.
 
+At the earlier kernel-compiler handoff (ADR 0393), the recorded state was:
+
 Typed Doom profile publication is **Production-owned**. Make calls the
 promoted `generate-profile-manifest` transaction with its exact output,
 profile inputs, Makefile, selected manifest, and six seed images. POSIX
@@ -82,6 +111,8 @@ dependencies. Unrelated roots remain parallel;
 directory-drift rejection stays strict. The audit records these edges as
 `order_only_inputs`, separate from content inputs, while retaining the
 existing user ABI gate in graph reachability.
+
+The following seed evidence belongs to the preceding `9d2529a7` checkpoint.
 
 Both seeds bind revision `9d2529a718672edcd970f24960535db6ddbde5e4`
 and the 59-input snapshot
@@ -323,6 +354,8 @@ adopted the four current cleanup and time adapters.
 The last published inventory counts 646 direct designated initializers across 19
 files.
 
+At the earlier kernel-compiler handoff (ADR 0393), the recorded state was:
+
 The source-current graph records 250 CupidC participations across the supported
 roots: 246 ordinary C-output transforms plus the native Windows ABI,
 artifact-size, Toolchain manifest verification, and Toolchain manifest
@@ -525,6 +558,8 @@ The Doom wrapper separately freezes exact three-source and 80-source
 allowlists and all 304 `.h` and `.inc` inputs. Its input manifest detects
 membership and byte drift without changing its timestamp on an unchanged
 scan.
+
+At the earlier kernel-compiler handoff (ADR 0393), the recorded state was:
 
 CupidC participates in 250 transforms, CupidBuild participates in 354, and no
 supported transform invokes a host C compiler. Host Python participates in 98
@@ -1626,6 +1661,8 @@ corrected raw `EQU` behavior.
 
 ## Shared object, linker, and bootstrap capabilities
 
+The following seed evidence belongs to the preceding `9d2529a7` checkpoint.
+
 The clean candidates from revision
 `9d2529a718672edcd970f24960535db6ddbde5e4` matched 22 C objects,
 startup, and six Linux tools with 36/7/42 failure/help/success groups, plus
@@ -1700,6 +1737,8 @@ then proves same-process recovery. On POSIX, CupidLD requests mode `0777`; the
 process umask may remove any permission bits. The source audit requires the PE
 dispatch to reach this publisher. The directory must remain stable under the
 caller's control because the standalone CLI does not lock or pin the path.
+
+The following seed evidence belongs to the preceding `9d2529a7` checkpoint.
 
 | Capability | Status | Baseline evidence and gap |
 | --- | --- | --- |

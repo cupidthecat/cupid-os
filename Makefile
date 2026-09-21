@@ -880,7 +880,7 @@ kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.cc drivers/serial.h kernel/audi
 		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
 		--source kernel/audio/opl_smoke.cc --output kernel/audio/opl_smoke.o
 
-# The wrapper freezes every configured include root. Make tracks that same
+# CupidBuild freezes every configured include root. Make tracks that same
 # complete header search space, including headers not selected by this source.
 DOOM_CUPIDC_HEADERS := $(sort $(wildcard drivers/*.h kernel/*.h kernel/*/*.h \
 	                         kernel/doom/src/*.h \
@@ -907,8 +907,10 @@ kernel/doom/dglibc.o: kernel/doom/dglibc.cc kernel/doom/dglibc.h kernel/core/typ
                       kernel/mm/memory.h kernel/fs/vfs.h kernel/core/string.h \
                       drivers/serial.h drivers/timer.h $(DOOM_CUPIDC_HEADERS) \
                       $(DOOM_CUPIDC_INPUT_MANIFEST) \
-                      $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --profile doom-compat --source kernel/doom/dglibc.cc --output kernel/doom/dglibc.o
+                      Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-doom \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/doom/dglibc.cc --output kernel/doom/dglibc.o
 
 KERNEL_OBJS += kernel/doom/dglibc.o
 
@@ -926,8 +928,10 @@ kernel/doom/doomgeneric_cupidos.o: kernel/doom/doomgeneric_cupidos.cc \
                                     kernel/usb/usb.h \
                                     $(DOOM_CUPIDC_HEADERS) \
                                     $(DOOM_CUPIDC_INPUT_MANIFEST) \
-                                    $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --profile doom-compat --source kernel/doom/doomgeneric_cupidos.cc --output kernel/doom/doomgeneric_cupidos.o
+                                    Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-doom \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/doom/doomgeneric_cupidos.cc --output kernel/doom/doomgeneric_cupidos.o
 
 KERNEL_OBJS += kernel/doom/doomgeneric_cupidos.o
 
@@ -936,8 +940,10 @@ kernel/doom/doom_libc_stubs.o: kernel/doom/doom_libc_stubs.cc \
                                 kernel/core/types.h kernel/core/string.h kernel/doom/dglibc.h \
                                 drivers/serial.h $(DOOM_CUPIDC_HEADERS) \
                                 $(DOOM_CUPIDC_INPUT_MANIFEST) \
-                                $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --profile doom-compat --source kernel/doom/doom_libc_stubs.cc --output kernel/doom/doom_libc_stubs.o
+                                Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-doom \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/doom/doom_libc_stubs.cc --output kernel/doom/doom_libc_stubs.o
 
 KERNEL_OBJS += kernel/doom/doom_libc_stubs.o
 
@@ -950,8 +956,10 @@ kernel/doom/i_sound_cupidos.o: kernel/doom/i_sound_cupidos.cc \
                                 kernel/doom/src/w_wad.h \
                                 $(DOOM_CUPIDC_HEADERS) \
                                 $(DOOM_CUPIDC_INPUT_MANIFEST) \
-                                $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --profile doom-tree --source kernel/doom/i_sound_cupidos.cc --output kernel/doom/i_sound_cupidos.o
+                                Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-doom \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source kernel/doom/i_sound_cupidos.cc --output kernel/doom/i_sound_cupidos.o
 
 KERNEL_OBJS += kernel/doom/i_sound_cupidos.o
 
@@ -960,8 +968,10 @@ DOOM_SRC := $(sort $(wildcard kernel/doom/src/*.cc))
 DOOM_SRC_OBJS := $(DOOM_SRC:.cc=.o)
 
 kernel/doom/src/%.o: kernel/doom/src/%.cc $(DOOM_CUPIDC_HEADERS) \
-	$(DOOM_CUPIDC_INPUT_MANIFEST) $(CUPIDC_KERNEL_COMPILE_INPUTS)
-	$(CUPIDC_KERNEL_COMPILE) --profile doom-tree --source $< --output $@
+	$(DOOM_CUPIDC_INPUT_MANIFEST) Makefile $(PRODUCTION_SEED_INPUTS)
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-doom \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source $< --output $@
 
 KERNEL_OBJS += $(DOOM_SRC_OBJS)
 

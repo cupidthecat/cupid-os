@@ -37278,3 +37278,399 @@ After its process name was verified, RuntimeBroker PID 30956 was stopped;
 it held 39,820,517,376 bytes of private committed memory. Host memory capacity
 recovered. This action followed the approval and did not change OS source,
 publication contracts, or the interpretation of the earlier failed runs.
+
+After source commit `83d00ce70e5607dc5c011bb97c6478121f24a21c` was pushed,
+the Linux private four-CPU `max`/E1000 SMP and `ls` check was retried against
+the same isolated image. It passes and leaves image SHA-256
+`9e779924d9935913ef59b033cad1768b8c2d4297883071c654927603a95e9fd8`
+unchanged. The earlier empty attempt is preserved separately. The successful
+records use the `retry-` prefix under
+`build/bootstrap/20260920-doom-linux-os/`: `retry-smoke-record.json`,
+`retry-smoke-console.log`, and `retry-smoke-serial.log`. Both hosts now have
+passing private source-checkpoint boot checks. These checks do not establish
+IWAD-backed gameplay or replace the paired committed-source proofs.
+
+The next verification audit is recorded in
+`docs/bootstrap/NEXT-ARTIFACT-VERIFICATION.md`. Removing the artifact-size
+wrapper requires more than moving its sixteen size comparisons into a CLI.
+The current gate also pins both seed cohorts, compares paired provenance,
+builds and runs a checked C contract, checks its report against an independent
+oracle, and rechecks paths and captured bytes before success. Extracting the
+C policy core is a useful first step; native adoption also needs a read-only
+filesystem transaction with equivalent observations and final rechecks.
+This audit inspected seventy existing test methods without rerunning them
+or transferring verification ownership.
+
+### Paired Doom proof and production handoff
+
+Source commit `83d00ce70e5607dc5c011bb97c6478121f24a21c` was committed and
+pushed before the clean proofs began. Both hosts captured the same 59 inputs,
+with snapshot SHA-256
+`f2b3a1349b3cf5476fc2f141b307afe3babe0e673d6154fb98afee3511507718`.
+Linux used an exact committed archive on its native filesystem; Windows used
+a clean detached worktree. The first Linux launcher rejected an output path
+outside the source root before compilation. Its evidence is retained; the
+corrected run used a fresh source tree and output directory.
+
+The Linux proof passes 41 failure, seven help, and 47 success groups and
+matches 29 final artifact pairs: 22 C objects, one startup object, and six
+tools. Its 49,187-byte report has SHA-256
+`647bd670375a2d46500c05ada4187776ecfc0030bde946fb7ce3fb91eedefd05`.
+Evidence is under
+`build/bootstrap/doom-fixedpoint-83d00ce7-20260920-205427/`, including the
+retained `linux-proof` and independent verification record. Native outputs
+remain under `/home/frank/cupid-doom-proof-83d00ce7-_sfs13ku/source`.
+
+The Windows proof passes 29 failure, seven help, and 34 success groups and
+matches 32 final artifact pairs: 23 C objects, three assembly objects, and six
+tools. Report SHA-256 is
+`0a8997d9e2b97df08c3d762bde7335d8825fc77e6786afe4d4785dd334d42da2`.
+Its clean worktree is `.worktrees/doom-proof-83d00ce7-windows`; the retained
+output is `build/bootstrap/doom-source-windows-proof` there. The independent
+summary is `build/bootstrap/83d00ce7-windows-clean-proof-summary.json` in the
+active worktree. Only CupidBuild differs from each preceding checked cohort.
+
+Before promotion, independent checks validated every stage inventory and
+artifact digest, relocatable structure, executable format, final-stage byte
+equality, build plan, parent identity, and complete committed source closure.
+The proposed pair then passed its own updated verifier before any checked
+files were replaced. The installed pair also passes both six-tool verifiers.
+Its Linux manifest SHA-256 is
+`a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622`;
+its Windows manifest SHA-256 is
+`f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590`.
+Both name the preceding `9d2529a7` generation as parent. The reviewed v2
+reader window remains `16a86f5b`/`9d2529a7`; historical v1 parsing is unchanged.
+Promotion evidence is retained in
+`build/bootstrap/20260920-doom-promotion-evidence.json`.
+
+Five Make recipes now dispatch all 83 Doom objects through checked
+`compile-doom`. They retain the exact source/output bindings, all seven seed
+inputs, captured headers, normal profile-manifest dependency, and the
+profile writer's ordering barrier. Audit regeneration passes and records
+437 CupidBuild and 15 Python participations across the same 452 transforms.
+The active preprocessor manifest is byte-identical to the checked file.
+README, bootstrap records, ADR 0396, the repository wiki page, and CTXT
+describe the handoff. All 240 kernel and Doom compiler roots already use
+`.cc`; no source rewrite or suffix change was needed.
+
+The production replay helper now selects the complete kernel or Doom cohort,
+checks each full command vector, and rediscovers Doom controls at every
+comparison boundary. It also compares private transaction entries before and
+after every command, including failed commands. Existing recovery entries
+remain untouched; new, removed, replaced, or changed entries fail validation.
+The scan uses no-follow metadata at the repository root, output parents, and
+profile parent without recursively traversing unrelated build trees.
+The focused Make and replay group passes 33 tests with one Linux-only skip,
+including all 28 replay tests. These are harness and recipe checks; final
+production execution and image evidence are recorded separately below.
+
+The complete focused adoption set passes 53 tests, with one Linux-only skip
+on Windows. It covers Make recipes, the replay harness, v2 seed contracts,
+paired-manifest contracts, and promotion fixtures. The promotion fixture
+initially retained the preceding parent identities; it now obtains those
+identities from the current `PROMOTION_PARENT_*` constants. Historical
+fixtures remain unchanged. A strict manifest-runner test also detected root
+namespace changes from another concurrent test. Its isolated retry passes;
+the validation boundary was not relaxed. Both failed attempts and the passing
+retries are retained in `build/bootstrap/83d00ce7-doom-adoption-*.log`.
+
+Independent review found no blocker in the Make dependencies, full replay
+command checks, repeated Doom source discovery, residue handling, paired
+seed bytes, or updated promotion fixtures. Runtime acceptance remains a
+separate gate. A suffix inventory still finds seventeen tracked `.c` files
+outside `TempleOS/`; all remain in the documented historical, dormant,
+host-fixture, or host-oracle classes. No supported transform uses them.
+
+The broader active-manifest regression exposed an old 157-native/86-Python
+root compiler expectation. It now requires the exact 240-source kernel/Doom
+union and the exact three generated installation roots still coordinated by
+Python. That regression and the complete checked-seed trust-unit test both
+pass in 405.736 seconds. Their reports and mutation fixtures were confined
+to external temporary directories, so they did not write into the running
+OS build. Evidence is retained in
+`build/bootstrap/83d00ce7-doom-adoption-full-audit-regressions.log`.
+
+The remaining user compiler boundary is recorded in
+`docs/bootstrap/NEXT-USER-COMPILATION.md`. The current wrapper permits nested
+and hidden output parents, safe lexical aliases, absolute paths inside the
+approved subtree, Unicode, and long components. A Python retained-parent
+model passes eleven methods on each host with one platform-specific skip;
+it is design evidence, not native coordinator support. The native migration
+must also replace or adapt Windows ANSI argument and pathname handling.
+Generated installation compilation and the three user links remain separate
+operations. No user path restriction or recipe change is introduced here.
+
+The Linux adoption build used staged tree
+`0eced22da4224bb1fddd065c8f6ae68b21ced8bc` on its native filesystem.
+Its exact source archive has SHA-256
+`ba8aa64c007b4661a207264cee59478fd703c5c22f0aa321d82426d71dbde890`.
+Compilation, both links, symbol generation, and guarded flattening completed.
+The initial build stopped only at the old raw-size policy: the updated
+50,102-byte embedded manual produces a 9,553,060-byte raw kernel, 456 bytes
+larger than the preceding checkpoint. The isolated policy changed only that
+measured row before the full production replay began. The initial log and
+measurements remain under
+`build/bootstrap/doom-adoption-0eced22d-20260920-214939/`.
+
+The measured Linux kernel identities are:
+
+- Pass-one ELF: 9,650,508 bytes, SHA-256
+  `af67d51469052a7626318e12c9eda81a0362ed238efe053e2b2e6cf6a9e66bb3`.
+- Final ELF: 9,781,580 bytes, SHA-256
+  `920018e140ccbf14e013e47b356b6a5a1ad701e6df9307d79ae56b9b0275d7b0`.
+- Raw kernel: 9,553,060 bytes, SHA-256
+  `c4bacaa72bfb80d71d9b52769a3cfd677d2d353b57b6bf44395d99bfc69120ca`.
+
+The Windows initial build reached the same stale raw-size check and reported
+no other failure. All three Windows kernel sizes and hashes match the Linux
+measurements above. After that comparison, the active size policy changed
+only the raw-kernel row to 9,553,060 bytes; both ELF size rows remain unchanged.
+The original failure and matching identities are retained in
+`20260920-doom-adoption-initial-build.log` and
+`20260920-doom-adoption-windows-kernels.json` under `build/bootstrap/`.
+
+The separate IWAD investigation retained the exact earlier image, SHA-256
+`fbc3d3e98160e252b44d42e6e061ac65ca127b4eef0ae74374e1f7ae6fd9f686`.
+Three private runs failed the unchanged 300-second command deadline without
+reproducing the earlier EHCI DMA-ownership panic. HomeFS completed its write
+and Doom reached renderer initialization. A fourth diagnostic used an explicit
+1,200-second command deadline, with the same timedemo-completion requirement.
+It also failed, after 1,306.697 seconds of total wall time. Renderer
+initialization returned and the log reached `ST_Init`, but no completed
+timedemo appeared. All four runs preserved the source image.
+
+Fifteen read-only CPU, lock, and controller samples span 840.334 seconds of
+the longer run. Lock counters advance, and later samples locate OPL3 audio
+functions. These live sequential reads are not an atomic snapshot and do
+not establish Doom-task progress, rendered frames, audio quality, input,
+save/load, or reboot persistence. An earlier sample in the ticket-lock loop
+does not prove a deadlock; later counter movement rules out one continuously
+held lock across the sampled interval. The original EHCI failure remains
+unexplained. No driver change, timeout-default change, or runtime acceptance
+relaxation follows from these observations. Exact-image symbols and
+disassembly, raw monitor replies, command logs, and hashes are retained in
+`build/bootstrap/20260920-ehci-doom-diagnosis/`. The longer run's serial log
+has SHA-256
+`5ac00d2df1c86c211e6a66611a7d5a71ace0ed601209ba9e768a6759d580e541`.
+
+The complete build-audit suite passes all 121 tests in 1,776.995 seconds.
+It ran in an isolated archive of staged tree
+`0f6a1455fb73b5e347a1d417f6948aec48df1bd2`, with the exact source archive,
+tree identity, and complete log retained under
+`build/bootstrap/20260920-doom-adoption-full-audit/`. This run includes the
+repaired compiler-cohort and wrapper-selector fixtures. It wrote no test
+fixtures into the active production replay root.
+
+The final read-only audit check also passes against the active adoption tree,
+including the checked preprocessor corpus. Its first invocation named a
+nonexistent corpus output and correctly reported that path as stale; it wrote
+nothing. The corrected invocation uses Make's actual
+`toolchain/tests/cupidc_pp_active_cases.inc` binding. Both logs remain under
+`build/bootstrap/20260920-doom-adoption-final-audit-check*.log`.
+
+The Linux production replay passes all 83 planned and executed Doom
+compilations. Each object matches a separate compilation through the Python
+reference wrapper. The poisoned replay preserves object bytes and timestamps,
+declared controls, and pre-existing private transaction entries. Its report
+has SHA-256
+`e802838da1f27355b4306639b69a51d1cd76b0b123b33700269d72085179a83c`
+and is retained as `doom-adoption-replay/result.json` under the Linux adoption
+evidence directory above. The full preparation also passes the sixteen exact
+artifact checks and publishes the disk image. User builds and private runtime
+checks are recorded separately when complete.
+
+A subsequent diagnostic against the unchanged pinned IWAD image narrows one
+cause of the timedemo timeout. After initialization, four samples spanning
+180 seconds place the Doom task inside `cup_music_pump`, called from the
+clock query in `G_DoPlayDemo`. The music producer and consumer counters
+advance while `gametic` remains zero and the demo pointer stays thirteen
+bytes into the lump. The producer recalculates available ring space after
+each rendered chunk; an active consumer can keep freeing space and prevent
+the clock query from returning. Earlier `ST_Init` logging marks entry to
+that routine, not its completion. This finding does not explain the separate
+EHCI ownership panic.
+
+An isolated candidate limits each pump call to the complete chunks that fit
+when it starts. It preserves the cold-ring prefill, sample order, ring
+capacity, and consumer path. Nine tests run the actual producer function:
+the original passes seven and exceeds the watchdog in two draining-consumer
+cases; the candidate passes all nine with both host compilers and checked
+Cupid-built Windows and Linux executables. The full candidate sound object
+also matches between checked hosts. These are private regression results;
+the fix has not entered the active source, and guest progress and timedemo
+completion remain separate checks. Evidence is retained under
+`build/bootstrap/20260920-ehci-doom-diagnosis/`.
+
+The first Windows adoption replay stops during normal-build preparation,
+after compilation and both kernel links. The first checked CupidDis batch
+exceeds its existing 300-second deadline; it does not reach the separate
+600-second linked-kernel validation. The replay runner exits after 4,028.203
+seconds, before oracle or poisoned compilation replay. This is a failed run,
+not production-handoff evidence. Its complete logs and result remain under
+`build/bootstrap/20260920-doom-adoption-windows-runtime/`. The published
+deadline and acceptance checks remain unchanged. A separate private-copy
+diagnostic is measuring the exact first batch before a fresh full retry.
+
+The private-copy diagnostic passes the same 431-input `--require-known`
+batch in 293.462 seconds, within the unchanged 300-second deadline. Its
+stdout and stderr are empty. The retained CupidDis image has SHA-256
+`87a6ba895bd52a1da6e287a7b5d585b5ca54a82dd9d43347aa441b7b9d8ed034`.
+Every copied input has a recorded source path, size, and digest in
+`build/bootstrap/20260921-windows-inspection-diagnostic/result.json`.
+This establishes a successful diagnostic close to the deadline; it does not
+by itself establish why the preceding run timed out.
+
+A fresh full Windows preparation and replay is running with four jobs. An
+initial retry launcher requested six jobs and was rejected by the harness's
+existing one-to-four bound before starting a build. That failed setup remains
+under `20260921-doom-adoption-windows-runtime-retry`; the corrected fresh
+report uses `20260921-doom-adoption-windows-runtime-retry-j4`. Other new heavy
+validation jobs are held until preparation finishes; already-running source
+builds continue. No production timeout, input cohort, or check was removed.
+
+The inspection investigation identified repeated candidate initialization in
+the shared x86 decoder. A host-instrumented run of the exact 431-input batch
+records 89,698,818 candidate attempts for 5,704,653 instructions; only
+7,273,632 attempts reach the first candidate write. The current calls request
+27,094,585,764 zeroed bytes, including 23,408,752,824 bytes for rows rejected
+before that write. The existing first-opcode index is already in use; another
+full-catalogue indexing change would not explain or address this work.
+
+An isolated candidate moves initialization after the existing early opcode,
+prefix, and invalid-encoding checks. Public-result initialization and decode
+selection remain unchanged. Sixteen host contract modes pass on each host,
+and a new repeated-use regression catches a deliberately removed matching-row
+clear. Each Cupid-built baseline relink reproduces its checked seed exactly.
+The changed object is identical on Windows and Linux, SHA-256
+`f912265d1ed23b00a3c6877ab4bdd129d43d234ff8171e31d1a2c4ccfa1f34eb`.
+Canonical LF source produces the same object as the initially retained CRLF
+draft; neither draft changes an active source file.
+
+All 256 paired rendered/strict cases match on both Cupid-built executables,
+including 86 expected rejections. The candidate Windows tool validates the
+same full batch in 71.535 seconds, within the unchanged 300-second limit,
+with no output. These measurements support the candidate but do not establish
+a new fixed point or production adoption. The source patch, regression,
+baseline/candidate artifacts, commands, hashes, and diagnostic ADR draft remain
+under `build/bootstrap/x86-decode-initialization-draft/`; full-batch work counts
+are under `build/bootstrap/cupid-dis-work-z99wd97v/`. OS validation and a later
+source commit and promotion are still required.
+
+The native-verifier source audit also found a release-trust distinction.
+Python pins the promoted source, plans, parents, and individual executable
+identities to release constants. CupidBuild's staged execution reader checks
+an admitted generation and internally consistent manifest without embedding
+its own finished executable hash. Its schema and image-profile branches also
+follow the compiled host. The next-artifact plan now records both gaps and a
+proposed captured release-identity data file. No reader behavior or trust
+requirement changed, and this audit claims no new executable test result.
+
+Four follow-up probes run the current Python release validator against private
+copies of both checked seed cohorts. Both accept compact JSON with reordered
+artifact rows. Both reject a changed CupidBuild image even after its manifest
+row is updated to the matching new digest. The exact rejection is
+`promoted artifact SHA-256 differs: cupidbuild`. The retained cases under
+`build/bootstrap/20260921-release-pin-audit/` support semantic release pins;
+they are not native-verifier evidence. Whole-manifest byte pinning would add
+a formatting restriction that the present validator does not impose.
+
+The fresh four-job Windows adoption preparation passes both original
+CupidDis inspection batches, guarded flattening, all sixteen exact artifact
+checks, and image publication. The image publisher preserves existing FAT
+contents. An independent readback matches all three kernel sizes and hashes
+recorded for the Linux adoption build. The harness has entered its separate
+83-source Python-oracle phase; poisoned replay and private runtime checks
+remain pending. These preparation results are retained under
+`build/bootstrap/20260921-doom-adoption-windows-runtime-retry-j4/`, including
+`independent-preparation-check.json`. No timeout or validation check changed.
+
+The Windows production replay then passes all 83 compiler transactions and
+the profile transaction with the old coordinators and host code-producing
+commands poisoned. Every object matches its separate Python-wrapper oracle.
+The replay preserves 448 artifacts, 554 controls, their timestamps, and all
+52 pre-existing private transaction entries. Actual execution contains no
+forbidden command. The compiler replay takes 958.836 seconds; the complete
+preparation/oracle/replay invocation takes 5,097.173 seconds. Its report has
+SHA-256 `ace734f586f4bba97cd5f874b3d26348feeb768c3f5f961e77736c22b6565676`.
+
+The following Windows user-program build passes in 33.098 seconds, and the
+standalone sixteen-artifact gate passes in 23.692 seconds. The first private
+SMP/`ls` smoke boots all four CPUs and launches the terminal, then reports
+`undefined variable` and misses command completion. It does not establish
+runtime acceptance. The image remains unchanged at SHA-256
+`5453b4a9f04f923b33e0a32fdad87dcfa3b33f64c2bf73c1cb21a120357c4075`.
+The failure and serial log remain with the replay evidence. An exact-command
+retry uses a fresh private copy and the same 180-second command deadline;
+keyboard delivery, command lookup, and JIT behavior remain separate hypotheses.
+
+The private bounded music producer also completes its guest diagnostic.
+Its exact image passes the sixteen artifact checks, and four active samples
+show `gametic` advancing 37, 90, 143, and 197 over 180.113 host seconds.
+The corresponding demo offsets are 161, 373, 585, and 801 bytes, matching
+`13 + 4 * gametic`; playback, timedemo, and single-tic flags are set. A later
+coherent stack reaches the clock read in `TryRunTics`, showing that the initial
+`G_DoPlayDemo` clock call returned. The full timedemo still misses its unchanged
+1,200-second command deadline. No panic is reported, and image SHA-256
+`da38661b43347d4ec2a3c20132c2d6381b3fa881cd072b77e45a96a1b83af6c2`
+is unchanged. `fixed-summary.json` has SHA-256
+`e5d53c880108ac110301cc12b2bca2f91554702999f33e387cbb6f541a3e198e`.
+
+That guest uses a newer image than the retained unfixed probe, so the images
+are not a one-change comparison. The controlled evidence remains the actual
+producer-function regressions and equal checked sound objects. Guest samples
+establish progress for the newly built image; they do not prove completed
+gameplay, audio quality, save/load, or reboot persistence. The fix remains
+isolated, and the earlier EHCI panic remains unexplained.
+
+The decoder's repeated-use regression now also runs as checked Cupid-built
+PE32 and ELF contracts. All sixteen modes pass for baseline and candidate on
+each host, for 64 executions. Outputs match exactly across variants and hosts;
+contract and decoder object bytes match across hosts too. Formats and exact
+Windows imports validate. These focused native results remain under
+`x86-decode-initialization-draft/regression/`; OS validation and promotion are
+separate requirements.
+
+A further isolated extraction makes both seed executable profiles available
+through `cupidbuild_validate_seed_image_bytes`. The existing transaction still
+selects its own host format. Twelve API methods pass on each host compiler
+and each checked Cupid-built PE32/ELF caller, including all twelve actual seed
+images and malformed/profile failures. Sixteen neighboring execution tests
+pass on Windows and Linux, with one Windows-only skip on Linux. The first
+neighbor runs omitted a Doom fixture needed by an existing race test; retained
+failures pass after restoring that fixture without changing code or assertions.
+The API preserves the image checks and owns no input bytes. It supplies no
+manifest, digest, release-pinning, or filesystem proof. Its four-file patch
+and exact evidence remain under `build/bootstrap/seed-image-profile-draft/`;
+no active source, ownership, or checked seed changed for this draft.
+
+The exact Windows smoke retry passes in 51.246 seconds. Its fresh private
+image boots all four CPUs, compiles `/bin/ls.cc`, executes it, and passes the
+strong SMP checks with the original command and deadline. The source image
+hash remains `5453b4a9f04f923b33e0a32fdad87dcfa3b33f64c2bf73c1cb21a120357c4075`.
+The serial log has SHA-256
+`3a333e5a785cf36ba8cea68ef9ca53c98efddf43f4c37ee83b773224c58285a7`.
+This success does not identify the cause of the preceding `undefined variable`
+diagnostic. Both results remain intact. An independent final readback verifies
+the same three kernel identities as Linux. The combined Windows evidence is
+recorded in `build/bootstrap/20260921-doom-adoption-windows-summary.json`.
+
+The Linux adoption chain finishes successfully after its complete checked
+toolchain and contract cache, user ABI check, and user-program build. The
+first private four-CPU `max`/E1000 SMP/`ls` smoke passes. It preserves the
+209,715,200-byte image with SHA-256
+`78c8807f0766f5b6b1623aba024a0fd1f4b96304c8d700152f49c6e9166ebc31`.
+The serial log has SHA-256
+`9f353b5f0ad621c7a4e382d37038945b7879ff6c6c9c497a545afed65ad0221d`.
+All three final kernels match their initial measurements and the Windows
+outputs. The replay preserves 448 artifacts and 554 controls, including
+timestamps, and leaves its initially empty private-entry census unchanged.
+
+Linux's final state has SHA-256
+`89b40e2b576e742550174bfd0487de03a77c2d15e8bcfec1f99c300d6d6b3640`.
+Its top-level historical return code still records the initial stale-size
+failure; final status is `pass`, with zero for every continuation phase.
+`independent-final-verification.json` checks the completed replay census,
+artifact identities and times, profile checks, three kernels, and image
+preservation. Together with the Windows evidence, this completes the
+production handoff validation. Full Doom gameplay acceptance remains open.

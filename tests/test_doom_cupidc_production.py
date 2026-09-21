@@ -2373,10 +2373,10 @@ class DoomCupidCProductionTests(unittest.TestCase):
         self.assertNotIn("kernel/doom/src/*.c)", makefile)
         self.assertIn("kernel/doom/src/*.cc)", makefile)
         self.assertEqual(
-            makefile.count("--profile doom-compat"),
-            len(DOOM_COMPAT_SOURCES),
+            makefile.count(" compile-doom "), 5,
         )
-        self.assertEqual(makefile.count("--profile doom-tree"), 2)
+        self.assertNotIn("--profile doom-compat", makefile)
+        self.assertNotIn("--profile doom-tree", makefile)
         self.assertIn(
             "kernel/doom/src/%.o: kernel/doom/src/%.cc",
             makefile,
@@ -2426,12 +2426,8 @@ class DoomCupidCProductionTests(unittest.TestCase):
         )
         self.assertNotIn(marker, result.stdout)
         self.assertEqual(
-            result.stdout.count("--profile doom-compat"),
-            len(DOOM_COMPAT_SOURCES),
-        )
-        self.assertEqual(
-            result.stdout.count("--profile doom-tree"),
-            len(kernel_compile.APPROVED_DOOM_TREE_SOURCES),
+            result.stdout.count(" compile-doom "),
+            len(sources),
         )
         for source in sources:
             self.assertIn(f"--source {source}", result.stdout)

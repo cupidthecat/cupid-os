@@ -28,6 +28,9 @@ from tools.bootstrap_toolchain import (
     PROMOTED_WINDOWS_PLAN_SHA256,
     PROMOTED_WINDOWS_MANIFEST_SHA256,
     PROMOTED_WINDOWS_SEED_SCHEMA,
+    PROMOTION_PARENT_LINUX_MANIFEST_SHA256,
+    PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256,
+    PROMOTION_PARENT_SOURCE_REVISION,
     SEED_SCHEMA,
     SEED_SOURCE_REVISION,
     SEED_SOURCE_SNAPSHOT_SHA256,
@@ -464,16 +467,16 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "native_build_plan_sha256": PROMOTED_WINDOWS_PLAN_SHA256,
                 "plan_seed_manifest_sha256": "3" * 64,
                 "parent_execution_seed_manifest_sha256": (
-                    "bd4d5435301972fba4ba55e0edfe7451a876fd56b3dbe73fc60a4deca61e43dc"
+                    PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256
                 ),
                 "parent_execution_seed_source_revision": (
-                    "16a86f5b1693e017c36c6d902df9946c5d674b17"
+                    PROMOTION_PARENT_SOURCE_REVISION
                 ),
                 "parent_plan_seed_manifest_sha256": (
-                    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
+                    PROMOTION_PARENT_LINUX_MANIFEST_SHA256
                 ),
                 "parent_plan_seed_source_revision": (
-                    "16a86f5b1693e017c36c6d902df9946c5d674b17"
+                    PROMOTION_PARENT_SOURCE_REVISION
                 ),
                 "producer_lineage": lineage,
                 "source_input_count": PROMOTED_SOURCE_INPUT_COUNT,
@@ -490,10 +493,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "fixed_point_command": "make bootstrap-from-seed",
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "d16626ec2dc1fde37114b080e8e855022a4d5ac768eddb3777862ce24ad3ac9d"
+                    PROMOTION_PARENT_LINUX_MANIFEST_SHA256
                 ),
                 "parent_seed_source_revision": (
-                    "16a86f5b1693e017c36c6d902df9946c5d674b17"
+                    PROMOTION_PARENT_SOURCE_REVISION
                 ),
                 "producer_lineage": lineage,
                 "seed_generation": "stage-four",

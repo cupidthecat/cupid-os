@@ -323,6 +323,7 @@ TOOL_MARKERS = (
         "cupid_builder",
     ),
     ("compile-kernel --seed-manifest", "cupid_c_compiler"),
+    ("compile-doom --seed-manifest", "cupid_c_compiler"),
     ("flatten-kernel --seed-manifest", "cupid_disassembler"),
     ("flatten-kernel --seed-manifest", "cupid_object"),
     ("generate-ksyms --seed-manifest", "cupid_disassembler"),
@@ -3408,13 +3409,143 @@ def _validate_cupidbuild_kernel_compile_delivery(
             )
 
 
+
+_CUPIDBUILD_DOOM_COMPAT_SOURCES = (
+    'kernel/doom/dglibc.cc',
+    'kernel/doom/doom_libc_stubs.cc',
+    'kernel/doom/doomgeneric_cupidos.cc',
+)
+_CUPIDBUILD_DOOM_TREE_SOURCES = (
+    'kernel/doom/i_sound_cupidos.cc',
+    'kernel/doom/src/am_map.cc',
+    'kernel/doom/src/d_event.cc',
+    'kernel/doom/src/d_items.cc',
+    'kernel/doom/src/d_iwad.cc',
+    'kernel/doom/src/d_loop.cc',
+    'kernel/doom/src/d_main.cc',
+    'kernel/doom/src/d_mode.cc',
+    'kernel/doom/src/d_net.cc',
+    'kernel/doom/src/doomdef.cc',
+    'kernel/doom/src/doomgeneric.cc',
+    'kernel/doom/src/doomstat.cc',
+    'kernel/doom/src/dstrings.cc',
+    'kernel/doom/src/dummy.cc',
+    'kernel/doom/src/f_finale.cc',
+    'kernel/doom/src/f_wipe.cc',
+    'kernel/doom/src/g_game.cc',
+    'kernel/doom/src/gusconf.cc',
+    'kernel/doom/src/hu_lib.cc',
+    'kernel/doom/src/hu_stuff.cc',
+    'kernel/doom/src/i_endoom.cc',
+    'kernel/doom/src/i_input.cc',
+    'kernel/doom/src/i_joystick.cc',
+    'kernel/doom/src/i_scale.cc',
+    'kernel/doom/src/i_system.cc',
+    'kernel/doom/src/i_timer.cc',
+    'kernel/doom/src/i_video.cc',
+    'kernel/doom/src/icon.cc',
+    'kernel/doom/src/info.cc',
+    'kernel/doom/src/m_argv.cc',
+    'kernel/doom/src/m_bbox.cc',
+    'kernel/doom/src/m_cheat.cc',
+    'kernel/doom/src/m_config.cc',
+    'kernel/doom/src/m_controls.cc',
+    'kernel/doom/src/m_fixed.cc',
+    'kernel/doom/src/m_menu.cc',
+    'kernel/doom/src/m_misc.cc',
+    'kernel/doom/src/m_random.cc',
+    'kernel/doom/src/p_ceilng.cc',
+    'kernel/doom/src/p_doors.cc',
+    'kernel/doom/src/p_enemy.cc',
+    'kernel/doom/src/p_floor.cc',
+    'kernel/doom/src/p_inter.cc',
+    'kernel/doom/src/p_lights.cc',
+    'kernel/doom/src/p_map.cc',
+    'kernel/doom/src/p_maputl.cc',
+    'kernel/doom/src/p_mobj.cc',
+    'kernel/doom/src/p_plats.cc',
+    'kernel/doom/src/p_pspr.cc',
+    'kernel/doom/src/p_saveg.cc',
+    'kernel/doom/src/p_setup.cc',
+    'kernel/doom/src/p_sight.cc',
+    'kernel/doom/src/p_spec.cc',
+    'kernel/doom/src/p_switch.cc',
+    'kernel/doom/src/p_telept.cc',
+    'kernel/doom/src/p_tick.cc',
+    'kernel/doom/src/p_user.cc',
+    'kernel/doom/src/r_bsp.cc',
+    'kernel/doom/src/r_data.cc',
+    'kernel/doom/src/r_draw.cc',
+    'kernel/doom/src/r_main.cc',
+    'kernel/doom/src/r_plane.cc',
+    'kernel/doom/src/r_segs.cc',
+    'kernel/doom/src/r_sky.cc',
+    'kernel/doom/src/r_things.cc',
+    'kernel/doom/src/s_sound.cc',
+    'kernel/doom/src/sha1.cc',
+    'kernel/doom/src/sounds.cc',
+    'kernel/doom/src/st_lib.cc',
+    'kernel/doom/src/st_stuff.cc',
+    'kernel/doom/src/statdump.cc',
+    'kernel/doom/src/tables.cc',
+    'kernel/doom/src/v_video.cc',
+    'kernel/doom/src/w_checksum.cc',
+    'kernel/doom/src/w_file.cc',
+    'kernel/doom/src/w_file_stdc.cc',
+    'kernel/doom/src/w_main.cc',
+    'kernel/doom/src/w_wad.cc',
+    'kernel/doom/src/wi_stuff.cc',
+    'kernel/doom/src/z_zone.cc',
+)
+
+
+def _cupidbuild_doom_compile_recipe(source: str) -> list[str]:
+    output = Path(source).with_suffix(".o").as_posix()
+    source_argument = "$<" if source.startswith("kernel/doom/src/") else source
+    output_argument = "$@" if source.startswith("kernel/doom/src/") else output
+    return [
+        "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+        "$(PRODUCTION_SEED_SUFFIX) compile-doom \\",
+        '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+        f"--source {source_argument} --output {output_argument}",
+    ]
+
+
+def _validate_cupidbuild_doom_compile_delivery(
+    transforms: list[dict[str, object]], *, seed_inputs: list[str],
+    headers: list[str],
+) -> None:
+    by_output = {transform.get("output"): transform for transform in transforms}
+    for source in (*_CUPIDBUILD_DOOM_COMPAT_SOURCES, *_CUPIDBUILD_DOOM_TREE_SOURCES):
+        output = Path(source).with_suffix(".o").as_posix()
+        transform = by_output.get(output)
+        if transform is None:
+            continue
+        expected = {source, *headers, "Makefile", *seed_inputs,
+                    "build/bootstrap/doom-cupidc-inputs.json"}
+        inputs = transform.get("inputs", [])
+        if (
+            transform.get("operation") != "compile_c_to_elf32_object"
+            or transform.get("tools") != ["cupid_builder", "cupid_c_compiler"]
+            or transform.get("recipe") != _cupidbuild_doom_compile_recipe(source)
+            or not isinstance(inputs, list)
+            or set(inputs) != expected
+            or len(inputs) != len(expected)
+            or transform.get("order_only_inputs", [])
+        ):
+            raise AuditError(
+                f"CupidBuild Doom compile delivery differs for {output}: "
+                "expected the source, complete headers, seed, profile manifest, and fixed recipe"
+            )
+
 def _validate_cupidc_kernel_compile_make_binding(
     root: Path,
     make: str,
     transforms: list[dict[str, object]],
 ) -> None:
     if not any(
-        "cupid_c_compiler" in transform.get("tools", [])
+        any("$(CUPIDC_KERNEL_COMPILE)" in line
+            for line in transform.get("recipe", []))
         for transform in transforms
     ):
         return
@@ -8225,6 +8356,14 @@ def build_audit(
                 root, make, ("PRODUCTION_SEED_INPUTS",)
             )["PRODUCTION_SEED_INPUTS"].split(),
         )
+        doom_values = _read_evaluated_make_variables(
+            root, make, ("PRODUCTION_SEED_INPUTS", "DOOM_CUPIDC_HEADERS")
+        )
+        _validate_cupidbuild_doom_compile_delivery(
+            root_model.transforms,
+            seed_inputs=doom_values["PRODUCTION_SEED_INPUTS"].split(),
+            headers=doom_values["DOOM_CUPIDC_HEADERS"].split(),
+        )
         _validate_iso_pattern_delivery(
             root_model.transforms,
             seed_inputs=_read_evaluated_make_variables(
@@ -8706,6 +8845,14 @@ def _c_preprocessor_profile_for_c_transform(
     output = str(transform.get("output", "<unknown>"))
     if transform.get("tools") == ["cupid_builder", "cupid_c_compiler"]:
         root = _c_preprocessor_one_c_root(transform)
+        if root in (*_CUPIDBUILD_DOOM_COMPAT_SOURCES, *_CUPIDBUILD_DOOM_TREE_SOURCES):
+            if (directory != "."
+                    or output != Path(root).with_suffix(".o").as_posix()
+                    or transform.get("recipe") != _cupidbuild_doom_compile_recipe(root)
+                    or transform.get("operation") != "compile_c_to_elf32_object"):
+                raise AuditError(f"CupidBuild Doom compile recipe differs for {output}")
+            return ("DOOM_COMPAT_I386" if root in _CUPIDBUILD_DOOM_COMPAT_SOURCES
+                    else "DOOM_TREE_I386")
         if (
             directory != "."
             or root not in _CUPIDBUILD_KERNEL_INPUT_CLOSURES

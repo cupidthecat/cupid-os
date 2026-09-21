@@ -11,7 +11,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tools.cupidc_kernel_compile import FROZEN_KERNEL_INPUT_CLOSURES
+from tools.cupidc_kernel_compile import (
+    APPROVED_DOOM_COMPAT_SOURCES,
+    APPROVED_DOOM_TREE_SOURCES,
+    FROZEN_KERNEL_INPUT_CLOSURES,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -9701,9 +9705,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     native_cupidc_roots.extend(roots)
                 else:
                     python_cupidc_roots.extend(roots)
-            self.assertEqual(len(native_cupidc_roots), 157)
-            self.assertEqual(set(native_cupidc_roots), set(FROZEN_KERNEL_INPUT_CLOSURES))
-            self.assertEqual(len(python_cupidc_roots), 86)
+            self.assertEqual(len(native_cupidc_roots), 240)
+            self.assertEqual(set(native_cupidc_roots), {
+                *FROZEN_KERNEL_INPUT_CLOSURES,
+                *APPROVED_DOOM_COMPAT_SOURCES,
+                *APPROVED_DOOM_TREE_SOURCES,
+            })
+            self.assertEqual(len(python_cupidc_roots), 3)
+            self.assertEqual(set(python_cupidc_roots), {
+                "kernel/util/bin_programs_gen.cc",
+                "kernel/util/demos_programs_gen.cc",
+                "kernel/util/docs_programs_gen.cc",
+            })
             self.assertFalse(set(native_cupidc_roots) & set(python_cupidc_roots))
             seed_bound_roots = {
                 "toolchain/ctool.cc",
@@ -10136,13 +10149,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
-                    "cupid_builder": 354,
+                    "cupid_builder": 437,
                     "cupid_object": 192,
                     "cupid_linker": 9,
                     "cupid_disassembler": 10,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 98,
+                    "host_python": 15,
                 },
             )
             self.assertFalse(
@@ -11074,7 +11087,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 6,
-            "cupid_builder": 354,
+            "cupid_builder": 437,
             "cupid_object": 192,
             "cupid_linker": 3,
             "cupid_disassembler": 7,
@@ -12448,6 +12461,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         transforms = [
             {
                 "tools": ["cupid_c_compiler", "host_python"],
+                "recipe": ["$(CUPIDC_KERNEL_COMPILE)"],
             }
         ]
         cases = {
@@ -12526,7 +12540,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             module._validate_cupidc_kernel_compile_make_binding(
                 root,
                 "make",
-                [{"tools": ["cupid_c_compiler", "host_python"]}],
+                [{"tools": ["cupid_c_compiler", "host_python"],
+                  "recipe": ["$(CUPIDC_KERNEL_COMPILE)"]}],
             )
 
     def test_production_wrappers_require_the_production_seed_binding(self):

@@ -75,7 +75,8 @@ class KernelCompileHandoffValidationTests(unittest.TestCase):
             self.assertFalse(validation.compile_rows(profile_plan))
             profile_execution = validation.run(profile_command, root, root / "profile.log", 20)
             validation.check_census(profile_execution, collections.Counter(), validation.profile_rows(profile_plan))
-            expected = collections.Counter({("first.cc", "first.o"): 1, ("symbols.cc", "symbols.o"): 1})
+            expected = validation.compile_rows(f"{transaction} compile-kernel --source first.cc --output first.o\n"
+                                               f"{transaction} compile-kernel --source symbols.cc --output symbols.o\n")
             plan = validation.run([*replay[:1], "-n", *replay[1:]], root, root / "plan.log", 20)
             validation.check_census(plan, expected, collections.Counter())
             execution = validation.run(replay, root, root / "replay.log", 20)
@@ -146,14 +147,17 @@ class KernelCompileHandoffValidationTests(unittest.TestCase):
         )
         self.assertEqual(
             validation.compile_rows(command * 2),
-            collections.Counter({("kernel/core/string.cc", "kernel/core/string.o"): 2}),
+            collections.Counter({("seed/cupidbuild.exe", "compile-kernel", "--seed-manifest",
+                                 "seed/manifest.json", "--root", "C:/work tree", "--source",
+                                 "kernel/core/string.cc", "--output", "kernel/core/string.o"): 2}),
         )
         self.assertNotEqual(
             validation.compile_rows(command),
             validation.compile_rows(command.replace("--output kernel/core/string.o", "--output wrong.o")),
         )
-        with self.assertRaises(ValueError):
-            validation.compile_rows("seed/cupidbuild compile-kernel --source source.cc")
+        with self.assertRaises(RuntimeError):
+            validation.check_census("seed/cupidbuild compile-kernel --source source.cc",
+                                    validation.compile_rows(command), collections.Counter())
 
     def test_nonzero_command_keeps_its_log_and_reports_status(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -293,6 +297,335 @@ class KernelCompileHandoffValidationTests(unittest.TestCase):
                 "status": "fail", "phase": "poisoned-replay", "error": "expected command failure",
             })
             self.assertFalse((root / "result.json.tmp").exists())
+
+
+class DoomCompileHandoffValidationTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("make"), "GNU Make required")
+    def test_doom_replay_runs_native_rows_and_keeps_real_generated_edges(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixture = root / "transaction.py"
+            fixture.write_text("# A successful unchanged transaction preserves files.\n")
+            command = f'"{Path(sys.executable).as_posix()}" transaction.py'
+            profile_path = root / validation.PROFILE
+            profile_path.parent.mkdir(parents=True)
+            makefile = root / "Makefile"
+            makefile.write_text(
+                ".PHONY: FORCE\nFORCE:\n"
+                "generated.h: generated.input\n\t$(PYTHON) forbidden-generator.py\n"
+                f"{validation.PROFILE}: generated.h FORCE\n"
+                f"\t{command} generate-profile-manifest --seed-manifest seed.json --root . --output {validation.PROFILE}\n"
+                f"compat.o: compat.cc generated.h {validation.PROFILE} FORCE\n"
+                f"\t{command} compile-doom --source compat.cc --output compat.o\n"
+                f"tree.o: tree.cc generated.h {validation.PROFILE} FORCE\n"
+                f"\t{command} compile-doom --source tree.cc --output tree.o\n")
+            names = ["generated.input", "generated.h", "compat.cc", "tree.cc",
+                     validation.PROFILE, "compat.o", "tree.o"]
+            start = time.time_ns() - 20_000_000_000
+            for index, name in enumerate(names):
+                path = root / name
+                path.write_bytes(name.encode())
+                stamp = start + index * 1_000_000_000
+                os.utime(path, ns=(stamp, stamp))
+            data = {name: (root / name).read_bytes() for name in names}
+            stamps = {name: (root / name).stat().st_mtime_ns for name in names}
+            overlay = root / "overlay.mk"
+            overlay.write_text(".PHONY: profile_check\nprofile_check:\n"
+                               f"{validation.PROFILE}: profile_check\n")
+            profile, replay = validation.validation_commands(
+                ["make", "--no-print-directory", "-f", str(makefile)], overlay,
+                ["compat.cc", "tree.cc"], ["compat.o", "tree.o"], 2)
+            output = validation.run(profile, root, root / "profile.log", 20)
+            expected_profile = validation.profile_rows(output)
+            self.assertEqual(sum(expected_profile.values()), 1)
+            validation.check_census(output, collections.Counter(), expected_profile, "compile-doom")
+            expected = validation.compile_rows(f"{command} compile-doom --source compat.cc --output compat.o\n"
+                                               f"{command} compile-doom --source tree.cc --output tree.o\n", "compile-doom")
+            output = validation.run(replay, root, root / "replay.log", 20)
+            validation.check_census(output, expected, collections.Counter(), "compile-doom")
+            validation.compare_controls(root, data, stamps)
+            # A real generator edge remains reachable; the replay cannot hide it.
+            (root / "generated.input").write_bytes(b"changed generator input")
+            with self.assertRaisesRegex(RuntimeError, "command failed"):
+                validation.run(replay, root, root / "changed.log", 20)
+            self.assertIn(validation.POISON, (root / "changed.log").read_text())
+
+    def test_cohort_selection_preserves_kernel_default_and_complete_doom_set(self):
+        kernel, operation = validation.selected_cohort("kernel")
+        self.assertEqual(kernel, sorted(validation.FROZEN_KERNEL_INPUT_CLOSURES))
+        self.assertEqual((len(kernel), operation), (157, "compile-kernel"))
+        doom, operation = validation.selected_cohort("doom")
+        self.assertEqual((len(doom), len(set(doom)), operation), (83, 83, "compile-doom"))
+        self.assertIn("kernel/doom/i_sound_cupidos.cc", doom)
+        self.assertEqual(sum(source.startswith("kernel/doom/src/") for source in doom), 79)
+        self.assertEqual(collections.Counter(tuple(validation.oracle_profile_arguments("doom", source))
+                                            for source in doom),
+                         {("--profile", "doom-compat"): 3, ("--profile", "doom-tree"): 80})
+        self.assertEqual(validation.oracle_profile_arguments("kernel", kernel[0]), [])
+
+    def test_missing_duplicate_and_unknown_cohorts_fail(self):
+        tree = validation.APPROVED_DOOM_TREE_SOURCES
+        for changed in (tree[:-1], (*tree[:-1], validation.APPROVED_DOOM_COMPAT_SOURCES[0])):
+            with mock.patch.object(validation, "APPROVED_DOOM_TREE_SOURCES", changed):
+                with self.assertRaisesRegex(RuntimeError, "complete, disjoint"):
+                    validation.selected_cohort("doom")
+        with self.assertRaises(RuntimeError):
+            validation.selected_cohort("unapproved")
+        with self.assertRaisesRegex(RuntimeError, "outside the approved"):
+            validation.oracle_profile_arguments("doom", "kernel/doom/unapproved.cc")
+
+    def test_doom_census_rejects_lost_duplicate_wrong_and_foreign_calls(self):
+        command = 'seed/cupidbuild compile-doom --source kernel/doom/dglibc.cc --output kernel/doom/dglibc.o\n'
+        expected = collections.Counter({("seed/cupidbuild", "compile-doom", "--source",
+                                        "kernel/doom/dglibc.cc", "--output", "kernel/doom/dglibc.o"): 1})
+        validation.check_census(command, expected, collections.Counter(), "compile-doom")
+        self.assertEqual(validation.check_replay_plan(command, expected, collections.Counter(), "compile-doom"),
+                         (collections.Counter(), []))
+        for changed in ("", command * 2, command.replace("--output kernel/doom/dglibc.o", "--output wrong.o"),
+                        command.replace("compile-doom", "compile-kernel"),
+                        command + 'seed/cupidbuild compile-kernel --source kernel/core/string.cc --output kernel/core/string.o\n'):
+            with self.subTest(command=changed):
+                with self.assertRaises(RuntimeError):
+                    validation.check_census(changed, expected, collections.Counter(), "compile-doom")
+                with self.assertRaises(RuntimeError):
+                    validation.check_replay_plan(changed, expected, collections.Counter(), "compile-doom")
+        with self.assertRaisesRegex(RuntimeError, "forbidden command"):
+            validation.check_census(command + validation.POISON, expected, collections.Counter(), "compile-doom")
+
+    def test_recursive_control_capture_keeps_all_sources_and_extra_headers(self):
+        values = {"PRODUCTION_SEED_INPUTS": "seed/manifest.json seed/cupidbuild.exe",
+                  "DOOM_CUPIDC_HEADERS": "kernel/doom/dglibc.h"}
+        manifest = {"inputs": [{"path": "kernel/doom/deep/extra.inc"}]}
+        with mock.patch.object(validation, "_profile_input_manifest", return_value=manifest) as discover:
+            controls = validation.cohort_controls(Path("."), "doom", values)
+        discover.assert_called_once_with(Path("."))
+        self.assertTrue(set(validation.selected_cohort("doom")[0]).issubset(controls))
+        self.assertTrue({"kernel/doom/deep/extra.inc", "kernel/doom/dglibc.h", "seed/manifest.json",
+                         "seed/cupidbuild.exe", "Makefile", "link.ld", validation.PROFILE,
+                         validation.GENERATED}.issubset(controls))
+        with mock.patch.object(validation, "_profile_input_manifest", side_effect=RuntimeError("membership drift")):
+            with self.assertRaisesRegex(RuntimeError, "membership drift"):
+                validation.cohort_controls(Path("."), "doom", values)
+        with mock.patch.object(validation, "_profile_input_manifest") as discover:
+            validation.cohort_controls(Path("."), "kernel", values)
+        discover.assert_not_called()
+
+    def test_doom_plan_preserves_graph_edges_and_requires_full_preparation(self):
+        sources, _ = validation.selected_cohort("doom")
+        targets = [Path(source).with_suffix(".o").as_posix() for source in sources]
+        profile, replay = validation.validation_commands(["make", "-f", "Makefile"], "overlay.mk",
+                                                        sources, targets, 4)
+        for command in (profile, replay):
+            self.assertEqual([command[index + 1] for index, word in enumerate(command) if word == "-o"],
+                             ["FORCE"])
+            for name in validation.COMMANDS:
+                self.assertIn(f"{name}={validation.POISON}", command)
+        self.assertEqual([replay[index + 1] for index, word in enumerate(replay) if word == "-W"], sources)
+        self.assertEqual(replay[-83:], targets)
+        with (mock.patch.object(sys, "argv", ["validator", "--cohort", "doom", "--prepare-target",
+                                              "kernel/cpu/ksyms_data.o", "--report", "unused"]),
+              mock.patch.object(validation, "run") as run,
+              self.assertRaisesRegex(RuntimeError, "complete normal all")):
+            validation.main()
+        run.assert_not_called()
+
+    def test_plan_only_defaults_to_kernel_and_explicit_doom_records_83_calls(self):
+        for cohort in (None, "doom"):
+            with self.subTest(cohort=cohort), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                report = root / "build/bootstrap/evidence"
+                arguments = ["validator", "--root", str(root), "--report", str(report), "--plan-only"]
+                if cohort:
+                    arguments += ["--cohort", cohort]
+                with (mock.patch.object(sys, "argv", arguments),
+                      mock.patch.object(validation, "REPORT", None),
+                      mock.patch.object(validation, "EVIDENCE", {}),
+                      mock.patch.object(validation, "run") as run,
+                      contextlib.redirect_stdout(io.StringIO())):
+                    self.assertEqual(validation.main(), 0)
+                run.assert_not_called()
+                plan = json.loads((report / "plan.json").read_text())
+                self.assertEqual(plan["cohort"], cohort or "kernel")
+                self.assertEqual(plan["sources"], 83 if cohort else 157)
+                self.assertEqual(plan["operation"], "compile-doom" if cohort else "compile-kernel")
+                self.assertEqual(plan["preparation"][-1], "all")
+                self.assertEqual(plan["ignored_make_targets"], ["FORCE"])
+
+class ReplayBindingReviewTests(unittest.TestCase):
+    def test_each_cohort_binds_the_complete_checked_command(self):
+        values = {"PRODUCTION_SEED_DIRECTORY": "seed/", "PRODUCTION_SEED_SUFFIX": "exe",
+                  "PRODUCTION_SEED_MANIFEST": "seed/manifest.json"}
+        for operation, source in (("compile-kernel", "kernel/core/string.cc"),
+                                  ("compile-doom", "kernel/doom/dglibc.cc")):
+            with self.subTest(operation=operation):
+                root = Path("work tree")
+                output = Path(source).with_suffix(".o").as_posix()
+                command = (f'seed/cupidbuild.exe {operation} --seed-manifest seed/manifest.json '
+                           f'--root "work tree" --source {source} --output {output}\n')
+                expected = validation.expected_compile_rows(values, root, [source], operation)
+                validation.check_census(command, expected, collections.Counter(), operation)
+                validation.check_replay_plan(command, expected, collections.Counter(), operation)
+                changes = (
+                    "echo " + command,
+                    command.replace("seed/cupidbuild.exe", "wrong-tool"),
+                    command.replace('"work tree"', '"different root"'),
+                    command.replace("seed/manifest.json", "invalid.json"),
+                    command.rstrip() + " -DDEBUG=1\n",
+                    command.rstrip() + " --timeout 1\n",
+                    command.rstrip() + f" --source {source}\n",
+                    command.rstrip() + " --seed-manifest seed/manifest.json\n",
+                    command.replace(f"--output {output}", f"--output {output} --output {output}"),
+                )
+                for changed in changes:
+                    with self.subTest(command=changed):
+                        with self.assertRaises(RuntimeError):
+                            validation.check_census(changed, expected, collections.Counter(), operation)
+                        with self.assertRaises(RuntimeError):
+                            validation.check_replay_plan(changed, expected, collections.Counter(), operation)
+
+    def test_kernel_replay_still_allows_other_cohort_dependency_rows(self):
+        command = "seed/cupidbuild compile-kernel --source selected.cc --output selected.o\n"
+        dependency = "seed/cupidbuild compile-doom --source dependency.cc --output dependency.o\n"
+        expected = validation.compile_rows(command)
+        validation.check_census(command + dependency, expected, collections.Counter())
+        validation.check_replay_plan(command + dependency, expected, collections.Counter())
+
+    def test_control_boundaries_rediscover_new_headers_and_extra_sources(self):
+        repository = Path(validation.audit.__file__).resolve().parents[1]
+        inventory = validation._profile_input_manifest(repository)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for item in inventory["inputs"]:
+                path = root / item["path"]
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"/* retained header */\n")
+            for source in validation.selected_cohort("doom")[0]:
+                path = root / source
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"int value;\n")
+            capture = validation._profile_input_manifest(root)
+            retained = root / "control"
+            retained.write_bytes(b"unchanged")
+            data = {"control": retained.read_bytes()}
+            stamps = {"control": retained.stat().st_mtime_ns}
+            validation.compare_controls(root, data, stamps, capture)
+            for logical in ("kernel/doom/new.h", "kernel/doom/new.inc", "kernel/doom/new.cc"):
+                with self.subTest(path=logical):
+                    added = root / logical
+                    added.write_bytes(b"/* added after compiler publication */\n")
+                    with self.assertRaises(RuntimeError):
+                        validation.compare_controls(root, data, stamps, capture)
+                    added.unlink()
+                    validation.compare_controls(root, data, stamps, capture)
+
+
+class ReplayResidueTests(unittest.TestCase):
+    def directories(self, root):
+        targets = ["kernel/doom/dglibc.o", "kernel/doom/src/d_items.o", "kernel/doom/src/d_event.o"]
+        directories = validation.residue_directories(root, targets)
+        for directory in directories:
+            directory.mkdir(parents=True, exist_ok=True)
+        self.assertEqual(set(directories), {root, root / "kernel/doom", root / "kernel/doom/src",
+                                            root / "build/bootstrap"})
+        return directories
+
+    def test_each_output_parent_root_and_profile_parent_rejects_new_residue(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directories = self.directories(root)
+            retained = root / ".cupidbuild-old-recovery"
+            retained.write_bytes(b"retain this existing evidence")
+            baseline = validation.residue_snapshot(directories)
+            validation.require_residue_unchanged(directories, baseline)
+            for directory in directories:
+                for name in (".cupidbuild-leaked-candidate", "output.o.cupidbuild.lock"):
+                    with self.subTest(directory=directory, name=name):
+                        path = directory / name
+                        path.write_bytes(b"leaked")
+                        with self.assertRaisesRegex(RuntimeError, "private transaction entries changed"):
+                            validation.require_residue_unchanged(directories, baseline)
+                        self.assertEqual(path.read_bytes(), b"leaked")
+                        self.assertEqual(retained.read_bytes(), b"retain this existing evidence")
+                        path.unlink()
+
+    def test_existing_recovery_removal_replacement_and_metadata_drift_fail(self):
+        for mutation in ("remove", "replace", "timestamp"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                directories = self.directories(root)
+                entry = root / ".cupidbuild-retained"
+                entry.write_bytes(b"old evidence")
+                baseline = validation.residue_snapshot(directories)
+                stamp = entry.stat().st_mtime_ns
+                if mutation == "remove":
+                    entry.unlink()
+                elif mutation == "replace":
+                    entry.rename(root / "saved-evidence")
+                    entry.write_bytes(b"old evidence")
+                    os.utime(entry, ns=(stamp, stamp))
+                else:
+                    os.utime(entry, ns=(stamp + 2_000_000_000, stamp + 2_000_000_000))
+                with self.assertRaisesRegex(RuntimeError, "private transaction entries changed"):
+                    validation.require_residue_unchanged(directories, baseline)
+
+    def test_snapshot_does_not_recurse_or_follow_transaction_links(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directories = self.directories(root)
+            nested = root / ".cupidbuild-existing-directory"
+            nested.mkdir()
+            (nested / "child").write_bytes(b"retained child")
+            try:
+                (root / ".cupidbuild-dangling-link").symlink_to(root / "absent")
+            except OSError:
+                pass
+            iterated = []
+            original = Path.iterdir
+            def observed(path):
+                iterated.append(path)
+                return original(path)
+            with mock.patch.object(Path, "iterdir", observed):
+                snapshot = validation.residue_snapshot(directories)
+            self.assertEqual(set(iterated), set(directories))
+            self.assertIn(nested.as_posix(), snapshot)
+            self.assertFalse(any(name.endswith("/child") for name in snapshot))
+            link = root / ".cupidbuild-dangling-link"
+            if link.is_symlink():
+                self.assertIn(link.as_posix(), snapshot)
+                self.assertTrue(validation.stat.S_ISLNK(snapshot[link.as_posix()][2]))
+
+    def test_successful_and_failed_commands_check_residue_after_execution(self):
+        for failed in (False, True):
+            with self.subTest(failed=failed), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                directories = self.directories(root)
+                baseline = validation.residue_snapshot(directories)
+                leaked = root / "kernel/doom/src/.cupidbuild-leaked"
+                def command(*args):
+                    leaked.write_bytes(b"left behind")
+                    if failed:
+                        raise RuntimeError("tool failed")
+                    return "normal output"
+                with mock.patch.object(validation, "run", side_effect=command):
+                    with self.assertRaisesRegex(RuntimeError, "private transaction entries changed"):
+                        validation.run_without_residue(["tool"], root, root / "log", 10,
+                                                       directories, baseline)
+                self.assertEqual(leaked.read_bytes(), b"left behind")
+
+    def test_boundary_drift_rejects_before_launch_and_unchanged_run_succeeds(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            directories = self.directories(root)
+            baseline = validation.residue_snapshot(directories)
+            with mock.patch.object(validation, "run", return_value="ok") as run:
+                self.assertEqual(validation.run_without_residue(["tool"], root, root / "log", 10,
+                                                               directories, baseline), "ok")
+                run.assert_called_once()
+            (root / ".cupidbuild-new").write_bytes(b"unexpected")
+            with mock.patch.object(validation, "run") as run:
+                with self.assertRaisesRegex(RuntimeError, "private transaction entries changed"):
+                    validation.run_without_residue(["tool"], root, root / "log", 10, directories, baseline)
+            run.assert_not_called()
 
 
 if __name__ == "__main__":
