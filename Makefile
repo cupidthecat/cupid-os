@@ -48,7 +48,7 @@ CUPIDC_KERNEL_COMPILE_INPUTS := Makefile tools/cupidc_kernel_compile.py \
 CUPIDC_PRODUCTION_COMPILE := $(PYTHON) \
 	tools/cupidc_production_compile.py --root . --cohort generated-install \
 	--manifest $(PRODUCTION_SEED_MANIFEST)
-CUPIDC_PRODUCTION_COMPILE_INPUTS := Makefile \
+override CUPIDC_PRODUCTION_COMPILE_INPUTS := Makefile \
 	tools/cupidc_production_compile.py \
 	tools/cupidc_kernel_compile.py \
 	tools/native_user_toolchain.py \
@@ -1679,9 +1679,12 @@ kernel/util/bin_programs_gen.cc: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) \
 	$(CUPIDOBJ) install-source bin --bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) --browser $(BROWSER_SUB_SRCS) -o $@
 
 kernel/util/bin_programs_gen.o: kernel/util/bin_programs_gen.cc \
-	drivers/serial.h kernel/core/types.h kernel/fs/ramfs.h kernel/fs/vfs.h \
+	drivers/serial.h kernel/core/types.h kernel/fs/homefs.h \
+	kernel/fs/ramfs.h kernel/fs/vfs.h \
 	$(CUPIDC_PRODUCTION_COMPILE_INPUTS)
-	$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-production \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source $< --output $@
 
 # Generate docs_programs_gen.cc from the manuals and seeded home assets.
 kernel/util/docs_programs_gen.cc: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) \
@@ -1691,16 +1694,21 @@ kernel/util/docs_programs_gen.cc: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) \
 kernel/util/docs_programs_gen.o: kernel/util/docs_programs_gen.cc \
 	drivers/serial.h kernel/core/types.h kernel/fs/homefs.h \
 	kernel/fs/ramfs.h kernel/fs/vfs.h $(CUPIDC_PRODUCTION_COMPILE_INPUTS)
-	$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-production \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source $< --output $@
 
 # Generate demos_programs_gen.cc from the active CupidASM demos.
 kernel/util/demos_programs_gen.cc: $(DEMO_ASM_SRCS) $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) install-source demos --demos $(DEMO_ASM_SRCS) -o $@
 
 kernel/util/demos_programs_gen.o: kernel/util/demos_programs_gen.cc \
-	drivers/serial.h kernel/core/types.h kernel/fs/ramfs.h kernel/fs/vfs.h \
+	drivers/serial.h kernel/core/types.h kernel/fs/homefs.h \
+	kernel/fs/ramfs.h kernel/fs/vfs.h \
 	$(CUPIDC_PRODUCTION_COMPILE_INPUTS)
-	$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@
+	$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-production \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \
+		--source $< --output $@
 
 test-generated-cupidc-frontier: kernel/util/bin_programs_gen.cc \
 	kernel/util/docs_programs_gen.cc kernel/util/demos_programs_gen.cc \

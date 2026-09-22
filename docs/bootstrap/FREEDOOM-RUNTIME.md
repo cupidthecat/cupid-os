@@ -82,6 +82,46 @@ complete command before sending any key. The full 138-case helper suite
 passes, including FAT short-name input and rejection without partial typing.
 This repairs the harness, not the guest's EHCI failure.
 
+## Later reproduction and music-producer checkpoint
+
+Three subsequent private probes against the same pinned IWAD image completed
+the HomeFS write without reproducing the EHCI panic, but missed their unchanged
+300-second timedemo deadline. A separate 1,200-second diagnostic also timed out.
+Its log reached `ST_Init`; that marker records entry, not completion. Advancing
+lock counters rule out one continuously held lock across the sampled interval,
+not every possible stall. The EHCI failure remains unexplained.
+
+A later stack-and-state probe found a separate progress failure. Four samples
+over 180 seconds placed the Doom task in `cup_music_pump`, called by the initial
+`G_DoPlayDemo` clock query. Music counters advanced while `gametic` stayed zero
+and the demo pointer remained thirteen bytes into the lump. The producer
+recomputed ring space after each rendered chunk, allowing an active consumer
+to keep the call running.
+
+An isolated candidate limits each pump call to the complete chunks that fit
+when it starts. Nine actual-producer tests distinguish the change: the original
+exceeds the watchdog in two draining-consumer cases; the candidate passes all
+nine with host compilers and checked Cupid-built Windows and Linux executables.
+The patch preserves prefill, sample order, ring capacity, and the consumer path.
+It remains outside active source.
+
+The candidate's private guest image shows sustained demo progress: four samples
+over 180.113 seconds record game tics 37, 90, 143, and 197, with demo offsets
+matching thirteen header bytes plus four bytes per tic. The initial clock query
+returned. Full timedemo completion still fails at the explicit 1,200-second
+deadline; no panic is reported and the source image remains unchanged. This
+image is newer than the unfixed reference, so the guest observations are not a
+one-change image comparison. The producer regressions provide the controlled
+red/green evidence.
+
+The retained patch, nine-case regression, exact-image symbols, samples, logs,
+and hashes are under `build/bootstrap/20260920-ehci-doom-diagnosis/`.
+`music-pump-fix.patch` and `fixed-summary.json` identify the candidate and guest
+evidence; `remaining-performance.md` records the next measurement boundary.
+Before changing synthesis or scheduling, measure guest elapsed time, synthesis
+work, and underruns separately. These findings do not establish rendered-frame,
+input, audio-quality, save/load, or reboot-persistence acceptance.
+
 ## Runtime work still open
 
 The first implementation slice should add a repeatable guest gate that starts

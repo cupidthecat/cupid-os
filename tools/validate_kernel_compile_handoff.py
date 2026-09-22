@@ -12,6 +12,7 @@ from pathlib import Path
 import shlex
 import subprocess
 import sys
+import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,6 +21,9 @@ from tools import build_graph_audit as audit
 from tools.cupidc_kernel_compile import (
     FROZEN_KERNEL_INPUT_CLOSURES, APPROVED_DOOM_COMPAT_SOURCES,
     APPROVED_DOOM_TREE_SOURCES, _profile_input_manifest,
+)
+from tools.cupidc_production_compile import (
+    GENERATED_INSTALL_SOURCES, GENERATED_INCLUDE_CLOSURE,
 )
 
 POISON = "__cupid_kernel_validation_forbidden_command__"
@@ -136,9 +140,20 @@ def check_replay_plan(text, expected_compiles, expected_profile, operation="comp
 def reject_other_compiles(text, operation):
     if operation == "compile-doom" and compile_rows(text):
         raise RuntimeError("Doom replay reached a kernel compilation outside its cohort")
+    if operation == "compile-production":
+        for other in ("compile-kernel", "compile-doom"):
+            if compile_rows(text, other):
+                raise RuntimeError("generated replay reached a compilation outside its cohort")
 
 
 def selected_cohort(cohort):
+    if cohort == "generated-install":
+        sources = sorted(GENERATED_INSTALL_SOURCES)
+        if sources != ["kernel/util/bin_programs_gen.cc",
+                       "kernel/util/demos_programs_gen.cc",
+                       "kernel/util/docs_programs_gen.cc"]:
+            raise RuntimeError("expected the complete three-source generated installation cohort")
+        return sources, "compile-production"
     if cohort == "kernel":
         sources = sorted(FROZEN_KERNEL_INPUT_CLOSURES)
         if len(sources) != 157:
@@ -160,6 +175,11 @@ def cohort_controls(root, cohort, values, profile_capture=None):
         controls.update((source, *headers))
     controls.update(values["PRODUCTION_SEED_INPUTS"].split())
     controls.update(values["DOOM_CUPIDC_HEADERS"].split())
+    if cohort == "generated-install":
+        controls.update(selected_cohort(cohort)[0])
+        controls.update(GENERATED_INCLUDE_CLOSURE)
+        controls.update(("tools/cupidc_production_compile.py", "tools/cupidc_kernel_compile.py",
+                         "tools/native_user_toolchain.py", "tools/bootstrap_toolchain.py"))
     if cohort == "doom":
         sources, _ = selected_cohort(cohort)
         controls.update(sources)
@@ -178,6 +198,31 @@ def oracle_profile_arguments(cohort, source):
     if source in APPROVED_DOOM_TREE_SOURCES:
         return ["--profile", "doom-tree"]
     raise RuntimeError(f"source is outside the approved Doom cohort: {source}")
+
+
+def oracle_command(root, values, cohort, source, output):
+    if cohort == "generated-install":
+        if source not in selected_cohort(cohort)[0]:
+            raise RuntimeError(f"source is outside the approved generated cohort: {source}")
+        return [sys.executable, "tools/cupidc_production_compile.py", "--root", str(root),
+                "--cohort", cohort, "--tool-mode", "checked-seed",
+                "--manifest", values["PRODUCTION_SEED_MANIFEST"], "--source", source,
+                "--output", str(output)]
+    return [sys.executable, "tools/cupidc_kernel_compile.py", "--root", str(root),
+            "--manifest", values["PRODUCTION_SEED_MANIFEST"], "--source", source,
+            "--output", str(output), *oracle_profile_arguments(cohort, source)]
+
+
+def run_oracle(root, values, cohort, source, output, log, timeout, runner):
+    if cohort == "generated-install":
+        # The production wrapper admits generated outputs only under kernel/util.
+        # Keep its binding intact without replacing a live build object.
+        with tempfile.TemporaryDirectory(prefix=".oracle-", dir=root / "kernel/util") as temporary:
+            private_output = Path(temporary) / Path(source).with_suffix(".o").name
+            runner(oracle_command(root, values, cohort, source, private_output), root, log, timeout)
+            shutil.copyfile(private_output, output)
+        return
+    runner(oracle_command(root, values, cohort, source, output), root, log, timeout)
 
 
 def validation_commands(common, overlay, sources, targets, jobs):
@@ -300,7 +345,7 @@ def main():
                 "Add --wrapper-oracle for a separate compile through the Python coordinator. "
                 "This optional proof is not a normal-build dependency."),
     )
-    parser.add_argument("--cohort", choices=("kernel", "doom"), default="kernel",
+    parser.add_argument("--cohort", choices=("kernel", "doom", "generated-install"), default="kernel",
                         help="compiler cohort to replay (default: kernel)")
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--make", default="make")
@@ -317,6 +362,8 @@ def main():
     args = parser.parse_args()
     if args.cohort == "doom" and args.prepare_target != "all":
         raise RuntimeError("Doom replay requires the complete normal all preparation")
+    if args.cohort == "generated-install" and args.prepare_target != "all":
+        raise RuntimeError("generated replay requires the complete normal all preparation")
     root = args.root.resolve(strict=True)
     report = args.report.resolve()
     if report.exists():
@@ -400,10 +447,8 @@ def main():
                 raise RuntimeError("wrapper oracle exceeded its phase deadline")
             output = report / "oracle" / Path(source).with_suffix(".o")
             output.parent.mkdir(parents=True, exist_ok=True)
-            guarded_run([sys.executable, "tools/cupidc_kernel_compile.py", "--root", str(root),
-                 "--manifest", values["PRODUCTION_SEED_MANIFEST"], "--source", source,
-                 "--output", str(output), *oracle_profile_arguments(args.cohort, source)],
-                root, report / f"oracle-{index:03d}.log", min(660, remaining))
+            run_oracle(root, values, args.cohort, source, output,
+                       report / f"oracle-{index:03d}.log", min(660, remaining), guarded_run)
             if output.read_bytes() != (report / "before" / Path(source).with_suffix(".o")).read_bytes():
                 raise RuntimeError(f"wrapper oracle differs for {source}")
     # A forced profile rule makes Make -n predict that its content dependents

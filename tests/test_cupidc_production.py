@@ -663,6 +663,15 @@ class ProductionCompileTests(unittest.TestCase):
             mock.patch.object(
                 production_compile, "_HOST_IS_WINDOWS", True
             ),
+            # Simulate seed selection while retaining the real host's
+            # directory operations; Win32 filesystem tests run on Windows.
+            mock.patch.object(
+                production_compile,
+                "_prepare_windows_user_directories",
+                wraps=(production_compile._prepare_windows_user_directories
+                       if os.name == "nt"
+                       else production_compile._prepare_posix_user_directories),
+            ),
             mock.patch.object(
                 production_compile,
                 "run_seed_tool",
@@ -1785,9 +1794,13 @@ class ProductionFrontierTests(unittest.TestCase):
             with self.subTest(mismatch=mismatch):
                 with tempfile.TemporaryDirectory() as temporary:
                     root = Path(temporary)
-                    closure = production_frontier._user_inputs(
-                        include_native_tools=True
-                    )
+                    with mock.patch.object(
+                        production_frontier, "_native_windows_host", return_value=True
+                    ):
+                        closure = production_frontier._user_inputs(
+                            include_native_tools=True
+                        )
+                    self.assertTrue(WINDOWS_PRODUCTION_SEED_FILES.issubset(closure))
                     for relative in closure:
                         path = root / relative
                         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1990,7 +2003,7 @@ class ProductionBuildContractTests(unittest.TestCase):
             transform = transforms[output]
             self.assertEqual(
                 transform["tools"],
-                ["cupid_c_compiler", "host_python"],
+                ["cupid_builder", "cupid_c_compiler"],
             )
             self.assertNotIn("host_c_compiler", transform["tools"])
             self.assertIn(
@@ -2101,8 +2114,9 @@ class ProductionBuildContractTests(unittest.TestCase):
             : logical.index("# Pattern rule: embed any bin/*.cc")
         ]
         self.assertNotIn("$(CC)", generated_block)
+        self.assertNotIn("$(CUPIDC_PRODUCTION_COMPILE)", generated_block)
         self.assertEqual(
-            generated_block.count("$(CUPIDC_PRODUCTION_COMPILE) --source"),
+            generated_block.count("cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-production"),
             3,
         )
 

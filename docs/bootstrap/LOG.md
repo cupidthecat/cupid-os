@@ -37949,3 +37949,228 @@ The final source audit and staged whitespace checks pass. The original timeout
 and corrected retry remain in the evidence directory. These checks do not
 claim paired committed-source fixed-point convergence, seed promotion, or
 IWAD-backed Doom gameplay acceptance.
+
+## 2026-09-21: paired generated-install seed promotion and Make handoff
+
+Both clean proofs use committed source
+`142a9737f618ab8500308576a1c222501d639e5f` and the same 59-input snapshot
+`2346284239faf9f5571223587f2e2b2dfdd5197cffd41b97a12e234386810695`.
+Linux matches 29 stage-three/stage-four artifacts and passes 46 failure,
+seven help, and 54 success groups. Native Windows matches 32 artifacts and
+passes 34 failure, seven help, and 41 success groups. Each compared
+coordinator uses its own complete six-tool cohort. The Linux report hash is
+`cf3de4ccecda011c6f8de808d8b82f6af867ecd51e66074b0ea836a9fcd0f4e9`;
+the Windows report hash is
+`b0e1ecf1a27d53544b5bc37fed80cac54fc51e9b0b476f02ec1c4c7ef252bc29`.
+
+The first Windows run failed its kernel-compilation behavior check under a
+long checkout path after matching its stage bytes. It is not a passing proof.
+The preceding checked seed reproduces the same failure under a 224-character
+root and succeeds under a 54-character root. A direct compiler probe holds
+source and tool bytes fixed: a 237-character output path succeeds, while a
+276-character path fails with an I/O diagnostic. The complete Windows retry
+uses a shorter checkout with unchanged source, tests, and deadlines. This
+workaround does not fix the native compiler path limit. The user-compilation
+plan records compiler bundles and output paths as part of the remaining work.
+
+Independent promotion checks bind the live source inventory to a Git archive
+of the producing commit, inspect every object and executable, check all stage
+members and bytes, validate both plans and parent roles, and verify the complete
+proposed pair using its updated verifier. Ten altered Linux reports and thirteen
+Windows reports are rejected, including incorrect Windows plan-parent roles.
+Promotion then installs all twelve images and both manifests, updates the
+verifier's pinned identities, the twelve seed size-policy entries, and the
+Linux manifest digest used by the Toolchain contract. Both installed seed
+verification commands pass. The manifest hashes are:
+
+- Linux: `7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52`.
+- Windows: `2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd`.
+
+The pair carries `compile-production`, the decoder initialization change,
+and the in-memory user ELF validator. Make now calls checked CupidBuild for
+the three generated installation objects. Every recipe declares all five
+captured headers; bin and demos gain their previously omitted `homefs.h`
+prerequisite. The existing profile barrier and helper/seed dependencies stay
+intact. All three source roots already use `.cc`. The three user compilations
+and links retain their existing Python transactions.
+
+The graph audit recognizes the exact native recipes and rejects missing inputs,
+wrong tools, extra commands, and altered profile barriers. Its full inventory
+records 440 CupidBuild and 12 Python participations across 452 transforms.
+The optional handoff verifier adds `--cohort generated-install`, requires full
+OS preparation, freezes all three sources and their five headers, compares the
+checked-seed Python wrapper oracle, and requires exactly three native commands
+in its poisoned replay. Kernel or Doom compiler commands in that replay fail.
+Artifact bytes, timestamps, controls, profile checks, and residue checks retain
+the preceding verifier's contracts.
+
+The private draft passes 35 focused verifier/recipe/audit tests on each host,
+with one Linux-only skip on Windows (288.019 seconds Windows; 277.593 Linux).
+Four additional production graph and closure tests pass on both hosts, as do
+53 wrapper, link, frontier, and frozen-input tests. Initial runs exposed stale
+audit expectations: the committed user-ELF fixture makes 29 non-production
+sources and 6,916 `sizeof` uses. Those assertions now match the actual inventory.
+Two Linux fixture repairs keep simulated Windows seed selection separate from
+real host filesystem operations and create Windows frontier inputs inside the
+Windows host mock. The intended mismatch assertions now run on both hosts.
+Production behavior is unchanged by these test repairs.
+
+Evidence is retained under `build/bootstrap/142a9737-paired-proof/`, including
+failed attempts. The normal builds have started in private copies of the
+preceding verified image trees with an explicit promoted-seed/source/manual
+overlay. Full OS builds, artifact checks, generated compiler replays, user
+builds, and private runtime acceptance remain pending at this entry's creation.
+IWAD-backed Doom gameplay acceptance remains a separate open requirement.
+
+After applying the pair and recipes, 33 active handoff tests pass on both
+hosts, with one Linux-only skip on Windows (10.592 seconds Windows; 5.437
+Linux). A Python subprocess runner records zero exit status on each host.
+The first PowerShell redirection produced an error status from unittest's
+stderr progress output despite its passing test summary; its original log
+is retained separately. The explicit subprocess results resolve that harness
+ambiguity without changing a test or production command.
+
+The applied handoff also passes both full graph checks on each host: the root
+checked-seed ownership test and active-manifest drift-rejection test. Windows
+completes them in 282.016 seconds and Linux in 280.160 seconds. These checks
+confirm the current 440/12 ownership inventory and reject a deliberately changed
+active manifest. The private OS builds remain independent acceptance gates.
+
+The Linux adoption run stops at the exact-size gate after 2,789.543 seconds.
+Its log contains all 157 kernel, 83 Doom, and three generated-install native
+compiler calls. Linking, kernel-symbol generation, and final flattening complete.
+The gate rejects two changed sizes: `kernel.bin` is 9,555,892 bytes rather than
+9,555,432; `kernel.elf.pass1` is 9,654,604 rather than 9,650,508. The final ELF
+remains 9,781,580 bytes but has changed content. Current hashes are:
+
+- pass-one ELF: `eac6bc9ce0c8313f37a24e16c690b32cc6745af41c965182337fe4249d83a6d4`.
+- final ELF: `072316a0cd3afe8a85bd7f607d198fabf6360760f0948a9e8289ce1ac8f4b671`.
+- raw kernel: `4ae8a6301244e5aab1015e8e4a120418587a487b88a26998916814815f95e5e6`.
+
+An independent stopped-build check rereads all three files and the installed
+manual and confirms that the failed gate preserves the preceding 209,715,200-byte
+image, SHA-256 `250bd25848b4b43878c36cbec7975bf1119a4e2a09815bbd669e8ffe1d6f5b05`.
+This is a verified gate rejection, not a completed image build or runtime pass.
+The OS size rows remain unchanged while the independent Windows build runs.
+
+
+The generated-install adoption build reaches the same exact-size gate on both
+hosts. Windows completes its compilation/link/flatten path in 4,309.833 seconds;
+Linux takes 2,789.543 seconds. Each log contains 157 native kernel, 83 native Doom,
+and three native generated-install compilations. All three kernel artifacts and
+the installed manual match across hosts. The independently checked failed gates
+preserve the previous 200 MiB image. Private validation copies now use the two
+measured sizes for the remaining build, replay, ABI, and runtime checks; those
+checks are still running. The active OS-size rows have not yet changed.
+
+
+After confirming identical kernel hashes on both hosts, the active size policy
+now records 9,555,892 bytes for kernel.bin and 9,654,604 for kernel.elf.pass1.
+The final ELF remains 9,781,580 bytes. The complete policy matches both private
+validation copies byte for byte, SHA-256
+`f9c671725b59af21835a34271fd6474bfcac76b2b727f3708e1b10ffbed04ea8`.
+All fourteen size-policy regressions pass on Windows (2.033 seconds) and Linux
+(1.209 seconds). The resumed builds and remaining replay/ABI/runtime checks
+are still running; this size reconciliation does not claim those gates passed.
+
+
+The Linux resumed normal build passes in 2,024.221 seconds, followed by the
+independent sixteen-artifact gate in 17.412 seconds. The image writer preserves
+FAT data and stages the ISO. Generated-install replay is now running; user ABI,
+user-program, image-preservation, and private runtime results remain pending.
+Windows is still completing its resumed normal build. The runtime handoff now
+also includes the previously recorded music-pump progress evidence and its
+remaining timedemo and EHCI limitations; no Doom source changes are included.
+
+The Windows resumed normal build passes in 2,959.514 seconds, followed by the
+independent sixteen-artifact check in 18.544 seconds. The image writer reuses
+the disk image, preserves FAT data, and stages the ISO. Both hosts have now
+completed normal image builds and their separate artifact checks. Each validator
+also rereads all three kernel artifacts after the build and requires the paired
+hashes recorded above. Both generated-install replays are running; their results,
+user ABI, user programs, and private SMP/disassembly smoke remain pending.
+
+The first Linux generated replay fails after 2,691.191 seconds at its first
+wrapper-oracle command. Full preparation has completed, including the artifact
+gate and image update. The validator places the oracle output under
+build/bootstrap, but the generated-source wrapper requires kernel/util. A direct
+CLI invocation reproduces that binding rejection before compilation. The failure
+is in the validation harness; the wrapper's restriction remains unchanged.
+
+The oracle now uses a unique temporary directory under kernel/util, then copies
+its successful result into the report. It never replaces the live object. A
+regression exercising the wrapper's actual binding check fails before the fix
+and passes afterward, including failure cleanup and live-byte/mtime retention.
+All 32 handoff-validation tests pass on Windows (9.494 seconds, one skip) and
+Linux (41.290 seconds). The corrected oracle also compiles all three real Linux
+installation tables identically to the prepared objects and preserves their
+bytes and timestamps. This focused result does not replace the guarded replay.
+
+The failed report remains intact. A fresh Linux validation repeats complete
+normal preparation with the corrected harness before replay, ABI, user-program,
+and private runtime checks. Windows's original validation remains in progress;
+its loaded validator has the same output-binding defect and has not been altered.
+
+The corrected oracle also passes on Windows using a private temporary copy of
+the three real generated sources, their five headers, the wrapper modules, and
+the promoted seed directories. All three objects match the Linux oracle and
+both adoption builds: bin is 57,128 bytes, demos 16,244, and docs 11,032. The
+check rereads the live Windows inputs and objects afterward and confirms their
+bytes and object timestamps are unchanged. It does not modify the running
+Windows validation or substitute for its complete guarded replay.
+
+The original Windows replay now fails after 4,293.087 seconds at the same first
+oracle output-binding check. Its full preparation passes. The retained report
+and oracle log confirm the identical harness defect; no production compiler or
+wrapper restriction changes are needed. The stopped Windows tree receives the
+tested validator and regression test. A fresh full validation verifies the
+previous failure and current kernel/manual hashes before repeating preparation,
+replay, ABI, user-program, and private runtime checks. Both corrected validations
+are now running. Their final acceptance remains pending.
+
+The corrected Linux generated-install validation passes in 2,710.032 seconds,
+including full normal preparation and the wrapper oracle. Its guarded replay
+executes exactly three native production compiles in 32.333 seconds, with host
+compiler commands poisoned, and passes the object/artifact byte and timestamp
+comparisons. Linux has advanced to the user ABI checks. Windows's corrected
+validation remains in preparation; paired runtime acceptance is still pending.
+
+The Linux acceptance sequence now passes. Rebuilding and checking the complete
+contract cohort takes 4,581.388 seconds; its Cupid author and Python oracle agree
+on all 62 stage pairs. The syscall ABI check reports version 5, 103 fields, 101
+providers, and a 412-byte table. The three user programs build in 3.577 seconds.
+The private four-CPU smoke passes in 66.632 seconds, including SMP runtime checks,
+`dis /bin/ls.cc`, and `ls`. The source image remains unchanged. An independent
+post-run check rereads all 448 retained/live artifacts and 478 control files,
+verifies their required timestamps, checks the three-command replay and poisoned
+command coverage, and rechecks kernel, manual, user-program, and image hashes.
+
+Windows's corrected generated-install validation also passes, in 4,326.862
+seconds. The following ABI invocation fails immediately because the acceptance
+script supplied the Windows execution manifest as the Linux bootstrap manifest.
+This is a harness invocation error: the existing native Windows path requires
+`--windows-manifest`, as used by `user/Makefile`. The failed attempt and logs
+remain intact. A separate continuation verifies the passed replay and current
+kernel/manual/validator hashes, then runs the documented native ABI command,
+user builds, and private runtime smoke. Windows runtime acceptance is pending;
+the successful generated replay is not repeated.
+
+The Windows continuation passes: native syscall ABI validation takes 24.958
+seconds, user builds take 29.181 seconds, and the private four-CPU runtime smoke
+takes 60.944 seconds. Its ABI report matches Linux. SMP runtime checks,
+`dis /bin/ls.cc`, and `ls` pass; the source image remains unchanged. Independent
+post-run verification checks 448 artifacts and 478 control files, including
+required timestamps, replay command coverage, and oracle equality. The two
+independent reports agree on every kernel file, generated installation object,
+and user executable. Paired generated-install adoption is now verified.
+
+The kernel binary is 9,555,892 bytes with SHA-256
+`4ae8a6301244e5aab1015e8e4a120418587a487b88a26998916814815f95e5e6`;
+the final ELF is 9,781,580 bytes with SHA-256
+`072316a0cd3afe8a85bd7f607d198fabf6360760f0948a9e8289ce1ac8f4b671`.
+The tested installed manual remains the 52,952-byte checkpoint with SHA-256
+`92121bcca4d333d349a1a4e23c72ca1e61c507a64ed8f1676a96604cb48015b0`.
+The full retained record is `build/bootstrap/142a9737-paired-proof/`, including
+both failed oracle attempts, the rejected Windows ABI invocation, corrected
+acceptance logs, and `paired-final-verification.json`. Doom gameplay acceptance
+and the remaining twelve Python-coordinated transforms are separate open work.

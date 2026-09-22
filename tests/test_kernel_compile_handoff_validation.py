@@ -16,6 +16,111 @@ from tools import validate_kernel_compile_handoff as validation
 
 
 class KernelCompileHandoffValidationTests(unittest.TestCase):
+    def test_generated_oracle_obeys_wrapper_binding_and_cleans_private_output(self):
+        from tools.cupidc_production_compile import _validate_output_binding
+        for fail in (False, True):
+            with self.subTest(fail=fail), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary).resolve()
+                source = "kernel/util/bin_programs_gen.cc"
+                parent = root / "kernel/util"
+                parent.mkdir(parents=True)
+                live = parent / "bin_programs_gen.o"
+                live.write_bytes(b"retained object")
+                before = (live.read_bytes(), live.stat().st_mtime_ns)
+                output = root / "build/bootstrap/report/oracle/bin_programs_gen.o"
+                output.parent.mkdir(parents=True)
+                seen = []
+
+                def runner(command, working_root, log, timeout):
+                    actual = Path(command[command.index("--output") + 1])
+                    _validate_output_binding(root, "generated-install", root / source, actual)
+                    self.assertEqual(working_root, root)
+                    self.assertNotEqual(actual, live)
+                    seen.append(actual)
+                    actual.write_bytes(b"oracle object")
+                    if fail:
+                        raise RuntimeError("oracle failed")
+
+                arguments = (root, {"PRODUCTION_SEED_MANIFEST": "seed/manifest.json"},
+                             "generated-install", source, output, root / "oracle.log", 60, runner)
+                if fail:
+                    with self.assertRaisesRegex(RuntimeError, "oracle failed"):
+                        validation.run_oracle(*arguments)
+                    self.assertFalse(output.exists())
+                else:
+                    validation.run_oracle(*arguments)
+                    self.assertEqual(output.read_bytes(), b"oracle object")
+                self.assertEqual(len(seen), 1)
+                self.assertFalse(seen[0].parent.exists())
+                self.assertEqual(list(parent.iterdir()), [live])
+                self.assertEqual((live.read_bytes(), live.stat().st_mtime_ns), before)
+
+    def test_generated_cohort_controls_and_checked_wrapper(self):
+        sources, operation = validation.selected_cohort("generated-install")
+        self.assertEqual(sources, ["kernel/util/bin_programs_gen.cc",
+                                  "kernel/util/demos_programs_gen.cc",
+                                  "kernel/util/docs_programs_gen.cc"])
+        self.assertEqual(operation, "compile-production")
+        values = {"PRODUCTION_SEED_INPUTS": "seed/manifest.json seed/cupidc.exe",
+                  "PRODUCTION_SEED_MANIFEST": "seed/manifest.json",
+                  "DOOM_CUPIDC_HEADERS": "kernel/doom/doom.h"}
+        controls = validation.cohort_controls(Path("."), "generated-install", values)
+        self.assertTrue(set(sources).issubset(controls))
+        self.assertTrue(set(validation.GENERATED_INCLUDE_CLOSURE).issubset(controls))
+        self.assertIn("kernel/fs/homefs.h", controls)
+        self.assertIn("tools/cupidc_production_compile.py", controls)
+        self.assertIn("seed/manifest.json", controls)
+        for source in sources:
+            command = validation.oracle_command(Path("root"), values, "generated-install",
+                                                source, Path("oracle/output.o"))
+            self.assertEqual(command, [sys.executable, "tools/cupidc_production_compile.py",
+                             "--root", "root", "--cohort", "generated-install",
+                             "--tool-mode", "checked-seed", "--manifest", "seed/manifest.json",
+                             "--source", source, "--output", str(Path("oracle/output.o"))])
+        with self.assertRaisesRegex(RuntimeError, "outside the approved generated cohort"):
+            validation.oracle_command(Path("root"), values, "generated-install",
+                                      "user/examples/hello.cc", Path("output.o"))
+        with mock.patch.object(validation, "GENERATED_INSTALL_SOURCES", sources[:-1]):
+            with self.assertRaisesRegex(RuntimeError, "complete three-source"):
+                validation.selected_cohort("generated-install")
+
+    def test_generated_replay_rejects_other_cohorts_and_wrong_commands(self):
+        command = ('seed/cupidbuild compile-production --seed-manifest seed/manifest.json '
+                   '--root root --source kernel/util/bin_programs_gen.cc '
+                   '--output kernel/util/bin_programs_gen.o\n')
+        expected = validation.compile_rows(command, "compile-production")
+        validation.check_census(command, expected, collections.Counter(), "compile-production")
+        for changed in (command * 2, command.replace("bin_programs_gen.o", "other.o"),
+                        command + validation.POISON,
+                        command + command.replace("compile-production", "compile-kernel"),
+                        command + command.replace("compile-production", "compile-doom")):
+            with self.subTest(changed=changed), self.assertRaises(RuntimeError):
+                validation.check_census(changed, expected, collections.Counter(), "compile-production")
+        for other in ("compile-kernel", "compile-doom"):
+            with self.assertRaisesRegex(RuntimeError, "outside its cohort"):
+                validation.check_replay_plan(command + command.replace("compile-production", other),
+                                             expected, collections.Counter(), "compile-production")
+
+    def test_generated_plan_requires_full_preparation_and_three_forced_sources(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            report = root / "build/bootstrap/generated-plan"
+            with mock.patch.object(sys, "argv", ["validate", "--root", str(root),
+                                   "--report", str(report), "--cohort", "generated-install", "--plan-only"]):
+                self.assertEqual(validation.main(), 0)
+            plan = json.loads((report / "plan.json").read_text())
+            self.assertEqual((plan["sources"], plan["operation"]), (3, "compile-production"))
+            self.assertEqual(plan["preparation"][-1], "all")
+            self.assertEqual(plan["replay"].count("-W"), 3)
+            for source in validation.selected_cohort("generated-install")[0]:
+                self.assertIn(source, plan["replay"])
+                self.assertIn(Path(source).with_suffix(".o").as_posix(), plan["replay"])
+            with mock.patch.object(sys, "argv", ["validate", "--root", str(root),
+                                   "--report", str(report), "--cohort", "generated-install",
+                                   "--prepare-target", "kernel/cpu/ksyms_data.o", "--plan-only"]):
+                with self.assertRaisesRegex(RuntimeError, "complete normal all preparation"):
+                    validation.main()
+
     def test_profile_census_rejects_wrong_bindings_duplicates_and_poison(self):
         command = 'seed/cupidbuild generate-profile-manifest --seed-manifest seed/manifest.json --root "work tree" --output profile.json\n'
         expected = validation.profile_rows(command)

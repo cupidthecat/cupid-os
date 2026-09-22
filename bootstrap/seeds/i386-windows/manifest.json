@@ -4,14 +4,14 @@
       "file": "cupidasm.exe",
       "name": "cupidasm",
       "producer": true,
-      "sha256": "17ab4874dab63bf614f9b0d94d9d64017ec5f70ddd87c59ade71646c0a1ab83c",
+      "sha256": "a1be22fd211b40d2043a78e6d8afd14db54c21f64d516b8edb5a9bbb2958193f",
       "size": 484352
     },
     {
       "file": "cupiddis.exe",
       "name": "cupiddis",
       "producer": false,
-      "sha256": "87a6ba895bd52a1da6e287a7b5d585b5ca54a82dd9d43347aa441b7b9d8ed034",
+      "sha256": "effbb052155783e581bd9cad573238ce02357ce5c660596b1ddbd4aa3fb7667b",
       "size": 517120
     },
     {
@@ -32,15 +32,15 @@
       "file": "cupidc.exe",
       "name": "cupidc",
       "producer": true,
-      "sha256": "3fcbc74e11275a23ff5566e977223e36437f5516825729b6b8a27d0de3d995ad",
+      "sha256": "4c686edae024032dbc733f8528c06bdf67da68182f09c771362a38f331260180",
       "size": 2627584
     },
     {
       "file": "cupidbuild.exe",
       "name": "cupidbuild",
       "producer": false,
-      "sha256": "4a938181137e87711d7832fca2c2dfc1fd9ed542196bacb3e92f22fecb664ad6",
-      "size": 644608
+      "sha256": "e2a306208b126699cacf1a88e975726f25e7002b80492d5750732614c5a38331",
+      "size": 654336
     }
   ],
   "provenance": {
@@ -49,19 +49,19 @@
     "fixed_point_result": "pass",
     "linux_candidate_build_plan_sha256": "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd",
     "native_build_plan_sha256": "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669",
-    "parent_execution_seed_manifest_sha256": "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a",
-    "parent_execution_seed_source_revision": "9d2529a718672edcd970f24960535db6ddbde5e4",
-    "parent_plan_seed_manifest_sha256": "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e",
-    "parent_plan_seed_source_revision": "9d2529a718672edcd970f24960535db6ddbde5e4",
-    "plan_seed_manifest_sha256": "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622",
+    "parent_execution_seed_manifest_sha256": "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590",
+    "parent_execution_seed_source_revision": "83d00ce70e5607dc5c011bb97c6478121f24a21c",
+    "parent_plan_seed_manifest_sha256": "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622",
+    "parent_plan_seed_source_revision": "83d00ce70e5607dc5c011bb97c6478121f24a21c",
+    "plan_seed_manifest_sha256": "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52",
     "producer_lineage": {
       "assembly": "native stage-three CupidASM from the checked i386 Windows bootstrap",
       "c": "native stage-three CupidC from the checked i386 Windows bootstrap",
       "link": "native stage-three CupidLD from the checked i386 Windows bootstrap"
     },
     "source_input_count": 59,
-    "source_revision": "83d00ce70e5607dc5c011bb97c6478121f24a21c",
-    "source_snapshot_sha256": "f2b3a1349b3cf5476fc2f141b307afe3babe0e673d6154fb98afee3511507718"
+    "source_revision": "142a9737f618ab8500308576a1c222501d639e5f",
+    "source_snapshot_sha256": "2346284239faf9f5571223587f2e2b2dfdd5197cffd41b97a12e234386810695"
   },
   "schema": "cupid.execution-seed.v2",
   "target": {

@@ -18,6 +18,29 @@ The public success output is exactly `Cupid artifact sizes: ok (16 exact artifac
 
 The smallest useful source step is to extract this parser/validator into a reusable module with an explicit result and error buffer. Keep its existing executable adapter and CUPSIZE2 tests. Avoid including a test `.cc` directly into CupidBuild or exposing static global `contract_error` as a shared API. The contract file rereads its request before success; an in-memory API should receive owned immutable bytes and document who proves their lifetime. The current native seed reader is reusable for execution-seed trust, but its platform selection and parent-window policy cannot by themselves prove the opposite platform's manifest or the pair relationship.
 
+## Shared parser consumer
+
+The Toolchain manifest contract includes `artifact_size_policy_contract.cc`
+with `main` renamed. It uses the included JSON and binary readers, text and
+path helpers, seed-name lookup, request-file handling, and global error state.
+It also depends on the reader types and seed constants defined by that file.
+Replacing the included file with a thin artifact-policy adapter would therefore
+break the manifest verifier and author even if every artifact-policy test passed.
+
+Preserve both consumers when extracting the core. Give shared parsing helpers
+an internal module and explicit per-call error state; keep request-file I/O in
+the executable adapters. The public artifact-policy API should remain a single
+immutable-byte validation call with an explicit result and bounded diagnostic
+buffer. Do not retain duplicated policy implementations or include a test `.cc`
+from CupidBuild to bypass this dependency.
+
+The integration gate must cover the Toolchain manifest verifier and author as
+well as artifact verification, including exact reports, malformed requests,
+failure recovery, and checked Cupid-built executables. Their runner closures,
+Make prerequisites, manifest input inventories, and audit contracts must all
+include the extracted modules. Host-compiled API tests alone cannot establish
+that this extraction is ready for production.
+
 ## Native transaction required
 
 A native `verify-artifact-sizes` operation needs a read-only retained-root transaction. It can reuse SHA256, no-follow file walking, retained directory identity, seed capture, and live/frozen rechecks from CupidBuild. The existing public host API exposes freeze/read/discovery and output transactions, but no dedicated metadata-only observation plus fresh-root rewalk contract matching `_PinnedRepository`. Copying all policy artifacts into a publication transaction is not the same boundary. Ordinary output files currently contribute stable metadata, not payload digests; changing that choice should be explicit and tested.

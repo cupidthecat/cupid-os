@@ -9660,7 +9660,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "active_sources": 748,
                     "features": 255,
                     "transforms": 452,
-                    "unreachable_sources": 28,
+                    "unreachable_sources": 29,
                 },
             )
             features = {
@@ -9668,7 +9668,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6909, 179),
+                "c.expression.sizeof": (6916, 179),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -9795,18 +9795,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     native_cupidc_roots.extend(roots)
                 else:
                     python_cupidc_roots.extend(roots)
-            self.assertEqual(len(native_cupidc_roots), 240)
+            self.assertEqual(len(native_cupidc_roots), 243)
             self.assertEqual(set(native_cupidc_roots), {
                 *FROZEN_KERNEL_INPUT_CLOSURES,
                 *APPROVED_DOOM_COMPAT_SOURCES,
                 *APPROVED_DOOM_TREE_SOURCES,
-            })
-            self.assertEqual(len(python_cupidc_roots), 3)
-            self.assertEqual(set(python_cupidc_roots), {
                 "kernel/util/bin_programs_gen.cc",
                 "kernel/util/demos_programs_gen.cc",
                 "kernel/util/docs_programs_gen.cc",
             })
+            self.assertEqual(len(python_cupidc_roots), 0)
+            self.assertEqual(set(python_cupidc_roots), set())
             self.assertFalse(set(native_cupidc_roots) & set(python_cupidc_roots))
             seed_bound_roots = {
                 "toolchain/ctool.cc",
@@ -10239,13 +10238,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 250,
                     "cupid_assembler": 9,
-                    "cupid_builder": 437,
+                    "cupid_builder": 440,
                     "cupid_object": 192,
                     "cupid_linker": 9,
                     "cupid_disassembler": 10,
                     "cupid_c_contract": 4,
                     "host_c_compiler": 0,
-                    "host_python": 15,
+                    "host_python": 12,
                 },
             )
             self.assertFalse(
@@ -11177,7 +11176,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 6,
-            "cupid_builder": 437,
+            "cupid_builder": 440,
             "cupid_object": 192,
             "cupid_linker": 3,
             "cupid_disassembler": 7,

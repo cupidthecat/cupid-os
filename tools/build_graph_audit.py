@@ -324,6 +324,7 @@ TOOL_MARKERS = (
     ),
     ("compile-kernel --seed-manifest", "cupid_c_compiler"),
     ("compile-doom --seed-manifest", "cupid_c_compiler"),
+    ("compile-production --seed-manifest", "cupid_c_compiler"),
     ("flatten-kernel --seed-manifest", "cupid_disassembler"),
     ("flatten-kernel --seed-manifest", "cupid_object"),
     ("generate-ksyms --seed-manifest", "cupid_disassembler"),
@@ -3537,6 +3538,47 @@ def _validate_cupidbuild_doom_compile_delivery(
                 f"CupidBuild Doom compile delivery differs for {output}: "
                 "expected the source, complete headers, seed, profile manifest, and fixed recipe"
             )
+
+_CUPIDBUILD_GENERATED_SOURCES = (
+    "kernel/util/bin_programs_gen.cc",
+    "kernel/util/demos_programs_gen.cc",
+    "kernel/util/docs_programs_gen.cc",
+)
+
+
+def _cupidbuild_generated_compile_recipe(source: str) -> list[str]:
+    return [
+        "$(PRODUCTION_SEED_DIRECTORY)cupidbuild."
+        "$(PRODUCTION_SEED_SUFFIX) compile-production \\",
+        '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" \\',
+        "--source $< --output $@",
+    ]
+
+
+def _validate_cupidbuild_generated_compile_delivery(
+    transforms: list[dict[str, object]], *, seed_inputs: list[str],
+) -> None:
+    by_output = {transform.get("output"): transform for transform in transforms}
+    for source in _CUPIDBUILD_GENERATED_SOURCES:
+        output = Path(source).with_suffix(".o").as_posix()
+        transform = by_output.get(output)
+        if transform is None:
+            continue
+        expected = {source, "drivers/serial.h", "kernel/core/types.h",
+                    "kernel/fs/homefs.h", "kernel/fs/ramfs.h", "kernel/fs/vfs.h", "Makefile",
+                    "tools/cupidc_production_compile.py", "tools/cupidc_kernel_compile.py",
+                    "tools/native_user_toolchain.py", "tools/bootstrap_toolchain.py",
+                    *seed_inputs}
+        inputs = transform.get("inputs", [])
+        if (transform.get("operation") != "compile_c_to_elf32_object"
+                or transform.get("tools") != ["cupid_builder", "cupid_c_compiler"]
+                or transform.get("recipe") != _cupidbuild_generated_compile_recipe(source)
+                or not isinstance(inputs, list) or set(inputs) != expected
+                or len(inputs) != len(expected)
+                or transform.get("order_only_inputs", [])
+                != ["build/bootstrap/doom-cupidc-inputs.json"]):
+            raise AuditError(f"CupidBuild generated compile delivery differs for {output}")
+
 
 def _validate_cupidc_kernel_compile_make_binding(
     root: Path,
@@ -8364,6 +8406,12 @@ def build_audit(
             seed_inputs=doom_values["PRODUCTION_SEED_INPUTS"].split(),
             headers=doom_values["DOOM_CUPIDC_HEADERS"].split(),
         )
+        _validate_cupidbuild_generated_compile_delivery(
+            root_model.transforms,
+            seed_inputs=_read_evaluated_make_variables(
+                root, make, ("PRODUCTION_SEED_INPUTS",)
+            )["PRODUCTION_SEED_INPUTS"].split(),
+        )
         _validate_iso_pattern_delivery(
             root_model.transforms,
             seed_inputs=_read_evaluated_make_variables(
@@ -8845,6 +8893,13 @@ def _c_preprocessor_profile_for_c_transform(
     output = str(transform.get("output", "<unknown>"))
     if transform.get("tools") == ["cupid_builder", "cupid_c_compiler"]:
         root = _c_preprocessor_one_c_root(transform)
+        if root in _CUPIDBUILD_GENERATED_SOURCES:
+            if (directory != "."
+                    or output != Path(root).with_suffix(".o").as_posix()
+                    or transform.get("recipe") != _cupidbuild_generated_compile_recipe(root)
+                    or transform.get("operation") != "compile_c_to_elf32_object"):
+                raise AuditError(f"CupidBuild generated compile recipe differs for {output}")
+            return "KERNEL_I386"
         if root in (*_CUPIDBUILD_DOOM_COMPAT_SOURCES, *_CUPIDBUILD_DOOM_TREE_SOURCES):
             if (directory != "."
                     or output != Path(root).with_suffix(".o").as_posix()

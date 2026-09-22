@@ -1,79 +1,65 @@
 # Cupid Toolchain capability matrix
 
-Source-head CupidBuild now has an in-memory validator for external user
-executables. It checks the i386 ELF32 header, up to sixteen program headers,
-load ranges inside `[0x01C00000, 0x01E00000)`, alignment, permissions, overlap,
-and an entry in executable file-backed bytes. It preserves the existing Python
-validator's acceptance rules and diagnostics. The three user links still use
-the Python transaction; native path handling, input capture, inspection, and
-publication remain required before that handoff.
+Make invokes checked `cupidbuild compile-production` for the three generated
+installation tables. CupidObj still generates their source. Each compilation
+captures its source and five headers in a closed six-record `CUPSRC1` bundle:
+`drivers/serial.h`, `kernel/core/types.h`, `kernel/fs/homefs.h`,
+`kernel/fs/ramfs.h`, and `kernel/fs/vfs.h`. All five headers are Make
+prerequisites for every table, including the two that previously omitted
+`homefs.h`. The fixed kernel profile and 180-second compiler deadline remain
+unchanged. Complete input checks precede reuse of an equal object, whose
+timestamp is preserved. Failed transactions retain the previous output or
+verified recovery evidence under the existing filesystem policy.
 
-The shared x86 decoder initializes a candidate after its early opcode,
-prefix, and invalid-encoding checks, before writing decoded fields. This avoids
-clearing records for rows that cannot match. Catalogue order, alias selection,
-recovery classifications, and public-result initialization stay unchanged.
-The source change still needs paired bootstrap proofs and promotion before
-checked production tools carry it. ADR 0398 records the implementation and
-its validation boundary; production ownership counts are unchanged.
+The 157 kernel-profile and 83 Doom recipes retain their checked native
+coordinators. These 243 compiler roots already use `.cc`. The handoff changes
+coordination without changing their language, arguments, or installed content.
 
-Generated installation compilation has a **Source capability** through
-`cupidbuild compile-production`. Its three approved roots each capture the
-five-header installation closure in a six-record bundle. The command keeps
-the kernel profile, exact adjacent output binding, checked-seed launch,
-object validation, input checks, stable timestamps, and guarded recovery.
-Tests cover real object parity and useful failures; paired proofs and checked
-recipe adoption remain outstanding. The user compilation profile is not
-admitted by this first command. It needs compatible configurable-directory
-preparation and native pathname handling.
-
-Make invokes checked `cupidbuild compile-doom` for all 83 approved Doom
-sources: three compatibility roots and 80 Doom-tree roots. It derives the
-profile from source membership, captures the exact source cohort and all
-profile headers, and sends the selected source and headers to CupidC in a
-closed `CUPSRC1` bundle. Missing entries cannot fall back to live files.
-Filtered directory checks allow parallel object publication while rejecting
-source/header changes and replaced directories. The strict profile-manifest
-publisher keeps its existing directory checks. Failed transactions preserve
-or retain verified recovery evidence under the documented filesystem policy;
-equal validated objects retain their timestamps after full input checks.
-
-The 157 kernel-profile recipes continue to use `compile-kernel`. All 240
-kernel/Doom compiler roots already use `.cc`; this handoff changes ownership
-without changing the source language, compiler arguments, or OS behavior.
-
-Both checked six-tool cohorts come from source `83d00ce70e5607dc5c011bb97c6478121f24a21c`
-and the same 59-input snapshot `f2b3a1349b3cf5476fc2f141b307afe3babe0e673d6154fb98afee3511507718`. Clean proofs match
-all 29 Linux and 32 native Windows stage-three/stage-four artifact pairs.
-Linux passes 41 failure, seven help, and 47 success groups; Windows passes
-29 failure, seven help, and 34 success groups. Each compared coordinator uses
-its own generation's complete tool cohort. Independent promotion checks bind
-the source inventory to the commit and verify exact stage files and bytes,
+Both checked six-tool cohorts come from source
+`142a9737f618ab8500308576a1c222501d639e5f` and the same 59-input snapshot
+`2346284239faf9f5571223587f2e2b2dfdd5197cffd41b97a12e234386810695`.
+Clean proofs match all 29 Linux and 32 native Windows stage-three/stage-four
+artifact pairs. Linux passes 46 failure, seven help, and 54 success groups;
+Windows passes 34 failure, seven help, and 41 success groups. Each coordinator
+uses its own generation's complete tool cohort. Independent promotion checks
+bind the source inventory to the commit and verify stage membership and bytes,
 executable formats, build plans, parent lineage, and the proposed seed pair.
+The report checks reject ten altered Linux reports and thirteen Windows reports.
 
-The Linux manifest has SHA-256 `a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622`; the Windows
-manifest has SHA-256 `f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590`.
+The promoted tools also carry the shared decoder initialization change from
+ADR 0398. Candidate records are initialized after early rejection checks and
+before decoded fields are written. Catalogue order, aliases, classifications,
+and public-result initialization remain unchanged. CupidBuild carries the
+in-memory user ELF validator, but the three user links still use their Python
+transaction. Native path handling, input capture, inspection, and publication
+remain required before that handoff.
 
-The audit records 437 CupidBuild and 15 Python participations across 452
-transforms. Python still coordinates six compilations (three generated
-installation tables and three user programs), three user links, two image
-publications, three verification operations (artifact sizes, user syscall ABI,
-and the Toolchain manifest), and one Toolchain build/manifest publication.
-Make and host operating-system services remain required. GCC, NASM, and host
-linkers are not required by the normal code-producing path.
+The Linux manifest has SHA-256 `7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52`;
+the Windows manifest has SHA-256 `2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd`.
 
-The next compiler step is the six generated-install and user compilations.
-Their existing profiles and captured headers must remain intact. User builds
-must keep configurable `BUILD` directories, including safe creation of missing
-parents, rather than being restricted to `user/build`. The three user links
-remain a separate transaction. IWAD-backed Doom gameplay acceptance is still
-open; compiler parity and asset-free smoke tests do not establish gameplay.
+The build-graph audit records 440 CupidBuild and 12 Python participations across
+452 transforms. Python still coordinates three user compilations, three user
+links, two image publications, three verification operations (artifact sizes,
+user syscall ABI, and the Toolchain manifest), and one Toolchain build/manifest
+publication. Make and host operating-system services remain required. GCC,
+NASM, and host linkers are absent from the normal code-producing path.
+
+User compilation must retain configurable `BUILD` directories, safe creation
+of missing parents, and existing pathname support. A failed proof under a long
+Windows checkout reproduced a pre-existing native compiler path limit with the
+preceding checked seed: a 237-character output path succeeded and a
+276-character path failed. The complete retry uses a shorter checkout without
+changing source, tests, or deadlines. This workaround does not fix the compiler
+limit; the user-compilation plan records the remaining work.
+
+The bootstrap log records production replay, artifact-size checks, and
+private SMP, disassembly, and `ls` smoke separately from the fixed-point proofs.
+
+Fixed-point convergence, production replay, and runtime acceptance remain
+separate checks. IWAD-backed Doom gameplay acceptance remains open.
 `TempleOS/` remains read-only reference material and is excluded from builds
 and progress counts.
 
-[ADR 0396](../adr/0396-adopt-checked-doom-compilation-in-make.md) records the promotion and recipe handoff.
-
-The bootstrap log records the production replay, artifact-size checks, and private SMP/ls smoke separately from these fixed-point results.
-Fixed-point convergence and OS runtime acceptance remain separate results.
 
 Both earlier `16a86f5b` fixed-point proofs passed. The current checked seeds
 carry the Windows full-cohort launch and POSIX working-directory repairs.

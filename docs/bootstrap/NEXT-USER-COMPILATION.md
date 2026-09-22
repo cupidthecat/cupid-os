@@ -84,6 +84,19 @@ A wide directory opener
 alone is insufficient. Do not expose a restricted user command that rejects
 paths already supported by the wrapper.
 
+A September 21 bootstrap probe also reproduced a path-length limit in the
+checked Windows CupidC. The same small kernel source compiled through
+`cupidbuild compile-kernel` under a 54-character root but failed under a
+224-character root with `cupidbuild: checked CupidC failed`. Direct calls to
+the same checked compiler under the long root succeeded with a 237-character
+output path and failed with a 276-character output path, reporting
+`cannot write ... (io)`. This predates the generated-install promotion: the
+probe used the existing checked seed. Native user migration must account for
+the compiler's private bundle and output paths as well as CupidBuild's own
+directory handling. Moving bootstrap evidence to a shorter checkout permits
+that proof to run; it does not add long-path support or satisfy the user-path
+acceptance requirement.
+
 ## Compiler and validation work
 
 User compilation must retain `--freestanding -I /user`, its 180-second timeout,

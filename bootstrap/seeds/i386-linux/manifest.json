@@ -4,14 +4,14 @@
       "file": "cupidasm.elf",
       "name": "cupidasm",
       "producer": true,
-      "sha256": "a461fd72b32a8da326a1aed044d7b7617df1fd40d6c074fe4c0c7218434ff945",
+      "sha256": "ec381aaba34cba2f6635a026586c39f7129e7dc61ba8432137107aa2538fe31d",
       "size": 505148
     },
     {
       "file": "cupiddis.elf",
       "name": "cupiddis",
       "producer": false,
-      "sha256": "ec6f381883f2f1230b7df20fb7fbc5d629ac895cc26dd72b091bdf4c40ebd2ef",
+      "sha256": "0fab3d96b0321e7b25709f4ba3c53ddddefb5d56e18f7eeb5dcb711a301d9200",
       "size": 538580
     },
     {
@@ -32,15 +32,15 @@
       "file": "cupidc.elf",
       "name": "cupidc",
       "producer": true,
-      "sha256": "79398ca08c80e50479f0b6574246f7a5074a4106db594a17e9dda630ddfb9ec8",
+      "sha256": "ac1a5cbce941846cba015790a66e051aee20e5e47fc8fc50af7a850be48889c0",
       "size": 2700264
     },
     {
       "file": "cupidbuild.elf",
       "name": "cupidbuild",
       "producer": false,
-      "sha256": "9977964d06e39aa672a4b616d07cc224d20796d22fbde3271d9e4c725789af53",
-      "size": 631132
+      "sha256": "efa6dcfd55c25996c141b7fe4f8154df53c4df95b94ff57bf19a368d8d6adc12",
+      "size": 643648
     }
   ],
   "build_plan": {
@@ -239,8 +239,8 @@
     "artifact_generation": "paired-stage-four-six-tool",
     "fixed_point_command": "make bootstrap-from-seed",
     "fixed_point_result": "pass",
-    "parent_seed_manifest_sha256": "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e",
-    "parent_seed_source_revision": "9d2529a718672edcd970f24960535db6ddbde5e4",
+    "parent_seed_manifest_sha256": "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622",
+    "parent_seed_source_revision": "83d00ce70e5607dc5c011bb97c6478121f24a21c",
     "producer_lineage": {
       "assembly": "stage-three CupidASM from the checked-seed bootstrap",
       "c": "stage-three CupidC from the checked-seed bootstrap",
@@ -248,8 +248,8 @@
     },
     "seed_generation": "stage-four",
     "source_input_count": 59,
-    "source_revision": "83d00ce70e5607dc5c011bb97c6478121f24a21c",
-    "source_snapshot_sha256": "f2b3a1349b3cf5476fc2f141b307afe3babe0e673d6154fb98afee3511507718"
+    "source_revision": "142a9737f618ab8500308576a1c222501d639e5f",
+    "source_snapshot_sha256": "2346284239faf9f5571223587f2e2b2dfdd5197cffd41b97a12e234386810695"
   },
   "schema": "cupid.bootstrap-seed.v2",
   "target": {
