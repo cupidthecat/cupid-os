@@ -1,5 +1,19 @@
 # Cupid Toolchain capability matrix
 
+Source head now exposes reusable artifact-policy and seed-image byte validators.
+The CUPSIZE2 policy core accepts immutable input with an explicit result and
+bounded diagnostic buffer. Its executable adapter and the Toolchain manifest
+verifier share parsing helpers with per-call error state; neither includes the
+other executable's source. CupidBuild's image API checks either ELF32 or PE32
+against an explicit tool role, while execution remains bound to the host format.
+
+The source inventories contain 61 bootstrap inputs and 78 Toolchain publication
+inputs. The installed seeds still describe their verified 59-input generation.
+The native artifact-verification transaction, release identities, filesystem
+capture, and final rechecks remain unfinished. This extraction leaves the twelve
+Python-coordinated operations in place. ADR 0399 records the boundaries; the
+bootstrap log separates regression evidence from staged and runtime acceptance.
+
 Make invokes checked `cupidbuild compile-production` for the three generated
 installation tables. CupidObj still generates their source. Each compilation
 captures its source and five headers in a closed six-record `CUPSRC1` bundle:

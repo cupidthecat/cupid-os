@@ -1,6 +1,6 @@
 # Next native artifact-size verification boundary
 
-Read-only audit, 2026-09-20. No implementation, policy change, or ownership handoff is included.
+Boundary audit, 2026-09-20; isolated extraction work, 2026-09-21. Production verification remains Python-coordinated.
 
 ## Current operation
 
@@ -17,29 +17,6 @@ The public success output is exactly `Cupid artifact sizes: ok (16 exact artifac
 `toolchain/tests/artifact_size_policy_contract.cc` already contains the semantic verifier. Its request parser and `validate_request` cover raw policy JSON, Linux manifest JSON and its observed digest, Windows manifest JSON, six Windows size/hash observations, and sixteen regular-file size observations. The parser checks schemas, owners, sorted unique safe paths, exact cohorts, positive integer limits, UTF-8/JSON validity, truncation, trailing bytes, paired source identity/counts, and the admitted parent windows. Windows tool sizes and hashes must agree with the manifest. The observation producer, not this parser, computes filesystem digests and proves path identity.
 
 The smallest useful source step is to extract this parser/validator into a reusable module with an explicit result and error buffer. Keep its existing executable adapter and CUPSIZE2 tests. Avoid including a test `.cc` directly into CupidBuild or exposing static global `contract_error` as a shared API. The contract file rereads its request before success; an in-memory API should receive owned immutable bytes and document who proves their lifetime. The current native seed reader is reusable for execution-seed trust, but its platform selection and parent-window policy cannot by themselves prove the opposite platform's manifest or the pair relationship.
-
-## Shared parser consumer
-
-The Toolchain manifest contract includes `artifact_size_policy_contract.cc`
-with `main` renamed. It uses the included JSON and binary readers, text and
-path helpers, seed-name lookup, request-file handling, and global error state.
-It also depends on the reader types and seed constants defined by that file.
-Replacing the included file with a thin artifact-policy adapter would therefore
-break the manifest verifier and author even if every artifact-policy test passed.
-
-Preserve both consumers when extracting the core. Give shared parsing helpers
-an internal module and explicit per-call error state; keep request-file I/O in
-the executable adapters. The public artifact-policy API should remain a single
-immutable-byte validation call with an explicit result and bounded diagnostic
-buffer. Do not retain duplicated policy implementations or include a test `.cc`
-from CupidBuild to bypass this dependency.
-
-The integration gate must cover the Toolchain manifest verifier and author as
-well as artifact verification, including exact reports, malformed requests,
-failure recovery, and checked Cupid-built executables. Their runner closures,
-Make prerequisites, manifest input inventories, and audit contracts must all
-include the extracted modules. Host-compiled API tests alone cannot establish
-that this extraction is ready for production.
 
 ## Native transaction required
 
@@ -66,14 +43,16 @@ fixed build plan, and self-consistent artifact rows. That is needed for its
 own-generation staged checks, but it is not the same release-pinning rule.
 Reusing that reader alone would drop checks from artifact verification.
 
-The native reader also selects the schema, build-plan parsing, and ELF/PE32
-execution profile at compile time. An artifact verifier running on Linux must
-still validate all six checked Windows images. A Windows verifier must parse
-the selected Linux manifest and its policy bindings. Extract validators over
-captured bytes with an explicit format/role argument; keep the current
-execution entry point bound to its own host. Tests must reject the wrong
-entry point, dynamic or writable-executable ELF segments, malformed PE32,
-wrong import libraries or procedures, and role-specific import mismatches.
+The execution reader still selects its manifest schema and build-plan parsing
+for its own host. The isolated `cupidbuild_validate_seed_image_bytes` API now
+accepts an explicit image format and role, making both ELF32 and PE32 validation
+available on either host. Its existing transaction caller remains bound to its
+own host format. Twelve API tests pass with host and checked Cupid-built callers,
+including all twelve current images, wrong entry points, dynamic or writable
+executable ELF segments, malformed PE32, and role-specific import failures.
+[Seed executable byte profiles](NATIVE-SEED-IMAGE-PROFILES.md) defines that API.
+An artifact verifier must still parse both manifests and their policy bindings,
+prove release identities, and retain the filesystem observations.
 
 Release pins need an external data boundary when the verifier checks its own
 CupidBuild executable. Embedding that executable's finished digest into its
@@ -106,3 +85,61 @@ For a native transaction, reuse the semantic fixtures through both old contract 
 Both stage matrices need live native verification cases using each generation's own paired seed inputs, plus audit mutations that cannot pass under dead code. A later ownership change also needs a normal parallel OS build, all sixteen checks, preserved image on verification failure, and kernel/boot smoke as appropriate. The existing audit records this as `verify_artifact_size_policy` with CupidASM, CupidC, the contract, CupidLD, and Host Python; it is not safe to subtract one Python row without accounting for the changed participants and closure.
 
 References: ADR0297, `tools/artifact_size_contract.py`, `tools/artifact_size_policy.py`, `toolchain/tests/artifact_size_policy_contract.cc`, `toolchain/cupidbuild_host.h`, Makefile lines206-246 and1595 onward, and the three test modules above. Current raw-size observations are evidence only; this audit proposes no automatic policy update.
+
+
+## Isolated extraction and parser integration
+
+The extracted policy API accepts immutable `CUPSIZE2` bytes and returns the
+artifact count and total exact bytes. Failure clears the result. Diagnostics
+use caller-owned storage with an explicit capacity; zero capacity is supported.
+The API retains no input pointer and shares no mutable error state between calls.
+It validates supplied observations. Filesystem capture, release pins, live-path
+rechecks, and publication ordering remain outside this API.
+
+The manifest contract previously included the artifact contract's implementation
+file and used its parser helpers directly. A thin artifact adapter alone broke
+that dependency. Both contracts now use an internal parser module with explicit
+per-call diagnostics. Their command-line adapters retain their own file I/O.
+The artifact runner compiles the adapter, policy, and parser separately; the
+manifest verifier and staged manifest author compile and link the parser.
+The artifact runner's captured build closure grows from nineteen to twenty-three
+files: the policy and parser each add a source and header. The earlier operation
+description records the pre-extraction closure.
+
+The source inventories include both new headers: 61 bootstrap inputs and 78
+contract inputs. The audit records 405 tracked preprocessing roots and four
+generated roots. Exactly two new roots appear: the policy core and shared parser.
+The shared strict-profile parser is registered once after both participating
+build transformations pass their exact checks. Other duplicate roots remain
+errors.
+
+Following ADR 0380, the draft v2 readers accept only the preceding `83d00ce7`
+parent pair and active `142a9737` pair. Each digest remains bound to its own
+revision, and Windows execution and plan parents must share a generation.
+The retired `9d2529` pair is rejected. Current-source counts are exactly 59 or
+61; historical v1 parsing is unchanged. Release pins still describe the installed
+59-input seed. Source admission does not constitute seed promotion.
+
+Both hosts pass 48 policy/API tests and the targeted CupidBuild provenance tests.
+Checked CupidC, CupidASM, and CupidLD build the extracted contracts on both hosts;
+the resulting executables pass 42 artifact-policy and 39 manifest semantic tests.
+Policy, parser, and adapter objects match across hosts. The full manifest runner
+and publisher suites pass on both hosts. Same-size, same-timestamp changes to
+each extracted source and header are rejected. API tests also cover bounded
+diagnostics, failed-result clearing, recovery, immutable inputs, and concurrent
+calls with separate output storage.
+
+The first checked-tool harness retry accidentally selected the older draft; its
+output is retained but does not prove this integration. The corrected harness
+selects the isolated root explicitly, asserts 59/61 admission, and records the
+captured input hashes. A complete staged proof, production build/runtime gates,
+and checked-seed promotion remain separate work. No native artifact-verification
+command or ownership handoff is claimed by this extraction.
+
+
+Linked diagnostic CupidBuild executables also pass the six targeted provenance
+cases on both hosts (one Windows-only case is skipped on Linux). Each baseline
+relink first reproduces the installed executable byte for byte from hash-checked
+stage-four objects. Replacing only the CupidBuild object then tests the new
+reader through checked Cupid-generated code. These private diagnostics do not
+replace installed seed tools and do not substitute for a complete fixed point.

@@ -220,6 +220,10 @@ ARTIFACT_SIZE_OUTPUTS = $(BOOTLOADER) \
 	$(KERNEL) kernel/kernel.elf kernel/kernel.elf.pass1
 ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS := \
 	Makefile \
+	toolchain/artifact_size_policy.cc \
+	toolchain/artifact_size_policy.h \
+	toolchain/contract_parse_internal.cc \
+	toolchain/contract_parse_internal.h \
 	toolchain/hosted/i386-linux/include/cupid_host_abi.h \
 	toolchain/hosted/i386-linux/include/direct.h \
 	toolchain/hosted/i386-linux/include/errno.h \

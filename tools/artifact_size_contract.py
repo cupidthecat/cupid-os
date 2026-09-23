@@ -81,6 +81,10 @@ LINUX_EXECUTION_FILES = (
 
 BUILD_INPUTS = (
     "Makefile",
+    "toolchain/artifact_size_policy.cc",
+    "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
     "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
@@ -616,6 +620,8 @@ def _build_and_run_contract(
             build_root.mkdir(parents=True)
             runner = ToolRunner(source_root)
             contract_object = build_root / "contract.o"
+            artifact_size_policy_object = build_root / "artifact_size_policy.o"
+            contract_parse_internal_object = build_root / "contract_parse_internal.o"
             runtime_object = build_root / "runtime.o"
             start_object = build_root / "start.o"
             runtime_source = (
@@ -637,6 +643,14 @@ def _build_and_run_contract(
                 (),
                 False,
                 timeout,
+            )
+            _compile_source(
+                seed, runner, source_root, "toolchain/artifact_size_policy.cc",
+                artifact_size_policy_object, (), False, timeout,
+            )
+            _compile_source(
+                seed, runner, source_root, "toolchain/contract_parse_internal.cc",
+                contract_parse_internal_object, (), False, timeout,
             )
             _compile_source(
                 seed,
@@ -673,7 +687,7 @@ def _build_and_run_contract(
             _link_contract(
                 seed,
                 runner,
-                (start_object, contract_object, runtime_object),
+                (start_object, contract_object, artifact_size_policy_object, contract_parse_internal_object, runtime_object),
                 executable,
                 windows,
                 timeout,

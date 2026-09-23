@@ -3,9 +3,7 @@
 #include "ctool_host.h"
 #include "cupidbuild_host.h"
 #include "elf32.h"
-#if defined(_WIN32)
 #include "pe32_impl.h"
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -2929,17 +2927,17 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
   static const char legacy_linux_manifest[] =
       "b6e34a2e18dd18aba91c6358116eafde39953566efeadb224575ac8c13ab2c1b";
   static const char preceding_parent_revision[] =
-      "9d2529a718672edcd970f24960535db6ddbde5e4";
-  static const char preceding_parent_linux_manifest[] =
-      "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e";
-  static const char preceding_parent_windows_manifest[] =
-      "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a";
-  static const char active_parent_revision[] =
       "83d00ce70e5607dc5c011bb97c6478121f24a21c";
-  static const char active_parent_linux_manifest[] =
+  static const char preceding_parent_linux_manifest[] =
       "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622";
-  static const char active_parent_windows_manifest[] =
+  static const char preceding_parent_windows_manifest[] =
       "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590";
+  static const char active_parent_revision[] =
+      "142a9737f618ab8500308576a1c222501d639e5f";
+  static const char active_parent_linux_manifest[] =
+      "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52";
+  static const char active_parent_windows_manifest[] =
+      "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd";
   static const char *const linux_v1_names[] = {
       "fixed_point_command",   "fixed_point_result", "producer_lineage",
       "seed_generation",       "source_input_count", "source_revision",
@@ -2983,7 +2981,7 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
   source_count_matches =
       promoted
           ? (cupidbuild_json_number_field(bytes, tokens, count, object,
-                                           "source_input_count", 58u) ||
+                                           "source_input_count", 61u) ||
              cupidbuild_json_number_field(bytes, tokens, count, object,
                                            "source_input_count", 59u))
           : cupidbuild_json_number_field(bytes, tokens, count, object,
@@ -4188,35 +4186,32 @@ static int cupidbuild_string_equals(ctool_string_t actual,
          memcmp(actual.data, expected, expected_size) == 0;
 }
 
-static int cupidbuild_validate_execution_profile(
-                                                   cupidbuild_host_transaction_t *transaction,
-                                                   const char *path,
-                                                   size_t artifact_index,
-                                                   int promoted,
-                                                   int current_windows_plan) {
-  unsigned char *bytes;
-  size_t size = 0u;
+int cupidbuild_validate_seed_image_bytes(
+    const unsigned char *bytes, size_t size,
+    cupidbuild_seed_image_format_t format, size_t artifact_index,
+    int promoted, int current_windows_plan) {
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = (ctool_job_t *)0;
   ctool_source_t source;
   int valid = 0;
-  bytes = cupidbuild_host_read_frozen_input(
-      transaction, path, CUPIDBUILD_TOOL_BYTES, &size);
-  if (bytes == (unsigned char *)0 || size > 4294967295u ||
+  if (bytes == (const unsigned char *)0 || size == 0u ||
+      size > CUPIDBUILD_TOOL_BYTES ||
+      (format != CUPIDBUILD_SEED_ELF32 && format != CUPIDBUILD_SEED_PE32) ||
+      artifact_index >= (promoted ? CUPIDBUILD_SEED_ARTIFACTS : 5u) ||
+      (promoted != 0 && promoted != 1) ||
+      (current_windows_plan != 0 && current_windows_plan != 1) ||
+      (current_windows_plan && (!promoted || format != CUPIDBUILD_SEED_PE32)) ||
       ctool_host_adapter_init(&adapter, ".") != CTOOL_OK) {
-    free(bytes);
     return 0;
   }
   config = ctool_host_job_config(&adapter, ctool_default_limits());
   if (ctool_job_open(&config, &job) != CTOOL_OK) {
-    free(bytes);
     return 0;
   }
   source.path.text = ctool_string("/checked-seed-tool");
   source.contents = ctool_bytes(bytes, (ctool_u32)size);
-#if defined(_WIN32)
-  {
+  if (format == CUPIDBUILD_SEED_PE32) {
     static const char *const ordinary_seed_imports[] = {
         "CloseHandle",       "CreateFileA",      "ExitProcess",
         "GetCommandLineA",   "GetCurrentDirectoryA",
@@ -4396,16 +4391,11 @@ static int cupidbuild_validate_execution_profile(
         }
       }
     }
-  }
-#else
-  {
+  } else {
     ctool_elf32_object_t object;
     ctool_u32 index;
     ctool_u32 load_count = 0u;
     int entry_in_code = 0;
-    (void)artifact_index;
-    (void)promoted;
-    (void)current_windows_plan;
     if (ctool_elf32_read(job, &source, &object) == CTOOL_OK &&
         object.file_type == CTOOL_ELF32_ET_EXEC &&
         object.entry_point == 0x08048000u &&
@@ -4439,8 +4429,26 @@ static int cupidbuild_validate_execution_profile(
       }
     }
   }
-#endif
   ctool_job_close(job);
+  return valid;
+}
+
+static int cupidbuild_validate_execution_profile(
+    cupidbuild_host_transaction_t *transaction, const char *path,
+    size_t artifact_index, int promoted, int current_windows_plan) {
+  unsigned char *bytes;
+  size_t size = 0u;
+  int valid;
+  bytes = cupidbuild_host_read_frozen_input(
+      transaction, path, CUPIDBUILD_TOOL_BYTES, &size);
+  valid = cupidbuild_validate_seed_image_bytes(
+      bytes, size,
+#if defined(_WIN32)
+      CUPIDBUILD_SEED_PE32,
+#else
+      CUPIDBUILD_SEED_ELF32,
+#endif
+      artifact_index, promoted, current_windows_plan);
   free(bytes);
   return valid;
 }

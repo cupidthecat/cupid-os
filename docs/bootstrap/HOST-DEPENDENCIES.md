@@ -1,5 +1,13 @@
 # Host dependency inventory
 
+The artifact-policy core and shared parser are now reusable source modules.
+Seed-image validation accepts both host formats through an explicit byte API.
+These capabilities do not move another production transaction: Python still
+coordinates artifact capture, checked contract execution, release checks, and
+final drift validation. Source inventories are 61 bootstrap and 78 publication
+inputs; installed seeds retain their 59-input release pins. See ADR 0399 and
+`NATIVE-SEED-IMAGE-PROFILES.md` for the interfaces and remaining work.
+
 Make invokes checked `cupidbuild compile-production` for the three generated
 installation tables. CupidObj still generates their source. Each compilation
 captures its source and five headers in a closed six-record `CUPSRC1` bundle:

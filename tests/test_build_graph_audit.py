@@ -4819,13 +4819,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CUPID_RUNTIME": 108,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
-                "HOSTED_I386_LINUX": 38,
+                "HOSTED_I386_LINUX": 40,
                 "HOSTED_I386_WINDOWS": 9,
                 "HOSTED_I386_KERNEL_BRIDGE": 2,
                 "HOSTED_I386_LINUX_GNU": 3,
             },
         )
-        self.assertEqual(len(active), 403)
+        self.assertEqual(len(active), 405)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -9578,9 +9578,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 403,
+                    "tracked_translation_units": 405,
                     "generated_translation_units": 4,
-                    "total_translation_units": 407,
+                    "total_translation_units": 409,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -9606,7 +9606,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("CUPID_RUNTIME", 108, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
-                    ("HOSTED_I386_LINUX", 38, 0),
+                    ("HOSTED_I386_LINUX", 40, 0),
                     ("HOSTED_I386_WINDOWS", 9, 0),
                     ("HOSTED_I386_KERNEL_BRIDGE", 2, 0),
                     ("HOSTED_I386_LINUX_GNU", 3, 0),
@@ -9657,7 +9657,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 748,
+                    "active_sources": 752,
                     "features": 255,
                     "transforms": 452,
                     "unreachable_sources": 29,
@@ -9668,7 +9668,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6916, 179),
+                "c.expression.sizeof": (6918, 180),
                 "c.extension.builtin.offsetof": (13, 7),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -10267,7 +10267,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 97)
+            self.assertEqual(toolchain_cohort["source_count"], 101)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -10523,7 +10523,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "403 tracked + 4 generated",
+                "405 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(

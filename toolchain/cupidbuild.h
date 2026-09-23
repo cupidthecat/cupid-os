@@ -50,6 +50,23 @@ int cupidbuild_generate_ksyms(const cupidbuild_ksyms_request_t *request);
 int cupidbuild_compile_kernel(const cupidbuild_compile_request_t *request);
 int cupidbuild_compile_doom(const cupidbuild_compile_request_t *request);
 int cupidbuild_compile_production(const cupidbuild_compile_request_t *request);
+typedef enum {
+  CUPIDBUILD_SEED_ELF32 = 1,
+  CUPIDBUILD_SEED_PE32 = 2
+} cupidbuild_seed_image_format_t;
+
+/* Validate immutable captured bytes without selecting or launching a tool.
+ * Artifact order is CupidASM, CupidC, CupidDis, CupidLD, CupidObj, CupidBuild.
+ * The legacy cohort contains the first five roles. Both boolean arguments
+ * must be zero or one; current_windows_plan requires promoted PE32 input.
+ * The caller retains ownership and proves capture identity and release trust.
+ * Returns one only for the exact format, entry point, and role import profile.
+ * This does not validate a manifest, digest, filesystem, or release identity. */
+int cupidbuild_validate_seed_image_bytes(
+    const unsigned char *bytes, size_t size,
+    cupidbuild_seed_image_format_t format, size_t artifact_index,
+    int promoted, int current_windows_plan);
+
 int cupidbuild_validate_compiler_object_bytes(const unsigned char *bytes,
                                               size_t size);
 /* Validate a borrowed, immutable candidate against the external user loader.

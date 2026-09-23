@@ -3203,6 +3203,8 @@ int main(int argc, char **argv) {
 
     @unittest.skipIf(os.name == "nt", "Linux uses anonymous runner files")
     def test_checked_tool_runner_uses_sealed_anonymous_inputs(self):
+        import fcntl
+
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-run-anonymous-inputs-", dir=REPO_ROOT
         ) as temporary:
@@ -3210,55 +3212,89 @@ int main(int argc, char **argv) {
             source = root / "large.txt"
             output = root / "large.o"
             source.write_bytes(b"anonymous checked input\n" * 1_500_000)
+            ready = root / "launch.ready"
+            resume = root / "launch.resume"
             command = self._checked_tool_command(
                 "cupidobj", ["wrap-text", source.name, "-o", output.name],
                 root=root,
             )
+            command[0] = str(self.race_cli_path)
+            environment = os.environ.copy()
+            environment["CUPIDBUILD_PUBLICATION_TEST_PHASE"] = "after-tool-launch"
+            environment["CUPIDBUILD_PUBLICATION_TEST_READY"] = str(ready)
+            environment["CUPIDBUILD_PUBLICATION_TEST_RESUME"] = str(resume)
             process = subprocess.Popen(
                 command, cwd=root, text=True, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.PIPE, env=environment,
             )
-            deadline = time.monotonic() + 20
-            sealed = []
-            while time.monotonic() < deadline and process.poll() is None:
+            metadata_changed = False
+            try:
+                # A memfd exists while it is still being filled. Observe the
+                # completed capture at launch, not a racy descriptor count.
+                deadline = time.monotonic() + 20
+                while not ready.exists() and process.poll() is None:
+                    if time.monotonic() >= deadline:
+                        break
+                    time.sleep(0.001)
+                self.assertTrue(ready.is_file(), "tool launch checkpoint was not observed")
                 self.assertEqual(list(root.glob(".cupidbuild-run-*")), [])
                 descriptors = Path(f"/proc/{process.pid}/fd")
-                try:
-                    links = {
-                        path: os.readlink(path)
-                        for path in descriptors.iterdir()
-                    }
-                except (FileNotFoundError, PermissionError, ProcessLookupError):
-                    time.sleep(0.001)
-                    continue
+                links = {path: os.readlink(path) for path in descriptors.iterdir()}
                 frozen = [
                     path for path, link in links.items()
                     if "/memfd:" in link
                     and "cupidbuild-stdout" not in link
                     and "cupidbuild-stderr" not in link
                 ]
-                if len(frozen) >= 7:
-                    import fcntl
-
-                    for path in frozen:
+                self.assertEqual(len(frozen), 7)
+                for path in frozen:
+                    descriptor = os.open(path, os.O_RDONLY)
+                    try:
+                        self.assertEqual(fcntl.fcntl(descriptor, 1034), 15)
+                    finally:
+                        os.close(descriptor)
+                    try:
                         descriptor = os.open(path, os.O_RDWR)
+                    except OSError as error:
+                        # The executing tool also has the kernel's text lock.
+                        self.assertEqual(error.errno, errno.ETXTBSY)
+                        self.assertIn("/memfd:cupidobj.elf ", links[path])
+                    else:
                         try:
-                            sealed.append(fcntl.fcntl(descriptor, 1034))
+                            before = os.fstat(descriptor)
                             with self.assertRaises(OSError):
                                 os.write(descriptor, b"drift")
                             with self.assertRaises(OSError):
                                 os.ftruncate(descriptor, 0)
+                            after = os.fstat(descriptor)
+                            self.assertEqual(after.st_size, before.st_size)
+                            # This fixture builds the hosted POSIX adapter, whose
+                            # snapshot stores st_mtime in whole seconds.
+                            metadata_changed |= (
+                                after.st_mtime_ns // 1_000_000_000
+                                != before.st_mtime_ns // 1_000_000_000
+                            )
                         finally:
                             os.close(descriptor)
-                    break
-                time.sleep(0.001)
-            stdout, stderr = process.communicate(timeout=90)
+            finally:
+                resume.write_bytes(b"continue")
+                try:
+                    stdout, stderr = process.communicate(timeout=90)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.communicate()
+                    raise
 
-            self.assertEqual(process.returncode, 0, stderr)
+            if metadata_changed:
+                # Linux may update mtime before a sealed write is rejected.
+                # The retained snapshot must reject that drift too.
+                self.assertNotEqual(process.returncode, 0)
+                self.assertIn("private checked seed changed while checked tool ran", stderr)
+            else:
+                self.assertEqual(process.returncode, 0, stderr)
+                self.assertEqual(stderr, "")
             self.assertEqual(stdout, "")
-            self.assertEqual(stderr, "")
-            self.assertGreaterEqual(len(sealed), 7)
-            self.assertTrue(all(value == 15 for value in sealed), sealed)
+            self.assertTrue(output.is_file())
             self.assertEqual(list(root.glob(".cupidbuild-run-*")), [])
 
     @unittest.skipUnless(os.name == "nt", "Windows uses private runner roots")
@@ -3782,21 +3818,21 @@ int main(int argc, char **argv) {
                 ),
                 "plan_seed_manifest_sha256": "3" * 64,
                 "parent_execution_seed_manifest_sha256": (
-                    "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
+                    "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
                 ),
                 "parent_execution_seed_source_revision": (
-                    "9d2529a718672edcd970f24960535db6ddbde5e4"
+                    "83d00ce70e5607dc5c011bb97c6478121f24a21c"
                 ),
                 "parent_plan_seed_manifest_sha256": (
-                    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                    "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
                 ),
                 "parent_plan_seed_source_revision": (
-                    "9d2529a718672edcd970f24960535db6ddbde5e4"
+                    "83d00ce70e5607dc5c011bb97c6478121f24a21c"
                 ),
                 "producer_lineage": document["provenance"][
                     "producer_lineage"
                 ],
-                "source_input_count": 58,
+                "source_input_count": 59,
                 "source_revision": revision,
                 "source_snapshot_sha256": snapshot,
             }
@@ -3847,16 +3883,16 @@ int main(int argc, char **argv) {
                 "fixed_point_command": "make bootstrap-from-seed",
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                    "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
                 ),
                 "parent_seed_source_revision": (
-                    "9d2529a718672edcd970f24960535db6ddbde5e4"
+                    "83d00ce70e5607dc5c011bb97c6478121f24a21c"
                 ),
                 "producer_lineage": document["provenance"][
                     "producer_lineage"
                 ],
                 "seed_generation": "stage-four",
-                "source_input_count": 58,
+                "source_input_count": 59,
                 "source_revision": revision,
                 "source_snapshot_sha256": snapshot,
             }
@@ -4675,8 +4711,8 @@ int main(int argc, char **argv) {
             self.assertEqual((result.stdout, result.stderr), ("", ""))
             self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
 
-    def test_six_tool_v2_contract_accepts_58_and_59_source_inputs(self):
-        for source_input_count in (58, 59):
+    def test_six_tool_v2_contract_accepts_59_and_61_source_inputs(self):
+        for source_input_count in (59, 61):
             with self.subTest(
                 source_input_count=source_input_count
             ), tempfile.TemporaryDirectory(
@@ -4718,16 +4754,16 @@ int main(int argc, char **argv) {
             root = Path(temporary)
             manifest = self._copy_checked_assembly_seed(root / "seed")
             document = self._promote_seed_contract(manifest)
-            revision = "83d00ce70e5607dc5c011bb97c6478121f24a21c"
+            revision = "142a9737f618ab8500308576a1c222501d639e5f"
             if os.name == "nt":
                 document["provenance"].update(
                     {
                         "parent_execution_seed_manifest_sha256": (
-                            "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
+                            "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"
                         ),
                         "parent_execution_seed_source_revision": revision,
                         "parent_plan_seed_manifest_sha256": (
-                            "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
+                            "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
                         ),
                         "parent_plan_seed_source_revision": revision,
                     }
@@ -4736,7 +4772,7 @@ int main(int argc, char **argv) {
                 document["provenance"].update(
                     {
                         "parent_seed_manifest_sha256": (
-                            "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
+                            "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
                         ),
                         "parent_seed_source_revision": revision,
                     }
@@ -4867,11 +4903,11 @@ int main(int argc, char **argv) {
                 document["provenance"][
                     "parent_execution_seed_manifest_sha256"
                 ] = (
-                    "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
+                    "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"
                 )
             else:
                 document["provenance"]["parent_seed_manifest_sha256"] = (
-                    "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
+                    "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
                 )
 
         def use_retired_v1_execution_parent(document):
@@ -4936,8 +4972,50 @@ int main(int argc, char **argv) {
                     }
                 )
 
+        def use_retired_9d2529_execution_parent(document):
+            if os.name == "nt":
+                document["provenance"].update(
+                    {
+                        "parent_execution_seed_manifest_sha256": (
+                            "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
+                        ),
+                        "parent_execution_seed_source_revision": (
+                            "9d2529a718672edcd970f24960535db6ddbde5e4"
+                        ),
+                    }
+                )
+            else:
+                document["provenance"].update(
+                    {
+                        "parent_seed_manifest_sha256": (
+                            "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                        ),
+                        "parent_seed_source_revision": (
+                            "9d2529a718672edcd970f24960535db6ddbde5e4"
+                        ),
+                    }
+                )
+
+        def use_retired_9d2529_parent_generation(document):
+            use_retired_9d2529_execution_parent(document)
+            if os.name == "nt":
+                document["provenance"].update(
+                    {
+                        "parent_plan_seed_manifest_sha256": (
+                            "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                        ),
+                        "parent_plan_seed_source_revision": (
+                            "9d2529a718672edcd970f24960535db6ddbde5e4"
+                        ),
+                    }
+                )
+
         cases = (
             ("uppercase source revision", uppercase_revision),
+            ("retired 9d2529 execution parent", use_retired_9d2529_execution_parent),
+            ("retired 9d2529 parent generation", use_retired_9d2529_parent_generation),
+            ("retired input count", lambda document: document["provenance"].update({"source_input_count": 58})),
+            ("future input count", lambda document: document["provenance"].update({"source_input_count": 62})),
             ("wrong parent manifest", change_parent),
             ("mixed parent generations", mix_parent_generations),
             ("retired v1 parent generation", use_retired_v1_execution_parent),
@@ -4991,10 +5069,10 @@ int main(int argc, char **argv) {
                     lambda document: document["provenance"].update(
                         {
                             "parent_execution_seed_manifest_sha256": (
-                                "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
+                                "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"
                             ),
                             "parent_execution_seed_source_revision": (
-                                "83d00ce70e5607dc5c011bb97c6478121f24a21c"
+                                "142a9737f618ab8500308576a1c222501d639e5f"
                             ),
                         }
                     ),

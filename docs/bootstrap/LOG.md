@@ -38174,3 +38174,188 @@ The full retained record is `build/bootstrap/142a9737-paired-proof/`, including
 both failed oracle attempts, the rejected Windows ABI invocation, corrected
 acceptance logs, and `paired-final-verification.json`. Doom gameplay acceptance
 and the remaining twelve Python-coordinated transforms are separate open work.
+
+### September 22: integrate reusable artifact and seed validation
+
+After pushing `addc3c37`, both isolated extraction inventories still match all
+26 recorded files, and every affected active file matches its recorded base.
+Those explicit files are now applied to the implementation worktree. The newer
+seed manifests, release pins, generated-replay repair, acceptance records, and
+installed manual are preserved. ADR 0399 records the policy API, shared parser,
+explicit seed-image profiles, inventory changes, and remaining native boundary.
+
+The first active Windows run passes 105 tests in 35.348 seconds, with seven
+platform skips: policy API and semantic contracts, seed-image profiles, and
+artifact/manifest runner checks. The diff check identifies trailing whitespace
+in the extracted manifest parser; it is removed after the test run. These results
+do not establish a fresh staged proof or production acceptance for the extraction.
+The applied inventory is retained in
+`build/bootstrap/142a9737-paired-proof/extraction-applied-addc3c37.json`.
+
+The remaining Windows regression group passes 254 tests in 294.813 seconds,
+with twelve skips. The fresh Linux integration runs 359 tests in 184.589 seconds
+and exposes one failure in the existing sealed-anonymous-input test. Twelve
+focused repetitions reproduce two failures. Buffered seal observations then
+reproduce three failures in thirty runs and catch the final seed memfd before
+sealing completes. Merely counting seven descriptors is not a capture barrier.
+
+The test moves to the existing post-launch checkpoint and checks every seal
+mask through a read-only descriptor. Linux can reject a writable open of the
+running CupidObj image with ETXTBSY; the test checks that exact case. A second
+failure remains after this repair: this kernel advances a sealed memfd's mtime
+when a write is denied with EPERM. A minimal standalone probe confirms the
+metadata change without a size change. CupidBuild correctly rejects that drift.
+The test now requires that rejection when its own denied write changed mtime,
+and requires normal success otherwise. Production checks remain unchanged.
+Focused repetitions are running; the failed probes and their output remain in
+`build/bootstrap/artifact-extraction-addc3c37/`.
+
+The active Windows full build-graph audit passes after extraction: 752 active
+inputs, 29 accounted unreachable files, 452 transforms, and 255 feature
+requirements. TempleOS remains excluded. This is graph evidence, not a new
+fixed-point proof or production runtime result.
+
+The hosted POSIX test fixture records whole-second `st_mtime`, unlike the
+nanosecond-capable freestanding Linux adapter. The first metadata-aware test
+incorrectly expected rejection for nanosecond-only changes; its failed run is
+retained. Comparing the timestamp represented by the hosted snapshot resolves
+that mismatch. Thirty post-launch repetitions now pass in 60.927 seconds,
+checking all seven seal masks, denied mutation, represented metadata drift,
+tool completion, and cleanup. The full Linux regression group is rerunning
+with this test repair. Neither adapter's production validation changed.
+
+The repaired full Linux group passes all 359 tests in 183.035 seconds, with
+eight skips. Fresh Linux and Windows staged proofs now consume the same
+repaired 28-file overlay on the exact addc3c37 archive. Their independent
+post-run checks require 61 captured bootstrap inputs, the complete behavior
+groups, live source equality, every reported artifact digest, and byte equality
+between stages three and four. Both proofs are still running.
+
+The source-capability guide, matrices, domain record, wiki source, and installed
+CTXT manual now describe the extracted APIs and 61/78 source inventories while
+retaining the installed seed generation's 59-input pins. The Windows graph's
+Toolchain publication transform has 108 audited inputs; the domain record now
+uses that measured count instead of its stale declaration count. Updating the
+manual changes a generated kernel payload, so final OS size checks and runtime
+acceptance must use this updated manual.
+
+Both graph audits now pass. Separate Windows and Linux OS builds have started
+from the same 35-file integration overlay and verified private copies of the
+previous image. Their installed manual is 54,849 bytes with SHA-256
+`eaf64d328ccfe4ef66e768d96efbdff1c7345989c992a39296080a04c783c75e`.
+The exact-size gate remains enabled with the previous measured policy; any
+new sizes require completed build evidence before reconciliation. The old
+acceptance images and failed-attempt records remain unchanged. The staged
+proofs and these production builds are all pending.
+
+Both staged proofs have now passed. Linux matches all 29 stage-three/stage-four
+artifact pairs and passes 46 failure, seven help, and 54 success groups. Windows
+matches all 32 pairs and passes 34 failure, seven help, and 41 success groups.
+The runners rehash every reported artifact and directly compare the two final
+generations. A separate post-run check rereads both reports and all 61 source
+inputs on each host. Their full source inventories match, with snapshot
+`d5f536a56d263ba0b6dd1407a47e8f27870216ca8231a4e11c903b896d096aa6`.
+The Linux report digest is
+`cf842d5721efeb1341f2232b72f52a5d597dc703680ff667058a7897f7889bf7`;
+the Windows report digest is
+`0a23906f34497f836675681d1d97bbfb2805729112f79bdbef4d7ae0fb46ba16`.
+These proofs cover the captured extraction overlay on addc3c37. They do not
+bind a later commit or promote new checked seeds. The independent record is
+`build/bootstrap/artifact-extraction-addc3c37/paired-staged-verification.json`.
+
+The Linux OS build finishes compilation, linking, and flattening, then fails
+the unchanged exact-size gate on two outputs. The raw kernel is 9,556,776 bytes
+with digest `7e573de77d0fda07f18d44a6d204b1a998f4573f47e70ba5df45c0dd856a3b02`.
+The final ELF is 9,785,676 bytes with digest
+`ac0026ea100dec1087ab5a5b667cc0dd19ce52d8ff762293bd59a7eeea988577`.
+The first-pass ELF remains 9,654,604 bytes; its digest changes to
+`ad5aefed2d9a1555e65392a1ad790ee479193c10b3ac3129cbfadc5a6cd778fd`.
+Independent checks rehash all 35 captured files, sixteen policy artifacts,
+the installed manual, and three generated objects. Both the private image and
+the preceding acceptance image retain their original bytes.
+
+An ELF section comparison explains the size changes: initialized data grows
+by 884 bytes in both links, while text and read-only-data sizes stay unchanged.
+The final ELF's following BSS and symbol-table offsets move by one 4,096-byte
+page; the first-pass symbol-table offset stays unchanged. Kernel-symbol section
+size and bytes remain unchanged in each link. The observation files retain the
+complete section records. Windows compilation remains in progress. Policy
+reconciliation still requires independently matching completed Windows outputs.
+A fresh Linux user ABI run has started from the stopped OS tree; image
+publication and runtime acceptance remain pending.
+
+The complete Linux production-input manifest also matches the preceding build:
+431 paths, including both linked ELFs. Independent hashes find 428 unchanged
+entries. The only changed object is `cupidos-txt/12HOLYC-CUPIDC.o`, which grows
+from 53,440 to 54,324 bytes. The other two changed entries are the linked ELFs.
+This isolates the 884-byte initialized-data increase to the updated embedded
+manual. `linux-link-input-comparison.json` retains all per-file observations
+under the extraction evidence directory.
+
+Windows now completes compilation, linking, and flattening, then stops at the
+same two exact-size mismatches as Linux. Independent inspection rehashes its
+captured sources, all sixteen policy artifacts, three generated objects, manual,
+and preserved images. A separate paired check rehashes both trees and confirms
+matching artifacts, generated objects, manuals, source inventories, and image
+bytes. `paired-os-size-verification.json` retains that result. The implementation
+worktree's policy now records the measured 9,556,776-byte raw kernel and
+9,785,676-byte final ELF. The first-pass size and all other rows stay unchanged.
+Both private OS trees retain the old policy while their ABI checks run; the
+original failed-build records are preserved. Windows ABI acceptance has started
+with both Linux provenance and native Windows execution manifests. Image
+publication and boot acceptance still remain to be completed.
+
+Windows user ABI acceptance passes in 28.821 seconds, including the runner's
+final source, kernel, and image checks. The policy regression group passes
+76 tests in 6.715 seconds with four platform skips. Windows image publication
+and runtime continuation has started after checking that the policy changes
+exactly the two measured rows. Linux's fresh contract rebuild remains active.
+
+Windows acceptance now passes. The normal image continuation takes 39.280
+seconds and reports all sixteen exact artifacts. All three user programs build
+in 30.762 seconds. The private four-CPU, max-CPU, E1000 boot smoke passes in
+62.524 seconds with SMP runtime checks, `dis /bin/ls.cc`, and `ls`. The 200 MiB
+image retains SHA-256
+`8ac58474fd154c21d31a22a1a115504f2111075c7c785c0c9994e052c4c4efe1`
+before and after the smoke. The ABI reports version 5, 103 fields, 101 providers,
+a 412-byte table, and the unchanged ABI digest
+`3e4d31320b2f56d19d37796ef679d1abbb228de9f36c9520d2dd5ec430c3c0bc`.
+
+An independent post-run inspection passes after rehashing all sixteen artifacts,
+the three generated objects, three user executables, captured source files,
+policy, and image. It also checks the size-verification and smoke logs and
+confirms the preceding acceptance image remains unchanged. User executable
+digests match the preceding accepted build. Evidence is retained in
+`windows-acceptance-state.json` and `windows-acceptance-observations.json`
+under the extraction evidence directory. Linux ABI and subsequent runtime
+acceptance remain unfinished; this Windows result does not establish paired
+runtime acceptance or seed promotion.
+
+Linux user ABI acceptance now passes after a fresh 4,947.565-second contract
+rebuild. Both contract generations complete, the hosted runtime contract
+passes, and live inputs still match their frozen capture. The Cupid-built
+manifest author and Python oracle agree on all 62 stage pairs before the
+complete cohort publishes. The final ABI report matches Windows, including
+version 5, 103 fields, 101 providers, the 412-byte table, and both ABI and
+provider digests. The runner also rechecks the OS kernel, captured source,
+and private image. Linux image publication, user builds, and the private
+four-CPU smoke have now started with the independently reconciled size policy.
+
+Linux acceptance passes: image publication in 30.245 seconds, all three user
+builds in 3.829 seconds, and the private four-CPU smoke in 73.129 seconds.
+Its independent post-run inspection passes as well. A separate paired check
+rereads both completed states and rehashes the current artifacts, generated
+objects, user executables, policies, and images. All sixteen policy artifacts,
+three generated objects, three user executables, and image bytes match across
+hosts. The complete ABI reports also match. Both smokes preserve the same
+200 MiB image digest recorded above, and both preceding acceptance images
+remain unchanged. `paired-acceptance-verification.json` retains the final
+comparison. The extraction now has paired staged, production, ABI, and runtime
+evidence. It does not promote new checked seeds or remove any of the twelve
+remaining Python-coordinated transforms; Doom gameplay acceptance stays open.
+
+Final staging removed trailing horizontal whitespace from nine lines in
+`toolchain/artifact_size_policy.cc`. Native Windows reran all 48 policy API
+and contract tests successfully (2.211 seconds). The paired source snapshots
+retain the pre-cleanup bytes; this formatting-only change is not a new seed
+promotion proof.

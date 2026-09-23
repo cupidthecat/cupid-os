@@ -105,6 +105,9 @@ INPUT_PATHS = (
     "kernel/lang/as_elf.h",
     "kernel/network/socket.h",
     "toolchain/Makefile",
+    "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/ctool.h",
     "toolchain/ctool_host.h",
     "toolchain/cupidasm.h",
@@ -137,7 +140,6 @@ INPUT_PATHS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
-    "toolchain/tests/artifact_size_policy_contract.cc",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
@@ -176,6 +178,8 @@ INPUT_PATHS = (
 )
 BOOTSTRAP_PATHS = (
     "link.ld",
+    "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.h",
     "toolchain/ctool.cc",
     "toolchain/ctool.h",
     "toolchain/ctool_host.cc",
@@ -269,6 +273,7 @@ def _build_contract(build):
         "-x",
         "c",
         str(SOURCE),
+        str(SOURCE.parent.parent / "contract_parse_internal.cc"),
         "-o",
         str(output),
     ]
@@ -678,7 +683,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             '{"artifact_count":22,"artifact_total_bytes":682,'
-            '"bootstrap_source_input_count":59,"input_count":76,'
+            '"bootstrap_source_input_count":61,"input_count":78,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -1601,8 +1606,8 @@ class ToolchainManifestContractTests(unittest.TestCase):
 
     def test_current_publication_inventory_counts_are_exact(self):
         self.assertEqual(len(ARTIFACT_NAMES), 22)
-        self.assertEqual(len(INPUT_PATHS), 76)
-        self.assertEqual(len(BOOTSTRAP_PATHS), 59)
+        self.assertEqual(len(INPUT_PATHS), 78)
+        self.assertEqual(len(BOOTSTRAP_PATHS), 61)
         self.assertEqual(len(OBJECT_COMPARISON_NAMES), 17)
         self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 23)
         self.assertEqual(len(BOOTSTRAP_TOOL_NAMES), 6)

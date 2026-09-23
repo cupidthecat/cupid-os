@@ -43,7 +43,8 @@ EXPECTED_BUILD_INPUTS = (
     "toolchain/hosted/i386-linux/start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/tool_start.asm",
-    "toolchain/tests/artifact_size_policy_contract.cc",
+    "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/tests/toolchain_manifest_contract.cc",
     "tools/artifact_size_policy.py",
     "tools/bootstrap_toolchain.py",
@@ -110,8 +111,8 @@ def _expected_report():
     return {
         "artifact_count": 22,
         "artifact_total_bytes": 682,
-        "bootstrap_source_input_count": 59,
-        "input_count": 76,
+        "bootstrap_source_input_count": 61,
+        "input_count": 78,
         "schema": "cupid.toolchain-manifest-verification.v1",
     }
 
@@ -449,7 +450,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 decoded["artifact_observations"],
                 sorted(observations),
             )
-            self.assertEqual(len(decoded["input_observations"]), 76)
+            self.assertEqual(len(decoded["input_observations"]), 78)
             self.assertIn(
                 "toolchain/x86.cc",
                 {
@@ -459,7 +460,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                     ]
                 },
             )
-            self.assertEqual(len(decoded["bootstrap_observations"]), 59)
+            self.assertEqual(len(decoded["bootstrap_observations"]), 61)
             self.assertEqual(len(decoded["seed_observations"]), 6)
             self.assertEqual(
                 decoded["seed_path"],

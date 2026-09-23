@@ -94,7 +94,8 @@ CONTRACT_QUOTED_INCLUDE_ROOTS = {
 }
 CONTRACT_CONTROL_INPUTS = (
     "toolchain/Makefile",
-    "toolchain/tests/artifact_size_policy_contract.cc",
+    "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/tests/toolchain_manifest_contract.cc",
     "tools/bootstrap_toolchain.py",
     "tools/cupidc_toolchain_contracts.py",
@@ -950,6 +951,12 @@ def _build_manifest_author(
         ORDINARY_COMPILE_TIMEOUT,
     )
 
+    parser_object = output / "toolchain-manifest-parser.o"
+    _compile_source(
+        runner, stage_four / "cupidc.elf", source_root,
+        "toolchain/contract_parse_internal.cc", parser_object,
+        "stage four CupidC for the shared manifest parser", ORDINARY_COMPILE_TIMEOUT,
+    )
     windows = _is_windows_host()
     if windows:
         runtime_object = output / "toolchain-manifest-author-runtime.o"
@@ -1003,6 +1010,7 @@ def _build_manifest_author(
                 executable,
                 startup_object,
                 contract_object,
+                parser_object,
                 runtime_object,
             )
         )
@@ -1047,6 +1055,7 @@ def _build_manifest_author(
             executable,
             startup_object,
             contract_object,
+            parser_object,
             *shared_objects,
         ),
         "stage four CupidLD for the Toolchain manifest author",

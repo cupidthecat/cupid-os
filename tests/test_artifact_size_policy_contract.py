@@ -75,6 +75,8 @@ def _build_contract(build):
         "-x",
         "c",
         str(SOURCE),
+        str(SOURCE.parent.parent / "artifact_size_policy.cc"),
+        str(SOURCE.parent.parent / "contract_parse_internal.cc"),
         "-o",
         str(output),
     ]
@@ -123,10 +125,10 @@ def _manifest():
             "fixed_point_command": "make bootstrap-from-seed",
             "fixed_point_result": "pass",
             "parent_seed_manifest_sha256": (
-                "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
             ),
             "parent_seed_source_revision": (
-                "9d2529a718672edcd970f24960535db6ddbde5e4"
+                "83d00ce70e5607dc5c011bb97c6478121f24a21c"
             ),
             "producer_lineage": {
                 "assembly": "stage-three CupidASM from the checked-seed bootstrap",
@@ -134,7 +136,7 @@ def _manifest():
                 "link": "stage-three CupidLD from the checked-seed bootstrap",
             },
             "seed_generation": "stage-four",
-            "source_input_count": 58,
+            "source_input_count": 59,
             "source_revision": SOURCE_REVISION,
             "source_snapshot_sha256": SOURCE_SNAPSHOT,
         },
@@ -169,16 +171,16 @@ def _windows_manifest(parent_manifest_sha256):
                 "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
             ),
             "parent_execution_seed_manifest_sha256": (
-                "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
+                "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
             ),
             "parent_execution_seed_source_revision": (
-                "9d2529a718672edcd970f24960535db6ddbde5e4"
+                "83d00ce70e5607dc5c011bb97c6478121f24a21c"
             ),
             "parent_plan_seed_manifest_sha256": (
-                "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
             ),
             "parent_plan_seed_source_revision": (
-                "9d2529a718672edcd970f24960535db6ddbde5e4"
+                "83d00ce70e5607dc5c011bb97c6478121f24a21c"
             ),
             "plan_seed_manifest_sha256": parent_manifest_sha256,
             "producer_lineage": {
@@ -195,7 +197,7 @@ def _windows_manifest(parent_manifest_sha256):
                     "Windows bootstrap"
                 ),
             },
-            "source_input_count": 58,
+            "source_input_count": 59,
             "source_revision": SOURCE_REVISION,
             "source_snapshot_sha256": SOURCE_SNAPSHOT,
         },
@@ -370,35 +372,35 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(first.stdout, SUCCESS_REPORT)
         self.assertEqual(second.stdout, first.stdout)
 
-    def test_promoted_59_input_seed_pair_is_accepted(self):
+    def test_promoted_61_input_seed_pair_is_accepted(self):
         manifest = _manifest()
-        manifest["provenance"]["source_input_count"] = 59
+        manifest["provenance"]["source_input_count"] = 61
         manifest["provenance"]["parent_seed_manifest_sha256"] = (
-            "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+            "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
         )
         manifest["provenance"]["parent_seed_source_revision"] = (
-            "9d2529a718672edcd970f24960535db6ddbde5e4"
+            "83d00ce70e5607dc5c011bb97c6478121f24a21c"
         )
         manifest_bytes = _json_bytes(manifest)
         manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
         windows_manifest = _windows_manifest(manifest_digest)
-        windows_manifest["provenance"]["source_input_count"] = 59
+        windows_manifest["provenance"]["source_input_count"] = 61
         windows_manifest["provenance"][
             "parent_execution_seed_manifest_sha256"
         ] = (
-            "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
+            "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
         )
         windows_manifest["provenance"][
             "parent_execution_seed_source_revision"
-        ] = "9d2529a718672edcd970f24960535db6ddbde5e4"
+        ] = "83d00ce70e5607dc5c011bb97c6478121f24a21c"
         windows_manifest["provenance"][
             "parent_plan_seed_manifest_sha256"
         ] = (
-            "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+            "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
         )
         windows_manifest["provenance"][
             "parent_plan_seed_source_revision"
-        ] = "9d2529a718672edcd970f24960535db6ddbde5e4"
+        ] = "83d00ce70e5607dc5c011bb97c6478121f24a21c"
 
         result = self.run_request(
             _request(
@@ -413,12 +415,12 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(result.stderr, "")
 
     def test_active_seed_parent_pair_is_accepted_for_the_next_promotion(self):
-        revision = "83d00ce70e5607dc5c011bb97c6478121f24a21c"
+        revision = "142a9737f618ab8500308576a1c222501d639e5f"
         manifest = _manifest()
         manifest["provenance"].update(
             {
                 "parent_seed_manifest_sha256": (
-                    "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
+                    "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
                 ),
                 "parent_seed_source_revision": revision,
             }
@@ -429,11 +431,11 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         windows_manifest["provenance"].update(
             {
                 "parent_execution_seed_manifest_sha256": (
-                    "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
+                    "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"
                 ),
                 "parent_execution_seed_source_revision": revision,
                 "parent_plan_seed_manifest_sha256": (
-                    "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
+                    "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
                 ),
                 "parent_plan_seed_source_revision": revision,
             }
@@ -455,7 +457,7 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
     def test_promoted_linux_parent_digest_and_revision_cannot_be_mixed(self):
         manifest = _manifest()
         manifest["provenance"]["parent_seed_manifest_sha256"] = (
-            "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
+            "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
         )
         self.assert_contract_failure(_request(manifest=manifest))
 
@@ -463,11 +465,11 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         promoted_parents = (
             (
                 "parent_execution_seed_manifest_sha256",
-                "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590",
+                "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd",
             ),
             (
                 "parent_plan_seed_manifest_sha256",
-                "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622",
+                "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52",
             ),
         )
         for field, digest in promoted_parents:
@@ -487,17 +489,17 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                 )
 
     def test_windows_execution_and_plan_parents_must_share_a_generation(self):
-        active_revision = "83d00ce70e5607dc5c011bb97c6478121f24a21c"
+        active_revision = "142a9737f618ab8500308576a1c222501d639e5f"
         active_parents = (
             {
                 "parent_execution_seed_manifest_sha256": (
-                    "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
+                    "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"
                 ),
                 "parent_execution_seed_source_revision": active_revision,
             },
             {
                 "parent_plan_seed_manifest_sha256": (
-                    "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
+                    "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
                 ),
                 "parent_plan_seed_source_revision": active_revision,
             },
@@ -734,8 +736,92 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         )
 
 
+    def test_retired_9d2529_linux_parent_pair_is_rejected_for_v2(self):
+        manifest = _manifest()
+        manifest["provenance"].update(
+            {
+                "parent_seed_manifest_sha256": (
+                    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                ),
+                "parent_seed_source_revision": (
+                    "9d2529a718672edcd970f24960535db6ddbde5e4"
+                ),
+            }
+        )
+
+        self.assert_contract_failure(_request(manifest=manifest))
+
+
+    def test_retired_9d2529_windows_parent_pairs_are_rejected_for_v2(self):
+        retired_parents = (
+            (
+                "parent_execution_seed_manifest_sha256",
+                "parent_execution_seed_source_revision",
+                "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a",
+            ),
+            (
+                "parent_plan_seed_manifest_sha256",
+                "parent_plan_seed_source_revision",
+                "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e",
+            ),
+        )
+        for digest_field, revision_field, digest in retired_parents:
+            with self.subTest(field=digest_field):
+                manifest = _manifest()
+                manifest_bytes = _json_bytes(manifest)
+                manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+                windows_manifest = _windows_manifest(manifest_digest)
+                windows_manifest["provenance"].update(
+                    {
+                        digest_field: digest,
+                        revision_field: (
+                            "9d2529a718672edcd970f24960535db6ddbde5e4"
+                        ),
+                    }
+                )
+                self.assert_contract_failure(
+                    _request(
+                        manifest=manifest,
+                        manifest_bytes=manifest_bytes,
+                        linux_manifest_digest=manifest_digest,
+                        windows_manifest=windows_manifest,
+                    )
+                )
+
+
+    def test_retired_9d2529_windows_parent_generation_is_rejected_for_v2(self):
+        manifest = _manifest()
+        manifest_bytes = _json_bytes(manifest)
+        manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+        windows_manifest = _windows_manifest(manifest_digest)
+        windows_manifest["provenance"].update(
+            {
+                "parent_execution_seed_manifest_sha256": (
+                    "6960e4cb8bd26c3711db85aede44655f0f9b83a0a2fc3612053bb5d91674ff6a"
+                ),
+                "parent_execution_seed_source_revision": (
+                    "9d2529a718672edcd970f24960535db6ddbde5e4"
+                ),
+                "parent_plan_seed_manifest_sha256": (
+                    "30adaac167ee6cdde136ce5d957e6b4ca0b0a2bdc23ff376436634a6a0db027e"
+                ),
+                "parent_plan_seed_source_revision": (
+                    "9d2529a718672edcd970f24960535db6ddbde5e4"
+                ),
+            }
+        )
+        self.assert_contract_failure(
+            _request(
+                manifest=manifest,
+                manifest_bytes=manifest_bytes,
+                linux_manifest_digest=manifest_digest,
+                windows_manifest=windows_manifest,
+            )
+        )
+
+
     def test_seed_pair_requires_matching_source_input_counts(self):
-        for linux_count, windows_count in ((58, 59), (59, 58)):
+        for linux_count, windows_count in ((59, 61), (61, 59)):
             with self.subTest(
                 linux_count=linux_count, windows_count=windows_count
             ):
@@ -803,6 +889,8 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
             ("parent_seed_manifest_sha256", "0" * 64),
             ("parent_seed_source_revision", "0" * 40),
             ("source_input_count", 57),
+            ("source_input_count", 58),
+            ("source_input_count", 62),
             ("source_input_count", 60),
         )
         for field, value in cases:
@@ -836,6 +924,8 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
             ("parent_plan_seed_manifest_sha256", "0" * 64),
             ("parent_plan_seed_source_revision", "0" * 40),
             ("source_input_count", 57),
+            ("source_input_count", 58),
+            ("source_input_count", 62),
             ("source_input_count", 60),
         )
         for field, value in cases:

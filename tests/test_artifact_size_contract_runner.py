@@ -45,6 +45,10 @@ SEED_OWNERS = {
 }
 EXPECTED_BUILD_INPUTS = (
     "Makefile",
+    "toolchain/artifact_size_policy.cc",
+    "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
     "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
@@ -640,43 +644,50 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
                     )
 
     def test_verify_with_contract_rejects_same_metadata_build_input_drift(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            policy, manifest, sizes = self.write_fixture(root)
+        for logical in (
+            artifact_size_contract.BUILD_INPUTS[0],
+            "toolchain/artifact_size_policy.cc",
+            "toolchain/artifact_size_policy.h",
+            "toolchain/contract_parse_internal.cc",
+            "toolchain/contract_parse_internal.h",
+        ):
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                policy, manifest, sizes = self.write_fixture(root)
 
-            def change_build_input(
-                _request, _timeout, build_inputs, _execution_seed
-            ):
-                logical, payload = build_inputs[0]
-                path = root.joinpath(*PurePosixPath(logical).parts)
-                before = path.stat()
-                path.write_bytes(b"z" * len(payload))
-                os.utime(
-                    path,
-                    ns=(before.st_atime_ns, before.st_mtime_ns),
-                )
-                return {
-                    "artifact_count": 16,
-                    "schema": "cupid.artifact-size-verification.v1",
-                    "total_exact_bytes": sum(sizes.values()),
-                }
-
-            with mock.patch.object(
-                artifact_size_contract,
-                "_build_and_run_contract",
-                side_effect=change_build_input,
-            ):
-                with self.assertRaisesRegex(
-                    artifact_size_contract.ArtifactSizeContractError,
-                    "contract build input changed while the Cupid contract ran",
+                def change_build_input(
+                    _request, _timeout, build_inputs, _execution_seed
                 ):
-                    artifact_size_contract.verify_with_contract(
-                        root,
-                        policy,
-                        manifest,
-                        manifest,
-                        manifest,
+                    payload = dict(build_inputs)[logical]
+                    path = root.joinpath(*PurePosixPath(logical).parts)
+                    before = path.stat()
+                    path.write_bytes(b"z" * len(payload))
+                    os.utime(
+                        path,
+                        ns=(before.st_atime_ns, before.st_mtime_ns),
                     )
+                    return {
+                        "artifact_count": 16,
+                        "schema": "cupid.artifact-size-verification.v1",
+                        "total_exact_bytes": sum(sizes.values()),
+                    }
+
+                with mock.patch.object(
+                    artifact_size_contract,
+                    "_build_and_run_contract",
+                    side_effect=change_build_input,
+                ):
+                    with self.assertRaisesRegex(
+                        artifact_size_contract.ArtifactSizeContractError,
+                        "contract build input changed while the Cupid contract ran",
+                    ):
+                        artifact_size_contract.verify_with_contract(
+                            root,
+                            policy,
+                            manifest,
+                            manifest,
+                            manifest,
+                        )
 
     @unittest.skipIf(
         os.name == "nt",

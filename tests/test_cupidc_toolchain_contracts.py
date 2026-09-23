@@ -712,7 +712,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 76)
+        self.assertEqual(len(inputs), 78)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -834,6 +834,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             stage_four.mkdir()
             for name in ("ctool_host.o", "ctool.o", "runtime.o"):
                 (stage_four / name).write_bytes(_test_relocatable_elf32())
+            compiled_sources = []
             calls: list[
                 tuple[Path, tuple[str | Path, ...], str, int]
             ] = []
@@ -850,10 +851,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 del runner, label, timeout
                 self.assertEqual(compiler, stage_four / "cupidc.elf")
                 self.assertEqual(checked_root, source_root)
-                self.assertEqual(
-                    logical_source,
-                    "toolchain/tests/toolchain_manifest_contract.cc",
-                )
+                compiled_sources.append(logical_source)
                 output.write_bytes(_test_relocatable_elf32())
 
             def run_clean(
@@ -894,6 +892,10 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     )
                 )
 
+            self.assertEqual(compiled_sources, [
+                "toolchain/tests/toolchain_manifest_contract.cc",
+                "toolchain/contract_parse_internal.cc",
+            ])
             self.assertEqual(
                 [call[0] for call in calls],
                 [
@@ -914,7 +916,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 ),
             )
             self.assertEqual(
-                calls[1][1][-5:],
+                calls[1][1][-6:],
                 (
                     source_root
                     / (
@@ -923,6 +925,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     ),
                     source_root
                     / "manifest-author-build/toolchain-manifest-author.o",
+                    source_root / "manifest-author-build/toolchain-manifest-parser.o",
                     stage_four / "ctool_host.o",
                     stage_four / "ctool.o",
                     stage_four / "runtime.o",
@@ -1059,6 +1062,12 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     ),
                     (
                         stage_four / "cupidc.elf",
+                        "toolchain/contract_parse_internal.cc",
+                        (),
+                        None,
+                    ),
+                    (
+                        stage_four / "cupidc.elf",
                         "toolchain/hosted/i386-windows/runtime.cc",
                         ("_WIN32=1",),
                         True,
@@ -1103,12 +1112,14 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 expected_import_arguments,
             )
             self.assertEqual(
-                link_arguments[-3:],
+                link_arguments[-4:],
                 (
                     source_root
                     / "manifest-author-build/toolchain-manifest-author-start.o",
                     source_root
                     / "manifest-author-build/toolchain-manifest-author.o",
+                    source_root
+                    / "manifest-author-build/toolchain-manifest-parser.o",
                     source_root
                     / "manifest-author-build/toolchain-manifest-author-runtime.o",
                 ),
@@ -3068,7 +3079,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     output = arguments[arguments.index("-o") + 1]
                     output_path = (
                         source_root / str(output).lstrip("/")
-                        if str(output).startswith("/")
+                        if executable == tools["cupidc"] and str(output).startswith("/")
                         else Path(output)
                     )
                     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3158,7 +3169,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     output = arguments[arguments.index("-o") + 1]
                     output_path = (
                         source_root / str(output).lstrip("/")
-                        if str(output).startswith("/")
+                        if executable == tools["cupidc"] and str(output).startswith("/")
                         else Path(output)
                     )
                     output_path.parent.mkdir(parents=True, exist_ok=True)

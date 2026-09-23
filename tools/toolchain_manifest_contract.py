@@ -81,7 +81,8 @@ BUILD_INPUTS = (
     "toolchain/hosted/i386-linux/start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/tool_start.asm",
-    "toolchain/tests/artifact_size_policy_contract.cc",
+    "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/tests/toolchain_manifest_contract.cc",
     "tools/artifact_size_policy.py",
     "tools/bootstrap_toolchain.py",
@@ -1023,6 +1024,7 @@ def _build_and_run_contract(
                 build_root.mkdir(parents=True)
                 runner = ToolRunner(source_root)
                 contract_object = build_root / "contract.o"
+                contract_parse_internal_object = build_root / "contract_parse_internal.o"
                 runtime_object = build_root / "runtime.o"
                 start_object = build_root / "start.o"
                 runtime_source = (
@@ -1044,6 +1046,10 @@ def _build_and_run_contract(
                     (),
                     False,
                     timeout,
+                )
+                _compile_source(
+                    seed, runner, source_root, "toolchain/contract_parse_internal.cc",
+                    contract_parse_internal_object, (), False, timeout,
                 )
                 _compile_source(
                     seed,
@@ -1086,7 +1092,7 @@ def _build_and_run_contract(
                 _link_contract(
                     seed,
                     runner,
-                    (start_object, contract_object, runtime_object),
+                    (start_object, contract_object, contract_parse_internal_object, runtime_object),
                     executable,
                     windows,
                     timeout,

@@ -935,8 +935,8 @@ declaration membership, reproduces that inventory under a private root,
 compares seventeen objects and sixteen executables across the converged
 compiler pair, runs the stage-four runtime behavior probe, and publishes the
 stage-four executables with the six candidate tools as 22 artifacts plus a
-manifest. Its source-current inventory contains 76 inputs, including the exact-decimal
-fixture, fingerprint-bound x86 catalogue corpus, `toolchain/x86.cc`, hosted
+manifest. Its source-current inventory contains 78 inputs, including the exact-decimal
+fixture, shared parser implementation and header, fingerprint-bound x86 catalogue corpus, `toolchain/x86.cc`, hosted
 `stddef.h`, native
 Windows runtime and startup, publication bridges, direct runtime contract,
 hosted Windows declarations, six external-program ABI declarations, the
@@ -948,10 +948,10 @@ edits that changed a private copy. The output must be a dedicated
 must already verify, and arbitrary directories, source trees, files, or
 symbolic links remain untouched. A run derives the cohort from its requested
 executable and verifies the named artifact, all recorded hashes, and current
-inputs first. The audit keeps the 76-file publication inventory distinct from
-the publisher's 138 declared transform inputs. The current schema binds 76
-publication inputs, 59 bootstrap inputs, and 22 artifacts; the older 75/58
-publication is historical. `toolchain:all` owns this path. Native
+inputs first. The audit keeps the 78-file publication inventory distinct from
+the publisher's 108 audited transform inputs. The current schema binds 78
+publication inputs, 61 bootstrap inputs, and 22 artifacts; the older 76/59 and 75/58
+publications are historical. `toolchain:all` owns this path. Native
 GCC or Clang builds are optional oracles under `native-oracles`, not normal
 build inputs.
 _Avoid_: checked seed, native contract suite, five-tool seed proof
@@ -960,7 +960,7 @@ _Avoid_: checked seed, native contract suite, five-tool seed proof
 The strict C11 program that verifies and authors the 22-artifact Toolchain
 publication. Verification consumes a pinned `CUPMAN2` snapshot. Author mode
 consumes a pinned `CUPMAN4` snapshot. At source head, it carries the independent
-artifact, 76-input, 59-bootstrap-input, Linux-seed, build-plan, and generation facts,
+artifact, 78-input, 61-bootstrap-input, Linux-seed, build-plan, and generation facts,
 plus four exact raw stage-pair inventories. Those inventories contain 17
 contract objects, 16 contract executables, 23 bootstrap objects, and six
 bootstrap tools. The author compares and hashes both byte streams in every

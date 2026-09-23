@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-09-21
+Verified against source on: 2026-09-22
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -12,6 +12,20 @@ Verified against source on: 2026-09-21
 >style link #1D4ED8
 >style linkhover #0B3AA8
 >rule
+
+>h2 Reusable build verification modules
+Source-head artifact_size_policy_validate checks immutable CUPSIZE2 bytes and
+returns an explicit result with bounded diagnostics. The artifact adapter and
+Toolchain manifest verifier share parsing helpers with per-call error state.
+The manifest verifier no longer includes another executable's source.
+
+Source-head cupidbuild_validate_seed_image_bytes checks ELF32 or PE32 bytes
+against an explicit tool role. Both readers are available on each host; tool
+execution still uses the host's own format. Image validation does not prove
+release identity or file lifetime. Native filesystem capture, paired manifest
+checks, and final drift checks remain required before artifact verification
+can leave Python. The source inventories contain 61 bootstrap inputs and 78
+publication inputs. Installed seeds retain their verified 59-input generation.
 
 >h2 Native user executable validation
 Checked CupidBuild validates external i386 ELF32 executables in memory.

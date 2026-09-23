@@ -76,6 +76,10 @@ WINDOWS_PRODUCTION_SEED_INPUTS = (
 )
 ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS = (
     "Makefile",
+    "toolchain/artifact_size_policy.cc",
+    "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
     "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
@@ -124,7 +128,8 @@ TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS = (
     "toolchain/hosted/i386-linux/start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/tool_start.asm",
-    "toolchain/tests/artifact_size_policy_contract.cc",
+    "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/tests/toolchain_manifest_contract.cc",
     "tools/artifact_size_policy.py",
     "tools/bootstrap_toolchain.py",
@@ -164,6 +169,9 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "kernel/lang/as_elf.h",
     "kernel/network/socket.h",
     "toolchain/Makefile",
+    "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/ctool.h",
     "toolchain/ctool_host.h",
     "toolchain/cupidasm.h",
@@ -196,7 +204,6 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
-    "toolchain/tests/artifact_size_policy_contract.cc",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
@@ -235,6 +242,8 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
 )
 TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "link.ld",
+    "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.h",
     "toolchain/ctool.cc",
     "toolchain/ctool.h",
     "toolchain/ctool_host.cc",
@@ -281,9 +290,9 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/hosted/i386-linux/include/windows.h",
     "toolchain/hosted/i386-linux/runtime.cc",
     "toolchain/hosted/i386-linux/start.asm",
+    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
-    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
@@ -421,6 +430,9 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "kernel/lang/as_elf.h",
     "kernel/network/socket.h",
     "toolchain/Makefile",
+    "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/ctool.h",
     "toolchain/ctool_host.h",
     "toolchain/cupidasm.h",
@@ -453,7 +465,6 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
-    "toolchain/tests/artifact_size_policy_contract.cc",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
@@ -898,7 +909,7 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 38,
+    "HOSTED_I386_LINUX": 40,
     "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
@@ -962,6 +973,7 @@ _C_PP_TOOLCHAIN_CONTRACT_CASES = (
     "/toolchain/tests/toolchain_manifest_contract.cc",
     "/toolchain/tests/user_syscall_abi_contract.cc",
     "/toolchain/tests/x86_contract.cc",
+    "/toolchain/contract_parse_internal.cc",
 )
 _C_PP_GENERATED_KERNEL_CASES = (
     "/kernel/cpu/ksyms_data.cc",
@@ -15809,7 +15821,8 @@ def _cupid_toolchain_fixed_point_contract(
     )
     required_contract_control_inputs = (
         "toolchain/Makefile",
-        "toolchain/tests/artifact_size_policy_contract.cc",
+        "toolchain/contract_parse_internal.cc",
+        "toolchain/contract_parse_internal.h",
         "toolchain/tests/toolchain_manifest_contract.cc",
         "tools/bootstrap_toolchain.py",
         "tools/cupidc_toolchain_contracts.py",
@@ -18039,6 +18052,10 @@ def _c_preprocessor_active_cases_manifest(
                         if path not in _C_PP_HOSTED_BRIDGE_CASES
                         and path
                         != "/toolchain/tests/hosted_i386_windows_contract.cc"
+                        and not (
+                            path == "/toolchain/contract_parse_internal.cc"
+                            and path in active_by_profile["HOSTED_I386_LINUX"]
+                        )
                     )
                 )
                 active_by_profile["HOSTED_I386_WINDOWS"].extend(
@@ -18115,17 +18132,19 @@ def _c_preprocessor_active_cases_manifest(
                         "Cupid artifact-size contract transform differs from "
                         "the checked build contract"
                     )
-                contract_source = (
-                    "toolchain/tests/artifact_size_policy_contract.cc"
-                )
-                entry = source_entries.get(contract_source)
-                if entry is None or entry.get("origin") != "tracked":
-                    raise AuditError(
-                        "Cupid artifact-size contract source is not tracked"
+                for contract_source in (
+                    "toolchain/tests/artifact_size_policy_contract.cc",
+                    "toolchain/artifact_size_policy.cc",
+                    "toolchain/contract_parse_internal.cc",
+                ):
+                    entry = source_entries.get(contract_source)
+                    if entry is None or entry.get("origin") != "tracked":
+                        raise AuditError(
+                            "Cupid artifact-size contract source is not tracked"
+                        )
+                    active_by_profile["HOSTED_I386_LINUX"].append(
+                        "/" + contract_source
                     )
-                active_by_profile["HOSTED_I386_LINUX"].append(
-                    "/" + contract_source
-                )
                 continue
             if operation == "verify_user_syscall_abi":
                 _validate_user_syscall_abi_transform(directory, transform)

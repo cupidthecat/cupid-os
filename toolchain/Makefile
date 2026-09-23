@@ -65,7 +65,7 @@ TOOLCHAIN_MANIFEST_CONTRACT_BUILD_INPUTS := \
 	hosted/i386-linux/start.asm \
 	hosted/i386-windows/runtime.cc \
 	hosted/i386-windows/tool_start.asm \
-	tests/artifact_size_policy_contract.cc \
+	contract_parse_internal.cc contract_parse_internal.h \
 	tests/toolchain_manifest_contract.cc \
 	../tools/artifact_size_policy.py \
 	../tools/bootstrap_toolchain.py \
@@ -180,7 +180,8 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       hosted/i386-windows/tool_start.asm \
                                       tests/hosted_i386_windows_contract.cc \
                                       tests/hosted_i386_windows_runtime_contract.cc
-CUPIDC_HOSTED_I386_CLOSURE := ctool.cc ctool.h ctool_host.cc ctool_host.h \
+CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.h contract_parse_internal.h \
+                              ctool.cc ctool.h ctool_host.cc ctool_host.h \
                               elf32.cc elf32.h pe32.h pe32_impl.h x86.cc x86.h \
                               cupidbuild.cc cupidbuild.h \
                               cupidbuild_host.cc cupidbuild_host.h \
@@ -216,12 +217,13 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	$(CUPIDC_HOSTED_I386_HEADERS) \
 	$(CUPIDC_HOSTED_I386_WINDOWS_RUNTIME) \
 	$(USER_SYSCALL_ABI_INPUTS) \
+	artifact_size_policy.h \
 	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h \
 	cupidc_emit.h \
 	cupidc_frontend.h cupidc_ir.h cupidc_pp.h cupidc_type.h \
 	cupiddis.h cupidld.h cupidobj.h elf32.h pe32.h pe32_impl.h x86.h \
 	x86.cc \
-	tests/artifact_size_policy_contract.cc \
+	contract_parse_internal.cc contract_parse_internal.h \
 	tests/hosted_i386_runtime_contract.cc \
 	tests/toolchain_manifest_contract.cc \
 	../tools/bootstrap_toolchain.py \
