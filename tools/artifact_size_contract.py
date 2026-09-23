@@ -22,7 +22,7 @@ if not sys.path or sys.path[0] != str(REPOSITORY_IMPORT_ROOT):
 
 
 try:
-    from tools import artifact_size_policy
+    from tools import artifact_size_policy, seed_release_identity
     from tools.bootstrap_toolchain import (
         BootstrapError,
         EXPECTED_WINDOWS_TARGET,
@@ -39,6 +39,7 @@ try:
     )
 except ModuleNotFoundError:
     import artifact_size_policy
+    import seed_release_identity
     from bootstrap_toolchain import (
         BootstrapError,
         EXPECTED_WINDOWS_TARGET,
@@ -81,6 +82,7 @@ LINUX_EXECUTION_FILES = (
 
 BUILD_INPUTS = (
     "Makefile",
+    "bootstrap/seeds/release.json",
     "toolchain/artifact_size_policy.cc",
     "toolchain/artifact_size_policy.h",
     "toolchain/contract_parse_internal.cc",
@@ -101,8 +103,10 @@ BUILD_INPUTS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/tests/artifact_size_policy_contract.cc",
     "tools/artifact_size_contract.py",
+    "tools/__init__.py",
     "tools/artifact_size_policy.py",
     "tools/bootstrap_toolchain.py",
+    "tools/seed_release_identity.py",
 )
 
 
@@ -793,6 +797,12 @@ def verify_with_contract(
                 reader, logical_policy, logical_manifest, checked_seed
             )
             build_inputs = _capture_build_inputs(reader)
+            try:
+                seed_release_identity.verify_release_identity_bytes(
+                    dict(build_inputs)[seed_release_identity.RELEASE_PATH]
+                )
+            except seed_release_identity.ReleaseIdentityError as error:
+                raise ArtifactSizeContractError(str(error)) from error
             execution_seed = _select_execution_seed(
                 reader,
                 logical_checked_manifest,

@@ -15,10 +15,26 @@ candidate staged proofs pass independent verification. Contract publication and
 paired final OS/runtime acceptance also pass. See
 [observer evidence and limits](NEXT-NATIVE-OBSERVER.md).
 
-The next integration work is the external release-identity authority and the
-native `verify-artifact-sizes` command. Parsed release records and observed
-filesystem bytes are available, but the production command does not yet combine
-them into a trusted decision. The twelve Python-coordinated operations remain.
+ADR 0402 adds the tracked release record and its Python migration check.
+The production runner captures `bootstrap/seeds/release.json`, requires exact
+semantic agreement with the existing pins before contract execution, and
+rechecks its bytes afterward. The 26-input closure includes the record, helper
+and Python package marker. Both hosts pass 104 related tests and real checked
+verification of all sixteen artifacts. Final image/user builds and four-CPU
+boot/disassembly/shell smokes pass on both hosts with matching, preserved images. The native `verify-artifact-sizes` command must still
+combine the byte validators and observer into one transaction. The twelve
+Python-coordinated operations remain.
+
+To author a new review candidate from the independently pinned installed pair:
+
+```sh
+python -m tools.seed_release_identity --root . --output release-candidate.json
+```
+
+The destination must not exist. The command validates both promoted cohorts,
+the exact Windows-to-Linux manifest binding and live seed bytes. It neither
+promotes tools nor overwrites the reviewed release. A future seed promotion
+must update and review the record alongside the independently verified pins.
 
 ## Current operation
 
@@ -26,7 +42,7 @@ them into a trusted decision. The twelve Python-coordinated operations remain.
 
 The wrapper pins the repository root and no-follow paths through `_PinnedRepository`. It captures the complete checked Windows seed directory and validates it through `verify_seed_inputs`. Linux separately captures and validates its execution seed; Windows requires execution to use the same checked Windows manifest. Seed captures require exactly manifest.json plus six tool files. The wrapper captures policy and Linux manifest bytes, observes all sixteen regular files, and rejects all size mismatches together.
 
-It then captures nineteen build inputs: Makefile, ten hosted headers, both runtimes and startup files, the C contract, and three Python support modules. Checked CupidC compiles contract and runtime; CupidASM assembles startup; CupidLD links the host-format executable. Every relocatable and final ELF/PE32 image is validated. The execution seed is rechecked after every command. The private contract checks a CUPSIZE2 request and emits canonical JSON. Python compares that report with its independent policy oracle, rechecks captured seed/build bytes, reopens every observed leaf from the retained root, checks recorded directory membership and metadata, and rechecks the named repository root before printing success.
+It then captures 26 build inputs: Makefile, the reviewed release record, shared policy and parser sources and headers, ten hosted headers, both runtimes and startup files, the C contract, four Python support modules and the Python package marker. Checked CupidC compiles contract and runtime; CupidASM assembles startup; CupidLD links the host-format executable. Every relocatable and final ELF/PE32 image is validated. The execution seed is rechecked after every command. The private contract checks a CUPSIZE2 request and emits canonical JSON. Python compares that report with its independent policy oracle, rechecks captured seed/build bytes, reopens every observed leaf from the retained root, checks recorded directory membership and metadata, and rechecks the named repository root before printing success.
 
 The public success output is exactly `Cupid artifact sizes: ok (16 exact artifacts)` followed by a newline. Errors use `artifact size verification failed:` and retain the multiline list of size mismatches. The inner JSON contains only artifact_count, schema, and total_exact_bytes, with sorted compact keys and one newline. There is no persistent report file or publication candidate. The gate must succeed before disk-image publication.
 
@@ -80,9 +96,9 @@ step can preserve the repository's current trust model. It would be a required,
 captured input, separate from the manifest being validated, with exact schema
 and duplicate/missing/unknown-field rejection. Its release fields must agree
 with the existing Python constants during migration, and final checks must
-reread its bytes. This is a proposed integration boundary, not an implemented
-file or a new signing system. No release check should be removed while that
-boundary is unfinished.
+reread its bytes. ADR 0402 implements this file and migration check. It does not add signing;
+the existing Python release pins remain mandatory. The following probe records
+the evidence that preceded adoption.
 
 
 Keep those pins semantic. A private probe of both current seed cohorts accepts

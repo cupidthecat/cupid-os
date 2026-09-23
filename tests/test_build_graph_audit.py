@@ -11310,6 +11310,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
         cases = (
+            ("release record removed", "bootstrap/seeds/release.json", None),
+            ("release checker removed", "tools/seed_release_identity.py", None),
+            ("Python package marker removed", "tools/__init__.py", None),
             (
                 "startup assembly removed",
                 "toolchain/hosted/i386-linux/start.asm",

@@ -45,6 +45,7 @@ SEED_OWNERS = {
 }
 EXPECTED_BUILD_INPUTS = (
     "Makefile",
+    "bootstrap/seeds/release.json",
     "toolchain/artifact_size_policy.cc",
     "toolchain/artifact_size_policy.h",
     "toolchain/contract_parse_internal.cc",
@@ -65,8 +66,10 @@ EXPECTED_BUILD_INPUTS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/tests/artifact_size_policy_contract.cc",
     "tools/artifact_size_contract.py",
+    "tools/__init__.py",
     "tools/artifact_size_policy.py",
     "tools/bootstrap_toolchain.py",
+    "tools/seed_release_identity.py",
 )
 
 
@@ -359,7 +362,68 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
             path = root.joinpath(*PurePosixPath(logical).parts)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(f"fixture build input: {logical}\n".encode("ascii"))
+        (root / "bootstrap/seeds/release.json").write_bytes(
+            (REPO_ROOT / "bootstrap/seeds/release.json").read_bytes()
+        )
         return policy, manifest, sizes
+
+    def test_release_identity_mismatch_is_rejected_before_contract_launch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            policy, manifest, sizes = self.write_fixture(root)
+            release = root / "bootstrap/seeds/release.json"
+            record = json.loads(release.read_bytes())
+            record["artifacts"][0]["sha256"] = "f" * 64
+            release.write_bytes(json.dumps(record).encode())
+            with mock.patch.object(
+                artifact_size_contract, "_build_and_run_contract",
+                return_value={"artifact_count": 16,
+                              "schema": "cupid.artifact-size-verification.v1",
+                              "total_exact_bytes": sum(sizes.values())},
+            ) as build:
+                with self.assertRaisesRegex(
+                    artifact_size_contract.ArtifactSizeContractError, "release"
+                ):
+                    artifact_size_contract.verify_with_contract(
+                        root, policy, manifest, manifest, manifest
+                    )
+                build.assert_not_called()
+
+    def test_invalid_release_record_prevents_contract_launch(self):
+        for payload in (None, b"{", b"[]", b" " * 65537,
+                        b'{"schema":1,"sch\\u0065ma":2}'):
+            with self.subTest(payload=payload), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                policy, manifest, _ = self.write_fixture(root)
+                release = root / "bootstrap/seeds/release.json"
+                if payload is None:
+                    release.unlink()
+                else:
+                    release.write_bytes(payload)
+                with mock.patch.object(artifact_size_contract, "_build_and_run_contract") as build:
+                    with self.assertRaises(artifact_size_contract.ArtifactSizeContractError):
+                        artifact_size_contract.verify_with_contract(
+                            root, policy, manifest, manifest, manifest
+                        )
+                    build.assert_not_called()
+
+    def test_linked_release_record_prevents_contract_launch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            policy, manifest, _ = self.write_fixture(root)
+            release = root / "bootstrap/seeds/release.json"
+            target = root / "release-target.json"
+            release.rename(target)
+            try:
+                release.symlink_to(target)
+            except OSError as error:
+                self.skipTest(f"file symlinks unavailable: {error}")
+            with mock.patch.object(artifact_size_contract, "_build_and_run_contract") as build:
+                with self.assertRaises(artifact_size_contract.ArtifactSizeContractError):
+                    artifact_size_contract.verify_with_contract(
+                        root, policy, manifest, manifest, manifest
+                    )
+                build.assert_not_called()
 
     def decode_request(self, request: bytes):
         self.assertEqual(request[:8], b"CUPSIZE2")
@@ -650,6 +714,9 @@ class ArtifactSizeContractRunnerTests(unittest.TestCase):
             "toolchain/artifact_size_policy.h",
             "toolchain/contract_parse_internal.cc",
             "toolchain/contract_parse_internal.h",
+            "bootstrap/seeds/release.json",
+            "tools/seed_release_identity.py",
+            "tools/__init__.py",
         ):
             with tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)

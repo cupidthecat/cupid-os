@@ -39,8 +39,13 @@ The reader accepts either host format and returns owned artifact identities.
 Equivalent JSON escapes are accepted; duplicate decoded keys and mismatched
 plans are rejected. The pair validator checks both manifests against a
 twelve-image release record and binds the Windows plan to the actual Linux
-manifest bytes. No release record has been adopted as production authority.
-Observer integration, release publication, and final command-level drift checks
+manifest bytes. Production verification captures bootstrap/seeds/release.json
+and checks it against the independently retained Python release pins. The record
+contains both six-tool cohorts and sits outside their exact seed directories.
+Its author validates the installed pair and writes only a new review candidate;
+it does not promote tools. The runner captures 26 build inputs, checks the record
+before contract execution, and rechecks its bytes afterward. Record parsing does
+not authenticate an untrusted release. Observer integration and native command-level checks
 remain required before artifact verification can leave Python. Candidate inventories
 contain 66 bootstrap inputs and 80 publication inputs. Installed seeds retain
 their verified 59-input generation. Candidate plans do not change installed

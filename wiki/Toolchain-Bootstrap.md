@@ -1,5 +1,15 @@
 # Toolchain bootstrap
 
+Artifact verification now captures `bootstrap/seeds/release.json`, a reviewed
+record of both installed six-tool cohorts. Python checks its semantic identities
+against the retained release pins before launching the Cupid contract and
+rechecks the captured bytes afterward. The 26-input closure includes its helper
+and Python package marker. Both hosts pass 104 related tests and real checked
+verification of all sixteen artifacts. Final image/user builds and four-CPU
+boot/disassembly/shell smokes pass on both hosts, with matching images unchanged
+through runtime checks. ADR 0402 records the candidate-authoring and authority
+rules. Native command ownership and installed seeds are unchanged.
+
 The read-only filesystem observer passes 36 filesystem/runtime methods with
 native and Cupid-built callers on Windows and Linux. It retains original files
 and ancestors, verifies exact membership, supports Unicode paths and 64-bit

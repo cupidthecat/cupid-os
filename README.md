@@ -154,6 +154,14 @@ carry the repairs from `16a86f5b`, whose clean paired proofs passed.
 
 ## Current bootstrap ownership
 
+Artifact verification captures a reviewed paired-seed release record and checks
+it against the existing Python pins before running the Cupid contract. Both
+hosts pass 104 related tests, final image/user builds, all sixteen artifact
+checks and four-CPU boot/disassembly/shell smokes. The record avoids embedding CupidBuild's own finished hash
+in its source. Python still coordinates verification; native command integration
+and seed promotion remain separate work. See
+[ADR 0402](docs/adr/0402-capture-reviewed-seed-release-identities.md).
+
 Source head now includes a read-only filesystem observer for native artifact
 verification. Its 36-method suite passes with native and Cupid-built callers
 on Windows and Linux, covering retained handles, directory membership, Unicode

@@ -145,6 +145,11 @@ class ReleaseTests(unittest.TestCase):
             artifact = actual.artifacts[("elf32", "pe32").index(row["format"])][ROLES.index(row["name"])]
             self.assertEqual((artifact.size, artifact.sha256), (row["size"], row["sha256"].encode()))
 
+    def test_tracked_release_record_matches_independent_pins(self):
+        expected, _ = self.call(release())
+        actual, _ = self.call((ROOT / "bootstrap/seeds/release.json").read_bytes())
+        self.assertEqual(bytes(actual), bytes(expected))
+
     def test_all_key_and_row_order_is_semantic(self):
         expected, _ = self.call(release())
         value = dict(reversed(list(release().items())))

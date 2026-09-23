@@ -38845,3 +38845,55 @@ and prior accepted images are unchanged. ADR 0401 is accepted for the observer
 capability. Production ownership remains 440 CupidBuild and twelve Python
 participations; release-file authority, native verifier integration and seed
 promotion are not claimed by this step.
+
+## 2026-09-23: Capture the reviewed paired release record
+
+ADR 0402 adds `bootstrap/seeds/release.json` as a required artifact-verification
+input. It records the existing source, parent, plan and twelve tool identities.
+The production Python runner checks its semantic fields against the independent
+Python pins before launching the Cupid contract. Existing final byte and path
+checks cover it. The complete Make/runner/audit closure has 26 inputs, including
+the release helper and Python package marker. Installed seeds and the 66-input
+compiler source cohort do not change; 440 CupidBuild and twelve Python
+participations remain.
+
+The candidate author checks both promoted installed cohorts, the Windows binding
+to the actual Linux manifest bytes, and live seed observations. It uses exclusive
+creation and cannot replace an existing output or promote tools. JSON order and
+equivalent escapes remain semantic; duplicate decoded keys, extra fields and
+changed identities fail. A changed tool with a matching changed manifest digest
+cannot supply new authority. The tracked record also passes the shared C reader.
+
+The related release, C reader, runner and policy suites pass 104 methods on each
+host, with four Windows skips. Real checked Cupid contracts pass against copies
+of the sixteen artifacts accepted under ADR 0401; all copied and original bytes
+remain unchanged. The first Linux isolated copy omitted `tools/__init__.py` and
+imported an unrelated installed package; explicit capture now closes that input
+gap. Windows's first contract passed, but the private harness rejected native
+CRLF output. Its corrected assertion passes. Both initial failures are retained
+under `build/bootstrap/release-identity-4d80628a/`.
+
+The manual is updated. All ten graph contracts and the deterministic audit
+check pass. Both final OS image builds and user builds pass, followed by private
+four-CPU max/e1000 SMP/disassembly/shell smokes. Independent paired verification
+rehashes 1,499 captured inputs, sixteen artifacts and 431 link inputs per host.
+The manual object grows by 415 bytes. Only that object and the pass-one/final
+ELFs change among link inputs; the flat kernel grows from 9,557,956 to 9,558,372
+bytes. The policy changes only that measured size.
+
+Both 200 MiB images match, SHA-256
+`77e96ade365b01a5805332df8bc6f92d7b743f1b13269c0ff250a4411747c312`,
+and remain unchanged through runtime checks. The three user executables match
+the preceding acceptance. The raw kernel has SHA-256
+`4a44e1672f59d395b8d470ca1c25ec076374f19b89ab6bf4496f747fbe927a94`;
+the 3,382-byte policy has SHA-256
+`70f4b0ac24f54134ca8fcb78beb6c8bc8817b50467fee7cdd42e0fc0854fc196`.
+Windows and Linux serial logs contain 42,661 and 45,699 bytes, with SHA-256
+`bcace07cf48e3877e3d45fa065e5499de3b33abb289ac2fcf4d971e457e63946`
+and `1d21ef821fa2699712676147cd74fe2cf341ccca42d0accfce96e31a873972e1`.
+The retained `paired-acceptance.json` records the final comparison.
+
+An initial source capture accidentally included conditional generated output;
+the original was restored and verified before either acceptance build consumed
+it. Its failed capture remains alongside the corrected evidence. Native
+verifier integration and seed promotion remain open; issue #34 remains open.

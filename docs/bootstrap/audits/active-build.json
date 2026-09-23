@@ -39769,6 +39769,7 @@
           "kernel/kernel.elf",
           "kernel/kernel.elf.pass1",
           "Makefile",
+          "bootstrap/seeds/release.json",
           "toolchain/artifact_size_policy.cc",
           "toolchain/artifact_size_policy.h",
           "toolchain/contract_parse_internal.cc",
@@ -39789,8 +39790,10 @@
           "toolchain/hosted/i386-windows/tool_start.asm",
           "toolchain/tests/artifact_size_policy_contract.cc",
           "tools/artifact_size_contract.py",
+          "tools/__init__.py",
           "tools/artifact_size_policy.py",
           "tools/bootstrap_toolchain.py",
+          "tools/seed_release_identity.py",
           "bootstrap/artifact-size-policy.json",
           "bootstrap/seeds/i386-linux/manifest.json",
           "bootstrap/seeds/i386-windows/manifest.json"
@@ -58373,7 +58376,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "eb533848d4eceb27232e984d4e0d4d729f3303ba2685903ad80eb9d67fa83f07"
+        "sha256": "aca8fb07d075834dc21265bdb271c5bc420eba94a58bbfdab28a193641cb4749"
       },
       {
         "path": "user/Makefile",
@@ -58422,7 +58425,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "a74fd6dc72d8baea7e8003d50cebde5e202386df6596753ba18f87d2a7ae6698"
+      "sha256": "7c34acf6a7f7d588c8baec56bca980d49149020cc7eb030cfd7eb3c2f28bab21"
     },
     "text_hash_policy": "canonical_lf"
   },

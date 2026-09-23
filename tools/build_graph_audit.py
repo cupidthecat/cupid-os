@@ -76,6 +76,7 @@ WINDOWS_PRODUCTION_SEED_INPUTS = (
 )
 ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS = (
     "Makefile",
+    "bootstrap/seeds/release.json",
     "toolchain/artifact_size_policy.cc",
     "toolchain/artifact_size_policy.h",
     "toolchain/contract_parse_internal.cc",
@@ -96,8 +97,10 @@ ARTIFACT_SIZE_CONTRACT_BUILD_INPUTS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/tests/artifact_size_policy_contract.cc",
     "tools/artifact_size_contract.py",
+    "tools/__init__.py",
     "tools/artifact_size_policy.py",
     "tools/bootstrap_toolchain.py",
+    "tools/seed_release_identity.py",
 )
 ARTIFACT_SIZE_CONTRACT_TRANSFORM_INPUTS = frozenset(
     {
