@@ -38359,3 +38359,320 @@ Final staging removed trailing horizontal whitespace from nine lines in
 and contract tests successfully (2.211 seconds). The paired source snapshots
 retain the pre-cleanup bytes; this formatting-only change is not a new seed
 promotion proof.
+## 2026-09-22: integrate shared seed manifest and release readers (in progress)
+
+ADR 0400 records the shared reader and external release-record boundary.
+CupidBuild now uses the reader's owned artifact result instead of retaining a
+second JSON implementation. Execution still selects the host format and keeps
+its existing filesystem and publication checks. Both formats remain available
+to byte callers. Equivalent escaped strings are accepted, while wrong decoded
+values and duplicate decoded keys are rejected.
+
+The candidate source inventory grows from 61 to 66 files. Its 25 Linux C sources
+include the new manifest and release modules and the shared parser. Windows adds
+its publication runtime for 26 C sources. The candidate Linux plan digest is
+`fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe`;
+the Windows digest is
+`70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9`.
+The installed 59-input release keeps its original plan and artifact pins.
+The reader rejects a 66-input candidate with an old or mixed plan.
+
+The Toolchain manifest author and its verifier previously treated the installed
+seed plan and candidate plan as one identity. They now validate the installed
+plan separately and report the reviewed candidate plan. Publication covers 80
+inputs and 65 stage pairs. Its Windows regression suites pass all 107 methods
+in 61.030 seconds. The earlier failed fixture runs remain available; the final
+run is `active-publication-v3` under `build/bootstrap/native-release-6f2fe0e9/`.
+Linux also passes all 107 methods in 53.944 seconds
+(`active-publication-linux-v1`).
+
+The four API modules pass all 45 methods on Windows (6.204 seconds) and Linux
+(7.995 seconds), using the real host SHA implementation. The active Make-built
+CLI also passes escaped-key and escaped-schema publication. Checked Cupid-built
+callers pass 2,643 release, 718 match, 1,046 structural-manifest and 287 pair
+cases on each host. Windows takes 27.036 seconds and Linux 30.327 seconds.
+`paired-active-reader-verification.json` independently rehashes live and captured
+sources, all five shared objects, both executables and all four input/output
+corpora. The objects and output streams match between hosts. The checked
+caller's SHA excerpt is verified against the unchanged production implementation.
+
+The isolated graph audit passes all contracts. Its failed attempts caught an
+incomplete ownership inventory, a stale publication-header inventory and a
+duplicate registration of the shared parser. The corrected registration still
+rejects duplicate roots and registers only that shared parser once across its
+two consuming build operations. The generated preprocessing manifest includes
+the two new roots.
+
+The full integrated CLI suites pass 148 methods per host, with twelve Windows
+and eight Linux skips. Windows takes 246.503 seconds and Linux 147.303 seconds.
+Each uses a separate captured source root; Linux runs on its native filesystem.
+
+The seed-image and user-ELF suites pass all 16 methods on each host, including
+Cupid-built callers (Windows 132.824 seconds, Linux 134.280 seconds). The first
+Windows run failed because two test harnesses still linked the old CupidBuild
+closure. They now include the shared modules and derive the candidate plan.
+Kernel, Doom and generated-source coordinator harnesses received the same fix.
+
+The bootstrap regression group ran 141 methods, excluding the two complete
+staged proofs. Five failures exposed four stale plan/count assertions and a
+Doom test that still searched for the former Python recipe. All five repaired
+methods pass; the Doom check still compares exact source and object identities
+across two builds. The fixed-point audit mutation suite passes in 316.529 seconds.
+The checked preprocessing inventory now records 407 tracked translation-unit/profile entries
+and 399 `#if` expressions; the conditional manifest retains all 55 distinct expressions.
+
+All 32 Linux stage-three/stage-four files match in a retained capture taken
+while behavior checks were still running. Only CupidBuild differs from the
+installed Linux cohort. This capture is not a complete bootstrap report.
+The native Windows proof remains in progress.
+
+The first Linux production-coordinator regression attempt stopped during host
+oracle setup: GCC reported `maybe-uninitialized` for `old.kind` and `old.type`
+in unchanged `cir_lower_floating_update`. A separate Clang run retains strict
+warnings. This does not change the checked Cupid production path or establish
+that the GCC warning has been resolved.
+
+These results do not establish the final candidate's complete paired fixed point
+or OS/runtime acceptance. A bootstrap regression is still running; final graph
+regeneration, production builds and runtime smokes
+remain required before committing this integration. No seed is promoted, no
+release record becomes production authority, and all twelve Python-coordinated
+operations remain. Native retained filesystem observations and final rechecks
+are still needed for artifact-verification ownership.
+
+The first complete Linux bootstrap command passed its behavior checks and
+published its report to the test's temporary output. The outer test then failed
+on its stale 22-object expectation; the actual count is 25. That loaded test
+predated the fixture repairs. A named native Linux proof is now running to
+retain the complete report. Its first launch rejected an output outside the
+source root before compilation; the corrected attempt keeps output inside it.
+
+The first native Windows proof stopped at its CupidObj runner behavior check:
+`fixed-point provenance differs`. Its fixture updated only the native plan
+hash, leaving the installed Linux-plan hash and source count. A focused reader
+test reproduced the rejection. The fixture now binds both candidate plans and
+the captured source count/snapshot, rejects a mismatched native plan or empty
+snapshot, and leaves the installed seed untouched. Reader negatives still
+reject mixing candidate and installed metadata. Focused reader and bootstrap
+boundary tests pass; a fresh logged Windows proof is running. The reader's
+accepted provenance rules have not been relaxed.
+
+After the behavior-fixture repair, all 46 API methods pass on Windows
+(9.670 seconds) and Linux (12.528 seconds).
+
+The remaining audit group completed 120 methods in 976.457 seconds with six
+failures across five methods. Four methods had stale preprocessing counts.
+The fifth exposed two headers missing from Make's separate publication-input
+variable on both hosts, despite their presence in the aggregate build inputs.
+Adding `seed_manifest.h` and `seed_release.h` fixes that declaration; both
+host-branch closure checks pass. The actual audit counts are 407 tracked
+translation-unit/profile entries plus four generated entries, 720 scanned
+source files, and 2,537 includes (2,231 quoted and 306 angle). A fresh audit and
+focused reruns are in progress.
+
+Windows host-built contracts pass `conditional-active`, the full 407-case
+`active-corpus`, `self-host-hosted-adapters`, and JPEG validation in 45.587
+seconds including compilation. These checks use strict Clang as an optional
+oracle; they do not change normal build ownership.
+
+Linux passes the same four native contract checks in 117.059 seconds including
+compilation. The fixed-point audit mutation suite passes after the Windows
+behavior-fixture change (560.434 seconds). A fresh isolated audit also passes
+all contracts; its checked JSON/Markdown outputs have been refreshed. The five
+previously failing audit methods are rerunning against that corrected capture.
+
+The five-method audit rerun passed four methods and exposed one further stale
+Toolchain cohort count. The fixture now expects the verified 105 sources and
+explicitly checks that both reader modules and headers are direct CupidC-owned
+inputs. Its summary assertion now matches 407 tracked entries. The remaining
+drift-check method passes in 398.519 seconds. Every initially failing audit
+method has now passed its focused rerun.
+
+The Linux production coordinator regression finished successfully: 47 methods,
+one skip, no failures or errors, in 3,137.373 seconds. This run covers the
+kernel coordinator, the exhaustive 83-source Doom transaction, and all three
+generated installation tables. It uses the retained v6 capture and strict
+Clang host builds; the earlier GCC warning failure remains a separate failed
+attempt. Windows production, both named staged proofs, and both normal OS
+builds are still running. Their pending results are not acceptance evidence.
+
+The retained Linux staged proof completed successfully in 3,162.586 seconds.
+Independent inspection rehashed all three generations, checked exact report
+membership and plan identities, and matched the active 66-input snapshot
+`2a69be9240a0440c6386eb8fbe195a4e619b741bdf2ffa3635bc3e0b4d37b972`.
+All 32 stage-three/stage-four pairs match: 25 C objects, startup and six tools.
+Behavior checks pass 46 failure, seven help and 54 success groups. Stage two
+matches five installed tool images; CupidBuild differs as expected for the
+shared-reader integration. This proof uses the retained v7 runner capture;
+the later Windows-only behavior-fixture repair does not change its compiled
+source snapshot. The report, logs and independent byte observations remain
+under `build/bootstrap/native-release-6f2fe0e9/`. Windows proof and paired
+OS/runtime acceptance are still pending. No seed promotion is claimed.
+
+Windows production coordinator regressions passed all 47 methods, with no
+skips, failures or errors, in 4,091.008 seconds. Together with the Linux run,
+this covers native and checked Cupid-built kernel, Doom and generated-source
+coordinators. An independent paired check rehashed both reports and logs,
+matched both captures to the active 66 compiler inputs, verified six exact
+test/profile files, and compared eight imported bootstrap functions and types.
+The retained result is `paired-reader-production-verification.json`.
+Normal unittest cleanup removed the temporary hosted test executables; this
+result does not claim retained executable evidence. Windows staged proof and
+both normal OS builds remain live.
+
+The Linux normal OS build completed compilation, both kernel links and native
+flattening, then failed the exact-size gate. `kernel/kernel.bin` measures
+9,557,296 bytes against 9,556,776 expected, a 520-byte increase. The other
+fifteen policy artifact sizes match. Independent inspection rehashed the
+original captured inputs, all sixteen artifacts, generated installation
+objects and manual, and confirmed that the 200 MiB disk image and preceding
+accepted image are unchanged. The observed result is retained in
+`linux-reader-size-observations.json`; policy has not been edited. Windows
+measurement and the paired link-input comparison remain required. Linux
+user-ABI validation has started against the unchanged original capture.
+
+The retained native Windows staged proof passed in 3,756.369 seconds. The
+independent paired verifier then rehashed all three retained generations on
+both hosts, matched exact report membership, candidate plans and installed
+manifest identities, and bound both proofs to the active 66-input snapshot
+`2a69be9240a0440c6386eb8fbe195a4e619b741bdf2ffa3635bc3e0b4d37b972`.
+All 35 Windows stage-three/stage-four pairs match: 26 C objects, three assembly
+objects and six tools. Windows behavior checks pass 34 failure, seven help
+and 41 success groups. Together with the 32 Linux pairs, these results complete
+the paired staged proof for this source step. The retained record is
+`paired-reader-staged-verification.json`. OS/runtime acceptance and the later
+native artifact-verification handoff remain unfinished; no seeds were promoted.
+
+A separate Linux comparison rehashed all 431 manifest-defined production
+inputs against the preceding accepted build. Exactly three entries changed:
+the embedded manual object and the two linked kernel ELFs. The other 428
+entries, including generated kernel symbols, match. The manual object grew
+from 54,324 to 54,848 bytes; both ELF file sizes stayed fixed, and the raw
+kernel grew by 520 bytes. This establishes the Linux input difference without
+assuming that manual source length directly predicts artifact size. Windows
+comparison is still pending. The retained record is
+`linux-reader-link-input-comparison.json`.
+
+The preliminary Linux ABI run was cancelled after identifying that it used
+the original v9 build controls. Final acceptance updates the Toolchain
+Makefile, PP contract and bootstrap controls; those changes invalidate the
+published-contract cache, so completing the preliminary run would not supply
+final-current ABI evidence. Its log, cancellation request and terminal
+`KeyboardInterrupt` state are retained. A separate check confirms no remaining
+processes in that build root and unchanged bytes for all 1,492 captured source
+files, kernel artifacts and the disk image. No ABI pass is claimed for this
+cancelled run. Final acceptance now requires the ABI command after the current
+controls and measured policy are installed, before image/user builds and boot
+smokes. The paired verifier uses that final ABI report.
+
+Windows completed compilation, linking and flattening, then reported the same
+single 520-byte raw-kernel size mismatch as Linux. Independent paired checks
+rehash all sixteen artifacts, three generated installation objects, both
+1,492-file source inventories, the manual and unchanged images. Every artifact
+matches across hosts. The complete 431-entry production comparison also matches
+on both hosts: 428 entries unchanged, with only the manual object and two linked
+kernel ELFs changed. `paired-reader-os-size-verification.json` retains this
+measurement.
+
+Updated only `kernel/kernel.bin` in the exact-size policy, from 9,556,776 to
+9,557,296 bytes. The other fifteen rows are unchanged. Both final acceptance
+runs have started: each checks the measured artifacts, installs the four current
+build controls, verifies the same 66 compiler inputs, and records its final
+input inventory before ABI validation, image/user builds and private four-CPU
+boot smokes. These final runs are still pending.
+
+Windows final acceptance passed with the current build controls: checked ABI,
+image build with all sixteen exact artifact sizes, all three user builds, and a
+private four-CPU `max`/E1000 boot with SMP verification, `dis /bin/ls.cc` and `ls`.
+Independent post-run inspection rehashed its final source inventory, controls,
+artifacts, generated objects, user executables and both current/preceding images.
+The smoke preserved the source image SHA-256
+`f068da92285379e3a1a520d30383a4129e8d80da35ba36ec18690617529e195e`.
+ABI version 5 remains 103 fields, 101 providers and a 412-byte table, with the
+same ABI and provider digests as the preceding acceptance. Linux's final run
+is still rebuilding the checked Toolchain contract set; paired post-run
+acceptance remains pending.
+
+The refreshed isolated v13 graph audit passes every contract and retains
+756 active sources, 255 features, 452 transforms and 29 unreachable sources.
+Its JSON, Markdown and active-case outputs match the already checked outputs
+byte for byte. The one measured policy-row change does not alter this graph.
+The retained verification record is `active-audit-v13-verification.json`.
+
+Six private filesystem probes per host establish a baseline for the later
+native artifact observer. Metadata-only capture accepts stable files; size
+changes and added directory members are detected. Windows denies replacement
+of a retained leaf or its parent, while Linux permits the replacement and
+detects the changed live identity during the final check. Both hosts miss a
+same-size edit when mtime is restored: the current Python observer compares
+device, inode, link count, size and mtime, but not ctime or a fresh content
+digest. Native observation needs an explicit decision and tests for this case.
+These probes do not change production verification or establish a native
+observer. Their source and results are retained as `probe_observer_baseline.py`
+and the two `*-observer-baseline-v1.json` records beside the reader evidence.
+
+Linux final acceptance failed after both contract stages compiled and linked,
+the hosted runtime passed, and the independent comparison agreed on all 65
+stage pairs. Publication then rejected a difference between the Cupid author's
+canonical manifest and Python's oracle. The Python publisher copied the
+installed seed's `build_plan_sha256` into the candidate record; the Cupid
+author correctly emitted the new candidate plan. Earlier publication fixtures
+used one plan value and did not exercise that distinction.
+
+The publication regression now supplies different installed and candidate plan
+hashes and reproduces the same failure in under one second. Selecting
+`candidate_build_plan_sha256` fixes that focused case. Missing and malformed
+candidate hashes are also rejected while preserving the previous publication.
+The original Linux acceptance state and log remain separate from the required
+corrected replay. Its temporary contract build was removed by the runner's
+normal failure cleanup, so no retained full-report comparison is claimed for
+that failed attempt. The broader regressions and corrected acceptance are
+still pending.
+
+The corrected Toolchain contract suite passes 67 methods on Windows and 67 on
+Linux, with no failures or skips. The isolated v14 graph audit passes all ten
+contracts; its JSON, Markdown and active-case outputs match v13 byte for byte.
+`candidate-plan-oracle-repair-verification.json` binds the reports and logs to
+the corrected publisher and regression source. Separate v2 acceptance runs now
+capture the corrected publisher as a fifth build control and require fresh ABI,
+image, user-program and private boot checks. The 66 compiler inputs and measured
+artifact-size policy are unchanged. Those corrected acceptance runs are pending.
+
+Windows v2 acceptance passed all four commands. Independent inspection confirms
+the five current controls, final input inventory, sixteen artifacts, generated
+objects, three user executables and preserved current/preceding images. Its ABI
+report and 200 MiB image digest match the first Windows acceptance. The Linux
+v2 run remains active; paired post-run acceptance is still pending.
+
+Further inspection separates the metadata observer's limits from the production
+artifact verifier's checks. `artifact_size_contract.py` captures an exact seed
+directory inventory, materializes the captured files privately, and calls
+`verify_seed_inputs`. That validator compares promoted provenance and artifact
+identities against compiled-in constants and checks executable formats. An
+external release record will need an explicit authority rule before replacing
+those constants.
+
+After the contract runs, the wrapper reads and compares the checked Windows
+seed, contract build inputs and any separate Linux execution seed again. These
+are fresh payload reads, followed by retained/live identity, directory and root
+checks. The earlier same-size/restored-mtime probe tested the metadata observer
+alone; it does not establish a failure of those explicit payload comparisons.
+The later native verifier still needs separate coverage for policy and selected
+manifest drift. These are implementation requirements, not completed ownership.
+
+Corrected Linux v2 acceptance passed all four commands on 2026-09-23. Both
+contract stages compiled and linked, the hosted runtime passed, live inputs
+matched the frozen build, and the Cupid author and Python oracle agreed on all
+65 stage pairs before publishing the complete contract cohort. The image build,
+three user builds and private four-CPU disassembly and shell smoke then passed.
+The Linux run took 4,956.14 seconds; Windows v2 had already passed.
+
+Native Linux post-run inspection and the Windows paired comparison both passed.
+`paired-reader-acceptance-v2-verification.json` records equality of all sixteen
+artifacts, three generated objects, three user executables, the ABI report and
+the 209,715,200-byte image. Its SHA-256 is
+`f068da92285379e3a1a520d30383a4129e8d80da35ba36ec18690617529e195e`.
+The private smokes left both source images unchanged. ABI v5 retains 103 fields,
+101 providers and its 412-byte table. Both inspectors rechecked the five current
+controls and all 66 compiler inputs. ADR 0400 is accepted; installed seed pins
+and all twelve remaining Python-coordinated operations are unchanged.

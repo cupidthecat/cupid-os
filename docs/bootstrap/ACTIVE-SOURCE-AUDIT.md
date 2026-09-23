@@ -6,7 +6,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
-- Active source inputs: 748
+- Active source inputs: 756
 - Unreachable source-like files: 29
 - Reachable output transforms: 452
 - Distinct feature requirements: 255
@@ -21,8 +21,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 32 |
-| `c_header` | 302 |
-| `cupid_c` | 414 |
+| `c_header` | 306 |
+| `cupid_c` | 418 |
 
 ## Source cohorts
 
@@ -56,8 +56,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3527 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 25 | 171507 |
-| `toolchain_core` | 48 | 111372 |
+| `toolchain_contract` | 25 | 169380 |
+| `toolchain_core` | 56 | 114378 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 577 |
 | `user_program` | 3 | 139 |
@@ -77,13 +77,13 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 9 |
-| `cupid_builder` | 437 |
+| `cupid_builder` | 440 |
 | `cupid_c_compiler` | 250 |
 | `cupid_c_contract` | 4 |
 | `cupid_disassembler` | 10 |
 | `cupid_linker` | 9 |
 | `cupid_object` | 192 |
-| `host_python` | 15 |
+| `host_python` | 12 |
 
 ## Feature inventory
 
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1146 |
 | `asm.relocation` | 1 | 54 |
-| `c.control` | 12 | 93489 |
+| `c.control` | 12 | 93751 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 4093 |
-| `c.expression` | 2 | 6958 |
+| `c.declarator` | 4 | 4091 |
+| `c.expression` | 2 | 6971 |
 | `c.extension` | 19 | 429 |
 | `c.initializer` | 1 | 690 |
-| `c.preprocessor` | 18 | 8131 |
-| `c.qualifier` | 2 | 18130 |
-| `c.storage` | 4 | 11398 |
-| `c.type` | 15 | 61030 |
+| `c.preprocessor` | 18 | 8165 |
+| `c.qualifier` | 2 | 18199 |
+| `c.storage` | 4 | 11392 |
+| `c.type` | 15 | 61307 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -140,15 +140,15 @@ It is also a declared Make prerequisite.
 
 | Rank | Capability | Source evidence |
 | ---: | --- | ---: |
-| 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 97 |
+| 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 105 |
 | 2 | `elf32_relocatable_interchange` - Emit and consume deterministic ELF32 relocatable objects | 248 |
 | 3 | `shared_i386_abi_and_instruction_model` - Share one i386 ABI and instruction model | 72 |
 | 4 | `cupiddis_object_inspection` - Make CupidDis inspect raw and ELF32 relocatable output | 15 |
 | 5 | `cupidasm_source_controls_and_expressions` - Implement the active Cupid ASM directives and expression language | 32 |
 | 6 | `cupidasm_encoding_and_raw_parity` - Reach byte parity for boot and trampoline binaries | 20 |
 | 7 | `cupidasm_symbols_and_relocations` - Emit ELF32 sections, symbols, and i386 relocations | 8 |
-| 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 570 |
-| 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 676 |
+| 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 578 |
+| 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 684 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 60 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 204 |
 | 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 382 |
@@ -157,7 +157,7 @@ It is also a declared Make prerequisite.
 
 | Rank | Cohort step | Files | Rationale |
 | ---: | --- | ---: | --- |
-| 1 | `toolchain_sources` | 97 | Bootstrap the tools that transfer ownership to every later cohort. |
+| 1 | `toolchain_sources` | 105 | Bootstrap the tools that transfer ownership to every later cohort. |
 | 2 | `boot_and_kernel_assembly` | 4 | Keep the four boot and kernel transforms plus the ISO lane fixture CupidASM-owned while retaining NASM only as an optional parity oracle. |
 | 3 | `kernel_and_drivers` | 280 | Move foundational strict C before vendored compatibility cohorts. |
 | 4 | `doom_and_vendored_c` | 204 | Preserve upstream behavior under a deliberate compatibility mode. |
@@ -216,14 +216,14 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | --- | --- | --- |
 | `assembly_source_ownership` | `pass` | 32 active assembly sources; 32 CupidASM-owned; 5 Toolchain startup; 0 other-owned; 0 ownerless; 0 explicit host-only classifications |
 | `bootstrap_artifact_coverage` | `pass` | 429 linked objects; 436 declared artifacts; 0 missing |
-| `c_preprocessor_conditionals` | `pass` | 416 conditional expressions (404 #if, 12 #elif); 55 normalized expressions; 57 directive/expression pairs |
+| `c_preprocessor_conditionals` | `pass` | 411 conditional expressions (399 #if, 12 #elif); 55 normalized expressions; 57 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
-| `c_preprocessor_include_operands` | `pass` | 2505 C include operands (2220 quoted, 285 angle, 0 pp-token); 712 source files; max conditional depth 2 |
-| `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 712 source files; max conditional depth 0 |
+| `c_preprocessor_include_operands` | `pass` | 2537 C include operands (2231 quoted, 306 angle, 0 pp-token); 720 source files; max conditional depth 2 |
+| `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 720 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
-| `c_preprocessor_translation_units` | `pass` | 403 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=38, HOSTED_I386_WINDOWS=9, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
-| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 417 tracked .cc sources; 410 active with independent CupidC evidence; 7 unreachable |
-| `cupid_toolchain_fixed_point` | `pass` | 22 tool C sources (21 strict, 1 GNU); 6 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12, cupidbuild=8); 22 C objects and 1 startup object compared across stages; 6 tool images; 54 success and 46 failure cases; i386-linux |
+| `c_preprocessor_translation_units` | `pass` | 407 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=42, HOSTED_I386_WINDOWS=9, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
+| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 421 tracked .cc sources; 414 active with independent CupidC evidence; 7 unreachable |
+| `cupid_toolchain_fixed_point` | `pass` | 25 tool C sources (24 strict, 1 GNU); 6 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12, cupidbuild=11); 25 C objects and 1 startup object compared across stages; 6 tool images; 54 success and 46 failure cases; i386-linux |
 
 ## Interpretation limits
 

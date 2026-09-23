@@ -34063,6 +34063,12 @@ static int run_self_host_link_tools(const char *host_root,
        CTOOL_TRUE},
       {"/toolchain/tests/hosted_i386_windows_runtime_contract.cc",
        "/toolchain/tests/hosted_i386_windows_runtime_contract.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/seed_manifest.cc", "/toolchain/seed_manifest.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/seed_release.cc", "/toolchain/seed_release.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/contract_parse_internal.cc", "/toolchain/contract_parse_internal.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE}};
   static const ctool_u32 cupidasm_objects[] = {
       0u, 7u, 6u, 3u, 2u, 4u, 5u, 1u};
@@ -34075,7 +34081,7 @@ static int run_self_host_link_tools(const char *host_root,
   static const ctool_u32 cupidc_objects[] = {
       0u, 20u, 19u, 18u, 17u, 16u, 15u, 3u, 2u, 4u, 5u, 1u};
   static const ctool_u32 cupidbuild_objects[] = {
-      0u, 23u, 21u, 22u, 3u, 2u, 4u, 1u};
+      0u, 23u, 21u, 22u, 3u, 2u, 4u, 26u, 27u, 28u, 1u};
   static const ctool_u32 runtime_objects[] = {0u, 14u, 1u};
   ctool_host_adapter_t adapter;
   ctool_limits_t limits = ctool_default_limits();

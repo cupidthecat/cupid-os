@@ -437,10 +437,28 @@ EXPECTED_LINKS = {
         "runtime",
     ),
 }
+PROMOTED_SOURCES = (
+    ("cupidbuild", "/toolchain/cupidbuild.cc", False),
+    ("cupidbuild_host", "/toolchain/cupidbuild_host.cc", False),
+    ("cupidbuild_main", "/toolchain/cupidbuild_main.cc", False),
+)
+PROMOTED_CUPIDBUILD_LINK = (
+    "start",
+    "cupidbuild_main",
+    "cupidbuild",
+    "cupidbuild_host",
+    "ctool_host",
+    "ctool",
+    "elf32",
+    "runtime",
+)
 CANDIDATE_SOURCES = (
     ("cupidbuild", "/toolchain/cupidbuild.cc", False),
     ("cupidbuild_host", "/toolchain/cupidbuild_host.cc", False),
     ("cupidbuild_main", "/toolchain/cupidbuild_main.cc", False),
+    ("seed_manifest", "/toolchain/seed_manifest.cc", False),
+    ("seed_release", "/toolchain/seed_release.cc", False),
+    ("contract_parse_internal", "/toolchain/contract_parse_internal.cc", False),
 )
 CANDIDATE_CUPIDBUILD_LINK = (
     "start",
@@ -450,6 +468,9 @@ CANDIDATE_CUPIDBUILD_LINK = (
     "ctool_host",
     "ctool",
     "elf32",
+    "seed_manifest",
+    "seed_release",
+    "contract_parse_internal",
     "runtime",
 )
 REPORT_SCHEMA = "cupid.bootstrap-report.v1"
@@ -783,11 +804,13 @@ def _candidate_build_plan(
                 raw_cupidbuild, "build_plan.links.cupidbuild"
             )
         ]
-        if tuple(cupidbuild_link) != CANDIDATE_CUPIDBUILD_LINK:
+        if tuple(cupidbuild_link) not in (
+            PROMOTED_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK
+        ):
             raise BootstrapError(
                 "Linux build plan candidate link differs: cupidbuild"
             )
-        links["cupidbuild"] = cupidbuild_link
+        links["cupidbuild"] = list(CANDIDATE_CUPIDBUILD_LINK)
 
     candidate = dict(checked_plan)
     candidate["sources"] = sources
@@ -1750,7 +1773,7 @@ def _validate_build_plan(
         raise BootstrapError("build plan producer tools differ")
 
     expected_sources = (
-        (*EXPECTED_SOURCES, *CANDIDATE_SOURCES)
+        (*EXPECTED_SOURCES, *PROMOTED_SOURCES)
         if promoted
         else EXPECTED_SOURCES
     )
@@ -1792,7 +1815,7 @@ def _validate_build_plan(
     links = _require_object(plan.get("links"), "build_plan.links")
     expected_links = dict(EXPECTED_LINKS)
     if promoted:
-        expected_links["cupidbuild"] = CANDIDATE_CUPIDBUILD_LINK
+        expected_links["cupidbuild"] = PROMOTED_CUPIDBUILD_LINK
     if set(links) != set(expected_links):
         raise BootstrapError("build plan tool links differ")
     for name, expected in expected_links.items():
@@ -3230,6 +3253,8 @@ def _expect_status(
 def _retarget_native_windows_behavior_seed(
     seed_inputs: SeedInputs,
     native_plan_sha256: str,
+    linux_plan: dict[str, object],
+    source_snapshot: dict[str, dict[str, object]],
 ) -> SeedInputs:
     if seed_inputs.manifest.get("schema") != PROMOTED_WINDOWS_SEED_SCHEMA:
         return seed_inputs
@@ -3238,6 +3263,10 @@ def _retarget_native_windows_behavior_seed(
         64,
         "native Windows behavior build plan SHA-256",
     )
+    if digest != _build_plan_sha256(_windows_build_plan(linux_plan)):
+        raise BootstrapError("native Windows behavior build plan differs")
+    if not source_snapshot:
+        raise BootstrapError("native Windows behavior source snapshot is empty")
     document = json.loads(seed_inputs.manifest_bytes)
     provenance = _require_object(document.get("provenance"), "provenance")
     if "native_build_plan_sha256" not in provenance:
@@ -3245,6 +3274,9 @@ def _retarget_native_windows_behavior_seed(
             "native Windows behavior seed build plan is unavailable"
         )
     provenance["native_build_plan_sha256"] = digest
+    provenance["linux_candidate_build_plan_sha256"] = _build_plan_sha256(linux_plan)
+    provenance["source_input_count"] = len(source_snapshot)
+    provenance["source_snapshot_sha256"] = _source_snapshot_sha256(source_snapshot)
     manifest_bytes = (
         json.dumps(document, indent=2, sort_keys=True, ensure_ascii=True)
         + "\n"
@@ -5018,8 +5050,13 @@ def _run_native_windows_behavior_checks(
         "native Windows ",
     )
 
+    behavior_linux_plan = _candidate_build_plan(
+        _require_object(linux_seed_inputs.manifest.get("build_plan"), "build_plan")
+    )
+    behavior_source_snapshot = capture_source_snapshot(output_root, behavior_linux_plan)
     behavior_seed_inputs = _retarget_native_windows_behavior_seed(
-        seed_inputs, _build_plan_sha256(native_plan)
+        seed_inputs, _build_plan_sha256(native_plan),
+        behavior_linux_plan, behavior_source_snapshot,
     )
 
     _check_cupidbuild_cupidobj_runner_behavior(

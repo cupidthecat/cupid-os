@@ -1,18 +1,21 @@
 # Cupid Toolchain capability matrix
 
-Source head now exposes reusable artifact-policy and seed-image byte validators.
-The CUPSIZE2 policy core accepts immutable input with an explicit result and
-bounded diagnostic buffer. Its executable adapter and the Toolchain manifest
-verifier share parsing helpers with per-call error state; neither includes the
-other executable's source. CupidBuild's image API checks either ELF32 or PE32
-against an explicit tool role, while execution remains bound to the host format.
+Source head exposes shared byte APIs for artifact-size policy, seed-image
+validation, either host's seed manifest, and a paired twelve-image release
+record. CupidBuild uses the shared manifest reader. The pair validator checks
+both manifests against the release and hashes the supplied Linux manifest
+bytes to verify the Windows plan binding. Release-file authority and retained
+filesystem observations remain separate requirements.
 
-The source inventories contain 61 bootstrap inputs and 78 Toolchain publication
-inputs. The installed seeds still describe their verified 59-input generation.
-The native artifact-verification transaction, release identities, filesystem
-capture, and final rechecks remain unfinished. This extraction leaves the twelve
-Python-coordinated operations in place. ADR 0399 records the boundaries; the
-bootstrap log separates regression evidence from staged and runtime acceptance.
+Candidate plans contain 66 bootstrap inputs and 80 Toolchain publication
+inputs. Installed seeds retain their verified 59-input generation. The reader
+integration passes 46 API methods, 107 publication/manifest methods, 148 CLI
+methods, and 4,694 checked byte cases per host. Both staged proofs pass:
+32 Linux and 35 Windows artifact pairs match, with independently verified
+source and artifact bytes. Paired OS/runtime acceptance passes under ADR 0400:
+ABI validation, sixteen artifact checks, three user builds and private four-CPU
+disassembly and shell smokes. Independent comparison confirms matching outputs
+and images. The twelve remaining Python-coordinated operations have not moved.
 
 Make invokes checked `cupidbuild compile-production` for the three generated
 installation tables. CupidObj still generates their source. Each compilation

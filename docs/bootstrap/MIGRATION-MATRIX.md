@@ -1,12 +1,17 @@
 # Toolchain ownership migration matrix
 
-The artifact-policy core and shared parser are now reusable source modules.
-Seed-image validation accepts both host formats through an explicit byte API.
-These capabilities do not move another production transaction: Python still
-coordinates artifact capture, checked contract execution, release checks, and
-final drift validation. Source inventories are 61 bootstrap and 78 publication
-inputs; installed seeds retain their 59-input release pins. See ADR 0399 and
-`NATIVE-SEED-IMAGE-PROFILES.md` for the interfaces and remaining work.
+The shared artifact-policy, seed-image, manifest and release readers are
+CupidC source modules. Their integration has 66 bootstrap inputs and 80
+Toolchain publication inputs; installed seeds retain their 59-input release
+pins. The manifest reader accepts either host format, and the pair API binds
+both manifests to a release record and to the actual Linux manifest bytes.
+
+These byte APIs leave the twelve Python-coordinated operations in place.
+Native artifact verification still needs release-file authority, retained
+filesystem capture and final drift checks. Both shared-reader staged proofs
+pass independent byte verification. Paired OS/runtime acceptance also passes,
+with matching artifacts, user executables, ABI reports and images. ADRs 0399 and
+0400 describe the boundaries; the bootstrap log records tests and failed attempts.
 
 Make invokes checked `cupidbuild compile-production` for the three generated
 installation tables. CupidObj still generates their source. Each compilation

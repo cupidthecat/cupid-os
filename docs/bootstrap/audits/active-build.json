@@ -3264,6 +3264,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -3290,6 +3292,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -6527,6 +6531,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -6553,6 +6559,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -6856,6 +6864,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -6882,6 +6892,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -7185,6 +7197,8 @@
           "kernel/tls/tls_selftest.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -7211,6 +7225,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -7514,6 +7530,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -7540,6 +7558,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -7843,6 +7863,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -7869,6 +7891,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -8172,6 +8196,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -8198,6 +8224,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -8501,6 +8529,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -8527,6 +8557,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -8830,6 +8862,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -8856,6 +8890,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -9159,6 +9195,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -9185,6 +9223,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -9488,6 +9528,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -9514,6 +9556,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -9817,6 +9861,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -9843,6 +9889,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -10146,6 +10194,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -10172,6 +10222,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -10475,6 +10527,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -10501,6 +10555,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -10804,6 +10860,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -10830,6 +10888,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -11133,6 +11193,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -11159,6 +11221,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -11462,6 +11526,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -11488,6 +11554,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -11791,6 +11859,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -11817,6 +11887,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -12120,6 +12192,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -12146,6 +12220,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -12449,6 +12525,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -12475,6 +12553,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -12778,6 +12858,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -12804,6 +12886,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -13107,6 +13191,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -13133,6 +13219,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -13436,6 +13524,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -13462,6 +13552,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -13765,6 +13857,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -13791,6 +13885,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -14094,6 +14190,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -14120,6 +14218,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -14423,6 +14523,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -14449,6 +14551,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -14752,6 +14856,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -14778,6 +14884,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -15081,6 +15189,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -15107,6 +15217,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -15410,6 +15522,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -15436,6 +15550,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -15739,6 +15855,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -15765,6 +15883,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -16068,6 +16188,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -16094,6 +16216,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -16397,6 +16521,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -16423,6 +16549,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -16726,6 +16854,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -16752,6 +16882,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -17055,6 +17187,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -17081,6 +17215,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -17384,6 +17520,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -17410,6 +17548,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -17713,6 +17853,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -17739,6 +17881,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -18042,6 +18186,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -18068,6 +18214,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -18371,6 +18519,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -18397,6 +18547,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -18700,6 +18852,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -18726,6 +18880,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -19029,6 +19185,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -19055,6 +19213,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -19358,6 +19518,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -19384,6 +19546,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -19687,6 +19851,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -19713,6 +19879,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -20016,6 +20184,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -20042,6 +20212,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -20345,6 +20517,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -20371,6 +20545,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -20674,6 +20850,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -20700,6 +20878,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -21003,6 +21183,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -21029,6 +21211,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -21332,6 +21516,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -21358,6 +21544,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -21661,6 +21849,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -21687,6 +21877,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -21990,6 +22182,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -22016,6 +22210,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -22319,6 +22515,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -22345,6 +22543,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -22648,6 +22848,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -22674,6 +22876,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -22977,6 +23181,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -23003,6 +23209,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -23306,6 +23514,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -23332,6 +23542,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -23635,6 +23847,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -23661,6 +23875,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -23964,6 +24180,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -23990,6 +24208,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -24293,6 +24513,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -24319,6 +24541,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -24622,6 +24846,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -24648,6 +24874,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -24951,6 +25179,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -24977,6 +25207,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -25280,6 +25512,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -25306,6 +25540,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -25609,6 +25845,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -25635,6 +25873,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -25938,6 +26178,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -25964,6 +26206,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -26267,6 +26511,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -26293,6 +26539,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -26596,6 +26844,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -26622,6 +26872,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -26925,6 +27177,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -26951,6 +27205,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -27254,6 +27510,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -27280,6 +27538,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -27583,6 +27843,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -27609,6 +27871,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -27912,6 +28176,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -27938,6 +28204,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -28241,6 +28509,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -28267,6 +28537,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -28570,6 +28842,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -28596,6 +28870,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -28899,6 +29175,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -28925,6 +29203,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -29228,6 +29508,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -29254,6 +29536,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -29557,6 +29841,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -29583,6 +29869,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -29886,6 +30174,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -29912,6 +30202,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -30215,6 +30507,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -30241,6 +30535,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -30544,6 +30840,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -30570,6 +30868,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -30873,6 +31173,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -30899,6 +31201,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -31202,6 +31506,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -31228,6 +31534,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -31531,6 +31839,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -31557,6 +31867,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -31860,6 +32172,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -31886,6 +32200,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -32189,6 +32505,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -32215,6 +32533,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -32518,6 +32838,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -32544,6 +32866,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -32847,6 +33171,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -32873,6 +33199,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -33176,6 +33504,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -33202,6 +33532,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -33505,6 +33837,8 @@
           "kernel/usb/usb.h",
           "kernel/usb/usb_hc.h",
           "kernel/util/calendar.h",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.h",
           "toolchain/ctool.h",
           "toolchain/ctool_host.h",
           "toolchain/cupidasm.h",
@@ -33531,6 +33865,8 @@
           "toolchain/hosted/i386-linux/include/windows.h",
           "toolchain/pe32.h",
           "toolchain/pe32_impl.h",
+          "toolchain/seed_manifest.h",
+          "toolchain/seed_release.h",
           "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
           "toolchain/tests/cupidc_kernel_simd_fixture.h",
           "toolchain/tests/cupidc_pp_active_cases.inc",
@@ -38814,6 +39150,7 @@
           "kernel/util/bin_programs_gen.cc",
           "drivers/serial.h",
           "kernel/core/types.h",
+          "kernel/fs/homefs.h",
           "kernel/fs/ramfs.h",
           "kernel/fs/vfs.h",
           "Makefile",
@@ -38835,11 +39172,13 @@
         ],
         "output": "kernel/util/bin_programs_gen.o",
         "recipe": [
-          "$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-production \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source $< --output $@"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -38925,6 +39264,7 @@
           "kernel/util/demos_programs_gen.cc",
           "drivers/serial.h",
           "kernel/core/types.h",
+          "kernel/fs/homefs.h",
           "kernel/fs/ramfs.h",
           "kernel/fs/vfs.h",
           "Makefile",
@@ -38946,11 +39286,13 @@
         ],
         "output": "kernel/util/demos_programs_gen.o",
         "recipe": [
-          "$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-production \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source $< --output $@"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -39027,11 +39369,13 @@
         ],
         "output": "kernel/util/docs_programs_gen.o",
         "recipe": [
-          "$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@"
+          "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-production \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root \"$(CURDIR)\" \\",
+          "--source $< --output $@"
         ],
         "tools": [
-          "cupid_c_compiler",
-          "host_python"
+          "cupid_builder",
+          "cupid_c_compiler"
         ]
       },
       {
@@ -39425,6 +39769,10 @@
           "kernel/kernel.elf",
           "kernel/kernel.elf.pass1",
           "Makefile",
+          "toolchain/artifact_size_policy.cc",
+          "toolchain/artifact_size_policy.h",
+          "toolchain/contract_parse_internal.cc",
+          "toolchain/contract_parse_internal.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
           "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
@@ -39484,7 +39832,7 @@
     "c_preprocessor_conditionals": {
       "directive_expression_pairs": 57,
       "elif_occurrences": 12,
-      "expression_occurrences": 416,
+      "expression_occurrences": 411,
       "expressions": [
         {
           "elif_occurrences": 0,
@@ -39694,24 +40042,6 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 2872,
-              "path": "toolchain/cupidbuild.cc",
-              "text": "#if !defined(_WIN32)"
-            },
-            {
-              "directive": "if",
-              "line": 3144,
-              "path": "toolchain/cupidbuild.cc",
-              "text": "#if !defined(_WIN32)"
-            },
-            {
-              "directive": "if",
-              "line": 3483,
-              "path": "toolchain/cupidbuild.cc",
-              "text": "#if !defined(_WIN32)"
-            },
-            {
-              "directive": "if",
               "line": 235,
               "path": "toolchain/cupidbuild_host.cc",
               "text": "#if !defined(_WIN32)"
@@ -39881,11 +40211,10 @@
           ],
           "expression": "! defined ( _WIN32 )",
           "files": [
-            "toolchain/cupidbuild.cc",
             "toolchain/cupidbuild_host.cc"
           ],
-          "if_occurrences": 31,
-          "occurrences": 31
+          "if_occurrences": 28,
+          "occurrences": 28
         },
         {
           "elif_occurrences": 0,
@@ -41435,49 +41764,37 @@
             },
             {
               "directive": "if",
-              "line": 6,
+              "line": 2361,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 2395,
+              "line": 3322,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 3409,
+              "line": 3365,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 3471,
+              "line": 3425,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 4218,
+              "line": 3470,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
             {
               "directive": "if",
-              "line": 4533,
-              "path": "toolchain/cupidbuild.cc",
-              "text": "#if defined(_WIN32)"
-            },
-            {
-              "directive": "if",
-              "line": 4578,
-              "path": "toolchain/cupidbuild.cc",
-              "text": "#if defined(_WIN32)"
-            },
-            {
-              "directive": "if",
-              "line": 5917,
+              "line": 4809,
               "path": "toolchain/cupidbuild.cc",
               "text": "#if defined(_WIN32)"
             },
@@ -42448,8 +42765,8 @@
             "toolchain/cupidobj_main.cc",
             "toolchain/tests/cupidc_object_contract.cc"
           ],
-          "if_occurrences": 179,
-          "occurrences": 179
+          "if_occurrences": 177,
+          "occurrences": 177
         },
         {
           "elif_occurrences": 0,
@@ -42625,7 +42942,7 @@
           "occurrences": 1
         }
       ],
-      "if_occurrences": 404,
+      "if_occurrences": 399,
       "status": "pass",
       "unique_expressions": 55
     },
@@ -42657,13 +42974,13 @@
     },
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
-      "direct_angle_occurrences": 285,
-      "direct_quoted_occurrences": 2220,
-      "include_occurrences": 2505,
+      "direct_angle_occurrences": 306,
+      "direct_quoted_occurrences": 2231,
+      "include_occurrences": 2537,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2505,
+      "ordinary_marker_occurrences": 2537,
       "pp_token_operand_occurrences": 0,
-      "source_files": 712,
+      "source_files": 720,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -42676,7 +42993,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 712,
+      "source_files": 720,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -43285,7 +43602,7 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "HOSTED_I386_LINUX",
-          "tracked_translation_units": 38
+          "tracked_translation_units": 42
         },
         {
           "compatibility_pointer_conversions": false,
@@ -43378,16 +43695,16 @@
         }
       ],
       "status": "pass",
-      "total_translation_units": 407,
-      "tracked_translation_units": 403
+      "total_translation_units": 411,
+      "tracked_translation_units": 407
     },
     "c_source_ownership": {
       "active": [],
       "active_tracked_c_sources": 0,
-      "active_tracked_cupid_c_sources": 410,
+      "active_tracked_cupid_c_sources": 414,
       "cupid_c_ownership_evidence": {
-        "checked_cupidc_compile": 248,
-        "checked_cupidc_contract": 32,
+        "checked_cupidc_compile": 250,
+        "checked_cupidc_contract": 34,
         "explicit_runtime_delivery_policy": 130
       },
       "cupidc_owned_tracked_c_sources": 0,
@@ -43398,10 +43715,10 @@
         "sha256": "356e4bf3eb41eb3784d24ce58192e28bfd94d9e25809ce1af30f7039f084bcfc",
         "unreachable_cupid_c_sources": 7
       },
-      "proven_cupidc_owned_tracked_cupid_c_sources": 410,
+      "proven_cupidc_owned_tracked_cupid_c_sources": 414,
       "status": "pass",
       "tracked_c_sources": 17,
-      "tracked_cupid_c_sources": 417,
+      "tracked_cupid_c_sources": 421,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -43516,11 +43833,11 @@
       "checked_seed_publication": "complete-bundle",
       "checked_seed_source_boundary_checks": 5,
       "checked_seed_source_root": "private-captured",
-      "compared_c_objects": 22,
+      "compared_c_objects": 25,
       "compared_startup_objects": 1,
       "compared_tool_images": 6,
       "compiler_c_sources": 11,
-      "contract_manifest_inputs": 76,
+      "contract_manifest_inputs": 80,
       "executed_tools": [
         "cupidasm",
         "cupiddis",
@@ -43569,7 +43886,7 @@
           "tool": "cupidc"
         },
         {
-          "objects": 8,
+          "objects": 11,
           "tool": "cupidbuild"
         }
       ],
@@ -43606,9 +43923,9 @@
         "stage-four"
       ],
       "status": "pass",
-      "strict_c_sources": 21,
+      "strict_c_sources": 24,
       "success_behavior_cases": 54,
-      "tool_c_sources": 22,
+      "tool_c_sources": 25,
       "tool_images": 6,
       "windows_failure_behavior_cases": 34,
       "windows_help_cases": 7,
@@ -47557,6 +47874,8 @@
         "kernel/usb/usb_hid.cc",
         "kernel/usb/usb_hub.cc",
         "kernel/util/calendar.cc",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/contract_parse_internal.cc",
         "toolchain/ctool.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
@@ -47575,7 +47894,8 @@
         "toolchain/cupidobj.cc",
         "toolchain/cupidobj_main.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
-        "toolchain/tests/artifact_size_policy_contract.cc",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_release.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -47586,7 +47906,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 2182
+      "occurrences": 2190
     },
     {
       "category": "control",
@@ -47828,6 +48148,7 @@
         "kernel/usb/usb_hid.cc",
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
+        "toolchain/contract_parse_internal.cc",
         "toolchain/ctool.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
@@ -47847,7 +48168,6 @@
         "toolchain/cupidobj_main.cc",
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
-        "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -48006,6 +48326,7 @@
         "toolchain/cupidld.cc",
         "toolchain/cupidobj.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/seed_manifest.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
         "toolchain/tests/cupidc_pp_contract.cc",
@@ -48283,6 +48604,8 @@
         "kernel/usb/usb.cc",
         "kernel/usb/usb_hub.cc",
         "kernel/util/calendar.cc",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/contract_parse_internal.cc",
         "toolchain/ctool.cc",
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
@@ -48306,7 +48629,8 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/pe32_impl.h",
-        "toolchain/tests/artifact_size_policy_contract.cc",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_release.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -48326,7 +48650,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 5526
+      "occurrences": 5552
     },
     {
       "category": "control",
@@ -48563,6 +48887,8 @@
         "kernel/usb/usb_hub.cc",
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/contract_parse_internal.cc",
         "toolchain/ctool.cc",
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
@@ -48585,7 +48911,8 @@
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/pe32_impl.h",
-        "toolchain/tests/artifact_size_policy_contract.cc",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_release.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -48607,7 +48934,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4878
+      "occurrences": 4885
     },
     {
       "category": "control",
@@ -49018,6 +49345,8 @@
         "kernel/usb/usb_hub.cc",
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/contract_parse_internal.cc",
         "toolchain/ctool.cc",
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
@@ -49045,6 +49374,8 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_release.cc",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -49069,7 +49400,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 43809
+      "occurrences": 43935
     },
     {
       "category": "control",
@@ -49398,6 +49729,8 @@
         "kernel/usb/usb_hub.cc",
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/contract_parse_internal.cc",
         "toolchain/ctool.cc",
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
@@ -49422,6 +49755,8 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_release.cc",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -49446,7 +49781,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 27109
+      "occurrences": 27198
     },
     {
       "category": "control",
@@ -49800,6 +50135,8 @@
         "kernel/usb/usb_hub.cc",
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/contract_parse_internal.cc",
         "toolchain/ctool.cc",
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
@@ -49823,7 +50160,8 @@
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/pe32_impl.h",
-        "toolchain/tests/artifact_size_policy_contract.cc",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_release.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
@@ -49839,7 +50177,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 3007
+      "occurrences": 3013
     },
     {
       "category": "declaration",
@@ -50084,6 +50422,7 @@
         "kernel/tls/tls_handshake.cc",
         "kernel/tls/tls_selftest.cc",
         "kernel/util/calendar.cc",
+        "toolchain/artifact_size_policy.cc",
         "toolchain/ctool.cc",
         "toolchain/cupidasm_main.cc",
         "toolchain/cupidbuild.cc",
@@ -50097,6 +50436,7 @@
         "toolchain/cupidobj.cc",
         "toolchain/cupidobj_main.cc",
         "toolchain/elf32.cc",
+        "toolchain/seed_manifest.cc",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -50124,7 +50464,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 3006
+      "occurrences": 3004
     },
     {
       "category": "declarator",
@@ -50359,6 +50699,7 @@
         "kernel/usb/usb_hub.cc",
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
+        "toolchain/artifact_size_policy.cc",
         "toolchain/ctool.cc",
         "toolchain/cupidasm.cc",
         "toolchain/cupidasm_main.cc",
@@ -50380,6 +50721,8 @@
         "toolchain/elf32.cc",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_release.cc",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -50404,7 +50747,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6916
+      "occurrences": 6929
     },
     {
       "category": "extension",
@@ -51387,6 +51730,9 @@
         "kernel/usb/usb_hub.cc",
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.h",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/ctool_host.cc",
@@ -51435,7 +51781,9 @@
         "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/pe32.h",
         "toolchain/pe32_impl.h",
-        "toolchain/tests/artifact_size_policy_contract.cc",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.h",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidasm_kernel_elf_contract.cc",
         "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
@@ -51457,7 +51805,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3363
+      "occurrences": 3368
     },
     {
       "category": "preprocessor",
@@ -51853,6 +52201,8 @@
         "kernel/usb/usb.h",
         "kernel/usb/usb_hc.h",
         "kernel/util/calendar.h",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/ctool_host.cc",
@@ -51888,6 +52238,8 @@
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/pe32.h",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.h",
         "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_object_contract.cc",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
@@ -51897,7 +52249,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 818
+      "occurrences": 817
     },
     {
       "category": "preprocessor",
@@ -52091,7 +52443,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.if",
-      "occurrences": 404
+      "occurrences": 399
     },
     {
       "category": "preprocessor",
@@ -52426,6 +52778,8 @@
         "kernel/usb/usb.h",
         "kernel/usb/usb_hc.h",
         "kernel/util/calendar.h",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
         "toolchain/cupidasm.h",
@@ -52451,6 +52805,8 @@
         "toolchain/hosted/i386-linux/include/unistd.h",
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/pe32.h",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.h",
         "toolchain/tests/cupidc_exact_floating_literal_fixture.h",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
@@ -52459,7 +52815,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 312
+      "occurrences": 316
     },
     {
       "category": "preprocessor",
@@ -52928,6 +53284,10 @@
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
         "kernel/util/calendar.h",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.cc",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.cc",
         "toolchain/ctool_host.cc",
         "toolchain/ctool_host.h",
@@ -52975,6 +53335,10 @@
         "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/pe32.h",
         "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.cc",
+        "toolchain/seed_release.h",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -53004,7 +53368,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2505
+      "occurrences": 2537
     },
     {
       "category": "preprocessor",
@@ -53172,12 +53536,11 @@
         "toolchain/tests/cupidc_object_contract.cc",
         "toolchain/tests/cupidc_pp_contract.cc",
         "toolchain/tests/cupidc_type_contract.cc",
-        "toolchain/tests/toolchain_manifest_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc"
       ],
       "id": "c.preprocessor.undef",
-      "occurrences": 94
+      "occurrences": 93
     },
     {
       "category": "preprocessor",
@@ -53506,6 +53869,10 @@
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
         "kernel/util/calendar.h",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.cc",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/ctool_host.cc",
@@ -53548,6 +53915,10 @@
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/pe32.h",
         "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.cc",
+        "toolchain/seed_release.h",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -53580,7 +53951,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 17868
+      "occurrences": 17937
     },
     {
       "category": "qualifier",
@@ -53784,11 +54155,12 @@
         "kernel/smp/percpu.h",
         "kernel/smp/smp.cc",
         "kernel/usb/usb.cc",
+        "toolchain/contract_parse_internal.h",
         "toolchain/cupidbuild_host.cc",
         "toolchain/hosted/i386-linux/include/stdio.h"
       ],
       "id": "c.storage.extern",
-      "occurrences": 703
+      "occurrences": 705
     },
     {
       "category": "storage",
@@ -54074,6 +54446,7 @@
         "kernel/usb/usb_hub.cc",
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
+        "toolchain/artifact_size_policy.cc",
         "toolchain/ctool.cc",
         "toolchain/ctool_host.cc",
         "toolchain/cupidasm.cc",
@@ -54098,6 +54471,8 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_release.cc",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -54127,7 +54502,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 10551
+      "occurrences": 10543
     },
     {
       "category": "type",
@@ -54513,6 +54888,10 @@
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
         "kernel/util/calendar.h",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.cc",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/ctool_host.cc",
@@ -54546,6 +54925,10 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.cc",
+        "toolchain/seed_release.h",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -54576,7 +54959,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 11239
+      "occurrences": 11322
     },
     {
       "category": "type",
@@ -54724,6 +55107,7 @@
         "toolchain/cupidasm.h",
         "toolchain/cupidasm_main.cc",
         "toolchain/cupidbuild.cc",
+        "toolchain/cupidbuild.h",
         "toolchain/cupidc_emit.cc",
         "toolchain/cupidc_emit.h",
         "toolchain/cupidc_frontend.cc",
@@ -54743,6 +55127,8 @@
         "toolchain/cupidobj_main.cc",
         "toolchain/elf32.h",
         "toolchain/pe32.h",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_release.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
         "toolchain/tests/cupidc_object_contract.cc",
@@ -54755,7 +55141,7 @@
         "toolchain/x86.h"
       ],
       "id": "c.type.enum",
-      "occurrences": 268
+      "occurrences": 270
     },
     {
       "category": "type",
@@ -55302,6 +55688,10 @@
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
         "kernel/util/calendar.h",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.cc",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/cupidasm_main.cc",
@@ -55324,6 +55714,10 @@
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.cc",
+        "toolchain/seed_release.h",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -55351,7 +55745,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 25313
+      "occurrences": 25418
     },
     {
       "category": "type",
@@ -55414,7 +55808,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.long",
-      "occurrences": 632
+      "occurrences": 633
     },
     {
       "category": "type",
@@ -55770,6 +56164,9 @@
         "kernel/usb/usb_hub.cc",
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.h",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
@@ -55806,6 +56203,10 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/pe32.h",
         "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.cc",
+        "toolchain/seed_release.h",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -55830,7 +56231,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 1065
+      "occurrences": 1073
     },
     {
       "category": "type",
@@ -56054,6 +56455,9 @@
         "kernel/usb/usb_hub.cc",
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.h",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/ctool_host.h",
@@ -56094,6 +56498,10 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/pe32.h",
         "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.cc",
+        "toolchain/seed_release.h",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -56119,7 +56527,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 1131
+      "occurrences": 1141
     },
     {
       "category": "type",
@@ -56290,6 +56698,10 @@
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ca_bundle_data.cc",
         "kernel/tls/tls_handshake.cc",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.cc",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/ctool_host.cc",
@@ -56309,6 +56721,10 @@
         "toolchain/hosted/i386-linux/include/windows.h",
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
+        "toolchain/seed_manifest.cc",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.cc",
+        "toolchain/seed_release.h",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -56329,7 +56745,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 3967
+      "occurrences": 4033
     },
     {
       "category": "type",
@@ -56883,6 +57299,9 @@
         "kernel/usb/usb_msc.cc",
         "kernel/util/calendar.cc",
         "kernel/util/calendar.h",
+        "toolchain/artifact_size_policy.cc",
+        "toolchain/contract_parse_internal.cc",
+        "toolchain/contract_parse_internal.h",
         "toolchain/ctool.cc",
         "toolchain/ctool.h",
         "toolchain/ctool_host.cc",
@@ -56915,6 +57334,7 @@
         "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/hosted/i386-windows/publication_runtime.cc",
         "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.cc",
         "toolchain/tests/artifact_size_policy_contract.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
@@ -56944,7 +57364,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 15980
+      "occurrences": 15982
     },
     {
       "category": "declaration",
@@ -57858,11 +58278,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "43d158cd92009c16607b7d4f385a2fcb0e148890d41773a95ab17979fc42f357",
+    "active_source_digest": "d092088351f9471b2f9e5219b611f68c82bac4635f24684108b2f47a0a4fe775",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "93d9efdb7d8f8ddebdac06f9ead982e0c3ca9ec97db2ec2ab9dc5e2e3297bdd0"
+        "sha256": "eb533848d4eceb27232e984d4e0d4d729f3303ba2685903ad80eb9d67fa83f07"
       },
       {
         "path": "user/Makefile",
@@ -57870,7 +58290,7 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "6b87081ab497f2b2f59f0d6e9912e4cd71659e8b4a19aa86ab04258eb3e986f0"
+        "sha256": "089e208c8f1c33334104826cdcebea79ab0704ed3a09bacf781f9b3b7c134352"
       },
       {
         "path": "docs/bootstrap/c-source-suffix-ownership.json",
@@ -57886,11 +58306,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "902c185e5207458ca017c3176c09131a255c0ba2c654f943850426f62e538762"
+        "sha256": "2b4ebdf7aad2fed4f13424ae9eba99623550ef7899d7c3b2e1c7384a4192a231"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
+        "sha256": "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"
       },
       {
         "path": "tools/cupidc_production_compile.py",
@@ -57911,7 +58331,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "6f88bd88ef4a32909e39c75bb4c09f4432b6ff29b16ddf5f38dfbc6bde92824c"
+      "sha256": "a74fd6dc72d8baea7e8003d50cebde5e202386df6596753ba18f87d2a7ae6698"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -57945,7 +58365,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 97,
+        "source_count": 105,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -58303,7 +58723,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 570,
+        "source_count": 578,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -58349,7 +58769,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 676,
+        "source_count": 684,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -58492,7 +58912,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 97
+        "source_count": 105
       },
       {
         "cohorts": [
@@ -63883,8 +64303,7 @@
       "build_owners": [
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_object",
-        "host_python"
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -75415,8 +75834,7 @@
       "build_owners": [
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_object",
-        "host_python"
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -75720,8 +76138,7 @@
       "build_owners": [
         "cupid_builder",
         "cupid_c_compiler",
-        "cupid_object",
-        "host_python"
+        "cupid_object"
       ],
       "builds": [
         "."
@@ -82168,8 +82585,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82263,8 +82680,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82284,8 +82701,8 @@
     },
     {
       "build_owners": [
-        "cupid_c_compiler",
-        "host_python"
+        "cupid_builder",
+        "cupid_c_compiler"
       ],
       "builds": [
         "."
@@ -82329,6 +82746,176 @@
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
       "sha256": "a952a6a557bb729d35e147e176ccd1f6f8b5c5792c40383825dc7dc0674df7bc"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
+        "host_python"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.break",
+        "c.control.else",
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.declarator.unsized_array",
+        "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "kernel/core/string.h",
+        "kernel/doom/src/include_stubs/stdint.h",
+        "kernel/doom/src/include_stubs/stdio.h",
+        "kernel/doom/src/include_stubs/stdlib.h",
+        "toolchain/artifact_size_policy.h",
+        "toolchain/contract_parse_internal.h"
+      ],
+      "language": "cupid_c",
+      "lines": 1663,
+      "origin": "tracked",
+      "path": "toolchain/artifact_size_policy.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "a5f050afc9a25dbbc377b1729b9dd834b7564e30c7fbfabe6f7728b9976acece"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler",
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned"
+      ],
+      "includes": [
+        "kernel/doom/src/include_stubs/stddef.h",
+        "kernel/doom/src/include_stubs/stdint.h"
+      ],
+      "language": "c_header",
+      "lines": 21,
+      "origin": "tracked",
+      "path": "toolchain/artifact_size_policy.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "2edaf7135c8f0bac7fee562cac1e28cceeb5a1db5ab193f0788f2aee75170798"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
+        "host_python"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.break",
+        "c.control.continue",
+        "c.control.else",
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "kernel/core/string.h",
+        "kernel/doom/src/include_stubs/stdio.h",
+        "kernel/doom/src/include_stubs/stdlib.h",
+        "toolchain/contract_parse_internal.h"
+      ],
+      "language": "cupid_c",
+      "lines": 608,
+      "origin": "tracked",
+      "path": "toolchain/contract_parse_internal.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "b0e5da569bc3e2d8c7dca9d23633fa618e66221ad4cbb0aa2e2acd81dc7a03d1"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler",
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.extern",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "kernel/doom/src/include_stubs/stddef.h",
+        "kernel/doom/src/include_stubs/stdint.h"
+      ],
+      "language": "c_header",
+      "lines": 64,
+      "origin": "tracked",
+      "path": "toolchain/contract_parse_internal.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "de0beb20b7d3bc2070eb12c56329e18ff05a1fec8cbb404fdc2f6aafeb25dd49"
     },
     {
       "build_owners": [
@@ -82683,15 +83270,16 @@
         "toolchain/cupidbuild.h",
         "toolchain/cupidbuild_host.h",
         "toolchain/elf32.h",
-        "toolchain/pe32_impl.h"
+        "toolchain/pe32_impl.h",
+        "toolchain/seed_manifest.h"
       ],
       "language": "cupid_c",
-      "lines": 7192,
+      "lines": 6084,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "24340e2a38cc47aaaf42c1291c567573fb573b242a8c3699bb4960f968575f1f"
+      "sha256": "275c14ae72071add521902c6fbb80537a1173142f41b2114a22400ccdc14675b"
     },
     {
       "build_owners": [
@@ -82713,6 +83301,7 @@
         "c.preprocessor.include",
         "c.qualifier.const",
         "c.type.char",
+        "c.type.enum",
         "c.type.int",
         "c.type.struct",
         "c.type.typedef",
@@ -82722,12 +83311,12 @@
         "kernel/doom/src/include_stubs/stddef.h"
       ],
       "language": "c_header",
-      "lines": 74,
+      "lines": 91,
       "origin": "tracked",
       "path": "toolchain/cupidbuild.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c961026302427d4b893c4635014ff4e01feab909d60f44ef260de511169c4233"
+      "sha256": "fc95352760717d6605376108c22d8f560f163bb4ccf3ba0dfd82bb9e77c24607"
     },
     {
       "build_owners": [
@@ -84506,20 +85095,15 @@
     },
     {
       "build_owners": [
-        "cupid_assembler",
-        "cupid_c_compiler",
-        "cupid_c_contract",
-        "cupid_linker",
-        "host_python"
+        "cupid_c_contract"
       ],
       "builds": [
-        ".",
         "toolchain"
       ],
-      "cohort": "toolchain_contract",
+      "cohort": "toolchain_core",
       "features": [
         "c.control.break",
-        "c.control.continue",
+        "c.control.do",
         "c.control.else",
         "c.control.for",
         "c.control.if",
@@ -84528,6 +85112,156 @@
         "c.declarator.unsized_array",
         "c.expression.sizeof",
         "c.preprocessor.define",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.enum",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [
+        "toolchain/contract_parse_internal.h",
+        "toolchain/cupidbuild_host.h",
+        "toolchain/seed_manifest.h",
+        "toolchain/seed_release.h"
+      ],
+      "language": "cupid_c",
+      "lines": 1243,
+      "origin": "tracked",
+      "path": "toolchain/seed_manifest.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "5fef63ac49165bcea1c6cbc78abdba84dc1a060c8e6f987d80dd0c69230c2443"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_object"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned"
+      ],
+      "includes": [
+        "kernel/doom/src/include_stubs/stddef.h",
+        "kernel/doom/src/include_stubs/stdint.h"
+      ],
+      "language": "c_header",
+      "lines": 35,
+      "origin": "tracked",
+      "path": "toolchain/seed_manifest.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "b27f1457bfc0052efe81d0478e0c3702f3bb2e4fa521d86e5d1ce9bb7ed7f642"
+    },
+    {
+      "build_owners": [
+        "cupid_c_contract"
+      ],
+      "builds": [
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.control.break",
+        "c.control.else",
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.expression.sizeof",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.enum",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned"
+      ],
+      "includes": [
+        "toolchain/contract_parse_internal.h",
+        "toolchain/seed_release.h"
+      ],
+      "language": "cupid_c",
+      "lines": 421,
+      "origin": "tracked",
+      "path": "toolchain/seed_release.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "fed459922dfa68ea1eb7471b26e2477a50ecd3130ca8c5eead34b24c358fd7e9"
+    },
+    {
+      "build_owners": [
+        "cupid_builder",
+        "cupid_c_compiler",
+        "cupid_object"
+      ],
+      "builds": [
+        ".",
+        "toolchain"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.unsigned"
+      ],
+      "includes": [
+        "kernel/doom/src/include_stubs/stddef.h",
+        "kernel/doom/src/include_stubs/stdint.h"
+      ],
+      "language": "c_header",
+      "lines": 42,
+      "origin": "tracked",
+      "path": "toolchain/seed_release.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "e07769e6130d031230c0d81e468cd5a7dbfc947cbd6b27a204771c8057f75b5c"
+    },
+    {
+      "build_owners": [
+        "cupid_assembler",
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_linker",
+        "host_python"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "toolchain_contract",
+      "features": [
+        "c.control.if",
+        "c.control.return",
+        "c.declarator.unsized_array",
+        "c.expression.sizeof",
         "c.preprocessor.include",
         "c.qualifier.const",
         "c.storage.static",
@@ -84542,17 +85276,17 @@
       ],
       "includes": [
         "kernel/core/string.h",
-        "kernel/doom/src/include_stubs/stdint.h",
         "kernel/doom/src/include_stubs/stdio.h",
-        "kernel/doom/src/include_stubs/stdlib.h"
+        "kernel/doom/src/include_stubs/stdlib.h",
+        "toolchain/artifact_size_policy.h"
       ],
       "language": "cupid_c",
-      "lines": 2296,
+      "lines": 97,
       "origin": "tracked",
       "path": "toolchain/tests/artifact_size_policy_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c7973298e9f75c153a2e06465bf94b9425c4780bc671a739a25b6741778f761c"
+      "sha256": "1bd09bafc08cc3789001afca9c617305fe7a2daaedb221368ff2a33a50e9900d"
     },
     {
       "build_owners": [
@@ -84955,12 +85689,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 52730,
+      "lines": 52736,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c36ff171ef39002590dbbc1d27913abf95ad9d75bdc78e97cf048a4f85d84e13"
+      "sha256": "2da352a162398b2acbda049ddd85da8fd6fa3527c93a30e49b61c8252dfa66a9"
     },
     {
       "build_owners": [
@@ -85007,7 +85741,7 @@
       "path": "toolchain/tests/cupidc_pp_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9423b41782e512a8b388593324fcecde4e0f183c1743391207f0f37658e14ba9"
+      "sha256": "cc73e5f0a1f58ff85e9a40961f9e44d0cff2a22b9da1c1d1f2a997bdacdc9f0c"
     },
     {
       "build_owners": [
@@ -85446,7 +86180,6 @@
         "c.initializer.designated",
         "c.preprocessor.define",
         "c.preprocessor.include",
-        "c.preprocessor.undef",
         "c.qualifier.const",
         "c.storage.static",
         "c.type.char",
@@ -85459,15 +86192,15 @@
         "c.type.void"
       ],
       "includes": [
-        "toolchain/tests/artifact_size_policy_contract.cc"
+        "toolchain/contract_parse_internal.h"
       ],
       "language": "cupid_c",
-      "lines": 2779,
+      "lines": 2845,
       "origin": "tracked",
       "path": "toolchain/tests/toolchain_manifest_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "770a5028d9eb3a897bb67e654d5cd06f579d46148cb0789b93ffdfd76a844f20"
+      "sha256": "615839c9c9b8866f6e563272918c6483ae557e24aeb3437e14eaadb870bd578c"
     },
     {
       "build_owners": [
@@ -85780,7 +86513,7 @@
     }
   ],
   "summary": {
-    "active_sources": 748,
+    "active_sources": 756,
     "features": 255,
     "transforms": 452,
     "unreachable_sources": 29
@@ -86071,7 +86804,8 @@
             "toolchain/hosted/i386-linux/start.asm",
             "toolchain/hosted/i386-windows/runtime.cc",
             "toolchain/hosted/i386-windows/tool_start.asm",
-            "toolchain/tests/artifact_size_policy_contract.cc",
+            "toolchain/contract_parse_internal.cc",
+            "toolchain/contract_parse_internal.h",
             "toolchain/tests/toolchain_manifest_contract.cc",
             "tools/artifact_size_policy.py",
             "tools/bootstrap_toolchain.py",
@@ -86124,6 +86858,9 @@
             "kernel/fs/vfs.h",
             "kernel/network/socket.h",
             "user/cupid.h",
+            "toolchain/artifact_size_policy.h",
+            "toolchain/seed_manifest.h",
+            "toolchain/seed_release.h",
             "toolchain/ctool.h",
             "toolchain/ctool_host.h",
             "toolchain/cupidasm.h",
@@ -86144,6 +86881,8 @@
             "toolchain/x86.cc",
             "toolchain/tests/hosted_i386_runtime_contract.cc",
             "link.ld",
+            "toolchain/seed_manifest.cc",
+            "toolchain/seed_release.cc",
             "toolchain/ctool.cc",
             "toolchain/ctool_host.cc",
             "toolchain/elf32.cc",
@@ -86239,6 +86978,9 @@
             "kernel/fs/vfs.h",
             "kernel/network/socket.h",
             "user/cupid.h",
+            "toolchain/artifact_size_policy.h",
+            "toolchain/seed_manifest.h",
+            "toolchain/seed_release.h",
             "toolchain/ctool.h",
             "toolchain/ctool_host.h",
             "toolchain/cupidasm.h",
@@ -86257,13 +86999,16 @@
             "toolchain/pe32_impl.h",
             "toolchain/x86.h",
             "toolchain/x86.cc",
-            "toolchain/tests/artifact_size_policy_contract.cc",
+            "toolchain/contract_parse_internal.cc",
+            "toolchain/contract_parse_internal.h",
             "toolchain/tests/hosted_i386_runtime_contract.cc",
             "toolchain/tests/toolchain_manifest_contract.cc",
             "tools/bootstrap_toolchain.py",
             "tools/cupidc_toolchain_contracts.py",
             "toolchain/Makefile",
             "link.ld",
+            "toolchain/seed_manifest.cc",
+            "toolchain/seed_release.cc",
             "toolchain/ctool.cc",
             "toolchain/ctool_host.cc",
             "toolchain/elf32.cc",

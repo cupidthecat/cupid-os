@@ -23,6 +23,8 @@ from tools.bootstrap_toolchain import (
     PROMOTED_SOURCE_INPUT_COUNT,
     PROMOTED_SOURCE_REVISION,
     PROMOTED_SOURCE_SNAPSHOT_SHA256,
+    PROMOTED_SOURCES,
+    PROMOTED_CUPIDBUILD_LINK,
     PROMOTED_SEED_SCHEMA,
     PRODUCER_NAMES,
     PROMOTED_WINDOWS_PLAN_SHA256,
@@ -108,10 +110,10 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 WINDOWS_SOURCE_HEAD_INITIAL_MATCHES = {
-    name: True for name in CANDIDATE_TOOL_NAMES
+    name: name != "cupidbuild" for name in CANDIDATE_TOOL_NAMES
 }
 LINUX_SOURCE_HEAD_INITIAL_MATCHES = {
-    name: True for name in CANDIDATE_TOOL_NAMES
+    name: name != "cupidbuild" for name in CANDIDATE_TOOL_NAMES
 }
 
 
@@ -124,10 +126,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             frozen = freeze_seed_inputs(
                 WINDOWS_SEED_MANIFEST, root / "windows-seed"
             )
-            current_plan_sha256 = "1" * 64
+            candidate_plan = _candidate_build_plan(
+                json.loads(SEED_MANIFEST.read_text())["build_plan"]
+            )
+            snapshot = capture_source_snapshot(REPO_ROOT, candidate_plan)
+            current_plan_sha256 = _build_plan_sha256(_windows_build_plan(candidate_plan))
 
             retargeted = _retarget_native_windows_behavior_seed(
-                frozen, current_plan_sha256
+                frozen, current_plan_sha256, candidate_plan, snapshot
             )
 
             self.assertEqual(
@@ -146,6 +152,16 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 retargeted.manifest_sha256,
                 hashlib.sha256(retargeted.manifest_bytes).hexdigest(),
             )
+            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 66)
+            self.assertEqual(retargeted.manifest["provenance"]["linux_candidate_build_plan_sha256"],
+                             _build_plan_sha256(candidate_plan))
+            self.assertEqual(retargeted.manifest["provenance"]["source_snapshot_sha256"],
+                             hashlib.sha256(json.dumps(snapshot, sort_keys=True,
+                                 separators=(",", ":"), ensure_ascii=True).encode("ascii")).hexdigest())
+            with self.assertRaisesRegex(BootstrapError, "behavior build plan differs"):
+                _retarget_native_windows_behavior_seed(frozen, "1" * 64, candidate_plan, snapshot)
+            with self.assertRaisesRegex(BootstrapError, "source snapshot is empty"):
+                _retarget_native_windows_behavior_seed(frozen, current_plan_sha256, candidate_plan, {})
             self.assertEqual(retargeted.artifact_bytes, frozen.artifact_bytes)
             self.assertEqual(retargeted.tools, frozen.tools)
             self.assertEqual(
@@ -158,7 +174,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 BootstrapError,
                 "native Windows behavior build plan SHA-256 is invalid",
             ):
-                _retarget_native_windows_behavior_seed(frozen, "not-a-digest")
+                _retarget_native_windows_behavior_seed(frozen, "not-a-digest", candidate_plan, snapshot)
 
             missing_plan_document = json.loads(frozen.manifest_bytes)
             del missing_plan_document["provenance"][
@@ -188,7 +204,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "native Windows behavior seed build plan is unavailable",
             ):
                 _retarget_native_windows_behavior_seed(
-                    missing_plan, current_plan_sha256
+                    missing_plan, current_plan_sha256, candidate_plan, snapshot
                 )
 
             linux = freeze_seed_inputs(
@@ -196,7 +212,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertIs(
                 _retarget_native_windows_behavior_seed(
-                    linux, current_plan_sha256
+                    linux, current_plan_sha256, candidate_plan, snapshot
                 ),
                 linux,
             )
@@ -484,7 +500,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "source_snapshot_sha256": snapshot,
             }
         else:
-            plan = _candidate_build_plan(manifest["build_plan"])
+            plan = manifest["build_plan"]
+            if "cupidbuild" not in plan["links"]:
+                plan["sources"].extend(
+                    {"name": name, "path": path, "gnu_extensions": gnu}
+                    for name, path, gnu in PROMOTED_SOURCES
+                )
+                plan["links"]["cupidbuild"] = list(PROMOTED_CUPIDBUILD_LINK)
             manifest["schema"] = PROMOTED_SEED_SCHEMA
             manifest["build_plan"] = plan
             manifest["build_plan_sha256"] = _build_plan_sha256(plan)
@@ -561,7 +583,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         self.assertEqual(checked_plan, original_plan)
         self.assertEqual(
-            candidate_plan["sources"][-3:],
+            candidate_plan["sources"][-6:],
             [
                 {
                     "gnu_extensions": False,
@@ -578,6 +600,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "name": "cupidbuild_main",
                     "path": "/toolchain/cupidbuild_main.cc",
                 },
+                {"gnu_extensions": False, "name": "seed_manifest",
+                 "path": "/toolchain/seed_manifest.cc"},
+                {"gnu_extensions": False, "name": "seed_release",
+                 "path": "/toolchain/seed_release.cc"},
+                {"gnu_extensions": False, "name": "contract_parse_internal",
+                 "path": "/toolchain/contract_parse_internal.cc"},
             ],
         )
         self.assertEqual(
@@ -590,6 +618,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "ctool_host",
                 "ctool",
                 "elf32",
+                "seed_manifest",
+                "seed_release",
+                "contract_parse_internal",
                 "runtime",
             ],
         )
@@ -599,7 +630,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         source_inventory = capture_source_snapshot(REPO_ROOT, candidate_plan)
         self.assertEqual(
-            len(source_inventory), PROMOTED_SOURCE_INPUT_COUNT
+            len(source_inventory), 66
         )
         for path in (
             "toolchain/cupidbuild.cc",
@@ -618,7 +649,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             _candidate_build_plan(candidate_plan), candidate_plan
         )
         self.assertEqual(
-            _build_plan_sha256(candidate_plan), PROMOTED_LINUX_PLAN_SHA256
+            _build_plan_sha256(candidate_plan),
+            "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
         )
 
     def test_promoted_linux_seed_verifies_all_six_artifacts(self):
@@ -1459,6 +1491,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "ctool_host",
                 "ctool",
                 "elf32",
+                "seed_manifest",
+                "seed_release",
+                "contract_parse_internal",
                 "publication_runtime",
                 "runtime",
             ],
@@ -3840,7 +3875,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 )
                 artifact_bytes.append((name, payload))
                 seed_tools[name] = seed_tool
+            checked_plan = json.loads(SEED_MANIFEST.read_text())["build_plan"]
+            candidate_plan = _candidate_build_plan(checked_plan)
+            snapshot = capture_source_snapshot(REPO_ROOT, candidate_plan)
             manifest = {
+                "build_plan": checked_plan,
                 "artifacts": artifacts,
                 "schema": PROMOTED_SEED_SCHEMA,
             }
@@ -3862,7 +3901,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             windows_seed_inputs = freeze_seed_inputs(
                 WINDOWS_SEED_MANIFEST, root / "windows-checked-seed"
             )
-            native_plan = {"behavior_fixture_plan": "source-current"}
+            native_plan = _windows_build_plan(candidate_plan)
 
             linux_calls: list[tuple[str, tuple[str, ...]]] = []
             linux_manifest_pairs: list[tuple[Path, Path]] = []
@@ -4248,7 +4287,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             ), mock.patch(
                 "tools.bootstrap_toolchain."
                 "_check_cupidbuild_compile_kernel_behavior",
-            ) as windows_compile, self.assertRaises(BehaviorBoundaryReached):
+            ) as windows_compile, mock.patch(
+                "tools.bootstrap_toolchain.capture_source_snapshot", return_value=snapshot,
+            ) as windows_capture, self.assertRaises(BehaviorBoundaryReached):
                 _run_native_windows_behavior_checks(
                     windows_behavior_runner,
                     windows_output,
@@ -4259,11 +4300,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     seed_inputs,
                 )
 
+            windows_capture.assert_called_once_with(windows_output, candidate_plan)
             windows_compile.assert_called_once_with(
                 windows_behavior_runner, windows_output / "behavior",
                 stage, stage,
                 _retarget_native_windows_behavior_seed(
-                    windows_seed_inputs, _build_plan_sha256(native_plan)
+                    windows_seed_inputs, _build_plan_sha256(native_plan), candidate_plan, snapshot
                 ),
                 "native Windows ",
             )
@@ -4824,9 +4866,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
-                self.assertEqual(len(plan["sources"]), 22)
+                self.assertEqual(len(plan["sources"]), 25)
             self.assertEqual(
-                report["build_plan_sha256"], _build_plan_sha256(checked_plan)
+                report["build_plan_sha256"],
+                _build_plan_sha256(checked_plan),
             )
             self.assertEqual(
                 report["candidate_build_plan"], observed_plans[0]
@@ -4989,7 +5032,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["candidate_build_plan_sha256"],
-                PROMOTED_LINUX_PLAN_SHA256,
+                "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe",
             )
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5146,7 +5189,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
-                self.assertEqual(len(plan["sources"]), 23)
+                self.assertEqual(len(plan["sources"]), 26)
                 self.assertEqual(len(plan["assembly_sources"]), 3)
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5364,7 +5407,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 source_head_windows_plan_sha256,
-                PROMOTED_WINDOWS_PLAN_SHA256,
+                "70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9",
             )
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5374,7 +5417,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "all_equal": True,
                     "assembly_objects": 3,
-                    "c_objects": 23,
+                    "c_objects": 26,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",
@@ -6704,7 +6747,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "all_equal": True,
                     "assembly_objects": 3,
-                    "c_objects": 23,
+                    "c_objects": 26,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",
@@ -6758,7 +6801,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["source_inputs"]["count"],
-                PROMOTED_SOURCE_INPUT_COUNT,
+                66,
             )
             self.assertEqual(
                 report["source_inputs"]["sha256"],
@@ -10672,15 +10715,18 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "f6bddb43994ebf6a7c315eae9639fafe",
             ),
         }
+        from tools.cupidc_kernel_compile import APPROVED_DOOM_COMPAT_SOURCES
+
         tracked_sources = sorted(
             "/" + transform["inputs"][0]
             for transform in audit["build"]["transforms"]
             if transform["inputs"]
+            and transform["inputs"][0] in APPROVED_DOOM_COMPAT_SOURCES
             and transform["recipe"]
             == [
-                "$(CUPIDC_KERNEL_COMPILE) --profile doom-compat "
-                f"--source {transform['inputs'][0]} "
-                f"--output {transform['output']}"
+                "$(PRODUCTION_SEED_DIRECTORY)cupidbuild.$(PRODUCTION_SEED_SUFFIX) compile-doom " + chr(92),
+                '--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root "$(CURDIR)" ' + chr(92),
+                f"--source {transform['inputs'][0]} --output {transform['output']}",
             ]
         )
         self.assertEqual(tracked_sources, sorted(expected_objects))
@@ -11125,10 +11171,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 PROMOTED_LINUX_PLAN_SHA256,
             )
             self.assertEqual(
+                report["candidate_build_plan_sha256"],
+                "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe",
+            )
+            self.assertEqual(
                 report["comparisons"],
                 {
                     "all_equal": True,
-                    "c_objects": 22,
+                    "c_objects": 25,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",
@@ -11531,7 +11581,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["source_inputs"]["count"],
-                PROMOTED_SOURCE_INPUT_COUNT,
+                66,
             )
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
@@ -11543,7 +11593,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                PROMOTED_SOURCE_INPUT_COUNT,
+                66,
             )
             for tool_name in CANDIDATE_TOOL_NAMES:
                 stage_three = output / "stage-three" / f"{tool_name}.elf"

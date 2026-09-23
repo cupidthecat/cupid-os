@@ -31,6 +31,7 @@ try:
         _validate_static_i386_pe32,
         _bootstrap_for_manifest_author,
         _candidate_build_plan,
+        _build_plan_sha256,
         capture_source_snapshot,
         freeze_seed_inputs,
         require_live_seed_inputs,
@@ -49,6 +50,7 @@ except ModuleNotFoundError:
         _validate_static_i386_pe32,
         _bootstrap_for_manifest_author,
         _candidate_build_plan,
+        _build_plan_sha256,
         capture_source_snapshot,
         freeze_seed_inputs,
         require_live_seed_inputs,
@@ -126,6 +128,9 @@ BOOTSTRAP_OBJECT_NAMES = (
     "cupidbuild",
     "cupidbuild_host",
     "cupidbuild_main",
+    "seed_manifest",
+    "seed_release",
+    "contract_parse_internal",
     "start",
 )
 WINDOWS_RUNTIME_INPUTS = (
@@ -1806,7 +1811,7 @@ def verify_publication_inputs(
         )
         if (
             not isinstance(build_plan, dict)
-            or seed_data.get("build_plan_sha256")
+            or _build_plan_sha256(_candidate_build_plan(build_plan))
             != bootstrap["build_plan_sha256"]
         ):
             raise ContractError(
@@ -2065,7 +2070,7 @@ def build_contracts(
                 "checked bootstrap report differs before author decision"
             )
         bootstrap_record: dict[str, object] = {
-            "build_plan_sha256": bootstrap_report.get("build_plan_sha256"),
+            "build_plan_sha256": bootstrap_report.get("candidate_build_plan_sha256"),
             "seed_manifest": {
                 "path": manifest_relative,
                 "sha256": bootstrap_report.get("seed_manifest_sha256"),

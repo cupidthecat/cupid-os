@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from tools.bootstrap_toolchain import (
+    _candidate_build_plan,
     WINDOWS_CUPIDBUILD_IMPORTS,
     _validate_i386_relocatable,
     _validate_static_i386_elf,
@@ -75,6 +76,7 @@ class CupidBuildUserElfTests(unittest.TestCase):
             "i386-windows" if os.name == "nt" else "i386-linux") / "manifest.json"
         cls.seed = freeze_seed_inputs(seed_path, cls.directory / "seed")
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
+        plan = _candidate_build_plan(plan)
         if os.name == "nt":
             plan = _windows_build_plan(plan)
         order = plan["links"]["cupidbuild"]

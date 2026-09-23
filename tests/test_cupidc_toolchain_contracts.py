@@ -15,7 +15,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from tools import cupidc_toolchain_contracts
-from tools.bootstrap_toolchain import _candidate_build_plan
+from tools.bootstrap_toolchain import _candidate_build_plan, _build_plan_sha256
 
 
 EXPECTED_CONTRACTS = {
@@ -255,7 +255,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             },
             "tool_fixed_point": {
                 "all_equal": True,
-                "c_objects": 22,
+                "c_objects": 25,
                 "compared_generations": list(
                     cupidc_toolchain_contracts.CONVERGED_GENERATIONS
                 ),
@@ -332,6 +332,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "toolchain/cupidbuild.cc": "int cupidbuild;\n",
             "toolchain/cupidbuild_host.cc": "int cupidbuild_host;\n",
             "toolchain/cupidbuild_main.cc": "int cupidbuild_main;\n",
+            "toolchain/seed_manifest.cc": "int seed_manifest;\n",
+            "toolchain/seed_release.cc": "int seed_release;\n",
+            "toolchain/contract_parse_internal.cc": "int contract_parse_internal;\n",
             "toolchain/cupidc_emit.cc": "int emit;\n",
             "toolchain/hosted/i386-linux/include/stdio.h": "int stdio;\n",
             "toolchain/hosted/i386-linux/runtime.cc": "int runtime;\n",
@@ -366,7 +369,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 )
             },
         }
-        build_plan_sha256 = "6" * 64
+        build_plan_sha256 = _build_plan_sha256(build_plan)
         seed_data = {
             "build_plan": build_plan,
             "build_plan_sha256": build_plan_sha256,
@@ -383,7 +386,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             root, _candidate_build_plan(build_plan)
         )
         return {
-            "build_plan_sha256": build_plan_sha256,
+            "build_plan_sha256": _build_plan_sha256(_candidate_build_plan(build_plan)),
             "seed_manifest": {
                 "path": manifest.relative_to(root).as_posix(),
                 "sha256": cupidc_toolchain_contracts._sha256(manifest),
@@ -683,11 +686,14 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES[-4:],
+            cupidc_toolchain_contracts.BOOTSTRAP_OBJECT_NAMES[-7:],
             (
                 "cupidbuild",
                 "cupidbuild_host",
                 "cupidbuild_main",
+                "seed_manifest",
+                "seed_release",
+                "contract_parse_internal",
                 "start",
             ),
         )
@@ -698,7 +704,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._tool_fixed_point_record(),
             {
                 "all_equal": True,
-                "c_objects": 22,
+                "c_objects": 25,
                 "compared_generations": ["stage-three", "stage-four"],
                 "startup_objects": 1,
                 "tool_images": 6,
@@ -712,7 +718,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 78)
+        self.assertEqual(len(inputs), 80)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -1466,6 +1472,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             built_generations: list[str] = []
             runtime_generations: list[str] = []
             decision_events: list[str] = []
+            candidate_plan_fields = [{"candidate_build_plan_sha256": "2" * 64}]
 
             bootstrap_files = {
                 "toolchain/ctool.cc": {
@@ -1501,6 +1508,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                         )
                 return {
                     "build_plan_sha256": "1" * 64,
+                    **candidate_plan_fields[0],
                     "status": "pending-fixed-point-author",
                     "seed_manifest_sha256": (
                         cupidc_toolchain_contracts._sha256(manifest)
@@ -1615,6 +1623,10 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     return b"not the independently checked manifest\n"
                 authored_report = {
                     **report,
+                    "bootstrap": {
+                        **report["bootstrap"],
+                        "build_plan_sha256": "2" * 64,
+                    },
                     "tool_fixed_point": (
                         cupidc_toolchain_contracts._tool_fixed_point_record()
                     ),
@@ -1680,6 +1692,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 report = cupidc_toolchain_contracts.build_contracts(
                     root, manifest, output, workers=8
                 )
+                self.assertEqual(report["bootstrap"]["build_plan_sha256"], "2" * 64)
                 published_manifest = (output / "manifest.json").read_bytes()
                 author_output_valid[0] = False
                 with self.assertRaisesRegex(
@@ -1733,6 +1746,18 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                     )
                 )
                 self.assertEqual(recovered_report, report)
+                for fields in ({}, {"candidate_build_plan_sha256": "malformed"}):
+                    candidate_plan_fields[0] = fields
+                    with self.assertRaisesRegex(
+                        cupidc_toolchain_contracts.ContractError,
+                        "published bootstrap build plan differs",
+                    ):
+                        cupidc_toolchain_contracts.build_contracts(
+                            root, manifest, output, workers=8
+                        )
+                    self.assertEqual(
+                        (output / "manifest.json").read_bytes(), published_manifest
+                    )
                 self.assertEqual(
                     list(
                         output.parent.glob(
@@ -2798,7 +2823,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         self._write_publication(output)
         self._bind_publication_inputs(output, inputs)
         self._bind_publication_bootstrap(output, {
-            "build_plan_sha256": seed.manifest["build_plan_sha256"],
+            "build_plan_sha256": _build_plan_sha256(
+                _candidate_build_plan(seed.manifest["build_plan"])
+            ),
             "seed_manifest": {
                 "path": logical_manifest,
                 "sha256": seed.manifest_sha256,

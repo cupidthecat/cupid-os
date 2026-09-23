@@ -58,11 +58,11 @@ static const char manifest_report_schema[] =
 
 #define MANIFEST_ARTIFACT_COUNT 22u
 #define MANIFEST_INPUT_LIMIT 256u
-#define MANIFEST_EXPECTED_INPUT_COUNT 78u
-#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 61u
+#define MANIFEST_EXPECTED_INPUT_COUNT 80u
+#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 66u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
-#define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 22u
+#define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 25u
 #define MANIFEST_BOOTSTRAP_STARTUP_OBJECT_COUNT 1u
 #define MANIFEST_BOOTSTRAP_OBJECT_COUNT                                      \
   (MANIFEST_BOOTSTRAP_C_OBJECT_COUNT +                                      \
@@ -72,6 +72,8 @@ static const char manifest_report_schema[] =
 static const char manifest_expected_seed_path[] =
     "bootstrap/seeds/i386-linux/manifest.json";
 static const char manifest_expected_build_plan_sha256[] =
+    "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe";
+static const char manifest_expected_seed_build_plan_sha256[] =
     "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd";
 static const char manifest_expected_seed_manifest_sha256[] =
     "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52";
@@ -121,6 +123,8 @@ static const char *const
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
+    "toolchain/seed_manifest.h",
+    "toolchain/seed_release.h",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
@@ -162,6 +166,7 @@ static const char *const manifest_expected_bootstrap_paths
     [MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT] = {
     "link.ld",
     "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.cc",
     "toolchain/contract_parse_internal.h",
     "toolchain/ctool.cc",
     "toolchain/ctool.h",
@@ -217,6 +222,10 @@ static const char *const manifest_expected_bootstrap_paths
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
+    "toolchain/seed_manifest.cc",
+    "toolchain/seed_manifest.h",
+    "toolchain/seed_release.cc",
+    "toolchain/seed_release.h",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "toolchain/x86.cc",
@@ -343,7 +352,8 @@ static const char *const
         "cupiddis_main", "cupidobj",      "cupidobj_main",  "cupidld",
         "cupidld_main",  "cupidc_pp",     "cupidc_type",    "cupidc_frontend",
         "cupidc_ir",     "cupidc_emit",   "cupidc_main",    "cupidbuild",
-        "cupidbuild_host", "cupidbuild_main", "start",
+        "cupidbuild_host", "cupidbuild_main", "seed_manifest", "seed_release",
+        "contract_parse_internal", "start",
 };
 
 static const char *const
@@ -2172,8 +2182,11 @@ static int manifest_validate_request(error_context_t *context, const file_image_
       return cupid_contract_set_error(context, "live bootstrap seed differs from the manifest");
     }
     ok = manifest_parse_seed_closure(context, seed_source, &seed_closure);
-    if (ok && cupid_contract_text_compare(&seed_closure.build_plan_sha256,
-                           &state->build_plan_sha256) != 0) {
+    if (ok &&
+        (!cupid_contract_text_equals_literal(&seed_closure.build_plan_sha256,
+                            manifest_expected_seed_build_plan_sha256) ||
+         !cupid_contract_text_equals_literal(&state->build_plan_sha256,
+                            manifest_expected_build_plan_sha256))) {
       ok = cupid_contract_set_error(context, "live bootstrap build plan differs from the manifest");
     }
     if (ok && (!cupid_contract_binary_read_u32(context, &reader, &observation_count) ||
@@ -2413,7 +2426,7 @@ static int manifest_author_read_seed(error_context_t *context, binary_reader_t *
       memcmp(seed_digest, manifest_expected_seed_manifest_sha256, 64u) != 0 ||
       !manifest_parse_seed_closure(context, seed_source, &closure) ||
       !cupid_contract_text_equals_literal(&closure.build_plan_sha256,
-                           manifest_expected_build_plan_sha256)) {
+                           manifest_expected_seed_build_plan_sha256)) {
     manifest_seed_closure_release(&closure);
     if (!context->has_error) {
       return cupid_contract_set_error(context, "manifest author seed closure differs");
@@ -2451,8 +2464,8 @@ static int manifest_author_read_seed(error_context_t *context, binary_reader_t *
         64u,
     };
     byte_slice_t build_plan_slice = {
-        closure.build_plan_sha256.bytes,
-        closure.build_plan_sha256.size,
+        (const unsigned char *)manifest_expected_build_plan_sha256,
+        sizeof(manifest_expected_build_plan_sha256) - 1u,
     };
     ok = manifest_text_copy_slice(context, &state->seed_manifest_path, &seed_path) &&
          manifest_text_copy_slice(context,

@@ -22,10 +22,19 @@ The manifest verifier no longer includes another executable's source.
 Source-head cupidbuild_validate_seed_image_bytes checks ELF32 or PE32 bytes
 against an explicit tool role. Both readers are available on each host; tool
 execution still uses the host's own format. Image validation does not prove
-release identity or file lifetime. Native filesystem capture, paired manifest
-checks, and final drift checks remain required before artifact verification
-can leave Python. The source inventories contain 61 bootstrap inputs and 78
-publication inputs. Installed seeds retain their verified 59-input generation.
+release identity or file lifetime.
+
+Source-head CupidBuild shares its manifest reader with native verification.
+The reader accepts either host format and returns owned artifact identities.
+Equivalent JSON escapes are accepted; duplicate decoded keys and mismatched
+plans are rejected. The pair validator checks both manifests against a
+twelve-image release record and binds the Windows plan to the actual Linux
+manifest bytes. No release record has been adopted as production authority.
+Native filesystem capture, release publication, and final drift checks remain
+required before artifact verification can leave Python. Candidate inventories
+contain 66 bootstrap inputs and 80 publication inputs. Installed seeds retain
+their verified 59-input generation. Candidate plans do not change installed
+seeds or production coordination.
 
 >h2 Native user executable validation
 Checked CupidBuild validates external i386 ELF32 executables in memory.

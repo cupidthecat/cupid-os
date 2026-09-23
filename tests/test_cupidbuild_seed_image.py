@@ -99,7 +99,8 @@ class SeedImageProfileTests(unittest.TestCase):
         command = [compiler, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
                    '-D_CRT_SECURE_NO_WARNINGS', '-I', str(ROOT / 'toolchain'), '-x', 'c',
                    str(caller), *[str(ROOT / 'toolchain' / (name + '.cc')) for name in
-                    ('ctool', 'ctool_host', 'elf32', 'cupidbuild_host', 'cupidbuild')],
+                    ('ctool', 'ctool_host', 'elf32', 'cupidbuild_host', 'cupidbuild',
+                     'seed_manifest', 'seed_release', 'contract_parse_internal')],
                    *(['-lntdll'] if os.name == 'nt' else []), '-o', str(cls.program)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=180)
         if result.returncode:

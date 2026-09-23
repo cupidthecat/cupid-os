@@ -10,7 +10,7 @@ import time
 import unittest
 from pathlib import Path
 from tests.test_cupidbuild_compile_kernel import ROOT, SEED, SUFFIX, checked_run
-from tools.bootstrap_toolchain import _windows_build_plan, _windows_link_arguments
+from tools.bootstrap_toolchain import _candidate_build_plan, _windows_build_plan, _windows_link_arguments
 from tools.cupidc_kernel_compile import KERNEL_I386_ARGUMENTS, validate_i386_relocatable_bytes
 from tools.cupidc_production_compile import GENERATED_INSTALL_SOURCES, GENERATED_INCLUDE_CLOSURE, compile_production_source
 
@@ -306,6 +306,7 @@ int main(int argc, char **argv) {
 
     def test_cupid_built_coordinator_compiles_all_three_generated_sources(self):
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
+        plan = _candidate_build_plan(plan)
         if os.name == "nt":
             plan = _windows_build_plan(plan)
         order = plan["links"]["cupidbuild"]

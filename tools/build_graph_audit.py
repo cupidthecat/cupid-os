@@ -204,6 +204,8 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
+    "toolchain/seed_manifest.h",
+    "toolchain/seed_release.h",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
@@ -243,6 +245,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
 TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "link.ld",
     "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.cc",
     "toolchain/contract_parse_internal.h",
     "toolchain/ctool.cc",
     "toolchain/ctool.h",
@@ -298,6 +301,10 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
+    "toolchain/seed_manifest.cc",
+    "toolchain/seed_manifest.h",
+    "toolchain/seed_release.cc",
+    "toolchain/seed_release.h",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "toolchain/x86.cc",
@@ -465,6 +472,8 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
+    "toolchain/seed_manifest.h",
+    "toolchain/seed_release.h",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
@@ -503,6 +512,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
 )
 USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "link.ld",
+    "toolchain/contract_parse_internal.cc",
     "toolchain/ctool.cc",
     "toolchain/ctool.h",
     "toolchain/ctool_host.cc",
@@ -549,14 +559,18 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/hosted/i386-linux/include/windows.h",
     "toolchain/hosted/i386-linux/runtime.cc",
     "toolchain/hosted/i386-linux/start.asm",
+    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/publication_runtime.cc",
     "toolchain/hosted/i386-windows/publication_start.asm",
-    "toolchain/hosted/i386-windows/cupidbuild_start.asm",
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
+    "toolchain/seed_manifest.cc",
+    "toolchain/seed_manifest.h",
+    "toolchain/seed_release.cc",
+    "toolchain/seed_release.h",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "toolchain/x86.cc",
@@ -909,12 +923,13 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 40,
+    "HOSTED_I386_LINUX": 42,
     "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
 }
 _C_PP_HOSTED_I386_STRICT_CASES = (
+    "/toolchain/contract_parse_internal.cc",
     "/toolchain/ctool.cc",
     "/toolchain/ctool_host.cc",
     "/toolchain/cupidbuild.cc",
@@ -935,6 +950,8 @@ _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/cupidobj.cc",
     "/toolchain/cupidobj_main.cc",
     "/toolchain/elf32.cc",
+    "/toolchain/seed_manifest.cc",
+    "/toolchain/seed_release.cc",
     "/toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "/toolchain/x86.cc",
 )
@@ -973,7 +990,6 @@ _C_PP_TOOLCHAIN_CONTRACT_CASES = (
     "/toolchain/tests/toolchain_manifest_contract.cc",
     "/toolchain/tests/user_syscall_abi_contract.cc",
     "/toolchain/tests/x86_contract.cc",
-    "/toolchain/contract_parse_internal.cc",
 )
 _C_PP_GENERATED_KERNEL_CASES = (
     "/kernel/cpu/ksyms_data.cc",
@@ -11424,6 +11440,9 @@ def _cupid_toolchain_fixed_point_contract(
         ("cupidbuild", "/toolchain/cupidbuild.cc", False),
         ("cupidbuild_host", "/toolchain/cupidbuild_host.cc", False),
         ("cupidbuild_main", "/toolchain/cupidbuild_main.cc", False),
+        ("seed_manifest", "/toolchain/seed_manifest.cc", False),
+        ("seed_release", "/toolchain/seed_release.cc", False),
+        ("contract_parse_internal", "/toolchain/contract_parse_internal.cc", False),
     )
     candidate_toolchain_links = expected_toolchain_links + (
         (
@@ -11436,6 +11455,9 @@ def _cupid_toolchain_fixed_point_contract(
                 "ctool_host",
                 "ctool",
                 "elf32",
+                "seed_manifest",
+                "seed_release",
+                "contract_parse_internal",
                 "runtime",
             ),
         ),
@@ -14761,7 +14783,7 @@ def _cupid_toolchain_fixed_point_contract(
             "publication must carry stages two through four"
         )
     if bootstrap_assignment("CANDIDATE_SOURCES") != tuple(
-        candidate_toolchain_sources[-3:]
+        candidate_toolchain_sources[-6:]
     ):
         missing_bootstrap_fragments.append(
             "candidate source constants must match the audited inventory"
@@ -15084,11 +15106,11 @@ def _cupid_toolchain_fixed_point_contract(
             "            raw_cupidbuild, 'build_plan.links.cupidbuild'\n"
             "        )\n"
             "    ]\n"
-            "    if tuple(cupidbuild_link) != CANDIDATE_CUPIDBUILD_LINK:\n"
+            "    if tuple(cupidbuild_link) not in (PROMOTED_CUPIDBUILD_LINK, CANDIDATE_CUPIDBUILD_LINK):\n"
             "        raise BootstrapError(\n"
             "            'Linux build plan candidate link differs: cupidbuild'\n"
             "        )\n"
-            "    links['cupidbuild'] = cupidbuild_link\n"
+            "    links['cupidbuild'] = list(CANDIDATE_CUPIDBUILD_LINK)\n"
             "candidate = dict(checked_plan)\n"
             "candidate['sources'] = sources\n"
             "candidate['links'] = links\n"
@@ -15564,6 +15586,12 @@ def _cupid_toolchain_fixed_point_contract(
             "!= PROMOTED_WINDOWS_SEED_SCHEMA",
             "document = json.loads(seed_inputs.manifest_bytes)",
             'provenance["native_build_plan_sha256"] = digest',
+            'provenance["linux_candidate_build_plan_sha256"] = _build_plan_sha256(linux_plan)',
+            'provenance["source_input_count"] = len(source_snapshot)',
+            'provenance["source_snapshot_sha256"] = _source_snapshot_sha256(source_snapshot)',
+            'digest != _build_plan_sha256(_windows_build_plan(linux_plan))',
+            'if not source_snapshot:',
+
             "manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest()",
             "artifact_bytes=seed_inputs.artifact_bytes",
             "tools=seed_inputs.tools",
@@ -15594,8 +15622,14 @@ def _cupid_toolchain_fixed_point_contract(
             "_validate_static_i386_pe32(",
             '_windows_imports("cupidasm")',
             "behavior_seed_inputs = _retarget_native_windows_behavior_seed(\n"
-            "        seed_inputs, _build_plan_sha256(native_plan)\n"
+            "        seed_inputs, _build_plan_sha256(native_plan),\n"
+            "        behavior_linux_plan, behavior_source_snapshot,\n"
             "    )",
+            "behavior_source_snapshot = capture_source_snapshot(output_root, behavior_linux_plan)",
+            'behavior_linux_plan = _candidate_build_plan(\n'
+            '        _require_object(linux_seed_inputs.manifest.get("build_plan"), "build_plan")\n'
+            '    )',
+
         ),
     }
     for name, fragments in native_windows_fragment_contracts.items():
@@ -18045,10 +18079,12 @@ def _c_preprocessor_active_cases_manifest(
                             f"{logical}"
                         )
                 active_by_profile["HOSTED_I386_LINUX"].extend(
-                    _C_PP_HOSTED_I386_STRICT_CASES
-                    + tuple(
+                    tuple(
                         path
-                        for path in _C_PP_TOOLCHAIN_CONTRACT_CASES
+                        for path in (
+                            _C_PP_HOSTED_I386_STRICT_CASES
+                            + _C_PP_TOOLCHAIN_CONTRACT_CASES
+                        )
                         if path not in _C_PP_HOSTED_BRIDGE_CASES
                         and path
                         != "/toolchain/tests/hosted_i386_windows_contract.cc"

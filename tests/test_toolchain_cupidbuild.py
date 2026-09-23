@@ -2977,7 +2977,8 @@ int main(int argc, char **argv) {
             objects = [
                 self.race_cli_path.parent / f"{name}.o"
                 for name in (
-                    "ctool", "ctool_host", "elf32", "cupidbuild_host", "cupidbuild"
+                    "ctool", "ctool_host", "elf32", "cupidbuild_host", "cupidbuild",
+                    "seed_manifest", "seed_release", "contract_parse_internal"
                 )
             ]
             built = subprocess.run(
@@ -5223,6 +5224,30 @@ int main(int argc, char **argv) {
             self.assertEqual(result.stderr, "")
             self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
 
+    def test_semantically_escaped_seed_manifest_executes(self):
+        for escaped_key in (False, True):
+            with self.subTest(escaped_key=escaped_key), tempfile.TemporaryDirectory(
+                prefix=".cupidbuild-escaped-seed-", dir=REPO_ROOT
+            ) as temporary:
+                root = Path(temporary)
+                manifest = self._copy_checked_assembly_seed(root / "seed")
+                document = json.loads(manifest.read_text(encoding="utf-8"))
+                encoded = json.dumps(document)
+                if escaped_key:
+                    encoded = encoded.replace('"schema"', r'"sch\u0065ma"')
+                else:
+                    encoded = encoded.replace(
+                        document["schema"], r"\u0063" + document["schema"][1:]
+                    )
+                manifest.write_text(encoded, encoding="utf-8")
+                source = root / "input.asm"
+                output = root / "output.o"
+                source.write_text("bits 32\nsection .text\nret\n", encoding="utf-8")
+                result = self._run_object(source, output, manifest)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(result.stdout + result.stderr, "")
+                self.assertEqual(output.read_bytes()[:7], b"\x7fELF\x01\x01\x01")
+
     def test_unsupported_seed_schema_is_rejected_before_assembly(self):
         with tempfile.TemporaryDirectory(
             prefix=".cupidbuild-object-schema-", dir=REPO_ROOT
@@ -5352,10 +5377,10 @@ int main(int argc, char **argv) {
                 )
                 + "\n"
             ),
-            "escaped schema": lambda document: (
+            "wrong escaped schema": lambda document: (
                 json.dumps(document, indent=2, sort_keys=True).replace(
                     document["schema"],
-                    r"\u0063" + document["schema"][1:],
+                    r"\u0078" + document["schema"][1:],
                     1,
                 )
                 + "\n"

@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 
 from tools.bootstrap_toolchain import (
+    _candidate_build_plan,
     SeedInputs, Stage, _check_cupidbuild_compile_kernel_behavior,
     _windows_build_plan, _windows_link_arguments,
 )
@@ -109,7 +110,8 @@ int main(int argc, char **argv) {
         checked_run(["clang" if os.name == "nt" else "cc", "-I", ROOT / "toolchain",
                      "-x", "c", harness, "-x", "none",
                      *[directory / (name + ".o") for name in
-                       ("ctool", "ctool_host", "elf32", "cupidbuild_host", "cupidbuild")],
+                       ("ctool", "ctool_host", "elf32", "cupidbuild_host", "cupidbuild",
+                        "seed_manifest", "seed_release", "contract_parse_internal")],
                      *(["-lntdll"] if os.name == "nt" else []), "-o", cls.validator])
 
     def setUp(self):
@@ -205,11 +207,13 @@ int main(int argc, char **argv) {
 
     def test_coordinator_sources_compile_identically_with_the_checked_seed(self):
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
+        plan = _candidate_build_plan(plan)
         if os.name == "nt":
             plan = _windows_build_plan(plan)
         for source in plan["sources"]:
             if source["name"] not in ("cupidbuild", "cupidbuild_main", "cupidbuild_host",
-                                      "publication_runtime"):
+                                      "publication_runtime", "seed_manifest", "seed_release",
+                                      "contract_parse_internal"):
                 continue
             with self.subTest(source=source["path"]):
                 output = self.target_directory / ("target-" + source["name"] + ".o")

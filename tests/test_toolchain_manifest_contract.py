@@ -80,6 +80,9 @@ BOOTSTRAP_OBJECT_NAMES = (
     "cupidbuild",
     "cupidbuild_host",
     "cupidbuild_main",
+    "seed_manifest",
+    "seed_release",
+    "contract_parse_internal",
     "start",
 )
 BOOTSTRAP_TOOL_NAMES = (
@@ -91,7 +94,7 @@ BOOTSTRAP_TOOL_NAMES = (
     "cupidbuild",
 )
 BUILD_PLAN_SHA256 = (
-    "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
+    "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
 )
 SEED_MANIFEST_SHA256 = (
     "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
@@ -140,6 +143,8 @@ INPUT_PATHS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
+    "toolchain/seed_manifest.h",
+    "toolchain/seed_release.h",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
@@ -179,6 +184,7 @@ INPUT_PATHS = (
 BOOTSTRAP_PATHS = (
     "link.ld",
     "toolchain/artifact_size_policy.h",
+    "toolchain/contract_parse_internal.cc",
     "toolchain/contract_parse_internal.h",
     "toolchain/ctool.cc",
     "toolchain/ctool.h",
@@ -234,6 +240,10 @@ BOOTSTRAP_PATHS = (
     "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
+    "toolchain/seed_manifest.cc",
+    "toolchain/seed_manifest.h",
+    "toolchain/seed_release.cc",
+    "toolchain/seed_release.h",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "toolchain/x86.cc",
@@ -368,7 +378,7 @@ def _fixture():
         },
         "tool_fixed_point": {
             "all_equal": True,
-            "c_objects": 22,
+            "c_objects": 25,
             "compared_generations": ["stage-three", "stage-four"],
             "startup_objects": 1,
             "tool_images": 6,
@@ -683,7 +693,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             '{"artifact_count":22,"artifact_total_bytes":682,'
-            '"bootstrap_source_input_count":61,"input_count":78,'
+            '"bootstrap_source_input_count":66,"input_count":80,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -839,7 +849,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         )
         self.assertEqual(result.stderr, "")
 
-    def test_author_decides_all_sixty_two_stage_pairs(self):
+    def test_author_decides_all_sixty_five_stage_pairs(self):
         manifest, observations = _fixture()
         object_pairs = _matching_object_pairs(manifest)
         executable_pairs = _matching_executable_pairs(manifest)
@@ -876,7 +886,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
                     bootstrap_tool_pairs,
                 )
             ),
-            62,
+            65,
         )
 
     def test_author_rejects_mismatch_in_each_remaining_pair_lane(self):
@@ -1407,7 +1417,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
             json.loads(result.stdout)["tool_fixed_point"],
             {
                 "all_equal": True,
-                "c_objects": 22,
+                "c_objects": 25,
                 "compared_generations": ["stage-three", "stage-four"],
                 "startup_objects": 1,
                 "tool_images": 6,
@@ -1606,10 +1616,10 @@ class ToolchainManifestContractTests(unittest.TestCase):
 
     def test_current_publication_inventory_counts_are_exact(self):
         self.assertEqual(len(ARTIFACT_NAMES), 22)
-        self.assertEqual(len(INPUT_PATHS), 78)
-        self.assertEqual(len(BOOTSTRAP_PATHS), 61)
+        self.assertEqual(len(INPUT_PATHS), 80)
+        self.assertEqual(len(BOOTSTRAP_PATHS), 66)
         self.assertEqual(len(OBJECT_COMPARISON_NAMES), 17)
-        self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 23)
+        self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 26)
         self.assertEqual(len(BOOTSTRAP_TOOL_NAMES), 6)
         for input_count in (75, 77):
             with self.subTest(input_count=input_count):

@@ -1,5 +1,18 @@
 # Cupid Toolchain bootstrap
 
+The shared seed reader is integrated under ADR 0400. It validates either
+manifest format, returns owned artifact identities, and supports a separate
+twelve-image release record and Linux/Windows pair binding. CupidBuild now calls
+that reader. Candidate plans contain 66 bootstrap inputs and 80 Toolchain
+publication inputs; installed release pins still describe their verified
+59-input generation. Integrated API and production coordinator regressions pass
+on both hosts. Both retained staged proofs pass independent byte verification:
+32 Linux and 35 Windows artifact pairs match the current 66-input snapshot.
+Paired OS/runtime acceptance passes, including ABI validation, all sixteen
+artifact checks, three user builds and private four-CPU disassembly and shell
+smokes. Independent comparison confirms matching artifacts and images.
+Production artifact verification and seed publication have not changed.
+
 Source head now exposes reusable artifact-policy and seed-image byte validators.
 The CUPSIZE2 policy core accepts immutable input with an explicit result and
 bounded diagnostic buffer. Its executable adapter and the Toolchain manifest
@@ -7,7 +20,7 @@ verifier share parsing helpers with per-call error state; neither includes the
 other executable's source. CupidBuild's image API checks either ELF32 or PE32
 against an explicit tool role, while execution remains bound to the host format.
 
-The source inventories contain 61 bootstrap inputs and 78 Toolchain publication
+The preceding extraction used 61 bootstrap inputs and 78 Toolchain publication
 inputs. The installed seeds still describe their verified 59-input generation.
 The native artifact-verification transaction, release identities, filesystem
 capture, and final rechecks remain unfinished. This extraction leaves the twelve

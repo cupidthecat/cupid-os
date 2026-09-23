@@ -30,6 +30,10 @@ _Avoid_: global compiler state, platform context
 A complete set of captured source and header bytes addressed by their original logical paths. During that compilation, an absent path is a missing input and cannot fall back to the live filesystem.
 _Avoid_: include overlay, private directory copy, production ownership
 
+**Seed release record**:
+A reviewed description of a paired Linux and Windows tool cohort, including its source, parent generations, build plans, and artifact identities. Matching a manifest to this record establishes agreement with the described release; trusting the record and retaining stable observations of its files are separate responsibilities.
+_Avoid_: manifest authenticity, executable validation, seed promotion
+
 **Source-resolved raw control edge**:
 A bounded record that binds a raw call or jump at one source instruction offset
 to the address CupidASM resolved before encoding. Local rows also retain the
