@@ -1297,15 +1297,21 @@ def run_terminal_command(
     success_pattern: str,
     timeout: float,
     key_pause: float,
+    *,
+    require_completion: bool = False,
 ) -> tuple[bool, str]:
     """Type one command and require one new matching serial event."""
     re.compile(success_pattern, re.S | re.M)
     keys = [key_name(ch) for ch in command]
-    completed = success_count(read_log(log), success_pattern)
+    before = read_log(log)
+    completed = success_count(before, success_pattern)
+    ready_pattern = r"^\[terminal\] command complete\r?$"
+    ready_count = success_count(before, ready_pattern)
     for key in keys:
         send_key(mon, key, key_pause)
     send_key(mon, "ret", key_pause)
 
+    deadline = time.monotonic() + timeout
     ok, data = wait_log_success_count(
         proc,
         log,
@@ -1313,6 +1319,13 @@ def run_terminal_command(
         completed + 1,
         timeout,
     )
+    if PANIC_RE.search(data):
+        return False, data
+    if ok and require_completion and success_count(data, ready_pattern) <= ready_count:
+        ok, data = wait_log_success_count(
+            proc, log, ready_pattern, ready_count + 1,
+            max(0.0, deadline - time.monotonic()),
+        )
     if PANIC_RE.search(data):
         return False, data
     return ok and success_count(data, success_pattern) >= completed + 1, data
@@ -2347,6 +2360,7 @@ def run(args: argparse.Namespace) -> int:
                 setup_pattern,
                 args.timeout,
                 args.key_pause,
+                require_completion=args.require_command_completion,
             )
             if not ok:
                 print(
@@ -2366,6 +2380,7 @@ def run(args: argparse.Namespace) -> int:
                 args.success_pattern,
                 args.timeout,
                 args.key_pause,
+                require_completion=args.require_command_completion,
             )
             if not ok:
                 print(
@@ -2431,6 +2446,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="QEMU CPU model, such as max for optional instruction coverage",
     )
     parser.add_argument("--command", default="ls")
+    parser.add_argument(
+        "--require-command-completion",
+        action="store_true",
+        help="require a new terminal completion marker as well as command output",
+    )
     parser.add_argument(
         "--setup-command",
         action="append",

@@ -195,6 +195,12 @@ struct asm_statement {
 };
 
 typedef struct {
+  ctool_bool parent_active;
+  ctool_bool selected;
+  ctool_bool has_else;
+} asm_conditional_t;
+
+typedef struct {
   ctool_job_t *job;
   const ctool_source_t *source;
   const ctool_asm_request_t *request;
@@ -212,6 +218,9 @@ typedef struct {
   ctool_bool have_origin;
   ctool_path_t include_stack[CTOOL_ASM_MAX_INCLUDE_DEPTH];
   ctool_u32 include_depth;
+  asm_conditional_t conditionals[64];
+  ctool_u32 conditional_depth;
+  ctool_u32 conditional_base;
   ctool_status_t failure_status;
   ctool_u32 failure_code;
   ctool_u32 failure_line;
@@ -1953,6 +1962,89 @@ static ctool_status_t asm_parse_include(asm_context_t *context,
   return asm_parse_source_file(context, &included);
 }
 
+static ctool_bool asm_condition_active(const asm_context_t *context) {
+  const asm_conditional_t *top;
+  if (context->conditional_depth == 0u) return CTOOL_TRUE;
+  top = &context->conditionals[context->conditional_depth - 1u];
+  return top->parent_active && top->selected ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static ctool_bool asm_conditional_line(const char *line, ctool_u32 size) {
+  ctool_u32 index = 0u;
+  ctool_u32 start;
+  ctool_string_t name;
+  while (index < size && (line[index] == ' ' || line[index] == '\t' ||
+                          line[index] == '\r')) index++;
+  if (index == size || line[index++] != '%') return CTOOL_FALSE;
+  start = index;
+  while (index < size && asm_character_is_alnum(line[index])) index++;
+  name.data = line + start; name.size = index - start;
+  return asm_string_equal_case(name, "ifdef") ||
+         asm_string_equal_case(name, "ifndef") ||
+         asm_string_equal_case(name, "else") ||
+         asm_string_equal_case(name, "endif") ? CTOOL_TRUE : CTOOL_FALSE;
+}
+
+static ctool_status_t asm_parse_conditional(asm_context_t *context,
+    const asm_token_t *tokens, ctool_u32 count, ctool_bool *handled) {
+  ctool_bool positive = asm_string_equal_case(tokens[0].text, "ifdef");
+  ctool_bool negative = asm_string_equal_case(tokens[0].text, "ifndef");
+  ctool_bool otherwise = asm_string_equal_case(tokens[0].text, "else");
+  ctool_bool end = asm_string_equal_case(tokens[0].text, "endif");
+  asm_conditional_t *top;
+  *handled = positive || negative || otherwise || end ? CTOOL_TRUE : CTOOL_FALSE;
+  if (!*handled) return CTOOL_OK;
+  if (positive || negative) {
+    asm_symbol_t *symbol;
+    ctool_bool defined;
+    ctool_string_t qualified;
+    ctool_status_t qualification;
+    ctool_bool active = asm_condition_active(context);
+    if (count != 2u || tokens[1].kind != ASM_TOKEN_IDENT) {
+      asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_SYNTAX,
+          tokens[0].line, tokens[0].column, "conditional requires one definition name");
+      return CTOOL_ERR_INPUT;
+    }
+    if (context->conditional_depth == 64u) {
+      asm_fail(context, CTOOL_ERR_LIMIT, CTOOL_ASM_DIAG_SYNTAX,
+          tokens[0].line, tokens[0].column, "conditional nesting exceeds 64 levels");
+      return CTOOL_ERR_LIMIT;
+    }
+    defined = CTOOL_FALSE;
+    if (active) {
+      qualification = asm_qualified_name(context, tokens[1].text, &qualified);
+      if (qualification != CTOOL_OK) {
+        asm_fail(context, qualification, CTOOL_ASM_DIAG_SYNTAX,
+            tokens[1].line, tokens[1].column, "conditional definition name cannot be resolved");
+        return qualification;
+      }
+      symbol = asm_find_symbol(context, qualified);
+      defined = symbol != (asm_symbol_t *)0 && symbol->declared &&
+                symbol->kind == ASM_SYMBOL_CONSTANT ? CTOOL_TRUE : CTOOL_FALSE;
+    }
+    top = &context->conditionals[context->conditional_depth++];
+    top->parent_active = active;
+    top->selected = negative ? !defined : defined;
+    top->has_else = CTOOL_FALSE;
+    return CTOOL_OK;
+  }
+  if (count != 1u || context->conditional_depth == context->conditional_base) {
+    asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_SYNTAX,
+        tokens[0].line, tokens[0].column, "unmatched or malformed conditional terminator");
+    return CTOOL_ERR_INPUT;
+  }
+  top = &context->conditionals[context->conditional_depth - 1u];
+  if (otherwise) {
+    if (top->has_else) {
+      asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_SYNTAX,
+          tokens[0].line, tokens[0].column, "conditional has more than one else");
+      return CTOOL_ERR_INPUT;
+    }
+    top->has_else = CTOOL_TRUE; top->selected = !top->selected;
+  } else context->conditional_depth--;
+  return CTOOL_OK;
+}
+
 static ctool_status_t asm_parse_line(asm_context_t *context,
                                      const asm_token_t *tokens,
                                      ctool_u32 count) {
@@ -1961,6 +2053,12 @@ static ctool_status_t asm_parse_line(asm_context_t *context,
   if (count == 0u) {
     return CTOOL_OK;
   }
+  if (tokens[0].kind == ASM_TOKEN_PREPROCESSOR) {
+    ctool_bool handled;
+    ctool_status_t conditional_status = asm_parse_conditional(context, tokens, count, &handled);
+    if (handled) return conditional_status;
+  }
+  if (!asm_condition_active(context)) return CTOOL_OK;
   if (tokens[0].kind == ASM_TOKEN_PREPROCESSOR) {
     asm_expr_t *definition;
     asm_symbol_t *symbol;
@@ -2267,6 +2365,8 @@ static ctool_status_t asm_parse_source_file(asm_context_t *context,
                                             const ctool_source_t *source) {
   const ctool_source_t *previous = context->source;
   ctool_string_t previous_path = context->active_path;
+  ctool_u32 previous_base = context->conditional_base;
+  ctool_u32 conditional_base = context->conditional_depth;
   ctool_u32 position = 0u;
   ctool_u32 line_number = 1u;
   ctool_status_t result = CTOOL_OK;
@@ -2277,6 +2377,7 @@ static ctool_status_t asm_parse_source_file(asm_context_t *context,
   }
   context->include_stack[context->include_depth] = source->path;
   context->include_depth++;
+  context->conditional_base = conditional_base;
   context->source = source;
   context->active_path = source->path.text;
   while (result == CTOOL_OK && position < source->contents.size) {
@@ -2290,6 +2391,12 @@ static ctool_status_t asm_parse_source_file(asm_context_t *context,
       position++;
     }
     line_size = position - line_start;
+    if (!asm_condition_active(context) && !asm_conditional_line(
+        (const char *)(const void *)(source->contents.data + line_start), line_size)) {
+      if (position < source->contents.size) position++;
+      line_number++;
+      continue;
+    }
     status = line_size == 0u
                  ? CTOOL_OK
                  : ctool_arena_alloc_zero(
@@ -2317,6 +2424,13 @@ static ctool_status_t asm_parse_source_file(asm_context_t *context,
     }
     line_number++;
   }
+  if (result == CTOOL_OK && context->conditional_depth != conditional_base) {
+    asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_SYNTAX,
+        line_number, 1u, "unterminated conditional in source file");
+    result = CTOOL_ERR_INPUT;
+  }
+  context->conditional_depth = conditional_base;
+  context->conditional_base = previous_base;
   context->source = previous;
   context->active_path = previous_path;
   context->include_depth--;
@@ -4565,6 +4679,8 @@ ctool_status_t ctool_asm_assemble(ctool_job_t *job,
                        : 0u;
   context.have_origin = CTOOL_FALSE;
   context.include_depth = 0u;
+  context.conditional_depth = 0u;
+  context.conditional_base = 0u;
   context.failure_status = CTOOL_OK;
   context.failure_code = 0u;
   context.failure_line = 0u;

@@ -1,5 +1,15 @@
 # Cupid Toolchain bootstrap
 
+The shared assembler now supports definition conditionals (`%ifdef`, `%ifndef`,
+`%else`, `%endif`). Native and Cupid-built tests pass on both hosts, including
+local definitions, skipped invalid source, include boundaries and output
+preservation. Canonical staged proofs, Linux contract publication and paired
+OS/runtime acceptance pass. Both hosts produce the same image and pass the
+four-CPU disassembly/shell smoke. A serial completion marker now prevents that
+smoke from advancing while disassembly is still running. Installed seeds and
+production ownership remain unchanged; seed promotion is a separate step.
+See [conditional progress](NEXT-ASSEMBLER-CONDITIONALS.md).
+
 The production artifact runner now captures `bootstrap/seeds/release.json` and
 checks its twelve tool identities against the retained Python release pins
 before launching the Cupid contract. The 26-input closure includes the record,

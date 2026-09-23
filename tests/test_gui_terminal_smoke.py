@@ -959,6 +959,59 @@ class GuiTerminalInputTests(unittest.TestCase):
         self.assertEqual(monitor.sent[-1], b"sendkey ret 300\n")
         self.assertEqual(len(monitor.sent), len(command) + 1)
 
+    def test_terminal_completion_rejects_an_early_success_without_ready(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("[terminal] command complete\n", encoding="utf-8")
+            monitor = SequencedMonitorSocket(log, ["first ret\n"])
+            process = mock.Mock()
+            process.poll.return_value = None
+            with mock.patch("tools.gui_terminal_smoke.time.sleep"):
+                ok, _ = gui_terminal_smoke.run_terminal_command(
+                    process, monitor, log, "dis", "first ret", 0.01, 0.35,
+                    require_completion=True,
+                )
+        self.assertFalse(ok)
+
+    def test_terminal_completion_waits_for_command_return_after_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("boot complete\n", encoding="utf-8")
+            monitor = SequencedMonitorSocket(log, ["first ret\n"])
+            process = mock.Mock()
+            polls = []
+
+            def running():
+                polls.append(True)
+                with log.open("a", encoding="utf-8") as stream:
+                    stream.write("last ret\n[terminal] command complete\n")
+                return None
+
+            process.poll.side_effect = running
+            with mock.patch("tools.gui_terminal_smoke.time.sleep"):
+                ok, data = gui_terminal_smoke.run_terminal_command(
+                    process, monitor, log, "dis", "first ret", 1.0, 0.35,
+                    require_completion=True,
+                )
+        self.assertTrue(ok)
+        self.assertTrue(polls)
+        self.assertIn("last ret", data)
+        self.assertIn("[terminal] command complete", data)
+
+    def test_terminal_completion_does_not_replace_expected_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("boot complete\n", encoding="utf-8")
+            monitor = SequencedMonitorSocket(log, ["[terminal] command complete\n"])
+            process = mock.Mock()
+            process.poll.return_value = None
+            with mock.patch("tools.gui_terminal_smoke.time.sleep"):
+                ok, _ = gui_terminal_smoke.run_terminal_command(
+                    process, monitor, log, "dis", "first ret", 0.01, 0.35,
+                    require_completion=True,
+                )
+        self.assertFalse(ok)
+
     def test_terminal_command_rejects_unsupported_text_before_typing(self):
         with tempfile.TemporaryDirectory() as temporary:
             log = Path(temporary) / "serial.log"

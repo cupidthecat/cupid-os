@@ -969,6 +969,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDDIS_CONTRACT) exec
 	$(CUPIDDIS_CONTRACT) nm
 	$(CUPIDDIS_CONTRACT) errors
+	$(CUPIDASM_CONTRACT) conditionals
 	$(CUPIDASM_CONTRACT) raw-basic
 	$(CUPIDASM_CONTRACT) raw-expressions
 	$(CUPIDASM_CONTRACT) raw-source-contracts

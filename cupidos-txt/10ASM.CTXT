@@ -13,6 +13,19 @@ Verified against source on: 2026-09-19
 >style linkhover #0B3AA8
 >rule
 
+>h2 Definition conditionals
+>tree open Definition conditionals
+Source-head CupidASM supports %ifdef NAME, %ifndef NAME, %else and %endif.
+These test existing %define or request constants, including zero values.
+Labels and EQU symbols do not count. Names use normal case and local-scope
+rules. Inactive branches skip instructions, definitions and includes without
+parsing their ordinary lines. Conditional control lines still require valid
+syntax. Nesting is limited to 64 levels; each included file balances its own
+blocks. Repeated else, missing endif and unmatched terminators are errors.
+Native and Cupid-built contract suites exercise selection and rejection on
+Linux and Windows, including preservation of previous output on failure.
+>endtree
+
 >h2 Source and seed checkpoint
 >tree open Source and seed checkpoint
 Both checked seed cohorts bind source

@@ -3910,6 +3910,7 @@ int shell_gui_run_pending_command(void) {
   gui_pending_command[0] = '\0';
   gui_pending_command_state = 0;
   shell_gui_print_prompt();
+  serial_write_string("[terminal] command complete\n");
   return 1;
 }
 

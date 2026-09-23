@@ -38897,3 +38897,113 @@ An initial source capture accidentally included conditional generated output;
 the original was restored and verified before either acceptance build consumed
 it. Its failed capture remains alongside the corrected evidence. Native
 verifier integration and seed promotion remain open; issue #34 remains open.
+
+
+## 2026-09-23: Definition conditionals before UTF-8 startup adoption
+
+The verifier draft exposed a bootstrap prerequisite: installed CupidASM rejects
+its `%ifdef` startup selector. The draft's seventeen files are byte-verified and
+saved separately. Source head now implements definition conditionals under
+ADR 0404. Both native and checked assemblers pass 23 CLI cases, thirteen C
+contract modes (thirteen new API rows), and four include cases. Both hosts pass
+49 active assembler tests, with four platform skips. Independent checked-input
+and object verification passes, including exact ANSI/wide startup object
+reproduction. The selector itself remains private.
+
+Failed candidates exposed uninitialized stack fields, local-name qualification,
+and inactive-parent name resolution. All are repaired and covered. Startup
+import declaration order must remain stable to preserve ELF symbol order.
+The staged behavior matrix now requires conditional selection and unterminated
+block rejection without replacing previous output. Full staged, publication,
+OS/runtime and promotion gates remain pending. Installed seeds and the
+440 CupidBuild / 12 Python ownership split are unchanged. Details and retained
+failure evidence are in NEXT-ASSEMBLER-CONDITIONALS.md.
+
+Further checked probes exposed carriage-return whitespace and directive-prefix
+misclassification in skipped blocks. V4 shares the normal lexer's whitespace
+and identifier rules and adds both regressions. The incomplete v3 staged and
+kernel proofs were explicitly retired for this repair; their partial outputs
+remain preserved. Fresh proofs must bind the corrected source.
+
+The v4 staged proofs now pass independent verification on both hosts, with
+35 Windows and 32 Linux final artifact pairs. Linux kernel construction passes;
+paired OS and runtime acceptance are still running. Promotion validation accepts
+each completed report and rejects seven damaged-report or artifact cases per
+host. No seed has been promoted.
+
+A commit-byte audit found two compiler inputs with CRLF working-copy bytes but
+LF committed bytes. V5 repeats the proofs after correcting those mismatches.
+The publication audit covers its separate 80-input set. An initial normalization
+pass used Git's clean-filter result too broadly: some untouched files already
+had CRLF in HEAD. Their original bytes were restored and checked against HEAD;
+the change diff remains limited to the assembler work. Backups and both audit
+reports retain this correction. The embedded assembler guide now describes its
+tested behavior without temporary acceptance status; final OS acceptance must
+rebuild that guide and bind the final committed input bytes.
+
+Both v5 staged proofs pass, followed by independent paired verification of the
+66-input snapshot. Rehashed comparisons against v4 show identical artifacts in
+all three generations: 35 per Windows generation and 32 per Linux generation.
+The two source changes are exactly the recorded CRLF-to-LF corrections. Both v4
+kernel builds and the Linux image build pass; publication, paired runtime and
+the final embedded-manual rebuild remain in progress. Seeds are unchanged.
+
+A private Windows comparison also reproduces an integration problem in the
+parked verifier draft. With the same CupidBuild objects, ANSI startup accepts
+an accented working-directory path, while UTF-8 startup rejects it as invalid;
+both accept the ASCII path. Successful runs produce identical objects. Existing
+file/process adapters still use ANSI APIs, and the retained repository walker
+rejects non-ASCII components. Verifier-only Unicode tests do not cover those
+commands. The path-adapter boundary must be fixed before adopting UTF-8 startup
+across CupidBuild. Probe scripts, commands and hashes are retained under
+`build/bootstrap/native-artifact-integration-bd13198b/`.
+
+Linux publication passes all thirteen assembler modes, but its subsequent GUI
+smoke exposed a test synchronization race. The setup expression matched the
+first `ret` in `dis /bin/ls.cc` and sent `ls` before disassembly returned. An
+instrumented replay captured `terminal: command already running` on screen.
+An identical uninstrumented replay passed, confirming the intermittent timing.
+The failed acceptance and dependent final-build reports remain preserved.
+
+The GUI shell now emits a serial completion marker after returning from the
+pending command, clearing its pending state and printing the prompt. The smoke
+harness has an explicit `--require-command-completion` option that requires a
+new marker as well as the expected output, within the existing command timeout.
+Older images can still use the previous output-only mode. Regression tests
+cover early output, stale completion markers, and completion without expected
+output. All 141 smoke-harness tests pass on both hosts; paired build and runtime
+verification of the new marker remains pending. This changes no tool ownership.
+
+V5 Linux publication now passes independent verification of all 80 inputs and
+22 artifacts. Its artifacts and 33 contract comparison records match v4, and
+the publisher records agreement on all 65 contract/tool stage pairs. The final
+completion-marker kernel builds also pass on both hosts. Rehashing 1,501 source
+inputs, sixteen artifacts and 431 link inputs confirms paired equality. The
+flat kernel measures 9,566,560 bytes; its exact-size policy records that value.
+
+The first final-kernel verifier incorrectly expected the HolyC manual object
+to change after CRLF-to-LF source normalization. CupidObj's text wrapper already
+performs that normalization, so the unchanged object is correct. A separate
+byte comparison proves this on both hosts. The failed verifier report is
+retained; its corrected successor accepts exactly the five changed link inputs.
+Paired image/user/runtime checks continue after that correction. No failed
+runtime report has been relabelled, and no seed has been promoted.
+
+Final paired acceptance now passes. Both hosts rebuild the image and all three
+user programs, verify sixteen exact artifact sizes, and pass four-CPU
+max/e1000 disassembly and shell smokes with command-completion markers required.
+Independent verification rehashes all 1,501 captured files, sixteen artifacts
+and 431 link inputs per host, checks the transferred Linux contract publication,
+and confirms matching user executables and images. Each 209,715,200-byte image
+has SHA-256 `e5f4ddc67697067acf1d209ccc51d484f7868957d6d125fe4ba01b091906ee82`
+before and after its private runtime check. The previous images remain unchanged.
+Reports are retained under `build/bootstrap/asm-defined-conditionals-final-bd13198b/`.
+
+The final documentation audit distinguishes updated acceptance notes from tested
+build inputs: only ADR 0404 and the bootstrap README, log and conditional progress
+page may differ from the frozen OS capture. All 105 unique staged/publication
+inputs remain exact. The final Git audit must verify the committed blobs,
+including the two LFS payload identities, before promotion. Size-policy tests
+also pass all fourteen methods on each host. The ownership split remains
+440 CupidBuild / 12 Python; the native verifier and Windows Unicode runtime
+work are still separate, unadopted candidates.

@@ -1998,14 +1998,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "include_arguments": [],
                 "workers": 1,
                 "assembly_sources": [
-                    {"name": "start", "path": str(startup)},
+                    {"name": "start", "path": "/start.asm"},
                     {
                         "name": "publication_start",
-                        "path": str(publication_start),
+                        "path": "/publication_start.asm",
                     },
                     {
                         "name": "cupidbuild_start",
-                        "path": str(cupidbuild_start),
+                        "path": "/cupidbuild_start.asm",
                     },
                 ],
                 "links": {
@@ -4532,7 +4532,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             linux_stage = Stage(objects={}, tools=linux_tools)
             windows_stage = Stage(objects={}, tools=windows_tools)
             seed_inputs = SeedInputs(
-                manifest={},
+                manifest={"build_plan": json.loads(
+                    SEED_MANIFEST.read_text(encoding="utf-8")
+                )["build_plan"]},
                 manifest_bytes=b"{}\n",
                 manifest_sha256="1" * 64,
                 live_manifest_path=root / "manifest.json",
@@ -4684,6 +4686,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             with mock.patch(
                 "tools.bootstrap_toolchain._run_stage_pair",
                 side_effect=windows_pair,
+            ), mock.patch(
+                "tools.bootstrap_toolchain.capture_source_snapshot",
+                return_value={},
             ), mock.patch(
                 "tools.bootstrap_toolchain."
                 "_check_cupidbuild_cupidobj_runner_behavior",
@@ -6774,9 +6779,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 34,
+                    "failure_cases": 35,
                     "help_cases": 7,
-                    "success_cases": 41,
+                    "success_cases": 42,
                 },
             )
             candidate_linux_plan = _candidate_build_plan(
@@ -7354,9 +7359,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         }
         self.assertEqual(
             returned["failure_cases"].value,
-            46,
+            47,
         )
-        self.assertEqual(returned["success_cases"].value, 54)
+        self.assertEqual(returned["success_cases"].value, 55)
         self.assertIsInstance(returned["help_cases"], ast.BinOp)
         self.assertIsInstance(returned["help_cases"].op, ast.Add)
         self.assertEqual(returned["help_cases"].right.value, 1)
@@ -11206,9 +11211,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 46,
+                    "failure_cases": 47,
                     "help_cases": 7,
-                    "success_cases": 54,
+                    "success_cases": 55,
                 },
             )
             self.assertEqual(

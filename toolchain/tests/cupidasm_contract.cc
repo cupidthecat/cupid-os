@@ -2437,7 +2437,71 @@ static int run_long_source_line(void) {
   return 0;
 }
 
+static int run_conditionals(void) {
+  static const char *const sources[] = {
+      "%ifdef SELECT\ndb 1\n%else\ndb 9\n%endif\n",
+      "%ifdef ABSOLUTE\ndb 9\n%else\ndb 2\n%endif\n",
+      "%ifdef select\ndb 9\n%else\ndb 3\n%endif\n",
+      "%ifdef select\ndb 4\n%else\ndb 9\n%endif\n",
+      "%ifdef LATER\ndb 9\n%endif\n%define LATER 0\n%ifdef LATER\ndb 5\n%endif\n",
+      "%ifdef MISSING\n%define IGNORED 1\nbad \"unterminated\n%endif\n%ifndef IGNORED\ndb 6\n%endif\n",
+      "anchor:\n%define .LOCAL 1\n%ifdef .LOCAL\ndb 7\n%endif\n",
+      "%ifdef MISSING\n%ifdef .LOCAL\ndb 9\n%endif\n%endif\ndb 8\n",
+      "%ifdef MISSING\n\r%else\ndb 9\n%endif\n",
+      "%ifdef MISSING\n%endif_extra \"unterminated\n%endif\ndb 10\n",
+      "%else\n", "%ifdef SELECT\n", "%ifdef SELECT\n%else\n%else\n%endif\n"};
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_asm_definition_t definitions[2];
+  ctool_u32 index;
+  if (ctool_host_adapter_init(&adapter, ".") != CTOOL_OK) return 1;
+  config = ctool_host_job_config(&adapter, ctool_default_limits());
+  definitions[0].name = ctool_string("SELECT");
+  definitions[0].kind = CTOOL_ASM_DEFINE_CONSTANT;
+  definitions[0].value = 0u;
+  definitions[1].name = ctool_string("ABSOLUTE");
+  definitions[1].kind = CTOOL_ASM_DEFINE_ABSOLUTE;
+  definitions[1].value = 1u;
+  for (index = 0u; index < 13u; index++) {
+    ctool_job_t *job;
+    ctool_buffer_t *output;
+    ctool_source_t source;
+    ctool_asm_request_t request;
+    ctool_asm_result_t result;
+    ctool_status_t status;
+    ctool_bytes_t bytes;
+    int good;
+    if (ctool_job_open(&config, &job) != CTOOL_OK) return 2;
+    if (ctool_job_open_buffer(job, 16u, ctool_default_limits().output_bytes,
+                              &output) != CTOOL_OK) {
+      ctool_job_close(job); return 3;
+    }
+    source.path.text = ctool_string("/conditionals.asm");
+    source.contents = ctool_bytes(sources[index], (ctool_u32)strlen(sources[index]));
+    init_raw_request(&request);
+    request.definitions = definitions;
+    request.definition_count = 2u;
+    request.case_insensitive_symbols = index == 3u ? CTOOL_TRUE : CTOOL_FALSE;
+    (void)memset(&result, 0xa5, sizeof(result));
+    status = ctool_asm_assemble(job, &source, &request, output, &result);
+    bytes = ctool_buffer_view(output);
+    good = index < 10u
+        ? status == CTOOL_OK && bytes.size == 1u && bytes.data[0] == index + 1u
+        : status == CTOOL_ERR_INPUT && bytes.size == 0u && contract_result_is_zero(&result);
+    if (!good) {
+      (void)fprintf(stderr, "conditional contract row %u failed\n", (unsigned int)index);
+      (void)ctool_job_render_diagnostics(job);
+    }
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    if (!good) return 4;
+  }
+  (void)puts("conditionals: ok");
+  return 0;
+}
+
 int main(int argc, char **argv) {
+  if (argc == 2 && strcmp(argv[1], "conditionals") == 0) return run_conditionals();
   if (argc == 2 && strcmp(argv[1], "raw-basic") == 0) {
     return run_raw_basic();
   }
@@ -2475,7 +2539,7 @@ int main(int argc, char **argv) {
     return run_long_source_line();
   }
   (void)fprintf(stderr,
-                "usage: cupidasm-contract raw-basic|raw-expressions|"
+                "usage: cupidasm-contract conditionals|raw-basic|raw-expressions|"
                 "raw-source-contracts|object-basic|object-symbolic-immediate|"
                 "object-entry|fixed-image|fixed-directives|alignment|"
                 "include-resolution|errors|long-line\n");

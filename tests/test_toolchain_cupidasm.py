@@ -96,6 +96,247 @@ class CupidAsmCliTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._build_directory.cleanup()
 
+    def test_definition_conditionals_select_bytes_and_skip_inactive_source(self):
+        cases = [
+            ("cr-control", "%ifdef MISSING\n\r%else\ndb 1\n%endif\n", b"\x01"),
+            ("prefix-token", "%ifdef MISSING\n%endif_extra \"unterminated\n%endif\ndb 1\n", b"\x01"),
+            (
+                'defined',
+                '%define X 0\n'
+                '%ifdef X\n'
+                'db 1\n'
+                '%else\n'
+                'db 2\n'
+                '%endif\n',
+                b'\x01',
+            ),
+            (
+                'undefined',
+                '%ifdef X\n'
+                'db 1\n'
+                '%else\n'
+                'db 2\n'
+                '%endif\n',
+                b'\x02',
+            ),
+            (
+                'ifndef',
+                '%ifndef X\n'
+                'db 3\n'
+                '%endif\n',
+                b'\x03',
+            ),
+            (
+                'nested',
+                '%define X 1\n'
+                '%ifdef X\n'
+                '%ifndef Y\n'
+                'db 4\n'
+                '%else\n'
+                'db 5\n'
+                '%endif\n'
+                '%endif\n',
+                b'\x04',
+            ),
+            (
+                'skip',
+                '%ifdef X\n'
+                'bad "unterminated\n'
+                '%define Y 1\n'
+                '%include "missing.asm"\n'
+                '%endif\n'
+                '%ifndef Y\n'
+                'db 6\n'
+                '%endif\n',
+                b'\x06',
+            ),
+            (
+                'equ',
+                'X equ 1\n'
+                '%ifdef X\n'
+                'db 7\n'
+                '%else\n'
+                'db 8\n'
+                '%endif\n',
+                b'\x08',
+            ),
+            (
+                'label',
+                'X:\n'
+                '%ifndef X\n'
+                'db 9\n'
+                '%endif\n',
+                b'\t',
+            ),
+            (
+                'inactive-nested',
+                '%ifdef X\n'
+                '%ifndef Y\n'
+                'db 10\n'
+                '%else\n'
+                'db 11\n'
+                '%endif\n'
+                '%else\n'
+                'db 12\n'
+                '%endif\n',
+                b'\x0c',
+            ),
+            (
+                'depth64',
+                "%ifndef X\n" * 64 + "db 13\n" + "%endif\n" * 64,
+                b'\r',
+            ),
+            (
+                'local-definition',
+                'anchor:\n'
+                '%define .X 1\n'
+                '%ifdef .X\n'
+                'db 1\n'
+                '%else\n'
+                'db 2\n'
+                '%endif\n',
+                b'\x01',
+            ),
+            (
+                'local-other-scope',
+                'anchor:\n'
+                '%define .X 1\n'
+                'other:\n'
+                '%ifndef .X\n'
+                'db 3\n'
+                '%endif\n',
+                b'\x03',
+            ),
+            (
+                'case-sensitive',
+                '%define X 1\n'
+                '%ifndef x\n'
+                'db 4\n'
+                '%endif\n',
+                b'\x04',
+            ),
+            (
+                'inactive-local',
+                '%ifdef MISSING\n'
+                '%ifdef .LOCAL\n'
+                'db 0\n'
+                '%endif\n'
+                '%endif\n'
+                'db 1\n',
+                b'\x01',
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, source, expected in cases:
+                with self.subTest(name=name):
+                    source_path = root / (name + ".asm")
+                    output = root / (name + ".bin")
+                    source_path.write_text(source, encoding="utf-8")
+                    result = subprocess.run(
+                        [str(self.cli_path), "-f", "bin", str(source_path), "-o", str(output)],
+                        capture_output=True, text=True, timeout=30,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(output.read_bytes(), expected)
+
+    def test_malformed_conditionals_preserve_previous_output(self):
+        negative = [
+            (
+                'missing-name',
+                '%ifdef\n',
+                'requires one definition',
+            ),
+            (
+                'extra-name',
+                '%ifdef X Y\n',
+                'requires one definition',
+            ),
+            (
+                'else',
+                '%else\n',
+                'unmatched',
+            ),
+            (
+                'endif',
+                '%endif\n',
+                'unmatched',
+            ),
+            (
+                'duplicate-else',
+                '%ifdef X\n'
+                '%else\n'
+                '%else\n'
+                '%endif\n',
+                'more than one',
+            ),
+            (
+                'unterminated',
+                '%ifndef X\n'
+                'db 1\n',
+                'unterminated',
+            ),
+            (
+                'trailing',
+                '%ifdef X\n'
+                '%endif X\n',
+                'malformed',
+            ),
+            (
+                'limit',
+                "%ifndef X\n" * 65,
+                'exceeds 64',
+            ),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, source, phrase in negative:
+                with self.subTest(name=name):
+                    source_path = root / (name + ".asm")
+                    output = root / (name + ".bin")
+                    source_path.write_text(source, encoding="utf-8")
+                    output.write_bytes(b"previous output")
+                    result = subprocess.run(
+                        [str(self.cli_path), "-f", "bin", str(source_path), "-o", str(output)],
+                        capture_output=True, text=True, timeout=30,
+                    )
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertIn(phrase, result.stderr)
+                    self.assertEqual(output.read_bytes(), b"previous output")
+
+    def test_conditionals_share_definitions_but_balance_each_include(self):
+        cases = (
+            ("%define WIDE 0\n%include \"child.asm\"\n",
+             "%ifdef WIDE\ndb 42\n%else\ndb 43\n%endif\n", b"*", None),
+            ("%ifndef X\n%include \"child.asm\"\n%endif\n",
+             "%ifndef Y\ndb 44\n%endif\n", b",", None),
+            ("%ifndef X\n%include \"child.asm\"\n%endif\n",
+             "%endif\n", None, "unmatched"),
+            ("%include \"child.asm\"\n%endif\n",
+             "%ifndef X\n", None, "unterminated"),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "parent.asm"
+            child = root / "child.asm"
+            output = root / "out.bin"
+            for index, (parent, included, expected, error) in enumerate(cases):
+                with self.subTest(index=index):
+                    source.write_text(parent, encoding="utf-8")
+                    child.write_text(included, encoding="utf-8")
+                    output.write_bytes(b"previous output")
+                    result = subprocess.run(
+                        [str(self.cli_path), "-f", "bin", str(source), "-o", str(output)],
+                        capture_output=True, text=True, timeout=30,
+                    )
+                    if error is None:
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertEqual(output.read_bytes(), expected)
+                    else:
+                        self.assertEqual(result.returncode, 1, result.stderr)
+                        self.assertIn(error, result.stderr)
+                        self.assertEqual(output.read_bytes(), b"previous output")
+
     def test_cli_assembles_nasm_style_raw_command_to_exact_bytes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -3182,6 +3182,42 @@ def _corrupt_candidate_entry_instruction(
     return bytes(image)
 
 
+def _check_assembly_conditionals_behavior(
+    runner: ToolRunner,
+    behavior_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+) -> None:
+    source = behavior_root / "conditionals.asm"
+    outputs = tuple(behavior_root / f"{name}-conditionals.bin"
+                    for name in ("stage-three", "stage-four"))
+    source.write_text(
+        "%define ENABLED 0\n%ifdef ENABLED\n"
+        "%ifndef MISSING\ndb 42\n%else\ndb 0\n%endif\n"
+        "%else\ninvalid \"unterminated\n%endif_extra \"unterminated\n"
+        "%include \"absent.asm\"\n\r%endif\n",
+        encoding="ascii", newline="\n",
+    )
+    result = _run_stage_pair(
+        runner, stage_two, stage_three, "cupidasm",
+        ["-f", "bin", source, "-o", outputs[0]],
+        ["-f", "bin", source, "-o", outputs[1]], 60,
+    )
+    _expect_status(result, 0, "CupidASM definition conditionals")
+    if result.stdout or result.stderr or any(p.read_bytes() != b"*" for p in outputs):
+        raise BootstrapError("CupidASM conditional selection differs")
+    source.write_text("%ifndef MISSING\ndb 42\n", encoding="ascii", newline="\n")
+    result = _run_stage_pair(
+        runner, stage_two, stage_three, "cupidasm",
+        ["-f", "bin", source, "-o", outputs[0]],
+        ["-f", "bin", source, "-o", outputs[1]], 60,
+    )
+    _expect_status(result, 1, "CupidASM unterminated conditional")
+    if (result.stdout or "unterminated conditional" not in result.stderr
+            or any(p.read_bytes() != b"*" for p in outputs)):
+        raise BootstrapError("CupidASM conditional failure differs")
+
+
 def _check_candidate_image_certification_behavior(
     runner: ToolRunner,
     behavior_root: Path,
@@ -5177,6 +5213,10 @@ def _run_native_windows_behavior_checks(
         raise BootstrapError("native Windows CupidC output differs")
     _validate_i386_relocatable(stage_two_object)
 
+    _check_assembly_conditionals_behavior(
+        runner, behavior_root, stage_two, stage_three,
+    )
+
     assembly_source = behavior_root / "valid.asm"
     assembly_source.write_text(
         "BITS 16\nORG 0x7c00\nmov ax, 0x1234\nret\n",
@@ -5367,9 +5407,9 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(tool_names) + 28,
+        "failure_cases": len(tool_names) + 29,
         "help_cases": len(tool_names) + 1,
-        "success_cases": len(tool_names) + 35,
+        "success_cases": len(tool_names) + 36,
     }
 
 
@@ -6247,6 +6287,10 @@ def _run_behavior_checks(
         or stage_three_failure.read_bytes() != sentinel
     ):
         raise BootstrapError("CupidC failure behavior differs")
+
+    _check_assembly_conditionals_behavior(
+        runner, behavior_root, stage_two, stage_three,
+    )
 
     assembly_source = behavior_root / "fixed-point.asm"
     stage_two_binary = behavior_root / "stage-three.bin"
@@ -8913,9 +8957,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 46,
+        "failure_cases": 47,
         "help_cases": len(tool_names) + 1,
-        "success_cases": 54,
+        "success_cases": 55,
     }
 
 
