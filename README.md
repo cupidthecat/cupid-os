@@ -154,6 +154,17 @@ carry the repairs from `16a86f5b`, whose clean paired proofs passed.
 
 ## Current bootstrap ownership
 
+Source head now includes a read-only filesystem observer for native artifact
+verification. Its 36-method suite passes with native and Cupid-built callers
+on Windows and Linux, covering retained handles, directory membership, Unicode
+paths, payload drift and files larger than 4 GiB. Both candidate staged proofs
+pass independent verification. Contract publication and paired OS/runtime
+acceptance pass, including all sixteen artifacts, three unchanged user
+executables and private four-CPU disassembly/shell smokes. Both hosts produce
+the same final image. Production verification still uses Python.
+[ADR 0401](docs/adr/0401-retain-read-only-filesystem-observations.md) records the
+interface and limits.
+
 The preceding `16a86f5b` pair passed independent source-inventory and
 final-stage byte comparisons on Linux and Windows. The final-cohort 155-test
 CupidBuild CLI suite passed on both hosts, with only platform-specific

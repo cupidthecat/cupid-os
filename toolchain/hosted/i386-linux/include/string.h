@@ -13,6 +13,7 @@ char *strrchr(const char *text, int character);
 int strcmp(const char *left, const char *right);
 int strncmp(const char *left, const char *right, size_t count);
 char *strstr(const char *text, const char *needle);
+char *strcpy(char *destination, const char *source);
 size_t strlen(const char *text);
 
 #endif

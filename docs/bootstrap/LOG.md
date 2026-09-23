@@ -38676,3 +38676,172 @@ The private smokes left both source images unchanged. ABI v5 retains 103 fields,
 101 providers and its 412-byte table. Both inspectors rechecked the five current
 controls and all 66 compiler inputs. ADR 0400 is accepted; installed seed pins
 and all twelve remaining Python-coordinated operations are unchanged.
+
+The next step starts a retained, read-only host observer. The declared interface
+separates metadata-only observations from bounded payload reads, uses 64-bit
+file sizes, retains live handles, and requires exact directory membership and
+final rechecks. Its first real-filesystem test caller exposes a barrier between
+capture and validation. The initial Windows run fails to link the six missing
+observer functions, establishing the intended red test before implementation.
+No observer behavior or Python handoff has passed yet.
+`NEXT-NATIVE-OBSERVER.md` records the interface, platform requirements, initial
+cases and remaining failure/cleanup coverage.
+
+### Retained observer implementation under validation
+
+The observer now retains original files and all ancestors, rejects links,
+compares exact directory membership, preserves 64-bit sizes, and rechecks
+captured payload hashes. Windows opens retain read/write sharing without delete
+sharing. Unicode names are decoded strictly at the NT boundary. POSIX leaf
+opens remain nonblocking before file-kind checks.
+
+The initial Windows Unicode failure came from the native test caller's
+locale-dependent command-line conversion. The harness now transports UTF-8
+bytes as ASCII hex. The expanded tests then found a Windows root-membership
+bug caused by reopening `.` through NT; root observations now retain the
+existing root entry. Checked compilation exposed missing hosted `stdin` and
+`strcpy`. Both are implemented, with pipe EOF and invalid-read tests. The first
+Linux checked execution found raw negative syscall errors being retained as
+descriptors and missing `O_LARGEFILE`; both were corrected.
+
+The 35-method suite passes on both hosts. Native builds have four Windows and
+two Linux skips; checked callers have three Windows and one Linux skip. The
+checked v4 runs took 47.78 seconds on Windows and 39.65 seconds on Linux. The
+durable `CUPIDBUILD_OBSERVER_CHECKED=1` entry point also passed, in 48.03 and
+39.27 seconds. The existing fourteen-method host-runner suite passes on both
+hosts, with nine Windows and one Linux skip. Coverage includes a sparse
+4 GiB + 37 byte file, Unicode roots and membership, replacement denial/detection,
+malformed UTF-8, junctions, symlinks, FIFOs, poisoned lifetimes, cleared outputs,
+and 1,200 cleanup cycles. Metadata-only observations intentionally do not claim
+to detect same-size edits with restored modification times.
+
+ADR 0401 remains under validation. A frozen 1,495-file source capture, excluding
+TempleOS, is retained at `build/bootstrap/native-observer-9814c273/source` with
+a complete size/hash inventory. Windows and native Linux staged proofs and OS
+builds are running in separate checkouts. The updated embedded manual requires
+fresh artifact measurements and runtime acceptance. Installed seeds and the
+twelve Python-coordinated operations remain unchanged; no observer commit or
+production verifier handoff is claimed yet.
+
+The surrounding verifier regression run passes 103 methods on Linux, with two
+skips. Windows passed the observer and byte-validator cases but stopped while
+building the user-ELF native oracle: Microsoft's headers deprecate standard
+`strcpy` under `-Werror`. The Make rule now defines `_CRT_SECURE_NO_WARNINGS`
+only for the native Windows `cupidbuild_host.o`; observer strings already have
+exact-size allocations. The focused user-ELF retry is running. This Make-only
+repair is newer than the frozen acceptance control files; final publication
+validation must include it. The 66 compiler inputs are unchanged by the repair.
+
+The Windows user-ELF retry passes all four tests in 159.72 seconds. Independent
+rehashing also confirms the checked observer sources, objects and programs;
+the caller object is identical across hosts. The refreshed graph audit passes
+with 756 active inputs, 255 feature requirements and 452 transforms. Ownership
+remains 440 CupidBuild and twelve Python operations.
+
+The new platform branches raise the conditional inventory from 399 `#if` and
+twelve `#elif` occurrences to 408 and eighteen, with 55 expressions and 58
+directive/expression pairs. The conditional manifest, executable totals and
+audit assertions now agree with those counts. The native executable's
+`conditional-active` contract passes; focused audit tests and the final audit
+refresh are running. These publication-control updates also postdate the frozen
+OS checkouts. The current candidate snapshot still equals the frozen 66-input
+snapshot used by both staged proofs.
+
+The four focused audit contracts pass in 122.69 seconds, with no skips. The
+final v3 audit also passes; its JSON and Markdown replace the tracked audit
+outputs. The generated active-source cases remain byte-identical. Both staged
+proofs and both fresh OS builds are still running at this checkpoint.
+
+The next verifier review found a missing root-metadata check. Python's wrapper
+compares root identity, link count, size and modification time; the new observer
+initially compared only directory identity. A real-filesystem probe on both
+hosts confirmed that adding a root member was rejected by Python but accepted
+by the checked observer. The new regression failed against the retained v4
+caller before the fix.
+
+The observer now compares all those root fields while retaining identity-only
+checks for other directories. All 36 native and checked methods pass on both
+hosts. Checked v5 took 68.43 seconds on Windows and 58.86 seconds on Linux;
+native runs took 9.80 and 1.64 seconds. Independent source/object/program
+rehashing passes for v5. The two earlier staged attempts were explicitly retired
+after verifying their owned process trees; every recorded process has exited.
+Their partial outputs are retained. Fresh staged proofs will use a new source
+capture. The first OS builds continue for baseline measurements, but final
+publication validation must use the repaired source and controls.
+
+The refreshed v4 audit passes all ten contracts and its tracked outputs are
+updated. A second 1,495-file capture freezes the repaired source and current
+controls; the 66 compiler inputs match the active worktree exactly. Fresh
+Windows and native Linux staged proofs are running from that capture. The
+retired attempts are not acceptance evidence for the repaired observer.
+
+Both final candidate staged proofs pass. Independent native-host and paired
+rehashing binds the same 66 inputs to snapshot
+`b3f191540e183604e2cd5a939924f4408881ea39090452fbe5d19b2fd6e3e6c6`.
+Windows has 35 byte-identical stage-three/four outputs: 26 C objects, three
+assembly objects and six tools. Linux has 32: 25 C objects, one assembly object
+and six tools. Behavior checks pass 41 success, 34 failure and seven help cases
+on Windows, and 54 success, 46 failure and seven help cases on Linux.
+
+The Windows proof first failed in the execution runner under a deep checkout.
+An installed-seed probe reproduced short-path success and deep-path failure.
+Private instrumentation found `GetFileAttributesA` error 3 while checking the
+frozen compiler path, before process creation. The accepted retry uses a shorter
+checkout; the existing launcher limitation remains unfixed.
+
+Initial OS measurements match across hosts for all sixteen artifacts and 431
+production inputs. Against the previous accepted OS, only the embedded manual
+object and the two linked ELF files differ among those inputs. The raw kernel
+exceeds the old exact-size policy as expected after the documentation change.
+The final manual contains later updates, so these initial sizes are not used
+to update that policy. Final kernel rebuilds remain in progress.
+
+The first final Linux kernel rebuild failed when simultaneous contract
+publication created `toolchain/build` inside its observed directory closure.
+The retry runs in a separate checkout, preserving the frozen source and stable
+objects. The first Linux publication attempt timed out compiling the stage-two
+frontend at the existing 360-second limit. Its retry uses the same inputs and
+deadline; the completed frontend object matches the accepted staged proof.
+Native Windows ABI validation passes with the unchanged 103-field, 101-provider,
+412-byte table. Linux publication and final OS/runtime acceptance remain pending.
+
+Both final kernel builds now pass. Independent rehashing checks all 1,495 frozen
+source inputs, sixteen artifacts and 431 link inputs on both hosts. Artifacts
+and link inputs match byte for byte. The final manual is 56,035 bytes; its
+object and the two linked ELF files are the only changed link inputs relative
+to the initial observer build. Boot and all twelve installed seed images are
+unchanged. The exact-size policy now records the measured 9,557,956-byte raw
+kernel, up 660 bytes from the previously accepted kernel. The two ELF sizes
+remain 9,654,604 and 9,785,676 bytes. Images have not yet been accepted for this
+final build; Windows image/user/runtime checks are running.
+
+Windows final acceptance now passes: the image build, sixteen exact artifacts,
+ABI check, three user-program builds and a private four-CPU max/e1000 smoke.
+The smoke verifies SMP runtime behavior, `dis /bin/ls.cc` and `ls`. Independent
+rehashing confirms all 1,495 final inputs, sixteen artifacts and 431 link inputs.
+The three user executables match the preceding accepted versions. The rebuilt
+200 MiB image has SHA-256
+`d5eabad433bf496ea65b310a71d885cd7fc7fd5e56ca3b52c5f122b49e49511a`
+before and after the private smoke; the preceding accepted image is unchanged.
+Linux publication has completed its bootstrap and is compiling the contract
+stages. Linux image/runtime acceptance and the paired final comparison remain.
+
+Linux contract publication now passes. Cupid's author and the Python oracle
+agree on all 65 stage pairs. The published cohort has 80 source inputs and 22
+artifacts; its manifest SHA-256 is
+`c56d2c2169f248584a074cf757b9bcd21b707d5bae1644aca968c2c4db4c040f`.
+Independent publication and input verification pass against both the original
+publication checkout and the separate final OS checkout, before and after the
+copy. The Linux ABI matches Windows: 103 fields, 101 providers and 412 bytes.
+Linux final image/user/runtime acceptance is running. The paired final check
+and observer commit still require that result; no seeds were promoted.
+
+Final Linux image, users and four-CPU max/e1000 SMP/disassembly/shell smoke now
+pass. The independent paired verifier rehashes all 1,495 final source inputs,
+sixteen artifacts and 431 link inputs on both hosts. The 200 MiB images match,
+SHA-256 `d5eabad433bf496ea65b310a71d885cd7fc7fd5e56ca3b52c5f122b49e49511a`,
+and remain unchanged through both private smokes. The three user executables
+and prior accepted images are unchanged. ADR 0401 is accepted for the observer
+capability. Production ownership remains 440 CupidBuild and twelve Python
+participations; release-file authority, native verifier integration and seed
+promotion are not claimed by this step.

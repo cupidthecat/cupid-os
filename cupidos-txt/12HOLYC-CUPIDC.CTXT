@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-09-22
+Verified against source on: 2026-09-23
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -14,6 +14,16 @@ Verified against source on: 2026-09-22
 >rule
 
 >h2 Reusable build verification modules
+Source-head CupidBuild now has a read-only filesystem observer. It retains
+original file and ancestor handles, checks exact directory membership, keeps
+64-bit metadata sizes, and rechecks hashes of captured payloads. Unicode paths,
+replacement, links, large files and cleanup are covered by native and Cupid-built
+tests on both hosts. Windows denies deletion while handles remain open; Linux
+detects replacement during revalidation. Metadata-only checks do not detect
+same-size edits with restored timestamps. Root identity, link count, size and
+modification time are checked across the lifetime. Production artifact
+verification still uses Python.
+
 Source-head artifact_size_policy_validate checks immutable CUPSIZE2 bytes and
 returns an explicit result with bounded diagnostics. The artifact adapter and
 Toolchain manifest verifier share parsing helpers with per-call error state.
@@ -30,8 +40,8 @@ Equivalent JSON escapes are accepted; duplicate decoded keys and mismatched
 plans are rejected. The pair validator checks both manifests against a
 twelve-image release record and binds the Windows plan to the actual Linux
 manifest bytes. No release record has been adopted as production authority.
-Native filesystem capture, release publication, and final drift checks remain
-required before artifact verification can leave Python. Candidate inventories
+Observer integration, release publication, and final command-level drift checks
+remain required before artifact verification can leave Python. Candidate inventories
 contain 66 bootstrap inputs and 80 publication inputs. Installed seeds retain
 their verified 59-input generation. Candidate plans do not change installed
 seeds or production coordination.

@@ -2199,6 +2199,17 @@ _Avoid_: build phase
 The bootstrap state in which consecutive toolchain generations are identical.
 _Avoid_: successful compile
 
+**Read-only filesystem observer**:
+A hosted lifetime that retains original files and their ancestors without
+creating files or locks. Metadata observations keep 64-bit sizes; payload
+observations also recheck captured SHA-256 identities. Directory observations
+require exact membership but do not imply member kinds. Windows denies deletion
+while handles are open; POSIX revalidation detects replacement. Failed operations
+poison the lifetime. Root identity, link count, size and modification time are
+checked across the lifetime. ADR 0401 records the implementation under validation;
+production artifact verification still uses Python.
+_Avoid_: atomic filesystem snapshot, frozen execution transaction
+
 **Normal build**:
 The supported path that builds Cupid OS with the Cupid Toolchain as its code-producing toolchain.
 _Avoid_: oracle build, host build

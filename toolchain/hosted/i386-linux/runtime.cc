@@ -42,6 +42,7 @@
 #define CUPID_WINDOWS_ERROR_INVALID_HANDLE 6u
 #define CUPID_WINDOWS_ERROR_NOT_ENOUGH_MEMORY 8u
 #define CUPID_WINDOWS_ERROR_OUTOFMEMORY 14u
+#define CUPID_WINDOWS_ERROR_BROKEN_PIPE 109u
 #define CUPID_WINDOWS_GENERIC_READ 0x80000000u
 #define CUPID_WINDOWS_GENERIC_WRITE 0x40000000u
 #define CUPID_WINDOWS_FILE_SHARE_READ 1u
@@ -51,6 +52,7 @@
 #define CUPID_WINDOWS_OPEN_EXISTING 3u
 #define CUPID_WINDOWS_OPEN_ALWAYS 4u
 #define CUPID_WINDOWS_FILE_ATTRIBUTE_NORMAL 0x80u
+#define CUPID_WINDOWS_STD_INPUT_HANDLE (-10)
 #define CUPID_WINDOWS_STD_OUTPUT_HANDLE (-11)
 #define CUPID_WINDOWS_STD_ERROR_HANDLE (-12)
 #define CUPID_WINDOWS_MEM_COMMIT 0x1000u
@@ -120,9 +122,11 @@ struct cupid_heap_block {
 
 static int cupid_runtime_errno;
 #if defined(CUPID_RUNTIME_WINDOWS)
+static FILE cupid_runtime_stdin = {-1, 0, 0, 0};
 static FILE cupid_runtime_stdout = {-1, 0, 0, 0};
 static FILE cupid_runtime_stderr = {-1, 0, 0, 0};
 #else
+static FILE cupid_runtime_stdin = {0, 0, 0};
 static FILE cupid_runtime_stdout = {1, 0, 0};
 static FILE cupid_runtime_stderr = {2, 0, 0};
 static cupid_heap_block_t *cupid_heap_first;
@@ -130,6 +134,7 @@ static cupid_heap_block_t *cupid_heap_last;
 static unsigned int cupid_heap_end;
 #endif
 
+FILE *stdin = &cupid_runtime_stdin;
 FILE *stdout = &cupid_runtime_stdout;
 FILE *stderr = &cupid_runtime_stderr;
 
@@ -164,6 +169,14 @@ static int cupid_windows_error(void) {
   return value;
 }
 #endif
+
+char *strcpy(char *destination, const char *source) {
+  char *result = destination;
+  do {
+    *destination++ = *source;
+  } while (*source++ != '\0');
+  return result;
+}
 
 void *memcpy(void *destination, const void *source, size_t bytes) {
   unsigned char *target = (unsigned char *)destination;
@@ -795,6 +808,9 @@ size_t fread(void *destination, size_t width, size_t count, FILE *stream) {
         (unsigned int)stream->descriptor, bytes + total,
         (unsigned int)chunk, &read, (void *)0);
     if (result == 0) {
+      if (cupid_windows_get_last_error() == CUPID_WINDOWS_ERROR_BROKEN_PIPE) {
+        break;
+      }
       (void)cupid_windows_error();
       stream->error = 1;
       break;
@@ -1423,6 +1439,8 @@ int cupid_windows_runtime_start(const char *command_line) {
   int argc = 0;
   char **argv = (char **)0;
   int result;
+  cupid_runtime_stdin.descriptor =
+      (int)cupid_windows_get_std_handle(CUPID_WINDOWS_STD_INPUT_HANDLE);
   cupid_runtime_stdout.descriptor =
       (int)cupid_windows_get_std_handle(CUPID_WINDOWS_STD_OUTPUT_HANDLE);
   cupid_runtime_stderr.descriptor =

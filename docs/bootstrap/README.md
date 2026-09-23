@@ -1,5 +1,14 @@
 # Cupid Toolchain bootstrap
 
+The retained read-only observer is implemented under ADR 0401 and passes its
+36-method filesystem/runtime suite with native and checked callers on Windows
+and Linux. It preserves live handles, exact directory membership and captured
+payload hashes. Both candidate staged proofs, contract publication and paired
+OS/runtime acceptance pass independent verification. The final images match;
+all sixteen artifacts, three user executables and private four-CPU smokes pass.
+See [observer progress](NEXT-NATIVE-OBSERVER.md) for limits and failed approaches.
+Production artifact verification still uses Python.
+
 The shared seed reader is integrated under ADR 0400. It validates either
 manifest format, returns owned artifact identities, and supports a separate
 twelve-image release record and Linux/Windows pair binding. CupidBuild now calls

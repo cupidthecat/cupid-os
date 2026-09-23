@@ -399,6 +399,11 @@ CFLAGS ?= -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow \
           -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
           -Wmissing-prototypes -Wconversion -Wsign-conversion
 CPPFLAGS ?= -I.
+ifeq ($(OS),Windows_NT)
+# The observer uses standard strcpy after allocating the exact string size.
+# Microsoft's CRT deprecation is specific to the native oracle headers.
+$(BUILD_DIR)/cupidbuild_host.o: CPPFLAGS += -D_CRT_SECURE_NO_WARNINGS
+endif
 LDFLAGS ?=
 
 .DEFAULT_GOAL := all

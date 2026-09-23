@@ -8,6 +8,43 @@
 
 typedef struct cupidbuild_host_transaction cupidbuild_host_transaction_t;
 typedef struct cupidbuild_host_profile_parent cupidbuild_host_profile_parent_t;
+typedef struct cupidbuild_host_observer cupidbuild_host_observer_t;
+
+/* Read-only observations retain live handles until close. Repository roots are
+ * absolute (drive-rooted on Windows). Logical paths are
+ * UTF-8, repository-relative, and reject empty, dot, parent and link components.
+ * Opening an observer creates no files. A failed operation poisons the observer;
+ * require_unchanged cannot subsequently succeed. Close accepts NULL and reports
+ * handle-close failures. Root identity, link count, size and modification time
+ * are retained at open and rechecked; other directories retain identity only.
+ * Limits: 4096 retained handles, 4096 expected names in
+ * total, 8191 path bytes, and 1023 bytes per UTF-8 component.
+ */
+int cupidbuild_host_observer_open(const char *repository_root,
+                                 cupidbuild_host_observer_t **observer_out);
+/* With bytes_out == NULL, observe metadata without reading the payload.
+ * Otherwise read at most min(limit, 64 MiB) bytes and return caller-owned malloc
+ * storage. size_out is required; metadata-only observations retain 64-bit sizes.
+ * Failure clears both outputs. Empty regular files are valid observations.
+ * Validation compares metadata and, for payload reads, the captured SHA-256.
+ * Metadata alone does not detect same-size edits with restored timestamps.
+ */
+int cupidbuild_host_observer_file(cupidbuild_host_observer_t *observer,
+                                 const char *logical, size_t limit,
+                                 unsigned char **bytes_out, uint64_t *size_out);
+/* Retain directory identity and exact UTF-8 membership. Order is irrelevant;
+ * duplicate or unsafe expected names are invalid. Empty logical names select
+ * the repository root. File-kind checks belong to individual observations.
+ */
+int cupidbuild_host_observer_directory(cupidbuild_host_observer_t *observer,
+                                      const char *logical,
+                                      const char *const *expected,
+                                      size_t expected_count);
+int cupidbuild_host_observer_require_unchanged(
+    cupidbuild_host_observer_t *observer);
+const char *cupidbuild_host_observer_error(
+    const cupidbuild_host_observer_t *observer);
+int cupidbuild_host_observer_close(cupidbuild_host_observer_t *observer);
 
 typedef struct {
   size_t size;

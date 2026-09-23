@@ -2689,11 +2689,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 399)
-            self.assertEqual(contract["elif_occurrences"], 12)
-            self.assertEqual(contract["expression_occurrences"], 411)
+            self.assertEqual(contract["if_occurrences"], 408)
+            self.assertEqual(contract["elif_occurrences"], 18)
+            self.assertEqual(contract["expression_occurrences"], 426)
             self.assertEqual(contract["unique_expressions"], 55)
-            self.assertEqual(contract["directive_expression_pairs"], 57)
+            self.assertEqual(contract["directive_expression_pairs"], 58)
             executable_contract = CUPIDC_PP_CONTRACT.read_text(encoding="utf-8")
             totals_guard = re.search(
                 r"sizeof\(cases\) / sizeof\(cases\[0\]\)\) != (\d+)u \|\|"

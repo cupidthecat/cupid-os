@@ -2,6 +2,24 @@
 
 Boundary audit, 2026-09-20; isolated extraction work, 2026-09-21. Production verification remains Python-coordinated.
 
+## Progress through the retained observer
+
+ADR 0400 completes the shared manifest and paired-release byte readers. Current
+candidate plans have 66 bootstrap inputs and 80 publication inputs; the
+59/61-input discussion below records the earlier extraction. Installed seeds
+remain at their accepted 59-input generation.
+
+ADR 0401 adds the read-only retained observer described below. Its 36-method
+suite passes with native and Cupid-built callers on both hosts, and both
+candidate staged proofs pass independent verification. Contract publication and
+paired final OS/runtime acceptance also pass. See
+[observer evidence and limits](NEXT-NATIVE-OBSERVER.md).
+
+The next integration work is the external release-identity authority and the
+native `verify-artifact-sizes` command. Parsed release records and observed
+filesystem bytes are available, but the production command does not yet combine
+them into a trusted decision. The twelve Python-coordinated operations remain.
+
 ## Current operation
 
 `Makefile` runs `tools/artifact_size_contract.py verify` with five paths: repository root, size policy, Linux policy manifest, checked Windows manifest, and host-selected execution manifest. The policy currently contains sixteen artifacts: boot, three kernel images, six Linux seed tools, and six Windows seed tools. The Linux manifest supplies the six variable seed paths and immutable sizes; the Windows paths are fixed. This is a paired-seed check on both hosts, even though only one platform's tools execute.

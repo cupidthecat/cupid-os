@@ -1,5 +1,15 @@
 # Toolchain bootstrap
 
+The read-only filesystem observer passes 36 filesystem/runtime methods with
+native and Cupid-built callers on Windows and Linux. It retains original files
+and ancestors, verifies exact membership, supports Unicode paths and 64-bit
+metadata sizes, and rechecks captured payload hashes. Both candidate staged
+proofs, contract publication and paired OS/runtime acceptance pass independent
+verification. The final images match; all sixteen artifacts, three unchanged
+user executables and private four-CPU disassembly/shell smokes pass. Production
+verification still uses Python, and installed seeds remain unchanged.
+ADR 0401 records the implementation and its limits.
+
 Source head exposes shared byte APIs for artifact-size policy, seed-image
 validation, either host's seed manifest, and a paired twelve-image release
 record. CupidBuild uses the shared manifest reader. The pair validator checks
