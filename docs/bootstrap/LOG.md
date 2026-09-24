@@ -39219,3 +39219,80 @@ the passing paired acceptance report. The wiki now documents the installed
 66-input seed generation and definition-conditional syntax. Earlier wiki
 checkpoints are marked as historical. This documentation follow-up changes
 no compiler, kernel, embedded manual, build policy or seed bytes.
+
+
+### 2026-09-24: Doom music producer integration starts
+
+The active sound source still matched the retained failing baseline after seed
+promotion. The ten-case production-function regression now lives in
+`tests/test_doom_music_pump.py`. Its first repository run failed exactly the
+two draining-consumer cases: both exceeded 128 renders and exited with the
+watchdog code 90. The remaining eight cases passed.
+
+The retained entry-capacity fix is now applied to
+`kernel/doom/i_sound_cupidos.cc`. The same ten tests pass in 0.230 seconds on
+Windows. The producer samples occupancy once, renders only complete chunks
+that fit at entry, and preserves the existing publication barrier and consumer.
+Its source bytes match the previously checked candidate. Earlier promoted-seed
+PE32 and ELF regression evidence remains under
+`build/bootstrap/music-pump-promoted-seed-e4f2ed65/`.
+
+Integration is uncommitted. Rebase the retained documentation onto current
+records and use a new ADR number; the old draft's 0400 is already occupied.
+Paired final-source kernel builds, measured artifact-policy reconciliation,
+four-CPU smokes and the exact-image IWAD diagnostic remain required. The
+historical 1,200-second timedemo failure remains a failure; passing this
+function regression does not establish full gameplay or audio acceptance.
+
+### 2026-09-24: Music integration passes paired build and boot acceptance
+
+The final-source Windows and Linux kernel builds pass. Independent comparison
+verifies 1,503 inputs, sixteen artifacts and 431 link inputs. Changed link inputs
+are confined to the sound producer, embedded manual and resulting kernel
+artifacts. Both hosts produce identical bytes. The measured raw-kernel size is
+9,567,636 bytes, and only that row changes in the artifact-size policy.
+
+Both hosts then pass image creation, all three user-program builds and private
+four-CPU E1000 disassembly/shell smokes. The paired post-run verifier passes;
+each smoke preserves its source image. The images are 209,715,200 bytes with
+SHA-256 `ed2af0800ff580ecccc5a2c4ee25ffa73aeb9fc4d979fa7acbf7d8dedc2dbfb7`.
+The music-producer and artifact-policy suites pass all 24 tests on each host.
+The unchanged promoted producer/publication closure contains 105 distinct
+inputs; this source change requires no new seed generation.
+
+Reports are under `build/bootstrap/music-integration-d8e2931e/`. The final
+acceptance inventory has SHA-256
+`ac92d18aa0635c34ffe355e2ee188a52944dee9a7b9a5f16cdaf185e3aa79f59`.
+The pinned Freedoom IWAD is staged into a separate image copy, preserving the
+accepted image and kernel bytes. Its exact-image timedemo diagnostic is running
+with the existing 1,200-second command deadline. Timedemo completion and full
+gameplay remain unproven. Integration is still uncommitted.
+
+The fresh diagnostic has now captured all five planned samples. The first is
+still loading status graphics; later samples record game tics 48, 114, 182 and
+249. Two stacks place the Doom main thread in OPL synthesis through
+`cup_music_pump` and `DG_GetTicksMs`. Reads are sequential, so the demo cursor
+and tic counter are not synchronized snapshots. An offline inspection of the
+pinned IWAD finds 7,117 four-byte commands in its single-player `DEMO1`, followed
+by the end marker with no trailing bytes. These observations establish partial
+progress only. The command deadline and completion requirement are unchanged.
+`demo1-content.json` and `fixed-observations.json` retain the content count and
+resolved samples beside the running diagnostic.
+
+### 2026-09-24: Integrated music fix retains the timedemo failure
+
+The exact-image diagnostic has finished with exit 1: the required timedemo
+completion message did not appear within 1,200 seconds. Total wall time was
+1,268.995 seconds including startup. The staged source image remains unchanged,
+and the serial log contains no panic marker. `fixed-summary.json` records the
+terminal result, five samples, image identity and evidence hashes. Its source
+image SHA-256 is
+`cba5849636bae60f1174c0614e288628240e2d81c531cc6b53bcae558ac6d835`.
+
+The producer regression and paired build/shell checks pass. The runtime samples
+show that the initial clock query returns and the demo advances, while full
+timedemo completion still fails. This supports the bounded-producer fix without
+closing Doom runtime acceptance. No synthesis, scheduling, EHCI ownership rule,
+demo contents or completion deadline changed to obtain these results. The next
+performance experiment still needs separate guest-time, synthesis-work and
+underrun measurements. Issue #29 remains open.

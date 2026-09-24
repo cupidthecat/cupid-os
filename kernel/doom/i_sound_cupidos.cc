@@ -514,8 +514,8 @@ static void smf_advance(uint32_t pull_us)
  *
  * Producer: cup_music_pump() runs on the main thread (called from
  * DG_GetTicksMs / DG_SleepMs in doomgeneric_cupidos.cc). It synthesises
- * one MUS_BUF_FRAMES chunk into the ring whenever there's room, until
- * the ring is full.
+ * MUS_BUF_FRAMES chunks into the space available when the call starts.
+ * Space freed by the consumer during synthesis is left for the next call.
  *
  * Consumer: music_pull (the AC97 stream callback) runs in IRQ context
  * and just memcpy's the next chunk out of the ring. No OPL render in
@@ -565,24 +565,27 @@ static void render_one_buffer(int16_t *dst)
     }
 }
 
-/* Producer: runs on main thread. Idempotent: when the ring is full it
- * returns immediately. When the consumer (mixer slot 8) is stopped,
- * the ring fills once and stays full, which naturally throttles SMF
- * playback to a halt; no explicit pause flag needed.*/
+/* Producer: runs on the main thread. Fill only the space available on
+ * entry. The IRQ consumer can drain audio while synthesis runs; counting
+ * that new space would let this call hold the game loop indefinitely.
+ * A stopped consumer still gets one complete prefill, then no more work.*/
 void cup_music_pump(void)
 {
     if (!s_music_inited) return;
-    for (;;) {
-        uint32_t r = s_mus_r;
-        uint32_t w = s_mus_w;
-        uint32_t used = w - r;
-        if (used + MUS_BUF_FRAMES > MUS_RING_FRAMES) return;   /* ring full */
+    uint32_t r = s_mus_r;
+    uint32_t w = s_mus_w;
+    uint32_t used = w - r;
+    if (used >= MUS_RING_FRAMES) return;
+    uint32_t buffers = (MUS_RING_FRAMES - used) / MUS_BUF_FRAMES;
+    while (buffers != 0u) {
         uint32_t base = (w % MUS_RING_FRAMES) * 2u;
         render_one_buffer(&s_mus_ring[base]);
         /* x86 has strong store ordering; a compiler barrier is enough
          * to ensure the ring writes are visible before s_mus_w bumps.*/
         __asm__ volatile("" ::: "memory");
-        s_mus_w = w + MUS_BUF_FRAMES;
+        w += MUS_BUF_FRAMES;
+        s_mus_w = w;
+        buffers--;
     }
 }
 
@@ -734,8 +737,8 @@ static void cup_music_play(void *handle, boolean looping)
     /* Reset the producer/consumer ring and prefill it before arming the
      * AC97 stream callback. Without prefill the very first IRQ would
      * underrun (producer hasn't run yet) and we'd hear ~23 ms of
-     * silence before music starts. cup_music_pump runs synthesis until
-     * the ring is full or the song ends.*/
+     * silence before music starts. cup_music_pump fills the space available
+     * on entry, so an empty ring receives a complete prefill.*/
     mus_ring_reset();
     cup_music_pump();
     mixer_play_stream(8, music_pull, 0, 100, 100);

@@ -2850,3 +2850,17 @@ Participation is 354 for CupidBuild and 98 for Python across 452 transforms.
 Disk and ISO publication remain Python-coordinated CupidObj transactions.
 ADR 0383 records the profile handoff, ADR 0386 records the ISO pattern handoff,
 and ADR 0393 records the kernel compiler handoff.
+
+## Doom music progress
+
+Doom music production limits each call to the ring space available at entry.
+An interrupt consumer can free space for the next call without extending the
+current one. This fixes a reproduced clock-query stall while keeping music
+synthesis on the Doom main thread. A private diagnostic image advances demo
+tics, but still fails the 1,200-second timedemo deadline. Full gameplay and
+audio-performance acceptance remain open, as does the earlier EHCI panic.
+
+The integrated fix passes Windows/Linux kernel, image and user-program builds,
+both private four-CPU E1000 shell smokes and 24 regression tests on each host.
+The fresh IWAD run records game tics 48, 114, 182 and 249, then fails the unchanged
+1,200-second timedemo deadline. Full runtime acceptance remains open.

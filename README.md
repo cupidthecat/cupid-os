@@ -3612,3 +3612,18 @@ Python-backed or direct CupidObj command cannot be mislabeled as CupidBuild.
 GNU General Public License v3.0
 
 Built in dedication to Terry A. Davis and TempleOS.
+
+### Bounded Doom music production
+
+Doom music production limits each call to the ring space available at entry.
+An interrupt consumer can free space for the next call without extending the
+current one. This fixes a reproduced clock-query stall while keeping music
+synthesis on the Doom main thread. A private diagnostic image advances demo
+tics, but still fails the 1,200-second timedemo deadline. Full gameplay and
+audio-performance acceptance remain open, as does the earlier EHCI panic.
+
+[ADR 0405](docs/adr/0405-bound-doom-music-production-per-call.md) records the fix and its validation limits.
+
+Final integration passes paired Windows/Linux builds, private four-CPU shell
+smokes and 24 regression tests per host. The fresh IWAD diagnostic also advances
+demo tics but times out; full Doom runtime acceptance remains open.

@@ -1040,3 +1040,14 @@ change after paired bootstrap proofs and seed promotion.
 No instruction support, compiler profile, or build ownership changes.
 ADR 0398 records the decoder change.
 >endtree
+
+>h2 Doom Music Progress
+Doom music production limits each call to the ring space available at entry.
+An interrupt consumer can free space for the next call without extending the
+current one. This fixes a reproduced clock-query stall while keeping music
+synthesis on the Doom main thread. A private diagnostic image advances demo
+tics, but still fails the 1,200-second timedemo deadline. Full gameplay and
+audio-performance acceptance remain open, as does the earlier EHCI panic.
+Each call renders at most eight 512-frame chunks. This bounds work per call;
+it does not impose a time limit on OPL synthesis. Audio generation, sample
+order, and interrupt-driven consumption retain their existing behavior.

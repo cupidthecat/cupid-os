@@ -103,7 +103,8 @@ when it starts. Nine actual-producer tests distinguish the change: the original
 exceeds the watchdog in two draining-consumer cases; the candidate passes all
 nine with host compilers and checked Cupid-built Windows and Linux executables.
 The patch preserves prefill, sample order, ring capacity, and the consumer path.
-It remains outside active source.
+That candidate is now applied to active source. The final integration results
+are recorded below.
 
 The candidate's private guest image shows sustained demo progress: four samples
 over 180.113 seconds record game tics 37, 90, 143, and 197, with demo offsets
@@ -139,3 +140,23 @@ Keep the existing missing-IWAD and return-to-shell checks. A successful manual
 launch is useful diagnosis, but it does not close any runtime acceptance item.
 Update issue #29 and the bootstrap capability, migration, dependency, and log
 records with each executed boundary.
+
+
+## Current producer integration
+
+The active producer now uses the entry-capacity budget. Its ten-case regression
+adds a write-counter publication that crosses UINT32_MAX. The original source
+fails the two draining-consumer cases; the fixed source passes all ten.
+Promoted-seed PE32 and ELF replays also pass. ADR 0405 records the synchronous
+producer decision and preserves the earlier guest evidence and limitations.
+Paired kernel, image and user-program builds pass with the current embedded
+manual and measured artifact policy. Both four-CPU E1000 disassembly/shell
+smokes pass. Independent verification confirms matching images and user
+programs and unchanged source images through those private smokes.
+The fresh exact-image IWAD timedemo fails the same 1,200-second command deadline.
+It exits 1 after 1,268.995 seconds including startup, preserves its staged source
+image and reports no panic. Active samples record game tics 48, 114, 182 and
+249. The pinned demo has 7,117 commands; these samples prove partial progress
+only. `fixed-summary.json` retains the terminal result and evidence identities
+under `build/bootstrap/music-integration-d8e2931e/`. Timedemo completion,
+interactive gameplay, audio quality and the earlier EHCI failure remain open.

@@ -4772,3 +4772,21 @@ counts describe the source-head contract. The promoted seeds still carry the
 The compiler's production wrappers also remain unchanged. Seed promotion and
 any normal-build transfer require separate fixed-point evidence and separate
 commits. ADR 0376 records the admission boundary.
+
+## Bounded Doom music production
+
+Doom music production limits each call to the ring space available at entry.
+An interrupt consumer can free space for the next call without extending the
+current one. This fixes a reproduced clock-query stall while keeping music
+synthesis on the Doom main thread. A private diagnostic image advances demo
+tics, but still fails the 1,200-second timedemo deadline. Full gameplay and
+audio-performance acceptance remain open, as does the earlier EHCI panic.
+
+[ADR 0405](../adr/0405-bound-doom-music-production-per-call.md) separates the function regression, newer-image progress, and failing full timedemo. Tool ownership and checked seeds are unchanged.
+
+Final integration passes paired Windows/Linux kernel, image and user-program
+builds, both private four-CPU shell smokes and 24 regression tests per host.
+The raw kernel is 9,567,636 bytes. The fresh IWAD diagnostic records game tics
+48, 114, 182 and 249 but fails the unchanged 1,200-second completion deadline.
+Its staged source image remains unchanged. Reports are retained under
+`build/bootstrap/music-integration-d8e2931e/`.
