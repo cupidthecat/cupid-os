@@ -1592,7 +1592,7 @@ main:
 |---------|------|----------|
 | Output formats | ELF, bin, COFF, etc. | JIT (execute) or ELF32 |
 | Macros | Full macro system | Not supported |
-| Preprocessor | `%define`, `%macro`, `%if` | `%include` only |
+| Preprocessor | `%define`, `%macro`, `%if` | `%define`, `%include`, `%ifdef`, `%ifndef`, `%else`, `%endif` |
 | Segments | Full segment support | `.text` and `.data` only |
 | Linker | Separate step | Built-in (single file) |
 | External symbols | Via linker | Kernel bindings (JIT) |
@@ -1729,3 +1729,36 @@ invalid seed became active. Fresh candidates then converged. After promotion,
 separate self-consumption reproofs passed on both hosts. ADR 0366 records the
 compatibility decision, ADR 0367 records the preceding promotion, ADR 0368
 records the direct JPEG handoff, and ADR 0370 records the active promotion.
+
+
+## Definition conditionals
+
+`%ifdef` and `%ifndef` select source according to whether a constant definition
+already exists. A definition with value zero still counts as defined. Labels
+and `EQU` symbols do not count. Names use the assembler's existing case and
+local-scope rules; directive names are case-insensitive.
+
+```asm
+%define USE_ALTERNATE 0
+%ifdef USE_ALTERNATE
+    db 42
+%else
+    db 7
+%endif
+```
+
+This emits byte 42. The condition tests the definition's existence, not its
+value. Definitions supplied through the assembler request also participate.
+
+Conditions can nest up to 64 levels. An inactive branch does not assemble its
+ordinary lines, create definitions or load includes. Its conditional directives
+must still have valid syntax and balanced nesting. An inactive parent keeps
+its nested branches inactive.
+
+Included files share constant definitions, but each file must balance its own
+conditional blocks. An include cannot close or switch its caller's condition.
+The assembler rejects missing or extra operands, unmatched `%else` or `%endif`,
+repeated `%else`, unfinished blocks and nesting beyond the limit. Failed CLI
+assembly preserves an existing output file; the C API clears its result.
+
+Expression-based `%if`, `%elif`, `%undef` and macros remain unsupported.

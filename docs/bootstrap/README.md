@@ -18,7 +18,8 @@ contracts pass all sixteen artifacts on both hosts. Windows and Linux image
 and user builds and four-CPU disassembly/shell smokes pass. The independent
 paired audit rehashes all 1,501 source inputs, sixteen artifacts and 431 link
 inputs. Both hosts produce identical images and user programs; each private
-smoke preserves its source image. Final commit verification remains pending.
+smoke preserves its source image. Commit `88bb2d26` is pushed; its audit verifies all 1,501 committed inputs
+and both Freedoom LFS payloads.
 Ownership remains 440 CupidBuild and
 twelve Python participations. See [promotion progress](NEXT-ASSEMBLER-CONDITIONALS.md).
 

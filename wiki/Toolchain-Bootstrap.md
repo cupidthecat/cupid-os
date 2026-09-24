@@ -1,5 +1,32 @@
 # Toolchain bootstrap
 
+## Current seed release
+
+Commit `88bb2d26` promotes both six-tool seed sets from the canonical proofs
+for `e4f2ed65`. Each proof records 66 source inputs. The Linux seed manifest
+has SHA-256 `da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed`;
+the Windows manifest has SHA-256
+`c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395`.
+CupidASM now carries `%ifdef`, `%ifndef`, `%else` and `%endif` through the
+installed toolchain. The artifact-policy reader accepts this manifest
+generation only with its corresponding Linux and Windows plan identities.
+It continues to reject mixed plans and unsupported source counts.
+
+Windows and Linux image and user builds pass, along with private four-CPU
+max/E1000 disassembly and shell smokes. Independent verification rehashes
+1,501 source inputs, sixteen artifacts and 431 link inputs. Both hosts produce
+identical images and user programs. The committed-byte audit also verifies
+all 1,501 inputs, including the two Freedoom LFS payloads. The original failed
+regression and image reports remain in the bootstrap evidence history.
+
+Ownership remains 440 CupidBuild and twelve Python participations. Artifact
+verification still uses Python coordination. Doom interactive gameplay,
+audio quality and persistence are unfinished runtime work.
+
+## Earlier bootstrap checkpoints
+
+The records below describe preceding releases and their acceptance evidence.
+
 Artifact verification now captures `bootstrap/seeds/release.json`, a reviewed
 record of both installed six-tool cohorts. Python checks its semantic identities
 against the retained release pins before launching the Cupid contract and

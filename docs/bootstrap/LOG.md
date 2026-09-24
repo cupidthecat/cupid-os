@@ -39208,3 +39208,14 @@ commit still needs its audit against the tested source bytes. Production
 ownership remains 440 CupidBuild and twelve Python participations; Doom
 interactive gameplay and the prepared music-pump correction remain separate
 unfinished work.
+
+
+### 2026-09-24: Seed promotion committed and documented
+
+Commit `88bb2d2651001cddac7fa38769075eecd397c807` is pushed to
+`bootstrap/cupid-self-hosting`. Its committed-input audit passes for all 1,501
+source records, including both Freedoom LFS payloads, and binds those bytes to
+the passing paired acceptance report. The wiki now documents the installed
+66-input seed generation and definition-conditional syntax. Earlier wiki
+checkpoints are marked as historical. This documentation follow-up changes
+no compiler, kernel, embedded manual, build policy or seed bytes.

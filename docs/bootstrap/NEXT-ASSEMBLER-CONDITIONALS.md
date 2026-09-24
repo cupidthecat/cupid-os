@@ -183,4 +183,5 @@ identical images and user programs. Each private smoke preserves its source
 image and completes disassembly and ls without panic or corruption markers.
 Current reports, including paired-acceptance.json, are under
 `build/bootstrap/seed-promotion-reader-fix-e4f2ed65/`; the earlier failed reports
-remain intact. Final commit verification remains pending.
+remain intact. Commit `88bb2d26` is pushed; its audit verifies all 1,501 committed inputs
+and both Freedoom LFS payloads.
