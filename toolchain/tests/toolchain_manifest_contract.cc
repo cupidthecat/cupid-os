@@ -74,9 +74,9 @@ static const char manifest_expected_seed_path[] =
 static const char manifest_expected_build_plan_sha256[] =
     "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe";
 static const char manifest_expected_seed_build_plan_sha256[] =
-    "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd";
+    "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe";
 static const char manifest_expected_seed_manifest_sha256[] =
-    "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52";
+    "da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed";
 
 static const char *const
     manifest_expected_input_paths[MANIFEST_EXPECTED_INPUT_COUNT] = {

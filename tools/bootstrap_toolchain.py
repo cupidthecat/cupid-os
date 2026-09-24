@@ -106,82 +106,82 @@ WINDOWS_SEED_PARENT_SOURCE_REVISION = (
     "a17c9465911da41d59b7ada71733d36c39faa5ea"
 )
 PROMOTION_PARENT_LINUX_MANIFEST_SHA256 = (
-    "a11c8af08eb1170d040dc6b361c30df321c088fcb4ae5becd6c2864995380622"
-)
-PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = (
-    "f5124cbddbeb55a61ce2f8ae93923daae512d6fec6732a532b1e8f0d15bed590"
-)
-PROMOTION_PARENT_SOURCE_REVISION = (
-    "83d00ce70e5607dc5c011bb97c6478121f24a21c"
-)
-PROMOTED_SOURCE_INPUT_COUNT = 59
-PROMOTED_SOURCE_REVISION = "142a9737f618ab8500308576a1c222501d639e5f"
-PROMOTED_SOURCE_SNAPSHOT_SHA256 = (
-    "2346284239faf9f5571223587f2e2b2dfdd5197cffd41b97a12e234386810695"
-)
-PROMOTED_LINUX_MANIFEST_SHA256 = (
     "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
 )
-PROMOTED_WINDOWS_MANIFEST_SHA256 = (
+PROMOTION_PARENT_WINDOWS_MANIFEST_SHA256 = (
     "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"
+)
+PROMOTION_PARENT_SOURCE_REVISION = (
+    "142a9737f618ab8500308576a1c222501d639e5f"
+)
+PROMOTED_SOURCE_INPUT_COUNT = 66
+PROMOTED_SOURCE_REVISION = "e4f2ed652e756b1abb375ec061923f5259799e01"
+PROMOTED_SOURCE_SNAPSHOT_SHA256 = (
+    "7a1a58ce65141b59ec779f0ef6ccb5b7e97e8a54df4732cc27bf7a5bee28e6ed"
+)
+PROMOTED_LINUX_MANIFEST_SHA256 = (
+    "da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed"
+)
+PROMOTED_WINDOWS_MANIFEST_SHA256 = (
+    "c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395"
 )
 PROMOTED_LINUX_ARTIFACT_IDENTITIES = {
     "cupidasm": (
-        505148,
-        "ec381aaba34cba2f6635a026586c39f7129e7dc61ba8432137107aa2538fe31d",
+        513496,
+        "5b52f88bda316e81e875f7f9cf8dabcce071b06641895bacd082f28b22787b19",
     ),
     "cupiddis": (
-        538580,
-        "0fab3d96b0321e7b25709f4ba3c53ddddefb5d56e18f7eeb5dcb711a301d9200",
+        538624,
+        "cb55c951a6f08b5eaf4f1ae5c1f4333797196dd107a51a36d51bb0c05b5891dd",
     ),
     "cupidld": (
-        312952,
-        "ec1981e97b0a11bf3538df34e85d071aa81ea01596913cfb1364013f35a507c0",
+        312996,
+        "05fc5271f1d0559956dcc6317d6b07aa09e849ee55b2afd416e8b0e9baad0e36",
     ),
     "cupidobj": (
-        397068,
-        "00064758399b61ea6425d7a4e685ef4b41bb7e566d39b550e30abe9a5cf78de8",
+        397112,
+        "71bd0b8d0c651fa37efd311c84bfbd63919b32f01fedf352fda0aee4c5cb59ea",
     ),
     "cupidc": (
-        2700264,
-        "ac1a5cbce941846cba015790a66e051aee20e5e47fc8fc50af7a850be48889c0",
+        2700308,
+        "6ed09ebdad145732b70a9ea59c22c20849ec139d4b00d9cc48d1be684adaff87",
     ),
     "cupidbuild": (
-        643648,
-        "efa6dcfd55c25996c141b7fe4f8154df53c4df95b94ff57bf19a368d8d6adc12",
+        765788,
+        "e102fedc77522bdac94acc01f241ff6d26dcca6730ad7a82e9f540ba9f96543b",
     ),
 }
 PROMOTED_WINDOWS_ARTIFACT_IDENTITIES = {
     "cupidasm": (
-        484352,
-        "a1be22fd211b40d2043a78e6d8afd14db54c21f64d516b8edb5a9bbb2958193f",
+        492032,
+        "ceb1f20ba4b30d74aff3a8c03fd5fa1c9d57d012750e2ffcf7632ec3f555242e",
     ),
     "cupiddis": (
         517120,
-        "effbb052155783e581bd9cad573238ce02357ce5c660596b1ddbd4aa3fb7667b",
+        "a49ed745889ee020e3151d5212a6784ede5c8444feb4bd098255be754f1f70d8",
     ),
     "cupidld": (
-        296960,
-        "206b33ae6a044143a45300b175c9443559bbb748af5f6293a4505f860535196b",
+        297472,
+        "77e18696c07fd3a76438b982450d9d6deb5dc28a7880852057a747cc380828c2",
     ),
     "cupidobj": (
         377856,
-        "f2a56f4177af4b15c7dde23f6408876729c3a795b01d28ffb60d16d5d0fbd83b",
+        "2f571b531e6b93349e5a11a4f472eaabe771e2ec5aa7dee8830877c91a66052b",
     ),
     "cupidc": (
         2627584,
-        "4c686edae024032dbc733f8528c06bdf67da68182f09c771362a38f331260180",
+        "f817fada5ae66260b72d7374cf105f9966f7847ded16d2037f65da20035ea040",
     ),
     "cupidbuild": (
-        654336,
-        "e2a306208b126699cacf1a88e975726f25e7002b80492d5750732614c5a38331",
+        741376,
+        "caf1385da1c69edc5d7c55845d4907fbfca9a2e340567eef5581877be5d2b108",
     ),
 }
 PROMOTED_LINUX_PLAN_SHA256 = (
-    "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
+    "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
 )
 PROMOTED_WINDOWS_PLAN_SHA256 = (
-    "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669"
+    "70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9"
 )
 WINDOWS_TOOL_SEED_IMPORTS = (
     (
@@ -438,19 +438,25 @@ EXPECTED_LINKS = {
     ),
 }
 PROMOTED_SOURCES = (
-    ("cupidbuild", "/toolchain/cupidbuild.cc", False),
-    ("cupidbuild_host", "/toolchain/cupidbuild_host.cc", False),
-    ("cupidbuild_main", "/toolchain/cupidbuild_main.cc", False),
+    ('cupidbuild', '/toolchain/cupidbuild.cc', False),
+    ('cupidbuild_host', '/toolchain/cupidbuild_host.cc', False),
+    ('cupidbuild_main', '/toolchain/cupidbuild_main.cc', False),
+    ('seed_manifest', '/toolchain/seed_manifest.cc', False),
+    ('seed_release', '/toolchain/seed_release.cc', False),
+    ('contract_parse_internal', '/toolchain/contract_parse_internal.cc', False),
 )
 PROMOTED_CUPIDBUILD_LINK = (
-    "start",
-    "cupidbuild_main",
-    "cupidbuild",
-    "cupidbuild_host",
-    "ctool_host",
-    "ctool",
-    "elf32",
-    "runtime",
+    'start',
+    'cupidbuild_main',
+    'cupidbuild',
+    'cupidbuild_host',
+    'ctool_host',
+    'ctool',
+    'elf32',
+    'seed_manifest',
+    'seed_release',
+    'contract_parse_internal',
+    'runtime',
 )
 CANDIDATE_SOURCES = (
     ("cupidbuild", "/toolchain/cupidbuild.cc", False),

@@ -95,3 +95,92 @@ unchanged through the four-CPU smokes. `paired-acceptance.json` under
 `build/bootstrap/asm-defined-conditionals-final-bd13198b/` records the result.
 Final documentation is audited separately from the frozen build inputs;
 actual commit-byte verification is still required before seed promotion.
+
+## Committed capability and seed installation
+
+Capability commit `e4f2ed652e756b1abb375ec061923f5259799e01` is pushed.
+`actual-commit-inputs.json` checks all 1,501 committed files, the two LFS payloads
+and exact 105-input tool closure against the accepted OS/runtime evidence.
+The four final documentation updates are explicitly reconciled with the frozen
+build snapshot. The preceding pending-commit notes record the earlier state.
+
+The strict promotion preview and installation pass against that commit and the
+canonical v5 proof directories. Both six-tool manifests now name its 66-input
+snapshot. The installed Linux manifest is
+`da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed`; Windows is
+`c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395`.
+The twelve payloads, parent lineage, plans, release record, retained pins,
+manifest-contract digests and size policy were updated together. Both installed
+manifest verifiers pass. Full promotion regressions and fresh OS acceptance
+for the updated embedded seed reference remain in progress; this installation
+is not yet a committed release.
+
+The first full Linux promotion suite found two stale assumptions: the publication
+validator still pins the preceding seed build plan, and the legacy test fixture
+removes three promoted modules rather than six. Isolated corrections restore
+the hosted validator and exact negative-test diagnostics. Corrected snapshots
+are now under test on both hosts. The Linux fixed-point timeout is also being
+rerun from its native filesystem. None of these pending checks count as release
+acceptance; the original failures remain in the evidence directory.
+
+
+The first promoted-seed kernels now pass on both hosts. Their sixteen artifacts
+and 431 link inputs match. Three link inputs differ from the capability build:
+the embedded CupidC manual object and the two kernel ELFs. The symbol object
+stays byte-identical. The first verifier wrongly required it to change; the
+corrected verifier passes, and the original failure remains in the evidence.
+
+The corrected Linux suite completed 210 tests with one failure and seventeen
+skips. The remaining assertion pinned the preceding Windows disassembler hash.
+Its observed 517,120-byte output matches both the installed seed and the retained
+paired stage-four proof. The assertion now records that independently verified
+hash. The original Windows suite finished with both full fixed-point tests
+exceeding their 3,000-second limits; neither is counted as accepted. New full
+suites run on both hosts with every assertion and the original time limits.
+
+The active corrections include the publication seed-plan pin, legacy source
+selection, historical and promoted import-profile fixtures, and the disassembler
+image identity. Fresh OS snapshots contain those exact corrections. Their
+kernel checks require every artifact and link input to remain identical to the
+first promoted-seed build before image/runtime acceptance. Linux acceptance
+requires the corrected publication. Evidence is under
+build/bootstrap/seed-promotion-final-e4f2ed65/; regression replays remain under
+build/bootstrap/seed-promotion-e4f2ed65/. Seed promotion is still uncommitted.
+
+## Corrected full regression coverage
+
+The latest Linux run passed 210 tests with seventeen platform skips. The
+corresponding Windows run completed with two stale fixture assertions: the
+native runtime-contract executable hash and a stage count that omitted three
+assembly objects. Independent retained-output checks reproduced both failures
+and established the corrected values. Both complete Windows fixed-point
+methods then passed together in 5005.732 seconds with the original time limits.
+The original failed run remains part of the evidence.
+
+`combined-recovery-v6-regressions.json` accounts for all original methods and
+both corrected full replays, with exact source comparison for unaffected tests.
+The fixture corrections and input preflight pass. Linux publication also passed:
+its report records 80 inputs, 22 artifacts and all thirteen published assembler
+contract modes. The fresh Windows kernel build passed, with its source inventory
+rechecked and disk images unchanged. The Linux kernel build is running. Paired
+kernel comparison, OS/runtime acceptance and committed-byte verification remain
+pending.
+Current acceptance reports are under
+`build/bootstrap/seed-promotion-v6-e4f2ed65/`. This promotion is not yet committed.
+
+## Artifact-reader correction, 2026-09-24
+
+The paired kernel comparison and measured policy passed. Windows image
+acceptance then exposed an older C artifact-reader limit: it rejected the
+promoted 66-input manifests. The fix admits that count with its exact
+Linux/Windows plan pair; mixed generations and unrelated counts are rejected.
+All 65 hosted policy/API tests and 23 runner tests pass (four runner skips).
+Cupid-built contracts pass all sixteen artifacts on both hosts. Windows and
+Linux image and user builds and four-CPU disassembly/shell smokes pass. The
+independent paired audit rehashes all 1,501 source inputs, sixteen artifacts,
+431 link inputs, three user programs and each image. Both hosts produce
+identical images and user programs. Each private smoke preserves its source
+image and completes disassembly and ls without panic or corruption markers.
+Current reports, including paired-acceptance.json, are under
+`build/bootstrap/seed-promotion-reader-fix-e4f2ed65/`; the earlier failed reports
+remain intact. Final commit verification remains pending.

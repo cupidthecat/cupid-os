@@ -14,7 +14,7 @@ Verified against source on: 2026-09-23
 >rule
 
 >h2 Reusable build verification modules
-Source-head CupidBuild now has a read-only filesystem observer. It retains
+Checked CupidBuild now has a read-only filesystem observer. It retains
 original file and ancestor handles, checks exact directory membership, keeps
 64-bit metadata sizes, and rechecks hashes of captured payloads. Unicode paths,
 replacement, links, large files and cleanup are covered by native and Cupid-built
@@ -24,17 +24,17 @@ same-size edits with restored timestamps. Root identity, link count, size and
 modification time are checked across the lifetime. Production artifact
 verification still uses Python.
 
-Source-head artifact_size_policy_validate checks immutable CUPSIZE2 bytes and
+Checked artifact_size_policy_validate checks immutable CUPSIZE2 bytes and
 returns an explicit result with bounded diagnostics. The artifact adapter and
 Toolchain manifest verifier share parsing helpers with per-call error state.
 The manifest verifier no longer includes another executable's source.
 
-Source-head cupidbuild_validate_seed_image_bytes checks ELF32 or PE32 bytes
+Checked cupidbuild_validate_seed_image_bytes checks ELF32 or PE32 bytes
 against an explicit tool role. Both readers are available on each host; tool
 execution still uses the host's own format. Image validation does not prove
 release identity or file lifetime.
 
-Source-head CupidBuild shares its manifest reader with native verification.
+Checked CupidBuild shares its manifest reader with native verification.
 The reader accepts either host format and returns owned artifact identities.
 Equivalent JSON escapes are accepted; duplicate decoded keys and mismatched
 plans are rejected. The pair validator checks both manifests against a
@@ -47,9 +47,9 @@ it does not promote tools. The runner captures 26 build inputs, checks the recor
 before contract execution, and rechecks its bytes afterward. Record parsing does
 not authenticate an untrusted release. Observer integration and native command-level checks
 remain required before artifact verification can leave Python. Candidate inventories
-contain 66 bootstrap inputs and 80 publication inputs. Installed seeds retain
-their verified 59-input generation. Candidate plans do not change installed
-seeds or production coordination.
+contain 66 bootstrap inputs and 80 publication inputs. Installed seeds now
+carry the verified 66-input generation. This promotion does not change
+production coordination.
 
 >h2 Native user executable validation
 Checked CupidBuild validates external i386 ELF32 executables in memory.
@@ -78,17 +78,21 @@ coordinators. These 243 compiler roots already use .cc. The handoff changes
 coordination without changing their language, arguments, or installed content.
 
 Both checked six-tool cohorts come from source
-142a9737f618ab8500308576a1c222501d639e5f and the same 59-input snapshot
-2346284239faf9f5571223587f2e2b2dfdd5197cffd41b97a12e234386810695.
-Clean proofs match all 29 Linux and 32 native Windows stage-three/stage-four
-artifact pairs. Linux passes 46 failure, seven help, and 54 success groups;
-Windows passes 34 failure, seven help, and 41 success groups. Each coordinator
+e4f2ed652e756b1abb375ec061923f5259799e01 and the same 66-input snapshot
+7a1a58ce65141b59ec779f0ef6ccb5b7e97e8a54df4732cc27bf7a5bee28e6ed.
+Clean proofs match all 32 Linux and 35 native Windows stage-three/stage-four
+artifact pairs. Linux passes 47 failure, seven help, and 55 success groups;
+Windows passes 35 failure, seven help, and 42 success groups. Each coordinator
 uses its own generation's complete tool cohort. Independent promotion checks
 bind the source inventory to the commit and verify stage membership and bytes,
 executable formats, build plans, parent lineage, and the proposed seed pair.
-The report checks reject ten altered Linux reports and thirteen Windows reports.
+The conditional-assembly promotion checks also reject eight damaged report or
+artifact cases on each host and reject uncommitted source before installation.
 
-The promoted tools also carry the shared decoder initialization change from
+The promoted assembler supports definition conditionals described in the
+CupidASM manual. CupidBuild carries the shared seed reader, artifact-policy API
+and retained observer; native artifact command ownership remains pending.
+The tools also retain the shared decoder initialization change from
 ADR 0398. Candidate records are initialized after early rejection checks and
 before decoded fields are written. Catalogue order, aliases, classifications,
 and public-result initialization remain unchanged. CupidBuild carries the
@@ -96,8 +100,8 @@ in-memory user ELF validator, but the three user links still use their Python
 transaction. Native path handling, input capture, inspection, and publication
 remain required before that handoff.
 
-The Linux manifest has SHA-256 7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52;
-the Windows manifest has SHA-256 2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd.
+The Linux manifest has SHA-256 da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed;
+the Windows manifest has SHA-256 c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395.
 
 The build-graph audit records 440 CupidBuild and 12 Python participations across
 452 transforms. Python still coordinates three user compilations, three user
@@ -153,7 +157,7 @@ coordination and publication elsewhere.
 The checked Linux and native Windows cohorts carry flatten-kernel from
 the earlier revision 9d2529a718672edcd970f24960535db6ddbde5e4. This changes hosted
 bootstrap evidence, not the CupidC language surface.
-Source-head CupidBuild now adds a native checked CupidObj runner without adding
+Checked CupidBuild now adds a native checked CupidObj runner without adding
 language syntax. Linux creates no .cupidbuild-run namespace. It freezes the
 manifest and six tools in fully sealed anonymous memfds and pins the working
 directory by descriptor. The child calls fchdir before remapping captured

@@ -110,10 +110,10 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 WINDOWS_SOURCE_HEAD_INITIAL_MATCHES = {
-    name: name != "cupidbuild" for name in CANDIDATE_TOOL_NAMES
+    name: True for name in CANDIDATE_TOOL_NAMES
 }
 LINUX_SOURCE_HEAD_INITIAL_MATCHES = {
-    name: name != "cupidbuild" for name in CANDIDATE_TOOL_NAMES
+    name: True for name in CANDIDATE_TOOL_NAMES
 }
 
 
@@ -432,7 +432,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             if artifact["name"] != "cupidbuild"
         ]
         plan = manifest["build_plan"]
-        plan["sources"] = plan["sources"][:-3]
+        promoted_names = {name for name, _, _ in PROMOTED_SOURCES}
+        plan["sources"] = [
+            source for source in plan["sources"]
+            if source["name"] not in promoted_names
+        ]
         del plan["links"]["cupidbuild"]
         manifest["build_plan_sha256"] = _build_plan_sha256(plan)
         manifest["provenance"] = {
@@ -1102,6 +1106,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             return changed
 
         cases = (
+            ("promoted", PROMOTED_WINDOWS_PLAN_SHA256, current_profiles, True),
+            ("promoted-seed-ordinary", PROMOTED_WINDOWS_PLAN_SHA256,
+             with_profile(current_profiles, "cupidc", WINDOWS_TOOL_SEED_IMPORTS), False),
+            ("promoted-seed-linker", PROMOTED_WINDOWS_PLAN_SHA256,
+             with_profile(current_profiles, "cupidasm", WINDOWS_LINKER_SEED_IMPORTS), False),
+            ("promoted-seed-cupidbuild", PROMOTED_WINDOWS_PLAN_SHA256,
+             with_profile(current_profiles, "cupidbuild", WINDOWS_CUPIDBUILD_SEED_IMPORTS), False),
             ("seed", legacy_plan, seed_profiles, True),
             ("current", current_plan, current_profiles, True),
             (
@@ -1225,6 +1236,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         manifest_path.read_text(encoding="utf-8")
                     )
                     manifest["provenance"]["native_build_plan_sha256"] = plan
+                    if plan != PROMOTED_WINDOWS_PLAN_SHA256:
+                        manifest["provenance"]["source_input_count"] = 59
+                        manifest["provenance"]["linux_candidate_build_plan_sha256"] = (
+                            "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
+                        )
                     for artifact in manifest["artifacts"]:
                         profile = profiles[artifact["name"]]
                         tool = seed / artifact["file"]
@@ -1261,6 +1277,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         timeout=90,
                     )
                     if accepted:
+                        self.assertNotIn("checked seed manifest is invalid", result.stderr)
                         self.assertNotIn(
                             "checked seed execution profile mismatch",
                             result.stderr,
@@ -6822,7 +6839,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "stage-four",
             ):
                 stage = report["stages"][stage_name]
-                self.assertEqual(len(stage["objects"]), 26)
+                self.assertEqual(len(stage["objects"]), 29)
                 self.assertEqual(
                     set(stage["tools"]), set(CANDIDATE_TOOL_NAMES)
                 )
@@ -11272,7 +11289,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "20323a24be105b1b519962994b8e4e6a7f8e3cd0d005b8ee10c9aeb66da5d40a"
                             ),
                             "output_sha256": (
-                                "37ab28ec87bfcc3f6c27cb35beb0c773f7731e043566ac19a77985dd18bb61f8"
+                                "d0756c10862123986d956f4125e8342350dc10dbb8a213ba6aa72a7c468e6992"
                             ),
                             "output_size": 33792,
                             "return_code": 0,
@@ -11412,7 +11429,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "87a6ba895bd52a1da6e287a7b5d585b5ca54a82dd9d43347aa441b7b9d8ed034"
+                        "a49ed745889ee020e3151d5212a6784ede5c8444feb4bd098255be754f1f70d8"
                     ),
                     "size": 517120,
                 },
@@ -11473,25 +11490,25 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             expected_native_images = {
                 "cupidasm": {
                     "sha256": (
-                        "17ab4874dab63bf614f9b0d94d9d64017ec5f70ddd87c59ade71646c0a1ab83c"
+                        "ceb1f20ba4b30d74aff3a8c03fd5fa1c9d57d012750e2ffcf7632ec3f555242e"
                     ),
-                    "size": 484352,
+                    "size": 492032,
                 },
                 "cupidc": {
                     "sha256": (
-                        "ba7d387400d96faa7e4fc7e6b7534757f2c79347472212de05217dde7982e6ee"
+                        "f817fada5ae66260b72d7374cf105f9966f7847ded16d2037f65da20035ea040"
                     ),
-                    "size": 2620416,
+                    "size": 2627584,
                 },
                 "cupidld": {
                     "sha256": (
-                        "206b33ae6a044143a45300b175c9443559bbb748af5f6293a4505f860535196b"
+                        "77e18696c07fd3a76438b982450d9d6deb5dc28a7880852057a747cc380828c2"
                     ),
-                    "size": 296960,
+                    "size": 297472,
                 },
                 "cupidobj": {
                     "sha256": (
-                        "f2a56f4177af4b15c7dde23f6408876729c3a795b01d28ffb60d16d5d0fbd83b"
+                        "2f571b531e6b93349e5a11a4f472eaabe771e2ec5aa7dee8830877c91a66052b"
                     ),
                     "size": 377856,
                 },

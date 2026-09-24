@@ -372,6 +372,50 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(first.stdout, SUCCESS_REPORT)
         self.assertEqual(second.stdout, first.stdout)
 
+    def promoted_request(self, mutate=None):
+        manifest = json.loads((REPO_ROOT / MANIFEST_PATH).read_text())
+        windows = json.loads((REPO_ROOT / WINDOWS_MANIFEST_PATH).read_text())
+        if mutate is not None:
+            mutate(manifest, windows)
+        windows["provenance"]["plan_seed_manifest_sha256"] = hashlib.sha256(
+            _json_bytes(manifest)
+        ).hexdigest()
+        policy = _policy()
+        sizes = {
+            f"bootstrap/seeds/{host}/{artifact['file']}": artifact["size"]
+            for host, selected in (("i386-linux", manifest), ("i386-windows", windows))
+            for artifact in selected["artifacts"]
+        }
+        for entry in policy["artifacts"]:
+            if entry["path"] in sizes:
+                entry["exact_bytes"] = sizes[entry["path"]]
+        return _request(policy=policy, manifest=manifest, windows_manifest=windows)
+
+    def test_installed_promoted_seed_pair_is_accepted(self):
+        result = self.run_request(self.promoted_request())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
+
+    def test_promoted_seed_rejects_mixed_plan_generations(self):
+        for key, value in (
+            ("linux_candidate_build_plan_sha256",
+             "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"),
+            ("native_build_plan_sha256",
+             "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669"),
+        ):
+            with self.subTest(key=key):
+                def mutate(manifest, windows):
+                    windows["provenance"][key] = value
+                self.assert_contract_failure(self.promoted_request(mutate))
+
+    def test_promoted_seed_rejects_unknown_source_counts(self):
+        for count in (60, 62, 65, 67):
+            with self.subTest(count=count):
+                def mutate(manifest, windows):
+                    manifest["provenance"]["source_input_count"] = count
+                    windows["provenance"]["source_input_count"] = count
+                self.assert_contract_failure(self.promoted_request(mutate))
+
     def test_promoted_61_input_seed_pair_is_accepted(self):
         manifest = _manifest()
         manifest["provenance"]["source_input_count"] = 61

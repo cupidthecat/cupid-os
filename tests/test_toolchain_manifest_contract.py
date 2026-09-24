@@ -97,7 +97,7 @@ BUILD_PLAN_SHA256 = (
     "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
 )
 SEED_MANIFEST_SHA256 = (
-    "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
+    "da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed"
 )
 INPUT_PATHS = (
     "kernel/core/syscall.cc",

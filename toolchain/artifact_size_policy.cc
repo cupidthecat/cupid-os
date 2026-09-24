@@ -464,7 +464,7 @@ static int parse_seed_provenance(error_context_t *context, json_reader_t *reader
       uint64_t value = 0u;
       fields |= 128u;
       ok = cupid_contract_json_parse_positive_u64(context, reader, &value);
-      if (ok && value != 59u && value != 61u) {
+      if (ok && value != 59u && value != 61u && value != 66u) {
         ok = cupid_contract_set_error(context, "seed manifest source input count differs");
       }
       if (ok) {
@@ -915,16 +915,24 @@ static int parse_windows_provenance(error_context_t *context, json_reader_t *rea
       fields |= 8u;
       ok = parse_expected_text(context,
           reader,
-          "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd",
+          seed_manifest->source_input_count == 66u
+              ? "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe"
+              : "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd",
           "Windows seed Linux build plan differs");
     } else if (cupid_contract_text_equals_literal(&key, "native_build_plan_sha256") &&
                (fields & 16u) == 0u) {
       fields |= 16u;
-      ok = parse_expected_text_pair(context,
+      if (seed_manifest->source_input_count == 66u) {
+        ok = parse_expected_text(context, reader,
+            "70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9",
+            "Windows seed native build plan differs");
+      } else {
+        ok = parse_expected_text_pair(context,
           reader,
           "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14",
           "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669",
           "Windows seed native build plan differs");
+      }
     } else if (cupid_contract_text_equals_literal(
                    &key, "parent_execution_seed_manifest_sha256") &&
                (fields & 32u) == 0u) {
@@ -978,7 +986,7 @@ static int parse_windows_provenance(error_context_t *context, json_reader_t *rea
       uint64_t value = 0u;
       fields |= 2048u;
       ok = cupid_contract_json_parse_positive_u64(context, reader, &value);
-      if (ok && value != 59u && value != 61u) {
+      if (ok && value != 59u && value != 61u && value != 66u) {
         ok = cupid_contract_set_error(context, "Windows seed manifest source input count differs");
       }
       if (ok && value != seed_manifest->source_input_count) {

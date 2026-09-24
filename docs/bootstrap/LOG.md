@@ -39007,3 +39007,204 @@ including the two LFS payload identities, before promotion. Size-policy tests
 also pass all fourteen methods on each host. The ownership split remains
 440 CupidBuild / 12 Python; the native verifier and Windows Unicode runtime
 work are still separate, unadopted candidates.
+
+## Definition-conditional seed installation from e4f2ed65
+
+The capability commit is pushed on bootstrap/cupid-self-hosting. Its actual
+Git-blob audit passes for 1,501 inputs, two LFS payloads and the exact 105-input
+tool proof closure, bound to the independently accepted paired OS/runtime run.
+Wiki commit 2561d69 and issue #34 comment 5802263988 record that capability.
+
+The strict promotion helper accepted the committed canonical 66-input source,
+terminal Windows/Linux fixed-point reports and every retained artifact. Its
+preview validated the proposed pair with the proposed verifier and separately
+authored the exact release record. Installation then wrote twelve tools, two
+manifests, retained identities, the release record, manifest-contract digests
+and seed size measurements. Both installed manifest verifiers pass. Linux
+manifest SHA-256 is da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed;
+Windows is c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395.
+
+Full release-identity, size-policy, bootstrap and publication-contract tests
+are running on both hosts. The WSL named-commit test initially failed because
+Linux Git could not resolve the Windows-form linked-worktree pointer. The same
+test passes with explicit Linux GIT_DIR and GIT_WORK_TREE paths; the original
+suite failure is retained. This does not change source or weaken its inventory
+check. The embedded CupidC reference now records the installed identities and
+capabilities. Its fresh kernel/image/runtime acceptance remains required.
+Promotion evidence is under build/bootstrap/asm-defined-conditionals-final-bd13198b/.
+Ownership remains 440 CupidBuild and twelve Python participations.
+
+The Linux suite finished with 210 tests, eighteen failures, one error and
+seventeen skips. Two failures are the named-commit Git-path problem; both pass
+with explicit Git paths. Thirteen publication-contract failures expose a stale
+seed build-plan pin: the promotion helper updated the manifest hash but left
+the separate plan hash at the previous release. A private correction passes
+all 39 hosted manifest cases. The checked-author case still compiles the frozen
+production source and retains the original failure.
+
+Three legacy negative tests fail before reaching their intended rejection. Their
+fixture removes three promoted sources, but the new seed adds six. Selecting
+the promoted source names removes the full group and restores the exact source-
+plan and ELF-entry diagnostics on both hosts. The remaining error is a
+3,000-second Linux fixed-point timeout; it is not accepted as a pass.
+
+Corrected Windows and native-Linux snapshots retain all 1,501 input identities
+except those two explicit corrections. Linux reruns the full suite, then builds
+the publication and runs thirteen assembler contract modes. Windows reruns the
+regressions while its original fixed-point job continues separately. These jobs
+are pending. Original reports and running OS build inputs remain unchanged.
+Evidence and correction hashes are under
+build/bootstrap/seed-promotion-e4f2ed65/. Promotion still requires passing
+regressions, corrected publication, paired OS/runtime acceptance and the final
+committed-input audit.
+
+The corrected Windows run completed 208 tests, with nine subtest failures in
+one import-profile method. Its historical plan mutations retained the new
+66-input provenance, so manifest validation rejected them before the intended
+import check. The other 207 methods passed, including the checked manifest
+author. A separate repaired-fixture replay passes: historical plans use their
+59-input provenance, the promoted plan has positive and mixed-profile cases,
+and positive cases explicitly reject an early manifest-validation error.
+The original failed report remains intact. Fixed-point tests remain separate
+requirements; neither this replay nor the corrected run establishes their result.
+
+A fresh Windows copy with all fixture repairs now passes all 208 non-fixed-point
+tests in one run. Its post-test check confirms all 1,501 frozen inputs remain
+unchanged. corrected-windows-final.json binds the result to
+corrected-final-source-inputs.json. The two full fixed-point tests are explicitly
+excluded from this run and remain separate acceptance gates. The original Linux
+kernel build also passes its input, artifact and prior-image checks; its flat
+kernel is 9,566,820 bytes. Paired kernel and runtime acceptance still await Windows.
+
+
+The first promoted-seed kernels now pass on both hosts. Their sixteen artifacts
+and 431 link inputs match. Three link inputs differ from the capability build:
+the embedded CupidC manual object and the two kernel ELFs. The symbol object
+stays byte-identical. The first verifier wrongly required it to change; the
+corrected verifier passes, and the original failure remains in the evidence.
+
+The corrected Linux suite completed 210 tests with one failure and seventeen
+skips. The remaining assertion pinned the preceding Windows disassembler hash.
+Its observed 517,120-byte output matches both the installed seed and the retained
+paired stage-four proof. The assertion now records that independently verified
+hash. The original Windows suite finished with both full fixed-point tests
+exceeding their 3,000-second limits; neither is counted as accepted. New full
+suites run on both hosts with every assertion and the original time limits.
+
+The active corrections include the publication seed-plan pin, legacy source
+selection, historical and promoted import-profile fixtures, and the disassembler
+image identity. Fresh OS snapshots contain those exact corrections. Their
+kernel checks require every artifact and link input to remain identical to the
+first promoted-seed build before image/runtime acceptance. Linux acceptance
+requires the corrected publication. Evidence is under
+build/bootstrap/seed-promotion-final-e4f2ed65/; regression replays remain under
+build/bootstrap/seed-promotion-e4f2ed65/. Seed promotion is still uncommitted.
+
+## 2026-09-23: complete promotion regression coverage
+
+The fresh Linux suite passed all 210 tests with seventeen platform skips in
+2117.705 seconds. The corresponding Windows suite completed 210 tests in
+5209.431 seconds with two fixture failures. Its original failed report remains
+intact.
+
+The first failure pinned the preceding native runtime-contract executable.
+Independent linking with the checked Windows CupidLD reproduced the retained
+stage-three and stage-four image: 33,792 bytes, SHA-256
+`d0756c10862123986d956f4125e8342350dc10dbb8a213ba6aa72a7c468e6992`.
+The second assertion counted only 26 C objects; the native stage also includes
+three planned assembly objects. Rehashing all three retained generations
+confirmed the exact 29-object set. Both old assertions reproduced their failures
+before the two literal corrections were prepared.
+
+Both complete Windows fixed-point methods then passed together in 5005.732
+seconds, retaining their original per-bootstrap time limits. Source comparison
+confirms that all other test methods are identical and that effective Linux
+test code is unchanged. The coverage verifier accounts for the original 210
+methods on each host and both corrected Windows replays. It does not relabel
+the original failed Windows run as passing.
+
+The verified corrections are now applied, and the promotion input preflight
+passes. Evidence is in `build/bootstrap/seed-promotion-e4f2ed65/`, including
+`combined-recovery-v6-regressions.json`. Linux publication passed, recording
+80 inputs, 22 artifacts and all thirteen published assembler contract modes in
+`linux-recovery-v6-publication.json`. The fresh Windows kernel build passed and
+recorded its artifacts and 431 link inputs after rechecking the source inventory
+and unchanged disk images. The Linux kernel build is running. Paired kernel
+comparison, policy checks, image/runtime acceptance, documentation
+review and actual committed-byte verification remain required. Their controller
+and reports are in `build/bootstrap/seed-promotion-v6-e4f2ed65/`. Seed promotion
+remains uncommitted.
+
+### 2026-09-24: Promoted seed artifact-reader correction in progress
+
+Paired kernel comparison and the measured size-policy update passed. Windows
+`make all` subsequently stopped in the Cupid-built artifact contract with
+`seed manifest source input count differs`. The failed image/controller reports
+remain in `build/bootstrap/seed-promotion-v6-e4f2ed65/`; neither runtime smoke
+nor Linux image acceptance ran.
+
+A regression using the installed manifests reproduced the same failure in
+0.830 seconds. The C artifact-policy reader had retained the 59/61 source-count
+window and earlier plan identities after the shared seed reader moved to 66.
+The pending correction admits 66 only with the matching Linux and native
+Windows plan hashes. It retains the older generations, exact fields, parent
+pair checks, source agreement and observation checks. The Python coordinator
+still validates the captured release against its independent pins before
+launching the contract. This correction does not move that authority into C
+or change the twelve Python-coordinated operations.
+
+The 65 hosted policy/API tests pass, including the installed release, mixed
+plan rejection and unsupported source counts. The 23 runner tests pass with
+four platform skips. A private, byte-inventoried Windows replay now compiles
+the corrected contract with the installed Cupid tools and checks the real
+sixteen build artifacts. Its result and fresh OS/runtime acceptance remain
+pending. Earlier staged proofs and publication describe the earlier source;
+they must not be reported as evidence for the corrected C file.
+
+
+### 2026-09-24: Corrected promoted-seed Windows acceptance passes
+
+Both Cupid-built artifact contracts pass all sixteen real artifacts after the
+reader correction. Fresh related suites pass 88 methods on Linux and Windows,
+with four Windows platform skips. The independent evidence verifier binds the
+regression source bytes, private contract inventories and logs to the new
+1,501-input acceptance snapshot. The changed reader and test are outside both
+the 66-file producer and 80-file publication inventories; those verified
+closures remain unchanged.
+
+Windows `make -j2 -o FORCE all` passes, including artifact verification and image
+publication. All three user builds and the four-CPU max/E1000 disassembly/shell
+smoke pass. Independent checks rehash 1,501 source inputs, sixteen artifacts,
+431 link inputs, three user executables and the image. Both terminal completion
+markers are present; no panic or corruption marker appears. The private smoke
+leaves the source image unchanged. Its post-build SHA-256 is
+`e5bcf24268895413202919e4a2362f3ff4b810f43edbea070b46001fec830d5d`.
+
+Reports are retained under
+`build/bootstrap/seed-promotion-reader-fix-e4f2ed65/`, including
+`windows-independent-audit.json` and `reader-fix-evidence.json`. The earlier
+failed image and controller records remain unchanged. Linux image/runtime
+acceptance is running; paired image equality and the final committed-byte
+audit remain pending. No promotion commit or push has been made.
+
+
+### 2026-09-24: Promoted-seed acceptance passes on both hosts
+
+Linux image and user builds and the four-CPU max/E1000 disassembly/shell smoke
+pass. The controller completed successfully after both hosts finished. The
+independent paired audit rehashes all 1,501 source inputs, sixteen artifacts,
+431 link inputs and three user executables. It also checks the Linux contract
+publication transfer, terminal completion markers and unchanged prior images.
+Both hosts produce the same 209,715,200-byte image, SHA-256
+`e5bcf24268895413202919e4a2362f3ff4b810f43edbea070b46001fec830d5d`.
+The user executables match across hosts and match the preceding release.
+Both private runtime smokes preserve their source images.
+
+The passing report is
+`build/bootstrap/seed-promotion-reader-fix-e4f2ed65/paired-acceptance.json`.
+Earlier failed reports remain available. This completes build and runtime
+acceptance for the seed promotion and artifact-reader correction. The final
+commit still needs its audit against the tested source bytes. Production
+ownership remains 440 CupidBuild and twelve Python participations; Doom
+interactive gameplay and the prepared music-pump correction remain separate
+unfinished work.

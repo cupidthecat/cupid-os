@@ -1,5 +1,29 @@
 # Cupid Toolchain bootstrap
 
+The conditional-assembly capability is committed as `e4f2ed65`. Its paired
+OS/runtime acceptance and actual committed-input audit pass. Both six-tool seed
+sets have now been installed locally from that commit's canonical 66-input
+proofs. Strict promotion and both manifest verifiers pass. Regression runs found
+stale publication and fixture assumptions; the active corrections now cover
+the seed plan, legacy source list, import profiles and disassembler image hash.
+The corrected Windows fixed-point replays and Linux publication pass. The
+original failures remain recorded separately from these successful replays.
+
+The promoted-seed kernels match across hosts. Windows image acceptance then
+stopped at the artifact-size contract: its C reader still accepted only the
+59- and 61-input manifest generations. The correction admits 66 inputs
+with the corresponding Linux and Windows plan pair. All 65 artifact-policy
+tests pass, as do 23 runner tests (four Windows skips). Fresh Cupid-built
+contracts pass all sixteen artifacts on both hosts. Windows and Linux image
+and user builds and four-CPU disassembly/shell smokes pass. The independent
+paired audit rehashes all 1,501 source inputs, sixteen artifacts and 431 link
+inputs. Both hosts produce identical images and user programs; each private
+smoke preserves its source image. Final commit verification remains pending.
+Ownership remains 440 CupidBuild and
+twelve Python participations. See [promotion progress](NEXT-ASSEMBLER-CONDITIONALS.md).
+
+The capability and earlier checkpoints below retain their acceptance history.
+
 The shared assembler now supports definition conditionals (`%ifdef`, `%ifndef`,
 `%else`, `%endif`). Native and Cupid-built tests pass on both hosts, including
 local definitions, skipped invalid source, include boundaries and output
