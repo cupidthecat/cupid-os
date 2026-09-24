@@ -409,11 +409,31 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                 self.assert_contract_failure(self.promoted_request(mutate))
 
     def test_promoted_seed_rejects_unknown_source_counts(self):
-        for count in (60, 62, 65, 67):
+        for count in (60, 62, 65, 67, 68, 72, 74):
             with self.subTest(count=count):
                 def mutate(manifest, windows):
                     manifest["provenance"]["source_input_count"] = count
                     windows["provenance"]["source_input_count"] = count
+                self.assert_contract_failure(self.promoted_request(mutate))
+
+    def test_utf8_seed_pair_requires_its_exact_plan_and_source_counts(self):
+        wide_digest = "a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99"
+        def select_wide(manifest, windows):
+            manifest["provenance"]["source_input_count"] = 73
+            windows["provenance"]["source_input_count"] = 73
+            windows["provenance"]["native_build_plan_sha256"] = wide_digest
+        result = self.run_request(self.promoted_request(select_wide))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
+        for linux_count, windows_count, digest in (
+                (66, 73, wide_digest), (73, 66, wide_digest), (66, 66, wide_digest),
+                (73, 73, "70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9")):
+            with self.subTest(counts=(linux_count, windows_count), digest=digest):
+                def mutate(manifest, windows):
+                    select_wide(manifest, windows)
+                    manifest["provenance"]["source_input_count"] = linux_count
+                    windows["provenance"]["source_input_count"] = windows_count
+                    windows["provenance"]["native_build_plan_sha256"] = digest
                 self.assert_contract_failure(self.promoted_request(mutate))
 
     def test_promoted_61_input_seed_pair_is_accepted(self):

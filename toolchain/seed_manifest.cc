@@ -634,6 +634,8 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
   source_count_matches =
       promoted
           ? (cupidbuild_json_number_field(bytes, tokens, count, object,
+                                           "source_input_count", 73u) ||
+             cupidbuild_json_number_field(bytes, tokens, count, object,
                                            "source_input_count", 66u) ||
              cupidbuild_json_number_field(bytes, tokens, count, object,
                                            "source_input_count", 61u) ||
@@ -690,7 +692,9 @@ static int cupidbuild_json_provenance(const unsigned char *bytes,
                        "fc1c7634d4cb6a9106c523fe7c5c82f38e2b8e3eb3b3dbce9166e93daa4116fe") &&
                    cupidbuild_json_string_field(
                        bytes, tokens, count, object, "native_build_plan_sha256",
-                       "70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9"))
+                       candidate == 2
+                           ? "a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99"
+                           : "70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9"))
                 : (cupidbuild_json_string_field(
                        bytes, tokens, count, object,
                        "linux_candidate_build_plan_sha256",
@@ -1125,6 +1129,11 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
   candidate = promoted && provenance < count &&
       cupidbuild_json_number_field(manifest, tokens, count, provenance,
                                    "source_input_count", 66u);
+  if (promoted && provenance < count &&
+      cupidbuild_json_number_field(manifest, tokens, count, provenance,
+                                   "source_input_count", 73u)) {
+    candidate = 2;
+  }
   if (!cupidbuild_json_provenance(manifest, tokens, count, provenance,
                                   windows, promoted, candidate)) {
     *reason_out = "fixed-point provenance differs";
@@ -1132,7 +1141,7 @@ static int cupidbuild_json_manifest(const unsigned char *manifest,
     return 0;
   }
   if (windows && promoted) {
-    current_windows_plan = candidate || cupidbuild_json_string_field(
+    current_windows_plan = candidate != 0 ? candidate : cupidbuild_json_string_field(
         manifest, tokens, count, provenance, "native_build_plan_sha256",
         "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669");
   }

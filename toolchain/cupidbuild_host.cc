@@ -13,6 +13,7 @@
 #endif
 
 #include "cupidbuild_host.h"
+#include "path_encoding.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -60,6 +61,10 @@ int cupid_linux_syscall5(int number, unsigned int first,
                          unsigned int second, unsigned int third,
                          unsigned int fourth, unsigned int fifth);
 #endif
+#endif
+
+#ifdef CUPID_NATIVE_UTF8_ENABLE
+#include "native_utf8.h"
 #endif
 
 #define CUPIDBUILD_HOST_PATH_BYTES 8192u
@@ -1057,24 +1062,36 @@ static int cupidbuild_host_seed_members_platform(
     const char *directory, const char *suffix, const char *const *expected,
     size_t expected_count) {
   char pattern[CUPIDBUILD_HOST_PATH_BYTES];
-  WIN32_FIND_DATAA entry;
+  WIN32_FIND_DATAW entry;
+  unsigned short wide_pattern[CUPIDBUILD_HOST_PATH_BYTES];
+  char name[781];
+  size_t units;
+  size_t bytes;
   HANDLE search;
   int valid = 1;
   if (!cupidbuild_host_join(pattern, sizeof(pattern), directory, "*")) {
     return 0;
   }
-  search = FindFirstFileA(pattern, &entry);
+  if (!cupidbuild_path_to_utf16(pattern, strlen(pattern), wide_pattern,
+          sizeof(wide_pattern) / sizeof(wide_pattern[0]), &units)) return 0;
+  search = FindFirstFileW(wide_pattern, &entry);
   if (search == INVALID_HANDLE_VALUE) {
     return 0;
   }
   do {
-    if (cupidbuild_host_name_has_suffix(entry.cFileName, suffix) &&
-        !cupidbuild_host_name_is_expected(entry.cFileName, expected,
+    for (units = 0u; units < 260u && entry.cFileName[units] != 0u; units++) {}
+    if (units == 260u || !cupidbuild_path_to_utf8(entry.cFileName, units,
+            name, sizeof(name), &bytes)) {
+      valid = 0;
+      break;
+    }
+    if (cupidbuild_host_name_has_suffix(name, suffix) &&
+        !cupidbuild_host_name_is_expected(name, expected,
                                           expected_count)) {
       valid = 0;
       break;
     }
-  } while (FindNextFileA(search, &entry));
+  } while (FindNextFileW(search, &entry));
   if (valid != 0 && GetLastError() != ERROR_NO_MORE_FILES) {
     valid = 0;
   }
@@ -1154,7 +1171,7 @@ static int cupidbuild_host_discover_platform(
     int complete = 0;
     worklist.count--;
     while (valid != 0) {
-      char name[260];
+      char name[1417];
       char logical[CUPIDBUILD_HOST_PATH_BYTES];
       DWORD attributes = 0u;
       DWORD file_id_high = 0u;
@@ -1811,6 +1828,28 @@ static unsigned int cupidbuild_host_windows_u32(const unsigned char *bytes) {
          ((unsigned int)bytes[3] << 24u);
 }
 
+/* Component policy stays separate from scalar conversion. Capacities and
+ * returned lengths here count UTF-16 units, not UTF-8 bytes. */
+static int cupidbuild_host_windows_component(
+    const char *name, unsigned short *output, size_t capacity, size_t *units) {
+  size_t bytes;
+  size_t index;
+  *units = 0u;
+  if (output != (unsigned short *)0 && capacity != 0u) {
+    output[0] = 0u;
+  }
+  if (name == (const char *)0 || name[0] == '\0') {
+    return 0;
+  }
+  bytes = strlen(name);
+  for (index = 0u; index < bytes; index++) {
+    if (name[index] == '/' || name[index] == '\\') {
+      return 0;
+    }
+  }
+  return cupidbuild_path_to_utf16(name, bytes, output, capacity, units);
+}
+
 static HANDLE cupidbuild_host_windows_open_relative_access_share_status(
     HANDLE parent, const char *name, int directory, int read_contents,
     unsigned long extra_access, unsigned long share_access,
@@ -1821,8 +1860,7 @@ static HANDLE cupidbuild_host_windows_open_relative_access_share_status(
   cupidbuild_windows_io_status_t status;
   BY_HANDLE_FILE_INFORMATION information;
   HANDLE handle = INVALID_HANDLE_VALUE;
-  size_t name_size = strlen(name);
-  size_t index;
+  size_t name_size = 0u;
   unsigned long access = FILE_READ_ATTRIBUTES | SYNCHRONIZE | extra_access;
   unsigned long options = CUPIDBUILD_WINDOWS_FILE_SYNCHRONOUS_IO_NONALERT |
                           CUPIDBUILD_WINDOWS_FILE_OPEN_REPARSE_POINT;
@@ -1830,18 +1868,11 @@ static HANDLE cupidbuild_host_windows_open_relative_access_share_status(
   if (status_out != (long *)0) {
     *status_out = (long)0xc000000du;
   }
-  if (parent == INVALID_HANDLE_VALUE || name_size == 0u ||
-      name_size >= sizeof(name_buffer) / sizeof(name_buffer[0])) {
+  if (parent == INVALID_HANDLE_VALUE || !cupidbuild_host_windows_component(
+          name, name_buffer, sizeof(name_buffer) / sizeof(name_buffer[0]),
+          &name_size)) {
     return INVALID_HANDLE_VALUE;
   }
-  for (index = 0u; index < name_size; index++) {
-    unsigned char character = (unsigned char)name[index];
-    if (character >= 128u || character == '/' || character == '\\') {
-      return INVALID_HANDLE_VALUE;
-    }
-    name_buffer[index] = (unsigned short)character;
-  }
-  name_buffer[name_size] = 0u;
   if (directory != 0) {
     access |= FILE_TRAVERSE;
     if (read_contents != 0) {
@@ -2162,6 +2193,8 @@ static int cupidbuild_host_windows_query_directory_request(
   unsigned char *information =
       storage + ((8u - ((size_t)storage & 7u)) & 7u);
   unsigned short requested_buffer[260];
+  unsigned short returned_buffer[472];
+  size_t returned_bytes;
   cupidbuild_windows_unicode_string_t requested_name;
   cupidbuild_windows_unicode_string_t *requested_pointer =
       (cupidbuild_windows_unicode_string_t *)0;
@@ -2172,18 +2205,11 @@ static int cupidbuild_host_windows_query_directory_request(
   long result;
   *complete_out = 0;
   if (requested != (const char *)0) {
-    size_t requested_size = strlen(requested);
-    if (requested_size == 0u || requested_size >= 260u) {
+    size_t requested_size = 0u;
+    if (!cupidbuild_host_windows_component(
+            requested, requested_buffer, 260u, &requested_size)) {
       return 0;
     }
-    for (index = 0u; index < requested_size; index++) {
-      unsigned char character = (unsigned char)requested[index];
-      if (character >= 128u || character == '/' || character == '\\') {
-        return 0;
-      }
-      requested_buffer[index] = (unsigned short)character;
-    }
-    requested_buffer[requested_size] = 0u;
     requested_name.length = (unsigned short)(requested_size * 2u);
     requested_name.maximum_length =
         (unsigned short)((requested_size + 1u) * 2u);
@@ -2207,7 +2233,7 @@ static int cupidbuild_host_windows_query_directory_request(
   }
   name_bytes = (size_t)cupidbuild_host_windows_u32(information + 60u);
   if (cupidbuild_host_windows_u32(information) != 0u || name_bytes == 0u ||
-      (name_bytes & 1u) != 0u || name_bytes / 2u + 1u > name_capacity ||
+      (name_bytes & 1u) != 0u ||
       name_bytes > bytes - 80u) {
     return 0;
   }
@@ -2215,13 +2241,16 @@ static int cupidbuild_host_windows_query_directory_request(
     unsigned int character = (unsigned int)information[80u + index * 2u] |
                              ((unsigned int)information[81u + index * 2u]
                               << 8u);
-    if (character == 0u || character >= 128u || character == '/' ||
+    if (character == 0u || character == '/' ||
         character == '\\') {
       return 0;
     }
-    name[index] = (char)character;
+    returned_buffer[index] = (unsigned short)character;
   }
-  name[name_bytes / 2u] = '\0';
+  if (!cupidbuild_path_to_utf8(returned_buffer, name_bytes / 2u,
+          name, name_capacity, &returned_bytes)) {
+    return 0;
+  }
   *attributes_out =
       (DWORD)cupidbuild_host_windows_u32(information + 56u);
   *file_id_low_out =
@@ -2240,7 +2269,7 @@ static int cupidbuild_host_windows_query_directory_request(
 }
 
 typedef struct {
-  char name[260];
+  char name[1417];
   DWORD attributes;
   DWORD file_id_high;
   DWORD file_id_low;
@@ -2451,7 +2480,7 @@ static int cupidbuild_host_seed_members_repository(
     return 0;
   }
   while (valid != 0) {
-    char name[260];
+    char name[1417];
     DWORD attributes = 0u;
     DWORD file_id_high = 0u;
     DWORD file_id_low = 0u;
@@ -2495,19 +2524,18 @@ static int cupidbuild_host_windows_rename_handle(
   cupidbuild_windows_io_status_t status;
   size_t name_size;
   size_t allocation_size;
-  size_t index;
   long result;
   if (source == INVALID_HANDLE_VALUE ||
       destination_parent == INVALID_HANDLE_VALUE ||
       destination_name == (const char *)0) {
     return 0;
   }
-  name_size = strlen(destination_name);
-  if (name_size == 0u || name_size > 4096u) {
+  if (!cupidbuild_host_windows_component(destination_name,
+          (unsigned short *)0, 0u, &name_size) || name_size > 4096u) {
     return 0;
   }
   allocation_size = sizeof(*rename_information) - sizeof(unsigned short) +
-                    name_size * sizeof(unsigned short);
+                    (name_size + 1u) * sizeof(unsigned short);
   rename_information =
       (cupidbuild_windows_rename_t *)calloc(1u, allocation_size);
   if (rename_information == (cupidbuild_windows_rename_t *)0) {
@@ -2517,13 +2545,10 @@ static int cupidbuild_host_windows_rename_handle(
       replace_if_exists != 0 ? 1u : 0u;
   rename_information->root_directory = destination_parent;
   rename_information->file_name_length = (DWORD)(name_size * 2u);
-  for (index = 0u; index < name_size; index++) {
-    unsigned char character = (unsigned char)destination_name[index];
-    if (character >= 128u || character == '/' || character == '\\') {
-      free(rename_information);
-      return 0;
-    }
-    rename_information->file_name[index] = (unsigned short)character;
+  if (!cupidbuild_host_windows_component(destination_name,
+          rename_information->file_name, name_size + 1u, &name_size)) {
+    free(rename_information);
+    return 0;
   }
   (void)memset(&status, 0, sizeof(status));
   result = cupid_windows_nt_set_information_file(
@@ -5534,21 +5559,13 @@ static HANDLE cupidbuild_host_profile_parent_open_component(
   cupidbuild_windows_object_attributes_t attributes;
   cupidbuild_windows_io_status_t status;
   HANDLE handle = INVALID_HANDLE_VALUE;
-  size_t name_size = strlen(name);
-  size_t index;
+  size_t name_size = 0u;
   long result;
-  if (parent == INVALID_HANDLE_VALUE || name_size == 0u ||
-      name_size >= sizeof(name_buffer) / sizeof(name_buffer[0])) {
+  if (parent == INVALID_HANDLE_VALUE || !cupidbuild_host_windows_component(
+          name, name_buffer, sizeof(name_buffer) / sizeof(name_buffer[0]),
+          &name_size)) {
     return INVALID_HANDLE_VALUE;
   }
-  for (index = 0u; index < name_size; index++) {
-    unsigned char character = (unsigned char)name[index];
-    if (character >= 128u || character == '/' || character == '\\') {
-      return INVALID_HANDLE_VALUE;
-    }
-    name_buffer[index] = (unsigned short)character;
-  }
-  name_buffer[name_size] = 0u;
   unicode_name.length = (unsigned short)(name_size * 2u);
   unicode_name.maximum_length = (unsigned short)((name_size + 1u) * 2u);
   unicode_name.buffer = name_buffer;
@@ -6165,26 +6182,18 @@ static int cupidbuild_host_windows_create_relative_regular(
   BY_HANDLE_FILE_INFORMATION information;
   HANDLE handle = INVALID_HANDLE_VALUE;
   HANDLE write_handle = INVALID_HANDLE_VALUE;
-  size_t name_size = name == (const char *)0 ? 0u : strlen(name);
-  size_t index;
+  size_t name_size = 0u;
   size_t offset = 0u;
   long result;
   if (parent == INVALID_HANDLE_VALUE || snapshot == (void *)0 ||
       handle_out == (HANDLE *)0 || (bytes == (const unsigned char *)0 &&
                                     size != 0u) ||
-      name_size == 0u ||
-      name_size >= sizeof(name_buffer) / sizeof(name_buffer[0])) {
+      !cupidbuild_host_windows_component(
+          name, name_buffer, sizeof(name_buffer) / sizeof(name_buffer[0]),
+          &name_size)) {
     return 0;
   }
   *handle_out = INVALID_HANDLE_VALUE;
-  for (index = 0u; index < name_size; index++) {
-    unsigned char character = (unsigned char)name[index];
-    if (character >= 128u || character == '/' || character == '\\') {
-      return 0;
-    }
-    name_buffer[index] = (unsigned short)character;
-  }
-  name_buffer[name_size] = 0u;
   unicode_name.length = (unsigned short)(name_size * 2u);
   unicode_name.maximum_length = (unsigned short)((name_size + 1u) * 2u);
   unicode_name.buffer = name_buffer;

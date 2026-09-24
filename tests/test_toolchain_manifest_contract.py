@@ -141,6 +141,13 @@ INPUT_PATHS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+    "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+    "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/native_utf8.h",
+    "toolchain/path_encoding.cc",
+    "toolchain/path_encoding.h",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
     "toolchain/seed_manifest.h",
@@ -238,6 +245,13 @@ BOOTSTRAP_PATHS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+    "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+    "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/native_utf8.h",
+    "toolchain/path_encoding.cc",
+    "toolchain/path_encoding.h",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
     "toolchain/seed_manifest.cc",
@@ -693,7 +707,7 @@ class ToolchainManifestContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             '{"artifact_count":22,"artifact_total_bytes":682,'
-            '"bootstrap_source_input_count":66,"input_count":80,'
+            '"bootstrap_source_input_count":73,"input_count":87,'
             '"schema":"cupid.toolchain-manifest-verification.v1"}\n',
         )
         self.assertEqual(result.stderr, "")
@@ -1616,12 +1630,12 @@ class ToolchainManifestContractTests(unittest.TestCase):
 
     def test_current_publication_inventory_counts_are_exact(self):
         self.assertEqual(len(ARTIFACT_NAMES), 22)
-        self.assertEqual(len(INPUT_PATHS), 80)
-        self.assertEqual(len(BOOTSTRAP_PATHS), 66)
+        self.assertEqual(len(INPUT_PATHS), 87)
+        self.assertEqual(len(BOOTSTRAP_PATHS), 73)
         self.assertEqual(len(OBJECT_COMPARISON_NAMES), 17)
         self.assertEqual(len(BOOTSTRAP_OBJECT_NAMES), 26)
         self.assertEqual(len(BOOTSTRAP_TOOL_NAMES), 6)
-        for input_count in (75, 77):
+        for input_count in (75, 77, 80, 82, 86, 88):
             with self.subTest(input_count=input_count):
                 manifest, observations = _fixture()
                 manifest["inputs"] = {

@@ -144,6 +144,7 @@ class CupidBuildObserverTests(unittest.TestCase):
         command = [compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
                    "-D_CRT_SECURE_NO_WARNINGS", "-I", str(ROOT / "toolchain"),
                    "-x", "c", str(caller), str(ROOT / "toolchain/cupidbuild_host.cc"),
+                   str(ROOT / "toolchain/path_encoding.cc"),
                    *(["-lntdll"] if os.name == "nt" else []), "-o", str(cls.program)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=180)
         if result.returncode:
@@ -155,7 +156,8 @@ class CupidBuildObserverTests(unittest.TestCase):
         from tools import bootstrap_toolchain as seed
 
         source = directory / "source"
-        paths = [ROOT / "toolchain/cupidbuild_host.cc", ROOT / "toolchain/cupidbuild_host.h"]
+        paths = [ROOT / "toolchain" / name for name in
+                 ("cupidbuild_host.cc", "cupidbuild_host.h", "path_encoding.cc", "path_encoding.h")]
         paths.extend(path for path in (ROOT / "toolchain/hosted").rglob("*") if path.is_file())
         for path in paths:
             destination = source / path.relative_to(ROOT)
@@ -167,9 +169,10 @@ class CupidBuildObserverTests(unittest.TestCase):
         cls.addClassCleanup(seed.require_live_seed_inputs, checked)
         plan = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_text())["build_plan"]
         if os.name == "nt":
-            plan = seed._windows_build_plan(plan)
+            plan = seed._windows_build_plan(plan, utf8=True)
         rows = [row for row in plan["sources"]
-                if row["name"] in {"runtime", "publication_runtime", "cupidbuild_host"}]
+                if row["name"] in {"runtime", "publication_runtime", "cupidbuild_host",
+                                   "path_encoding", "windows_utf8_build"}]
         rows.insert(0, {"name": "observer_caller", "path": "/toolchain/observer_caller.cc",
                         "definitions": [], "gnu_extensions": False})
         runner = seed.ToolRunner(source)
@@ -189,7 +192,7 @@ class CupidBuildObserverTests(unittest.TestCase):
         order = ["start", *[row["name"] for row in rows],
                  *[row["name"] for row in assembly if row["name"] != "start"]]
         if os.name == "nt":
-            arguments = seed._windows_link_arguments("cupidbuild", cls.program, objects, order)
+            arguments = seed._windows_link_arguments("cupidbuild", cls.program, objects, order, utf8=True)
             contract._run_checked_tool(checked, runner, "cupidld", arguments, "observer", 180)
         else:
             contract._link_contract(checked, runner, [objects[name] for name in order],
@@ -452,7 +455,14 @@ class CupidBuildObserverTests(unittest.TestCase):
                      unchanged=True)
 
     def test_repository_root_metadata_drift_is_rejected(self):
-        self.observe(mutate=lambda: (self.root / "unrelated").write_bytes(b""))
+        def mutate():
+            original = self.root.stat()
+            (self.root / "unrelated").write_bytes(b"")
+            # Creation can share the original directory's clock tick. Make the
+            # metadata change explicit rather than assuming timestamp precision.
+            os.utime(self.root, ns=(original.st_atime_ns, original.st_mtime_ns + 1_000_000_000))
+            self.assertNotEqual(self.root.stat().st_mtime_ns, original.st_mtime_ns)
+        self.observe(mutate=mutate)
 
     def test_metadata_only_does_not_promise_payload_identity(self):
         original = self.leaf.stat()

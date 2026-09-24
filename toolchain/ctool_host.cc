@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef CUPID_NATIVE_UTF8_ENABLE
+#include "native_utf8.h"
+#endif
+
 #define CTOOL_HOST_U32_MAX 4294967295u
 
 static FILE *ctool_host_fopen(const char *path, const char *mode) {

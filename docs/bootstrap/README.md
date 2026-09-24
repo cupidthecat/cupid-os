@@ -1,5 +1,25 @@
 # Cupid Toolchain bootstrap
 
+The current Windows UTF-8 candidate selects wide entry, filesystem and process
+APIs for all six hosted tools. Its first acceptance runs passed, but the final
+commit audit found CRLF bytes that Git would normalize. The canonical LF replay
+now passes paired staged proofs, all 28 converged Unicode-path commands and
+paired kernel verification. Regression suites pass on both hosts. Full
+publication and its checked manifest verifier also pass. Paired image/user/runtime
+acceptance passes independent verification: both hosts produce identical images
+and user programs, and private four-CPU smokes preserve their source images.
+The accepted first-run evidence is described below.
+
+Candidate capture, publication and their readers
+agree on 73 bootstrap inputs and 87 publication inputs. Adapter, command,
+observer and publication tests pass. Paired staged proofs pass independent
+verification. Full publication, its checked manifest verifier and paired
+OS/runtime acceptance pass. Both hosts produce identical disk images and user
+programs, and private four-CPU smokes preserve the source images. Installed
+seeds and ownership remain unchanged. See
+[UTF-8 progress](NEXT-WINDOWS-UTF8.md) and
+[ADR 0406](../adr/0406-use-utf8-at-windows-tool-boundaries.md).
+
 The conditional-assembly capability is committed as `e4f2ed65`. Its paired
 OS/runtime acceptance and actual committed-input audit pass. Both six-tool seed
 sets have now been installed locally from that commit's canonical 66-input

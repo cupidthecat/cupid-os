@@ -173,6 +173,11 @@ CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.cc \
                               hosted/i386-linux/start.asm \
                               tests/hosted_i386_runtime_contract.cc
 CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc \
+                                      hosted/i386-windows/windows_utf8.cc \
+                                      hosted/i386-windows/utf8_tool_start.asm \
+                                      hosted/i386-windows/utf8_publication_start.asm \
+                                      hosted/i386-windows/utf8_cupidbuild_start.asm \
+                                      path_encoding.cc \
                                       hosted/i386-windows/publication_start.asm \
                                       hosted/i386-windows/cupidbuild_start.asm \
                                       hosted/i386-windows/runtime.cc \
@@ -181,6 +186,7 @@ CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc
                                       tests/hosted_i386_windows_contract.cc \
                                       tests/hosted_i386_windows_runtime_contract.cc
 CUPIDC_HOSTED_I386_CLOSURE := artifact_size_policy.h contract_parse_internal.h \
+                              path_encoding.h native_utf8.h \
                               contract_parse_internal.cc \
                               seed_manifest.cc seed_manifest.h \
                               seed_release.cc seed_release.h \
@@ -221,6 +227,7 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS := \
 	$(CUPIDC_HOSTED_I386_WINDOWS_RUNTIME) \
 	$(USER_SYSCALL_ABI_INPUTS) \
 	artifact_size_policy.h \
+	path_encoding.h native_utf8.h \
 	seed_manifest.h seed_release.h \
 	ctool.h ctool_host.h cupidasm.h cupidbuild.h cupidbuild_host.h \
 	cupidc_emit.h \
@@ -382,6 +389,26 @@ endif
 CUPIDBUILD_HOST_RUNNER_CONTRACT_OBJECTS := \
 	$(BUILD_DIR)/cupidbuild_host_runner_adapter.o \
 	$(BUILD_DIR)/cupidbuild_host_runner_contract.o
+ifeq ($(OS),Windows_NT)
+NATIVE_UTF8_SUPPORT := $(BUILD_DIR)/path_encoding.o \
+                      $(BUILD_DIR)/native_utf8.o $(BUILD_DIR)/native_utf8_entry.o
+NATIVE_UTF8_ROLES := cupidc cupidasm cupiddis cupidobj cupidld cupidbuild
+NATIVE_UTF8_MAIN_OBJECTS := $(addprefix $(BUILD_DIR)/,$(addsuffix _native_utf8_main.o,$(NATIVE_UTF8_ROLES)))
+native_utf8_objects = $(filter-out $(BUILD_DIR)/ctool_host.o $(BUILD_DIR)/$(2)_main.o,$(1)) \
+                     $(BUILD_DIR)/ctool_host_utf8.o $(BUILD_DIR)/$(2)_native_utf8_main.o \
+                     $(NATIVE_UTF8_SUPPORT)
+CUPIDC_OBJECTS := $(call native_utf8_objects,$(CUPIDC_OBJECTS),cupidc)
+CUPIDASM_OBJECTS := $(call native_utf8_objects,$(CUPIDASM_OBJECTS),cupidasm)
+CUPIDDIS_OBJECTS := $(call native_utf8_objects,$(CUPIDDIS_OBJECTS),cupiddis)
+CUPIDOBJ_OBJECTS := $(call native_utf8_objects,$(CUPIDOBJ_OBJECTS),cupidobj)
+CUPIDLD_OBJECTS := $(call native_utf8_objects,$(CUPIDLD_OBJECTS),cupidld)
+CUPIDBUILD_OBJECTS := $(call native_utf8_objects,$(CUPIDBUILD_OBJECTS),cupidbuild)
+CUPIDBUILD_OBJECTS := $(filter-out $(BUILD_DIR)/cupidbuild_host.o,$(CUPIDBUILD_OBJECTS)) \
+                      $(BUILD_DIR)/cupidbuild_host_utf8.o
+CUPIDBUILD_JPEG_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
+CUPIDBUILD_USER_ELF_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
+CUPIDBUILD_HOST_RUNNER_CONTRACT_OBJECTS += $(BUILD_DIR)/path_encoding.o
+endif
 NATIVE_ORACLE_ARTIFACTS := $(NATIVE_CONTRACT) \
 	$(NATIVE_CUPIDC_PP_CONTRACT) $(NATIVE_CUPIDC_TYPE_CONTRACT) \
 	$(NATIVE_CUPIDC_FRONTEND_CONTRACT) $(NATIVE_CUPIDC_IR_CONTRACT) \
@@ -421,6 +448,26 @@ $(BUILD_DIR)/ctool.o: ctool.cc ctool.h | $(BUILD_DIR)
 
 $(BUILD_DIR)/ctool_host.o: ctool_host.cc ctool_host.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/path_encoding.o: path_encoding.cc path_encoding.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+ifeq ($(OS),Windows_NT)
+$(BUILD_DIR)/native_utf8.o: native_utf8.cc native_utf8.h path_encoding.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/native_utf8_entry.o: native_utf8_entry.cc native_utf8.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
+
+$(BUILD_DIR)/ctool_host_utf8.o: ctool_host.cc native_utf8.h ctool_host.h ctool.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DCUPID_NATIVE_UTF8_ENABLE -x c -c $< -o $@
+
+$(BUILD_DIR)/cupidbuild_host_utf8.o: cupidbuild_host.cc native_utf8.h path_encoding.h cupidbuild_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -D_CRT_SECURE_NO_WARNINGS -DCUPID_NATIVE_UTF8_ENABLE -x c -c $< -o $@
+
+$(NATIVE_UTF8_MAIN_OBJECTS): $(BUILD_DIR)/%_native_utf8_main.o: %_main.cc $(wildcard *.h) | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DCUPID_NATIVE_UTF8_ENABLE -Dmain=cupid_tool_utf8_main -x c -c $< -o $@
+endif
 
 $(BUILD_DIR)/cupidc_pp.o: cupidc_pp.cc cupidc_pp.h ctool.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
@@ -476,11 +523,11 @@ $(BUILD_DIR)/cupidld.o: cupidld.cc cupidld.h elf32.h ctool.h | $(BUILD_DIR)
 $(BUILD_DIR)/cupidld_main.o: cupidld_main.cc cupidld.h ctool_host.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidbuild_host.o: cupidbuild_host.cc cupidbuild_host.h | $(BUILD_DIR)
+$(BUILD_DIR)/cupidbuild_host.o: cupidbuild_host.cc cupidbuild_host.h path_encoding.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidbuild_host_runner_adapter.o: \
-    cupidbuild_host.cc cupidbuild_host.h | $(BUILD_DIR)
+    cupidbuild_host.cc cupidbuild_host.h path_encoding.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(CUPIDBUILD_HOST_RUNNER_CONTRACT_FLAGS) \
 		-x c -c $< -o $@
 

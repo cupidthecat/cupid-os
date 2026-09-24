@@ -13,6 +13,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef CUPID_NATIVE_UTF8_ENABLE
+#include "native_utf8.h"
+#endif
+
 #define CUPIDC_HOST_SOURCE_BYTES 67108864u
 #define CUPIDC_HOST_OUTPUT_BYTES 67108864u
 #define CUPIDC_HOST_ARENA_BYTES 536870912u

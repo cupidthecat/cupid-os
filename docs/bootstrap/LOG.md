@@ -39296,3 +39296,458 @@ closing Doom runtime acceptance. No synthesis, scheduling, EHCI ownership rule,
 demo contents or completion deadline changed to obtain these results. The next
 performance experiment still needs separate guest-time, synthesis-work and
 underrun measurements. Issue #29 remains open.
+
+### 2026-09-24: Windows UTF-8 integration begins
+
+After music commit `5e6d1514`, the retained native Windows adapter and its
+reproducible tests are copied into the repository. The import rechecks every
+retained input hash. Its first attempt stops before writing because the fixture
+has an empty test-package marker while the repository marker has a docstring;
+the corrected import preserves the repository marker. The shared codec contract
+now also has a repository test for scalar boundaries, malformed sequences,
+embedded NUL, exact spans, output capacity and cleared failure results.
+
+`tests.test_native_utf8` and `tests.test_path_encoding` pass seven tests on
+Windows. Linux passes the portable codec test and explicitly skips the six
+Windows-only adapter tests. These files are not yet selected by Make or the
+checked build plans. Native entry selection must move together with file,
+process, retained-path and directory adapters; selecting UTF-8 arguments with
+the existing ANSI paths would regress accented names. The reviewed host-adapter
+diff also changes checked Windows imports, so the startup stubs, import profiles
+and source/link inventories need one coordinated integration. No installed seed
+or production build owner changes at this point. The work remains uncommitted.
+
+The checked Windows adapter and its fault caller are now repository files too.
+`tests.test_windows_utf8_checked` builds the caller with the installed CupidC,
+CupidASM and CupidLD on each host. All three tests pass: allocation/Unicode/API
+error cleanup, rejection of simultaneous publication and build roles with old
+output preservation, and successful compilation of each separate role. Windows
+runs the PE32 caller and Linux runs the ELF caller with mocked Windows APIs.
+The final runs take 11.492 and 11.049 seconds respectively. These tests cover
+conversion and adapter decisions; actual Windows calls and six-tool Unicode
+paths retain their separate acceptance requirements. Build selection remains
+unchanged while startup, import and plan integration proceeds.
+
+The shared runtime now provides the wide command-line entry when compiled with
+`CUPID_WINDOWS_UTF8`. A separate `utf8_tool_start.asm` uses wide command-line,
+file and current-directory APIs together and supplies the SetLastError wrapper.
+The existing ANSI startup remains available for installed-plan validation.
+A new Cupid-built PE32 caller runs from a Japanese/supplementary-character
+directory, checks accented and supplementary arguments plus quotes and a trailing
+backslash, and reads/writes files with Unicode names through the real Windows
+APIs. It also rejects a malformed surrogate and a null command line.
+
+The four-test Windows suite passes in 16.857 seconds. Linux passes the three
+mocked/compile checks and skips the real Windows startup case. The first Windows
+attempt failed the PE layout check because the harness linked the codec before
+the startup object; putting startup first fixes the required entry address.
+The import-profile check remains intact. Production plans and seed promotion
+still need the coordinated adapter, startup and inventory changes.
+
+Explicit UTF-8 publication and CupidBuild assembly wrappers now accompany the
+ordinary startup. The hosted Windows header supplies the wide directory-entry
+layout and enumeration declarations. A separate import-profile helper returns
+the exact wide APIs for each of the six tools and rejects unknown roles;
+installed ANSI profiles remain unchanged. Repository tests link publication and
+CupidBuild callers through the new wrappers, validate their PE imports, and
+reject the ANSI and ordinary-tool profiles for those images.
+
+All six Windows tests pass in 24.093 seconds. Linux passes four applicable
+checks and skips two PE/Windows execution cases. One harness attempt reused
+the CupidBuild wrapper's object filename for its C adapter and failed with
+duplicate strong definitions; separate filenames resolve that collision.
+These results establish the explicit wrapper/profile combinations. Candidate
+build-plan selection, shared host-adapter wiring and whole-tool acceptance
+remain unfinished.
+
+Windows plan derivation now has an explicit `utf8=True` candidate mode. It adds
+the shared codec and three adapter objects, selects the wide runtime entry and
+all three wide assembly wrappers, and gives each tool exactly one adapter role
+and its matching imports. The default derivation retains the installed plan
+digest. Six new plan tests pass on both hosts, including reserved-name and
+invalid-selector rejection and verification of both installed seed sets.
+Two initial test assumptions were corrected: the Windows manifest stores its
+plan digest in provenance rather than embedding the plan, and its runtime
+wrapper supplies the Windows macro itself. Neither required changing the
+installed contract. Bootstrap execution has not selected the new mode yet;
+the stage linker still needs to consume and validate the selected plan imports.
+
+The stage linker now validates the entire import table as one complete ANSI or
+UTF-8 cohort before creating its output directory. It rejects mixed tool modes,
+missing roles, duplicate entries, and changed libraries, procedures or slots.
+The selected mode drives both CupidLD arguments and final PE validation. Three
+older mocked stage plans now supply their explicit import tables. The new
+mocked stage test initially omitted CupidDis from its tools; adding that required
+verifier fixes the fixture. Nineteen targeted plan, checked-adapter and existing
+stage tests pass on Windows in 24.470 seconds and on Linux in 11.580 seconds
+(two Windows-specific skips). Source capture, host widening, native build
+selection and whole-tool acceptance remain required before bootstrap adoption.
+
+Source capture now accepts an explicit Windows UTF-8 mode and keeps that choice
+with the frozen source record. Revalidation checks the same codec, adapter and
+three wide startups. The codec header is required explicitly, so removing it
+cannot silently shrink the header glob. Four added tests cover the complete
+closure, changed frozen input, missing files and invalid selection values.
+All fourteen plan tests pass on Windows (1.132 seconds) and Linux (3.005 seconds).
+The current tree captures 68 inputs by default and 73 in UTF-8 mode; the two new
+headers account for the increase from the installed 66-input generation.
+Installed manifests remain unchanged. Bootstrap callsites still use the default
+while host paths and generation-specific inventory readers are being integrated.
+
+Source freezing now resolves the complete input list before creating its
+destination. Invalid mode values and missing wide sources therefore leave no
+destination directory. A third regression checks live adapter mutation after
+freezing while the private copy remains valid. All seventeen plan tests pass
+on Windows (2.622 seconds) and Linux (4.347 seconds). Four existing source
+snapshot, live-change, private-mutation and symlink tests also pass on each host.
+
+The shared Windows host paths now use the scalar codec for directory enumeration,
+retained component opens, directory queries, rename lengths and profile-parent
+creation. The imported host diff was checked against the retained clean cohort's
+SHA-256 before application. Native Windows Make targets select separate UTF-8
+host and main objects for all six CLIs. Linux keeps its existing objects and
+entry points. The native adapter also supplies UTF-8 current-directory lookup;
+allocation failure, invalid capacity and short-buffer cases pass.
+
+All six Windows native tools build with the strict Make flags. A Linux GCC
+attempt stopped on a maybe-uninitialized warning in unchanged floating-update
+code in cupidc_ir.cc. The cross-platform CLI suite uses Clang and builds all six
+tools on Linux too. Its first run incorrectly placed the checked seed outside
+the working root, which the retained transaction correctly rejected. Copying
+the complete seed into each fixture fixes that setup. Five direct tool commands
+then work under ASCII, accented, Japanese and supplementary-character roots on
+both platforms. Linux also passes the guarded CupidBuild publication. Windows
+rejects that publication under Japanese and supplementary roots because the
+installed ANSI CupidASM cannot read the child path. A fresh UTF-8 checked cohort
+is being built from captured source for this test; installed seeds are unchanged.
+
+The C image API now selects UTF-8 imports explicitly with profile 2. Legacy 0
+and current ANSI 1 retain their contracts. UTF-8 images must match their exact
+ordinary, publication or CupidBuild role; mixed A/W APIs, wrong roles, legacy
+selection and ANSI images under UTF-8 selection reject. Fourteen image tests
+pass on Windows (5.182 seconds) and Linux (5.156 seconds). The shared manifest
+reader admits the 73-input generation with the unchanged Linux plan and exact
+Windows plan a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99.
+It returns profile 2 only for that Windows generation. Sixteen manifest tests
+pass on Windows (2.390 seconds) and Linux (3.664 seconds). Several older tests
+assumed that the live seed still had 59 inputs; explicit historical structural
+fixtures restore those checks without changing installed manifests.
+
+The native observer and host-runner suites pass fifty methods on Windows
+(16.260 seconds, thirteen skips) and Linux (4.343 seconds, three skips). The
+first Linux run exposed a clock-tick assumption in the root metadata test:
+creating a file need not advance a freshly created directory's recorded mtime.
+The test now changes and checks that timestamp explicitly before revalidation.
+Checked observer tests and the complete UTF-8 candidate CLI run are pending.
+Bootstrap adoption, publication inventories and paired OS/runtime acceptance
+remain required before committing this integration.
+
+The fresh Windows candidate run passes in 391.596 seconds. The test builds all
+six native tools with Make and all six checked tools with the installed Cupid
+execution seed, using the captured 73-input UTF-8 plan. Native CLI commands and
+CupidBuild guarded publication pass under all four path variants. Outputs match
+the known compilation/assembly hashes and each other, failed assembly preserves
+the old output, directory membership is exact, and copied seed files remain
+unchanged. This is one checked generation, not a fixed-point proof or promotion.
+
+Checked observer tests also pass: 36 methods on Windows (53.843 seconds, three
+skips) and Linux (41.897 seconds, one skip). Thirty-three plan, native-adapter and
+compile-discovery methods pass on Windows (8.438 seconds). Linux passes the same
+suites plus the three native-tool methods (36 methods, 16.209 seconds, six
+Windows-only skips). Separate Windows object-selection and six-tool help checks
+pass in 6.039 seconds. Checked candidate construction is now deferred until the
+Unicode transaction test, so simple native CLI tests need only the native build.
+
+The native Windows behavior checker propagates the plan's UTF-8 selection into
+source capture and behavior-manifest retargeting. Main bootstrap entry points
+still select the old mode. Current publication capture has 82 files after the
+two new headers; its exact inventory, Make prerequisites and C reader still need
+the coordinated UTF-8 update. See NEXT-WINDOWS-UTF8.md for the remaining work.
+
+
+### Candidate bootstrap and publication select UTF-8
+
+Both candidate bootstrap paths now freeze the complete 73-file UTF-8 closure.
+Windows uses the exact wide plan; its behavior checker also relinks CupidASM
+with the selected imports. Publication capture and Make prerequisites include
+the codec and wide startup/adapter files. The C manifest contract requires the
+same 73 bootstrap inputs and 87 publication inputs. Artifact policy admits the
+new exact plan pair and rejects mismatched source counts or historical Windows
+plans attached to the new generation. Installed seed admission remains separate.
+
+All build-graph contracts pass. The combined artifact-policy, manifest-contract
+and publication suites pass 153 methods on Windows (62.964 seconds) and Linux
+(46.792 seconds). Initial failures came from fixture headers, capture selection,
+counts and plan hashes left over from the earlier generation; the corrected
+fixtures exercise the new closure. Nine bootstrap regressions pass on Windows
+(4.232 seconds) and Linux (29.358 seconds, one platform skip).
+
+End-to-end bootstrap assertions now expect 73 captured files and 33 Windows
+objects, including 30 C objects. Full staged proofs and paired OS acceptance
+remain pending; no seed or ownership count has changed.
+
+The pinned Toolchain manifest reader needed the same five new source paths;
+its real checked-contract test caught the omitted inventory. After that fix,
+all 25 runner methods pass on Windows (26.126 seconds, three platform skips)
+and Linux (28.005 seconds). Concurrent runs first tripped the intended root
+metadata guard because both create temporary directories under the repository.
+Sequential reruns pass. The build-graph audit and whitespace check also pass.
+
+
+### Windows process regressions and paired proof launch
+
+The eight native Windows process tests pass (8.862 seconds). Six initially
+failed while building test drivers: several omitted path_encoding.cc, and
+some treated the Windows CRT's strcpy deprecation as an error. All driver
+commands now link the shared codec and use the normal CRT warning setting.
+The existing retention, handle-list and rollback assertions remain intact.
+
+A broader 61-method bootstrap batch passes on Windows (15.531 seconds) and
+Linux (40.615 seconds, five platform skips). It exposed stale source counts
+and a mocked Windows behavior plan with no links or imports. Fixtures now
+supply the intended complete plan. The relink source regression separately
+checks both import branches and both link calls' explicit UTF-8 mode.
+
+Both staged proofs are running from hash-verified copies of the same 1,523
+source files. The capture excludes TempleOS and temporary artifacts. Production
+source still matches that capture; subsequent edits affect tests and docs.
+The Linux launcher expanded its shell status variables before execution, so
+its eventual status file cannot establish success. Completion must be checked
+against the actual report and proof output. Its running coordinator and child
+compilers were inspected directly; the proof has not been restarted.
+
+ADR 0406, the bootstrap README, wiki and embedded manual record the encoding
+boundary and pending staged/OS acceptance. No seed, owner count or commit has
+changed during this integration.
+
+
+### Remaining regressions and acceptance copies
+
+All 80 remaining Windows bootstrap regressions pass (304.150 seconds). Together
+with the earlier 61-method batch, this covers every bootstrap test except the
+two full fixed-point methods; paired production proofs are running separately.
+The corresponding 80-method Linux batch is running.
+
+Full Linux contract publication now runs from a separate, verified copy of the
+same 1,523-file proof capture. It has its own bootstrap and contract stages.
+The publication wrapper records its child status directly in JSON, avoiding
+shell exit-variable expansion.
+
+Both previously accepted OS roots were rehashed before copying. All 1,503
+source files, sixteen artifacts, 431 link inputs, user binaries and the accepted
+image match. Fresh roots then received the same 1,524-file current source
+snapshot. Paired kernel builds are running with the installed Cupid tools;
+artifact-policy updates will wait for independently matching measured sizes.
+The embedded manual describes the encoding boundary and separate seed
+promotion; running acceptance status remains in the bootstrap documentation.
+
+A separate proof verifier is prepared to rehash each stage artifact, compare
+the converged generations, validate executable profiles, bind the exact plans
+and recheck both captured source inventories. Its execution is pending completed
+proofs. No commit or seed promotion has occurred.
+
+The first remaining Linux batch completed in 95.303 seconds with eleven skips
+and two named-commit failures: native Git could not resolve the Windows-created
+worktree's C:/ metadata path. Explicit GIT_DIR and GIT_WORK_TREE Linux paths
+resolve the expected HEAD; the full batch is rerunning with that environment.
+The original failure log is retained, and no test assertion was relaxed.
+
+
+The remaining Linux batch passes with explicit Git paths: 80 methods in
+121.944 seconds, with eleven platform skips. All 141 bootstrap regressions now
+pass on both hosts; the separate full proofs have reached stage four.
+
+Prepared acceptance helpers rehash both kernel results before allowing any
+measured policy update, then check image/user builds and private four-CPU
+smokes. A separate replay will run the existing six-tool Unicode CLI fixture
+against the converged Windows stage-four tools. These helpers are prepared,
+not accepted results; their required build outputs are still in progress.
+
+
+### Linux UTF-8 source-generation proof verified
+
+The Linux bootstrap completed with its explicit success message and published
+report. Independent verification rehashed all three generations, validated
+every tool's static i386 ELF layout, and matched the 26 objects and six tools
+between stages three and four. The report records 47 failure cases, seven help
+cases and 55 success cases. All 73 producer inputs match the active source,
+and all 1,523 files in the isolated source copy still match its original capture.
+
+The launcher status file was not used as evidence. The actual report, artifact
+bytes and source inventories establish this result. Windows proof, full contract
+publication and paired kernel builds remain in progress.
+
+
+### Paired proofs and converged Windows Unicode commands pass
+
+The Windows proof completed successfully. Independent paired verification
+rehashed all three generations and validated every generated executable's
+layout and imports. Stages three and four match for all 39 Windows artifacts
+(33 objects and six tools) and all 32 Linux artifacts (26 objects and six tools).
+Both reports bind the same unchanged 73-file producer input set. Windows
+records 35 failure cases, seven help cases and 42 success cases.
+
+The repository's Unicode CLI fixture then ran directly against the converged
+Windows stage-four tools. All 28 commands passed in 86.598 seconds across
+ASCII, accented, Japanese and supplementary-character roots. Every tool ran
+from a copied executable beneath those roots. The fixture checked known output
+hashes, equality across paths, guarded assembly output, rejected-assembly
+preservation, exact directory membership and unchanged copied seed files.
+The replay record binds the proof and fixture hashes. Installed seeds remain
+unchanged. Full publication and paired OS/runtime acceptance are still pending.
+
+### Paired UTF-8 integration kernels pass
+
+Both kernel builds completed with the installed Cupid tools. Independent
+verification rehashed all 1,524 captured sources, sixteen artifacts and 431
+link inputs on each host. Every artifact and link input matches across Windows
+and Linux. Both kernel-only builds preserved their original disk images.
+Comparison with the preceding accepted kernels finds only the embedded manual
+object and the two resulting kernel ELF images changed among the 431 link
+inputs. The other 428 inputs remain byte-identical on both hosts.
+
+The raw kernel is 9,568,340 bytes, the final ELF is 9,798,076 bytes, and the
+pass-one ELF is 9,667,004 bytes. The measured policy update changes only these
+three sizes, by 704, 4,096 and 4,096 bytes respectively. Its first attempt
+stopped before writing because the evidence helper's allowed-change list
+omitted the pass-one ELF. All three policy copies were verified unchanged;
+adding that kernel artifact to the helper allowed the measured update to pass.
+
+Windows image, user and private four-CPU runtime acceptance is now running.
+Linux contract publication is still compiling its object contract. A separate
+checked manifest-reader replay and independent publication/input verification
+remain required before the final commit audit. No seed has been promoted.
+
+### UTF-8 contract publication and checked verification pass
+
+Full Linux publication completed with 22 artifacts. The Cupid manifest author
+and Python oracle agree on all 65 stage pairs, the hosted runtime contract
+passes, and live source inputs still match the frozen build. The publication
+manifest has SHA-256
+`b30fd0344acbe75b585fc0da238a737d2ea534b03227b646fde09ec41f2f1662`.
+
+A separate replay through the Cupid-built manifest reader passes with exit
+code zero. Independent verification rechecks the artifacts and both the
+publication source root and active source inputs: 87 publication inputs and
+73 bootstrap inputs. The replay retains the command, exit status, manifest
+identity and log hash. Paired image/user builds and runtime smokes remain in
+progress; installed seeds and production ownership are unchanged.
+
+### Linux image, user builds and runtime acceptance pass
+
+Linux completed the normal image build, passed all sixteen exact artifact
+checks, transferred the verified 22-artifact contract publication, and built
+`hello`, `ls` and `cat`. The private four-CPU E1000 smoke passed SMP checks,
+`dis /bin/ls.cc` and `ls`, with both terminal completion markers present.
+The source disk image remained unchanged through the smoke.
+
+Independent verification rehashed all 1,524 source inputs, sixteen artifacts
+and 431 link inputs. All three user executables match the preceding accepted
+build, and the previous accepted disk image is unchanged. The new image is
+209,715,200 bytes with SHA-256
+`fdf002770c0e3f091345daf0b1e8d66eff5773c16df93bf8ff3f35ae8ae201bb`.
+Windows acceptance and the final paired comparison remain pending.
+
+### Paired UTF-8 OS/runtime acceptance passes
+
+Windows completed image and user builds, all sixteen artifact checks and the
+private four-CPU E1000 disassembly/shell smoke. Independent paired verification
+rehashed all 1,524 inputs, sixteen artifacts and 431 link inputs. Both hosts
+produce identical disk images and all three user executables; the users also
+match the preceding accepted build. Each smoke preserved its source image,
+and both preceding accepted images remain unchanged. The shared image hash is
+`fdf002770c0e3f091345daf0b1e8d66eff5773c16df93bf8ff3f35ae8ae201bb`.
+
+The source integration now has paired fixed-point, Unicode command, full
+publication, checked manifest-reader and OS/runtime acceptance evidence.
+Installed seeds remain on the preceding release. Production ownership remains
+440 CupidBuild and twelve Python participations; seed promotion and replacing
+those remaining Python coordinators are separate work.
+
+### Canonical line endings require a fresh acceptance capture
+
+The pre-commit storage check found CRLF in 19 changed text files. Git would
+normalize these files to LF under the repository attributes, so committing
+them would not preserve the tested bytes. The original files and all first-run
+evidence are retained separately. The changed files now use LF; five belong
+to the 73-file bootstrap input set, and the embedded manual also changes bytes.
+Fresh staged proofs, publication and OS/runtime acceptance must bind the
+canonical source before commit. Existing unchanged CRLF files already match
+their Git blobs and are outside this correction.
+
+The canonical Windows regression replay passes: 61 bootstrap methods in
+20.772 seconds, the remaining 80 in 368.071 seconds, 153 publication methods
+in 90.248 seconds, 25 manifest-runner methods in 39.436 seconds with three
+platform skips, and eight Windows process methods in 11.189 seconds. Linux
+regressions started after the Windows run completed so their temporary root
+changes cannot interfere. Canonical staged proofs, publication and paired
+kernel builds remain in progress.
+
+The canonical Linux regression replay also passes: 61 bootstrap methods in
+50.177 seconds with five skips, the remaining 80 in 122.063 seconds with eleven
+skips, 153 publication methods in 71.972 seconds, and 25 manifest-runner methods
+in 44.256 seconds. Both hosts now pass these suites on the canonical inputs;
+the separate staged proofs and build/runtime acceptance remain pending.
+
+The canonical Linux staged proof completed with exit code zero. Independent
+verification rehashed all three generations, checked the ELF layouts and exact
+build plan, and confirmed equality of the 26 objects and six tools in stages
+three and four. Its 73 producer inputs match the active tree, and its full
+1,524-file source capture remains unchanged. The behavior report contains
+47 failure cases, seven help cases and 55 success cases. Windows proof,
+publication and OS/runtime acceptance are still pending.
+
+The canonical Linux kernel build also completed with exit code zero. A separate
+verification pass rehashed its 1,524 source inputs, 16 artifacts and 431 link
+inputs and confirmed that the disk image was unchanged. Windows compilation
+must finish before the paired artifact comparison and measured size-policy
+update. Image construction, user programs and boot/runtime smoke tests remain
+pending for the canonical replay.
+
+The canonical Windows staged proof completed with exit code zero. The paired
+verifier checked all three generations on both hosts, including PE wide imports,
+ELF layouts, exact build plans and source captures. Stages three and four match
+for 39 Windows artifacts and 32 Linux artifacts, with the same 73 producer
+inputs. Windows behavior covers 35 failure cases, seven help cases and 42
+success cases. The converged six-tool Windows cohort also passed all 28 Unicode
+path commands across four roots. Full publication and Windows kernel acceptance
+are still in progress.
+
+Both canonical kernel builds now pass. Independent paired verification rehashed
+1,524 sources, 16 artifacts and 431 link inputs on each host and confirmed
+identical outputs and unchanged original disk images. The measured raw kernel
+is 9,568,340 bytes, the final ELF is 9,798,076 bytes and the first-pass ELF is
+9,667,004 bytes. These sizes match the existing policy, so the canonical replay
+requires no further policy edit. Image construction, user-program builds and
+private four-CPU boot/runtime acceptance have started on both hosts. Linux
+publication remains in progress.
+
+Canonical Linux publication completed with exit code zero and 22 artifacts.
+The hosted runtime contract passes, the live inputs match the frozen capture,
+and the Cupid author and Python oracle agree on all 65 stage pairs. The
+Cupid-built manifest reader and independent artifact/input verification also
+pass against both the publication root and active tree. They verify 87
+publication inputs and 73 bootstrap inputs. The published manifest has SHA-256
+`2d50502415f9232affda0f5fc82c8bd4251b1f937a9f88399211d8f79ee7fed8`.
+Both canonical OS acceptance runs remain in progress.
+
+Canonical Linux OS acceptance now passes. Image construction checked all 16
+exact artifact sizes; the verified publication transferred with its 87/73-input
+binding; and `cat`, `hello` and `ls` match the previously accepted user binaries.
+The private four-CPU max/E1000 smoke completed disassembly and shell commands
+and preserved the source image. Independent verification rehashed all 1,524
+source inputs, 16 artifacts and 431 link inputs and checked the logs and original
+image preservation. The new 209,715,200-byte image has SHA-256
+`fdf002770c0e3f091345daf0b1e8d66eff5773c16df93bf8ff3f35ae8ae201bb`.
+Windows OS acceptance remains in progress.
+
+Canonical Windows OS acceptance completed with exit code zero. Image and user
+builds pass, including all 16 exact artifact sizes. The private four-CPU
+max/E1000 smoke completes disassembly and shell commands and preserves its
+source image. Independent paired verification rehashes all 1,524 source inputs,
+16 artifacts and 431 link inputs on each host. Images and user binaries match
+across hosts, and both preceding accepted images remain unchanged. The paired
+image is 209,715,200 bytes with SHA-256
+`fdf002770c0e3f091345daf0b1e8d66eff5773c16df93bf8ff3f35ae8ae201bb`.
+The evidence is `utf8-paired-acceptance-v2.json` in the integration evidence
+directory. Final tree and committed-input audits remain before push.

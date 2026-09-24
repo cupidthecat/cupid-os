@@ -489,6 +489,11 @@ def _bootstrap_input_logical_paths(
             "toolchain/hosted/i386-windows/publication_runtime.cc",
             "toolchain/hosted/i386-windows/publication_start.asm",
             "toolchain/hosted/i386-windows/cupidbuild_start.asm",
+            "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+            "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+            "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+            "toolchain/hosted/i386-windows/windows_utf8.cc",
+            "toolchain/path_encoding.cc",
             "toolchain/tests/hosted_i386_windows_contract.cc",
             "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         )

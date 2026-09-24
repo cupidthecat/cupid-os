@@ -58,8 +58,8 @@ static const char manifest_report_schema[] =
 
 #define MANIFEST_ARTIFACT_COUNT 22u
 #define MANIFEST_INPUT_LIMIT 256u
-#define MANIFEST_EXPECTED_INPUT_COUNT 80u
-#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 66u
+#define MANIFEST_EXPECTED_INPUT_COUNT 87u
+#define MANIFEST_EXPECTED_BOOTSTRAP_FILE_COUNT 73u
 #define MANIFEST_COMPARISON_COUNT 16u
 #define MANIFEST_OBJECT_COMPARISON_COUNT 17u
 #define MANIFEST_BOOTSTRAP_C_OBJECT_COUNT 25u
@@ -121,6 +121,13 @@ static const char *const
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+    "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+    "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/native_utf8.h",
+    "toolchain/path_encoding.cc",
+    "toolchain/path_encoding.h",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
     "toolchain/seed_manifest.h",
@@ -220,6 +227,13 @@ static const char *const manifest_expected_bootstrap_paths
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+    "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+    "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/native_utf8.h",
+    "toolchain/path_encoding.cc",
+    "toolchain/path_encoding.h",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
     "toolchain/seed_manifest.cc",

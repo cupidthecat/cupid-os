@@ -15135,6 +15135,7 @@ def _cupid_toolchain_fixed_point_contract(
             )
     required_linux_bootstrap_fragments = (
         "plan = _candidate_build_plan(checked_plan)",
+        "windows_utf8=True,",
         "source_inputs = freeze_source_inputs(",
         "private_source_root = source_inputs.root",
         "runner = ToolRunner(private_source_root)",
@@ -15202,6 +15203,8 @@ def _cupid_toolchain_fixed_point_contract(
     )
     required_windows_bootstrap_fragments = (
         "linux_plan = _candidate_build_plan(checked_linux_plan)",
+        "native_plan = _windows_build_plan(linux_plan, utf8=True)",
+        "windows_utf8=True,",
         "source_inputs = freeze_source_inputs(",
         "private_source_root = source_inputs.root",
         "runner = ToolRunner(private_source_root)",
@@ -15592,7 +15595,7 @@ def _cupid_toolchain_fixed_point_contract(
             'provenance["linux_candidate_build_plan_sha256"] = _build_plan_sha256(linux_plan)',
             'provenance["source_input_count"] = len(source_snapshot)',
             'provenance["source_snapshot_sha256"] = _source_snapshot_sha256(source_snapshot)',
-            'digest != _build_plan_sha256(_windows_build_plan(linux_plan))',
+            'digest != _build_plan_sha256(_windows_build_plan(linux_plan, utf8=utf8))',
             'if not source_snapshot:',
 
             "manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest()",
@@ -15623,12 +15626,16 @@ def _cupid_toolchain_fixed_point_contract(
             'stage_two.tools["cupidasm"].read_bytes()',
             'stage_three.tools["cupidasm"].read_bytes()',
             "_validate_static_i386_pe32(",
-            '_windows_imports("cupidasm")',
+            '_windows_utf8_imports("cupidasm") if behavior_utf8 else _windows_imports("cupidasm")',
             "behavior_seed_inputs = _retarget_native_windows_behavior_seed(\n"
             "        seed_inputs, _build_plan_sha256(native_plan),\n"
             "        behavior_linux_plan, behavior_source_snapshot,\n"
+            "        utf8=behavior_utf8,\n"
             "    )",
-            "behavior_source_snapshot = capture_source_snapshot(output_root, behavior_linux_plan)",
+            "behavior_utf8 = _windows_plan_uses_utf8(native_plan)",
+            "behavior_source_snapshot = capture_source_snapshot(\n"
+            "        output_root, behavior_linux_plan, windows_utf8=behavior_utf8\n"
+            "    )",
             'behavior_linux_plan = _candidate_build_plan(\n'
             '        _require_object(linux_seed_inputs.manifest.get("build_plan"), "build_plan")\n'
             '    )',
@@ -15849,6 +15856,11 @@ def _cupid_toolchain_fixed_point_contract(
         "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/hosted/i386-windows/tool_start.asm",
+        "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+        "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+        "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+        "toolchain/hosted/i386-windows/windows_utf8.cc",
+        "toolchain/path_encoding.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
         "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     )
@@ -16049,7 +16061,7 @@ return tuple(
             verify_inputs_function, "live_bootstrap_inputs"
         )
         expected_recapture = ast.parse(
-            "capture_source_snapshot(root, _candidate_build_plan(build_plan))",
+            "capture_source_snapshot(root, _candidate_build_plan(build_plan), windows_utf8=True)",
             mode="eval",
         ).body
         if (

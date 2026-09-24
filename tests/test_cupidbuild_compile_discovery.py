@@ -67,7 +67,8 @@ class CompileDiscoveryTests(unittest.TestCase):
             raise unittest.SkipTest("hosted C compiler unavailable")
         command = [compiler, "-x", "c", "-std=gnu11", "-Wall", "-Wextra", "-Werror",
                    "-I", str(ROOT / "toolchain"), str(source),
-                   str(ROOT / "toolchain/cupidbuild_host.cc"), "-o", str(cls.executable)]
+                   str(ROOT / "toolchain/cupidbuild_host.cc"),
+                   str(ROOT / "toolchain/path_encoding.cc"), "-o", str(cls.executable)]
         if os.name == "nt":
             command += ["-lntdll"]
         result = subprocess.run(command, capture_output=True, text=True)

@@ -1453,6 +1453,35 @@ int cupid_windows_runtime_start(const char *command_line) {
   return result;
 }
 
+#if defined(CUPID_WINDOWS_UTF8)
+#include "../../path_encoding.h"
+char *cupid_windows_command_line_utf8(const unsigned short *wide) {
+  size_t length = 0u;
+  size_t bytes;
+  char *text;
+  if (wide == (const unsigned short *)0) return (char *)0;
+  while (length < 65536u && wide[length] != 0u) length++;
+  if (length == 65536u ||
+      !cupidbuild_path_to_utf8(wide, length, (char *)0, 0u, &bytes)) return (char *)0;
+  text = (char *)malloc(bytes + 1u);
+  if (text == (char *)0) return text;
+  if (!cupidbuild_path_to_utf8(wide, length, text, bytes + 1u, &bytes)) {
+    free(text);
+    return (char *)0;
+  }
+  return text;
+}
+
+int cupid_windows_runtime_start_wide(const unsigned short *wide) {
+  char *text = cupid_windows_command_line_utf8(wide);
+  int result;
+  if (text == (char *)0) return 125;
+  result = cupid_windows_runtime_start(text);
+  free(text);
+  return result;
+}
+#endif
+
 int fopen_s(FILE **stream_out, const char *path, const char *mode) {
   FILE *stream;
   if (stream_out == (FILE **)0) {

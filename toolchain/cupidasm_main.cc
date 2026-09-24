@@ -18,6 +18,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef CUPID_NATIVE_UTF8_ENABLE
+#include "native_utf8.h"
+#endif
+
 #define CUPIDASM_HOST_SOURCE_BYTES 67108864u
 #define CUPIDASM_HOST_ARENA_BYTES 134217728u
 #define CUPIDASM_PUBLICATION_RECORD_BYTES 1048576u

@@ -74,6 +74,7 @@ from tools.bootstrap_toolchain import (
     _run_stage_pair,
     _unowned_relocation_object_payload,
     _windows_build_plan,
+    _windows_imports,
     _validate_static_i386_pe32,
     bootstrap_from_seed,
     bootstrap_windows_from_seed,
@@ -117,6 +118,14 @@ LINUX_SOURCE_HEAD_INITIAL_MATCHES = {
 }
 
 
+def _fixture_windows_imports(names):
+    return {
+        name: [{"library": library, "procedure": procedure, "slot": "__imp_" + procedure}
+               for library, procedures in _windows_imports(name) for procedure in procedures]
+        for name in names
+    }
+
+
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_native_windows_behavior_seed_tracks_the_executed_plan(self):
         with tempfile.TemporaryDirectory(
@@ -152,7 +161,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 retargeted.manifest_sha256,
                 hashlib.sha256(retargeted.manifest_bytes).hexdigest(),
             )
-            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 66)
+            self.assertEqual(retargeted.manifest["provenance"]["source_input_count"], 68)
             self.assertEqual(retargeted.manifest["provenance"]["linux_candidate_build_plan_sha256"],
                              _build_plan_sha256(candidate_plan))
             self.assertEqual(retargeted.manifest["provenance"]["source_snapshot_sha256"],
@@ -632,9 +641,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             _build_plan_sha256(candidate_plan),
             _build_plan_sha256(checked_plan),
         )
-        source_inventory = capture_source_snapshot(REPO_ROOT, candidate_plan)
+        source_inventory = capture_source_snapshot(
+            REPO_ROOT, candidate_plan, windows_utf8=True
+        )
         self.assertEqual(
-            len(source_inventory), 66
+            len(source_inventory), 73
         )
         for path in (
             "toolchain/cupidbuild.cc",
@@ -1725,6 +1736,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
 
             windows_plan = {
                 "sources": [],
+                "imports": _fixture_windows_imports(TOOL_NAMES),
                 "include_arguments": [],
                 "workers": 1,
                 "assembly_sources": [
@@ -1819,6 +1831,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
 
             windows_plan = {
                 "sources": sources,
+                "imports": _fixture_windows_imports(TOOL_NAMES),
                 "include_arguments": [],
                 "workers": 1,
                 "assembly_sources": [
@@ -2012,6 +2025,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
 
             windows_plan = {
                 "sources": [],
+                "imports": _fixture_windows_imports(CANDIDATE_TOOL_NAMES),
                 "include_arguments": [],
                 "workers": 1,
                 "assembly_sources": [
@@ -3011,6 +3025,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         windows = toolchain / "hosted" / "i386-windows"
         windows.mkdir(parents=True)
+        for name in ("path_encoding.cc", "path_encoding.h", "native_utf8.h"):
+            (toolchain / name).write_text("/* fixture */\n", encoding="ascii")
+        for name in ("utf8_tool_start.asm", "utf8_publication_start.asm",
+                     "utf8_cupidbuild_start.asm", "windows_utf8.cc"):
+            (windows / name).write_text("; fixture\n", encoding="ascii")
         (windows / "start.asm").write_text(
             "bits 32\n",
             encoding="utf-8",
@@ -3894,7 +3913,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 seed_tools[name] = seed_tool
             checked_plan = json.loads(SEED_MANIFEST.read_text())["build_plan"]
             candidate_plan = _candidate_build_plan(checked_plan)
-            snapshot = capture_source_snapshot(REPO_ROOT, candidate_plan)
+            snapshot = capture_source_snapshot(REPO_ROOT, candidate_plan, windows_utf8=True)
             manifest = {
                 "build_plan": checked_plan,
                 "artifacts": artifacts,
@@ -3918,7 +3937,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             windows_seed_inputs = freeze_seed_inputs(
                 WINDOWS_SEED_MANIFEST, root / "windows-checked-seed"
             )
-            native_plan = _windows_build_plan(candidate_plan)
+            native_plan = _windows_build_plan(candidate_plan, utf8=True)
 
             linux_calls: list[tuple[str, tuple[str, ...]]] = []
             linux_manifest_pairs: list[tuple[Path, Path]] = []
@@ -4317,12 +4336,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     seed_inputs,
                 )
 
-            windows_capture.assert_called_once_with(windows_output, candidate_plan)
+            windows_capture.assert_called_once_with(windows_output, candidate_plan, windows_utf8=True)
             windows_compile.assert_called_once_with(
                 windows_behavior_runner, windows_output / "behavior",
                 stage, stage,
                 _retarget_native_windows_behavior_seed(
-                    windows_seed_inputs, _build_plan_sha256(native_plan), candidate_plan, snapshot
+                    windows_seed_inputs, _build_plan_sha256(native_plan), candidate_plan, snapshot, utf8=True
                 ),
                 "native Windows ",
             )
@@ -4716,7 +4735,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     windows_output,
                     windows_stage,
                     windows_stage,
-                    {},
+                    _windows_build_plan(
+                        _candidate_build_plan(seed_inputs.manifest["build_plan"]),
+                        utf8=True,
+                    ),
                     seed_inputs,
                     seed_inputs,
                 )
@@ -4785,9 +4807,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             observed_plans: list[dict[str, object]] = []
             observed_producers: list[dict[str, Path]] = []
 
-            def freeze_sources(_root, _plan, destination):
+            def freeze_sources(_root, _plan, destination, *, windows_utf8):
+                self.assertTrue(windows_utf8)
                 destination.mkdir()
-                return mock.Mock(root=destination, inventory={})
+                return mock.Mock(root=destination, inventory={}, windows_utf8=windows_utf8)
 
             def build_stage(
                 _runner,
@@ -4957,9 +4980,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             observed_plans: list[dict[str, object]] = []
 
-            def freeze_sources(_root, _plan, destination):
+            def freeze_sources(_root, _plan, destination, *, windows_utf8):
+                self.assertTrue(windows_utf8)
                 destination.mkdir()
-                return mock.Mock(root=destination, inventory={})
+                return mock.Mock(root=destination, inventory={}, windows_utf8=windows_utf8)
 
             def build_stage(
                 _runner,
@@ -5122,9 +5146,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             observed_plans: list[dict[str, object]] = []
             observed_producers: list[dict[str, Path]] = []
 
-            def freeze_sources(_root, _plan, destination):
+            def freeze_sources(_root, _plan, destination, *, windows_utf8):
+                self.assertTrue(windows_utf8)
                 destination.mkdir()
-                return mock.Mock(root=destination, inventory={})
+                return mock.Mock(root=destination, inventory={}, windows_utf8=windows_utf8)
 
             def build_stage(
                 _runner,
@@ -5211,7 +5236,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             for plan in observed_plans:
                 self.assertEqual(set(plan["links"]), set(CANDIDATE_TOOL_NAMES))
-                self.assertEqual(len(plan["sources"]), 26)
+                self.assertEqual(len(plan["sources"]), 30)
                 self.assertEqual(len(plan["assembly_sources"]), 3)
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5325,9 +5350,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             observed_plans: list[dict[str, object]] = []
 
-            def freeze_sources(_root, _plan, destination):
+            def freeze_sources(_root, _plan, destination, *, windows_utf8):
+                self.assertTrue(windows_utf8)
                 destination.mkdir()
-                return mock.Mock(root=destination, inventory={})
+                return mock.Mock(root=destination, inventory={}, windows_utf8=windows_utf8)
 
             def build_stage(
                 _runner,
@@ -5416,7 +5442,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             source_head_windows_plan_sha256 = _build_plan_sha256(
                 _windows_build_plan(
-                    _candidate_build_plan(plan_manifest["build_plan"])
+                    _candidate_build_plan(plan_manifest["build_plan"]), utf8=True
                 )
             )
             self.assertEqual(
@@ -5429,7 +5455,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 source_head_windows_plan_sha256,
-                "70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9",
+                "a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99",
             )
             self.assertEqual(
                 report["candidate_tools"], list(CANDIDATE_TOOL_NAMES)
@@ -5439,7 +5465,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "all_equal": True,
                     "assembly_objects": 3,
-                    "c_objects": 26,
+                    "c_objects": 30,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",
@@ -6369,13 +6395,29 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         ]
         self.assertEqual(len(validators), 1)
         expected_imports = validators[0].args[2]
-        self.assertIsInstance(expected_imports, ast.Call)
-        self.assertIsInstance(expected_imports.func, ast.Name)
-        self.assertEqual(expected_imports.func.id, "_windows_imports")
-        self.assertEqual(
-            [argument.value for argument in expected_imports.args],
-            ["cupidasm"],
-        )
+        self.assertIsInstance(expected_imports, ast.IfExp)
+        self.assertEqual(expected_imports.test.id, "behavior_utf8")
+        for selected, function in (
+            (expected_imports.body, "_windows_utf8_imports"),
+            (expected_imports.orelse, "_windows_imports"),
+        ):
+            self.assertIsInstance(selected, ast.Call)
+            self.assertEqual(selected.func.id, function)
+            self.assertEqual(
+                [argument.value for argument in selected.args], ["cupidasm"]
+            )
+        links = [
+            node for node in ast.walk(behavior)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_windows_link_arguments"
+        ]
+        self.assertEqual(len(links), 2)
+        for link in links:
+            self.assertEqual(
+                [(item.arg, item.value.id) for item in link.keywords],
+                [("utf8", "behavior_utf8")],
+            )
 
     def test_linux_behavior_windows_cupidasm_uses_publication_closure(self):
         tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
@@ -6769,7 +6811,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "all_equal": True,
                     "assembly_objects": 3,
-                    "c_objects": 26,
+                    "c_objects": 30,
                     "compared_generations": [
                         "stage-three",
                         "stage-four",
@@ -6807,7 +6849,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ]
             )
             candidate_inventory = capture_source_snapshot(
-                REPO_ROOT, candidate_linux_plan
+                REPO_ROOT, candidate_linux_plan, windows_utf8=True
             )
             candidate_snapshot = hashlib.sha256(
                 json.dumps(
@@ -6823,7 +6865,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["source_inputs"]["count"],
-                66,
+                73,
             )
             self.assertEqual(
                 report["source_inputs"]["sha256"],
@@ -6839,7 +6881,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "stage-four",
             ):
                 stage = report["stages"][stage_name]
-                self.assertEqual(len(stage["objects"]), 29)
+                self.assertEqual(len(stage["objects"]), 33)
                 self.assertEqual(
                     set(stage["tools"]), set(CANDIDATE_TOOL_NAMES)
                 )
@@ -11584,7 +11626,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ]
             )
             candidate_inventory = capture_source_snapshot(
-                REPO_ROOT, candidate_plan
+                REPO_ROOT, candidate_plan, windows_utf8=True
             )
             source_head_snapshot = hashlib.sha256(
                 json.dumps(
@@ -11603,7 +11645,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 report["source_inputs"]["count"],
-                66,
+                73,
             )
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
@@ -11615,7 +11657,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                66,
+                73,
             )
             for tool_name in CANDIDATE_TOOL_NAMES:
                 stage_three = output / "stage-three" / f"{tool_name}.elf"

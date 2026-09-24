@@ -82,6 +82,26 @@ typedef struct {
   char cAlternateFileName[14];
 } WIN32_FIND_DATAA;
 
+typedef struct {
+  DWORD dwFileAttributes;
+  FILETIME ftCreationTime;
+  FILETIME ftLastAccessTime;
+  FILETIME ftLastWriteTime;
+  DWORD nFileSizeHigh;
+  DWORD nFileSizeLow;
+  DWORD dwReserved0;
+  DWORD dwReserved1;
+  unsigned short cFileName[260];
+  unsigned short cAlternateFileName[14];
+} WIN32_FIND_DATAW;
+
+unsigned int cupid_windows_find_first_file_wide(
+    const unsigned short *pattern, WIN32_FIND_DATAW *entry);
+unsigned int cupid_windows_find_next_file_wide(
+    unsigned int handle, WIN32_FIND_DATAW *entry);
+#define FindFirstFileW cupid_windows_find_first_file_wide
+#define FindNextFileW cupid_windows_find_next_file_wide
+
 #define GENERIC_WRITE 0x40000000u
 #define GENERIC_READ 0x80000000u
 #define FILE_READ_ATTRIBUTES 0x00000080u

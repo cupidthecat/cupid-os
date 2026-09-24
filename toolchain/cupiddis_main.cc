@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef CUPID_NATIVE_UTF8_ENABLE
+#include "native_utf8.h"
+#endif
+
 #define CUPIDDIS_HOST_SOURCE_BYTES 67108864u
 #define CUPIDDIS_HOST_ARENA_BYTES 134217728u
 

@@ -100,7 +100,7 @@ class SeedImageProfileTests(unittest.TestCase):
                    '-D_CRT_SECURE_NO_WARNINGS', '-I', str(ROOT / 'toolchain'), '-x', 'c',
                    str(caller), *[str(ROOT / 'toolchain' / (name + '.cc')) for name in
                     ('ctool', 'ctool_host', 'elf32', 'cupidbuild_host', 'cupidbuild',
-                     'seed_manifest', 'seed_release', 'contract_parse_internal')],
+                     'seed_manifest', 'seed_release', 'contract_parse_internal', 'path_encoding')],
                    *(['-lntdll'] if os.name == 'nt' else []), '-o', str(cls.program)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=180)
         if result.returncode:
@@ -147,7 +147,8 @@ class SeedImageProfileTests(unittest.TestCase):
     def test_invalid_profile_arguments_reject(self):
         for fmt, role, promoted, current in ((0, 1, 1, 0), (9, 1, 1, 0),
                 (2, 6, 1, 1), (2, 5, 0, 0), (2, 1, 2, 1),
-                (2, 1, 1, 2), (2, 1, 0, 1), (1, 1, 1, 1)):
+                (2, 1, 1, 3), (2, 1, 0, 1), (1, 1, 1, 1),
+                (2, 1, 0, 2), (1, 1, 1, 2)):
             with self.subTest(profile=(fmt, role, promoted, current)):
                 # Keep the image valid for the requested format so an argument
                 # regression cannot be hidden by an unrelated format failure.
@@ -180,6 +181,32 @@ class SeedImageProfileTests(unittest.TestCase):
         for role in (0, 1, 5):
             with self.subTest(role=role, plan='legacy'):
                 self.check(self.image(2, role), 2, role, current=0)
+
+    def wide_image(self, role):
+        from tests.test_toolchain_bootstrap_seed import ToolchainBootstrapSeedCliTests
+        from tools import bootstrap_toolchain as bootstrap
+        return bytes(ToolchainBootstrapSeedCliTests._minimal_cupidbuild_profile_pe32(
+            bootstrap._windows_utf8_imports(ROLES[role])))
+
+    def test_exact_utf8_profiles_accept_only_selected_generation(self):
+        for role, name in enumerate(ROLES):
+            with self.subTest(role=name):
+                wide = self.wide_image(role)
+                self.check(wide, 2, role, current=2, accept=True)
+                self.check(wide, 2, role, current=0)
+                self.check(wide, 2, role, current=1)
+                self.check(self.image(2, role), 2, role, current=2)
+
+    def test_utf8_profiles_reject_wrong_roles_and_mixed_apis(self):
+        for role, name in enumerate(ROLES):
+            with self.subTest(role=name):
+                wide = self.wide_image(role)
+                self.check(wide, 2, 1 if role in (0, 3, 5) else 0, current=2)
+                for old, new in ((b'GetCommandLineW\0', b'GetCommandLineA\0'),
+                                 (b'CreateFileW\0', b'CreateFileA\0'),
+                                 (b'SetLastError\0', b'SetLastErroX\0')):
+                    self.assertEqual(wide.count(old), 1)
+                    self.check(wide.replace(old, new), 2, role, current=2)
 
     def test_linux_entry_point_machine_and_dynamic_segments_reject(self):
         original = self.image(1)

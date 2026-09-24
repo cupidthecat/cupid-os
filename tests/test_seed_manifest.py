@@ -14,6 +14,24 @@ from tests.test_seed_release_match import manifest
 from tools import bootstrap_toolchain as seed
 
 
+def historical_manifest(fmt):
+    """Construct the earlier structural contract without changing installed seeds."""
+    value = manifest(fmt)
+    value["provenance"]["source_input_count"] = 59
+    if fmt == 1:
+        removed = {"seed_manifest", "seed_release", "contract_parse_internal"}
+        plan = value["build_plan"]
+        plan["sources"] = [row for row in plan["sources"] if row["name"] not in removed]
+        plan["links"]["cupidbuild"] = [name for name in plan["links"]["cupidbuild"]
+                                      if name not in removed]
+        value["build_plan_sha256"] = seed._build_plan_sha256(plan)
+        assert value["build_plan_sha256"] == "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
+    else:
+        value["provenance"]["linux_candidate_build_plan_sha256"] = "52dd857bcb74e079e7e2eec45eaa90a0a0838ad2f4e817bebc35c9904efbecbd"
+        value["provenance"]["native_build_plan_sha256"] = "98e09aab876a9fa37ec07c38a0a57a014549a14c0ab10c740b3f80ede9d65669"
+    return value
+
+
 def candidate_manifest(fmt):
     value = manifest(fmt)
     value["provenance"]["source_input_count"] = 66
@@ -67,13 +85,14 @@ class ManifestTests(unittest.TestCase):
                 Path(temporary) / "seed",
             )
             plan = seed._candidate_build_plan(manifest(1)["build_plan"])
-            digest = seed._build_plan_sha256(seed._windows_build_plan(plan))
-            snapshot = seed.capture_source_snapshot(ROOT, plan)
-            retargeted = seed._retarget_native_windows_behavior_seed(frozen, digest, plan, snapshot)
-            self.check(retargeted.manifest, 2)
+            digest = seed._build_plan_sha256(seed._windows_build_plan(plan, utf8=True))
+            snapshot = seed.capture_source_snapshot(ROOT, plan, windows_utf8=True)
+            retargeted = seed._retarget_native_windows_behavior_seed(
+                frozen, digest, plan, snapshot, utf8=True)
+            self.check(retargeted.manifest, 2, expected=(6, 2))
             for field in ("source_input_count", "linux_candidate_build_plan_sha256"):
                 altered = copy.deepcopy(retargeted.manifest)
-                altered["provenance"][field] = frozen.manifest["provenance"][field]
+                altered["provenance"][field] = historical_manifest(2)["provenance"][field]
                 self.check(altered, 2, False)
 
     def test_candidate_plan_keeps_its_source_count_and_complete_closure(self):
@@ -83,9 +102,34 @@ class ManifestTests(unittest.TestCase):
                 value = candidate_manifest(fmt)
                 value["provenance"]["source_input_count"] = count
                 self.check(value, fmt, False)
-            value = manifest(fmt)
+            value = historical_manifest(fmt)
             value["provenance"]["source_input_count"] = 66
             self.check(value, fmt, False)
+
+    def test_utf8_generation_binds_source_count_and_exact_plan_pair(self):
+        for fmt in (1, 2):
+            value = candidate_manifest(fmt)
+            value["provenance"]["source_input_count"] = 73
+            if fmt == 2:
+                linux = candidate_manifest(1)["build_plan"]
+                value["provenance"]["native_build_plan_sha256"] = seed._build_plan_sha256(
+                    seed._windows_build_plan(linux, utf8=True))
+            self.check(value, fmt, expected=(6, 2 if fmt == 2 else 0))
+            for count in (68, 69, 70, 71, 72, 74, True, 73.0):
+                altered = copy.deepcopy(value)
+                altered["provenance"]["source_input_count"] = count
+                self.check(altered, fmt, False)
+            if fmt == 2:
+                altered = copy.deepcopy(value)
+                altered["provenance"]["source_input_count"] = 66
+                self.check(altered, fmt, False)
+                for key in ("native_build_plan_sha256", "linux_candidate_build_plan_sha256"):
+                    altered = copy.deepcopy(value)
+                    altered["provenance"][key] = historical_manifest(2)["provenance"][key]
+                    self.check(altered, fmt, False)
+                altered = candidate_manifest(2)
+                altered["provenance"]["source_input_count"] = 73
+                self.check(altered, fmt, False)
 
     def test_candidate_plan_rejects_each_changed_source_and_link(self):
         for section in ("sources", "links"):
@@ -99,7 +143,7 @@ class ManifestTests(unittest.TestCase):
                 self.check(altered, 1, False)
         for key in ("linux_candidate_build_plan_sha256", "native_build_plan_sha256"):
             value = candidate_manifest(2)
-            value["provenance"][key] = manifest(2)["provenance"][key]
+            value["provenance"][key] = historical_manifest(2)["provenance"][key]
             self.check(value, 2, False)
 
     @classmethod
@@ -122,6 +166,7 @@ class ManifestTests(unittest.TestCase):
                    "-shared", "-I", str(DRAFT), "-I", str(ROOT / "toolchain"), "-x", "c", str(shim),
                    str(DRAFT / "seed_manifest.cc"), str(ROOT / "toolchain/contract_parse_internal.cc"),
                    str(DRAFT / "seed_release.cc"), str(ROOT / "toolchain/cupidbuild_host.cc"),
+                   str(ROOT / "toolchain/path_encoding.cc"),
                    "-o", str(library)]
         if os.name != "nt": command.append("-fPIC")
         else: command.extend(["-D_CRT_SECURE_NO_WARNINGS", "-lntdll"])
@@ -177,7 +222,7 @@ class ManifestTests(unittest.TestCase):
     def test_legacy_five_tool_manifests_and_previous_windows_plan(self):
         from tools import bootstrap_toolchain as seed
         for fmt in (1, 2):
-            value = manifest(fmt)
+            value = historical_manifest(fmt)
             value["schema"] = value["schema"].replace(".v2", ".v1")
             value["artifacts"] = [row for row in value["artifacts"] if row["name"] != "cupidbuild"]
             previous = value["provenance"]
@@ -199,7 +244,7 @@ class ManifestTests(unittest.TestCase):
             self.check(value, 3 - fmt, False)
             value["provenance"]["source_input_count"] = 59
             self.check(value, fmt, False)
-        value = manifest(2)
+        value = historical_manifest(2)
         value["provenance"]["native_build_plan_sha256"] = "f9dce66230a693de9d9d0e60127a4a6c44ea465989f381c995086bfe723cff14"
         self.check(value, 2, expected=(6, 0))
 
@@ -310,7 +355,7 @@ class ManifestTests(unittest.TestCase):
                 value = manifest(fmt)
                 value["provenance"]["source_input_count"] = count
                 self.check(value, fmt, False)
-            value = manifest(fmt)
+            value = historical_manifest(fmt)
             value["provenance"]["source_input_count"] = 61
             value["provenance"]["source_revision"] = "f" * 40
             self.check(value, fmt)

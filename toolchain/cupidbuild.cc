@@ -3076,7 +3076,7 @@ int cupidbuild_validate_seed_image_bytes(
       (format != CUPIDBUILD_SEED_ELF32 && format != CUPIDBUILD_SEED_PE32) ||
       artifact_index >= (promoted ? CUPIDBUILD_SEED_ARTIFACTS : 5u) ||
       (promoted != 0 && promoted != 1) ||
-      (current_windows_plan != 0 && current_windows_plan != 1) ||
+      (current_windows_plan < 0 || current_windows_plan > 2) ||
       (current_windows_plan && (!promoted || format != CUPIDBUILD_SEED_PE32)) ||
       ctool_host_adapter_init(&adapter, ".") != CTOOL_OK) {
     return 0;
@@ -3178,6 +3178,75 @@ int cupidbuild_validate_seed_image_bytes(
         "VirtualFree",
         "WaitForSingleObject",
         "WriteFile"};
+    static const char *const ordinary_utf8_imports[] = {
+        "CloseHandle",
+        "CreateFileW",
+        "ExitProcess",
+        "GetCommandLineW",
+        "GetCurrentDirectoryW",
+        "GetFileInformationByHandle",
+        "GetLastError",
+        "GetStdHandle",
+        "ReadFile",
+        "SetFilePointer",
+        "SetLastError",
+        "VirtualAlloc",
+        "VirtualFree",
+        "WriteFile"};
+    static const char *const linker_utf8_imports[] = {
+        "CloseHandle",
+        "CreateFileW",
+        "DeleteFileW",
+        "ExitProcess",
+        "FlushFileBuffers",
+        "GetCommandLineW",
+        "GetCurrentDirectoryW",
+        "GetFileInformationByHandle",
+        "GetFullPathNameW",
+        "GetLastError",
+        "GetStdHandle",
+        "MoveFileExW",
+        "ReadFile",
+        "SetFilePointer",
+        "SetLastError",
+        "VirtualAlloc",
+        "VirtualFree",
+        "WriteFile"};
+    static const char *const cupidbuild_utf8_imports[] = {
+        "CloseHandle",
+        "CreateDirectoryW",
+        "CreateFileW",
+        "CreateProcessW",
+        "DeleteFileW",
+        "DeleteProcThreadAttributeList",
+        "ExitProcess",
+        "FindClose",
+        "FindFirstFileW",
+        "FindNextFileW",
+        "FlushFileBuffers",
+        "GetCommandLineW",
+        "GetCurrentDirectoryW",
+        "GetCurrentProcessId",
+        "GetExitCodeProcess",
+        "GetFileAttributesW",
+        "GetFileInformationByHandle",
+        "GetFullPathNameW",
+        "GetLastError",
+        "GetStdHandle",
+        "InitializeProcThreadAttributeList",
+        "MoveFileExW",
+        "OpenProcess",
+        "ReadFile",
+        "RemoveDirectoryW",
+        "SetFilePointer",
+        "SetHandleInformation",
+        "SetLastError",
+        "TerminateProcess",
+        "UpdateProcThreadAttribute",
+        "VirtualAlloc",
+        "VirtualFree",
+        "WaitForSingleObject",
+        "WriteFile"};
     static const char *const cupidbuild_legacy_ntdll_imports[] = {
         "NtSetInformationFile"};
     static const char *const cupidbuild_current_ntdll_imports[] = {
@@ -3205,6 +3274,15 @@ int cupidbuild_validate_seed_image_bytes(
                     sizeof(linker_current_imports[0])
               : sizeof(linker_seed_imports) / sizeof(linker_seed_imports[0]);
     }
+    if (current_windows_plan == 2) {
+      if (artifact_index == 0u || artifact_index == 3u) {
+        expected_imports = linker_utf8_imports;
+        expected_count = sizeof(linker_utf8_imports) / sizeof(linker_utf8_imports[0]);
+      } else {
+        expected_imports = ordinary_utf8_imports;
+        expected_count = sizeof(ordinary_utf8_imports) / sizeof(ordinary_utf8_imports[0]);
+      }
+    }
     if (ctool_pe32_read(job, &source, &image) == CTOOL_OK &&
         image.entry_point == 0x00401000u &&
         image.import_library_count == (ctool_u32)expected_library_count &&
@@ -3225,8 +3303,12 @@ int cupidbuild_validate_seed_image_bytes(
             sizeof(cupidbuild_current_ntdll_imports) /
             sizeof(cupidbuild_current_ntdll_imports[0]);
         if (current_windows_plan) {
-          expected_imports = cupidbuild_current_imports;
-          expected_count = current_count;
+          expected_imports = current_windows_plan == 2
+                                 ? cupidbuild_utf8_imports
+                                 : cupidbuild_current_imports;
+          expected_count = current_windows_plan == 2
+                               ? sizeof(cupidbuild_utf8_imports) / sizeof(cupidbuild_utf8_imports[0])
+                               : current_count;
           expected_ntdll_imports = cupidbuild_current_ntdll_imports;
           expected_ntdll_count = current_ntdll_count;
         } else {

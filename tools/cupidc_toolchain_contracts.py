@@ -141,6 +141,11 @@ WINDOWS_RUNTIME_INPUTS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+    "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+    "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/path_encoding.cc",
     "toolchain/tests/hosted_i386_windows_contract.cc",
     "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
 )
@@ -1818,7 +1823,7 @@ def verify_publication_inputs(
                 "published bootstrap build plan differs from the live seed"
             )
         live_bootstrap_inputs = capture_source_snapshot(
-            root, _candidate_build_plan(build_plan)
+            root, _candidate_build_plan(build_plan), windows_utf8=True
         )
     except (
         BootstrapError,

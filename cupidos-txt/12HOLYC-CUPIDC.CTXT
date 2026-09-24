@@ -13,6 +13,20 @@ Verified against source on: 2026-09-23
 >style linkhover #0B3AA8
 >rule
 
+>h2 Windows UTF-8 candidate
+>tree open Windows UTF-8 candidate
+The hosted source candidate uses UTF-8 internally and UTF-16 at Windows API
+boundaries. Native entry points and checked startup files select wide argv,
+file, directory and process operations. All six tools use the shared strict
+codec; malformed input is rejected without character replacement.
+
+The candidate captures 73 bootstrap inputs and 87 publication inputs. Windows
+builds 30 C objects and three startup objects. Exact role-specific import
+profiles and matching plan identities keep historical seed validation separate.
+Installed seeds retain their existing ANSI profiles. Replacing those seeds
+requires a separate promotion.
+>endtree
+
 >h2 Reusable build verification modules
 Checked CupidBuild now has a read-only filesystem observer. It retains
 original file and ancestor handles, checks exact directory membership, keeps

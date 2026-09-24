@@ -91,7 +91,11 @@ def _rewrite_with_live_closure(output: Path, manifest):
     ]
     source_files = (
         toolchain_manifest_contract.cupidc_toolchain_contracts
-        .capture_source_snapshot(root, seed.manifest["build_plan"])
+        .capture_source_snapshot(
+            root, bootstrap_toolchain._candidate_build_plan(
+                seed.manifest["build_plan"]
+            ), windows_utf8=True
+        )
     )
     manifest["bootstrap"]["source_inputs"] = {
         "count": len(source_files),
@@ -111,8 +115,8 @@ def _expected_report():
     return {
         "artifact_count": 22,
         "artifact_total_bytes": 682,
-        "bootstrap_source_input_count": 61,
-        "input_count": 78,
+        "bootstrap_source_input_count": 73,
+        "input_count": 87,
         "schema": "cupid.toolchain-manifest-verification.v1",
     }
 
@@ -450,7 +454,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                 decoded["artifact_observations"],
                 sorted(observations),
             )
-            self.assertEqual(len(decoded["input_observations"]), 78)
+            self.assertEqual(len(decoded["input_observations"]), 87)
             self.assertIn(
                 "toolchain/x86.cc",
                 {
@@ -460,7 +464,7 @@ class ToolchainManifestContractRunnerTests(unittest.TestCase):
                     ]
                 },
             )
-            self.assertEqual(len(decoded["bootstrap_observations"]), 61)
+            self.assertEqual(len(decoded["bootstrap_observations"]), 73)
             self.assertEqual(len(decoded["seed_observations"]), 6)
             self.assertEqual(
                 decoded["seed_path"],

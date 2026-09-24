@@ -304,6 +304,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "kernel/lang/as_elf.cc",
             "kernel/lang/as_elf.h",
             "toolchain/x86.cc",
+            "toolchain/path_encoding.h",
+            "toolchain/native_utf8.h",
             "toolchain/tests/hosted_i386_runtime_contract.cc",
         } | set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS) | set(
             cupidc_toolchain_contracts.WINDOWS_RUNTIME_INPUTS
@@ -383,7 +385,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             encoding="ascii",
         )
         files = cupidc_toolchain_contracts.capture_source_snapshot(
-            root, _candidate_build_plan(build_plan)
+            root, _candidate_build_plan(build_plan), windows_utf8=True
         )
         return {
             "build_plan_sha256": _build_plan_sha256(_candidate_build_plan(build_plan)),
@@ -718,7 +720,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 80)
+        self.assertEqual(len(inputs), 87)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
@@ -2804,7 +2806,7 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             repository / logical_manifest
         )
         sources = cupidc_toolchain_contracts.capture_source_snapshot(
-            repository, _candidate_build_plan(seed.manifest["build_plan"])
+            repository, _candidate_build_plan(seed.manifest["build_plan"]), windows_utf8=True
         )
         inputs = cupidc_toolchain_contracts._snapshot_contract_inputs(
             repository,

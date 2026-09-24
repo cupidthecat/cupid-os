@@ -1,5 +1,31 @@
 # Toolchain bootstrap
 
+## Windows UTF-8 candidate
+
+The first source acceptance runs pass. A pre-commit check found CRLF bytes
+that Git would normalize when staged, so acceptance was repeated on
+canonical LF inputs. Paired staged proofs, the 28 Unicode-path commands,
+regression suites and paired kernel verification now pass on those inputs.
+Full publication and its checked manifest verifier also pass. Paired
+image/user/runtime acceptance passes independent verification. Images and user
+programs match across hosts; both private four-CPU smokes preserve their images.
+The completed first-run evidence is described below.
+
+The current source candidate uses UTF-8 inside all six hosted tools and wide
+Windows APIs at command-line, filesystem and process boundaries. A shared codec
+rejects malformed UTF-8 or UTF-16. Native Windows builds use a wide entry point;
+Cupid-built tools select explicit startup files and exact imports for their role.
+
+The candidate captures 73 bootstrap inputs and 87 publication inputs. Its
+Windows plan builds 30 C objects and three startup objects. Historical seed
+profiles retain separate validation. Adapter, command, observer and publication
+tests pass. Paired staged proofs, full publication and its checked manifest
+verifier pass. Paired OS/runtime acceptance also passes: images and user
+programs match across hosts, and private four-CPU disassembly/shell smokes
+preserve their source images.
+The installed release below is unchanged. See
+[ADR 0406](../docs/adr/0406-use-utf8-at-windows-tool-boundaries.md).
+
 ## Current seed release
 
 Commit `88bb2d26` promotes both six-tool seed sets from the canonical proofs
