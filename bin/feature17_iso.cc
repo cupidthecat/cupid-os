@@ -73,6 +73,158 @@ int read_and_check(const char *path, const char *expected, int expected_len) {
     return 1;
 }
 
+int check_directory_names() {
+    int fd = vfs_open("/iso", 0);
+    if (fd < 0) {
+        serial_printf("[feature17] FAIL readdir open fd=%d\n", fd);
+        return 0;
+    }
+
+    int seen_big = 0;
+    int seen_script = 0;
+    int seen_jpeg = 0;
+    int seen_long = 0;
+    int seen_readme = 0;
+    int seen_sub = 0;
+    int count = 0;
+    int bad = 0;
+    char ent[136];
+    int rc = vfs_readdir(fd, ent);
+    while (rc > 0) {
+        int type = ent[132];
+        if (strcmp(ent, "big.bin") == 0) {
+            seen_big = seen_big + 1;
+            if (type != 0) bad = 1;
+        } else if (strcmp(ent, "gen_big.sh") == 0) {
+            seen_script = seen_script + 1;
+            if (type != 0) bad = 1;
+        } else if (strcmp(ent, "jpeg_baseline_8x8.jpg") == 0) {
+            seen_jpeg = seen_jpeg + 1;
+            if (type != 0) bad = 1;
+        } else if (strcmp(ent, "long_named_file.txt") == 0) {
+            seen_long = seen_long + 1;
+            if (type != 0) bad = 1;
+        } else if (strcmp(ent, "readme.txt") == 0) {
+            seen_readme = seen_readme + 1;
+            if (type != 0) bad = 1;
+        } else if (strcmp(ent, "sub") == 0) {
+            seen_sub = seen_sub + 1;
+            if (type != 1) bad = 1;
+        } else {
+            serial_printf("[feature17] FAIL readdir unexpected=%s\n", ent);
+            bad = 1;
+        }
+        count = count + 1;
+        rc = vfs_readdir(fd, ent);
+    }
+    vfs_close(fd);
+
+    if (rc < 0) {
+        serial_printf("[feature17] FAIL readdir rc=%d\n", rc);
+        return 0;
+    }
+    if (count != 6 || seen_big != 1 || seen_script != 1 ||
+        seen_jpeg != 1 || seen_long != 1 || seen_readme != 1 ||
+        seen_sub != 1 || bad) {
+        serial_printf(
+            "[feature17] FAIL readdir count=%d seen=%d%d%d%d%d%d bad=%d\n",
+            count, seen_big, seen_script, seen_jpeg, seen_long,
+            seen_readme, seen_sub, bad);
+        return 0;
+    }
+
+    serial_printf(
+        "PASS feature17_readdir names=6 long=long_named_file.txt\n");
+    return 1;
+}
+
+int check_baseline_jpeg() {
+    char encoded[512];
+    int fd = vfs_open("/iso/jpeg_baseline_8x8.jpg", 0);
+    if (fd < 0) {
+        serial_printf("[feature17] FAIL jpeg fixture open fd=%d\n", fd);
+        return 0;
+    }
+
+    int n = vfs_read(fd, encoded, 512);
+    vfs_close(fd);
+    if (n != 331) {
+        serial_printf("[feature17] FAIL jpeg fixture length=%d\n", n);
+        return 0;
+    }
+
+    int *pixels = 0;
+    int width = 0;
+    int height = 0;
+    int rc = jpeg_decode_mem(encoded, n, &pixels, &width, &height);
+    if (rc != 0 || pixels == 0) {
+        serial_printf("[feature17] FAIL jpeg_decode_mem rc=%d\n", rc);
+        return 0;
+    }
+
+    if (width != 8 || height != 8) {
+        serial_printf("[feature17] FAIL jpeg size=%dx%d\n", width, height);
+        kfree(pixels);
+        return 0;
+    }
+
+    int bad = -1;
+    int i = 0;
+    while (i < 64) {
+        if ((pixels[i] & 0x00FFFFFF) != 0x00808080) {
+            bad = i;
+            i = 64;
+        } else {
+            i = i + 1;
+        }
+    }
+
+    if (bad >= 0) {
+        serial_printf("[feature17] FAIL jpeg pixel=%d rgb=%x\n",
+                      bad, pixels[bad] & 0x00FFFFFF);
+        kfree(pixels);
+        return 0;
+    }
+
+    kfree(pixels);
+    serial_printf("PASS jpeg_decode_mem baseline 8x8 gray128\n");
+    return 1;
+}
+
+int check_glyph_raster() {
+    int faces = fontsys_face_count();
+    if (faces < 4) {
+        serial_printf("[feature17] FAIL glyph_rasterize faces=%d\n", faces);
+        return 0;
+    }
+
+    int face = fontsys_match("Liberation Mono", 3, 400, 0);
+    if (face < 0 || face >= faces) {
+        serial_printf("[feature17] FAIL glyph_rasterize face=%d\n", face);
+        return 0;
+    }
+
+    /* Size 37 and Q avoid every normal UI cache entry. The first width
+     * request must decode and rasterize the outline; the second checks the
+     * cache entry produced by that path. */
+    int width = fontsys_run_width(face, 37, "Q", 1);
+    if (width <= 0) {
+        serial_printf("[feature17] FAIL glyph_rasterize width=%d\n", width);
+        return 0;
+    }
+    int cached = fontsys_run_width(face, 37, "Q", 1);
+    if (cached != width) {
+        serial_printf("[feature17] FAIL glyph_rasterize cache=%d width=%d\n",
+                      cached, width);
+        return 0;
+    }
+
+    serial_printf(
+        "PASS glyph_rasterize Liberation Mono Q size37 width=%d cache=%d\n",
+        width, cached);
+    return 1;
+}
+
 void main() {
     int ok = 1;
 
@@ -96,10 +248,13 @@ void main() {
     if (fd < 0) { serial_printf("[feature17] FAIL RR long name fd=%d\n", fd); ok = 0; }
     else        vfs_close(fd);
 
-    /* 5. Subdir traversal */
+    /* 5. Directory iteration retains all six Rock Ridge display names. */
+    if (!check_directory_names()) ok = 0;
+
+    /* 6. Subdir traversal */
     if (!read_and_check("/iso/sub/nested.txt", "Nested file under sub/\n", 23)) ok = 0;
 
-    /* 6. 4K file spanning 2 sectors (0x00..0xFF pattern repeating) */
+    /* 7. 4K file spanning 2 sectors (0x00..0xFF pattern repeating) */
     fd = vfs_open("/iso/big.bin", 0);
     if (fd < 0) { serial_printf("[feature17] FAIL big.bin open fd=%d\n", fd); ok = 0; }
     else {
@@ -125,14 +280,20 @@ void main() {
         vfs_close(fd);
     }
 
-    /* 7. Unmount */
+    /* 8. Decode a byte-fixed baseline JPEG through the production path. */
+    if (!check_baseline_jpeg()) ok = 0;
+
+    /* 9. Rasterize an uncached bundled TrueType glyph and reuse its cache. */
+    if (!check_glyph_raster()) ok = 0;
+
+    /* 10. Unmount */
     shell_execute_line("umount /iso");
     if (is_mounted("/iso")) {
         serial_printf("[feature17] FAIL umount /iso still active\n");
         ok = 0;
     }
 
-    /* 8. Multi-mount: 2 concurrent */
+    /* 11. Multi-mount: 2 concurrent */
     shell_execute_line("mount /disk/hello.iso /iso_a iso9660");
     shell_execute_line("mount /disk/hello.iso /iso_b iso9660");
     if (!is_mounted("/iso_a") || !is_mounted("/iso_b")) {
@@ -151,7 +312,7 @@ void main() {
     shell_execute_line("umount /iso_a");
     shell_execute_line("umount /iso_b");
 
-    /* 9. Pool exhaustion: mount 4 then try a 5th.  iso9660 loopdev pool
+    /* 12. Pool exhaustion: mount 4 then try a 5th.  iso9660 loopdev pool
      * is size 4; 5th should be rejected.  We verify by counting /iso_N
      * slots before and after the 5th mount attempt.*/
     shell_execute_line("mount /disk/hello.iso /iso_1 iso9660");

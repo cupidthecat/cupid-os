@@ -39,7 +39,7 @@ Term: GUI
 
 ## Implementation
 
-`cupidfetch` is implemented as a CupidC program (`/bin/cupidfetch.cc`) and demonstrates:
+`cupidfetch` is a CupidC program at `/bin/cupidfetch.cc`. It uses:
 
 - ANSI color codes using `\x1B` hexadecimal escapes
 - String concatenation and formatting
@@ -53,7 +53,7 @@ Term: GUI
 ## See Also
 
 - [CupidC Language Reference](CupidC-Language-Reference.md)
-- [Commands Overview](Commands.md)
+- [Shell command reference](Shell-Commands)
 
 ## Version History
 

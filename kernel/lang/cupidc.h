@@ -31,8 +31,9 @@
 #define CC_MAX_LOCALS 256            /* max locals per function */
 #define CC_MAX_PARAMS 32             /* max function parameters */
 #define CC_MAX_PATCHES 4096          /* max forward-ref patches */
-#define CC_MAX_BREAKS 128            /* max nested loop depth */
-#define CC_MAX_BREAKS_PER_LOOP 64    /* max break statements per loop */
+#define CC_MAX_CONTROL_DEPTH 128     /* max nested breakable controls */
+#define CC_MAX_STATEMENT_DEPTH 1024  /* max active statement parser calls */
+#define CC_MAX_BREAKS_PER_CONTROL 64 /* max breaks per control */
 #define CC_MAX_IDENT 96              /* max identifier length */
 #define CC_MAX_STRING 1024           /* max string literal length */
 #define CC_MAX_ERRORS 1              /* fail-fast: stop at first */
@@ -41,18 +42,28 @@
 #define CC_MAX_FIELDS 32             /* max fields per struct */
 #define CC_MAX_LABELS 128            /* local labels per function/top */
 #define CC_MAX_LABEL_PATCHES 128     /* pending goto patches/label */
+#define CC_MAX_TYPEDEFS 16            /* max source typedef aliases */
+/* Keep the source-facing 32-signature budget after the active kernel callback
+ * descriptor occupies one record in the shared graph. */
+#define CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES 33
+#define CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE CC_MAX_TYPEDEFS
+#define CC_MAX_FUNCTION_POINTER_SIGNATURE_DEPTH 16
+#if (CC_RAW_FUNCTION_POINTER_SIGNATURE_BASE + \
+     CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES) > 128
+#error "function-pointer signature handles must fit in int8_t"
+#endif
 
 /* JIT/AOT regions live well above kernel BSS and kernel stack.
- * Layout puts the JIT image at 16 MB, with 9 MB of code+data headroom
- * (1 MB code + 8 MB data) before CupidASM at 26 MB. The browser's
+ * Layout puts the JIT image at 17 MB, with 9 MB of code and data headroom
+ * (1 MB code and 8 MB data) before CupidASM at 26 MB. The browser's
  * static globals (parallel arrays for DOM/style/RT/atom pools, plus
  * 128 webfont slots with 3-deep URL fallbacks) are the largest user
  * of the data section so far.*/
-#define CC_JIT_CODE_BASE 0x01000000u
-#define CC_JIT_DATA_BASE 0x01100000u /* 1 MB after code */
+#define CC_JIT_CODE_BASE 0x01100000u
+#define CC_JIT_DATA_BASE 0x01200000u /* 1 MB after code */
 
-#define CC_AOT_CODE_BASE 0x01000000u
-#define CC_AOT_DATA_BASE 0x01100000u /* 1 MB after code */
+#define CC_AOT_CODE_BASE 0x01100000u
+#define CC_AOT_DATA_BASE 0x01200000u /* 1 MB after code */
 
 /* Token Types */
 typedef enum {
@@ -142,6 +153,7 @@ typedef enum {
   CC_TOK_MINUSEQ,
   CC_TOK_STAREQ,
   CC_TOK_SLASHEQ,
+  CC_TOK_PERCENTEQ,
   CC_TOK_ANDEQ,
   CC_TOK_OREQ,
   CC_TOK_XOREQ,
@@ -174,6 +186,7 @@ typedef struct {
   cc_token_type_t type;
   char text[CC_MAX_STRING]; /* holds idents & string content */
   int32_t int_value;
+  int int_is_unsigned; /* integer token uses uint32 arithmetic */
   double fval;     /* filled when type == CC_TOK_FLIT */
   int flit_bits;   /* 32 ('f'/'F' suffix) or 64 (no suffix) */
   int line;
@@ -204,15 +217,29 @@ typedef enum {
   TYPE_FLOAT,      /* 32-bit IEEE-754 single (SSE scalar) */
   TYPE_DOUBLE,     /* 64-bit IEEE-754 double (SSE scalar) */
   TYPE_FLOAT4,     /* 4x float SIMD vector (16 bytes) */
-  TYPE_DOUBLE2     /* 2x double SIMD vector (16 bytes) */
+  TYPE_DOUBLE2,    /* 2x double SIMD vector (16 bytes) */
+  TYPE_FLOAT_PTR,  /* float* */
+  TYPE_DOUBLE_PTR, /* double* */
+  TYPE_UINT,       /* 32-bit unsigned int */
+  TYPE_UINT_PTR    /* unsigned int* */
 } cc_type_t;
+
+typedef struct {
+  cc_type_t return_type;
+  int return_struct_index;
+  int param_count;
+  uint8_t param_types[CC_MAX_PARAMS];
+  int8_t param_struct_indices[CC_MAX_PARAMS];
+  int has_param_types;
+  int is_variadic;
+} cc_function_pointer_signature_t;
 
 /* HolyC-style type aliases (kept as aliases for full backward compatibility)
 */
 #define TYPE_U0 TYPE_VOID
 #define TYPE_U8 TYPE_CHAR
 #define TYPE_U16 TYPE_INT
-#define TYPE_U32 TYPE_INT
+#define TYPE_U32 TYPE_UINT
 #define TYPE_I8 TYPE_CHAR
 #define TYPE_I16 TYPE_INT
 #define TYPE_I32 TYPE_INT
@@ -226,10 +253,25 @@ typedef struct {
   int32_t offset;   /* stack offset or code offset */
   uint32_t address; /* absolute address (kernel/func) */
   int param_count;  /* for functions */
+  uint8_t param_types[CC_MAX_PARAMS]; /* fixed parameter types when known */
+  /* Record identity for TYPE_STRUCT_PTR; callback-signature handle for a
+   * file-scope TYPE_FUNC_PTR parameter; -1 when neither applies. */
+  int8_t param_struct_indices[CC_MAX_PARAMS];
+  int has_param_types; /* parsed prototype or definition supplied types */
+  int function_signature_is_provisional; /* inferred from a local initializer */
+  int is_variadic;     /* fixed parameters may be followed by ellipsis */
   int is_defined;   /* has function body been emitted? */
   int is_array;     /* stack-allocated array? */
-  int struct_index; /* index into structs[] for struct types */
+  int is_const_qualified; /* object or fixed-array element is const */
+  cc_type_t function_pointer_return_type; /* declared result for named indirect calls */
+  /* Retained callback signature for function-pointer arrays, or -1. */
+  int function_pointer_signature_handle;
+  int struct_index; /* record identity for struct values, pointers,
+                       and callback results */
   int array_elem_size; /* element size for array subscript scaling */
+  int array_object_size; /* complete fixed-array size before frame padding */
+  cc_type_t array_elem_type; /* declared element type for fixed arrays */
+  int array_rank; /* number of fixed-array dimensions, from 1 through 3 */
   /* For 3D arrays: array_dim2 is the size in bytes that each element of
    * the SECOND subscript advances by. For 2D and 1D arrays it is 0.
    * Example: char foo[A][B][C] sets array_elem_size = B*C and array_dim2
@@ -241,6 +283,7 @@ typedef struct {
    * constant" - fall back to a runtime load.*/
   int     is_const_int;
   int32_t const_int_value;
+  int     const_int_is_unsigned;
 } cc_symbol_t;
 
 typedef struct {
@@ -249,6 +292,8 @@ typedef struct {
   int32_t offset;   /* byte offset within struct */
   int struct_index; /* if type is struct, which struct */
   int array_count;  /* >0 if this field is a fixed array */
+  /* Retained callback signature, or -1 for other field types. */
+  int function_pointer_signature_handle;
 } cc_field_t;
 
 typedef struct {
@@ -260,9 +305,16 @@ typedef struct {
   int is_complete;    /* 1 after full definition parsed, 0 for forward tag */
 } cc_struct_def_t;
 
+typedef enum {
+  CC_PATCH_CODE_RELATIVE = 0,
+  CC_PATCH_CODE_ABSOLUTE,
+  CC_PATCH_DATA_ABSOLUTE
+} cc_patch_kind_t;
+
 typedef struct {
-  uint32_t code_offset;    /* where in code buffer to patch */
+  uint32_t buffer_offset;  /* offset in the buffer selected by kind */
   char name[CC_MAX_IDENT]; /* target symbol name */
+  cc_patch_kind_t kind;
 } cc_patch_t;
 
 typedef struct {
@@ -272,6 +324,11 @@ typedef struct {
   uint32_t patches[CC_MAX_LABEL_PATCHES];
   int patch_count;
 } cc_label_t;
+
+typedef enum {
+  CC_CONTROL_LOOP,
+  CC_CONTROL_SWITCH
+} cc_control_kind_t;
 
 /* Compiler State */
 typedef struct {
@@ -308,6 +365,7 @@ typedef struct {
   int max_local_offset; /* deepest stack offset seen (most negative) */
   int scope_start;      /* symbol index at function start */
   int param_count;      /* params in current function */
+  cc_type_t current_return_type; /* value type expected by return */
 
   /* Forward reference patches */
   cc_patch_t patches[CC_MAX_PATCHES];
@@ -317,11 +375,13 @@ typedef struct {
   cc_label_t labels[CC_MAX_LABELS];
   int label_count;
 
-  /* Break/continue stack for loops */
-  uint32_t break_patches[CC_MAX_BREAKS][CC_MAX_BREAKS_PER_LOOP];
-  int break_counts[CC_MAX_BREAKS];
-  uint32_t continue_targets[CC_MAX_BREAKS];
-  int loop_depth;
+  /* `break` uses the innermost control. `continue` finds a loop. */
+  uint32_t break_patches[CC_MAX_CONTROL_DEPTH][CC_MAX_BREAKS_PER_CONTROL];
+  int break_counts[CC_MAX_CONTROL_DEPTH];
+  cc_control_kind_t control_kinds[CC_MAX_CONTROL_DEPTH];
+  uint32_t continue_targets[CC_MAX_CONTROL_DEPTH];
+  int control_depth;
+  int statement_depth;
 
   /* Error state */
   int error;
@@ -335,9 +395,29 @@ typedef struct {
   int jit_mode; /* 1 = JIT (execute), 0 = AOT (save) */
 
   /* Typedef aliases (global scope only) */
-  char typedef_names[16][CC_MAX_IDENT];
-  cc_type_t typedef_types[16];
+  char typedef_names[CC_MAX_TYPEDEFS][CC_MAX_IDENT];
+  cc_type_t typedef_types[CC_MAX_TYPEDEFS];
+  int typedef_struct_indices[CC_MAX_TYPEDEFS];
+  int typedef_array_counts[CC_MAX_TYPEDEFS];
+  int typedef_is_const_qualified[CC_MAX_TYPEDEFS];
+  int typedef_function_pointer_signature_valid[CC_MAX_TYPEDEFS];
+  cc_type_t typedef_function_pointer_return_types[CC_MAX_TYPEDEFS];
+  int typedef_function_pointer_return_struct_indices[CC_MAX_TYPEDEFS];
+  int typedef_function_pointer_param_counts[CC_MAX_TYPEDEFS];
+  uint8_t
+      typedef_function_pointer_param_types[CC_MAX_TYPEDEFS][CC_MAX_PARAMS];
+  int8_t typedef_function_pointer_param_struct_indices[CC_MAX_TYPEDEFS]
+                                                       [CC_MAX_PARAMS];
+  int typedef_function_pointer_has_param_types[CC_MAX_TYPEDEFS];
+  int typedef_function_pointer_is_variadic[CC_MAX_TYPEDEFS];
   int typedef_count;
+
+  /* Raw callback parameters need stable nested signatures on their owning
+   * free-function symbols. Handles at or above the base select this pool;
+   * smaller handles still name signature-bearing typedefs. */
+  cc_function_pointer_signature_t
+      raw_function_pointer_signatures[CC_MAX_RAW_FUNCTION_POINTER_SIGNATURES];
+  int raw_function_pointer_signature_count;
 
   /* HolyC-style top-level / auto-main handling.
    * The parser auto-emits a trailing `call main` when a file has top-level
@@ -393,6 +473,15 @@ void cc_sym_init(cc_state_t *cc);
 cc_symbol_t *cc_sym_find(cc_state_t *cc, const char *name);
 cc_symbol_t *cc_sym_add(cc_state_t *cc, const char *name, cc_sym_kind_t kind,
                         cc_type_t type);
+int cc_register_kernel_binding_legacy(
+    cc_state_t *cc, const char *name, uint32_t address,
+    int parameter_count, cc_type_t return_type);
+int cc_register_kernel_binding(
+    cc_state_t *cc, const char *name, uint32_t address,
+    const cc_function_pointer_signature_t *signature);
+int cc_retain_kernel_binding_callback_signature(
+    cc_state_t *cc,
+    const cc_function_pointer_signature_t *signature);
 
 /*  *  REPL (HolyC-style interactive shell)
  **/
@@ -405,7 +494,9 @@ typedef struct {
   uint32_t data_committed; /* Bytes of data permanently committed */
   int sym_committed;       /* Number of symbols permanently committed */
   int struct_committed;    /* Number of structs permanently committed */
+  cc_struct_def_t structs_committed[CC_MAX_STRUCTS];
   int typedef_committed;   /* Number of typedefs permanently committed */
+  int raw_function_pointer_signature_committed;
   int patch_committed;     /* Number of patches permanently committed */
   int32_t last_answer;     /* Result of last expression (like TempleOS Fs->answer) */
   int last_answer_valid;   /* Whether last_answer holds a meaningful value */
@@ -445,6 +536,11 @@ int repl_consume_prompt_result(int32_t *value, int *has_value,
  * Frees the old compiler state, allocates fresh, re-registers bindings.
 */
 void repl_reset(void);
+
+/* Preserve completed records as well as the struct-table boundary. A failed
+ * REPL line may fill an existing forward tag without adding a new entry. */
+void cc_repl_checkpoint_structs(repl_state_t *state);
+void cc_repl_restore_structs(repl_state_t *state);
 
 /**
  * cc_parse_repl_line - Parse a single REPL line (statement, expression, or declaration).

@@ -1,5 +1,7 @@
 //help: Web browser. Renders HTTP and HTTPS pages in a window.
 //help: Usage: browser [url]
+//help:        browser --selftest
+//help:   --selftest checks the Browser's binary64 JavaScript number paths.
 //help:   Address bar: Ctrl-L to focus, Enter to go.
 //help:   Backspace (page focus): back history.
 //help:   Arrow keys / mouse wheel: scroll.

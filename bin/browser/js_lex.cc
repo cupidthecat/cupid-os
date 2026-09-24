@@ -1,25 +1,216 @@
 /* §7 JavaScript lexer. Reads `src[0..len)` and appends tokens into
  * jtk_*[]. Keywords are looked up by string match against an interned
- * identifier; everything else is a punctuator or operator. Numbers
- * keep only the decimal integer portion in jtk_num for now (F1a) -
- * fractional parts are recognised but ignored; F1b switches the
- * runtime to doubles.*/
+ * identifier; everything else is a punctuator or operator. Decimal forms
+ * and prefixed hexadecimal, binary, and octal integers keep their double
+ * value in jtk_num. Numeric separators are checked by the shared scanner.*/
 
 int js_is_digit(int c)  { return c >= '0' && c <= '9'; }
 int js_is_alpha(int c)  { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$'; }
 int js_is_alnum(int c)  { return js_is_alpha(c) || js_is_digit(c); }
+
+int js_digit_value(int c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+double js_lex_number_value;
+int js_lex_number_end;
+
+int js_scan_number(char *src, int n, int start) {
+    int i = start;
+    double v = 0.0;
+
+    if (src[start] == '0' && start + 1 < n &&
+        (src[start + 1] == 'x' || src[start + 1] == 'X' ||
+         src[start + 1] == 'b' || src[start + 1] == 'B' ||
+         src[start + 1] == 'o' || src[start + 1] == 'O')) {
+        int prefix = src[start + 1];
+        int base = 16;
+        if (prefix == 'b' || prefix == 'B') base = 2;
+        else if (prefix == 'o' || prefix == 'O') base = 8;
+        i = start + 2;
+        int digits = 0;
+        int last_was_digit = 0;
+        while (i < n) {
+            int c = (unsigned char)src[i];
+            int digit = js_digit_value(c);
+            if (digit >= 0 && digit < base) {
+                v = v * (double)base + (double)digit;
+                digits = digits + 1;
+                last_was_digit = 1;
+                i = i + 1;
+                continue;
+            }
+            if (c == '_') {
+                int next_digit = i + 1 < n ?
+                    js_digit_value((unsigned char)src[i + 1]) : -1;
+                if (!last_was_digit || next_digit < 0 || next_digit >= base) {
+                    js_set_err("js: invalid numeric separator");
+                    return -1;
+                }
+                last_was_digit = 0;
+                i = i + 1;
+                continue;
+            }
+            if (digit >= base) {
+                if (base == 2) js_set_err("js: invalid binary digit");
+                else if (base == 8) js_set_err("js: invalid octal digit");
+                else js_set_err("js: invalid hexadecimal digit");
+                return -1;
+            }
+            break;
+        }
+        if (digits == 0) {
+            if (base == 2) js_set_err("js: expected binary digits");
+            else if (base == 8) js_set_err("js: expected octal digits");
+            else js_set_err("js: expected hexadecimal digits");
+            return -1;
+        }
+        if (i < n && js_is_alpha((unsigned char)src[i])) {
+            js_set_err("js: identifier follows numeric literal");
+            return -1;
+        }
+        js_lex_number_value = v;
+        js_lex_number_end = i;
+        return 0;
+    }
+
+    int integer_digits = 0;
+    int last_was_digit = 0;
+    while (i < n && src[i] != '.') {
+        int c = (unsigned char)src[i];
+        if (js_is_digit(c)) {
+            v = v * 10.0 + (double)(c - '0');
+            integer_digits = integer_digits + 1;
+            last_was_digit = 1;
+            i = i + 1;
+            continue;
+        }
+        if (c == '_') {
+            int next_is_digit = i + 1 < n &&
+                                js_is_digit((unsigned char)src[i + 1]);
+            if (!last_was_digit || !next_is_digit || src[start] == '0') {
+                js_set_err("js: invalid numeric separator");
+                return -1;
+            }
+            last_was_digit = 0;
+            i = i + 1;
+            continue;
+        }
+        break;
+    }
+
+    int fraction_digits = 0;
+    if (i < n && src[i] == '.') {
+        i = i + 1;
+        last_was_digit = 0;
+        double place = 0.1;
+        while (i < n) {
+            int c = (unsigned char)src[i];
+            if (js_is_digit(c)) {
+                v = v + (double)(c - '0') * place;
+                place = place * 0.1;
+                fraction_digits = fraction_digits + 1;
+                last_was_digit = 1;
+                i = i + 1;
+                continue;
+            }
+            if (c == '_') {
+                int next_is_digit = i + 1 < n &&
+                                    js_is_digit((unsigned char)src[i + 1]);
+                if (!last_was_digit || !next_is_digit) {
+                    js_set_err("js: invalid numeric separator");
+                    return -1;
+                }
+                last_was_digit = 0;
+                i = i + 1;
+                continue;
+            }
+            break;
+        }
+    }
+
+    if (integer_digits == 0 && fraction_digits == 0) {
+        js_set_err("js: expected decimal digits");
+        return -1;
+    }
+
+    if (i < n && (src[i] == 'e' || src[i] == 'E')) {
+        i = i + 1;
+        int exponent_negative = 0;
+        if (i < n && (src[i] == '+' || src[i] == '-')) {
+            exponent_negative = src[i] == '-';
+            i = i + 1;
+        }
+        int exponent = 0;
+        int exponent_digits = 0;
+        last_was_digit = 0;
+        while (i < n) {
+            int c = (unsigned char)src[i];
+            if (js_is_digit(c)) {
+                if (exponent < 400) {
+                    exponent = exponent * 10 + (c - '0');
+                    if (exponent > 400) exponent = 400;
+                }
+                exponent_digits = exponent_digits + 1;
+                last_was_digit = 1;
+                i = i + 1;
+                continue;
+            }
+            if (c == '_') {
+                int next_is_digit = i + 1 < n &&
+                                    js_is_digit((unsigned char)src[i + 1]);
+                if (!last_was_digit || !next_is_digit) {
+                    js_set_err("js: invalid numeric separator");
+                    return -1;
+                }
+                last_was_digit = 0;
+                i = i + 1;
+                continue;
+            }
+            break;
+        }
+        if (exponent_digits == 0) {
+            js_set_err("js: expected exponent digits");
+            return -1;
+        }
+        while (exponent > 0) {
+            v = exponent_negative ? v / 10.0 : v * 10.0;
+            exponent = exponent - 1;
+        }
+    }
+
+    if (i < n && js_is_alpha((unsigned char)src[i])) {
+        js_set_err("js: identifier follows numeric literal");
+        return -1;
+    }
+    js_lex_number_value = v;
+    js_lex_number_end = i;
+    return 0;
+}
 
 int js_str_intern(char *src, int n) {
     /* Look for an existing entry first - cheap dedup of identifiers. */
     int i = 0;
     while (i < js_str_pool_pos) {
         int k = 0;
-        while (k < n && js_str_pool[i + k] == src[k]) k = k + 1;
-        if (k == n && js_str_pool[i + n] == 0) return i;
+        while (k < n && i + k < js_str_pool_pos &&
+               js_str_pool[i + k] == src[k]) {
+            k = k + 1;
+        }
+        if (k == n && i + n < js_str_pool_pos &&
+            js_str_pool[i + n] == 0) {
+            return i;
+        }
         while (i < js_str_pool_pos && js_str_pool[i] != 0) i = i + 1;
         if (i < js_str_pool_pos) i = i + 1;
     }
-    if (js_str_pool_pos + n + 1 >= JS_STR_POOL) return -1;
+    if (n < 0 || n > JS_STR_POOL - js_str_pool_pos - 1) {
+        js_set_err("js: string pool full");
+        return -1;
+    }
     int off = js_str_pool_pos;
     int j = 0;
     while (j < n) { js_str_pool[off + j] = src[j]; j = j + 1; }
@@ -49,7 +240,7 @@ int js_keyword(char *s, int n) {
     return 0;
 }
 
-void js_emit_tok(int kind, int num, int str_off, int str_len, int line) {
+void js_emit_tok(int kind, double num, int str_off, int str_len, int line) {
     if (jtk_count >= MAX_JS_TOKENS) return;
     int t = jtk_count;
     jtk_kind   [t] = kind;
@@ -83,21 +274,12 @@ int js_tokenize(char *src, int n) {
             if (i + 1 < n) i = i + 2;
             continue;
         }
-        /* number */
-        if (js_is_digit(c)) {
-            int v = 0;
-            int s = i;
-            while (i < n && js_is_digit(src[i])) {
-                v = v * 10 + (src[i] - '0');
-                i = i + 1;
-            }
-            /* fractional - parsed and dropped for now */
-            if (i < n && src[i] == '.') {
-                i = i + 1;
-                while (i < n && js_is_digit(src[i])) i = i + 1;
-            }
-            (void)s;
-            js_emit_tok(JS_TOK_NUMBER, v, -1, 0, line);
+        /* Decimal, hexadecimal, binary, and octal number literals. */
+        if (js_is_digit(c) ||
+            (c == '.' && i + 1 < n && js_is_digit(src[i + 1]))) {
+            if (js_scan_number(src, n, i) != 0) return -1;
+            i = js_lex_number_end;
+            js_emit_tok(JS_TOK_NUMBER, js_lex_number_value, -1, 0, line);
             continue;
         }
         /* identifier or keyword */
@@ -108,6 +290,7 @@ int js_tokenize(char *src, int n) {
             int kw = js_keyword(src + s, len);
             if (kw) { js_emit_tok(kw, 0, -1, 0, line); continue; }
             int off = js_str_intern(src + s, len);
+            if (off < 0) return -1;
             js_emit_tok(JS_TOK_IDENT, 0, off, len, line);
             continue;
         }
@@ -139,6 +322,7 @@ int js_tokenize(char *src, int n) {
             }
             if (i < n) i = i + 1;       /* skip closing quote */
             int off = js_str_intern(buf, b);
+            if (off < 0) return -1;
             (void)s;
             js_emit_tok(JS_TOK_STRING, 0, off, b, line);
             continue;
@@ -164,6 +348,7 @@ int js_tokenize(char *src, int n) {
         if (c == '-' && peek == '=') { js_emit_tok(JS_TOK_MINUS_EQ, 0, -1, 0, line); i = i + 2; continue; }
         if (c == '*' && peek == '=') { js_emit_tok(JS_TOK_STAR_EQ,  0, -1, 0, line); i = i + 2; continue; }
         if (c == '/' && peek == '=') { js_emit_tok(JS_TOK_SLASH_EQ, 0, -1, 0, line); i = i + 2; continue; }
+        if (c == '%' && peek == '=') { js_emit_tok(JS_TOK_PERCENT_EQ, 0, -1, 0, line); i = i + 2; continue; }
         if (c == '{') { js_emit_tok(JS_TOK_LBRACE,  0, -1, 0, line); i = i + 1; continue; }
         if (c == '}') { js_emit_tok(JS_TOK_RBRACE,  0, -1, 0, line); i = i + 1; continue; }
         if (c == '(') { js_emit_tok(JS_TOK_LPAREN,  0, -1, 0, line); i = i + 1; continue; }
@@ -184,7 +369,7 @@ int js_tokenize(char *src, int n) {
         if (c == '<') { js_emit_tok(JS_TOK_LT,      0, -1, 0, line); i = i + 1; continue; }
         if (c == '>') { js_emit_tok(JS_TOK_GT,      0, -1, 0, line); i = i + 1; continue; }
         if (c == '!') { js_emit_tok(JS_TOK_NOT,     0, -1, 0, line); i = i + 1; continue; }
-        /* unknown character - skip silently */
+        /* Unknown character: keep the Browser's tolerant skip behavior. */
         i = i + 1;
     }
     js_emit_tok(JS_TOK_EOF, 0, -1, 0, line);

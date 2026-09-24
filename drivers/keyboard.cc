@@ -1,0 +1,594 @@
+/*
+ * PS/2 Keyboard Driver
+ *
+ * Implements a complete PS/2 keyboard interface with the following features:
+ *
+ * Input Handling:
+ * - Full US keyboard layout support with scancode-to-ASCII mapping
+ * - Interrupt-driven input processing via IRQ1
+ * - Key state tracking and event buffering in circular buffer
+ * - Configurable key repeat with initial delay and repeat rate
+ * - Key debouncing via event timestamping
+ *
+ * Modifier Keys:
+ * - Shift (left/right), Caps Lock, Ctrl (left/right), Alt (left/right)
+ * - Proper state tracking and toggle support for Caps Lock
+ * - Shift state affects ASCII mapping
+ *
+ * Special Keys:
+ * - Function keys F1-F12 with state tracking
+ * - Extended keys (arrows, insert, delete, etc)
+ * - System keys (backspace, tab, enter)
+ *
+ * Error Handling:
+ * - Controller status monitoring
+ * - Buffer overflow protection
+ * - Input validation and error checking
+ *
+ * Key Event Processing:
+ * - Scancode translation to ASCII with shift/caps lock
+ * - Key press and release detection
+ * - Extended key sequence handling
+ * - Event timestamping for debouncing
+ *
+ * State Management:
+ * - Global keyboard state tracking
+ * - Per-key up/down state
+ * - Modifier key states
+ * - Key repeat status
+ *
+ * Buffer Implementation:
+ * - Circular buffer for key events
+ * - Configurable buffer size
+ * - Overflow protection
+ * - FIFO event processing
+ *
+ * Dependencies:
+ * - ports.h: I/O port access functions
+ * - irq.h: Interrupt registration
+ * - kernel.h: System functions
+ * - types.h: Data type definitions
+*/
+
+#include "keyboard.h"
+#include "ports.h"
+#include "irq.h"
+#include "kernel.h"
+#include "shell.h"
+#include "desktop.h"
+#include "gui.h"
+#include "process.h"
+#include "serial.h"
+
+// Global keyboard state
+static keyboard_state_t keyboard_state = {0};
+static bool function_keys[12] = {false};
+
+// Debug flag for keyboard (set to 1 to enable detailed logging)
+#define KEYBOARD_DEBUG 1
+
+// Scancode to ASCII mapping (lowercase)
+static const char scancode_to_ascii[] = {
+    0,   0,   '1', '2', '3', '4', '5', '6', '7', '8',  // 0x00 - 0x09
+    '9', '0', '-', '=', '\b', '\t', 'q', 'w', 'e', 'r', // 0x0A - 0x13
+    't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n', 0,    // 0x14 - 0x1D
+    'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';',   // 0x1E - 0x27
+    '\'', '`', 0,   '\\', 'z', 'x', 'c', 'v', 'b', 'n', // 0x28 - 0x31
+    'm', ',', '.', '/', 0,   '*', 0,   ' '              // 0x32 - 0x3F
+};
+
+// Scancode to ASCII mapping (uppercase)
+static const char scancode_to_ascii_shift[] = {
+    0,   0,   '!', '@', '#', '$', '%', '^', '&', '*',  // 0x00 - 0x09
+    '(', ')', '_', '+', '\b', '\t', 'Q', 'W', 'E', 'R', // 0x0A - 0x13
+    'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n', 0,    // 0x14 - 0x1D
+    'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':',   // 0x1E - 0x27
+    '"', '~', 0,   '|', 'Z', 'X', 'C', 'V', 'B', 'N',   // 0x28 - 0x31
+    'M', '<', '>', '?', 0,   '*', 0,   ' '              // 0x32 - 0x3F
+};
+
+// Define keys and constants
+#define KEY_LSHIFT      0x2A
+#define KEY_RSHIFT      0x36
+#define KEY_CAPS        0x3A
+#define KEY_EXTENDED    0xE0
+#define KEY_RELEASED    0x80
+#define KEYBOARD_DATA_PORT    0x60
+#define KEYBOARD_STATUS_PORT  0x64
+#define KEYBOARD_CMD_ENABLE   0xF4
+
+// Function keys' scancodes
+#define KEY_F1    0x3B
+#define KEY_F2    0x3C
+#define KEY_F3    0x3D
+#define KEY_F4    0x3E
+#define KEY_F5    0x3F
+#define KEY_F6    0x40
+#define KEY_F7    0x41
+#define KEY_F8    0x42
+#define KEY_F9    0x43
+#define KEY_F10   0x44
+#define KEY_F11   0x57
+#define KEY_F12   0x58
+
+// Key repeat timing (not fully implemented here)
+#define KEY_REPEAT_DELAY    500  // Initial delay in ms before repeat starts
+#define KEY_REPEAT_RATE     50   // Delay between repeats in ms
+
+// Modifier key scancodes
+#define KEY_LCTRL     0x1D
+#define KEY_RCTRL     0x1D  // Right Ctrl sends 0xE0, 0x1D
+#define KEY_LALT      0x38
+#define KEY_RALT      0x38  // Right Alt sends 0xE0, 0x38
+#define KEY_CAPS_LOCK 0x3A
+
+// Modifier keys indices
+#define MOD_SHIFT 0
+#define MOD_CTRL  1
+#define MOD_ALT   2
+#define MOD_CAPS  3
+
+// Extended keys for arrow keys
+#define EXT_KEY_UP    0x48
+#define EXT_KEY_DOWN  0x50
+#define EXT_KEY_LEFT  0x4B
+#define EXT_KEY_RIGHT 0x4D
+#define EXT_KEY_PGUP  0x49
+#define EXT_KEY_PGDN  0x51
+#define EXT_KEY_HOME  0x47
+#define EXT_KEY_END   0x4F
+#define EXT_KEY_INS   0x52
+
+/* Raw-scancode subscriber */
+static kbd_event_cb s_kbd_sub_cb  = NULL;
+static void        *s_kbd_sub_ctx = NULL;
+
+#define PS2_INPUT_WAIT_ATTEMPTS 100000u
+
+static bool keyboard_wait_input_empty(void) {
+    for (uint32_t attempt = 0; attempt < PS2_INPUT_WAIT_ATTEMPTS; attempt++) {
+        uint8_t status = inb(KEYBOARD_STATUS_PORT);
+        if (status == 0xFFu) return false;
+        if ((status & 0x02u) == 0) return true;
+    }
+    return false;
+}
+
+int keyboard_subscribe(kbd_event_cb cb, void *ctx) {
+    if (s_kbd_sub_cb != NULL) return -1;
+    s_kbd_sub_cb  = cb;
+    s_kbd_sub_ctx = ctx;
+    return 0;
+}
+
+void keyboard_unsubscribe(void) {
+    s_kbd_sub_cb  = NULL;
+    s_kbd_sub_ctx = NULL;
+}
+
+/* Add to keyboard_state_t in types.h or here */
+typedef struct {
+    uint32_t last_keypress_time;  // Time of last keypress
+    uint32_t last_repeat_time;    // Time of last repeat
+    bool is_repeating;            // Whether key is currently repeating
+    uint8_t last_key;             // Last key pressed
+} key_repeat_state_t;
+
+// Key repeat and system tick tracking
+static uint32_t system_ticks = 0;  // Updated by timer interrupt
+
+// Track if we're handling an extended key sequence
+static bool handling_extended = false;
+
+// Add these state tracking variables near the top with other static variables
+static bool caps_lock_active = false;
+static bool left_shift_active = false;
+static bool right_shift_active = false;
+static bool ctrl_active = false;
+static bool alt_active = false;
+
+// Add this function declaration
+static void process_keypress(uint8_t key);
+static void enqueue_event(uint8_t scancode, char ascii);
+
+// Helper to push a key event into the circular buffer
+static void enqueue_event(uint8_t scancode, char ascii) {
+    key_event_t event;
+    event.scancode = scancode;
+    event.character = ascii;
+    event.pressed = true;
+    event.timestamp = system_ticks;
+
+    keyboard_buffer_t *buffer = &keyboard_state.buffer;
+    buffer->events[buffer->head] = event;
+    buffer->head = (uint8_t)((buffer->head + 1U) % KEYBOARD_BUFFER_SIZE);
+    if (buffer->count < 255U) {  /* Check against max value - 1 */
+        buffer->count++;
+    } else {
+        // Overwrite oldest when full
+        buffer->tail = (uint8_t)((buffer->tail + 1U) % KEYBOARD_BUFFER_SIZE);
+    }
+}
+
+// Initialize keyboard
+void keyboard_init(void) {
+    // Reset keyboard state
+    for (int i = 0; i < 256; i++) {
+        keyboard_state.key_states[i] = KEY_UP;
+        keyboard_state.last_keypress_time[i] = 0;
+    }
+
+    for (int i = 0; i < 8; i++) {
+        keyboard_state.modifier_states[i] = false;
+    }
+
+    keyboard_state.buffer.head = 0;
+    keyboard_state.buffer.tail = 0;
+    keyboard_state.buffer.count = 0;
+
+    /*
+     * The shared state also serves USB HID keyboards. A machine may omit its
+     * i8042 controller entirely, so never let a missing PS/2 status port hold
+     * the boot path in an unbounded wait.
+     */
+    if (!keyboard_wait_input_empty()) {
+        KINFO("PS/2 keyboard unavailable; USB input remains available");
+        return;
+    }
+
+    irq_install_handler(1, keyboard_handler);
+    outb(KEYBOARD_DATA_PORT, KEYBOARD_CMD_ENABLE);
+
+    KINFO("PS/2 keyboard initialized");
+}
+
+// Update system ticks (usually called from timer interrupt)
+void keyboard_update_ticks(void) {
+    system_ticks++;
+}
+
+// Handle extended keys (e.g., arrow keys) after detecting `KEY_EXTENDED`
+static void handle_extended_key(uint8_t key) {
+    bool is_release = (key & KEY_RELEASED) != 0;
+    key = (uint8_t)(key & ~KEY_RELEASED);
+
+    if (key == KEY_RCTRL) {
+        ctrl_active = !is_release;
+        keyboard_state.modifier_states[MOD_CTRL] = ctrl_active;
+        keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
+        return;
+    }
+
+    if (key == KEY_RALT) {
+        alt_active = !is_release;
+        keyboard_state.modifier_states[MOD_ALT] = alt_active;
+        keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
+        return;
+    }
+
+    if (is_release) {
+        return;
+    }
+
+    switch (key) {
+        case EXT_KEY_UP:
+        case EXT_KEY_DOWN:
+        case EXT_KEY_LEFT:
+        case EXT_KEY_RIGHT:
+        case EXT_KEY_PGUP:    /* terminal/notepad scroll-up */
+        case EXT_KEY_PGDN:    /* terminal/notepad scroll-down */
+        case EXT_KEY_HOME:
+        case EXT_KEY_END:
+        case EXT_KEY_INS:
+        case 0x53:            /* Delete */
+            enqueue_event(key, 0);
+            break;
+        default:
+            // Other extended keys can be handled here
+            break;
+    }
+}
+
+// Process a normal key press, including function keys and modifiers
+static void process_keypress(uint8_t key) {
+    bool is_release = (key & KEY_RELEASED) != 0;
+    key = (uint8_t)(key & ~KEY_RELEASED);  // Remove release bit
+
+    /* Handle function keys before ASCII translation bounds checks. */
+    {
+        int fidx = -1;
+        if (key >= KEY_F1 && key <= KEY_F10) {
+            fidx = (int)(key - KEY_F1);
+        } else if (key == KEY_F11) {
+            fidx = 10;
+        } else if (key == KEY_F12) {
+            fidx = 11;
+        }
+
+        if (fidx >= 0) {
+            function_keys[fidx] = !is_release;
+            if (!is_release) {
+                enqueue_event(key, 0);
+            }
+            return;
+        }
+    }
+
+    // Ignore scancodes we don't have a translation for to avoid OOB access
+    if (key >= sizeof(scancode_to_ascii)) {
+        return;
+    }
+
+    // Handle modifier key presses/releases
+    switch (key) {
+        case KEY_CAPS:
+            if (!is_release) {
+                caps_lock_active = !caps_lock_active;  // Toggle Caps Lock on press
+            }
+            return;
+
+        case KEY_LSHIFT:
+            left_shift_active = !is_release;
+            keyboard_state.modifier_states[MOD_SHIFT] = left_shift_active || right_shift_active;
+            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
+            return;
+
+        case KEY_RSHIFT:
+            right_shift_active = !is_release;
+            keyboard_state.modifier_states[MOD_SHIFT] = left_shift_active || right_shift_active;
+            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
+            return;
+
+        case KEY_LCTRL:
+            ctrl_active = !is_release;
+            keyboard_state.modifier_states[MOD_CTRL] = ctrl_active;
+            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
+            return;
+
+        case KEY_LALT:
+            alt_active = !is_release;
+            keyboard_state.modifier_states[MOD_ALT] = alt_active;
+            keyboard_state.key_states[key] = is_release ? KEY_UP : KEY_DOWN;
+            return;
+    }
+
+    // Skip processing if key was released
+    if (is_release) {
+        return;
+    }
+
+    // Determine if shift is active and pick the proper ASCII mapping
+    bool shift_active = left_shift_active || right_shift_active;
+    char ascii;
+    if (shift_active ^ caps_lock_active) {
+        ascii = scancode_to_ascii_shift[key];
+    } else {
+        ascii = scancode_to_ascii[key];
+    }
+
+    // Convert to control character when Ctrl is held (Ctrl+A=1 .. Ctrl+Z=26)
+    if (ctrl_active && ascii >= 'a' && ascii <= 'z') {
+        ascii = (char)(ascii - 'a' + 1);
+    } else if (ctrl_active && ascii >= 'A' && ascii <= 'Z') {
+        ascii = (char)(ascii - 'A' + 1);
+    }
+
+    // Enqueue the key event into the circular buffer
+    enqueue_event(key, ascii);
+}
+
+// Convert scancode to ASCII
+static char get_ascii_from_scancode(uint8_t scancode) {
+    // Ignore key releases
+    if (scancode & KEY_RELEASED) {
+        return 0;
+    }
+
+    // Ensure scancode is within bounds
+    if (scancode >= sizeof(scancode_to_ascii)) {
+        return 0;
+    }
+
+    // Determine character from scancode
+    if (keyboard_state.modifier_states[MOD_SHIFT] ^ keyboard_state.modifier_states[MOD_CAPS]) {
+        return scancode_to_ascii_shift[scancode];
+    } else {
+        return scancode_to_ascii[scancode];
+    }
+}
+/* Fire the raw-scancode subscriber (if registered) before any filtering. */
+static void fire_subscriber(uint8_t raw_scancode) {
+    kbd_event_cb cb = s_kbd_sub_cb;
+    void *ctx = s_kbd_sub_ctx;
+    if (cb != NULL) {
+        bool pressed = (raw_scancode & 0x80U) == 0;
+        uint8_t cooked = (uint8_t)(raw_scancode & 0x7FU);
+        cb(cooked, pressed, ctx);
+    }
+}
+
+// Keyboard interrupt handler
+void keyboard_handler(struct registers* r) {
+    (void)r; /* Unused parameter */
+    uint8_t scancode = inb(KEYBOARD_DATA_PORT);
+
+    fire_subscriber(scancode);
+
+    // Handle extended key sequences
+    if (scancode == KEY_EXTENDED) {
+        handling_extended = true;
+        return;
+    }
+
+    // If we are handling an extended key, call the appropriate handler
+    if (handling_extended) {
+        handling_extended = false;
+        handle_extended_key(scancode);
+        return;
+    }
+
+    // Process the key event
+    process_keypress(scancode);
+}
+
+// Check if a key is currently pressed
+bool keyboard_get_key_state(uint8_t scancode) {
+    return keyboard_state.key_states[scancode] == KEY_DOWN;
+}
+
+// Retrieve a raw scancode from the keyboard buffer
+char keyboard_get_scancode(void) {
+    if (keyboard_state.buffer.count > 0) {
+        key_event_t event = keyboard_state.buffer.events[keyboard_state.buffer.head];
+        keyboard_state.buffer.head = (uint8_t)((keyboard_state.buffer.head + 1U) % KEYBOARD_BUFFER_SIZE);
+        keyboard_state.buffer.count--;
+        return (char)event.scancode;
+    }
+    return 0;
+}
+
+// Check if a specific function key (1-12) is pressed
+bool keyboard_get_function_key(uint8_t f_num) {
+    if (f_num >= 1 && f_num <= 12) {
+        return function_keys[f_num - 1];
+    }
+    return false;
+}
+
+// Get the current state of Caps Lock
+bool keyboard_get_caps_lock(void) {
+    return caps_lock_active;
+}
+
+// Get the current state of Shift
+bool keyboard_get_shift(void) {
+    return left_shift_active || right_shift_active;
+}
+
+// Get the current state of Ctrl
+bool keyboard_get_ctrl(void) {
+    return ctrl_active;
+}
+
+bool keyboard_get_alt(void) {
+    return alt_active;
+}
+
+// Retrieve a single character from keyboard input
+char keyboard_get_char(void) {
+    uint8_t scancode = inb(KEYBOARD_DATA_PORT);
+    
+    // Ignore key release
+    if (scancode & KEY_RELEASED) {
+        return 0;
+    }
+    
+    // Convert scancode to ASCII
+    return get_ascii_from_scancode(scancode);
+}
+
+char getchar(void) {
+    /* In GUI mode with a JIT program running, use the program input buffer
+     * instead of the global keyboard buffer (which is consumed by the shell)*/
+    int gui_mode = (shell_get_output_mode() == SHELL_OUTPUT_GUI);
+    int prog_running = shell_jit_program_is_running();
+
+    if (gui_mode && prog_running) {
+        return shell_jit_program_getchar();
+    }
+
+    if (gui_mode && !prog_running) {
+        while (1) {
+            window_t *focused = gui_get_focused_window();
+            if (focused && focused->key_head != focused->key_tail) {
+                int key = focused->key_queue[focused->key_head];
+                focused->key_head = (focused->key_head + 1) % GUI_KEY_QUEUE_SIZE;
+                return (char)(key & 0xFF);
+            }
+            process_yield();
+        }
+    }
+
+    /* Text mode or shell mode: read from global keyboard buffer */
+    key_event_t event;
+    /* Blocking: wait for a key event. GUI redraw is handled by desktop loop. */
+    while (!keyboard_read_event(&event)) {
+        process_yield();
+    }
+    return event.character;
+}
+
+bool keyboard_read_event(key_event_t* event) {
+    if (!event) {
+        return false;
+    }
+
+    /* Non-blocking: return false if no events available */
+    if (keyboard_state.buffer.count > 0) {
+        *event = keyboard_state.buffer.events[keyboard_state.buffer.tail];
+        keyboard_state.buffer.tail = (uint8_t)((keyboard_state.buffer.tail + 1U) % KEYBOARD_BUFFER_SIZE);
+        keyboard_state.buffer.count--;
+        return true;
+    }
+
+    /* Headless console: pull from COM1 RX so host can drive the shell. */
+    int rx = serial_read_char();
+    if (rx >= 0) {
+        char c = (char)rx;
+        if (c == '\r') c = '\n';
+        event->scancode  = 0;
+        event->character = c;
+        event->pressed   = true;
+        event->timestamp = 0;
+        return true;
+    }
+    return false;
+}
+
+void keyboard_inject_scancode(uint8_t raw_scancode) {
+    /* Route through same path as IRQ1: also recognise the 0xE0 extended-
+     * scancode prefix so injected PgUp/PgDn/Home/End/Insert/Delete (sent
+     * by USB HID's hid_to_ps2 translator below) reach handle_extended_key
+     * and arrive in the keyboard buffer with character=0.*/
+    fire_subscriber(raw_scancode);
+
+    if (raw_scancode == KEY_EXTENDED) {
+        handling_extended = true;
+        return;
+    }
+    if (handling_extended) {
+        handling_extended = false;
+        handle_extended_key(raw_scancode);
+        return;
+    }
+    process_keypress(raw_scancode);
+}
+
+/*  Test-shim: built-in subscriber for CupidC smoke tests  *
+ * CupidC cannot pass function pointers as callbacks, so we provide a     *
+ * fixed kernel-side subscriber that records the last event and exposes   *
+ * the results via plain getter functions that CupidC CAN call.*/
+static int      s_test_calls    = 0;
+static uint8_t  s_test_last_sc  = 0;
+static bool     s_test_last_pressed = false;
+
+static void test_subscriber_cb(uint8_t sc, bool pressed, void *ctx) {
+    (void)ctx;
+    if (sc != 0x2Au) return;
+    s_test_calls++;
+    s_test_last_sc      = sc;
+    s_test_last_pressed = pressed;
+}
+
+/* Returns 0 on success, -1 if subscriber slot already taken. */
+int  keyboard_test_sub_start(void) {
+    s_test_calls       = 0;
+    s_test_last_sc     = 0;
+    s_test_last_pressed = false;
+    return keyboard_subscribe(test_subscriber_cb, NULL);
+}
+
+void keyboard_test_sub_stop(void)  { keyboard_unsubscribe(); }
+int  keyboard_test_sub_calls(void) { return s_test_calls; }
+int  keyboard_test_sub_last_sc(void)      { return (int)s_test_last_sc; }
+int  keyboard_test_sub_last_pressed(void) { return s_test_last_pressed ? 1 : 0; }

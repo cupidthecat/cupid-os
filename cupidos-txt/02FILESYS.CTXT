@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Filesystems and Storage
-Verified against source on: 2026-05-15
+Verified against source on: 2026-08-04
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,7 +15,7 @@ Verified against source on: 2026-05-15
 
 >h2 Mount Layout
 >tree open Mount Layout
-Source-verified mount flow from kernel/core/kernel.c:
+kernel/core/kernel.cc mounts:
 
   /      -> ramfs
   /dev   -> devfs
@@ -25,11 +25,11 @@ Source-verified mount flow from kernel/core/kernel.c:
 If homefs mount fails, the kernel falls back to mounting raw FAT16 at /home.
 If no block device is available, /home is a non-persistent ramfs directory.
 
-This is the current storage architecture:
+The storage layers are:
 - /disk = raw FAT16 compatibility namespace
 - /home = homefs higher-level namespace over the same FAT16 backing store
 
-Older docs that described /home as direct FAT16 are stale.
+At /home, homefs replaces direct FAT16 access.
 
 >button mount | shell:mount
 >button ls / | shell:ls /
@@ -62,8 +62,8 @@ top-level image assets such as /home/snail.bmp, /home/test.png, and
 >tree open DEVFS
 /dev is a device mount managed by the VFS.
 
-It exists to separate device-facing paths from ordinary files and manuals.
-For day-to-day use you mostly notice it through:
+/dev keeps device-facing paths separate from ordinary files and manuals.
+Most users see it through:
 - the mount table
 - lower-level filesystem/device debugging
 >button ls /dev | shell:ls /dev
@@ -73,36 +73,33 @@ For day-to-day use you mostly notice it through:
 >tree open FAT16 Layer
 The kernel mounts a raw FAT16 filesystem on /disk.
 
-What the source supports today:
+The raw layer supports:
 - partition detection from the HDD image
 - open/read/write/delete
 - directory enumeration
 - persistence across boots through cupidos.img
 
-The architectural point: FAT16 is the storage substrate for /home via homefs,
-and the compatibility/diagnostics view at /disk.
+FAT16 backs homefs at /home and remains directly available for compatibility
+and diagnostics at /disk.
 
 >endtree
 
 >h2 HomeFS
 >tree open HomeFS
-homefs is implemented in kernel/fs/homefs.c.
+homefs is implemented in kernel/fs/homefs.cc.
 
-Source-verified behavior:
+homefs implements:
 - tree-based filesystem
 - nested directories
 - long names up to VFS limits
 - files and directories stored as nodes
 - persisted into one FAT16-hosted container file: HOMEFS.SYS
 
-Design goal:
-- keep FAT16 as a compatibility/storage backend
-- avoid exposing FAT16 naming/layout limitations directly at /home
+homefs keeps FAT16 as the compatibility and storage backend while hiding its
+naming and layout limits from /home.
 
-So user workflows should prefer:
-  /home
-not:
-  /disk
+Use /home for normal work. Reserve /disk for raw FAT16 compatibility and
+diagnostics.
 
 >button ls /home | shell:ls /home
 >button ls /home/bin | shell:ls /home/bin
@@ -111,7 +108,7 @@ not:
 >h2 ISO9660 Loop-Mount
 >tree open ISO9660 Loop-Mount
 ISO 9660 images (.iso) can be mounted read-only at arbitrary mount points
-via the loop device adapter (kernel/fs/loopdev.c + kernel/fs/iso9660_vfs.c).
+via the loop device adapter (kernel/fs/loopdev.cc + kernel/fs/iso9660_vfs.cc).
 
 Example:
   mount /disk/hello.iso /iso
@@ -149,13 +146,13 @@ Typical usage:
 >tree open Persistent Program Workflow
 Shell auto-discovery checks /home/bin directly.
 
-Recommended persistent workflow:
+Persistent workflow:
 1) create a file in /home/bin/<name>.cc
 2) run <name>
 3) the shell JIT-compiles it from /home/bin
 
-This is source-verified in kernel/lang/shell.c, where /home/bin/<cmd> and
-/home/bin/<cmd>.cc are part of the command search order.
+The command search order in kernel/lang/shell.cc includes /home/bin/<cmd> and
+/home/bin/<cmd>.cc.
 >button ls /home/bin | shell:ls /home/bin
 >endtree
 
@@ -163,13 +160,26 @@ This is source-verified in kernel/lang/shell.c, where /home/bin/<cmd> and
 >tree open Copying Data Into The Image
 Host-side FAT helpers still target the raw FAT partition inside cupidos.img.
 
+The normal Make image path runs checked-seed CupidObj disk-template on private
+bootloader and kernel copies. CupidObj writes the pristine prefix through the
+empty FAT16 root directory, with the kernel at LBA 5. Python builds an
+independent layout oracle from the same frozen inputs and requires byte parity.
+
+For a fresh, invalid, or force-formatted disk, Python extends the complete
+template to the requested image size. For a valid persistent disk, it copies
+the old image and replaces only the bytes before the FAT partition. Python
+then stages frozen files, checks for live input or output changes, and
+publishes the complete image with an atomic replacement. ADR 0238 records
+this production boundary.
+
 Mapping reminder:
-- FAT root ::/ corresponds to the persistent storage area inside the image
-- the running OS normally exposes that through /home via homefs
+- FAT root ::/ is mounted directly at /disk
+- a fresh image without HOMEFS.SYS is imported into /home once; later raw FAT
+  additions remain under /disk until copied into homefs in the guest
 
 Example host commands:
-  mcopy -o -i cupidos.img@@2097152 file.txt ::/file.txt
-  mdir  -i cupidos.img@@2097152 ::/
+  mcopy -o -i cupidos.img@@10485760 file.txt ::/file.txt
+  mdir  -i cupidos.img@@10485760 ::/
 
 Use this for bulk host-to-image transfer.
 Use in-OS editing under /home for normal runtime work.
@@ -178,6 +188,13 @@ Use in-OS editing under /home for normal runtime work.
 >h2 Cache and Sync
 >tree open Cache and Sync
 Disk writes go through the block cache.
+
+On SMP, cached reads, writes, flushes, and sync hold the big kernel lock around
+shared cache metadata and the cached ATA PIO transaction. The lock also stops
+a timer interrupt on the same CPU from re-entering an in-flight command. Raw
+exported block-device and ATA calls remain outside this guard. The generic
+timer path still dispatches the periodic flush on every LAPIC tick. A later
+timer design needs to move that work into a frequency-aware deferred path.
 
 Useful commands:
 - sync       flush dirty data

@@ -10,9 +10,9 @@ rm <file1> [file2] [file3] ...
 
 ## Description
 
-`rm` removes (deletes) one or more files from the filesystem. The command accepts multiple filenames as arguments and will attempt to delete each one.
+`rm` deletes one or more files from the filesystem. It accepts multiple filenames and tries to delete each one.
 
-**Warning**: Deleted files cannot be recovered! Use with caution.
+Warning: deleted files cannot be recovered. Check each path before running the command.
 
 ## Arguments
 
@@ -20,7 +20,7 @@ rm <file1> [file2] [file3] ...
 
 ## Return Values
 
-For each file, `rm` will either successfully delete it or report an error:
+For each file, `rm` either deletes it or reports an error:
 
 - **Success**: File is removed from the filesystem
 - **Error codes**:
@@ -61,11 +61,11 @@ Removed 2 files, 1 error
 
 ## Implementation Details
 
-`rm` is implemented in CupidC (`/bin/rm.cc`) and demonstrates:
+`rm` is implemented in CupidC at `/bin/rm.cc`.
 
 ### Token Parsing
 
-Custom `parse_token()` function to split space-separated arguments:
+The custom `parse_token()` function splits space-separated arguments:
 
 ```c
 int parse_token(char *str, int start, char *out, int maxlen) {
@@ -73,7 +73,8 @@ int parse_token(char *str, int start, char *out, int maxlen) {
 }
 ```
 
-This function handles:
+It handles:
+
 - Leading/trailing whitespace
 - Multiple arguments in a single string
 - Null termination
@@ -101,7 +102,7 @@ Reports human-readable messages for common POSIX error codes.
 
 ## See Also
 
-- [vfs_unlink](VFS-API.md#vfs_unlink) - VFS unlink syscall
+- [`vfs_unlink`](Filesystem#vfs-api) - VFS unlink API
 - [CupidC Language Reference](CupidC-Language-Reference.md)
 - `ls` - List directory contents
 - `cat` - Display file contents

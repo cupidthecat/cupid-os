@@ -497,11 +497,15 @@ int main() {
   init_palette();
 
   /* Enter graphics mode */
-  gfx2d_init();
   gfx2d_fullscreen_enter();
+  gfx2d_init();
 
   /* Create canvas surface */
   canvas_surf = gfx2d_surface_alloc(CANVAS_W, CANVAS_H);
+  if (canvas_surf < 0) {
+    gfx2d_fullscreen_exit();
+    return 1;
+  }
 
   /* Initialize file tracking */
   current_file_path[0] = '\0';
@@ -617,6 +621,7 @@ int main() {
     gfx2d_flip();
   }
 
+  gfx2d_surface_free(canvas_surf);
   gfx2d_fullscreen_exit();
   return 0;
 }

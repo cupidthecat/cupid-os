@@ -1,0 +1,101 @@
+{
+  "artifacts": [
+    {
+      "exact_bytes": 2560,
+      "path": "boot/boot.bin",
+      "producer": "CupidASM",
+      "reason": "The disk builder consumes exactly five boot sectors, so extra output would be ignored."
+    },
+    {
+      "exact_bytes": 513496,
+      "path": "bootstrap/seeds/i386-linux/cupidasm.elf",
+      "producer": "CupidASM",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 765788,
+      "path": "bootstrap/seeds/i386-linux/cupidbuild.elf",
+      "producer": "CupidBuild",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 2700308,
+      "path": "bootstrap/seeds/i386-linux/cupidc.elf",
+      "producer": "CupidC",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 538624,
+      "path": "bootstrap/seeds/i386-linux/cupiddis.elf",
+      "producer": "CupidDis",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 312996,
+      "path": "bootstrap/seeds/i386-linux/cupidld.elf",
+      "producer": "CupidLD",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 397112,
+      "path": "bootstrap/seeds/i386-linux/cupidobj.elf",
+      "producer": "CupidObj",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 492032,
+      "path": "bootstrap/seeds/i386-windows/cupidasm.exe",
+      "producer": "CupidASM",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 741376,
+      "path": "bootstrap/seeds/i386-windows/cupidbuild.exe",
+      "producer": "CupidBuild",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 2627584,
+      "path": "bootstrap/seeds/i386-windows/cupidc.exe",
+      "producer": "CupidC",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 517120,
+      "path": "bootstrap/seeds/i386-windows/cupiddis.exe",
+      "producer": "CupidDis",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 297472,
+      "path": "bootstrap/seeds/i386-windows/cupidld.exe",
+      "producer": "CupidLD",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 377856,
+      "path": "bootstrap/seeds/i386-windows/cupidobj.exe",
+      "producer": "CupidObj",
+      "reason": "The checked seed is immutable between reviewed promotions."
+    },
+    {
+      "exact_bytes": 9568340,
+      "path": "kernel/kernel.bin",
+      "producer": "CupidObj",
+      "reason": "CupidObj emits deterministic bytes, and the disk image copies this output verbatim."
+    },
+    {
+      "exact_bytes": 9798076,
+      "path": "kernel/kernel.elf",
+      "producer": "CupidLD",
+      "reason": "The final CupidLD link is deterministic for a fixed source and object cohort."
+    },
+    {
+      "exact_bytes": 9667004,
+      "path": "kernel/kernel.elf.pass1",
+      "producer": "CupidLD",
+      "reason": "The pass-one CupidLD link is deterministic for a fixed source and object cohort."
+    }
+  ],
+  "schema": "cupid.artifact-size-policy.v1"
+}

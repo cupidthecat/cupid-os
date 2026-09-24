@@ -9,7 +9,7 @@ cupid-os implements deferred preemptive multitasking with round-robin scheduling
 | Property | Value |
 |----------|-------|
 | Scheduling algorithm | Round-robin |
-| Timer tick | 5ms (PIT channel 0 at 200Hz) |
+| Timer tick | 10ms (PIT channel 0 at 100Hz) |
 | Max processes | 32 |
 | Address space | Flat, shared (ring 0) |
 | Context switch | Pure assembly (`context_switch.asm`) |
@@ -31,7 +31,7 @@ cupid-os implements deferred preemptive multitasking with round-robin scheduling
               │ exit() / kill()
               ▼
          ┌──────────┐
-         │TERMINATED│ -> stack freed lazily on slot reuse
+         │TERMINATED│ -> detach from CPU -> quiescent reaper cleanup
          └──────────┘
 ```
 
@@ -46,16 +46,19 @@ cupid-os implements deferred preemptive multitasking with round-robin scheduling
 
 ## Deferred Preemptive Scheduling
 
-cupid-os does **not** context switch inside interrupt handlers. Instead:
+The PIT callback does not context switch while its handler is running. IRQ0
+sets `need_reschedule = 1`, and that timer-specific flag is consumed at safe
+voluntary points such as the desktop loop, `process_yield()`, and the PID 1
+idle loop.
 
-1. **PIT IRQ0** fires every 5ms -> sets `need_reschedule = 1`
-2. The flag is checked only at **safe voluntary points**:
-   - Desktop main loop (before `HLT` instruction)
-   - `process_yield()` calls
-   - Idle process loop
-3. If the flag is set, `schedule()` is called to switch to the next ready process
-
-This approach avoids the complexity and stack corruption risks of switching inside ISRs.
+That is not a blanket "interrupt frames never switch" rule. Generic exception
+and IRQ entry increments the CPU-local `interrupt_depth`; a BKL unlock or
+direct `schedule()` reached by the C handler leaves a CPU-local request
+pending. After the handler finishes and `irq_handler()` has sent its LAPIC
+EOI, the common exit decrements the depth and may switch at that explicit
+suspension point. The reschedule IPI similarly acknowledges the LAPIC before
+it consumes the sender's already-published request. No switch occurs while a
+generic C handler or its device acknowledgement is still incomplete.
 
 ---
 
@@ -64,15 +67,34 @@ This approach avoids the complexity and stack corruption risks of switching insi
 The context switch is implemented in pure x86 assembly (`context_switch.asm`):
 
 ```
-context_switch(uint32_t *old_esp, uint32_t new_esp, uint32_t new_eip)
+context_switch(process_t *old_proc, process_t *new_proc,
+               uint32_t resume_eflags)
 ```
 
 ### What It Does
 
-1. **Save** callee-saved registers: push EFLAGS, EBX, ESI, EDI, EBP onto current stack
-2. **Store** the resulting ESP into `*old_esp` (old process's PCB)
-3. **Load** new ESP from `new_esp` parameter
-4. **Jump** to `new_eip` (either `context_switch_resume` or process entry point)
+1. **Save** the scheduler caller's pre-BKL EFLAGS and callee-saved registers on the current stack
+2. **FXSAVE** the current x87/SSE state into `old_proc->fp_state`
+3. **Store** ESP in `old_proc->context.esp`
+4. **Load** `new_proc->context.esp` and **FXRSTOR** its x87/SSE state
+5. Release the scheduler's sole BKL acquisition through `bkl_context_switch_release()` on the new stack
+6. Restore the target's interrupt policy only after the new stack and FPU state are active
+7. **Jump** to `new_proc->context.eip` (either `context_switch_resume` or a new entry point)
+
+The handoff spans C and assembly. `schedule()` may switch only when its BKL depth is exactly one; a nested request sets the CPU-local pending bit and is retried by the outer `bkl_unlock()`. Only a detached `READY` PCB is eligible on another CPU. PID 1 is the BSP fallback; an AP's first dispatch captures its PID-less bootstrap context so a terminated or blocked AP task can detach onto that CPU-local stack. The captured context prevents cross-CPU idle-stack sharing. The split handoff also keeps the suspended caller's critical section from transferring to the selected process. A no-switch scheduler call uses the ordinary unlock path, while a real switch releases exactly once on the target stack.
+
+### Interrupt entry and per-CPU state
+
+`this_cpu()` reads the current `per_cpu_t *` from `GS:0`. The common exception
+and IRQ stubs reserve the `GS` diagnostic-frame slot but keep the live per-CPU
+selector while calling C. Only `DS`, `ES`, and `FS` use the flat kernel-data
+selector. Entry increments `interrupt_depth`, so a generic handler's BKL
+release or direct `schedule()` call leaves the request pending. After handler
+completion and device EOI, common exit decrements the depth and consumes the
+request at its explicit suspension point. The saved `GS` slot is discarded,
+not reloaded: a frame that resumes after migration must keep the destination
+CPU's selector. Loading flat or source-CPU `GS` would make `this_cpu()` read
+the wrong memory and can recursively fault while reporting an exception.
 
 ### Resume Path
 
@@ -81,7 +103,9 @@ The `context_switch_resume` label pops saved registers in reverse order and does
 ### New Process Startup
 
 New processes are set up so that:
-- ESP points to a prepared stack with fake saved registers
+- ESP points to a prepared stack containing the optional entry argument and
+  the trampoline return address; saved registers are created only after a
+  running process is switched out
 - EIP is the process entry function
 - `process_exit_trampoline` is the return address on the stack (auto-cleanup when function returns)
 
@@ -93,14 +117,20 @@ A static array of 32 Process Control Blocks (PCBs):
 
 ```c
 typedef struct {
-    uint32_t pid;           // Process ID (1-based)
-    process_state_t state;  // READY, RUNNING, BLOCKED, TERMINATED
-    uint32_t esp;           // Saved stack pointer
-    uint32_t eip;           // Saved instruction pointer
-    uint32_t stack_base;    // Bottom of allocated stack
-    uint32_t stack_size;    // Stack size in bytes
-    char name[32];          // Process name for display
-} pcb_t;
+    uint32_t pid;                       // Process ID (1-based)
+    process_state_t state;              // READY/RUNNING/BLOCKED/TERMINATED
+    cpu_context_t context;              // Saved registers, ESP, and EIP
+    uint8_t fp_state[512];               // 16-byte-aligned FXSAVE image
+    void *stack_base;
+    uint32_t stack_size;
+    uint32_t image_base, image_size;
+    process_image_ownership_t image_ownership;
+    uint32_t image_lease_generation;
+    process_domain_t domain;
+    char name[32];
+    uint8_t on_cpu;                     // 0xFF only after scheduler detach
+    uint8_t last_cpu;
+} process_t;
 ```
 
 Processes are indexed by `PID - 1`.
@@ -122,16 +152,30 @@ Processes are indexed by `PID - 1`.
 
 ### Stack Allocation
 - Each process gets its own stack via `kmalloc(stack_size)`
-- Default stack size: 4KB (configurable via `DEFAULT_STACK_SIZE`)
+- Default stack size: 32 KiB (configurable via `DEFAULT_STACK_SIZE`)
 
 ### Stack Canary
 - A canary value (`0xDEADC0DE`) is placed at the bottom of every stack
 - Checked on **every context switch**
-- If corrupted -> kernel panic with process identification
+- If corrupted, the process is marked terminated; its current CPU switches
+  away before the reaper may release the stack or executable-image lease
 
 ### Deferred Stack Freeing
-- When a process is terminated, its stack is **not freed immediately** (because we may still be using it)
-- Stack is freed **lazily** when the PCB slot is reused for a new process
+- A terminated process keeps its stack and image while `on_cpu` identifies an
+  executing CPU
+- The outgoing CPU publishes `on_cpu = 0xFF` while holding the BKL as part of
+  the stack switch; the BKL is released only after target ESP/FXRSTOR, and only
+  then may a reaper free the old stack, release an external image lease, and
+  clear the PCB
+
+### Remote Reschedule
+
+`process_kill()` marks a process running on another CPU terminated, publishes
+that CPU's `reschedule_pending` flag, and then raises IPI `0xF0`. The IPI
+handler acknowledges the LAPIC and consumes the already-published request
+without re-arming it. If the target CPU owns an outer BKL critical section,
+the request remains pending until that outer unlock; otherwise it switches at
+the IPI suspension point and later returns through the original `IRET` frame.
 
 ---
 
@@ -169,7 +213,10 @@ Voluntarily gives up the CPU. Clears the reschedule flag and calls `schedule()`.
 process_exit();
 ```
 
-Marks the process as `TERMINATED`, defers stack free, and reschedules. Also called automatically when a process's entry function returns (via the exit trampoline).
+Marks the process as `TERMINATED` and reschedules without clearing its current
+CPU ownership. The scheduler detaches it during the actual context switch;
+the quiescent reaper later frees its stack and releases any external image
+lease. Also called automatically when a process entry function returns.
 
 ### Killing
 
@@ -177,7 +224,9 @@ Marks the process as `TERMINATED`, defers stack free, and reschedules. Also call
 process_kill(pid);
 ```
 
-Terminates any process by PID. Cannot kill PID 1 (idle process).
+Marks any process terminated by PID. A target already detached from every CPU
+is reclaimed immediately; an executing local or remote target retains its
+stack and image until its owning CPU switches away. PID 1 cannot be killed.
 
 ### Listing
 

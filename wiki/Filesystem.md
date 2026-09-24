@@ -1,6 +1,6 @@
 # Filesystem
 
-cupid-os implements a Linux-style **Virtual File System (VFS)** that provides a unified file API across multiple filesystem types. The VFS enables a hierarchical directory structure (`/home`, `/dev`, `/tmp`, `/bin`) with three backend drivers: RamFS for in-memory storage, DevFS for device files, and a FAT16 wrapper for persistent disk storage.
+Cupid OS uses a Linux-style **Virtual File System (VFS)** to expose one file API across several filesystem types. The directory tree contains RamFS boot files, DevFS devices, raw FAT16 at `/disk`, and HomeFS at `/home`. HomeFS stores its logical tree in `/disk/HOMEFS.SYS`; direct FAT16 at `/home` is a fallback used only when the HomeFS mount fails.
 
 ---
 
@@ -17,27 +17,36 @@ cupid-os implements a Linux-style **Virtual File System (VFS)** that provides a 
 │   Mount table │ FD table │ Path resolution       │
 ├────────────┬────────────┬────────────────────────┤
 │   RamFS    │   DevFS    │   FAT16 VFS Wrapper    │
-│ (ramfs.c)  │ (devfs.c)  │   (fat16_vfs.c)        │
+│ (ramfs.cc)  │ (devfs.cc)  │   (fat16_vfs.cc)        │
 │            │            ├────────────────────────┤
 │ /          │ /dev       │   FAT16 Driver         │
-│ /bin       │            │   (fat16.c)            │
+│ /bin       │            │   (fat16.cc)           │
 │ /tmp       │            ├────────────────────────┤
 │            │            │   Block Cache (LRU)    │
-│            │            │   (blockcache.c)       │
+│            │            │   (blockcache.cc)       │
 │            │            ├────────────────────────┤
 │            │            │   Block Device Layer   │
-│            │            │   (blockdev.c)         │
+│            │            │   (blockdev.cc)         │
 │            │            ├────────────────────────┤
 │            │            │   ATA/IDE PIO Driver   │
-│            │            │   (ata.c)              │
+│            │            │   (ata.cc)              │
 └────────────┴────────────┴────────────────────────┘
+```
+
+Runtime mount ownership is:
+
+```text
+RamFS   -> /
+DevFS   -> /dev
+FAT16   -> /disk
+homefs  -> /home  (backed by /disk/HOMEFS.SYS)
 ```
 
 ---
 
 ## VFS Layer
 
-The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified file API. All applications - shell, notepad, program loader - use VFS calls exclusively.
+The VFS implementation is in `kernel/fs/vfs.cc/h`. The shell, Notepad, and program loader access files through this API.
 
 ### Features
 
@@ -46,6 +55,7 @@ The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified f
 - **Path resolution** - longest-prefix match finds the correct filesystem
 - **Current working directory** - shell tracks CWD for relative paths
 - **Pluggable backends** - any filesystem implementing `vfs_fs_ops_t` can be mounted
+- **Native rename** - same-mount replacement is delegated to the filesystem; cross-mount requests return `VFS_EXDEV`
 
 ### Mount Points
 
@@ -53,7 +63,8 @@ The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified f
 |------|-----------|---------|
 | `/` | RamFS | Root filesystem, boot-time files |
 | `/dev` | DevFS | Device special files |
-| `/home` | FAT16 | User files on ATA disk |
+| `/disk` | FAT16 | Raw files in the disk partition |
+| `/home` | HomeFS | Persistent logical tree backed by `/disk/HOMEFS.SYS` |
 | `/bin` | RamFS | System programs (subdirectory of root) |
 | `/tmp` | RamFS | Temporary files (subdirectory of root) |
 
@@ -63,7 +74,9 @@ The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified f
 /                        (RamFS root)
 ├── bin/                 (system programs - future)
 ├── tmp/                 (temporary files)
-├── home/                (FAT16 - persistent user files on disk)
+├── disk/                (raw FAT16 partition)
+│   └── HOMEFS.SYS       (homefs backing container)
+├── home/                (persistent homefs logical tree)
 │   ├── HELLO.TXT
 │   ├── SCRIPT.CUP
 │   └── ...
@@ -90,6 +103,7 @@ The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified f
 | `vfs_readdir(fd, dirent)` | Read next directory entry |
 | `vfs_mkdir(path)` | Create a directory |
 | `vfs_unlink(path)` | Delete a file |
+| `vfs_rename(old_path, new_path)` | Rename or replace within one mount |
 
 ### Open Flags
 
@@ -107,10 +121,10 @@ The VFS (`kernel/fs/vfs.c/h`) is the top-level abstraction providing a unified f
 When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 
 1. **Longest prefix match** - scan mount table for best match
-   - `/home` matches -> FAT16 filesystem
+   - `/home` matches -> homefs
 2. **Calculate relative path** - strip mount prefix
    - `/home/README.TXT` -> `README.TXT`
-3. **Call filesystem driver** - `fat16_vfs_open(fs_data, "README.TXT", ...)`
+3. **Call filesystem driver** - `homefs_open(fs_data, "README.TXT", ...)`
 4. **Allocate file descriptor** - wrap in VFS fd and return to caller
 
 ### Error Codes
@@ -121,8 +135,12 @@ When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 | -2 | `VFS_ENOENT` | No such file or directory |
 | -5 | `VFS_EIO` | I/O error |
 | -12 | `VFS_ENOMEM` | Out of memory |
+| -13 | `VFS_EACCES` | Access denied |
+| -16 | `VFS_EBUSY` | A live handle or owner blocks the operation |
 | -17 | `VFS_EEXIST` | File already exists |
+| -18 | `VFS_EXDEV` | Rename crosses mount boundaries |
 | -20 | `VFS_ENOTDIR` | Not a directory |
+| -21 | `VFS_EISDIR` | A file operation selected a directory |
 | -22 | `VFS_EINVAL` | Invalid argument |
 | -24 | `VFS_EMFILE` | Too many open files |
 | -28 | `VFS_ENOSPC` | No space left |
@@ -130,7 +148,7 @@ When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 
 ### VFS Helpers
 
-High-level convenience functions for common file I/O patterns. These wrap the low-level `vfs_open` / `vfs_read` / `vfs_write` / `vfs_close` sequence into single calls. Defined in `kernel/fs/vfs_helpers.c/h` and available as CupidC bindings.
+The helpers in `kernel/fs/vfs_helpers.cc/h` wrap common `vfs_open`, `vfs_read`, `vfs_write`, and `vfs_close` sequences in single calls. They are also available as CupidC bindings.
 
 | Function | Description |
 |----------|-------------|
@@ -138,8 +156,9 @@ High-level convenience functions for common file I/O patterns. These wrap the lo
 | `vfs_write_all(path, buffer, size)` | Write buffer to file (creates or truncates). Returns bytes written, or negative VFS error. |
 | `vfs_read_text(path, buffer, max_size)` | Read file as null-terminated string. Reserves 1 byte for `\0`. Returns string length. |
 | `vfs_write_text(path, text)` | Write null-terminated string to file. Returns bytes written (excluding null). |
+| `vfs_copy_file(source, destination)` | Copy one regular file and include destination close in the result. |
 
-**Error handling:** All functions return `>= 0` on success, negative VFS error codes on failure (e.g., `VFS_ENOENT`, `VFS_EIO`, `VFS_ENOSPC`). File descriptors are always properly closed, even on error paths.
+All helpers return `>= 0` on success and a negative VFS error code on failure, such as `VFS_ENOENT`, `VFS_EIO`, or `VFS_ENOSPC`. They close file descriptors on both success and error paths, and a failed destination close makes a write or copy fail rather than hiding the commit error.
 
 **Example (CupidC):**
 ```c
@@ -167,7 +186,7 @@ void main() {
 
 ## RamFS
 
-The RAM filesystem (`kernel/fs/ramfs.c/h`) provides an in-memory directory tree used for the root filesystem and temporary storage.
+The RAM filesystem (`kernel/fs/ramfs.cc/h`) provides an in-memory directory tree used for the root filesystem and temporary storage.
 
 ### Features
 
@@ -203,7 +222,7 @@ ramfs_node_t {
 
 ## DevFS
 
-The device filesystem (`kernel/fs/devfs.c/h`) exposes hardware and pseudo-devices as regular files under `/dev`.
+The device filesystem (`kernel/fs/devfs.cc/h`) exposes hardware and pseudo-devices as regular files under `/dev`.
 
 ### Built-in Devices
 
@@ -228,25 +247,27 @@ The device filesystem (`kernel/fs/devfs.c/h`) exposes hardware and pseudo-device
 
 ## FAT16 VFS Wrapper
 
-The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.c/h`) adapts the existing FAT16 driver to the VFS interface, making disk files accessible through the unified API.
+The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.cc/h`) adapts the existing FAT16 driver to the VFS interface, making raw disk files accessible at `/disk`. HomeFS separately serializes `/home` into `/disk/HOMEFS.SYS`.
 
 ### How It Works
 
-- `fat16_vfs_open()` wraps `fat16_open()` for reading
+- `fat16_vfs_open()` maps checked missing-file, handle-pool, I/O, invalid-name, and busy results
 - `fat16_vfs_readdir()` uses `fat16_enumerate_root()` to list directory entries
 - `fat16_vfs_unlink()` wraps `fat16_delete_file()`
 - Read operations wrap `fat16_read()` with position tracking
+- Buffered writes publish on close and leave the old entry in place when publication fails
+- Open handles retain the exact directory sector and slot, so replacement and deletion cannot invalidate a live reader
 
 ### Limitations
 
 | Feature | Status |
 |---------|--------|
-| Read files | ✅ via VFS |
-| List directory | ✅ via VFS readdir |
-| Delete files | ✅ via VFS unlink |
-| Write files | ⚠️ Fallback to `fat16_write_file()` |
-| Subdirectories | ❌ (root directory only) |
-| Long filenames | ❌ (8.3 format only) |
+| Read files | Supported through VFS |
+| List directory | Supported through VFS `readdir` |
+| Delete files | Supported through VFS `unlink` |
+| Write files | Buffered through VFS and committed by `fat16_write_file()` on close |
+| Subdirectories | Exactly one directory component is supported |
+| Long filenames | Not supported; 8.3 format only |
 
 ### Filename Rules
 
@@ -255,17 +276,42 @@ The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.c/h`) adapts the existing FAT16 driv
 - No spaces or special characters
 - Examples: `HELLO.TXT`, `SCRIPT.CUP`, `DATA.BIN`
 
+FAT mutations use an ordered publication rule. New file data and its cluster
+chain are synced before the directory entry names them. Replacement frees the
+old chain only after the new entry is durable. Deletion flushes the deleted
+entry before it frees the detached chain, and directory creation initializes
+the new directory before its parent entry becomes visible. A failed directory
+sync restores the previous sector when possible.
+
+## HomeFS
+
+HomeFS serializes a nested logical tree into the FAT16 `HOMEFS.SYS` container.
+Mounting an existing malformed container fails instead of importing a fresh
+tree over it. The decoder checks sizes, names, duplicate siblings, exact input
+consumption, and a 32-level depth limit.
+
+Only one HomeFS mount may own the container. Mount reserves `HOMEFS.SYS`, so a
+live raw FAT handle blocks the mount and raw writes, deletion, or write-capable
+opens through `/disk/HOMEFS.SYS` fail while HomeFS is active. Unmount flushes
+the tree before releasing that reservation.
+
+Related mutations can use `homefs_batch_begin()` and `homefs_batch_end()`.
+Batches may nest. Intermediate operations update the live tree and mark it
+dirty; the outermost end performs one durable container publish and returns
+its result. An unmatched end fails, and HomeFS cannot unmount with a batch
+open.
+
 ---
 
 ## Program Loader
 
-The program loader (`kernel/lang/exec.c/h`) loads and runs executables from the VFS. It supports two binary formats with automatic detection based on the first 4 bytes of the file.
+The program loader (`kernel/lang/exec.cc/h`) loads and runs executables from the VFS. It supports two binary formats with automatic detection based on the first 4 bytes of the file.
 
 ### Supported Formats
 
 | Format | Magic Bytes | Description |
 |--------|-------------|-------------|
-| **ELF32** | `7F 45 4C 46` (`\x7FELF`) | Standard i386 ELF executables, compiled with GCC/Clang |
+| **ELF32** | `7F 45 4C 46` (`\x7FELF`) | Static i386 ELF executables; the repository examples compile with the checked CupidC seed and link with the checked CupidLD seed |
 | **CUPD** | `43 55 50 44` (`CUPD`) | CupidOS flat binary format (legacy) |
 
 ### Format Detection
@@ -287,7 +333,7 @@ exec("/home/hello", "hello")
 
 ### ELF32 Programs (Primary Format)
 
-ELF is the recommended format. Programs are compiled with a standard GCC cross-compiler and receive a **syscall table** pointer as their first argument. See the full [ELF Programs](ELF-Programs) wiki page for compiling, API reference, and examples.
+ELF is the primary binary format. Checked CupidC compiles the hosted examples to relocatable objects, CupidLD links them, and each program receives a **syscall table** pointer as its first argument. See [ELF Programs](ELF-Programs) for compilation instructions, the API reference, and examples.
 
 **Quick example:**
 
@@ -303,14 +349,13 @@ void _start(cupid_syscall_table_t *sys) {
 
 **Loading process (ELF):**
 
-1. Open file via `vfs_open(path, O_RDONLY)`
-2. Read and validate 52-byte ELF header (architecture, class, endianness)
-3. Read program headers, find all `PT_LOAD` segments
-4. Compute virtual address range (`min_vaddr` -> `max_vaddr`)
-5. Reserve physical pages via `pmm_reserve_region()` (identity-mapped)
-6. Zero the entire region, then load each segment to its `p_vaddr`
-7. Create a process with `process_create_with_arg()`, passing the syscall table
-8. Process runs as a normal scheduled kernel thread
+1. Stat and open the file, then validate its ELF32/i386/static header and table bounds
+2. Validate every `PT_LOAD`, executable entry, alignment, file range, and accepted fixed arena
+3. Read the complete zero-initialized image into bounded staging memory
+4. Claim the exclusive external-arena lease when that profile is selected
+5. Commit the staged bytes to their identity-mapped virtual addresses
+6. Call `process_create_with_arg_image_ex()` to transfer image/lease ownership atomically with process publication
+7. Process runs as a normal scheduled kernel thread; cleanup releases the lease, not the permanently reserved pages
 
 ### CUPD Programs (Legacy Format)
 
@@ -320,7 +365,7 @@ CUPD is the original CupidOS flat binary format with a simple 20-byte header.
 ┌──────────────────────────┐  Offset 0
 │  Header (20 bytes)       │
 │  ├─ magic: 0x43555044    │  "CUPD"
-│  ├─ entry_offset         │  Entry point offset from code start                      
+│  ├─ entry_offset         │  Entry point offset from code start
 │  ├─ code_size            │  Size of code section
 │  ├─ data_size            │  Size of initialized data
 │  └─ bss_size             │  Size of uninitialized data
@@ -353,11 +398,11 @@ CUPD is the original CupidOS flat binary format with a simple 20-byte header.
 
 ## Legacy Disk I/O Stack
 
-The VFS sits on top of the existing disk I/O stack, which remains unchanged.
+The VFS sits on top of the legacy disk I/O stack.
 
 ### Block Device Layer
 
-The block device abstraction (`kernel/fs/blockdev.c`) provides a uniform interface between the filesystem and disk driver.
+The block device abstraction (`kernel/fs/blockdev.cc`) provides a uniform interface between the filesystem and disk driver.
 
 | Function | Description |
 |----------|-------------|
@@ -367,7 +412,7 @@ The block device abstraction (`kernel/fs/blockdev.c`) provides a uniform interfa
 
 ### Block Cache
 
-An LRU (Least Recently Used) write-back cache (`kernel/fs/blockcache.c`) sits between the block device layer and the ATA driver.
+An LRU (Least Recently Used) write-back cache (`kernel/fs/blockcache.cc`) sits between the block device layer and the ATA driver.
 
 | Parameter | Value |
 |-----------|-------|
@@ -379,23 +424,23 @@ An LRU (Least Recently Used) write-back cache (`kernel/fs/blockcache.c`) sits be
 How it works:
 
 1. **Read hit**: Return cached sector immediately (no disk I/O)
-2. **Read miss**: Read from disk, store in cache, evict LRU if full
+2. **Read miss**: Write back a dirty victim, then read the incoming sector into scratch storage before changing the entry's LBA or bytes
 3. **Write**: Mark cache entry as dirty, actual write deferred
-4. **Sync**: Flush all dirty entries to disk
-5. **Eviction**: When a dirty entry is evicted, it's written to disk first
+4. **Sync**: Flush all dirty entries and return a device error to the caller
+5. **Failure**: A failed write keeps the old dirty entry; a failed read keeps the old identity and successfully written-back bytes
 
 ### ATA/IDE Driver
 
-The ATA driver (`drivers/ata.c`) implements PIO (Programmed I/O) mode for IDE disk access.
+The ATA driver (`drivers/ata.cc`) implements PIO (Programmed I/O) mode for IDE disk access.
 
 | Feature | Status |
 |---------|--------|
-| PIO read | ✅ |
-| PIO write | ✅ |
-| Identify device | ✅ |
-| DMA | ❌ |
-| ATAPI/CD | ❌ |
-| Secondary channel | ❌ |
+| PIO read | Supported |
+| PIO write | Supported |
+| Identify device | Supported |
+| DMA | Not supported |
+| ATAPI/CD | Not supported |
+| Secondary channel | Not supported |
 
 ---
 
@@ -477,7 +522,7 @@ The Notepad application uses VFS for its file dialog, open, and save operations:
 - **Double-click** a file to open it, or a directory to enter it
 - **Open** reads file contents via `vfs_open()` / `vfs_read()` / `vfs_close()`
 - **Save** writes via `vfs_open(O_WRONLY | O_CREAT | O_TRUNC)` / `vfs_write()` / `vfs_close()`
-- Saving to `/home` persists data to the ATA disk through the FAT16 VFS wrapper
+- Saving to `/home` updates HomeFS, which persists through `/disk/HOMEFS.SYS`
 
 ---
 

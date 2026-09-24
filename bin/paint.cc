@@ -1678,8 +1678,8 @@ int main() {
   init_palette();
 
   /* Enter graphics mode */
-  gfx2d_init();
   gfx2d_fullscreen_enter();
+  gfx2d_init();
 
   /* Create canvas surface */
   canvas_surf = gfx2d_surface_alloc(CANVAS_W, CANVAS_H);
@@ -1882,9 +1882,9 @@ int main() {
     gfx2d_flip();
   }
 
-  gfx2d_fullscreen_exit();
   if (canvas_surf >= 0)
     gfx2d_surface_free(canvas_surf);
+  gfx2d_fullscreen_exit();
   if (canvas_snapshot)
     kfree(canvas_snapshot);
   if (sel_buffer)

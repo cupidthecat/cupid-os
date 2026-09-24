@@ -1,5 +1,5 @@
 /*
- * cupidscript.h - CupidScript scripting language for cupid-os
+ * cupidscript.h - CupidScript scripting language for Cupid OS
  *
  * A bash-like scripting language supporting variables, conditionals,
  * loops, and functions. Scripts use .cup extension and can be run
@@ -192,15 +192,15 @@ typedef struct script_context {
     void (*print_int_fn)(uint32_t);
 } script_context_t;
 
-/* Public API - Lexer  (cupidscript_lex.c) */
+/* Public API - Lexer (cupidscript_lex.cc) */
 int cupidscript_tokenize(const char *source, uint32_t length,
                          token_t *tokens, int max_tokens);
 
-/* Public API - Parser  (cupidscript_parse.c) */
+/* Public API - Parser (cupidscript_parse.cc) */
 ast_node_t *cupidscript_parse(token_t *tokens, int token_count);
 void cupidscript_free_ast(ast_node_t *node);
 
-/* Public API - Runtime  (cupidscript_runtime.c) */
+/* Public API - Runtime (cupidscript_runtime.cc) */
 void cupidscript_init_context(script_context_t *ctx);
 const char *cupidscript_get_variable(script_context_t *ctx, const char *name);
 void cupidscript_set_variable(script_context_t *ctx, const char *name,
@@ -211,10 +211,10 @@ void cupidscript_register_function(script_context_t *ctx, const char *name,
 ast_node_t *cupidscript_lookup_function(script_context_t *ctx,
                                         const char *name);
 
-/* Public API - Executor  (cupidscript_exec.c) */
+/* Public API - Executor (cupidscript_exec.cc) */
 int cupidscript_execute(ast_node_t *ast, script_context_t *ctx);
 
-/* Public API - Top-level entry  (called from shell.c) */
+/* Public API - Top-level entry (called from shell.cc) */
 int cupidscript_run_file(const char *filename, const char *args);
 
 /* Set output functions (for GUI mode support) */
@@ -222,7 +222,7 @@ void cupidscript_set_output(void (*print_fn)(const char *),
                             void (*putchar_fn)(char),
                             void (*print_int_fn)(uint32_t));
 
-/* Public API - Advanced string operations  (cupidscript_strings.c) */
+/* Public API - Advanced string operations (cupidscript_strings.cc) */
 char *cs_expand_advanced_var(const char *expr, script_context_t *ctx);
 char *cs_string_length(const char *value);
 char *cs_string_substring(const char *value, int start, int len);

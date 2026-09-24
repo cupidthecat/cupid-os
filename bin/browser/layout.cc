@@ -469,7 +469,7 @@ void emit_text_atoms(int rt_text_n, int parent_rt) {
             la_text_len[la_count] = wlen;
             int ww = text_slice_w_cs(cs, off + s, wlen);
             /* Synthetic bold paints each glyph twice with a +1 horizontal
-             * smear and advances the pen by +1 per char (fontsys.c
+             * smear and advances the pen by +1 per char (kernel/gfx/fontsys.cc
              * fontsys_draw_run_styled). The measured width must include
              * that extra or the bold run overflows into the trailing
              * space atom and "Example Domain" collapses to "ExampleDomain"

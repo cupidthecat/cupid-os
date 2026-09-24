@@ -797,13 +797,18 @@ void parse_html(int html_len) {
     if (js_script_count > 0) {
         serial_printf("[browser] js: running %d queued scripts\n", js_script_count);
         js_install_globals();
-        js_run_queued_scripts();
-        if (dom_dirty) {
-            populate_sibling_caches();
-            style_resolve_all();
-            build_render_tree();
-            run_layout();
-            dom_dirty = 0;
+        if (js_last_error[0] == 0) {
+            js_run_queued_scripts();
+            if (dom_dirty) {
+                populate_sibling_caches();
+                style_resolve_all();
+                build_render_tree();
+                run_layout();
+                dom_dirty = 0;
+            }
+        } else {
+            serial_printf("[browser] js: global install failed: %s\n",
+                          js_last_error);
         }
     }
 }

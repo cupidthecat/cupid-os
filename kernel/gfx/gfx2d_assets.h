@@ -64,6 +64,9 @@ uint32_t gfx2d_image_get_pixel(int handle, int x, int y);
 
 /** Get direct image pixel buffer and dimensions (read-only).
  *  Returns NULL on invalid handle.*/
+/* The returned storage stays owned by the image registry. A caller that keeps
+ * or dereferences it must already hold a shared gfx2d writer lease so another
+ * process cannot free or reuse the slot. */
 const uint32_t *gfx2d_image_data(int handle, int *w, int *h);
 
 /* * Load a .fnt bitmap font from VFS path. Returns handle (>= 0) or -1. */

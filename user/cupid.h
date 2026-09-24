@@ -17,10 +17,10 @@
  *
  * ── Compiling ────────────────────────────────────────────────────
  *
- *   gcc -m32 -fno-pie -nostdlib -static -ffreestanding -O2 \
- *       -I/path/to/cupid-os/user -c hello.c -o hello.o
- *   ld -m elf_i386 -Ttext=0x00400000 --oformat=elf32-i386 \
- *       -o hello hello.o
+ *   make -C user
+ *
+ * The production build freezes and runs the checked CupidC and CupidLD seeds.
+ * Its source allowlist and ELF checks prevent an undeclared fallback.
  *
  * ── Running in CupidOS ──────────────────────────────────────────
  *
@@ -31,6 +31,9 @@
 
 #ifndef CUPID_H
 #define CUPID_H
+
+/* This value must match the append-only table in kernel/core/syscall.h. */
+#define CUPID_SYSCALL_VERSION 5
 
 /* ── Base types (no libc available) ───────────────────────────────── */
 #ifndef NULL
@@ -59,8 +62,8 @@ typedef unsigned long      size_t;
 #define VFS_TYPE_DIR    1
 #define VFS_TYPE_DEV    2
 
-#define VFS_MAX_NAME    64
-#define VFS_MAX_PATH    128
+#define VFS_MAX_NAME    128
+#define VFS_MAX_PATH    512
 
 /* ── Network constants ────────────────────────────────────────────── */
 #define SOCK_UDP       1

@@ -34,10 +34,10 @@ int serial_read_char(void);
 /* Write null-terminated string to serial */
 void serial_write_string(const char *str);
 
-/* Formatted serial output (supports %s, %d, %u, %x, %p, %c, %%) */
+/* Formatted serial output, including space and zero widths for d, u, and x. */
 void serial_printf(const char *fmt, ...);
 
-/* Timestamped log at given level */
+/* Timestamped log with the same integer width rules as serial_printf. */
 void klog(log_level_t level, const char *fmt, ...);
 
 /* Set minimum log level */

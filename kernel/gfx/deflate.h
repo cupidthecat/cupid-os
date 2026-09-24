@@ -1,9 +1,9 @@
 /* deflate.h - RFC 1951 raw DEFLATE decoder (kernel-side).
  *
- * Hand-rolled inflate. No zlib wrapper handling - feed raw deflate
- * bytes (caller skips zlib CMF/FLG and Adler-32 if present). Used by:
- *   - png.c   (zlib-wrapped IDAT, header skipped at call site)
- *   - woff1.c (per-table zlib, header skipped at call site)
+ * This decoder accepts raw DEFLATE bytes. Callers skip the zlib CMF/FLG
+ * header and Adler-32 trailer when present. Current callers are:
+ *   - kernel/gfx/png.cc for zlib-wrapped IDAT data
+ *   - bin/browser/woff.cc for per-table zlib data
 */
 
 #ifndef DEFLATE_H
