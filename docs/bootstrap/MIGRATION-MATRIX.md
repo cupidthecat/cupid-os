@@ -1,9 +1,21 @@
 # Toolchain ownership migration matrix
 
+The current UTF-8 candidate has 73 tool producer inputs and 87 Toolchain
+publication inputs; installed seeds remain on the accepted 66-input release.
+The corrected graph audit includes all eight startup files. A checked-Cupid
+preprocessor run passes 412 active source/profile cases, including the codec,
+all three Windows adapter roles and the wide runtime configuration. Both
+staged proofs pass independent byte verification, and all 28 converged
+Unicode-path commands pass. The updated publication passes all 65 stage pairs
+and its checked manifest verifier. Paired OS/runtime acceptance also passes
+independent verification of 1,525 source inputs, sixteen artifacts and 431 link
+inputs. Images and all three user programs match across hosts; both private
+four-CPU smokes preserve their source images. Seed promotion remains separate.
+
 The shared artifact-policy, seed-image, manifest and release readers are
-CupidC source modules. Their integration has 66 bootstrap inputs and 80
-Toolchain publication inputs; installed seeds retain their 59-input release
-pins. The manifest reader accepts either host format, and the pair API binds
+CupidC source modules. Their ADR 0400 integration used 66 bootstrap inputs and 80
+Toolchain publication inputs; installed seeds then retained their 59-input
+release pins. The manifest reader accepts either host format, and the pair API binds
 both manifests to a release record and to the actual Linux manifest bytes.
 
 These byte APIs leave the twelve Python-coordinated operations in place.

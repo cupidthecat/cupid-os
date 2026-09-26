@@ -2282,14 +2282,9 @@ def _verify_seed_manifest_data(
             raise BootstrapError(f"SHA-256 differs for {file_name}")
         if is_windows_seed:
             imports = (
-                (
-                    WINDOWS_CUPIDBUILD_IMPORTS
-                    if name == "cupidbuild"
-                    else (
-                        WINDOWS_LINKER_IMPORTS
-                        if name in ("cupidasm", "cupidld")
-                        else WINDOWS_TOOL_IMPORTS
-                    )
+                _promoted_windows_imports(
+                    name, provenance["native_build_plan_sha256"],
+                    provenance["source_input_count"],
                 )
                 if promoted
                 else (
@@ -2663,6 +2658,22 @@ def _windows_utf8_imports(
         )))
         for library, names in _windows_imports(tool_name)
     )
+
+
+def _promoted_windows_imports(
+    tool_name: str, plan_sha256: str, source_input_count: int,
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """Select one exact promoted profile after pinned provenance validation."""
+    if tool_name not in CANDIDATE_TOOL_NAMES:
+        raise BootstrapError(f"unknown promoted Windows tool role: {tool_name}")
+    if type(source_input_count) is not int:
+        raise BootstrapError("promoted Windows import profile differs")
+    profile = (plan_sha256, source_input_count)
+    if profile == ("70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9", 66):
+        return _windows_imports(tool_name)
+    if profile == ("a31575236059b77a47bb58c79072754258c4762d30105319c451e407b7353f99", 73):
+        return _windows_utf8_imports(tool_name)
+    raise BootstrapError("promoted Windows import profile differs")
 
 
 def _windows_import_selectors(tool_name: str, *, utf8: bool = False) -> tuple[str, ...]:

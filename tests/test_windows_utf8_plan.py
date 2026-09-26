@@ -15,13 +15,46 @@ class WindowsUtf8PlanTests(unittest.TestCase):
     def setUp(self):
         self.linux = json.loads((ROOT / "bootstrap/seeds/i386-linux/manifest.json").read_bytes())["build_plan"]
 
-    def test_default_retains_installed_plan_identity(self):
-        manifest = json.loads((ROOT / "bootstrap/seeds/i386-windows/manifest.json").read_bytes())
+    def test_default_retains_historical_ansi_plan_identity(self):
         plan = bootstrap._windows_build_plan(self.linux)
         self.assertEqual(bootstrap._build_plan_sha256(plan),
-                         manifest["provenance"]["native_build_plan_sha256"])
-        self.assertEqual(bootstrap._build_plan_sha256(plan), bootstrap.PROMOTED_WINDOWS_PLAN_SHA256)
+                         "70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9")
         self.assertEqual(plan, bootstrap._windows_build_plan(self.linux, utf8=False))
+
+    def test_installed_profile_matches_promoted_ansi_plan(self):
+        manifest = json.loads((ROOT / "bootstrap/seeds/i386-windows/manifest.json").read_bytes())
+        digest = bootstrap._build_plan_sha256(bootstrap._windows_build_plan(self.linux, utf8=False))
+        self.assertEqual(digest, manifest["provenance"]["native_build_plan_sha256"])
+        self.assertEqual(digest, bootstrap.PROMOTED_WINDOWS_PLAN_SHA256)
+        self.assertEqual(manifest["provenance"]["source_input_count"], 66)
+
+    def test_promoted_profiles_select_exact_imports_for_every_role(self):
+        for utf8, count in ((False, 66), (True, 73)):
+            digest = bootstrap._build_plan_sha256(
+                bootstrap._windows_build_plan(self.linux, utf8=utf8))
+            for tool in bootstrap.CANDIDATE_TOOL_NAMES:
+                with self.subTest(utf8=utf8, tool=tool):
+                    expected = (bootstrap._windows_utf8_imports(tool) if utf8
+                                else bootstrap._windows_imports(tool))
+                    self.assertEqual(
+                        bootstrap._promoted_windows_imports(tool, digest, count), expected)
+
+    def test_promoted_profiles_reject_mixed_counts_and_unknown_plans(self):
+        for utf8, count in ((False, 66), (True, 73)):
+            digest = bootstrap._build_plan_sha256(
+                bootstrap._windows_build_plan(self.linux, utf8=utf8))
+            for bad_count in (73 if count == 66 else 66, 59, 61, True, str(count)):
+                with self.subTest(utf8=utf8, count=bad_count), self.assertRaisesRegex(
+                        bootstrap.BootstrapError, "import profile differs"):
+                    bootstrap._promoted_windows_imports("cupidc", digest, bad_count)
+            with self.assertRaisesRegex(bootstrap.BootstrapError, "unknown.*role"):
+                bootstrap._promoted_windows_imports("unknown", digest, count)
+            with self.assertRaisesRegex(bootstrap.BootstrapError, "import profile differs"):
+                bootstrap._promoted_windows_imports("cupidc", "0" * 64, count)
+
+    def test_installed_windows_seed_retains_strict_verification(self):
+        seed = bootstrap.verify_seed_inputs(ROOT / "bootstrap/seeds/i386-windows/manifest.json")
+        self.assertEqual(len(seed.artifact_bytes), 6)
 
     def test_candidate_binds_codec_runtime_and_each_adapter_role(self):
         before = copy.deepcopy(self.linux)

@@ -26,6 +26,39 @@ def bind(linux, windows=None):
 
 
 class PairTests(unittest.TestCase):
+    def test_utf8_promotion_pair_binds_conditional_assembly_parent(self):
+        linux = manifest_tests.candidate_manifest(1)
+        windows = manifest_tests.candidate_manifest(2)
+        record = release()
+        revision = "e4f2ed652e756b1abb375ec061923f5259799e01"
+        linux_parent = "da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed"
+        windows_parent = "c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395"
+        for item in (record, linux["provenance"], windows["provenance"]):
+            item["source_input_count"] = 73
+        record.update(parent_source_revision=revision,
+                      parent_linux_manifest_sha256=linux_parent,
+                      parent_windows_manifest_sha256=windows_parent)
+        linux["provenance"].update(parent_seed_source_revision=revision,
+                                   parent_seed_manifest_sha256=linux_parent)
+        windows["provenance"].update(
+            parent_execution_seed_source_revision=revision,
+            parent_execution_seed_manifest_sha256=windows_parent,
+            parent_plan_seed_source_revision=revision,
+            parent_plan_seed_manifest_sha256=linux_parent,
+            native_build_plan_sha256=manifest_tests.seed._build_plan_sha256(
+                manifest_tests.seed._windows_build_plan(linux["build_plan"], utf8=True)))
+        record["windows_plan_sha256"] = windows["provenance"]["native_build_plan_sha256"]
+        left, right = bind(linux, windows)
+        self.check(record, left, right)
+        self.check(release(), left, right, False)
+        for key in ("parent_source_revision", "parent_linux_manifest_sha256",
+                    "parent_windows_manifest_sha256"):
+            wrong = copy.deepcopy(record)
+            wrong[key] = release()[key]
+            self.check(wrong, left, right, False)
+        self.check(record, left + b" ", right, False)
+        self.check(record, *bind(left + b" ", windows))
+
     def test_candidate_pair_binds_the_new_plan_and_source_count(self):
         linux = manifest_tests.candidate_manifest(1)
         windows = manifest_tests.candidate_manifest(2)
@@ -33,6 +66,8 @@ class PairTests(unittest.TestCase):
         record["source_input_count"] = 66
         record["linux_plan_sha256"] = linux["build_plan_sha256"]
         record["windows_plan_sha256"] = windows["provenance"]["native_build_plan_sha256"]
+        for item in (record, linux["provenance"], windows["provenance"]):
+            item["source_revision"] = "f" * 40
         linux_bytes, windows_bytes = bind(linux, windows)
         self.check(record, linux_bytes, windows_bytes)
         self.check(release(), linux_bytes, windows_bytes, False)
@@ -130,7 +165,9 @@ class PairTests(unittest.TestCase):
             record[key] = value + 1 if isinstance(value, int) else "e" * len(value)
             self.check(record, linux, windows, False)
         record = release()
-        l, w = manifest(1), manifest(2)
+        l, w = manifest_tests.historical_manifest(1), manifest_tests.historical_manifest(2)
+        record["linux_plan_sha256"] = l["build_plan_sha256"]
+        record["windows_plan_sha256"] = w["provenance"]["native_build_plan_sha256"]
         for item in (record, l["provenance"], w["provenance"]):
             item["source_revision"] = "a" * 40
             item["source_input_count"] = 61

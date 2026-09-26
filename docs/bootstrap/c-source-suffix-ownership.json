@@ -155,9 +155,16 @@
     "bin/old_cc2.cc": "explicitly_excluded",
     "bin/old_cc2_single.cc": "explicitly_excluded",
     "demos/paint.cc": "superseded",
+    "toolchain/native_utf8.cc": "not_reached",
+    "toolchain/native_utf8_entry.cc": "not_reached",
     "toolchain/tests/cupidbuild_host_runner_contract.cc": "not_reached",
     "toolchain/tests/cupidbuild_jpeg_contract.cc": "not_reached",
     "toolchain/tests/cupidbuild_user_elf_contract.cc": "not_reached",
-    "toolchain/tests/cupiddis_kernel_adapter_contract.cc": "host_oracle"
+    "toolchain/tests/cupiddis_kernel_adapter_contract.cc": "host_oracle",
+    "toolchain/tests/native_utf8_argv_contract.cc": "not_reached",
+    "toolchain/tests/native_utf8_fault_contract.cc": "not_reached",
+    "toolchain/tests/path_encoding_contract.cc": "not_reached",
+    "toolchain/tests/windows_utf8_contract.cc": "not_reached",
+    "toolchain/tests/windows_utf8_entry_contract.cc": "not_reached"
   }
 }

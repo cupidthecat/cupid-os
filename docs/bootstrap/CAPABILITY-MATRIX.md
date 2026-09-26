@@ -1,5 +1,24 @@
 # Cupid Toolchain capability matrix
 
+The current UTF-8 candidate has 73 tool producer inputs and 87 Toolchain
+publication inputs; installed seeds remain on the accepted 66-input release.
+The corrected graph audit includes all eight startup files. A checked-Cupid
+preprocessor run passes 412 active source/profile cases, including the codec,
+all three Windows adapter roles and the wide runtime configuration. Both
+staged proofs pass independent byte verification, and all 28 converged
+Unicode-path commands pass. The updated publication passes all 65 stage pairs
+and its checked manifest verifier. Paired OS/runtime acceptance also passes
+independent verification of 1,525 source inputs, sixteen artifacts and 431 link
+inputs. Images and all three user programs match across hosts; both private
+four-CPU smokes preserve their source images. Seed promotion remains separate.
+
+The shared seed reader now accepts the exact `e4f2ed65` parent tuple alongside
+its two existing generations. Linux binds the parent revision and manifest;
+Windows binds both parent manifests and both revision fields as one tuple.
+Mixed and unknown parents fail. Python selects the promoted Windows import
+profile by its exact plan/count pair. The installed seeds remain unchanged
+after the failed UTF-8 promotion was reverted. ADR 0407 records this boundary.
+
 Source head exposes shared byte APIs for artifact-size policy, seed-image
 validation, either host's seed manifest, and a paired twelve-image release
 record. CupidBuild uses the shared manifest reader. The pair validator checks
@@ -7,9 +26,9 @@ both manifests against the release and hashes the supplied Linux manifest
 bytes to verify the Windows plan binding. Release-file authority and retained
 filesystem observations remain separate requirements.
 
-Candidate plans contain 66 bootstrap inputs and 80 Toolchain publication
-inputs. Installed seeds retain their verified 59-input generation. The reader
-integration passes 46 API methods, 107 publication/manifest methods, 148 CLI
+The ADR 0400 integration used 66 bootstrap inputs and 80 Toolchain publication
+inputs. Installed seeds then retained their verified 59-input generation. That
+integration passed 46 API methods, 107 publication/manifest methods, 148 CLI
 methods, and 4,694 checked byte cases per host. Both staged proofs pass:
 32 Linux and 35 Windows artifact pairs match, with independently verified
 source and artifact bytes. Paired OS/runtime acceptance passes under ADR 0400:

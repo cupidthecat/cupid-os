@@ -1065,3 +1065,10 @@ audio-performance acceptance remain open, as does the earlier EHCI panic.
 Each call renders at most eight 512-frame chunks. This bounds work per call;
 it does not impose a time limit on OPL synthesis. Audio generation, sample
 order, and interrupt-driven consumption retain their existing behavior.
+
+>h2 Seed Parent Validation
+The shared manifest reader accepts the conditional-assembly release as an
+exact parent generation. Windows binds both parent manifests and revisions
+together; Linux binds its parent manifest and revision. Mixed or unknown
+parents fail. The installed seeds retain the accepted conditional-assembly
+release until fresh UTF-8 bootstrap proofs and promotion checks pass.

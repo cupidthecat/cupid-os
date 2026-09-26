@@ -205,6 +205,13 @@ TOOLCHAIN_MANIFEST_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+    "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+    "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/native_utf8.h",
+    "toolchain/path_encoding.cc",
+    "toolchain/path_encoding.h",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
     "toolchain/seed_manifest.h",
@@ -302,6 +309,13 @@ TOOLCHAIN_MANIFEST_BOOTSTRAP_INPUTS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+    "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+    "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/native_utf8.h",
+    "toolchain/path_encoding.cc",
+    "toolchain/path_encoding.h",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
     "toolchain/seed_manifest.cc",
@@ -473,6 +487,13 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+    "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+    "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/native_utf8.h",
+    "toolchain/path_encoding.cc",
+    "toolchain/path_encoding.h",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
     "toolchain/seed_manifest.h",
@@ -515,7 +536,9 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
 )
 USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "link.ld",
+    "toolchain/artifact_size_policy.h",
     "toolchain/contract_parse_internal.cc",
+    "toolchain/contract_parse_internal.h",
     "toolchain/ctool.cc",
     "toolchain/ctool.h",
     "toolchain/ctool_host.cc",
@@ -568,6 +591,13 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/hosted/i386-windows/tool_start.asm",
+    "toolchain/hosted/i386-windows/utf8_cupidbuild_start.asm",
+    "toolchain/hosted/i386-windows/utf8_publication_start.asm",
+    "toolchain/hosted/i386-windows/utf8_tool_start.asm",
+    "toolchain/hosted/i386-windows/windows_utf8.cc",
+    "toolchain/native_utf8.h",
+    "toolchain/path_encoding.cc",
+    "toolchain/path_encoding.h",
     "toolchain/pe32.h",
     "toolchain/pe32_impl.h",
     "toolchain/seed_manifest.cc",
@@ -879,6 +909,38 @@ _C_PP_PROFILE_ROWS = (
         implicit_function_declarations="CTOOL_FALSE",
         compatibility_pointer_conversions="CTOOL_FALSE",
     ),
+    CPreprocessorProfile(
+        name="HOSTED_I386_WINDOWS_UTF8",
+        mode="CTOOL_C_PP_MODE_C11",
+        gnu_extensions="CTOOL_TRUE",
+        hosted_environment="CTOOL_TRUE",
+        implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
+    ),
+    CPreprocessorProfile(
+        name="HOSTED_I386_WINDOWS_PUBLICATION",
+        mode="CTOOL_C_PP_MODE_C11",
+        gnu_extensions="CTOOL_TRUE",
+        hosted_environment="CTOOL_TRUE",
+        implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
+    ),
+    CPreprocessorProfile(
+        name="HOSTED_I386_WINDOWS_BUILD",
+        mode="CTOOL_C_PP_MODE_C11",
+        gnu_extensions="CTOOL_TRUE",
+        hosted_environment="CTOOL_TRUE",
+        implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
+    ),
+    CPreprocessorProfile(
+        name="HOSTED_I386_WINDOWS_UTF8_GNU",
+        mode="CTOOL_C_PP_MODE_C11",
+        gnu_extensions="CTOOL_TRUE",
+        hosted_environment="CTOOL_TRUE",
+        implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
+    ),
 )
 _C_PP_HOSTED_PROFILES = frozenset(
     profile.name
@@ -926,10 +988,14 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 108,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 42,
+    "HOSTED_I386_LINUX": 43,
     "HOSTED_I386_WINDOWS": 9,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 3,
+    "HOSTED_I386_WINDOWS_UTF8": 1,
+    "HOSTED_I386_WINDOWS_PUBLICATION": 1,
+    "HOSTED_I386_WINDOWS_BUILD": 1,
+    "HOSTED_I386_WINDOWS_UTF8_GNU": 1,
 }
 _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/contract_parse_internal.cc",
@@ -957,6 +1023,7 @@ _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/seed_release.cc",
     "/toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "/toolchain/x86.cc",
+    "/toolchain/path_encoding.cc",
 )
 _C_PP_HOSTED_I386_GNU_CASES = (
     "/toolchain/hosted/i386-linux/runtime.cc",
@@ -974,6 +1041,31 @@ _C_PP_HOSTED_I386_WINDOWS_CASES = (
     "/toolchain/cupidobj_main.cc",
     "/toolchain/hosted/i386-windows/publication_runtime.cc",
 )
+_C_PP_WINDOWS_UTF8_CASES = {
+    "HOSTED_I386_WINDOWS_UTF8": ("/toolchain/hosted/i386-windows/windows_utf8.cc",),
+    "HOSTED_I386_WINDOWS_PUBLICATION": (
+        "/toolchain/hosted/i386-windows/windows_utf8.cc",
+    ),
+    "HOSTED_I386_WINDOWS_BUILD": ("/toolchain/hosted/i386-windows/windows_utf8.cc",),
+    "HOSTED_I386_WINDOWS_UTF8_GNU": ("/toolchain/hosted/i386-windows/runtime.cc",),
+}
+_C_PP_WINDOWS_UTF8_MACROS = {
+    "HOSTED_I386_WINDOWS_UTF8": (("__SIZEOF_POINTER__", "4"), ("_WIN32", "1")),
+    "HOSTED_I386_WINDOWS_PUBLICATION": (
+        ("__SIZEOF_POINTER__", "4"),
+        ("_WIN32", "1"),
+        ("CUPID_WINDOWS_PUBLICATION", "1"),
+    ),
+    "HOSTED_I386_WINDOWS_BUILD": (
+        ("__SIZEOF_POINTER__", "4"),
+        ("_WIN32", "1"),
+        ("CUPID_WINDOWS_BUILD", "1"),
+    ),
+    "HOSTED_I386_WINDOWS_UTF8_GNU": (
+        ("__SIZEOF_POINTER__", "4"),
+        ("CUPID_WINDOWS_UTF8", "1"),
+    ),
+}
 _C_PP_TOOLCHAIN_CONTRACT_CASES = (
     "/kernel/lang/as_elf.cc",
     "/toolchain/tests/core_contract.cc",
@@ -9263,6 +9355,18 @@ def _c_preprocessor_profile_configuration() -> tuple[
         )
     )
 
+    for profile in _C_PP_WINDOWS_UTF8_CASES:
+        include_roots.extend(
+            (
+                (profile, "/toolchain", _C_PP_INCLUDE_BOTH),
+                (
+                    profile,
+                    "/toolchain/hosted/i386-linux/include",
+                    "CTOOL_C_PP_INCLUDE_ANGLE",
+                ),
+            )
+        )
+
     macros: list[tuple[str, str, str]] = []
     for profile in (
         "KERNEL_I386",
@@ -9301,6 +9405,8 @@ def _c_preprocessor_profile_configuration() -> tuple[
             ("HOSTED_I386_LINUX_GNU", "__SIZEOF_POINTER__", "4"),
         )
     )
+    for profile, definitions in _C_PP_WINDOWS_UTF8_MACROS.items():
+        macros.extend((profile, name, value) for name, value in definitions)
     forced_includes = (("DOOM_TREE_I386", "/kernel/doom/dglibc_compat.h"),)
     return tuple(include_roots), tuple(macros), forced_includes
 
@@ -9716,7 +9822,7 @@ def _cupid_toolchain_fixed_point_contract(
     windows_publication_sources_match = all(
         (
             windows_publication_header_digest
-            == "2fd43ded601396b708ce6ea1cd5006e0cf25e807bbe5ada03932486ca7e59b7a",
+            == "336658310364bf06ab46c9151730b1ff7339903eabe875bfb27856a4c64bce65",
             windows_publication_runtime_digest
             == "536fa0a609ddaf6fe90c3fb0696c8e66823284634b75811f03d275427187ad0c",
             windows_publication_start_digest
@@ -11577,9 +11683,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 46,
+        "failure_cases": 47,
         "help_cases": 7,
-        "success_cases": 54,
+        "success_cases": 55,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -15012,11 +15118,10 @@ def _cupid_toolchain_fixed_point_contract(
         "linux_plan",
         "_candidate_build_plan",
         ("checked_linux_plan",),
-    ) or not has_exact_live_call_assignment(
+    ) or not has_exact_live_expression_assignment(
         windows_bootstrap_function,
         "native_plan",
-        "_windows_build_plan",
-        ("linux_plan",),
+        "_windows_build_plan(linux_plan, utf8=True)",
     ):
         missing_bootstrap_fragments.append(
             "Windows driver: one live candidate and native plan chain"
@@ -15550,7 +15655,7 @@ def _cupid_toolchain_fixed_point_contract(
             '"i386pe"',
             '"0x00401000"',
             '"_start"',
-            "for selector in _windows_import_selectors(tool_name):",
+            "for selector in _windows_import_selectors(tool_name, utf8=utf8):",
             "objects[name] for name in link_order",
         ),
         "_build_windows_stage": (
@@ -15684,9 +15789,9 @@ def _cupid_toolchain_fixed_point_contract(
             )
         expected_native_windows_behavior = ast.parse(
             "{"
-            "'failure_cases': len(tool_names) + 28, "
+            "'failure_cases': len(tool_names) + 29, "
             "'help_cases': len(tool_names) + 1, "
-            "'success_cases': len(tool_names) + 35"
+            "'success_cases': len(tool_names) + 36"
             "}",
             mode="eval",
         ).body
@@ -15702,8 +15807,8 @@ def _cupid_toolchain_fixed_point_contract(
             expected_native_windows_behavior, include_attributes=False
         ):
             missing_native_windows_fragments.append(
-                "_run_native_windows_behavior_checks: return thirty-four failure, "
-                "seven help, and forty-one success cases"
+                "_run_native_windows_behavior_checks: return thirty-five failure, "
+                "seven help, and forty-two success cases"
             )
         if (
             live_linked_code_policy_call_count(
@@ -16392,8 +16497,8 @@ return tuple(
         "success_behavior_cases": expected_behavior_matrix["success_cases"],
         "failure_behavior_cases": expected_behavior_matrix["failure_cases"],
         "windows_help_cases": 7,
-        "windows_success_behavior_cases": 41,
-        "windows_failure_behavior_cases": 34,
+        "windows_success_behavior_cases": 42,
+        "windows_failure_behavior_cases": 35,
         "contract_manifest_inputs": len(publication_inputs),
         "source_head_capabilities": [
             "cupid.cupidbuild_checked_cupidc_runner",
@@ -18038,6 +18143,7 @@ def _c_preprocessor_active_cases_manifest(
                     _C_PP_HOSTED_I386_STRICT_CASES
                     + _C_PP_HOSTED_I386_GNU_CASES
                     + _C_PP_TOOLCHAIN_CONTRACT_CASES
+                    + ("/toolchain/hosted/i386-windows/windows_utf8.cc",)
                     + tuple(
                         path
                         for path in _C_PP_HOSTED_I386_WINDOWS_CASES
@@ -18112,6 +18218,8 @@ def _c_preprocessor_active_cases_manifest(
                 active_by_profile["HOSTED_I386_WINDOWS"].extend(
                     _C_PP_HOSTED_I386_WINDOWS_CASES
                 )
+                for profile, cases in _C_PP_WINDOWS_UTF8_CASES.items():
+                    active_by_profile[profile].extend(cases)
                 active_by_profile["FREESTANDING_I386"].append(
                     "/toolchain/tests/hosted_i386_windows_contract.cc"
                 )

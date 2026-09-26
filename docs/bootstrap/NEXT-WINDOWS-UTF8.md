@@ -79,10 +79,31 @@ skips, native/checked command and transaction evidence, and failed attempts.
 
 ## Remaining work
 
-Audit the final tree and committed bytes against canonical LF acceptance before
-pushing. The first acceptance runs passed, but Git's text normalization would
-have changed tested bytes at commit time. The canonical replay now passes; the
-original runs remain separate evidence. Seed promotion remains a separate gate.
+Capability commit `46cf1b03` is pushed. Its actual committed-input audit passes
+for all 1,524 files and both LFS payloads. The first acceptance runs passed, but
+Git's text normalization would have changed tested bytes at commit time. The
+canonical replay passes; the original runs remain separate evidence.
+
+Promotion preview initially rejected the Windows images because installed-seed
+verification still selected ANSI imports. The verifier now selects exact
+imports from the plan digest and source count: the 66-input ANSI profile and
+73-input UTF-8 profile remain distinct. Mixed pairs and unknown profiles fail.
+The proposed pair passed Python preview verification but failed the shared C
+reader during both regression runs. Its accepted parent window omitted the
+installed conditional-assembly release. Both runners finished; the failed
+payloads and logs are retained, and the accepted seed pair is restored.
+
+Source head adds the exact conditional-assembly parent tuple and retains the
+Python import-profile correction. All 98 focused manifest, pair, release,
+profile and artifact-policy tests pass on each host. Both staged proofs pass
+independent byte verification, all 28 converged Unicode commands pass, and
+the graph regression evidence covers all 124 methods. The updated publication
+passes all 65 stage pairs and publishes 22 artifacts. Its checked reader and
+independent verification bind all 87 publication and 73 producer inputs.
+Paired production acceptance also passes: 1,525 sources, sixteen artifacts,
+431 link inputs, matching images and three matching user programs. Both private
+four-CPU max/e1000 smokes pass and preserve their source images. Final commit
+verification and another promotion attempt remain. ADR 0407 records the boundary.
 
 The Linux native GCC attempt also reported a maybe-uninitialized warning in
 unchanged floating-update code. The new native CLI suite uses Clang; the GCC

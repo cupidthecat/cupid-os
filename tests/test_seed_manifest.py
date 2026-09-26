@@ -78,6 +78,33 @@ def changed(value):
 class ManifestTests(unittest.TestCase):
     records = []
 
+    def test_utf8_promotion_accepts_exact_conditional_assembly_parent(self):
+        revision = "e4f2ed652e756b1abb375ec061923f5259799e01"
+        linux = "da26556401dd20d039ed1175f3bf857c4c8bebd50fb52b3bd75a06b95fdf41ed"
+        windows = "c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395"
+        for fmt in (1, 2):
+            value = candidate_manifest(fmt)
+            value["provenance"]["source_input_count"] = 73
+            if fmt == 1:
+                parents = {"parent_seed_manifest_sha256": linux,
+                           "parent_seed_source_revision": revision}
+            else:
+                value["provenance"]["native_build_plan_sha256"] = seed._build_plan_sha256(
+                    seed._windows_build_plan(candidate_manifest(1)["build_plan"], utf8=True))
+                parents = {"parent_execution_seed_manifest_sha256": windows,
+                           "parent_execution_seed_source_revision": revision,
+                           "parent_plan_seed_manifest_sha256": linux,
+                           "parent_plan_seed_source_revision": revision}
+            previous = {key: value["provenance"][key] for key in parents}
+            value["provenance"].update(parents)
+            self.check(value, fmt, expected=(6, 2 if fmt == 2 else 0))
+            for key, expected in parents.items():
+                for replacement in ("0" * len(expected), previous[key]):
+                    altered = copy.deepcopy(value)
+                    altered["provenance"][key] = replacement
+                    self.check(altered, fmt, False)
+                    self.check(value, fmt, expected=(6, 2 if fmt == 2 else 0))
+
     def test_windows_behavior_seed_has_consistent_candidate_provenance(self):
         with tempfile.TemporaryDirectory(prefix="cupid-behavior-manifest-") as temporary:
             frozen = seed.freeze_seed_inputs(

@@ -1,5 +1,25 @@
 # Cupid Toolchain bootstrap
 
+The attempted UTF-8 seed promotion failed the shared C manifest reader: its
+accepted parent generations did not include the installed conditional-assembly
+release. The preceding seed pair has been restored. Source head now admits
+that exact parent tuple and keeps Windows import validation tied to the
+reviewed plan and source count. Both staged proofs pass for this source.
+Production acceptance now passes on both hosts. Final commit verification and
+a new seed promotion remain separate. See ADR 0407.
+
+The current UTF-8 candidate has 73 tool producer inputs and 87 Toolchain
+publication inputs; installed seeds remain on the accepted 66-input release.
+The corrected graph audit includes all eight startup files. A checked-Cupid
+preprocessor run passes 412 active source/profile cases, including the codec,
+all three Windows adapter roles and the wide runtime configuration. Both
+staged proofs pass independent byte verification, and all 28 converged
+Unicode-path commands pass. The updated publication passes all 65 stage pairs
+and its checked manifest verifier. Paired OS/runtime acceptance also passes
+independent verification of 1,525 source inputs, sixteen artifacts and 431 link
+inputs. Images and all three user programs match across hosts; both private
+four-CPU smokes preserve their source images. Seed promotion remains separate.
+
 The current Windows UTF-8 candidate selects wide entry, filesystem and process
 APIs for all six hosted tools. Its first acceptance runs passed, but the final
 commit audit found CRLF bytes that Git would normalize. The canonical LF replay
@@ -78,11 +98,11 @@ Production artifact verification still uses Python.
 The shared seed reader is integrated under ADR 0400. It validates either
 manifest format, returns owned artifact identities, and supports a separate
 twelve-image release record and Linux/Windows pair binding. CupidBuild now calls
-that reader. Candidate plans contain 66 bootstrap inputs and 80 Toolchain
-publication inputs; installed release pins still describe their verified
+that reader. The ADR 0400 integration used 66 bootstrap inputs and 80 Toolchain
+publication inputs; installed release pins then described their verified
 59-input generation. Integrated API and production coordinator regressions pass
 on both hosts. Both retained staged proofs pass independent byte verification:
-32 Linux and 35 Windows artifact pairs match the current 66-input snapshot.
+32 Linux and 35 Windows artifact pairs match that 66-input snapshot.
 Paired OS/runtime acceptance passes, including ABI validation, all sixteen
 artifact checks, three user builds and private four-CPU disassembly and shell
 smokes. Independent comparison confirms matching artifacts and images.
@@ -96,7 +116,7 @@ other executable's source. CupidBuild's image API checks either ELF32 or PE32
 against an explicit tool role, while execution remains bound to the host format.
 
 The preceding extraction used 61 bootstrap inputs and 78 Toolchain publication
-inputs. The installed seeds still describe their verified 59-input generation.
+inputs. The installed seeds then described their verified 59-input generation.
 The native artifact-verification transaction, release identities, filesystem
 capture, and final rechecks remain unfinished. This extraction leaves the twelve
 Python-coordinated operations in place. ADR 0399 records the boundaries; the

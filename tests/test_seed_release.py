@@ -211,9 +211,12 @@ class ReleaseTests(unittest.TestCase):
                 target = value if key == "source_input_count" else value["artifacts"][0]
                 target[key] = number
                 self.call(value)
-        data = encode(release())
+        record = release()
+        data = encode(record)
+        field = b'"source_input_count":' + str(record["source_input_count"]).encode()
+        self.assertEqual(data.count(field), 1)
         for token in (b"059", b"59.0", b"59e0", b"+59", b"-59"):
-            self.call(data.replace(b'"source_input_count":59', b'"source_input_count":' + token), False)
+            self.call(data.replace(field, b'"source_input_count":' + token), False)
 
     def test_exact_two_cohorts(self):
         for index in range(12):

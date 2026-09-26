@@ -39751,3 +39751,252 @@ image is 209,715,200 bytes with SHA-256
 `fdf002770c0e3f091345daf0b1e8d66eff5773c16df93bf8ff3f35ae8ae201bb`.
 The evidence is `utf8-paired-acceptance-v2.json` in the integration evidence
 directory. Final tree and committed-input audits remain before push.
+
+Capability commit `46cf1b037880164c785fc7fc29b9be21d91d8713` is pushed.
+The committed-input audit verifies all 1,524 files and both LFS payloads against
+the canonical acceptance. Installed seeds remain unchanged.
+
+The first UTF-8 promotion preview validated the committed 73-input source
+snapshot and all three proof generations, then rejected the proposed Windows
+seed with `.idata has a noncanonical PE32 import address layout`. Installed-seed
+verification still chose ANSI imports. The correction selects the exact import
+profile by plan digest and source count after pinned provenance checks. It
+rejects mixed pairs, unknown profiles and unknown tool roles. All 20 focused
+Windows tests pass, including verification of the unchanged installed seed.
+The corrected complete paired preview passes without installation; its report
+is `utf8-promotion-preview-v1.json` in the integration evidence directory.
+
+The focused Linux suite also passes all 20 tests. Both six-tool seed sets have
+now been installed locally from commit `46cf1b03`, and both installed manifest
+verifiers pass. The Linux manifest digest is
+`d3a292f746824efe082a3713a6aa7673fe483cd90c310e8a8a4e8497899bd999`;
+the Windows digest is
+`a326e7773b799c96d17e5ab5b61b51bdc07f9271a67bf023cc6dca594891be6f`.
+The seed payloads, reviewed release, independent pins and tool-size policy were
+updated together. The default-plan test now keeps the historical ANSI digest
+explicitly and separately checks the installed wide profile. Promotion
+regressions are running on both hosts. This installation remains uncommitted;
+fresh OS acceptance is still required.
+
+## 2026-09-26: repair the UTF-8 promotion parent boundary
+
+Both promotion regression runners completed with failures. The proposed seeds
+passed Python identity verification but failed the shared C reader with
+`fixed-point provenance differs`. Its parent window omitted the installed
+`e4f2ed65` release. The failed payloads and logs remain in the integration
+evidence directory. No bootstrap process was still running on resumption.
+The promotion-only payload, manifest, release and size-policy changes were
+restored to the accepted commit; the exact Python import selector was retained.
+
+A focused native regression reproduced the C reader failure before the fix.
+The reader now accepts the conditional-assembly parent as one exact tuple.
+The tests reject unknown and mixed parent fields, preserve immutable inputs,
+check bounded diagnostics and recover with the valid manifest. A paired test
+checks the reviewed release and the actual Linux manifest byte binding.
+
+The broader replay found stale tests: one negative pair had become identical
+to the installed release, one historical source count retained a newer plan,
+and one integer-token replacement no longer changed its input. The fixtures
+now construct distinct revisions, consistent historical plans and a checked
+replacement of the current numeric field. All 98 manifest, pair, release,
+profile, release-identity and artifact-policy tests pass on Windows (9.956s)
+and Linux (13.376s). Full staged, publication and OS acceptance remain pending.
+
+The expanded regression run passes on both hosts: 98 focused tests, 141
+bootstrap tests, 153 publication tests and 25 manifest-runner tests. Windows
+has three runner skips. Independent Cupid-built callers pass 4,787 cases per
+host, including 1,132 structural manifests and 294 paired-release cases.
+Rehashing confirms identical shared objects and result streams. Evidence is
+under `build/bootstrap/parent-window-46cf1b03/`.
+
+Fresh poisoned-host staged proofs, full Linux Toolchain publication and paired
+kernel builds are running from a 1,525-file capture. Windows denied reads of
+the preceding acceptance image and user cat binary. The new Windows OS root
+therefore uses the byte-verified Linux acceptance copy; neither original is
+modified. The shared producer inputs and embedded manual remain frozen.
+
+The full graph audit exposed a separate omission from the UTF-8 integration:
+its ownership inventory did not include the three wide startup files, adapter,
+codec and two headers. The inventory now includes those seven inputs, and a
+focused test checks CupidASM and CupidC ownership plus missing and unexpected
+startup rejection. Seven optional native adapter or separate test sources
+also needed explicit `not_reached` entries for the supported build roots.
+Their Make targets and Python test callers remain available. The isolated
+audit regeneration is still running. These audit-only changes were made after
+the proof capture and require a final capture and publication-input review.
+
+The next isolated audit run found a stale token lock for the Windows ABI
+header. The reviewed capability commit adds WIN32_FIND_DATAW and the wide
+FindFirst/FindNext declarations; the publication runtime and startup digests
+are unchanged. The audit now binds that header and the current Linux
+47/7/55 and Windows 35/7/42 behavior inventories. It also requires the exact
+UTF-8 plan and linker forwarding calls and the full 87-input publication
+closure. New mutation cases reject loss of either UTF-8 selector. The direct
+fixed-point contract passes; complete graph regeneration and mutation tests
+remain pending.
+
+The third complete audit run stopped at the Toolchain manifest-contract
+transform check. That remaining mismatch is not yet resolved. The corrected
+reader and 417-method regression runs remain separate from full graph
+acceptance; no new commit or seed promotion has occurred.
+
+The transform mismatch came from the same omitted seven UTF-8 inputs: the
+manifest contract now requires all 151 distinct inputs. Its focused closure
+test passes. Regeneration then found that the active preprocessing corpus
+also omitted the codec and Windows adapter. Coverage now includes the codec
+under the strict hosted Linux profile, the adapter under each of its three
+GNU-enabled Windows roles, and the wide runtime configuration. A test compares
+their definitions and GNU flags with the checked Windows build plan. This
+brings the corpus to 412 tracked source/profile cases plus four generated
+cases across 16 profiles. The object contract also compiles the codec.
+
+The first fixed-point mutation replay found three test replacements that no
+longer matched the UTF-8 calls. Those replacements now assert that they alter
+the current source; a second replay is running. The four focused ownership,
+transform, profile and C-boundary tests pass. Full graph regeneration remains
+pending. The new C test sources require another publication run; the existing
+staged and kernel captures remain unchanged.
+
+Graph regeneration now passes. It records 763 active inputs, 36 source-like
+files outside the supported roots, 35 assembly files and eight Toolchain
+startup files. The conditional manifest adds the four UTF-8 expressions:
+59 unique expressions, 414 `#if` occurrences, 18 `#elif` occurrences and 62
+directive/expression probes. Their freestanding results are false because
+that profile does not define the Windows role macros.
+
+The corrected fixed-point mutation replay passes in 413.826 seconds. A
+123-method graph regression run covers the remaining checks. An independent
+comparison confirms that the four updated C test/fixture inputs leave all
+73 producer files unchanged. The fresh publication capture contains those
+four changes and waits for the preceding publisher to finish.
+
+A separate checked-Cupid preprocessor build compiled successfully. Its first
+launcher incorrectly passed `--root` to CupidASM; that CLI uses physical
+input/output paths. The corrected launcher assembled and linked the same
+verified objects, then passed the conditional-active, conditional-errors,
+directive-errors, include-macro-errors and macro-operator-errors modes.
+The complete active corpus is still running. Both launcher reports are kept.
+
+The complete checked-Cupid active corpus passes all 412 cases. The graph
+regression then found stale include counts. The four added C/header inputs
+bring include evidence to 724 files and 2,556 directives: 2,243 quoted and
+313 angle includes. Line-directive evidence uses the same 724-file scope.
+Only those golden expectations changed; the affected methods need a replay
+after the broad run completes.
+
+The Linux parent-reader bootstrap completes successfully. Independent
+verification rehashes all three stages, the 73-source capture, ELF layout and
+behavior inventory. Stage three and stage four match across 25 C objects,
+one startup object and six tool images. The behavior counts are 47 failure,
+seven help and 55 success cases. Native Windows verification and full
+publication/OS acceptance remain pending.
+
+The broad graph run finished 123 methods with three stale-inventory failures:
+include counts, line-directive scope and the source-feature snapshot. No other
+method failed. The corrected snapshot has 6,960 `sizeof` occurrences in 183
+files and 112 Toolchain sources. The three affected methods are replaying.
+The final isolated `--check` passes against the generated JSON, Markdown and
+active-case manifest.
+
+The Linux kernel runner also passes. It verifies 16 artifacts, 431 link inputs
+and the unchanged source image. The measured kernel binary grows from
+9,568,340 to 9,568,736 bytes with the embedded parent-reader documentation.
+The size policy remains unchanged until Windows output comparison completes.
+
+All three corrected graph methods pass in 424.929 seconds. The combined
+reports cover all 124 methods: 120 passing methods from the broad run, the
+three corrected replays and the separately passing fixed-point mutation
+method. An AST comparison against the byte-bound original test source
+confirms that no unreplayed method changed. The aggregation report is
+`audit-regressions-verified-v1.json`.
+
+Native Windows staged convergence also passes. Independent paired
+verification matches 39 Windows and 32 Linux artifacts, validates their image
+formats and rehashes every stage against the same 73 producer inputs.
+The converged six-tool Unicode fixture is running. The Linux kernel has
+completed; the Windows kernel and full publication remain in progress.
+
+All 28 converged Unicode-path commands pass across six tools and four roots.
+The original publication continues compiling its contracts. After staged
+jobs finished, Linux had 20 available CPUs with load near two. The updated
+publication no longer needs to wait for that independent root: only its idle
+waiting controller was stopped, its frozen capture was rehashed, and a new
+controller launched the actual build with host CC/LD commands poisoned.
+No active compilation was interrupted. The authoritative replay report is
+now `audit-linux-publication-v2.json`; acceptance helpers reference it.
+
+Windows kernel construction completes, and independent paired verification
+matches all 16 artifacts and 431 link inputs after rehashing 1,525 source
+files per host. Both source images remain unchanged. The measured size policy
+changes only `kernel/kernel.bin`, from 9,568,340 to 9,568,736 bytes. All 14
+artifact-policy tests pass against that value.
+
+Both OS roots then receive the four verified C test/fixture updates. Their
+final input inventory records those changes and the measured policy. The
+normal image builds are recompiling because the two changed `.inc` fixtures
+belong to the closed header search inventory. No cache or input guard is
+bypassed. Final acceptance requires the same 16 artifact and 431 link-input
+hashes, followed by user builds and private four-CPU disassembly/shell smokes.
+The graph audit is regenerating to bind the policy's new control-file digest.
+
+Regeneration leaves the graph JSON, Markdown and active-case manifest
+byte-identical. The expected policy control-file digest does not exist in
+this audit: it records ownership and recipe contracts, not that policy
+payload. The initial delta checker exposed this mistaken expectation before
+copying any output. Exact policy bytes remain bound by the final OS source
+inventory; its values are checked by the 14 policy tests and normal image
+artifact verification. `audit-policy-delta-v1.json` records the unchanged
+audit outputs and the separately measured policy change.
+
+The final isolated audit `--check` passes after the measured policy change.
+Its generated outputs remain identical. Both normal image builds are
+advancing through their closed-profile recompilation. The original publication
+has reached stage-four contract compilation; the updated publication is the
+required source for final acceptance. No seed promotion or commit has occurred.
+
+The final input-boundary review checks all 1,525 files against the frozen OS
+inventory. The 73 producer inputs and 87 publication inputs still match their
+respective captures; their union contains 112 files. The only 13 differences
+are documentation and independently tested audit files. The audit code and
+test source match their regression receipts, the ownership policy matches its
+audited digest, and generated outputs match their verified bytes. This review
+does not replace the pending publication and OS/runtime gates.
+
+
+### Parent-reader correction: Windows production acceptance
+
+The final Windows image and user-program builds pass, including all sixteen
+exact artifact checks. Its private four-CPU max/e1000 smoke completes raw
+`ls` disassembly and the shell command, verifies SMP runtime behavior, and
+preserves the source image. Independent verification rehashes all 1,525 source
+inputs, sixteen artifacts and 431 link inputs. All three user binaries match
+the preceding accepted binaries, and the preceding accepted image is unchanged.
+The report is `parent-window-46cf1b03/utf8-windows-independent-acceptance-v2.json`.
+
+Linux image construction also passes all sixteen artifact checks. Its user
+build and runtime smoke await the updated publication. The original baseline
+publication passes 65 stage pairs and publishes 22 artifacts; independent
+verification binds its original 87 inputs and unchanged 73 producer inputs.
+That result excludes the four later contract and fixture updates. The fresh
+publication and paired production acceptance remain required before commit.
+
+
+### Parent-reader correction: updated publication and paired acceptance
+
+The updated publication passes all 65 stage comparisons, the hosted runtime
+contract and final live-input checks, then publishes all 22 artifacts. Its
+Cupid-built manifest reader and independent verification pass against the
+current 87 publication inputs and the same 73 producer inputs. The manifest
+SHA-256 is `a0274b67c6fcec2cf177d647a9e4957a7550960332e7edb71bfdbd49c8d7af5e`.
+
+Linux then passes user-program builds and its private four-CPU max/e1000
+runtime smoke. Independent paired verification rehashes all 1,525 source files,
+sixteen artifacts and 431 link inputs per host. Images and all three user
+programs match. Both smokes preserve their source images, and the preceding
+accepted images remain unchanged. The shared image SHA-256 is
+`5bbb41b47915f0bb0f3c7086ad6c793659738ef0f89661d68a4374e21527c1cf`.
+
+Evidence remains under `build/bootstrap/parent-window-46cf1b03/`, including
+`audit-checked-publication-verification-v1.json` and
+`utf8-paired-acceptance-v2.json`. Final tree and committed-input verification
+remain before push. Installed seeds are unchanged; promotion is separate.

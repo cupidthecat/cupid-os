@@ -34069,6 +34069,8 @@ static int run_self_host_link_tools(const char *host_root,
       {"/toolchain/seed_release.cc", "/toolchain/seed_release.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/contract_parse_internal.cc", "/toolchain/contract_parse_internal.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/path_encoding.cc", "/toolchain/path_encoding.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE}};
   static const ctool_u32 cupidasm_objects[] = {
       0u, 7u, 6u, 3u, 2u, 4u, 5u, 1u};
