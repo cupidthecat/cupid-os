@@ -70,3 +70,43 @@ All 28 Unicode-path commands pass across the six converged Windows tools and
 four Unicode roots. The corrected reader therefore has both staged-byte and
 real wide-path execution evidence. Publication and OS acceptance are tracked
 separately.
+
+## Artifact-size reader during promotion
+
+Promotion from accepted commit `72170b06` passed the shared manifest reader but
+exposed the same missing parent generation in `artifact_size_policy.cc`.
+That reader now admits the third exact parent tuple as well. All six parent
+fields have unknown and mixed-identity negative cases, and complete Windows
+execution and plan parents must still name the same generation. Each rejection
+is followed by a valid request to check recovery. The earlier parent fixtures
+remain covered.
+
+The corrected installed-seed fixtures select the UTF-8 import profile and capture
+all 73 inputs. Historical ANSI fixtures remain explicit. Parent-negative tests
+use preceding identities and assert that each mutation changes the fixture.
+All 419 regression methods pass on each host. The Linux manifest-runner suite's
+initial root-drift failure occurred while another suite created root temporary
+directories; sequential host replays pass. The original failure remains recorded.
+
+The artifact-size reader is outside the 73 producer inputs, whose exact snapshot
+still matches the proposed release. It belongs to publication and OS verification,
+so those acceptance paths must be repeated before the promotion is committed.
+
+
+Promoted Cupid tools now build the corrected artifact-size contract on both
+hosts and pass its 48 semantic tests. Both checked manifest/release readers
+also pass all 4,801 exported cases, with identical shared objects and result
+streams across hosts. Six native policy API methods per host verify output
+bounds, failure clearing, recovery and concurrent calls. Full production
+acceptance remains a separate gate.
+
+The promoted pair now passes fresh staged self-consumption. Independent checks
+bind both proofs to the same 73 source inputs, compare all 39 Windows and 32
+Linux artifacts between stages three and four, and require every stage-four
+tool to match its installed seed. All 28 direct Unicode-path commands pass
+through the converged Windows tools. Full publication passes with 22 artifacts
+and 65 stage pairs. Recovered Windows and Linux image, user-program and private
+four-CPU runtime checks pass independent paired verification of 1,525 inputs,
+sixteen artifacts and 431 link inputs per host. Images and user binaries match;
+smokes preserve both source images. Final input verification passes with the
+73 producer files unchanged.

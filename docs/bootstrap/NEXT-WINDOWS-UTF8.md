@@ -1,5 +1,28 @@
 # Windows UTF-8 integration
 
+The installed UTF-8 seed pair from accepted commit `72170b06` passes promotion
+acceptance. Its 73 producer inputs match the reviewed snapshot. Both hosts pass
+425 native regression and API methods, 4,801 checked reader cases and 48 checked
+artifact-policy tests. Platform skips remain recorded. Fresh staged proofs
+match all 39 Windows and 32 Linux artifact pairs and reproduce the installed
+tools; all 28 converged Windows Unicode-path commands pass.
+
+Full publication passes with 22 artifacts and 65 stage pairs. Independent
+paired OS verification checks 1,525 source files, sixteen artifacts and 431
+link inputs per host. Images and all three user programs match. Both private
+four-CPU max/e1000 smokes pass disassembly, shell completion and SMP checks,
+without changing their source images. The accepted image SHA-256 is
+`0faa80ca9d44fe8d32dda5c10fbfe8859e25ebb0543e547181b27af8187e7759`.
+
+Promotion exposed a second parent-generation check in the artifact-size reader.
+It now admits the exact conditional-assembly parent tuple and retains the two
+preceding tuples. Tests reject unknown identities, mixed fields and complete
+Windows parents from different generations. This reader is a publication input;
+the 73 producer inputs remain unchanged. Ownership stays at 440 CupidBuild and
+twelve Python participations.
+
+## Source integration history
+
 The first source integration passes paired staged, publication and OS/runtime
 acceptance. Canonical LF replay also passes. No seed has been
 promoted and no production ownership has transferred.

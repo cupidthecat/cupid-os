@@ -95,11 +95,18 @@ class ManifestTests(unittest.TestCase):
                            "parent_execution_seed_source_revision": revision,
                            "parent_plan_seed_manifest_sha256": linux,
                            "parent_plan_seed_source_revision": revision}
-            previous = {key: value["provenance"][key] for key in parents}
+            previous = {
+                key: ("142a9737f618ab8500308576a1c222501d639e5f" if key.endswith("revision")
+                      else "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"
+                      if "execution" in key else
+                      "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52")
+                for key in parents
+            }
             value["provenance"].update(parents)
             self.check(value, fmt, expected=(6, 2 if fmt == 2 else 0))
             for key, expected in parents.items():
                 for replacement in ("0" * len(expected), previous[key]):
+                    self.assertNotEqual(replacement, expected)
                     altered = copy.deepcopy(value)
                     altered["provenance"][key] = replacement
                     self.check(altered, fmt, False)
@@ -124,7 +131,7 @@ class ManifestTests(unittest.TestCase):
 
     def test_candidate_plan_keeps_its_source_count_and_complete_closure(self):
         for fmt in (1, 2):
-            self.check(candidate_manifest(fmt), fmt)
+            self.check(candidate_manifest(fmt), fmt, expected=(6, int(fmt == 2)))
             for count in (50, 59, 61, 65, 67):
                 value = candidate_manifest(fmt)
                 value["provenance"]["source_input_count"] = count
@@ -224,7 +231,7 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(bytes(incoming), before)
         self.assertEqual(bytes(error)[capacity:], b"!" * 8 + b"\0")
         if accepted:
-            expected = expected or (6, int(fmt == 2))
+            expected = expected or (6, 2 if fmt == 2 else 0)
             self.assertEqual((result.artifact_count, result.current_windows_plan), expected)
             decoded = json.loads(data)
             roles = ("cupidasm", "cupidc", "cupiddis", "cupidld", "cupidobj", "cupidbuild")
@@ -385,7 +392,7 @@ class ManifestTests(unittest.TestCase):
             value = historical_manifest(fmt)
             value["provenance"]["source_input_count"] = 61
             value["provenance"]["source_revision"] = "f" * 40
-            self.check(value, fmt)
+            self.check(value, fmt, expected=(6, int(fmt == 2)))
             for key, val in value["provenance"].items():
                 if key.startswith("parent_"):
                     bad = copy.deepcopy(value)

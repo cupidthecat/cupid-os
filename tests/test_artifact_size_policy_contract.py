@@ -396,6 +396,47 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["artifact_count"], 16)
 
+    def test_conditional_parent_rejects_each_unknown_or_mixed_identity(self):
+        previous_revision = "142a9737f618ab8500308576a1c222501d639e5f"
+        previous_linux = "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"
+        previous_windows = "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"
+        fields = (
+            (0, "parent_seed_source_revision", previous_revision),
+            (0, "parent_seed_manifest_sha256", previous_linux),
+            (1, "parent_execution_seed_source_revision", previous_revision),
+            (1, "parent_execution_seed_manifest_sha256", previous_windows),
+            (1, "parent_plan_seed_source_revision", previous_revision),
+            (1, "parent_plan_seed_manifest_sha256", previous_linux),
+        )
+        for side, key, previous in fields:
+            for replacement in (previous, "0" * len(previous)):
+                with self.subTest(side=side, key=key, replacement=replacement):
+                    def mutate(manifest, windows):
+                        provenance = (manifest, windows)[side]["provenance"]
+                        self.assertNotEqual(provenance[key], replacement)
+                        provenance[key] = replacement
+                    self.assert_contract_failure(self.promoted_request(mutate))
+                    restored = self.run_request(self.promoted_request())
+                    self.assertEqual(restored.returncode, 0, restored.stderr)
+
+    def test_conditional_windows_parents_reject_mixed_complete_generations(self):
+        for role, digest in (
+            ("execution", "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd"),
+            ("plan", "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52"),
+        ):
+            with self.subTest(role=role):
+                def mutate(manifest, windows):
+                    provenance = windows["provenance"]
+                    key = f"parent_{role}_seed_manifest_sha256"
+                    self.assertNotEqual(provenance[key], digest)
+                    provenance[key] = digest
+                    provenance[f"parent_{role}_seed_source_revision"] = (
+                        "142a9737f618ab8500308576a1c222501d639e5f")
+                result = self.run_request(self.promoted_request(mutate))
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("Windows seed parent generations differ", result.stderr)
+
     def test_promoted_seed_rejects_mixed_plan_generations(self):
         for key, value in (
             ("linux_candidate_build_plan_sha256",

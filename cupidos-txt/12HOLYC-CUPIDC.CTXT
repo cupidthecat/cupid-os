@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-09-23
+Verified against source on: 2026-09-26
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -13,18 +13,18 @@ Verified against source on: 2026-09-23
 >style linkhover #0B3AA8
 >rule
 
->h2 Windows UTF-8 candidate
->tree open Windows UTF-8 candidate
-The hosted source candidate uses UTF-8 internally and UTF-16 at Windows API
+>h2 Windows UTF-8 tools
+>tree open Windows UTF-8 tools
+The checked Windows tool cohort uses UTF-8 internally and UTF-16 at Windows API
 boundaries. Native entry points and checked startup files select wide argv,
 file, directory and process operations. All six tools use the shared strict
 codec; malformed input is rejected without character replacement.
 
-The candidate captures 73 bootstrap inputs and 87 publication inputs. Windows
+The build captures 73 bootstrap inputs and 87 publication inputs. Windows
 builds 30 C objects and three startup objects. Exact role-specific import
 profiles and matching plan identities keep historical seed validation separate.
-Installed seeds retain their existing ANSI profiles. Replacing those seeds
-requires a separate promotion.
+The Windows seeds select the UTF-8 profile. Historical ANSI manifests retain
+their separate plan, source-count and import checks.
 >endtree
 
 >h2 Reusable build verification modules
@@ -60,10 +60,9 @@ Its author validates the installed pair and writes only a new review candidate;
 it does not promote tools. The runner captures 26 build inputs, checks the record
 before contract execution, and rechecks its bytes afterward. Record parsing does
 not authenticate an untrusted release. Observer integration and native command-level checks
-remain required before artifact verification can leave Python. Candidate inventories
-contain 66 bootstrap inputs and 80 publication inputs. Installed seeds now
-carry the verified 66-input generation. This promotion does not change
-production coordination.
+remain required before artifact verification can leave Python. Current inventories
+contain 73 bootstrap inputs and 87 publication inputs. The checked seeds carry
+the UTF-8 generation. Production artifact verification remains Python-coordinated.
 
 >h2 Native user executable validation
 Checked CupidBuild validates external i386 ELF32 executables in memory.
@@ -1070,5 +1069,6 @@ order, and interrupt-driven consumption retain their existing behavior.
 The shared manifest reader accepts the conditional-assembly release as an
 exact parent generation. Windows binds both parent manifests and revisions
 together; Linux binds its parent manifest and revision. Mixed or unknown
-parents fail. The installed seeds retain the accepted conditional-assembly
-release until fresh UTF-8 bootstrap proofs and promotion checks pass.
+parents fail. The artifact-size reader admits the same exact parent generation
+and retains the two preceding complete parent tuples. Windows execution and
+plan parents must name the same generation.

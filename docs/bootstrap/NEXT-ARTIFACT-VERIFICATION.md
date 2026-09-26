@@ -1,13 +1,16 @@
 # Next native artifact-size verification boundary
 
-Boundary audit, 2026-09-20; isolated extraction work, 2026-09-21. Production verification remains Python-coordinated.
+Boundary audit, 2026-09-20; isolated extraction work, 2026-09-21; private native
+integration rebased on the UTF-8 tools, 2026-09-26. Production verification
+remains Python-coordinated.
 
 ## Progress through the retained observer
 
-ADR 0400 completes the shared manifest and paired-release byte readers. Current
-candidate plans have 66 bootstrap inputs and 80 publication inputs; the
-59/61-input discussion below records the earlier extraction. Installed seeds
-remain at their accepted 59-input generation.
+ADR 0400 completes the shared manifest and paired-release byte readers. The
+UTF-8 generation has 73 bootstrap inputs and 87 publication inputs. The
+59/61-input discussion below records the earlier extraction; it does not
+describe the installed tools. See [the current seed identities](README.md)
+and [the UTF-8 boundary](NEXT-WINDOWS-UTF8.md).
 
 ADR 0401 adds the read-only retained observer described below. Its 36-method
 suite passes with native and Cupid-built callers on both hosts, and both
@@ -177,3 +180,114 @@ relink first reproduces the installed executable byte for byte from hash-checked
 stage-four objects. Replacing only the CupidBuild object then tests the new
 reader through checked Cupid-generated code. These private diagnostics do not
 replace installed seed tools and do not substitute for a complete fixed point.
+
+## Private native integration on the UTF-8 generation
+
+The retained native verifier has been merged onto the source captured for the
+`72170b06` seed promotion in private Windows and Linux roots. Twelve files carry
+the verifier, its CLI, bounded batch observations, aggregate policy diagnostics,
+Make integration, and tests. The merge preserves the current wide Windows entry
+points, path codec, imports, and conditional-assembly parent checks. Obsolete
+runtime and startup changes from the earlier candidate were not restored.
+
+The private command captures the reviewed release record, policy, both
+manifests, and all twelve seed payloads. It validates both executable profiles,
+collects sixteen artifact observations, applies the policy, and closes the
+retained observer before reporting success. It does not launch subprocesses or
+write repository files. Production still uses the Python coordinator and its
+independent pins; ownership remains 440 CupidBuild operations and twelve Python
+operations.
+
+Both hosts pass the private 102-method native suite. Normal Make builds and
+separate builds using only the installed CupidC, CupidASM, and CupidLD pass
+eight CLI commands per host: success and size rejection under paths with
+spaces, accented text, Japanese text, and a supplementary Unicode character.
+The checked Windows binary uses the wide entry point and UTF-8 imports.
+Independent verification rehashes all 1,530 captured inputs per host, both
+executables, every checked object, and the result records. Eight shared objects,
+including the verifier and policy, match across hosts. Evidence is retained in
+`build/bootstrap/utf8-promotion-72170b06/native-rebase-v1/`.
+
+The checked binaries also pass six existing CLI methods per host. These compare
+aggregate size, missing-file, and non-directory diagnostics with Python's
+oracle, and check release rejection, invalid arguments, and success. The two
+ctypes API methods remain part of the native suite.
+
+A checked caller pauses the verifier after capture and before its final drift
+check. Both hosts reject twelve mutations: release, policy, and manifest byte
+changes at both pauses, then seed-payload, artifact-size, and seed-membership
+changes before final acceptance. Payload mutations retain size and restore the
+original modification time. Every rejection leaves stdout empty. Independent
+verification binds the copied sources, reused objects, caller, and results;
+the caller object matches across hosts.
+
+These results cover the recorded private bytes. Three retained new source files
+still have CRLF endings; integration must normalize them and repeat acceptance
+on the final bytes. The new modules are not yet in the producer plans, source
+and header closures, staged proofs, or installed seeds. The remaining work is to
+integrate those closures, retain the race and allocation-failure coverage, prove
+the new coordinator through both staged builds, and then change the production
+operation with matching audit and OS/runtime evidence.
+
+A read-only closure calculation for those two added source modules gives 76
+producer inputs, 88 publication inputs, and 115 distinct inputs across both
+sets. The producer adds `artifact_size_policy.cc`, `cupidbuild_artifacts.cc`,
+and `cupidbuild_artifacts.h`; the publication set adds the new header. These
+are measured proposed counts, not an admitted build profile. Additional
+integration fixtures may change them.
+
+A second private candidate integrates those plans and the corresponding reader
+and publication inventories. It retains the installed 73-input seed pins,
+admits the exact new plan pair and UTF-8 parent tuple, and keeps the existing
+wide Windows import profile. Paired verification covers 287 native methods and
+4,869 checked reader cases per host, with matching shared objects. Publication
+fixtures were corrected to include both modules and the new object counts;
+the original failures and targeted replays are retained under
+`build/bootstrap/utf8-promotion-72170b06/native-plan-v1/`. This candidate still
+needs complete staged, publication, and OS acceptance before active integration
+and production handoff.
+
+The 76-input candidate's artifact-policy contract also passes all 51 methods
+with checked Cupid tools on each host. Independent verification binds the
+captured inputs, test logs, programs, and three matching shared objects.
+Both staged builds of this private candidate pass independent paired
+verification. Stage three and stage four match across 41 Windows artifacts
+and 34 Linux artifacts, with 76 producer inputs on each host. These candidate
+proofs are separate from the 73-input seed promotion.
+
+The supplemental harness also passes independent verification: 56 commands
+per host exercise both compared generations across four path encodings.
+The cases cover success, metadata and payload rejection, size and membership
+failures, and recovery. Every call preserved its observed fixture bytes and
+membership; verification also rehashed all 1,530 captured files on each host.
+The paired-release fixtures contain the actual twelve tool images from each
+generation, a synthetic release revision, and bounded ordinary artifact files.
+These results do not establish OS acceptance or promote the candidate seeds.
+
+A separate native caller now injects failure at each of the verifier translation
+unit's four allocation calls. Both hosts pass twenty failure/recovery pairs,
+covering diagnostic capacities of zero, one, two, nine, and 64 bytes. Each failed
+call clears its result, bounds its diagnostic, releases tracked allocations, and
+allows the following valid call to succeed. The fixture stays unchanged.
+Independent verification binds both binaries, the caller, logs, and all 1,530
+captured inputs. This covers the verifier's own allocations with host compilers;
+it does not claim fault injection throughout the observer or checked-Cupid
+execution of this caller.
+
+The canonical candidate's full Toolchain publication build was interrupted.
+A recovery build is running in a new Linux checkout containing the same 1,530
+captured files; the interrupted checkout and logs are retained. Its controller
+will run the checked manifest reader and independently verify the 88 publication
+inputs and 76 producer inputs after the build. This is separate from acceptance
+of the installed 73-input seed pair; neither publication has been promoted on
+the strength of the other's results.
+
+The canonical candidate's retained-input race replay passes on both hosts.
+The pause-hook caller was compiled with checked Cupid tools and linked with
+verified stage-four objects against the actual paired stage-four fixture.
+Each host passed the baseline and twelve mutations covering captured metadata,
+seed payloads, ordinary artifact sizes, and directory membership. Independent
+verification checked every retained fixture against its intended mutation,
+rehashed all 1,530 captured inputs on each host, and confirmed matching caller
+objects. These results apply to the canonical 76-input candidate; the earlier
+rebase's evidence remains separate.

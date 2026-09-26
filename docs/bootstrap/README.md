@@ -1,5 +1,28 @@
 # Cupid Toolchain bootstrap
 
+The installed UTF-8 seed pair from accepted commit `72170b06` passes promotion
+acceptance. Its 73 producer inputs match the reviewed snapshot. Both hosts pass
+425 native regression and API methods, 4,801 checked reader cases and 48 checked
+artifact-policy tests. Platform skips remain recorded. Fresh staged proofs
+match all 39 Windows and 32 Linux artifact pairs and reproduce the installed
+tools; all 28 converged Windows Unicode-path commands pass.
+
+Full publication passes with 22 artifacts and 65 stage pairs. Independent
+paired OS verification checks 1,525 source files, sixteen artifacts and 431
+link inputs per host. Images and all three user programs match. Both private
+four-CPU max/e1000 smokes pass disassembly, shell completion and SMP checks,
+without changing their source images. The accepted image SHA-256 is
+`0faa80ca9d44fe8d32dda5c10fbfe8859e25ebb0543e547181b27af8187e7759`.
+
+Promotion exposed a second parent-generation check in the artifact-size reader.
+It now admits the exact conditional-assembly parent tuple and retains the two
+preceding tuples. Tests reject unknown identities, mixed fields and complete
+Windows parents from different generations. This reader is a publication input;
+the 73 producer inputs remain unchanged. Ownership stays at 440 CupidBuild and
+twelve Python participations.
+
+## Pre-promotion acceptance
+
 The attempted UTF-8 seed promotion failed the shared C manifest reader: its
 accepted parent generations did not include the installed conditional-assembly
 release. The preceding seed pair has been restored. Source head now admits
@@ -8,8 +31,8 @@ reviewed plan and source count. Both staged proofs pass for this source.
 Production acceptance now passes on both hosts. Final commit verification and
 a new seed promotion remain separate. See ADR 0407.
 
-The current UTF-8 candidate has 73 tool producer inputs and 87 Toolchain
-publication inputs; installed seeds remain on the accepted 66-input release.
+The preceding source acceptance used 73 tool producer inputs and 87 Toolchain
+publication inputs, with the accepted 66-input seeds driving those builds.
 The corrected graph audit includes all eight startup files. A checked-Cupid
 preprocessor run passes 412 active source/profile cases, including the codec,
 all three Windows adapter roles and the wide runtime configuration. Both

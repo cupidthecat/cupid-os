@@ -35,6 +35,7 @@ class PairTests(unittest.TestCase):
         windows_parent = "c715ce354c28b97c6b9c4e5702c98d368d07dff9e52bc2f0deb71ab3194d2395"
         for item in (record, linux["provenance"], windows["provenance"]):
             item["source_input_count"] = 73
+            item["source_revision"] = "f" * 40
         record.update(parent_source_revision=revision,
                       parent_linux_manifest_sha256=linux_parent,
                       parent_windows_manifest_sha256=windows_parent)
@@ -51,10 +52,15 @@ class PairTests(unittest.TestCase):
         left, right = bind(linux, windows)
         self.check(record, left, right)
         self.check(release(), left, right, False)
-        for key in ("parent_source_revision", "parent_linux_manifest_sha256",
-                    "parent_windows_manifest_sha256"):
+        previous = {
+            "parent_source_revision": "142a9737f618ab8500308576a1c222501d639e5f",
+            "parent_linux_manifest_sha256": "7eeb40dcb6a66fbd6f3e5cc1798695d5b2895c8e1f693451684a9864f1733b52",
+            "parent_windows_manifest_sha256": "2d2cb287d90dd942b95629472e72f74013d8fcc4da64187fe87c0bcd0973cccd",
+        }
+        for key, value in previous.items():
             wrong = copy.deepcopy(record)
-            wrong[key] = release()[key]
+            self.assertNotEqual(value, wrong[key])
+            wrong[key] = value
             self.check(wrong, left, right, False)
         self.check(record, left + b" ", right, False)
         self.check(record, *bind(left + b" ", windows))

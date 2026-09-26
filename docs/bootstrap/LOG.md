@@ -40000,3 +40000,87 @@ Evidence remains under `build/bootstrap/parent-window-46cf1b03/`, including
 `audit-checked-publication-verification-v1.json` and
 `utf8-paired-acceptance-v2.json`. Final tree and committed-input verification
 remain before push. Installed seeds are unchanged; promotion is separate.
+
+
+## 2026-09-26: UTF-8 promotion from accepted 72170b06
+
+The proposed seed pair comes from accepted commit `72170b06`. Its 73 producer
+inputs have snapshot `c13c87e72a54724454a761e2766fe4e34913442cbefd18985d05b6a29df972f1`.
+Both proposed CupidBuild binaries accept their own manifest, reject a mixed
+parent revision, and accept the restored manifest. The Windows cohort selects
+wide APIs for command lines, filesystem paths and child processes.
+
+Promotion testing found a second parent-generation boundary in the artifact-size
+reader. It now accepts the exact conditional-assembly parent tuple while
+retaining the two preceding complete tuples. Unknown and mixed identities fail.
+Tests exercise every changed parent field, complete mixed Windows generations,
+and recovery after failure. This reader is a publication input, not a producer
+input; changing it does not alter the source identity of the proposed seeds.
+
+Installed-seed tests now expect the UTF-8 profile and capture all 73 inputs.
+Historical ANSI tests keep their original profiles. Parent rejection tests use
+explicit preceding identities and check that mutations change the fixture.
+A Linux manifest-runner check also detected root metadata drift while another
+suite created repository-local temporary directories. Its isolated replay is
+required before attributing that failure to the verifier.
+
+Fresh promoted-seed staged proofs, contract publication, OS builds and runtime
+acceptance remain required. Production ownership remains 440 CupidBuild and
+twelve Python participations. No promotion commit has been made.
+
+The corrected replay passes 419 methods per host: 98 focused, 61 bootstrap,
+80 remaining, 155 publication and 25 manifest-runner methods. Platform skips
+remain recorded. The final runner suites ran sequentially and both pass.
+The original failures are retained under `build/bootstrap/utf8-promotion-72170b06/`;
+corrected logs are in its `replay-v2/` directory. Independent hashing confirms
+that all 73 producer files still match the proposed release snapshot. No source
+or test edits occurred during the corrected runs.
+
+
+The promoted tools build both private manifest/release readers and pass all
+4,801 exported cases per host. Independent checks rehash their source inputs,
+objects and executables, compare all four result streams with the native corpus,
+and confirm that the five shared objects match across hosts. The artifact-size
+contract also builds entirely with CupidC, CupidASM and CupidLD on each host;
+all 48 semantic tests pass, including the new parent-generation rejections.
+The six policy API tests pass on both hosts, covering diagnostic bounds, cleared
+failure results, immutable inputs, recovery and concurrent calls.
+
+The first direct API-test launcher reported a PowerShell native-command error
+while unittest printed six passing tests. Replaying through a controller that
+captures child exit codes gives zero on both hosts. Both attempts remain in the
+private evidence; no source change was needed for that launcher correction.
+
+The promoted-seed staged proofs pass independent verification of 39 Windows and
+32 Linux artifact pairs, including equality with the installed stage-four
+tools. Both kernel build controllers and independent paired verification pass.
+The measured size update changes only `kernel.bin`, from 9,568,736 to 9,568,796
+bytes; fourteen policy tests pass. The deferred OS controller was interrupted
+before image, user-program, and runtime acceptance completed. Its partial logs
+and reports are retained. Windows acceptance passed with separate logs. After
+the orphaned Linux Make process exited, a fresh acceptance run also passed;
+no exit status or success was inferred from the orphan itself. Full Toolchain publication now
+passes with 22 artifacts. Its checked manifest reader and independent verifier
+bind all 87 publication inputs and 73 producer inputs to manifest
+`bc68f5601d19b6ae6c2ad3ee9aac3a67af129aa92747b8906763a0377d332d90`.
+The regenerated graph
+changes only the expected source/provenance hashes and the artifact reader's
+added declarations; ownership remains 440 CupidBuild and twelve Python rows.
+
+The separate 76-input native artifact-verifier candidate now passes independent
+paired staged verification, 56 supplemental commands per host, and twelve
+checked race mutations plus a baseline per host. Verification binds the actual
+stage tools, retained fixtures, matching race-caller objects, and all 1,530
+captured inputs per host. Its full publication build was also interrupted;
+a recovery build uses a fresh checkout while retaining the original evidence.
+The candidate has not replaced the production Python verification operation.
+
+
+Recovered paired acceptance passes independent verification of all 1,525 inputs,
+sixteen artifacts and 431 link inputs per host. Images and user programs match;
+both private four-CPU max/e1000 smokes pass disassembly, shell and SMP checks.
+The source images and preceding accepted images remain unchanged. The new image
+SHA-256 is `0faa80ca9d44fe8d32dda5c10fbfe8859e25ebb0543e547181b27af8187e7759`.
+Evidence is retained in `utf8-paired-acceptance-v3.json` under
+`build/bootstrap/utf8-promotion-72170b06/`. The final input audit also passes,
+binding 73 producer inputs and the 112-file tool input union to acceptance.

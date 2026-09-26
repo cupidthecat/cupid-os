@@ -21,12 +21,12 @@ class WindowsUtf8PlanTests(unittest.TestCase):
                          "70158fd9780990ec0cd0ed1c4da1af9f22f8acbcb483324693fd46c2362177b9")
         self.assertEqual(plan, bootstrap._windows_build_plan(self.linux, utf8=False))
 
-    def test_installed_profile_matches_promoted_ansi_plan(self):
+    def test_installed_profile_matches_promoted_utf8_plan(self):
         manifest = json.loads((ROOT / "bootstrap/seeds/i386-windows/manifest.json").read_bytes())
-        digest = bootstrap._build_plan_sha256(bootstrap._windows_build_plan(self.linux, utf8=False))
+        digest = bootstrap._build_plan_sha256(bootstrap._windows_build_plan(self.linux, utf8=True))
         self.assertEqual(digest, manifest["provenance"]["native_build_plan_sha256"])
         self.assertEqual(digest, bootstrap.PROMOTED_WINDOWS_PLAN_SHA256)
-        self.assertEqual(manifest["provenance"]["source_input_count"], 66)
+        self.assertEqual(manifest["provenance"]["source_input_count"], 73)
 
     def test_promoted_profiles_select_exact_imports_for_every_role(self):
         for utf8, count in ((False, 66), (True, 73)):

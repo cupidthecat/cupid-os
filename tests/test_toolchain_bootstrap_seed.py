@@ -75,6 +75,7 @@ from tools.bootstrap_toolchain import (
     _unowned_relocation_object_payload,
     _windows_build_plan,
     _windows_imports,
+    _windows_utf8_imports,
     _validate_static_i386_pe32,
     bootstrap_from_seed,
     bootstrap_windows_from_seed,
@@ -724,12 +725,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(
             profiles,
             {
-                "cupidasm.exe": WINDOWS_LINKER_IMPORTS,
-                "cupidc.exe": WINDOWS_TOOL_IMPORTS,
-                "cupiddis.exe": WINDOWS_TOOL_IMPORTS,
-                "cupidld.exe": WINDOWS_LINKER_IMPORTS,
-                "cupidobj.exe": WINDOWS_TOOL_IMPORTS,
-                "cupidbuild.exe": WINDOWS_CUPIDBUILD_IMPORTS,
+                name + ".exe": _windows_utf8_imports(name)
+                for name in CANDIDATE_TOOL_NAMES
             },
         )
 
@@ -1116,14 +1113,23 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             changed[tool] = profile
             return changed
 
+        promoted_profiles = {
+            name: _windows_utf8_imports(name) for name in CANDIDATE_TOOL_NAMES
+        }
         cases = (
-            ("promoted", PROMOTED_WINDOWS_PLAN_SHA256, current_profiles, True),
+            ("promoted", PROMOTED_WINDOWS_PLAN_SHA256, promoted_profiles, True),
             ("promoted-seed-ordinary", PROMOTED_WINDOWS_PLAN_SHA256,
-             with_profile(current_profiles, "cupidc", WINDOWS_TOOL_SEED_IMPORTS), False),
+             with_profile(promoted_profiles, "cupidc", WINDOWS_TOOL_SEED_IMPORTS), False),
             ("promoted-seed-linker", PROMOTED_WINDOWS_PLAN_SHA256,
-             with_profile(current_profiles, "cupidasm", WINDOWS_LINKER_SEED_IMPORTS), False),
+             with_profile(promoted_profiles, "cupidasm", WINDOWS_LINKER_SEED_IMPORTS), False),
             ("promoted-seed-cupidbuild", PROMOTED_WINDOWS_PLAN_SHA256,
-             with_profile(current_profiles, "cupidbuild", WINDOWS_CUPIDBUILD_SEED_IMPORTS), False),
+             with_profile(promoted_profiles, "cupidbuild", WINDOWS_CUPIDBUILD_SEED_IMPORTS), False),
+            ("promoted-ansi-ordinary", PROMOTED_WINDOWS_PLAN_SHA256,
+             with_profile(promoted_profiles, "cupidc", WINDOWS_TOOL_IMPORTS), False),
+            ("promoted-ansi-linker", PROMOTED_WINDOWS_PLAN_SHA256,
+             with_profile(promoted_profiles, "cupidasm", WINDOWS_LINKER_IMPORTS), False),
+            ("promoted-ansi-cupidbuild", PROMOTED_WINDOWS_PLAN_SHA256,
+             with_profile(promoted_profiles, "cupidbuild", WINDOWS_CUPIDBUILD_IMPORTS), False),
             ("seed", legacy_plan, seed_profiles, True),
             ("current", current_plan, current_profiles, True),
             (
@@ -5833,7 +5839,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         provenance = manifest["provenance"]
         revision = provenance["source_revision"]
         plan = manifest["build_plan"]
-        live_inventory = capture_source_snapshot(REPO_ROOT, plan)
+        live_inventory = capture_source_snapshot(REPO_ROOT, plan, windows_utf8=True)
         committed_inventory = self._committed_source_inventory(
             revision, live_inventory
         )
@@ -6245,7 +6251,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         plan = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))[
             "build_plan"
         ]
-        live_inventory = capture_source_snapshot(REPO_ROOT, plan)
+        live_inventory = capture_source_snapshot(REPO_ROOT, plan, windows_utf8=True)
         committed_inventory = self._committed_source_inventory(
             revision, live_inventory
         )
