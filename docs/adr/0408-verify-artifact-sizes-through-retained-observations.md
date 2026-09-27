@@ -64,3 +64,16 @@ smokes pass disassembly, shell completion and SMP checks. All three hosted
 contracts pass independent verification. Seed promotion remains before the
 production handoff; production keeps the Python verifier meanwhile.
 See [selected-seed evidence and limits](../bootstrap/NATIVE-ARTIFACT-SELECTION.md).
+
+Selected-seed promotion acceptance, 2026-09-27: the pair from `5ba6ea24` now
+carries both selection options. Fresh named-commit and promoted self-bootstrap
+proofs converge; the latter reproduce all twelve installed tools. Installed
+commands pass canonical and alternate-selection checks, useful negative cases
+and recovery across ASCII, accented, Japanese and emoji paths. Checked readers, policy tests,
+publication and hosted contracts pass. Independent paired OS acceptance verifies
+1,534 sources, sixteen artifacts and 431 linker inputs per host, with matching
+images and user programs. Both private four-CPU smokes pass disassembly, shell
+completion and SMP checks. Evidence is under
+`build/bootstrap/artifact-promotion-5ba6ea24/`. Production still uses the Python
+verifier until the Make recipe, selection arguments and dependency audit change
+together and pass fresh acceptance.

@@ -1,25 +1,35 @@
 # Cupid Toolchain bootstrap
 
-The native artifact verifier now supports separately selected checked and
-execution manifests. This preserves the Python runner's Linux execution-cohort
-check while retaining the original native API. Windows still requires its
-canonical execution cohort. Both native readers admit the exact current seed
-generation as a parent and reject mixed identities.
+The installed Linux and Windows seeds now carry selected execution-seed
+verification from source commit `5ba6ea24fdef3b23c505551ab537688e681c9593`.
+Native `verify-artifact-sizes` accepts paired `--checked-manifest` and
+`--execution-manifest` options while preserving its original API and command.
+Windows requires its canonical execution cohort; Linux can retain a separate
+copy of the reviewed six-tool cohort through the final drift check.
 
-The source extension passes paired staged convergence, checked command and race
-tests, parent-reader tests, and Linux publication verification. Paired image
-and runtime acceptance passes. Both hosts produce identical kernels with the
-updated manual; `kernel.bin` is 9,570,996 bytes. All 74 policy regression tests
-pass per host. All three Linux hosted contracts pass independent verification,
-including seven resulting executables. Independent paired acceptance checks
-1,534 inputs, sixteen artifacts and 431 linker inputs per host. Images and all
-three user programs match. Both private four-CPU max/e1000 smokes pass disassembly,
-shell completion and SMP checks while preserving their source images. The image
-SHA-256 is `097ac6818d9fc85347c7e99d867fd4ef3d470ead67aea36de6790793fcb0fff5`.
-The installed seeds remain unchanged, and production still
-uses the Python verifier: 440 CupidBuild actions and twelve Python actions.
-See [selected-seed evidence and limits](NATIVE-ARTIFACT-SELECTION.md) for the
-captured inputs, independent checks and remaining promotion work.
+Fresh staged proofs match 41 Windows and 34 Linux outputs. Both promoted-seed
+self-bootstrap proofs reproduce all twelve installed tools. Promotion regressions
+pass 352 unique methods per host, with platform skips recorded separately.
+Checked callers pass 4,919 reader cases and 52 policy methods per host; installed
+artifact-verifier fixtures pass 40 Windows and 56 Linux cases across ASCII, accented, Japanese and emoji
+paths. All 28 converged Windows Unicode-path commands pass.
+
+Linux publication verifies 22 artifacts, 88 publication inputs and 67 stage
+pairs. All three hosted contracts pass independent verification, including seven
+i386 executables. Both hosts produce the same 9,571,000-byte kernel with the
+updated embedded manual. All 74 policy regression tests pass per host.
+Independent paired OS acceptance checks 1,534 source inputs, sixteen artifacts
+and 431 linker inputs per host. Images and all three user programs match.
+Both private four-CPU max/e1000 smokes pass disassembly, shell completion and
+SMP checks while preserving their source images. The image SHA-256 is
+`8ea7d8eabd6937ad71f5d2ec0ec1cdabf1ac649466a4fc8450f49b987d60ff81`.
+
+Production still uses the Python artifact verifier: 440 CupidBuild actions and
+twelve Python actions. The native Make handoff must pass both selection options
+and receive fresh graph and OS acceptance. Full Doom gameplay, audio, save/load,
+reboot and performance acceptance remains outstanding.
+See [selected-seed evidence and limits](NATIVE-ARTIFACT-SELECTION.md) for captured inputs,
+independent reports and remaining production work.
 
 The preceding accepted manual update is recorded below.
 

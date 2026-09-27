@@ -1,5 +1,47 @@
 # Native artifact verification: selected execution seeds
 
+The installed Linux and Windows seeds now carry selected execution-seed
+verification from source commit `5ba6ea24fdef3b23c505551ab537688e681c9593`.
+Native `verify-artifact-sizes` accepts paired `--checked-manifest` and
+`--execution-manifest` options while preserving its original API and command.
+Windows requires its canonical execution cohort; Linux can retain a separate
+copy of the reviewed six-tool cohort through the final drift check.
+
+Fresh staged proofs match 41 Windows and 34 Linux outputs. Both promoted-seed
+self-bootstrap proofs reproduce all twelve installed tools. Promotion regressions
+pass 352 unique methods per host, with platform skips recorded separately.
+Checked callers pass 4,919 reader cases and 52 policy methods per host; installed
+artifact-verifier fixtures pass 40 Windows and 56 Linux cases across ASCII, accented, Japanese and emoji
+paths. All 28 converged Windows Unicode-path commands pass.
+
+Linux publication verifies 22 artifacts, 88 publication inputs and 67 stage
+pairs. All three hosted contracts pass independent verification, including seven
+i386 executables. Both hosts produce the same 9,571,000-byte kernel with the
+updated embedded manual. All 74 policy regression tests pass per host.
+Independent paired OS acceptance checks 1,534 source inputs, sixteen artifacts
+and 431 linker inputs per host. Images and all three user programs match.
+Both private four-CPU max/e1000 smokes pass disassembly, shell completion and
+SMP checks while preserving their source images. The image SHA-256 is
+`8ea7d8eabd6937ad71f5d2ec0ec1cdabf1ac649466a4fc8450f49b987d60ff81`.
+
+Production still uses the Python artifact verifier: 440 CupidBuild actions and
+twelve Python actions. The native Make handoff must pass both selection options
+and receive fresh graph and OS acceptance. Full Doom gameplay, audio, save/load,
+reboot and performance acceptance remains outstanding.
+
+Promotion evidence is retained under
+`build/bootstrap/artifact-promotion-5ba6ea24/`. The paired OS report is
+`paired-os-acceptance-v1.json`; hosted verification is
+`linux-promoted-hosted-verification-v1.json`. Promotion and OS captures retain
+separate identities: the embedded manual changes first, then the exact-size
+policy changes from the measured kernel result. Final prose updates do not alter
+those tested inputs.
+
+## Source integration history
+
+The following records describe the source acceptance that preceded promotion.
+References to unchanged installed seeds or pending promotion apply to that stage.
+
 The production handoff audit found an input missing from the promoted native
 interface. The Python runner retains the selected Linux execution manifest and
 all six payloads, even when that cohort is separate from the policy cohort.

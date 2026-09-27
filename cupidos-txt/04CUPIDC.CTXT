@@ -17,12 +17,12 @@ Verified against source on: 2026-09-27
 >h2 Source and seed checkpoint
 >tree open Source and seed checkpoint
 Both checked six-tool seed cohorts bind source
-ec896462586597893dd197697ee3b68ce2c8e69b and the same 76-input snapshot:
-0bf11fcbef634c80716cbe178434a6060a04bf5bb7d07f9ccb03d5248a0c173c.
-The pair was promoted in commit 0c509ddc. Fresh self-bootstrap proofs reproduce
-all twelve installed tools, with 41 Windows and 34 Linux final-stage artifacts
-matching. All 28 converged Windows Unicode-path commands pass. The Windows
-tools use UTF-8 paths at their public boundary and wide Windows APIs internally.
+5ba6ea24fdef3b23c505551ab537688e681c9593 and the same 76-input snapshot:
+da84839264fc80ced905e345effab2a65a77d8511e26d39cd4ad089842ad470f.
+Fresh proofs from that commit match 41 Windows and 34 Linux final-stage
+artifacts. The installed verifier passes 40 Windows and 56 Linux cases across
+ASCII, accented, Japanese and emoji paths. The Windows tools use UTF-8 paths
+at their public boundary and wide Windows APIs internally.
 
 CupidBuild now carries verify-artifact-sizes. This read-only command retains
 filesystem observations while checking the reviewed paired release, both seed
@@ -32,12 +32,12 @@ closes them before reporting success. These sequential drift checks do not
 provide an atomic filesystem snapshot; the release record is reviewed data,
 not a signature.
 
-The source verifier adds paired --checked-manifest and --execution-manifest
+The installed verifier accepts paired --checked-manifest and --execution-manifest
 options. Linux may select a separate copy of the reviewed six-tool cohort;
 Windows requires its canonical checked seed. Selected manifests, payloads and
 directory membership stay observed through the final drift check. The original
-three-option interface remains available. These additions still need seed
-promotion before production can use them.
+three-option interface remains available. Both native readers accept the exact
+preceding release as a parent and reject mixed identities.
 
 The production artifact check still uses Python. Across 452 audited build
 actions, CupidBuild owns 440 and Python owns twelve. Those twelve cover three
@@ -45,12 +45,13 @@ user compilations, three user links, two image operations, three verification
 operations and hosted contract publication. Carrying a command in the seeds
 does not transfer production ownership until the build graph calls it.
 
-Promotion acceptance passes on Linux and Windows. Full publication checks
+The preceding ec896462 pair passed acceptance on Linux and Windows.
+Its full publication checked
 22 artifacts and 67 final-stage pairs. Hosted contracts and private four-CPU
-disassembly, shell and SMP checks pass. The paired audit checks 1,533 source
+disassembly, shell and SMP checks passed. That paired audit checked 1,533 source
 inputs, sixteen artifacts and 431 link inputs per host; images and all three
-user programs match. This establishes the promoted tools, not complete Doom
-gameplay, audio, save/load or reboot acceptance.
+user programs matched. Full Doom gameplay, audio, save/load and reboot
+acceptance remains outstanding.
 
 WSL builds on /mnt/c remain supported. If concurrent parent replacement makes
 retained lookup unsafe, publication fails and keeps the verified old file as
