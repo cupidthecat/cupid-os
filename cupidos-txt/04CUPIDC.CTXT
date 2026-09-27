@@ -32,6 +32,13 @@ closes them before reporting success. These sequential drift checks do not
 provide an atomic filesystem snapshot; the release record is reviewed data,
 not a signature.
 
+The source verifier adds paired --checked-manifest and --execution-manifest
+options. Linux may select a separate copy of the reviewed six-tool cohort;
+Windows requires its canonical checked seed. Selected manifests, payloads and
+directory membership stay observed through the final drift check. The original
+three-option interface remains available. These additions still need seed
+promotion before production can use them.
+
 The production artifact check still uses Python. Across 452 audited build
 actions, CupidBuild owns 440 and Python owns twelve. Those twelve cover three
 user compilations, three user links, two image operations, three verification

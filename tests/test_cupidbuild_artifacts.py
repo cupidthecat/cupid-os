@@ -34,7 +34,7 @@ class CupidBuildArtifactTests(unittest.TestCase):
                   "-D_CRT_SECURE_NO_WARNINGS", "-I", str(ROOT / "toolchain"), "-x", "c"]
         sources = [str(ROOT / "toolchain" / (name + ".cc")) for name in SOURCES]
         extra = ["-lntdll"] if os.name == "nt" else []
-        for output, additions in ((library, ["-shared", *(["-Wl,/export:cupidbuild_verify_artifact_sizes"] if os.name == "nt" else ["-fPIC"])]),
+        for output, additions in ((library, ["-shared", *(["-Wl,/export:cupidbuild_verify_artifact_sizes", "-Wl,/export:cupidbuild_verify_artifact_sizes_selected"] if os.name == "nt" else ["-fPIC"])]),
                                   (cls.cli, [str(ROOT / "toolchain/cupidbuild_main.cc")])):
             result = subprocess.run([*common, *sources, *additions, *extra, "-o", str(output)],
                                     capture_output=True, timeout=300)
@@ -46,6 +46,11 @@ class CupidBuildArtifactTests(unittest.TestCase):
         cls.verify = cls.library.cupidbuild_verify_artifact_sizes
         cls.verify.argtypes = [ctypes.POINTER(Request), ctypes.POINTER(Result), ctypes.c_void_p, ctypes.c_size_t]
         cls.verify.restype = ctypes.c_int
+        cls.verify_selected = cls.library.cupidbuild_verify_artifact_sizes_selected
+        cls.verify_selected.argtypes = [ctypes.POINTER(Request), ctypes.c_char_p,
+                                       ctypes.c_char_p, ctypes.POINTER(Result),
+                                       ctypes.c_void_p, ctypes.c_size_t]
+        cls.verify_selected.restype = ctypes.c_int
 
     @classmethod
     def unload_library(cls):
@@ -76,6 +81,53 @@ class CupidBuildArtifactTests(unittest.TestCase):
 
     def request(self):
         return Request(str(self.root).encode(), self.policy.as_posix().encode(), self.manifest.as_posix().encode())
+
+    def selected_cli(self, execution=None, checked=None):
+        return self.run_cli(
+            "--checked-manifest", checked or "bootstrap/seeds/i386-windows/manifest.json",
+            "--execution-manifest", execution or
+            ("bootstrap/seeds/i386-windows/manifest.json" if os.name == "nt"
+             else self.manifest.as_posix()))
+
+    def test_selected_execution_accepts_current_cohort(self):
+        result = self.selected_cli()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, self.run_cli().stdout)
+
+    def test_selected_execution_rejects_unchecked_windows_path(self):
+        result = self.selected_cli(checked="alternate/manifest.json")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, b"")
+        self.assertIn(b"not the production Windows manifest", result.stderr)
+
+    def test_selected_execution_requires_both_options(self):
+        for option in ("--checked-manifest", "--execution-manifest"):
+            with self.subTest(option=option):
+                result = self.run_cli(option, self.manifest.as_posix())
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, b"")
+
+    def test_selected_execution_alternate_copy_and_payload_rejection(self):
+        source = "i386-windows" if os.name == "nt" else "i386-linux"
+        shutil.copytree(self.root / "bootstrap/seeds" / source, self.root / "alternate")
+        result = self.selected_cli(execution="alternate/manifest.json")
+        if os.name == "nt":
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, b"")
+            self.assertIn(b"Windows execution seed is not the checked Windows seed", result.stderr)
+            return
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = self.root / "alternate/cupidc.elf"
+        original = payload.read_bytes()
+        stamp = payload.stat()
+        payload.write_bytes(original[:-1] + bytes([original[-1] ^ 1]))
+        os.utime(payload, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+        result = self.selected_cli(execution="alternate/manifest.json")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, b"")
+        self.assertIn(b"execution seed image differs", result.stderr)
+        payload.write_bytes(original)
+        self.assertEqual(self.selected_cli(execution="alternate/manifest.json").returncode, 0)
 
     def assert_oracle_failure(self):
         with self.assertRaises(oracle.SizePolicyError) as raised:
@@ -114,10 +166,7 @@ class CupidBuildArtifactTests(unittest.TestCase):
         self.assertEqual(int(counts[2]), 5 * int(counts[1]))
         self.assertEqual(inventory(), before)
 
-    def test_retained_inputs_reject_drift_before_success(self):
-        import queue
-        import threading
-
+    def build_race_caller(self):
         compiler = shutil.which("clang" if os.name == "nt" else "cc")
         program = Path(self.build.name) / ("races.exe" if os.name == "nt" else "races")
         sources = [str(ROOT / "toolchain" / (name + ".cc"))
@@ -129,9 +178,19 @@ class CupidBuildArtifactTests(unittest.TestCase):
              *sources, *(["-lntdll"] if os.name == "nt" else []), "-o", str(program)],
             capture_output=True, timeout=300)
         self.assertEqual(built.returncode, 0, built.stderr.decode(errors="replace"))
+        return program
 
-        def command(root, phase):
-            return [str(program), str(root), self.policy.as_posix(), self.manifest.as_posix(), phase]
+    def test_retained_inputs_reject_drift_before_success(self):
+        import queue
+        import threading
+
+        program = self.build_race_caller()
+
+        def command(root, phase, selected=False):
+            arguments = [str(program), str(root), self.policy.as_posix(), self.manifest.as_posix(), phase]
+            if selected:
+                arguments.extend(["bootstrap/seeds/i386-windows/manifest.json", "alternate/manifest.json"])
+            return arguments
 
         baseline = subprocess.run(command(self.root, "none"), capture_output=True, timeout=120)
         self.assertEqual((baseline.returncode, baseline.stderr), (0, b""))
@@ -145,6 +204,13 @@ class CupidBuildArtifactTests(unittest.TestCase):
                  ("bootstrap/seeds/i386-windows/cupidc.exe", "payload"),
                  ("kernel/kernel.bin", "size"),
                  ("bootstrap/seeds/i386-linux/extra", "extra")]
+        if os.name != "nt":
+            shutil.copytree(self.root / "bootstrap/seeds/i386-linux", self.root / "alternate")
+            baseline = subprocess.run(command(self.root, "none", True), capture_output=True, timeout=120)
+            self.assertEqual((baseline.returncode, baseline.stderr), (0, b""))
+            cases.extend([("alternate/manifest.json", "payload"),
+                          ("alternate/cupidc.elf", "payload"),
+                          ("alternate/extra", "extra")])
         for phase in ("validate", "success"):
             for index, (logical, kind) in enumerate(cases):
                 if phase == "validate" and index >= 4:
@@ -152,7 +218,7 @@ class CupidBuildArtifactTests(unittest.TestCase):
                 with self.subTest(phase=phase, path=logical), tempfile.TemporaryDirectory() as temporary:
                     root = Path(temporary) / "fixture"
                     shutil.copytree(self.root, root)
-                    child = subprocess.Popen(command(root, phase), stdin=subprocess.PIPE,
+                    child = subprocess.Popen(command(root, phase, logical.startswith("alternate/")), stdin=subprocess.PIPE,
                                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     messages = queue.Queue()
                     reader = threading.Thread(target=lambda: messages.put(child.stderr.readline()), daemon=True)
@@ -262,6 +328,37 @@ class CupidBuildArtifactTests(unittest.TestCase):
         result = Result(99, 99)
         self.assertEqual(self.verify(ctypes.byref(request), ctypes.byref(result), None, 1), 0)
         self.assertEqual((result.count, result.bytes), (0, 0))
+
+    def test_selected_api_invalid_paths_bound_diagnostics_and_recover(self):
+        request = self.request()
+        checked = b"bootstrap/seeds/i386-windows/manifest.json"
+        execution = checked if os.name == "nt" else self.manifest.as_posix().encode()
+        invalid = [(None, execution), (checked, None), (b"", execution),
+                   (checked, b""), (b"alternate/manifest.json", execution),
+                   (checked, b"x" * 8192)]
+        if os.name != "nt":
+            invalid.append((checked, b"bootstrap/seeds/i386-linux/other.json"))
+        for selected_checked, selected_execution in invalid:
+            full = ctypes.create_string_buffer(512)
+            result = Result(99, 99)
+            self.assertEqual(self.verify_selected(ctypes.byref(request), selected_checked,
+                             selected_execution, ctypes.byref(result), full, len(full)), 0)
+            expected = full.value
+            self.assertTrue(expected)
+            for capacity in (0, 1, 2, 9):
+                with self.subTest(checked=selected_checked, execution=selected_execution, capacity=capacity):
+                    result = Result(99, 99)
+                    guard = ctypes.create_string_buffer(b"Z" * (capacity + 8))
+                    self.assertEqual(self.verify_selected(ctypes.byref(request), selected_checked,
+                                     selected_execution, ctypes.byref(result), guard if capacity else None, capacity), 0)
+                    self.assertEqual((result.count, result.bytes), (0, 0))
+                    if capacity:
+                        self.assertEqual(guard.raw[:capacity].split(b"\0")[0], expected[:capacity-1])
+                        self.assertIn(b"\0", guard.raw[:capacity])
+                    self.assertEqual(guard.raw[capacity:capacity+8], b"Z" * 8)
+        self.assertEqual(self.verify_selected(ctypes.byref(request), checked, execution,
+                         ctypes.byref(result), None, 0), 1)
+        self.assertEqual(result.count, 16)
 
 if __name__ == "__main__":
     unittest.main()

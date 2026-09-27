@@ -9,6 +9,8 @@
 typedef struct cupidbuild_host_transaction cupidbuild_host_transaction_t;
 typedef struct cupidbuild_host_profile_parent cupidbuild_host_profile_parent_t;
 typedef struct cupidbuild_host_observer cupidbuild_host_observer_t;
+/* Execution image format for this adapter: ELF32 is 1, PE32 is 2. */
+unsigned int cupidbuild_host_execution_format(void);
 
 /* Read-only observations retain live handles until close. Repository roots are
  * absolute (drive-rooted on Windows). Logical paths are

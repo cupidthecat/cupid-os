@@ -21,4 +21,12 @@ typedef struct {
 int cupidbuild_verify_artifact_sizes(const cupidbuild_artifact_request_t *request,
                                     artifact_size_policy_result_t *result,
                                     char *error, size_t error_capacity);
+/* Also retain the selected execution cohort. Both selection paths are required.
+ * The checked Windows path is canonical. Windows execution must use it;
+ * Linux execution may use a separate copy of the reviewed Linux cohort.
+ * The original entry point and request layout remain unchanged. */
+int cupidbuild_verify_artifact_sizes_selected(
+    const cupidbuild_artifact_request_t *request,
+    const char *checked_manifest_path, const char *execution_manifest_path,
+    artifact_size_policy_result_t *result, char *error, size_t error_capacity);
 #endif

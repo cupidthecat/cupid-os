@@ -13,6 +13,14 @@
 #endif
 
 #include "cupidbuild_host.h"
+
+unsigned int cupidbuild_host_execution_format(void) {
+#ifdef _WIN32
+  return 2u;
+#else
+  return 1u;
+#endif
+}
 #include "path_encoding.h"
 
 #include <errno.h>

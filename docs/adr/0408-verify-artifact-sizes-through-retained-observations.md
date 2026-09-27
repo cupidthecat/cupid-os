@@ -45,3 +45,22 @@ mutation into a no-op. The checked publication reader pins both the new Linux
 manifest and its build plan. Both hosts pass regression, checked-reader, policy,
 real-artifact and private boot acceptance; their images and user programs match.
 The retained evidence is under `build/bootstrap/artifact-promotion-ec896462/`.
+
+Source extension, 2026-09-27: the Python runner also retains an independently
+selected Linux execution cohort. The native handoff must preserve that check.
+A separate selected-seed entry point keeps the original request layout and API
+intact. Paired CLI options identify the checked Windows and execution manifests.
+Windows keeps its canonical execution constraint; Linux permits a separate copy
+of the reviewed cohort. All observations share the verifier's existing lifetime.
+The platform adapter supplies the execution format because the shared module is
+compiled without platform defines. The two native readers also admit the exact
+current release as a parent, with mixed identities still rejected.
+
+Checked linked commands, retained-input races and parent-reader tests pass on
+both hosts. Fresh staged proofs converge on both hosts, and Linux publication
+passes independent verification. Paired image/runtime acceptance passes with
+matching kernels, images and user programs. Both private four-CPU max/e1000
+smokes pass disassembly, shell completion and SMP checks. All three hosted
+contracts pass independent verification. Seed promotion remains before the
+production handoff; production keeps the Python verifier meanwhile.
+See [selected-seed evidence and limits](../bootstrap/NATIVE-ARTIFACT-SELECTION.md).

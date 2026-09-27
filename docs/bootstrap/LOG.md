@@ -40383,3 +40383,55 @@ from the subsequent exact-size policy update. The previous images remain
 intact, and the updated normalized manual occurs once in each resulting image.
 The next implementation step is the production native artifact-verifier
 handoff described in `NEXT-ARTIFACT-VERIFICATION.md`.
+
+## 2026-09-27: retain separately selected execution seeds
+
+The handoff audit found that the Python artifact verifier also retains a
+separately selected Linux execution cohort. The native source now preserves
+that behavior through `cupidbuild_verify_artifact_sizes_selected` and paired
+`--checked-manifest` / `--execution-manifest` options. The original API and
+request layout remain supported. Windows requires the canonical execution
+manifest; Linux accepts a separate copy of the reviewed six-tool cohort.
+Manifest, payload and directory observations remain open through the final
+drift check. Verification does not execute tools or create files.
+
+Checked compilation exposed a platform-selection mistake: shared modules have
+no `_WIN32` define in either plan. The platform adapter now supplies the
+execution image format. Both native readers also admit the exact `ec896462`
+parent tuple. Negative tests reject mixed fields, unknown identities and mixed
+Windows execution/plan parents. An initial race-test link included the verifier
+twice; the corrected harness removes the separate object when the caller
+includes its source. Both failed attempts remain in the evidence directory.
+
+Windows and Linux each pass fifteen source artifact-verifier methods, ten
+checked CLI methods, 4,919 checked reader cases and 52 checked policy methods.
+Checked retained-observation tests reject twelve mutations on Windows and
+fifteen on Linux, including three mutations of the separately selected cohort.
+Fresh v2 staged proofs include both parent-reader changes and match 41 Windows
+and 34 Linux stage-three/four artifacts. The earlier v1 proofs also pass, but
+apply to their earlier source capture. Independent reports bind each result to
+its copied sources and resulting binaries.
+
+Linux publication passes with 22 artifacts, 88 publication inputs and 76
+producer inputs. Independent verification checks the published files in both
+the publication root and the Linux OS root after transfer. The previous
+publication is preserved. All three hosted contracts pass, including tool
+linking. Independent verification checks their logs, seven i386 executables,
+publication manifest and 1,534 captured source inputs.
+
+Both hosts produce identical kernels with the updated embedded manual. Its
+424-byte increase makes `kernel.bin` 9,570,996 bytes; both ELF sizes are unchanged.
+The policy records that measured size, and all 74 policy regression tests pass
+on each host. Independent paired image/runtime acceptance checks 1,534 inputs,
+sixteen artifacts and 431 linker inputs per host. Images and all three user
+programs match. Both private four-CPU max/e1000 smokes pass disassembly, shell
+completion and SMP checks while preserving their source images. The image
+SHA-256 is `097ac6818d9fc85347c7e99d867fd4ef3d470ead67aea36de6790793fcb0fff5`.
+The build-graph suite passes 124 tests and the generated audit check passes.
+
+Production remains at 440 CupidBuild and twelve Python transformations. The
+selected-seed source extension passes acceptance and still needs seed promotion
+before the native Make handoff can use its new options. Full Doom gameplay,
+audio, save/load, reboot and performance acceptance remains outstanding.
+See [selected-seed evidence and limits](NATIVE-ARTIFACT-SELECTION.md) for the
+reports, source captures and remaining checks.

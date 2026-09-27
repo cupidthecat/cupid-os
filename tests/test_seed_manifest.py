@@ -82,6 +82,18 @@ def artifact_manifest(fmt):
     return value
 
 
+def selection_manifest(fmt):
+    value = artifact_manifest(fmt)
+    provenance = value["provenance"]
+    for key in provenance:
+        if key.startswith("parent_"):
+            provenance[key] = (
+                "ec896462586597893dd197697ee3b68ce2c8e69b" if key.endswith("source_revision") else
+                "25290a99f9de273890cd98130e8ad7df5e9ffcd89010be8e285a06a380e1eaf2" if "execution" in key else
+                "dabdc048ce54c7434fd9edd602f0531ead60f425db39bc2550332d7c69d30608")
+    return value
+
+
 class Artifact(ctypes.Structure):
     _fields_ = [("file", ctypes.c_char * 32), ("sha256", ctypes.c_char * 65), ("size", ctypes.c_uint32)]
 
@@ -173,6 +185,27 @@ class ManifestTests(unittest.TestCase):
                     altered["provenance"][field] = replacement
                     self.check(altered, fmt, False)
                     self.check(value, fmt, expected=(6, 2 if fmt == 2 else 0))
+
+    def test_selection_generation_requires_complete_artifact_parent_tuple(self):
+        for fmt in (1, 2):
+            value = selection_manifest(fmt)
+            previous = artifact_manifest(fmt)["provenance"]
+            self.check(value, fmt, expected=(6, 2 if fmt == 2 else 0))
+            for key, expected in value["provenance"].items():
+                if not key.startswith("parent_"):
+                    continue
+                for replacement in ("0" * len(expected), previous[key]):
+                    self.assertNotEqual(expected, replacement)
+                    altered = copy.deepcopy(value)
+                    altered["provenance"][key] = replacement
+                    self.check(altered, fmt, False)
+            self.check(value, fmt, expected=(6, 2 if fmt == 2 else 0))
+        for role in ("execution", "plan"):
+            value = selection_manifest(2)
+            for suffix in ("source_revision", "manifest_sha256"):
+                key = "parent_" + role + "_seed_" + suffix
+                value["provenance"][key] = artifact_manifest(2)["provenance"][key]
+            self.check(value, 2, False)
 
     def test_utf8_promotion_accepts_exact_conditional_assembly_parent(self):
         revision = "e4f2ed652e756b1abb375ec061923f5259799e01"

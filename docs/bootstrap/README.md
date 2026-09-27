@@ -1,5 +1,28 @@
 # Cupid Toolchain bootstrap
 
+The native artifact verifier now supports separately selected checked and
+execution manifests. This preserves the Python runner's Linux execution-cohort
+check while retaining the original native API. Windows still requires its
+canonical execution cohort. Both native readers admit the exact current seed
+generation as a parent and reject mixed identities.
+
+The source extension passes paired staged convergence, checked command and race
+tests, parent-reader tests, and Linux publication verification. Paired image
+and runtime acceptance passes. Both hosts produce identical kernels with the
+updated manual; `kernel.bin` is 9,570,996 bytes. All 74 policy regression tests
+pass per host. All three Linux hosted contracts pass independent verification,
+including seven resulting executables. Independent paired acceptance checks
+1,534 inputs, sixteen artifacts and 431 linker inputs per host. Images and all
+three user programs match. Both private four-CPU max/e1000 smokes pass disassembly,
+shell completion and SMP checks while preserving their source images. The image
+SHA-256 is `097ac6818d9fc85347c7e99d867fd4ef3d470ead67aea36de6790793fcb0fff5`.
+The installed seeds remain unchanged, and production still
+uses the Python verifier: 440 CupidBuild actions and twelve Python actions.
+See [selected-seed evidence and limits](NATIVE-ARTIFACT-SELECTION.md) for the
+captured inputs, independent checks and remaining promotion work.
+
+The preceding accepted manual update is recorded below.
+
 The embedded CupidC manual now describes the installed 76-input seed pair,
 native artifact verification, UTF-8 paths and the remaining production work.
 Windows and Linux rebuilds produce identical kernels and disk images. The

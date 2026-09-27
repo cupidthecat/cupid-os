@@ -37,12 +37,16 @@ int main(int argc, char **argv) {
   cupidbuild_artifact_request_t request;
   artifact_size_policy_result_t result;
   char error[CUPIDBUILD_ARTIFACT_ERROR_BYTES];
-  if (argc != 5) return 2;
+  int ok;
+  if (argc != 5 && argc != 7) return 2;
   request.repository_root = argv[1];
   request.policy_path = argv[2];
   request.linux_manifest_path = argv[3];
   race_phase = argv[4];
-  if (!cupidbuild_verify_artifact_sizes(&request, &result, error, sizeof(error))) {
+  ok = argc == 7 ? cupidbuild_verify_artifact_sizes_selected(
+      &request, argv[5], argv[6], &result, error, sizeof(error)) :
+      cupidbuild_verify_artifact_sizes(&request, &result, error, sizeof(error));
+  if (!ok) {
     (void)fprintf(stderr, "artifact size verification failed: %s\n", error);
     return 1;
   }

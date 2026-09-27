@@ -36,7 +36,8 @@ static void cupidbuild_usage(FILE *stream) {
       "       cupidbuild generate-profile-manifest "
       "--seed-manifest MANIFEST --root ROOT --output OUTPUT\n"
       "       cupidbuild verify-artifact-sizes --root ROOT --policy POLICY "
-      "--seed-manifest LINUX_MANIFEST\n"
+      "--seed-manifest LINUX_MANIFEST "
+      "[--checked-manifest WINDOWS_MANIFEST --execution-manifest MANIFEST]\n"
       "usage: cupidbuild run --seed-manifest MANIFEST "
       "--root ROOT --tool {cupidc|cupidobj|cupidld} [--timeout SECONDS] -- "
       "TOOL_ARGS...\n");
@@ -64,6 +65,8 @@ static int cupidbuild_take_value(int argc, char **argv, int *index,
 
 static int cupidbuild_artifact_command(int argc, char **argv) {
   cupidbuild_artifact_request_t request = {NULL, NULL, NULL};
+  const char *checked_manifest = NULL;
+  const char *execution_manifest = NULL;
   artifact_size_policy_result_t result;
   char *error;
   int index;
@@ -75,11 +78,16 @@ static int cupidbuild_artifact_command(int argc, char **argv) {
                                                  &request.policy_path);
     if (found == 0) found = cupidbuild_take_value(argc, argv, &index,
         "--seed-manifest", &request.linux_manifest_path);
+    if (found == 0) found = cupidbuild_take_value(argc, argv, &index,
+        "--checked-manifest", &checked_manifest);
+    if (found == 0) found = cupidbuild_take_value(argc, argv, &index,
+        "--execution-manifest", &execution_manifest);
     if (found != 1) { cupidbuild_usage(stderr); return 2; }
   }
   if (request.repository_root == NULL || request.policy_path == NULL ||
       request.linux_manifest_path == NULL || request.repository_root[0] == 0 ||
-      request.policy_path[0] == 0 || request.linux_manifest_path[0] == 0) {
+      request.policy_path[0] == 0 || request.linux_manifest_path[0] == 0 ||
+      (checked_manifest == NULL) != (execution_manifest == NULL)) {
     cupidbuild_usage(stderr); return 2;
   }
   error = (char *)malloc(CUPIDBUILD_ARTIFACT_ERROR_BYTES);
@@ -87,8 +95,11 @@ static int cupidbuild_artifact_command(int argc, char **argv) {
     (void)fprintf(stderr, "artifact size verification failed: cannot allocate diagnostic\n");
     return 1;
   }
-  ok = cupidbuild_verify_artifact_sizes(&request, &result, error,
-                                       CUPIDBUILD_ARTIFACT_ERROR_BYTES);
+  ok = checked_manifest != NULL ?
+      cupidbuild_verify_artifact_sizes_selected(&request, checked_manifest,
+          execution_manifest, &result, error, CUPIDBUILD_ARTIFACT_ERROR_BYTES) :
+      cupidbuild_verify_artifact_sizes(&request, &result, error,
+          CUPIDBUILD_ARTIFACT_ERROR_BYTES);
   if (!ok) (void)fprintf(stderr, "artifact size verification failed: %s\n", error);
   free(error);
   if (!ok) return 1;

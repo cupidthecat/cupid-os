@@ -93,7 +93,38 @@ static int seed_paths(cupidbuild_host_observer_t *observer,
     return fail(error, cupidbuild_host_observer_error(observer));
   return 1;
 }
+static int execution_seed(cupidbuild_host_observer_t *observer,
+                          const char *logical, const image_t *release,
+                          char paths[6][PATH_CAPACITY], char *error) {
+  image_t manifest = {NULL,0u};
+  cupid_seed_manifest_result_t parsed;
+  char directory[PATH_CAPACITY]; const char *leaf;
+  size_t i; int ok;
+  if (!split_path(logical, directory, &leaf, error)) return 0;
+  if (strcmp(leaf, "manifest.json") != 0)
+    return fail(error, "execution seed manifest must be named manifest.json");
+  if (!capture(observer, logical, FILE_LIMIT, &manifest, error)) return 0;
+  ok = cupid_seed_manifest_validate(manifest.bytes, (size_t)manifest.size, 1u,
+                                   &parsed, error, ERROR_CAPACITY) &&
+       cupid_seed_release_match_manifest(release->bytes, (size_t)release->size,
+           manifest.bytes, (size_t)manifest.size, 1u, error, ERROR_CAPACITY);
+  free(manifest.bytes);
+  if (!ok || !seed_paths(observer, logical, 1u, paths, error)) return 0;
+  for (i = 0u; i < 6u; i++) {
+    image_t image = {NULL,0u}; char hash[65];
+    if (!capture(observer, paths[i], FILE_LIMIT, &image, error)) return 0;
+    digest(image.bytes, (size_t)image.size, hash);
+    ok = image.size == parsed.artifacts[i].size &&
+         strcmp(hash, parsed.artifacts[i].sha256) == 0 &&
+         cupidbuild_validate_seed_image_bytes(image.bytes, (size_t)image.size,
+             (cupidbuild_seed_image_format_t)1u, i, 1, 0);
+    free(image.bytes);
+    if (!ok) return fail(error, "execution seed image differs from the reviewed manifest or image profile");
+  }
+  return 1;
+}
 static int verify(const char *root, const char *policy_path, const char *linux_path,
+                   const char *execution_path,
                    artifact_size_policy_result_t *result, char *error) {
   cupidbuild_host_observer_t *observer = NULL;
   image_t policy = {NULL,0u}, linux_image = {NULL,0u}, windows_image = {NULL,0u}, release = {NULL,0u};
@@ -163,6 +194,9 @@ static int verify(const char *root, const char *policy_path, const char *linux_p
         !number(&request, observations[i].size, 8u, error)) goto done;
   }
   if (!artifact_size_policy_validate(request.bytes, request.size, result, error, ERROR_CAPACITY)) goto done;
+  if (execution_path != NULL && strcmp(execution_path, linux_path) != 0 &&
+      strcmp(execution_path, windows_manifest) != 0 &&
+      !execution_seed(observer, execution_path, &release, paths[0], error)) goto done;
   if (!cupidbuild_host_observer_require_unchanged(observer)) {
     fail(error, cupidbuild_host_observer_error(observer)); goto done;
   }
@@ -173,7 +207,8 @@ done:
   if (!ok) (void)memset(result, 0, sizeof(*result));
   return ok;
 }
-int cupidbuild_verify_artifact_sizes(const cupidbuild_artifact_request_t *request,
+static int verify_request(const cupidbuild_artifact_request_t *request,
+                                    const char *checked_path, const char *execution_path,
                                     artifact_size_policy_result_t *result,
                                     char *error, size_t error_capacity) {
   char *diagnostic;
@@ -182,6 +217,31 @@ int cupidbuild_verify_artifact_sizes(const cupidbuild_artifact_request_t *reques
     (void)memset(result, 0, sizeof(*result));
   if (error_capacity != 0u && error == (char *)0) return 0;
   if (error_capacity != 0u) error[0] = 0;
+  if (checked_path != NULL || execution_path != NULL) {
+    const char *selection_error = NULL;
+    if (checked_path == NULL || execution_path == NULL ||
+        checked_path[0] == 0 || execution_path[0] == 0 ||
+        strlen(checked_path) >= PATH_CAPACITY || strlen(execution_path) >= PATH_CAPACITY)
+      selection_error = "invalid artifact seed selection";
+    else if (strcmp(checked_path, windows_manifest) != 0)
+      selection_error = "checked seed manifest is not the production Windows manifest";
+    else if (cupidbuild_host_execution_format() == 2u &&
+             strcmp(execution_path, windows_manifest) != 0)
+      selection_error = "Windows execution seed is not the checked Windows seed";
+    else if (cupidbuild_host_execution_format() == 1u &&
+             strcmp(execution_path, windows_manifest) == 0)
+      selection_error = "Linux execution seed must be an ELF32 cohort";
+    else if (cupidbuild_host_execution_format() == 1u) {
+      const char *leaf = strrchr(execution_path, '/');
+      leaf = leaf != NULL ? leaf + 1 : execution_path;
+      if (strcmp(leaf, "manifest.json") != 0)
+        selection_error = "execution seed manifest must be named manifest.json";
+    }
+    if (selection_error != NULL) {
+      if (error_capacity != 0u) (void)snprintf(error, error_capacity, "%s", selection_error);
+      return 0;
+    }
+  }
   if (request == (const cupidbuild_artifact_request_t *)0 ||
       result == (artifact_size_policy_result_t *)0 ||
       request->repository_root == (const char *)0 ||
@@ -204,9 +264,22 @@ int cupidbuild_verify_artifact_sizes(const cupidbuild_artifact_request_t *reques
   }
   diagnostic[0] = 0;
   ok = verify(request->repository_root, request->policy_path,
-              request->linux_manifest_path, result, diagnostic);
+              request->linux_manifest_path, execution_path, result, diagnostic);
   if (!ok && error_capacity != 0u)
     (void)snprintf(error, error_capacity, "%s", diagnostic);
   free(diagnostic);
   return ok;
+}
+int cupidbuild_verify_artifact_sizes(const cupidbuild_artifact_request_t *request,
+                                    artifact_size_policy_result_t *result,
+                                    char *error, size_t error_capacity) {
+  return verify_request(request, NULL, NULL, result, error, error_capacity);
+}
+int cupidbuild_verify_artifact_sizes_selected(
+    const cupidbuild_artifact_request_t *request,
+    const char *checked_manifest_path, const char *execution_manifest_path,
+    artifact_size_policy_result_t *result, char *error, size_t error_capacity) {
+  return verify_request(request, checked_manifest_path != NULL ? checked_manifest_path : "",
+                        execution_manifest_path != NULL ? execution_manifest_path : "",
+                        result, error, error_capacity);
 }

@@ -57,7 +57,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
 | `toolchain_contract` | 25 | 169476 |
-| `toolchain_core` | 65 | 116739 |
+| `toolchain_core` | 65 | 116881 |
 | `toolchain_host_adapter` | 2 | 270 |
 | `toolchain_kernel_adapter` | 2 | 577 |
 | `user_program` | 3 | 139 |
@@ -100,16 +100,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 1464 |
 | `asm.relocation` | 1 | 92 |
-| `c.control` | 12 | 94384 |
+| `c.control` | 12 | 94421 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 4111 |
+| `c.declarator` | 4 | 4117 |
 | `c.expression` | 2 | 7009 |
 | `c.extension` | 19 | 429 |
 | `c.initializer` | 1 | 690 |
-| `c.preprocessor` | 18 | 8295 |
-| `c.qualifier` | 2 | 18369 |
-| `c.storage` | 4 | 11454 |
-| `c.type` | 15 | 62184 |
+| `c.preprocessor` | 18 | 8298 |
+| `c.qualifier` | 2 | 18393 |
+| `c.storage` | 4 | 11462 |
+| `c.type` | 15 | 62223 |
 | `cupid_c.declaration` | 1 | 3 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
@@ -207,7 +207,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `toolchain/native_utf8.cc` | `cupid_c` | `not_reached` | 137 | not reachable from the supported Make target or include closure |
 | `toolchain/native_utf8_entry.cc` | `cupid_c` | `not_reached` | 21 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_artifact_allocation_contract.cc` | `cupid_c` | `not_reached` | 110 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/cupidbuild_artifact_race_contract.cc` | `cupid_c` | `not_reached` | 51 | not reachable from the supported Make target or include closure |
+| `toolchain/tests/cupidbuild_artifact_race_contract.cc` | `cupid_c` | `not_reached` | 55 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_host_runner_contract.cc` | `cupid_c` | `not_reached` | 1431 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_jpeg_contract.cc` | `cupid_c` | `not_reached` | 535 | not reachable from the supported Make target or include closure |
 | `toolchain/tests/cupidbuild_observer_batch_contract.cc` | `cupid_c` | `not_reached` | 60 | not reachable from the supported Make target or include closure |

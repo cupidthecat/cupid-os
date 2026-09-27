@@ -424,6 +424,43 @@ class ArtifactSizePolicyContractTests(unittest.TestCase):
                 windows["provenance"][key] = digest
             self.assert_contract_failure(self.artifact_request(mutate))
 
+    def test_selection_candidate_requires_complete_artifact_parent_tuple(self):
+        from tests.test_seed_manifest import artifact_manifest, selection_manifest
+
+        def request(change=None):
+            def select(manifest, windows):
+                manifest.clear()
+                manifest.update(selection_manifest(1))
+                windows.clear()
+                windows.update(selection_manifest(2))
+                if change is not None:
+                    change(manifest, windows)
+            return self.promoted_request(select)
+
+        baseline = self.run_request(request())
+        self.assertEqual(baseline.returncode, 0, baseline.stderr)
+        self.assertEqual(json.loads(baseline.stdout)["artifact_count"], 16)
+        for side, fmt in enumerate((1, 2)):
+            value = selection_manifest(fmt)
+            previous = artifact_manifest(fmt)["provenance"]
+            for key, expected in value["provenance"].items():
+                if not key.startswith("parent_"):
+                    continue
+                for replacement in ("0" * len(expected), previous[key]):
+                    self.assertNotEqual(expected, replacement)
+                    def mutate(manifest, windows):
+                        (manifest, windows)[side]["provenance"][key] = replacement
+                    self.assert_contract_failure(request(mutate))
+        for role in ("execution", "plan"):
+            def mixed(manifest, windows):
+                for suffix in ("source_revision", "manifest_sha256"):
+                    key = "parent_" + role + "_seed_" + suffix
+                    windows["provenance"][key] = artifact_manifest(2)["provenance"][key]
+            result = self.run_request(request(mixed))
+            self.assertEqual((result.returncode, result.stdout), (1, ""))
+            self.assertIn("Windows seed parent generations differ", result.stderr)
+        self.assertEqual(self.run_request(request()).returncode, 0)
+
     def test_artifact_candidate_rejects_unknown_and_mixed_utf8_parent_fields(self):
         from tests.test_seed_manifest import artifact_manifest
         for side, fmt in enumerate((1, 2)):
