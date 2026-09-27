@@ -1,5 +1,18 @@
 # Toolchain bootstrap
 
+The embedded CupidC manual now describes the installed 76-input seed pair,
+native artifact verification, UTF-8 paths and the remaining production work.
+Windows and Linux rebuilds produce identical kernels and disk images. The
+updated text increases `kernel.bin` by 1,100 bytes to 9,570,572; the exact-size
+policy records that measured result. All 73 policy regression tests pass on
+each host. Independent acceptance verifies 1,533 source inputs, sixteen
+artifacts, 431 link inputs and all three user programs. Both private four-CPU
+max/e1000 smokes pass disassembly, shell completion and SMP checks while
+preserving their source images. The current image SHA-256 is
+`df295c648d180247baa79670c0b7029de5fec8227abe2df260ff52c6187f00da`.
+Production ownership remains 440 CupidBuild and twelve Python actions. Full
+Doom gameplay, audio, save/load and reboot acceptance remains outstanding.
+
 Native `verify-artifact-sizes` passes source integration acceptance. It checks
 the paired release and sixteen artifacts through retained read-only observations.
 The plans contain 76 producer inputs and 88 publication inputs. Staged proofs

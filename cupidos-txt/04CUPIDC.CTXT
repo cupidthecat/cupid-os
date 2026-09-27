@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-09-19
+Verified against source on: 2026-09-27
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -16,26 +16,42 @@ Verified against source on: 2026-09-19
 
 >h2 Source and seed checkpoint
 >tree open Source and seed checkpoint
-Both checked seed cohorts bind source
-16a86f5b1693e017c36c6d902df9946c5d674b17 and carry the 500-input Windows
-kernel-inspection repair. Short filenames remain beneath the retained private
-working directory. Linux keeps sealed descriptor paths. Anonymous POSIX
-author, inspector, and symbol-capture calls use the pinned /proc directory;
-the generic checked runner keeps its requested directory. These hosted repairs
-add no CupidC syntax and do not reduce OS source.
+Both checked six-tool seed cohorts bind source
+ec896462586597893dd197697ee3b68ce2c8e69b and the same 76-input snapshot:
+0bf11fcbef634c80716cbe178434a6060a04bf5bb7d07f9ccb03d5248a0c173c.
+The pair was promoted in commit 0c509ddc. Fresh self-bootstrap proofs reproduce
+all twelve installed tools, with 41 Windows and 34 Linux final-stage artifacts
+matching. All 28 converged Windows Unicode-path commands pass. The Windows
+tools use UTF-8 paths at their public boundary and wide Windows APIs internally.
+
+CupidBuild now carries verify-artifact-sizes. This read-only command retains
+filesystem observations while checking the reviewed paired release, both seed
+manifests, all twelve tool payloads and sixteen policy artifacts. It launches
+no child tools and creates no files or locks. It rechecks observations and
+closes them before reporting success. These sequential drift checks do not
+provide an atomic filesystem snapshot; the release record is reviewed data,
+not a signature.
+
+The production artifact check still uses Python. Across 452 audited build
+actions, CupidBuild owns 440 and Python owns twelve. Those twelve cover three
+user compilations, three user links, two image operations, three verification
+operations and hosted contract publication. Carrying a command in the seeds
+does not transfer production ownership until the build graph calls it.
+
+Promotion acceptance passes on Linux and Windows. Full publication checks
+22 artifacts and 67 final-stage pairs. Hosted contracts and private four-CPU
+disassembly, shell and SMP checks pass. The paired audit checks 1,533 source
+inputs, sixteen artifacts and 431 link inputs per host; images and all three
+user programs match. This establishes the promoted tools, not complete Doom
+gameplay, audio, save/load or reboot acceptance.
 
 WSL builds on /mnt/c remain supported. If concurrent parent replacement makes
 retained lookup unsafe, publication fails and keeps the verified old file as
 recovery evidence, with foreign files untouched. The backup retains the old
-identity, bytes, and timestamp; it is not a restored public output. Native
+identity, bytes and timestamp; it is not a restored public output. Native
 Linux storage with stable retained lookup still requires exact restoration.
-
-The clean paired proofs passed 33/7/38 failure/help/success groups on Linux and
-21/7/25 on Windows. All 29 Linux and 32 Windows final object/image pairs match.
-Both manifests bind the independently verified 59-input source snapshot.
-These proofs establish the checked tools; final OS-build, artifact-size, and
-runtime acceptance remain separate. ADRs 0387, 0388, and 0389 describe the
-source repairs and recovery boundary.
+ADR 0408 and the host bootstrap log record the verifier and promotion evidence.
+Earlier seed snapshots below are historical checkpoints.
 >endtree
 
 >h2 Hosted CupidBuild Source
@@ -2415,10 +2431,11 @@ C11 mode. It still requires a complete record or union, reads the target member
 layout, and rejects invalid, missing, and bit-field members with specific
 diagnostics. GNU alignment spellings still require GNU mode.
 
-The fixed-point closure contains 59 inputs. Its current snapshot SHA-256 is
+At the earlier standard-header checkpoint, the fixed-point closure contained
+59 inputs. Its snapshot SHA-256 was
 `54b411b6ed05725101f5859106facb43639f2d02cb2b0ea2f6334e21375bda55`.
-The active Linux and Windows seed manifests bind this 59-input snapshot.
-CupidBuild accepts promoted-v2 source inventories with 58 or 59 entries and
+That historical Linux and Windows pair bound this 59-input snapshot.
+That generation accepted promoted-v2 inventories with 58 or 59 entries and
 rejects inventories with 57 or 60. This keeps the preceding pair usable and
 permits the current generation. The first ADR 0367 promotion attempt failed
 its provenance check before publication, so no invalid seed became active.
@@ -2441,9 +2458,9 @@ zero-frame path. The checked Windows tools also commit a one MiB stack as a
 separate defense.
 >endtree
 
->h2 Checked compiler seed boundary
+>h2 Historical compiler seed boundary (16a86f5b)
 >tree
-The active Linux and Windows v2 cohorts are complete six-tool trust units.
+The earlier Linux and Windows v2 cohorts were complete six-tool trust units.
 Their manifests include CupidBuild. It directly coordinates five normal
 guarded assembly publications: two relocatable objects and three raw images.
 Both bind
@@ -2528,7 +2545,7 @@ source closure, object validation, and publication rules. Moving those
 wrappers is a separate ownership transfer.
 >endtree
 
->h2 Checked six-tool seed contract
+>h2 Historical six-tool seed contract (16a86f5b)
 >tree
 Both checked 16a86f5b v2 manifests bind revision
 16a86f5b1693e017c36c6d902df9946c5d674b17 and the same 59-input source
@@ -2571,7 +2588,7 @@ promoted-v2 readers admit the two exact parent generations recorded in ADR
 9d10c223fc7aa22901e6f4ae81ce800ff1b62ad6 and the kernel-flatten pair from
 0232cb57aad5d6bdfd7bd77499762514b2f0ebfd. A digest must stay with its
 revision, and both Windows parent roles must select the same generation.
-The current seed names the kernel-flatten pair as its parent.
+That historical seed named the kernel-flatten pair as its parent.
 >endtree
 
 >h2 See Also

@@ -40342,3 +40342,44 @@ also pass. Evidence is retained in
 `artifact-promotion-ec896462/paired-os-acceptance-v1.json`. Final documentation,
 Git byte binding and the promotion commit remain to be completed; production
 artifact verification is still Python-owned.
+
+
+## 2026-09-27: embedded manual updated for the promoted seeds
+
+The CupidC manual now records source checkpoint `ec896462`, the installed
+76-input seed pair promoted in `0c509ddc`, native artifact-verifier behavior,
+UTF-8 path support and the 440/12 production ownership count. Earlier
+59-input checkpoint sections remain as historical records.
+
+Because the manual is embedded in the kernel, this update required paired
+kernel, image and runtime acceptance. Both builds changed only the manual
+object and the three linked kernel outputs. The flat kernel grew by 1,100
+bytes, from 9,569,472 to 9,570,572. The ELF and pass-one sizes stayed unchanged.
+The policy update uses the measured size after independent paired checks;
+all 73 policy/API/contract regression tests pass on each host.
+
+The existing Linux publication remains valid: neither the manual nor the
+artifact policy belongs to its 88 publication inputs or 76 producer inputs.
+Live publication and input verification pass before and after OS acceptance.
+An initial evidence script assumed the wrong shape for publication inputs;
+the corrected script reads its direct path map and passes. Product readers
+were unchanged. Image acceptance rebuilt the kernel again despite `-o FORCE`;
+both runs were allowed to finish, and their final bytes were checked.
+
+Windows and Linux rebuilds produce identical kernels and disk images.
+Independent acceptance verifies 1,533 source inputs, sixteen
+artifacts, 431 link inputs and all three user programs. Both private four-CPU
+max/e1000 smokes pass disassembly, shell completion and SMP checks while
+preserving their source images. The current image SHA-256 is
+`df295c648d180247baa79670c0b7029de5fec8227abe2df260ff52c6187f00da`.
+Production ownership remains 440 CupidBuild and twelve Python actions. Full
+Doom gameplay, audio, save/load and reboot acceptance remains outstanding.
+
+Evidence is retained under `build/bootstrap/ctxt-update-0c509ddc/`:
+`paired-kernels-v1.json`, `policy-update-v1.json`,
+`paired-policy-regressions-v1.json`, `linux-publication-reuse-v1.json` and
+`paired-os-acceptance-v1.json`. Source captures distinguish the manual change
+from the subsequent exact-size policy update. The previous images remain
+intact, and the updated normalized manual occurs once in each resulting image.
+The next implementation step is the production native artifact-verifier
+handoff described in `NEXT-ARTIFACT-VERIFICATION.md`.
